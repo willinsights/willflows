@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, User, Users, Bell, Shield, Globe, Palette, Calendar, Video, Loader2 } from 'lucide-react';
+import { Settings, User, Users, Bell, Shield, Globe, Palette, Calendar, Video, Loader2, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { SeedDemoData } from '@/components/demo/SeedDemoData';
 
 export default function Configuracoes() {
   const { user } = useAuth();
@@ -117,6 +118,12 @@ export default function Configuracoes() {
             <Shield className="h-4 w-4" />
             <span className="hidden sm:inline">Permissões</span>
           </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="dados" className="gap-2 text-xs md:text-sm">
+              <Database className="h-4 w-4" />
+              <span className="hidden sm:inline">Dados Demo</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Geral Tab */}
@@ -403,6 +410,33 @@ export default function Configuracoes() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Dados Demo Tab */}
+        {isAdmin && (
+          <TabsContent value="dados">
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="h-5 w-5" />
+                  Dados de Demonstração
+                </CardTitle>
+                <CardDescription>
+                  Popular a base de dados com dados de exemplo para testar o sistema
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-4 rounded-lg border border-warning/20 bg-warning/5">
+                  <p className="text-sm text-warning">
+                    <strong>Atenção:</strong> Esta funcionalidade irá criar clientes, projetos, tarefas, pagamentos e eventos de demonstração. 
+                    Os dados existentes serão limpos antes de criar os novos.
+                  </p>
+                </div>
+                
+                <SeedDemoData />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
