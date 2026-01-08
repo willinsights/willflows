@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter&display=swap");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -23,12 +24,12 @@
     --popover-foreground: 240 10% 10%;
 
     /* Primary - WillFlow Purple #8224e3 */
-    --primary: 270 76% 52%;
+    --primary: 185 100% 57%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary */
     --secondary: 270 30% 96%;
-    --secondary-foreground: 270 76% 40%;
+    --secondary-foreground: 194 76% 40%;
 
     /* Muted */
     --muted: 240 5% 96%;
@@ -59,7 +60,7 @@
     --input: 240 6% 90%;
     --ring: 270 76% 52%;
 
-    --radius: 0.625rem;
+    --radius: 1.25rem;
 
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
@@ -87,6 +88,10 @@
     --kanban-purple: 270 76% 52%;
     --kanban-red: 0 72% 51%;
     --kanban-cyan: 180 70% 45%;
+    --shadow-sm: 0px 1px 10.25px 0px hsla(0, 0%, 0%, 0.1);
+    --shadow: 0px 1px 20.5px 0px hsla(0, 0%, 0%, 0.1);
+    --shadow-md: 0px 1px 30.75px 0px hsla(0, 0%, 0%, 0.1);
+    --shadow-lg: 0px 1px 51.25px 0px hsla(0, 0%, 0%, 0.1);
   }
 
   .dark {
@@ -165,6 +170,11 @@
     --kanban-purple: 270 76% 60%;
     --kanban-red: 0 72% 55%;
     --kanban-cyan: 180 70% 55%;
+    --shadow-sm: 0px 1px 10.25px 0px hsla(0, 0%, 0%, 0.1);
+    --shadow: 0px 1px 20.5px 0px hsla(0, 0%, 0%, 0.1);
+    --shadow-md: 0px 1px 30.75px 0px hsla(0, 0%, 0%, 0.1);
+    --shadow-lg: 0px 1px 51.25px 0px hsla(0, 0%, 0%, 0.1);
+    --radius: 1.25rem;
   }
 }
 
