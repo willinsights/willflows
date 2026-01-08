@@ -45,7 +45,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
 
-  const refreshWorkspaces = async (retries = 3, silent = false): Promise<void> => {
+  const refreshWorkspaces = async (): Promise<void> => {
     if (!user) {
       setWorkspaces([]);
       setCurrentWorkspace(null);
@@ -88,16 +88,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setCurrentMembership(null);
       }
     } catch (error: any) {
-      // Only log on first attempt to avoid spam
-      if (!silent) {
-        console.error('Error fetching workspaces:', error);
-      }
-      // Retry on network errors with exponential backoff
-      if (retries > 0 && error.message?.includes('Failed to fetch')) {
-        const delay = (4 - retries) * 2000; // 2s, 4s, 6s
-        await new Promise(resolve => setTimeout(resolve, delay));
-        return refreshWorkspaces(retries - 1, true);
-      }
+      console.error('Error fetching workspaces:', error);
       setFetchError(true);
     } finally {
       setLoading(false);
