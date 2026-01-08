@@ -11,6 +11,8 @@ export type Task = Tables<'tasks'>;
 
 export interface ProjectWithClient extends Project {
   clients?: { name: string } | null;
+  task_count?: number;
+  task_completed?: number;
 }
 
 export interface KanbanColumnWithProjects extends KanbanColumn {
@@ -49,12 +51,39 @@ export function useKanban(phase: KanbanPhase) {
 
       if (projectsError) throw projectsError;
 
-      // Map projects to columns
+      // Fetch task counts for projects
+      const projectIds = projectsData?.map(p => p.id) || [];
+      let taskCounts: Record<string, { total: number; completed: number }> = {};
+      
+      if (projectIds.length > 0) {
+        const { data: tasksData } = await supabase
+          .from('tasks')
+          .select('project_id, is_completed')
+          .in('project_id', projectIds);
+
+        if (tasksData) {
+          tasksData.forEach(task => {
+            if (!taskCounts[task.project_id]) {
+              taskCounts[task.project_id] = { total: 0, completed: 0 };
+            }
+            taskCounts[task.project_id].total++;
+            if (task.is_completed) {
+              taskCounts[task.project_id].completed++;
+            }
+          });
+        }
+      }
+
+      // Map projects to columns with task counts
       const columnsWithProjects: KanbanColumnWithProjects[] = (columnsData || []).map(column => ({
         ...column,
-        projects: (projectsData || []).filter(project => 
-          project[columnField] === column.id
-        ),
+        projects: (projectsData || [])
+          .filter(project => project[columnField] === column.id)
+          .map(project => ({
+            ...project,
+            task_count: taskCounts[project.id]?.total || 0,
+            task_completed: taskCounts[project.id]?.completed || 0,
+          })),
       }));
 
       setColumns(columnsWithProjects);
@@ -78,8 +107,51 @@ export function useKanban(phase: KanbanPhase) {
     if (!currentWorkspace) return;
 
     const columnField = phase === 'captacao' ? 'captacao_column_id' : 'edicao_column_id';
+    const targetColumn = columns.find(c => c.id === targetColumnId);
     
-    // Optimistic update
+    // Check if moving to "Entregue" column (is_final)
+    if (targetColumn?.is_final) {
+      // Find the project
+      const project = columns.flatMap(c => c.projects).find(p => p.id === projectId);
+      
+      // Check if project is captacao+edicao type and we're in captacao phase
+      if (project && phase === 'captacao') {
+        const itemType = (project as any).item_type;
+        if (itemType === 'projeto_completo') {
+          // Move to first column of edicao phase
+          const { data: edicaoColumns } = await supabase
+            .from('kanban_columns')
+            .select('id')
+            .eq('workspace_id', currentWorkspace.id)
+            .eq('phase', 'edicao')
+            .order('position', { ascending: true })
+            .limit(1);
+
+          if (edicaoColumns && edicaoColumns.length > 0) {
+            // Update project to edicao phase
+            await supabase
+              .from('projects')
+              .update({
+                current_phase: 'edicao',
+                edicao_column_id: edicaoColumns[0].id,
+                captacao_column_id: targetColumnId,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', projectId);
+
+            toast({
+              title: 'Projeto transferido para Edição',
+              description: 'O projeto foi movido automaticamente para o Kanban de Edição.',
+            });
+            
+            fetchColumns();
+            return;
+          }
+        }
+      }
+    }
+    
+    // Optimistic update for normal moves
     setColumns(prev => {
       const newColumns = prev.map(col => ({
         ...col,
@@ -90,7 +162,7 @@ export function useKanban(phase: KanbanPhase) {
       if (project) {
         const targetCol = newColumns.find(c => c.id === targetColumnId);
         if (targetCol) {
-          targetCol.projects.push({ ...project, [columnField]: targetColumnId } as Project);
+          targetCol.projects.push({ ...project, [columnField]: targetColumnId } as ProjectWithClient);
         }
       }
       
@@ -98,9 +170,20 @@ export function useKanban(phase: KanbanPhase) {
     });
 
     try {
+      const updateData: any = { 
+        [columnField]: targetColumnId, 
+        updated_at: new Date().toISOString() 
+      };
+
+      // If moving to final column, mark as delivered
+      if (targetColumn?.is_final && phase === 'edicao') {
+        updateData.is_delivered = true;
+        updateData.delivered_at = new Date().toISOString();
+      }
+
       const { error } = await supabase
         .from('projects')
-        .update({ [columnField]: targetColumnId, updated_at: new Date().toISOString() })
+        .update(updateData)
         .eq('id', projectId);
 
       if (error) throw error;
@@ -121,9 +204,9 @@ export function useKanban(phase: KanbanPhase) {
     const newColumns = [...columns];
     const [removed] = newColumns.splice(sourceIndex, 1);
     
-    // Check if trying to move past the final column
+    // Check if trying to move the final column or past it
     const finalColumnIndex = newColumns.findIndex(c => c.is_final);
-    if (removed.is_final || destinationIndex > finalColumnIndex) {
+    if (removed.is_final || (finalColumnIndex >= 0 && destinationIndex >= finalColumnIndex)) {
       toast({
         title: 'Ação não permitida',
         description: 'A coluna "Entregue" deve ser sempre a última.',
@@ -164,6 +247,17 @@ export function useKanban(phase: KanbanPhase) {
   };
 
   const updateColumn = async (columnId: string, updates: Partial<KanbanColumn>) => {
+    // Prevent updating final column's critical properties
+    const column = columns.find(c => c.id === columnId);
+    if (column?.is_final && updates.is_final === false) {
+      toast({
+        title: 'Ação não permitida',
+        description: 'A coluna "Entregue" não pode ser modificada.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('kanban_columns')
@@ -228,6 +322,46 @@ export function useKanban(phase: KanbanPhase) {
     }
   };
 
+  const deleteColumn = async (columnId: string) => {
+    const column = columns.find(c => c.id === columnId);
+    
+    if (column?.is_final) {
+      toast({
+        title: 'Ação não permitida',
+        description: 'A coluna "Entregue" não pode ser apagada.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (column && column.projects.length > 0) {
+      toast({
+        title: 'Coluna não vazia',
+        description: 'Mova os projetos antes de apagar a coluna.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('kanban_columns')
+        .delete()
+        .eq('id', columnId);
+
+      if (error) throw error;
+
+      toast({ title: 'Coluna apagada' });
+      fetchColumns();
+    } catch (error) {
+      console.error('Error deleting column:', error);
+      toast({
+        title: 'Erro ao apagar coluna',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return {
     columns,
     loading,
@@ -235,6 +369,7 @@ export function useKanban(phase: KanbanPhase) {
     reorderColumns,
     updateColumn,
     addColumn,
+    deleteColumn,
     refresh: fetchColumns,
   };
 }

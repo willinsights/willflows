@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -8,16 +8,17 @@ import {
   useSensor,
   useSensors,
   closestCenter,
+  DragOverEvent,
 } from '@dnd-kit/core';
 import { motion } from 'framer-motion';
-import { Plus, Filter, Search, LayoutGrid, List, Loader2 } from 'lucide-react';
+import { Plus, Filter, Search, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { KanbanColumn } from './KanbanColumn';
 import { KanbanCard } from './KanbanCard';
 import { CreateProjectModal } from '@/components/projects/CreateProjectModal';
+import { ProjectDetailsModal } from '@/components/projects/ProjectDetailsModal';
 import { useKanban, KanbanPhase, ProjectWithClient } from '@/hooks/useKanban';
-import type { Tables } from '@/integrations/supabase/types';
 
 interface KanbanBoardProps {
   phase: KanbanPhase;
@@ -26,16 +27,18 @@ interface KanbanBoardProps {
 }
 
 export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
-  const { columns, loading, moveProject, updateColumn, addColumn, refresh } = useKanban(phase);
+  const { columns, loading, moveProject, updateColumn, addColumn, deleteColumn, refresh } = useKanban(phase);
   const [searchQuery, setSearchQuery] = useState('');
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   const [activeProject, setActiveProject] = useState<ProjectWithClient | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5,
       },
     })
   );
@@ -47,23 +50,42 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
       .find(p => p.id === projectId);
     
     if (project) {
-      setActiveProject(project as ProjectWithClient);
+      setActiveProject(project);
     }
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { over } = event;
+    setOverId(over?.id as string || null);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveProject(null);
+    setOverId(null);
 
     if (!over) return;
 
     const projectId = active.id as string;
-    const targetColumnId = over.id as string;
+    let targetColumnId = over.id as string;
+
+    // Check if dropped on another project, find its column
+    const isProject = columns.some(c => c.projects.some(p => p.id === targetColumnId));
+    if (isProject) {
+      const column = columns.find(c => c.projects.some(p => p.id === targetColumnId));
+      if (column) {
+        targetColumnId = column.id;
+      }
+    }
 
     // Check if dropped on a column
     const targetColumn = columns.find(c => c.id === targetColumnId);
     if (targetColumn) {
-      moveProject(projectId, targetColumnId);
+      // Find current column of the project
+      const currentColumn = columns.find(c => c.projects.some(p => p.id === projectId));
+      if (currentColumn?.id !== targetColumnId) {
+        moveProject(projectId, targetColumnId);
+      }
     }
   };
 
@@ -73,8 +95,7 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
   }, []);
 
   const handleProjectClick = useCallback((projectId: string) => {
-    // TODO: Open project details modal
-    console.log('Open project:', projectId);
+    setSelectedProjectId(projectId);
   }, []);
 
   const handleProjectCreated = () => {
@@ -83,13 +104,20 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
   };
 
   // Filter columns by search
-  const filteredColumns = columns.map(column => ({
+  const filteredColumns = useMemo(() => columns.map(column => ({
     ...column,
     projects: column.projects.filter(project =>
       project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.clients?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+      project.clients?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (project as any).project_code?.toLowerCase().includes(searchQuery.toLowerCase())
     ),
-  }));
+  })), [columns, searchQuery]);
+
+  // Get selected project
+  const selectedProject = useMemo(() => {
+    if (!selectedProjectId) return null;
+    return columns.flatMap(c => c.projects).find(p => p.id === selectedProjectId) || null;
+  }, [columns, selectedProjectId]);
 
   if (loading) {
     return (
@@ -139,6 +167,7 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
           <div className="flex gap-4 h-full min-w-max">
@@ -152,8 +181,10 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
                 <KanbanColumn
                   column={column}
                   onUpdateColumn={updateColumn}
+                  onDeleteColumn={deleteColumn}
                   onAddProject={handleAddProject}
                   onProjectClick={handleProjectClick}
+                  isOver={overId === column.id}
                 />
               </motion.div>
             ))}
@@ -177,7 +208,7 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
 
           <DragOverlay>
             {activeProject && (
-              <div className="w-[280px]">
+              <div className="w-[280px] rotate-3">
                 <KanbanCard project={activeProject} />
               </div>
             )}
@@ -192,6 +223,14 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
         onSuccess={handleProjectCreated}
         defaultColumnId={selectedColumnId}
         phase={phase}
+      />
+
+      {/* Project Details Modal */}
+      <ProjectDetailsModal
+        open={!!selectedProjectId}
+        onOpenChange={(open) => !open && setSelectedProjectId(null)}
+        project={selectedProject}
+        onUpdate={refresh}
       />
     </div>
   );
