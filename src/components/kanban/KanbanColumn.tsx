@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus, MoreHorizontal, Pencil, Palette } from 'lucide-react';
+import { Plus, MoreHorizontal, Pencil, Palette, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -40,7 +41,7 @@ const colorOptions = [
   '#06b6d4', // Cyan
 ];
 
-export function KanbanColumn({ column, onUpdateColumn, onAddProject, onProjectClick }: KanbanColumnProps) {
+export function KanbanColumn({ column, onUpdateColumn, onDeleteColumn, onAddProject, onProjectClick }: KanbanColumnProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(column.name);
 
@@ -129,6 +130,18 @@ export function KanbanColumn({ column, onUpdateColumn, onAddProject, onProjectCl
                     </div>
                   </PopoverContent>
                 </Popover>
+                {onDeleteColumn && column.projects.length === 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => onDeleteColumn(column.id)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Apagar coluna
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}

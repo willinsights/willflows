@@ -13,6 +13,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
+import Pricing from "./pages/Pricing";
 import Dashboard from "./pages/app/Dashboard";
 import Captacao from "./pages/app/Captacao";
 import Edicao from "./pages/app/Edicao";
@@ -40,6 +41,7 @@ const App = () => (
                 {/* Public Routes */}
                 <Route path="/" element={<Landing />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/planos" element={<Pricing />} />
                 
                 {/* Protected Routes */}
                 <Route
