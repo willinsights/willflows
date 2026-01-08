@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading: authLoading } = useAuth();
-  const { workspaces, loading: workspaceLoading, currentWorkspace } = useWorkspace();
+  const { workspaces, loading: workspaceLoading, currentWorkspace, fetchError } = useWorkspace();
   const location = useLocation();
 
   // Show loading while checking auth
@@ -26,8 +26,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // Redirect to onboarding if no workspaces (but allow access to onboarding page)
-  if (!currentWorkspace && workspaces.length === 0 && location.pathname !== '/onboarding') {
+  // Don't redirect to onboarding if there was a fetch error (network issues)
+  // Only redirect if we successfully fetched and found no workspaces
+  if (!fetchError && !currentWorkspace && workspaces.length === 0 && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
   }
 

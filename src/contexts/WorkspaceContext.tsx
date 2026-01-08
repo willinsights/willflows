@@ -28,6 +28,7 @@ interface WorkspaceContextType {
   currentWorkspace: Workspace | null;
   currentMembership: WorkspaceMember | null;
   loading: boolean;
+  fetchError: boolean;
   setCurrentWorkspace: (workspace: Workspace) => void;
   refreshWorkspaces: () => Promise<void>;
   isAdmin: boolean;
@@ -42,6 +43,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
   const [currentMembership, setCurrentMembership] = useState<WorkspaceMember | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
 
   const refreshWorkspaces = async () => {
     if (!user) {
@@ -49,10 +51,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setCurrentWorkspace(null);
       setCurrentMembership(null);
       setLoading(false);
+      setFetchError(false);
       return;
     }
 
     try {
+      setFetchError(false);
       // Get user's workspace memberships
       const { data: memberships, error: memberError } = await supabase
         .from('workspace_members')
@@ -85,6 +89,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Error fetching workspaces:', error);
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -114,6 +119,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         currentWorkspace,
         currentMembership,
         loading,
+        fetchError,
         setCurrentWorkspace: handleSetCurrentWorkspace,
         refreshWorkspaces,
         isAdmin,
