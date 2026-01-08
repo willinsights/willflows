@@ -13,6 +13,7 @@ import {
   ArrowRight,
   Calendar,
   Clock,
+  Wallet,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,7 +49,7 @@ export default function Dashboard() {
   };
 
   const userName = user?.user_metadata?.full_name || currentWorkspace?.name || 'Utilizador';
-  const formattedDate = format(currentTime, "EEEE, d MMM", { locale: pt });
+  const formattedDate = format(currentTime, "EEEE, d 'de' MMMM", { locale: pt });
   const formattedTime = format(currentTime, 'HH:mm');
   const currency = currentWorkspace?.currency || 'EUR';
 
@@ -79,7 +80,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-4 md:space-y-6 max-w-[1600px] mx-auto">
+    <div className="p-3 md:p-4 space-y-3 md:space-y-4 max-w-[1400px] mx-auto">
       {/* Product Tour */}
       {showTour && (
         <ProductTour onComplete={completeTour} onSkip={skipTour} />
@@ -87,211 +88,228 @@ export default function Dashboard() {
 
       {/* Header - Compact */}
       <motion.div
-        initial={{ opacity: 0, y: -10 }}
+        initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-1"
       >
         <div>
-          <h1 className="text-xl md:text-2xl font-bold">
-            {getGreeting()}, {userName.split(' ')[0]}!
+          <h1 className="text-lg md:text-xl font-bold">
+            {getGreeting()}, <span className="gradient-text">{userName.split(' ')[0]}</span>!
           </h1>
-          <p className="text-xs md:text-sm text-muted-foreground capitalize">
+          <p className="text-[11px] md:text-xs text-muted-foreground capitalize">
             {formattedDate} • {formattedTime}
           </p>
         </div>
       </motion.div>
 
-      {/* Metrics Grid - 6 columns on desktop, 3 on tablet, 2 on mobile */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      {/* KPIs Row - 6 cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
         {/* Captação */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
+          transition={{ delay: 0.03 }}
         >
-          <Card className="metric-card">
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between mb-1">
-                <Camera className="h-4 w-4 text-primary" />
+          <Card className="metric-card hover:border-primary/30">
+            <CardContent className="p-2.5">
+              <div className="flex items-center justify-between">
+                <div className="p-1.5 rounded-md bg-primary/10">
+                  <Camera className="h-3.5 w-3.5 text-primary" />
+                </div>
                 {loading ? (
                   <Skeleton className="h-6 w-8" />
                 ) : (
                   <span className="text-xl font-bold">{metrics.captacao}</span>
                 )}
               </div>
-              <p className="text-[11px] text-muted-foreground">Em Captação</p>
+              <p className="text-[10px] text-muted-foreground mt-1">Em Captação</p>
             </CardContent>
           </Card>
         </motion.div>
 
         {/* Edição */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          transition={{ delay: 0.06 }}
         >
-          <Card className="metric-card">
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between mb-1">
-                <Film className="h-4 w-4 text-primary" />
+          <Card className="metric-card hover:border-primary/30">
+            <CardContent className="p-2.5">
+              <div className="flex items-center justify-between">
+                <div className="p-1.5 rounded-md bg-info/10">
+                  <Film className="h-3.5 w-3.5 text-info" />
+                </div>
                 {loading ? (
                   <Skeleton className="h-6 w-8" />
                 ) : (
                   <span className="text-xl font-bold">{metrics.edicao}</span>
                 )}
               </div>
-              <p className="text-[11px] text-muted-foreground">Em Edição</p>
+              <p className="text-[10px] text-muted-foreground mt-1">Em Edição</p>
             </CardContent>
           </Card>
         </motion.div>
 
         {/* Entregues */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
+          transition={{ delay: 0.09 }}
         >
-          <Card className="metric-card">
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between mb-1">
-                <CheckCircle2 className="h-4 w-4 text-success" />
+          <Card className="metric-card hover:border-success/30">
+            <CardContent className="p-2.5">
+              <div className="flex items-center justify-between">
+                <div className="p-1.5 rounded-md bg-success/10">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                </div>
                 {loading ? (
                   <Skeleton className="h-6 w-8" />
                 ) : (
                   <span className="text-xl font-bold">{metrics.entregues}</span>
                 )}
               </div>
-              <p className="text-[11px] text-muted-foreground">Entregues</p>
+              <p className="text-[10px] text-muted-foreground mt-1">Entregues (mês)</p>
             </CardContent>
           </Card>
         </motion.div>
 
         {/* Receita */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.12 }}
         >
-          <Card className="metric-card">
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between mb-1">
-                <TrendingUp className="h-4 w-4 text-success" />
+          <Card className="metric-card hover:border-success/30">
+            <CardContent className="p-2.5">
+              <div className="flex items-center justify-between">
+                <div className="p-1.5 rounded-md bg-success/10">
+                  <TrendingUp className="h-3.5 w-3.5 text-success" />
+                </div>
                 {loading ? (
-                  <Skeleton className="h-6 w-14" />
+                  <Skeleton className="h-5 w-14" />
                 ) : (
-                  <span className="text-lg font-bold">{formatCurrency(metrics.receita)}</span>
+                  <span className="text-base font-bold text-success">{formatCurrency(metrics.receita)}</span>
                 )}
               </div>
-              <p className="text-[11px] text-muted-foreground">Receita</p>
+              <p className="text-[10px] text-muted-foreground mt-1">Receita</p>
             </CardContent>
           </Card>
         </motion.div>
 
         {/* Custos */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
+          transition={{ delay: 0.15 }}
         >
-          <Card className="metric-card">
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between mb-1">
-                <TrendingDown className="h-4 w-4 text-destructive" />
+          <Card className="metric-card hover:border-destructive/30">
+            <CardContent className="p-2.5">
+              <div className="flex items-center justify-between">
+                <div className="p-1.5 rounded-md bg-destructive/10">
+                  <TrendingDown className="h-3.5 w-3.5 text-destructive" />
+                </div>
                 {loading ? (
-                  <Skeleton className="h-6 w-14" />
+                  <Skeleton className="h-5 w-14" />
                 ) : (
-                  <span className="text-lg font-bold">{formatCurrency(metrics.custos)}</span>
+                  <span className="text-base font-bold text-destructive">{formatCurrency(metrics.custos)}</span>
                 )}
               </div>
-              <p className="text-[11px] text-muted-foreground">Custos</p>
+              <p className="text-[10px] text-muted-foreground mt-1">Custos</p>
             </CardContent>
           </Card>
         </motion.div>
 
         {/* Lucro */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.18 }}
         >
-          <Card className="metric-card border-primary/20">
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-medium text-primary uppercase">Lucro</span>
+          <Card className="metric-card border-primary/20 hover:border-primary/40 bg-primary/5">
+            <CardContent className="p-2.5">
+              <div className="flex items-center justify-between">
+                <div className="p-1.5 rounded-md bg-primary/15">
+                  <Wallet className="h-3.5 w-3.5 text-primary" />
+                </div>
                 {loading ? (
-                  <Skeleton className="h-6 w-14" />
+                  <Skeleton className="h-5 w-14" />
                 ) : (
                   <span className={cn(
-                    "text-lg font-bold",
+                    "text-base font-bold",
                     metrics.lucro >= 0 ? "text-primary" : "text-destructive"
                   )}>
                     {formatCurrency(metrics.lucro)}
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-muted-foreground">Este mês</p>
+              <p className="text-[10px] text-muted-foreground mt-1">Lucro (mês)</p>
             </CardContent>
           </Card>
         </motion.div>
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid lg:grid-cols-3 gap-4">
-        {/* Urgent Projects */}
+      <div className="grid lg:grid-cols-5 gap-3">
+        {/* Urgent Projects - Takes 3 columns */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          className="lg:col-span-2"
+          transition={{ delay: 0.2 }}
+          className="lg:col-span-3"
         >
           <Card className="glass-card h-full">
-            <CardHeader className="flex flex-row items-center justify-between py-3 px-4">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-warning" />
+            <CardHeader className="flex flex-row items-center justify-between py-2.5 px-3">
+              <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
+                <AlertCircle className="h-3.5 w-3.5 text-warning" />
                 Projetos Urgentes
               </CardTitle>
-              <Button variant="ghost" size="sm" className="text-primary h-7 text-xs" onClick={() => navigate('/app/captacao')}>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-primary h-6 text-[10px] px-2" 
+                onClick={() => navigate('/app/captacao')}
+              >
                 Ver todos
                 <ArrowRight className="ml-1 h-3 w-3" />
               </Button>
             </CardHeader>
-            <CardContent className="px-4 pb-4">
+            <CardContent className="px-3 pb-3">
               {loading ? (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-14 w-full" />
+                    <Skeleton key={i} className="h-11 w-full" />
                   ))}
                 </div>
               ) : urgentProjects.length === 0 ? (
-                <div className="flex items-center justify-center h-16 text-sm text-muted-foreground">
+                <div className="flex items-center justify-center h-14 text-xs text-muted-foreground">
                   Nenhum projeto urgente 🎉
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {urgentProjects.slice(0, 4).map((project) => {
+                <div className="space-y-1.5">
+                  {urgentProjects.slice(0, 5).map((project) => {
                     const TypeIcon = getTypeIcon(project.type);
                     return (
                       <div
                         key={project.id}
-                        className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                        className="flex items-center justify-between p-2 rounded-lg bg-muted/40 hover:bg-muted/60 transition-colors cursor-pointer group"
                         onClick={() => navigate('/app/captacao')}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 shrink-0">
-                            <TypeIcon className="h-4 w-4 text-primary" />
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex items-center justify-center w-7 h-7 rounded-md bg-primary/10 shrink-0 group-hover:bg-primary/15 transition-colors">
+                            <TypeIcon className="h-3.5 w-3.5 text-primary" />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-medium truncate">{project.name}</p>
-                            <p className="text-[11px] text-muted-foreground truncate">{project.client}</p>
+                            <p className="text-[11px] font-medium truncate">{project.name}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">{project.client}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1.5 shrink-0">
                           {project.date && (
-                            <span className="text-[11px] text-muted-foreground hidden sm:block">
+                            <span className="text-[10px] text-muted-foreground hidden sm:block">
                               {format(new Date(project.date), 'dd/MM')}
                             </span>
                           )}
-                          <Badge variant="outline" className={cn('text-[10px] capitalize px-1.5 py-0', getPriorityColor(project.priority))}>
+                          <Badge variant="outline" className={cn('text-[9px] capitalize px-1.5 py-0 h-4', getPriorityColor(project.priority))}>
                             {project.priority}
                           </Badge>
                         </div>
@@ -304,79 +322,84 @@ export default function Dashboard() {
           </Card>
         </motion.div>
 
-        {/* Right Column */}
-        <div className="space-y-4">
+        {/* Right Column - Takes 2 columns */}
+        <div className="lg:col-span-2 space-y-3">
           {/* Pending Payments */}
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
+            transition={{ delay: 0.25 }}
           >
             <Card className="glass-card">
-              <CardHeader className="py-3 px-4">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <CreditCard className="h-4 w-4 text-primary" />
+              <CardHeader className="py-2.5 px-3">
+                <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
+                  <CreditCard className="h-3.5 w-3.5 text-primary" />
                   Pagamentos Pendentes
                 </CardTitle>
               </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <div className="text-center py-2">
+              <CardContent className="px-3 pb-3">
+                <div className="flex items-center justify-between">
                   {loading ? (
-                    <Skeleton className="h-8 w-24 mx-auto" />
+                    <Skeleton className="h-7 w-20" />
                   ) : (
-                    <>
-                      <p className="text-2xl font-bold text-warning">{formatCurrency(metrics.pendingPayments)}</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {metrics.pendingPaymentsCount} pagamentos por receber
+                    <div>
+                      <p className="text-xl font-bold text-warning">{formatCurrency(metrics.pendingPayments)}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {metrics.pendingPaymentsCount} pagamento(s) por receber
                       </p>
-                    </>
+                    </div>
                   )}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-7 text-[10px] px-2" 
+                    onClick={() => navigate('/app/pagamentos')}
+                  >
+                    Ver
+                    <ArrowRight className="ml-1 h-3 w-3" />
+                  </Button>
                 </div>
-                <Button variant="outline" size="sm" className="w-full mt-2 h-8 text-xs" onClick={() => navigate('/app/pagamentos')}>
-                  Ver pagamentos
-                  <ArrowRight className="ml-1 h-3 w-3" />
-                </Button>
               </CardContent>
             </Card>
           </motion.div>
 
           {/* Recent Activity */}
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45 }}
+            transition={{ delay: 0.3 }}
           >
             <Card className="glass-card">
-              <CardHeader className="py-3 px-4">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-primary" />
+              <CardHeader className="py-2.5 px-3">
+                <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-primary" />
                   Atividade Recente
                 </CardTitle>
               </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <ScrollArea className="h-[160px] pr-2">
+              <CardContent className="px-3 pb-3">
+                <ScrollArea className="h-[140px] pr-2">
                   {loading ? (
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {[1, 2, 3, 4].map((i) => (
-                        <Skeleton key={i} className="h-10 w-full" />
+                        <Skeleton key={i} className="h-8 w-full" />
                       ))}
                     </div>
                   ) : recentActivity.length === 0 ? (
-                    <div className="flex items-center justify-center h-16 text-xs text-muted-foreground">
+                    <div className="flex items-center justify-center h-14 text-[11px] text-muted-foreground">
                       Nenhuma atividade recente
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      {recentActivity.slice(0, 5).map((activity) => (
-                        <div key={activity.id} className="flex items-start gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
+                    <div className="space-y-1.5">
+                      {recentActivity.slice(0, 6).map((activity) => (
+                        <div key={activity.id} className="flex items-start gap-1.5 py-1">
+                          <div className="w-1 h-1 rounded-full bg-primary mt-1.5 shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-[11px] leading-tight">
+                            <p className="text-[10px] leading-tight">
                               <span className="font-medium">{activity.action}</span>
                               {' '}
                               <span className="text-muted-foreground">{activity.target}</span>
                             </p>
-                            <p className="text-[10px] text-muted-foreground">{activity.time}</p>
+                            <p className="text-[9px] text-muted-foreground">{activity.time}</p>
                           </div>
                         </div>
                       ))}

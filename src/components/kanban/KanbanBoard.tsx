@@ -38,7 +38,7 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5,
+        distance: 4,
       },
     })
   );
@@ -139,48 +139,48 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <Loader2 className="h-5 w-5 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Header - Compact */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-3 py-2 border-b border-border/40 shrink-0">
         <div>
-          <h1 className="text-xl font-bold">{title}</h1>
-          <p className="text-xs text-muted-foreground">{description}</p>
+          <h1 className="text-base font-semibold">{title}</h1>
+          <p className="text-[11px] text-muted-foreground">{description}</p>
         </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-1.5 w-full sm:w-auto">
           <div className="relative flex-1 sm:flex-initial">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
             <Input
               placeholder="Pesquisar..."
-              className="pl-8 h-8 text-xs w-full sm:w-[180px]"
+              className="pl-7 h-7 text-[11px] w-full sm:w-[160px]"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-            <Filter className="h-3.5 w-3.5" />
+          <Button variant="outline" size="sm" className="h-7 w-7 p-0">
+            <Filter className="h-3 w-3" />
           </Button>
           <Button
             size="sm"
-            className="gradient-primary h-8 text-xs"
+            className="gradient-primary h-7 text-[11px] px-2"
             onClick={() => {
               setSelectedColumnId(null);
               setCreateModalOpen(true);
             }}
           >
-            <Plus className="h-3.5 w-3.5 mr-1" />
+            <Plus className="h-3 w-3 mr-0.5" />
             <span className="hidden sm:inline">Novo</span>
           </Button>
         </div>
       </div>
 
       {/* Kanban Board */}
-      <div className="flex-1 overflow-x-auto px-4 pb-4">
+      <div className="flex-1 overflow-x-auto overflow-y-hidden px-3 py-2">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -188,13 +188,13 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-3 h-full min-w-max">
+          <div className="flex gap-2 h-full min-w-max">
             {filteredColumns.map((column, index) => (
               <motion.div
                 key={column.id}
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.03 }}
+                transition={{ delay: index * 0.02 }}
               >
                 <KanbanColumn
                   column={column}
@@ -209,16 +209,16 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
 
             {/* Add Column Button */}
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: filteredColumns.length * 0.03 }}
+              transition={{ delay: filteredColumns.length * 0.02 }}
             >
               <Button
                 variant="outline"
-                className="h-10 w-[260px] border-dashed text-xs"
+                className="h-8 w-[240px] border-dashed text-[11px]"
                 onClick={() => addColumn('Nova Coluna')}
               >
-                <Plus className="h-3.5 w-3.5 mr-1" />
+                <Plus className="h-3 w-3 mr-1" />
                 Adicionar Coluna
               </Button>
             </motion.div>
@@ -226,7 +226,7 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
 
           <DragOverlay>
             {activeProject && (
-              <div className="w-[240px] rotate-2">
+              <div className="w-[220px] rotate-1 opacity-90">
                 <KanbanCard project={activeProject} />
               </div>
             )}
