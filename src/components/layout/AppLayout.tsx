@@ -1,14 +1,19 @@
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import { AppSidebar } from './AppSidebar';
 import { AppHeader } from './AppHeader';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { Button } from '@/components/ui/button';
 
 export function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   const isMobile = useIsMobile();
+  const { fetchError, refreshWorkspaces } = useWorkspace();
 
   const toggleSidebar = () => {
     if (isMobile) {
@@ -18,8 +23,49 @@ export function AppLayout() {
     }
   };
 
+  const handleRetry = async () => {
+    setIsRetrying(true);
+    await refreshWorkspaces();
+    setIsRetrying(false);
+  };
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
+      {/* Global Error Banner */}
+      <AnimatePresence>
+        {fetchError && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className="fixed top-0 left-0 right-0 z-[100] bg-destructive text-destructive-foreground px-4 py-3"
+          >
+            <div className="container mx-auto flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5" />
+                <span className="text-sm font-medium">
+                  Erro de conexão. Por favor, verifique a sua ligação à internet.
+                </span>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleRetry}
+                disabled={isRetrying}
+                className="shrink-0"
+              >
+                {isRetrying ? (
+                  <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                Tentar novamente
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Desktop Sidebar */}
       {!isMobile && (
         <motion.aside
@@ -70,7 +116,7 @@ export function AppLayout() {
           sidebarCollapsed={sidebarCollapsed}
         />
         
-        <main className="flex-1 overflow-auto">
+        <main className={`flex-1 overflow-auto ${fetchError ? 'pt-14' : ''}`}>
           <div className="h-full">
             <Outlet />
           </div>
