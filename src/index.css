@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* WillFlow Design System - Liquid Glass Theme
+/* WillFlow Design System - Liquid Glass Premium Theme
    Primary Color: #8224e3 (HSL: 270 76% 52%)
    All colors MUST be HSL.
 */
@@ -70,11 +70,13 @@
     --sidebar-border: 240 6% 92%;
     --sidebar-ring: 270 76% 52%;
 
-    /* Glass effect variables */
-    --glass-blur: 16px;
-    --glass-bg: 0 0% 100% / 0.7;
-    --glass-border: 0 0% 100% / 0.3;
-    --glass-shadow: 0 8px 32px 0 rgba(130, 36, 227, 0.08);
+    /* Glass effect variables - Premium */
+    --glass-blur: 20px;
+    --glass-bg: 0 0% 100% / 0.75;
+    --glass-border: 0 0% 100% / 0.4;
+    --glass-shadow: 0 4px 24px -4px rgba(130, 36, 227, 0.08);
+    --glass-shadow-hover: 0 8px 32px -4px rgba(130, 36, 227, 0.12);
+    --glass-glow: 0 0 40px rgba(130, 36, 227, 0.08);
 
     /* Kanban colors */
     --kanban-gray: 220 9% 46%;
@@ -87,15 +89,15 @@
 
   .dark {
     /* Core backgrounds */
-    --background: 240 10% 6%;
+    --background: 240 10% 4%;
     --foreground: 0 0% 95%;
 
     /* Cards with glassmorphism */
-    --card: 240 10% 9%;
+    --card: 240 10% 7%;
     --card-foreground: 0 0% 95%;
 
     /* Popovers */
-    --popover: 240 10% 9%;
+    --popover: 240 10% 7%;
     --popover-foreground: 0 0% 95%;
 
     /* Primary - WillFlow Purple */
@@ -103,15 +105,15 @@
     --primary-foreground: 0 0% 100%;
 
     /* Secondary */
-    --secondary: 240 10% 14%;
+    --secondary: 240 10% 12%;
     --secondary-foreground: 270 60% 80%;
 
     /* Muted */
-    --muted: 240 10% 14%;
+    --muted: 240 10% 12%;
     --muted-foreground: 240 5% 55%;
 
     /* Accent */
-    --accent: 270 40% 18%;
+    --accent: 270 40% 16%;
     --accent-foreground: 270 60% 80%;
 
     /* Destructive */
@@ -131,25 +133,27 @@
     --info-foreground: 0 0% 100%;
 
     /* Borders and inputs */
-    --border: 240 10% 18%;
-    --input: 240 10% 18%;
+    --border: 240 10% 16%;
+    --input: 240 10% 16%;
     --ring: 270 76% 60%;
 
     /* Sidebar */
-    --sidebar-background: 240 10% 8%;
+    --sidebar-background: 240 10% 6%;
     --sidebar-foreground: 0 0% 85%;
     --sidebar-primary: 270 76% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 270 40% 18%;
+    --sidebar-accent: 270 40% 16%;
     --sidebar-accent-foreground: 270 60% 80%;
-    --sidebar-border: 240 10% 16%;
+    --sidebar-border: 240 10% 14%;
     --sidebar-ring: 270 76% 60%;
 
-    /* Glass effect variables */
-    --glass-blur: 20px;
-    --glass-bg: 240 10% 8% / 0.75;
-    --glass-border: 0 0% 100% / 0.08;
-    --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+    /* Glass effect variables - Premium Dark */
+    --glass-blur: 24px;
+    --glass-bg: 240 10% 6% / 0.8;
+    --glass-border: 0 0% 100% / 0.06;
+    --glass-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.5);
+    --glass-shadow-hover: 0 8px 40px -4px rgba(0, 0, 0, 0.6);
+    --glass-glow: 0 0 60px rgba(130, 36, 227, 0.12);
 
     /* Kanban colors - slightly brighter for dark mode */
     --kanban-gray: 220 9% 55%;
@@ -177,8 +181,8 @@
 
   /* Custom scrollbar */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
@@ -186,7 +190,7 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-border rounded-full;
+    @apply bg-border/50 rounded-full;
   }
 
   ::-webkit-scrollbar-thumb:hover {
@@ -195,7 +199,7 @@
 }
 
 @layer components {
-  /* Liquid Glass Effect */
+  /* Liquid Glass Effect - Premium */
   .glass {
     background: hsl(var(--glass-bg));
     backdrop-filter: blur(var(--glass-blur));
@@ -205,13 +209,22 @@
   }
 
   .glass-card {
+    @apply glass rounded-xl transition-all duration-300;
+  }
+
+  .glass-card:hover {
+    box-shadow: var(--glass-shadow-hover);
+  }
+
+  .glass-card-elevated {
     @apply glass rounded-xl;
+    box-shadow: var(--glass-shadow-hover), var(--glass-glow);
   }
 
   .glass-subtle {
     background: hsl(var(--glass-bg));
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
 
   /* Gradient text */
@@ -227,60 +240,62 @@
 
   /* Hover glow effect */
   .glow-hover {
-    @apply transition-shadow duration-300;
+    @apply transition-all duration-300;
   }
 
   .glow-hover:hover {
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+    box-shadow: 0 0 24px hsl(var(--primary) / 0.25);
   }
 
-  /* Kanban card styles */
+  /* Kanban card styles - Compact */
   .kanban-card {
-    @apply glass-card p-4 cursor-grab active:cursor-grabbing transition-all duration-200;
+    @apply glass rounded-lg p-3 cursor-grab active:cursor-grabbing transition-all duration-200;
+    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.08);
   }
 
   .kanban-card:hover {
-    @apply shadow-lg;
     transform: translateY(-2px);
+    box-shadow: 0 8px 24px -4px rgba(130, 36, 227, 0.15);
   }
 
   .kanban-card.dragging {
-    @apply opacity-50 shadow-2xl scale-105;
+    @apply opacity-60 scale-105;
+    box-shadow: 0 16px 40px -8px rgba(130, 36, 227, 0.25);
   }
 
   /* Priority badges */
   .priority-baixa {
-    @apply bg-kanban-gray/20 text-kanban-gray;
+    @apply bg-muted text-muted-foreground;
   }
 
   .priority-media {
-    @apply bg-kanban-blue/20 text-kanban-blue;
+    @apply bg-info/15 text-info;
   }
 
   .priority-alta {
-    @apply bg-kanban-yellow/20 text-kanban-yellow;
+    @apply bg-warning/15 text-warning;
   }
 
   .priority-urgente {
-    @apply bg-kanban-red/20 text-kanban-red;
+    @apply bg-destructive/15 text-destructive;
   }
 
   /* Status badges */
   .status-pendente {
-    @apply bg-warning/20 text-warning;
+    @apply bg-warning/15 text-warning;
   }
 
   .status-pago {
-    @apply bg-success/20 text-success;
+    @apply bg-success/15 text-success;
   }
 
   .status-vencido {
-    @apply bg-destructive/20 text-destructive;
+    @apply bg-destructive/15 text-destructive;
   }
 
   /* Sidebar navigation item */
   .nav-item {
-    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200;
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200;
     @apply text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground;
   }
 
@@ -291,6 +306,27 @@
   /* Modal backdrop */
   .modal-backdrop {
     @apply fixed inset-0 bg-background/80 backdrop-blur-sm z-50;
+  }
+
+  /* Metric card */
+  .metric-card {
+    @apply glass-card p-3 relative overflow-hidden;
+  }
+
+  .metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.3), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .metric-card:hover::before {
+    opacity: 1;
   }
 
   /* Animation utilities */
@@ -322,6 +358,23 @@
       opacity: 1;
       transform: scale(1);
     }
+  }
+
+  /* Shimmer loading effect */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted-foreground) / 0.1) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
   }
 
   /* Focus ring */
@@ -361,5 +414,10 @@
   }
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Responsive text */
+  .text-responsive {
+    @apply text-sm md:text-base;
   }
 }
