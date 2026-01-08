@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, User, Users, CreditCard, Bell, Shield, Globe, Palette, Calendar, Video } from 'lucide-react';
+import { Settings, User, Users, Bell, Shield, Globe, Palette, Calendar, Video, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,20 +19,63 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Configuracoes() {
   const { user } = useAuth();
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspace, refreshWorkspaces, isAdmin } = useWorkspace();
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   
-  const [workspaceName, setWorkspaceName] = useState(currentWorkspace?.name || '');
-  const [currency, setCurrency] = useState(currentWorkspace?.currency || 'EUR');
-  const [country, setCountry] = useState<string>(currentWorkspace?.country || 'PT');
-  const [timezone, setTimezone] = useState(currentWorkspace?.timezone || 'Europe/Lisbon');
+  const [saving, setSaving] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState('');
+  const [currency, setCurrency] = useState('EUR');
+  const [country, setCountry] = useState('PT');
+  const [timezone, setTimezone] = useState('Europe/Lisbon');
 
-  const handleSaveGeneral = () => {
-    toast({ title: 'Configurações salvas', description: 'As alterações foram aplicadas com sucesso.' });
+  // Sync form with current workspace
+  useEffect(() => {
+    if (currentWorkspace) {
+      setWorkspaceName(currentWorkspace.name);
+      setCurrency(currentWorkspace.currency);
+      setCountry(currentWorkspace.country);
+      setTimezone(currentWorkspace.timezone);
+    }
+  }, [currentWorkspace]);
+
+  const handleSaveGeneral = async () => {
+    if (!currentWorkspace) return;
+    
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('workspaces')
+        .update({
+          name: workspaceName,
+          currency,
+          country: country as 'PT' | 'BR',
+          timezone,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', currentWorkspace.id);
+
+      if (error) throw error;
+
+      await refreshWorkspaces();
+      
+      toast({ 
+        title: 'Configurações salvas', 
+        description: 'As alterações foram aplicadas com sucesso.' 
+      });
+    } catch (error: any) {
+      toast({ 
+        title: 'Erro ao salvar', 
+        description: error.message,
+        variant: 'destructive' 
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const roles = [
@@ -44,35 +87,35 @@ export default function Configuracoes() {
   ];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold">Configurações</h1>
-        <p className="text-muted-foreground">Gerencie as definições do workspace</p>
+        <h1 className="text-xl md:text-2xl font-bold">Configurações</h1>
+        <p className="text-sm text-muted-foreground">Gerencie as definições do workspace</p>
       </div>
 
       {/* Tabs */}
       <Tabs defaultValue="geral" className="space-y-6">
-        <TabsList className="w-full justify-start overflow-x-auto">
-          <TabsTrigger value="geral" className="gap-2">
+        <TabsList className="w-full justify-start overflow-x-auto flex-wrap h-auto gap-1">
+          <TabsTrigger value="geral" className="gap-2 text-xs md:text-sm">
             <Settings className="h-4 w-4" />
-            Geral
+            <span className="hidden sm:inline">Geral</span>
           </TabsTrigger>
-          <TabsTrigger value="perfil" className="gap-2">
+          <TabsTrigger value="perfil" className="gap-2 text-xs md:text-sm">
             <User className="h-4 w-4" />
-            Perfil
+            <span className="hidden sm:inline">Perfil</span>
           </TabsTrigger>
-          <TabsTrigger value="equipa" className="gap-2">
+          <TabsTrigger value="equipa" className="gap-2 text-xs md:text-sm">
             <Users className="h-4 w-4" />
-            Equipa
+            <span className="hidden sm:inline">Equipa</span>
           </TabsTrigger>
-          <TabsTrigger value="integracoes" className="gap-2">
+          <TabsTrigger value="integracoes" className="gap-2 text-xs md:text-sm">
             <Globe className="h-4 w-4" />
-            Integrações
+            <span className="hidden sm:inline">Integrações</span>
           </TabsTrigger>
-          <TabsTrigger value="permissoes" className="gap-2">
+          <TabsTrigger value="permissoes" className="gap-2 text-xs md:text-sm">
             <Shield className="h-4 w-4" />
-            Permissões
+            <span className="hidden sm:inline">Permissões</span>
           </TabsTrigger>
         </TabsList>
 
@@ -92,26 +135,30 @@ export default function Configuracoes() {
                     value={workspaceName}
                     onChange={(e) => setWorkspaceName(e.target.value)}
                     placeholder="Meu Estúdio"
+                    disabled={!isAdmin}
                   />
+                  {!isAdmin && (
+                    <p className="text-xs text-muted-foreground">Apenas administradores podem alterar o nome</p>
+                  )}
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label>País</Label>
-                    <Select value={country} onValueChange={setCountry}>
+                    <Select value={country} onValueChange={setCountry} disabled={!isAdmin}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o país" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="PT">Portugal</SelectItem>
-                        <SelectItem value="BR">Brasil</SelectItem>
+                        <SelectItem value="PT">🇵🇹 Portugal</SelectItem>
+                        <SelectItem value="BR">🇧🇷 Brasil</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="grid gap-2">
                     <Label>Moeda</Label>
-                    <Select value={currency} onValueChange={setCurrency}>
+                    <Select value={currency} onValueChange={setCurrency} disabled={!isAdmin}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione a moeda" />
                       </SelectTrigger>
@@ -125,7 +172,7 @@ export default function Configuracoes() {
 
                 <div className="grid gap-2">
                   <Label>Fuso Horário</Label>
-                  <Select value={timezone} onValueChange={setTimezone}>
+                  <Select value={timezone} onValueChange={setTimezone} disabled={!isAdmin}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o fuso horário" />
                     </SelectTrigger>
@@ -138,9 +185,22 @@ export default function Configuracoes() {
                   </Select>
                 </div>
 
-                <Button className="gradient-primary" onClick={handleSaveGeneral}>
-                  Salvar Alterações
-                </Button>
+                {isAdmin && (
+                  <Button 
+                    className="gradient-primary" 
+                    onClick={handleSaveGeneral}
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        A salvar...
+                      </>
+                    ) : (
+                      'Salvar Alterações'
+                    )}
+                  </Button>
+                )}
               </CardContent>
             </Card>
 
@@ -216,10 +276,10 @@ export default function Configuracoes() {
               <CardDescription>Convide membros e gerencie acessos</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Input placeholder="email@exemplo.com" className="flex-1" />
                 <Select defaultValue="editor">
-                  <SelectTrigger className="w-[140px]">
+                  <SelectTrigger className="w-full sm:w-[140px]">
                     <SelectValue placeholder="Função" />
                   </SelectTrigger>
                   <SelectContent>
