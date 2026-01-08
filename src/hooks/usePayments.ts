@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
+import { handleDatabaseError } from '@/lib/error-handler';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 export type Payment = Tables<'payments'>;
@@ -60,11 +61,10 @@ export function usePayments() {
       toast({ title: 'Pagamento criado com sucesso' });
       setPayments(prev => [...prev, data]);
       return data;
-    } catch (error: any) {
-      console.error('Error creating payment:', error);
+    } catch (error) {
       toast({
         title: 'Erro ao criar pagamento',
-        description: error.message,
+        description: handleDatabaseError('createPayment', error),
         variant: 'destructive',
       });
       return null;
@@ -85,11 +85,10 @@ export function usePayments() {
       );
 
       toast({ title: 'Pagamento atualizado' });
-    } catch (error: any) {
-      console.error('Error updating payment:', error);
+    } catch (error) {
       toast({
         title: 'Erro ao atualizar pagamento',
-        description: error.message,
+        description: handleDatabaseError('updatePayment', error),
         variant: 'destructive',
       });
     }
@@ -106,11 +105,10 @@ export function usePayments() {
 
       setPayments(prev => prev.filter(p => p.id !== paymentId));
       toast({ title: 'Pagamento removido' });
-    } catch (error: any) {
-      console.error('Error deleting payment:', error);
+    } catch (error) {
       toast({
         title: 'Erro ao remover pagamento',
-        description: error.message,
+        description: handleDatabaseError('deletePayment', error),
         variant: 'destructive',
       });
     }

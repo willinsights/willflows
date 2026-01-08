@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
+import { handleDatabaseError } from '@/lib/error-handler';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 export type CalendarEvent = Tables<'calendar_events'>;
@@ -59,11 +60,10 @@ export function useCalendarEvents() {
       toast({ title: 'Evento criado com sucesso' });
       setEvents(prev => [...prev, data]);
       return data;
-    } catch (error: any) {
-      console.error('Error creating event:', error);
+    } catch (error) {
       toast({
         title: 'Erro ao criar evento',
-        description: error.message,
+        description: handleDatabaseError('createEvent', error),
         variant: 'destructive',
       });
       return null;
@@ -84,11 +84,10 @@ export function useCalendarEvents() {
       );
 
       toast({ title: 'Evento atualizado' });
-    } catch (error: any) {
-      console.error('Error updating event:', error);
+    } catch (error) {
       toast({
         title: 'Erro ao atualizar evento',
-        description: error.message,
+        description: handleDatabaseError('updateEvent', error),
         variant: 'destructive',
       });
     }
@@ -105,11 +104,10 @@ export function useCalendarEvents() {
 
       setEvents(prev => prev.filter(e => e.id !== eventId));
       toast({ title: 'Evento removido' });
-    } catch (error: any) {
-      console.error('Error deleting event:', error);
+    } catch (error) {
       toast({
         title: 'Erro ao remover evento',
-        description: error.message,
+        description: handleDatabaseError('deleteEvent', error),
         variant: 'destructive',
       });
     }

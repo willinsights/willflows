@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
+import { handleDatabaseError } from '@/lib/error-handler';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 export type Client = Tables<'clients'>;
@@ -56,11 +57,10 @@ export function useClients() {
       toast({ title: 'Cliente criado com sucesso' });
       setClients(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
       return data;
-    } catch (error: any) {
-      console.error('Error creating client:', error);
+    } catch (error) {
       toast({
         title: 'Erro ao criar cliente',
-        description: error.message,
+        description: handleDatabaseError('createClient', error),
         variant: 'destructive',
       });
       return null;
@@ -79,11 +79,10 @@ export function useClients() {
       toast({ title: 'Cliente removido com sucesso' });
       setClients(prev => prev.filter(c => c.id !== clientId));
       return true;
-    } catch (error: any) {
-      console.error('Error deleting client:', error);
+    } catch (error) {
       toast({
         title: 'Erro ao remover cliente',
-        description: error.message,
+        description: handleDatabaseError('deleteClient', error),
         variant: 'destructive',
       });
       return false;
