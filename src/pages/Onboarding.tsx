@@ -81,9 +81,6 @@ export default function Onboarding() {
 
       if (error) throw error;
 
-      // Refresh workspaces in context
-      await refreshWorkspaces();
-
       setCurrentStep(3);
       
       toast({
@@ -91,10 +88,14 @@ export default function Onboarding() {
         description: 'O seu espaço de trabalho está pronto.',
       });
 
+      // Give time for the database to propagate, then refresh and redirect
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await refreshWorkspaces();
+
       // Redirect after short delay
       setTimeout(() => {
         navigate('/app');
-      }, 2000);
+      }, 1500);
     } catch (error: any) {
       console.error('Error creating workspace:', error);
       toast({
