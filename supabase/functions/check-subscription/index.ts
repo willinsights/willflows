@@ -78,10 +78,17 @@ serve(async (req) => {
 
     if (hasActiveSub) {
       const subscription = subscriptions.data[0];
-      subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+      // Safely handle the date conversion
+      try {
+        if (subscription.current_period_end) {
+          subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+        }
+      } catch (dateError) {
+        logStep("Date parsing error", { error: String(dateError), value: subscription.current_period_end });
+      }
       logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
       
-      const productId = subscription.items.data[0].price.product as string;
+      const productId = subscription.items.data[0]?.price?.product as string;
       plan = PLAN_MAPPING[productId] || 'unknown';
       logStep("Determined subscription plan", { productId, plan });
     } else {

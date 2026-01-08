@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -24,6 +24,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Cache duration: 5 minutes
+const SUBSCRIPTION_CACHE_DURATION = 5 * 60 * 1000;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -34,8 +37,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     subscriptionEnd: null,
     loading: false,
   });
+  
+  // Refs to prevent duplicate calls and cache
+  const isCheckingSubscription = useRef(false);
+  const lastSubscriptionCheck = useRef<number>(0);
+  const hasCheckedInitially = useRef(false);
 
-  const checkSubscription = useCallback(async () => {
+  const checkSubscription = useCallback(async (force = false) => {
+    // Prevent duplicate simultaneous calls
+    if (isCheckingSubscription.current) {
+      return;
+    }
+    
+    // Use cached result if not forcing and within cache duration
+    const now = Date.now();
+    if (!force && lastSubscriptionCheck.current && (now - lastSubscriptionCheck.current) < SUBSCRIPTION_CACHE_DURATION) {
+      return;
+    }
+
     if (!session) {
       setSubscription({
         subscribed: false,
@@ -46,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    isCheckingSubscription.current = true;
     setSubscription(prev => ({ ...prev, loading: true }));
 
     try {
@@ -57,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      lastSubscriptionCheck.current = Date.now();
       setSubscription({
         subscribed: data?.subscribed ?? false,
         plan: data?.plan ?? null,
@@ -66,23 +87,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error checking subscription:', error);
       setSubscription(prev => ({ ...prev, loading: false }));
+    } finally {
+      isCheckingSubscription.current = false;
     }
   }, [session]);
 
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+      (event, newSession) => {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
         setLoading(false);
         
-        // Check subscription after auth state changes (deferred to avoid deadlock)
-        if (session) {
+        // Only check subscription on sign in, not on every state change
+        if (event === 'SIGNED_IN' && newSession && !hasCheckedInitially.current) {
+          hasCheckedInitially.current = true;
+          // Delay to avoid race conditions
           setTimeout(() => {
-            checkSubscription();
-          }, 0);
-        } else {
+            checkSubscription(true);
+          }, 500);
+        } else if (event === 'SIGNED_OUT') {
+          hasCheckedInitially.current = false;
+          lastSubscriptionCheck.current = 0;
           setSubscription({
             subscribed: false,
             plan: null,
@@ -94,28 +121,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+      setSession(existingSession);
+      setUser(existingSession?.user ?? null);
       setLoading(false);
       
-      if (session) {
+      // Only check once on initial load
+      if (existingSession && !hasCheckedInitially.current) {
+        hasCheckedInitially.current = true;
         setTimeout(() => {
-          checkSubscription();
-        }, 0);
+          checkSubscription(true);
+        }, 500);
       }
     });
 
     return () => authSubscription.unsubscribe();
   }, [checkSubscription]);
 
-  // Periodic subscription check every minute
+  // Periodic subscription check every 5 minutes (instead of every minute)
   useEffect(() => {
     if (!session) return;
 
     const interval = setInterval(() => {
       checkSubscription();
-    }, 60000);
+    }, SUBSCRIPTION_CACHE_DURATION);
 
     return () => clearInterval(interval);
   }, [session, checkSubscription]);
