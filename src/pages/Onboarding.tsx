@@ -11,6 +11,8 @@ import {
   ArrowRight,
   ArrowLeft,
   Loader2,
+  RefreshCw,
+  AlertCircle,
 } from 'lucide-react';
 import logoWillflow from '@/assets/logo-willflow-sistema.png';
 import { Button } from '@/components/ui/button';
@@ -39,6 +41,7 @@ const steps = [
 export default function Onboarding() {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
   const { refreshWorkspaces } = useWorkspace();
   const { toast } = useToast();
@@ -67,10 +70,11 @@ export default function Onboarding() {
 
     const values = form.getValues();
     setLoading(true);
+    setError(null);
 
     try {
       // Use RPC function to create workspace with admin member atomically
-      const { data: workspaceId, error } = await supabase.rpc('create_workspace_with_admin', {
+      const { data: workspaceId, error: rpcError } = await supabase.rpc('create_workspace_with_admin', {
         p_name: values.name,
         p_slug: createSlug(values.name),
         p_country: values.country,
@@ -79,7 +83,7 @@ export default function Onboarding() {
         p_locale: values.country === 'PT' ? 'pt-PT' : 'pt-BR',
       });
 
-      if (error) throw error;
+      if (rpcError) throw rpcError;
 
       setCurrentStep(3);
       
@@ -96,16 +100,25 @@ export default function Onboarding() {
       setTimeout(() => {
         navigate('/app');
       }, 1500);
-    } catch (error: any) {
-      console.error('Error creating workspace:', error);
+    } catch (err: any) {
+      console.error('Error creating workspace:', err);
+      const errorMessage = err.message?.includes('Failed to fetch') 
+        ? 'Erro de ligação. Verifique a sua internet e tente novamente.'
+        : err.message || 'Ocorreu um erro. Tente novamente.';
+      setError(errorMessage);
       toast({
         title: 'Erro ao criar workspace',
-        description: error.message || 'Ocorreu um erro. Tente novamente.',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    handleCreateWorkspace();
   };
 
   const nextStep = async () => {
@@ -250,6 +263,28 @@ export default function Onboarding() {
                   </div>
                 </Label>
               </RadioGroup>
+
+              {/* Error State */}
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/20"
+                >
+                  <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
+                  <div className="flex-1 text-sm text-destructive">{error}</div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRetry}
+                    disabled={loading}
+                    className="flex-shrink-0"
+                  >
+                    <RefreshCw className={cn("h-4 w-4 mr-1", loading && "animate-spin")} />
+                    Tentar novamente
+                  </Button>
+                </motion.div>
+              )}
             </motion.div>
           )}
 
