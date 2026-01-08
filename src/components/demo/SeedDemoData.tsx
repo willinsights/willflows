@@ -115,6 +115,44 @@ export function SeedDemoData() {
 
     setLoading(true);
     try {
+      // 0. Clear existing demo data first to avoid duplicates
+      console.log('Clearing existing data before seeding...');
+      
+      // Get existing projects to clean related data
+      const { data: existingProjects } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('workspace_id', currentWorkspace.id);
+      
+      if (existingProjects && existingProjects.length > 0) {
+        const projectIds = existingProjects.map(p => p.id);
+        await supabase.from('project_media_links').delete().in('project_id', projectIds);
+        await supabase.from('project_team').delete().in('project_id', projectIds);
+      }
+
+      // Get existing tasks to clean related data
+      const { data: existingTasks } = await supabase
+        .from('tasks')
+        .select('id')
+        .eq('workspace_id', currentWorkspace.id);
+      
+      if (existingTasks && existingTasks.length > 0) {
+        const taskIds = existingTasks.map(t => t.id);
+        await supabase.from('task_checklists').delete().in('task_id', taskIds);
+        await supabase.from('task_assignees').delete().in('task_id', taskIds);
+        await supabase.from('task_comments').delete().in('task_id', taskIds);
+        await supabase.from('task_attachments').delete().in('task_id', taskIds);
+      }
+
+      // Delete main tables in order
+      await supabase.from('calendar_events').delete().eq('workspace_id', currentWorkspace.id);
+      await supabase.from('payments').delete().eq('workspace_id', currentWorkspace.id);
+      await supabase.from('tasks').delete().eq('workspace_id', currentWorkspace.id);
+      await supabase.from('projects').delete().eq('workspace_id', currentWorkspace.id);
+      await supabase.from('clients').delete().eq('workspace_id', currentWorkspace.id);
+      
+      console.log('Existing data cleared successfully');
+
       // 1. Create clients
       const { data: createdClients, error: clientsError } = await supabase
         .from('clients')
@@ -464,11 +502,7 @@ export function SeedDemoData() {
 
     setClearLoading(true);
     try {
-      // Delete in order of dependencies
-      await supabase.from('calendar_events').delete().eq('workspace_id', currentWorkspace.id);
-      await supabase.from('payments').delete().eq('workspace_id', currentWorkspace.id);
-      
-      // Get all tasks to delete their checklists
+      // Get all tasks to delete their related data
       const { data: tasks } = await supabase
         .from('tasks')
         .select('id')
@@ -477,9 +511,12 @@ export function SeedDemoData() {
       if (tasks && tasks.length > 0) {
         const taskIds = tasks.map(t => t.id);
         await supabase.from('task_checklists').delete().in('task_id', taskIds);
+        await supabase.from('task_assignees').delete().in('task_id', taskIds);
+        await supabase.from('task_comments').delete().in('task_id', taskIds);
+        await supabase.from('task_attachments').delete().in('task_id', taskIds);
       }
 
-      // Get all projects to delete their media links
+      // Get all projects to delete their related data
       const { data: projects } = await supabase
         .from('projects')
         .select('id')
@@ -488,8 +525,12 @@ export function SeedDemoData() {
       if (projects && projects.length > 0) {
         const projectIds = projects.map(p => p.id);
         await supabase.from('project_media_links').delete().in('project_id', projectIds);
+        await supabase.from('project_team').delete().in('project_id', projectIds);
       }
 
+      // Delete main tables in order of dependencies
+      await supabase.from('calendar_events').delete().eq('workspace_id', currentWorkspace.id);
+      await supabase.from('payments').delete().eq('workspace_id', currentWorkspace.id);
       await supabase.from('tasks').delete().eq('workspace_id', currentWorkspace.id);
       await supabase.from('projects').delete().eq('workspace_id', currentWorkspace.id);
       await supabase.from('clients').delete().eq('workspace_id', currentWorkspace.id);
