@@ -1,9 +1,7 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Sparkles,
   Camera,
-  Film,
   Calendar,
   CreditCard,
   Users,
@@ -15,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useTheme } from '@/contexts/ThemeContext';
-
+import logoWillflow from '@/assets/logo-willflow-sistema.png';
 const features = [
   {
     icon: Camera,
@@ -96,12 +94,7 @@ export default function Landing() {
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary">
-              <Sparkles className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-xl gradient-text">WillFlow</span>
-          </div>
+          <img src={logoWillflow} alt="WillFlow" className="h-10 object-contain" />
 
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={toggleTheme}>
@@ -282,12 +275,7 @@ export default function Landing() {
       <footer className="py-12 px-4 border-t border-border">
         <div className="container mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary">
-                <Sparkles className="h-4 w-4 text-primary-foreground" />
-              </div>
-              <span className="font-bold gradient-text">WillFlow</span>
-            </div>
+            <img src={logoWillflow} alt="WillFlow" className="h-8 object-contain" />
             <p className="text-sm text-muted-foreground">
               © 2026 WillFlow. Todos os direitos reservados.
             </p>

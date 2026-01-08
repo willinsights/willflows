@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import logoWillflow from '@/assets/logo-willflow.png';
+import logoWillflow from '@/assets/logo-willflow-sistema.png';
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -130,26 +130,14 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
         'flex items-center h-16 px-4 border-b border-sidebar-border',
         collapsed && !isMobile ? 'justify-center' : 'justify-between'
       )}>
-        <div className="flex items-center gap-2">
-          <img 
-            src={logoWillflow} 
-            alt="WillFlow" 
-            className={cn(
-              'h-8 object-contain',
-              collapsed && !isMobile ? 'h-7' : 'h-8'
-            )} 
-          />
-          {(!collapsed || isMobile) && (
-            <motion.span
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: 'auto' }}
-              exit={{ opacity: 0, width: 0 }}
-              className="font-bold text-lg text-foreground"
-            >
-              WillFlow
-            </motion.span>
-          )}
-        </div>
+        <img 
+          src={logoWillflow} 
+          alt="WillFlow" 
+          className={cn(
+            'object-contain',
+            collapsed && !isMobile ? 'h-8' : 'h-10'
+          )} 
+        />
         
         {isMobile ? (
           <Button
