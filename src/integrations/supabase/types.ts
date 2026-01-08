@@ -993,6 +993,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_workspace_with_admin: {
+        Args: {
+          p_country: Database["public"]["Enums"]["country_region"]
+          p_currency: string
+          p_locale: string
+          p_name: string
+          p_slug: string
+          p_timezone: string
+        }
+        Returns: string
+      }
       get_workspace_role: {
         Args: { _user_id: string; _workspace_id: string }
         Returns: Database["public"]["Enums"]["app_role"]

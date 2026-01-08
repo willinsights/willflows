@@ -70,35 +70,17 @@ export default function Onboarding() {
     setLoading(true);
 
     try {
-      // Create workspace
-      const workspaceData = {
-        name: values.name,
-        slug: createSlug(values.name),
-        country: values.country as 'PT' | 'BR',
-        currency: values.country === 'PT' ? 'EUR' : 'BRL',
-        timezone: values.country === 'PT' ? 'Europe/Lisbon' : 'America/Sao_Paulo',
-        locale: values.country === 'PT' ? 'pt-PT' : 'pt-BR',
-      };
+      // Use RPC function to create workspace with admin member atomically
+      const { data: workspaceId, error } = await supabase.rpc('create_workspace_with_admin', {
+        p_name: values.name,
+        p_slug: createSlug(values.name),
+        p_country: values.country,
+        p_currency: values.country === 'PT' ? 'EUR' : 'BRL',
+        p_timezone: values.country === 'PT' ? 'Europe/Lisbon' : 'America/Sao_Paulo',
+        p_locale: values.country === 'PT' ? 'pt-PT' : 'pt-BR',
+      });
 
-      const { data: workspace, error: workspaceError } = await supabase
-        .from('workspaces')
-        .insert(workspaceData)
-        .select()
-        .single();
-
-      if (workspaceError) throw workspaceError;
-
-      // Add user as admin member
-      const { error: memberError } = await supabase
-        .from('workspace_members')
-        .insert({
-          workspace_id: workspace.id,
-          user_id: user.id,
-          role: 'admin',
-          joined_at: new Date().toISOString(),
-        });
-
-      if (memberError) throw memberError;
+      if (error) throw error;
 
       // Refresh workspaces in context
       await refreshWorkspaces();
