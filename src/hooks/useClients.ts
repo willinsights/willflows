@@ -67,10 +67,34 @@ export function useClients() {
     }
   };
 
+  const deleteClient = async (clientId: string) => {
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({ is_active: false })
+        .eq('id', clientId);
+
+      if (error) throw error;
+
+      toast({ title: 'Cliente removido com sucesso' });
+      setClients(prev => prev.filter(c => c.id !== clientId));
+      return true;
+    } catch (error: any) {
+      console.error('Error deleting client:', error);
+      toast({
+        title: 'Erro ao remover cliente',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
   return {
     clients,
     loading,
     createClient,
+    deleteClient,
     refresh: fetchClients,
   };
 }
