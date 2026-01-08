@@ -248,103 +248,109 @@ export default function Dashboard() {
         </motion.div>
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid lg:grid-cols-5 gap-3">
-        {/* Urgent Projects - Takes 3 columns */}
+      {/* Main Content Grid - Equal height cards */}
+      <div className="grid lg:grid-cols-2 gap-3">
+        {/* Urgent Projects */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="lg:col-span-3"
         >
-          <Card className="glass-card h-full">
-            <CardHeader className="flex flex-row items-center justify-between py-2.5 px-3">
-              <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-                <AlertCircle className="h-3.5 w-3.5 text-warning" />
+          <Card className="glass-card h-[280px] flex flex-col">
+            <CardHeader className="flex flex-row items-center justify-between py-3 px-4 shrink-0">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <div className="p-1.5 rounded-md bg-warning/10">
+                  <AlertCircle className="h-4 w-4 text-warning" />
+                </div>
                 Projetos Urgentes
               </CardTitle>
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="text-primary h-6 text-[10px] px-2" 
+                className="text-primary h-7 text-xs px-2" 
                 onClick={() => navigate('/app/captacao')}
               >
                 Ver todos
-                <ArrowRight className="ml-1 h-3 w-3" />
+                <ArrowRight className="ml-1 h-3.5 w-3.5" />
               </Button>
             </CardHeader>
-            <CardContent className="px-3 pb-3">
-              {loading ? (
-                <div className="space-y-1.5">
-                  {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-11 w-full" />
-                  ))}
-                </div>
-              ) : urgentProjects.length === 0 ? (
-                <div className="flex items-center justify-center h-14 text-xs text-muted-foreground">
-                  Nenhum projeto urgente 🎉
-                </div>
-              ) : (
-                <div className="space-y-1.5">
-                  {urgentProjects.slice(0, 5).map((project) => {
-                    const TypeIcon = getTypeIcon(project.type);
-                    return (
-                      <div
-                        key={project.id}
-                        className="flex items-center justify-between p-2 rounded-lg bg-muted/40 hover:bg-muted/60 transition-colors cursor-pointer group"
-                        onClick={() => navigate('/app/captacao')}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="flex items-center justify-center w-7 h-7 rounded-md bg-primary/10 shrink-0 group-hover:bg-primary/15 transition-colors">
-                            <TypeIcon className="h-3.5 w-3.5 text-primary" />
+            <CardContent className="px-4 pb-4 flex-1 overflow-hidden">
+              <ScrollArea className="h-full pr-2">
+                {loading ? (
+                  <div className="space-y-2">
+                    {[1, 2, 3, 4].map((i) => (
+                      <Skeleton key={i} className="h-12 w-full rounded-lg" />
+                    ))}
+                  </div>
+                ) : urgentProjects.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                    Nenhum projeto urgente 🎉
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {urgentProjects.slice(0, 5).map((project) => {
+                      const TypeIcon = getTypeIcon(project.type);
+                      return (
+                        <div
+                          key={project.id}
+                          className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-all cursor-pointer group border border-transparent hover:border-primary/10"
+                          onClick={() => navigate('/app/captacao')}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary/10 shrink-0 group-hover:bg-primary/15 transition-colors">
+                              <TypeIcon className="h-4 w-4 text-primary" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{project.name}</p>
+                              <p className="text-xs text-muted-foreground truncate">{project.client}</p>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-[11px] font-medium truncate">{project.name}</p>
-                            <p className="text-[10px] text-muted-foreground truncate">{project.client}</p>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {project.date && (
+                              <span className="text-xs text-muted-foreground hidden sm:block">
+                                {format(new Date(project.date), 'dd/MM')}
+                              </span>
+                            )}
+                            <Badge variant="outline" className={cn('text-[10px] capitalize px-2 py-0.5 h-5', getPriorityColor(project.priority))}>
+                              {project.priority}
+                            </Badge>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {project.date && (
-                            <span className="text-[10px] text-muted-foreground hidden sm:block">
-                              {format(new Date(project.date), 'dd/MM')}
-                            </span>
-                          )}
-                          <Badge variant="outline" className={cn('text-[9px] capitalize px-1.5 py-0 h-4', getPriorityColor(project.priority))}>
-                            {project.priority}
-                          </Badge>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                      );
+                    })}
+                  </div>
+                )}
+              </ScrollArea>
             </CardContent>
           </Card>
         </motion.div>
 
-        {/* Right Column - Takes 2 columns */}
-        <div className="lg:col-span-2 space-y-3">
+        {/* Right Column - Stacked cards with equal distribution */}
+        <div className="flex flex-col gap-3">
           {/* Pending Payments */}
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25 }}
+            className="flex-1"
           >
-            <Card className="glass-card">
-              <CardHeader className="py-2.5 px-3">
-                <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-                  <CreditCard className="h-3.5 w-3.5 text-primary" />
+            <Card className="glass-card h-full min-h-[130px]">
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-primary/10">
+                    <CreditCard className="h-4 w-4 text-primary" />
+                  </div>
                   Pagamentos Pendentes
                 </CardTitle>
               </CardHeader>
-              <CardContent className="px-3 pb-3">
+              <CardContent className="px-4 pb-4">
                 <div className="flex items-center justify-between">
                   {loading ? (
-                    <Skeleton className="h-7 w-20" />
+                    <Skeleton className="h-8 w-24" />
                   ) : (
                     <div>
-                      <p className="text-xl font-bold text-warning">{formatCurrency(metrics.pendingPayments)}</p>
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-2xl font-bold text-warning">{formatCurrency(metrics.pendingPayments)}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         {metrics.pendingPaymentsCount} pagamento(s) por receber
                       </p>
                     </div>
@@ -352,11 +358,11 @@ export default function Dashboard() {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="h-7 text-[10px] px-2" 
+                    className="h-8 text-xs px-3" 
                     onClick={() => navigate('/app/pagamentos')}
                   >
                     Ver
-                    <ArrowRight className="ml-1 h-3 w-3" />
+                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                   </Button>
                 </div>
               </CardContent>
@@ -368,38 +374,41 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
+            className="flex-1"
           >
-            <Card className="glass-card">
-              <CardHeader className="py-2.5 px-3">
-                <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5 text-primary" />
+            <Card className="glass-card h-full min-h-[130px]">
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-info/10">
+                    <Clock className="h-4 w-4 text-info" />
+                  </div>
                   Atividade Recente
                 </CardTitle>
               </CardHeader>
-              <CardContent className="px-3 pb-3">
-                <ScrollArea className="h-[140px] pr-2">
+              <CardContent className="px-4 pb-4">
+                <ScrollArea className="h-[80px] pr-2">
                   {loading ? (
-                    <div className="space-y-1.5">
-                      {[1, 2, 3, 4].map((i) => (
-                        <Skeleton key={i} className="h-8 w-full" />
+                    <div className="space-y-2">
+                      {[1, 2, 3].map((i) => (
+                        <Skeleton key={i} className="h-6 w-full" />
                       ))}
                     </div>
                   ) : recentActivity.length === 0 ? (
-                    <div className="flex items-center justify-center h-14 text-[11px] text-muted-foreground">
+                    <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
                       Nenhuma atividade recente
                     </div>
                   ) : (
-                    <div className="space-y-1.5">
-                      {recentActivity.slice(0, 6).map((activity) => (
-                        <div key={activity.id} className="flex items-start gap-1.5 py-1">
-                          <div className="w-1 h-1 rounded-full bg-primary mt-1.5 shrink-0" />
+                    <div className="space-y-2">
+                      {recentActivity.slice(0, 4).map((activity) => (
+                        <div key={activity.id} className="flex items-start gap-2 py-0.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-[10px] leading-tight">
+                            <p className="text-xs leading-tight">
                               <span className="font-medium">{activity.action}</span>
                               {' '}
                               <span className="text-muted-foreground">{activity.target}</span>
                             </p>
-                            <p className="text-[9px] text-muted-foreground">{activity.time}</p>
+                            <p className="text-[10px] text-muted-foreground">{activity.time}</p>
                           </div>
                         </div>
                       ))}
