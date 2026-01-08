@@ -5,15 +5,14 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { 
-  Sparkles, 
   Building2, 
   MapPin, 
-  Users, 
   Check,
   ArrowRight,
   ArrowLeft,
   Loader2,
 } from 'lucide-react';
+import logoWillflow from '@/assets/logo-willflow-sistema.png';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -129,11 +128,8 @@ export default function Onboarding() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background">
       {/* Logo */}
-      <div className="flex items-center gap-3 mb-12">
-        <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary">
-          <Sparkles className="h-7 w-7 text-primary-foreground" />
-        </div>
-        <span className="font-bold text-2xl gradient-text">WillFlow</span>
+      <div className="mb-12">
+        <img src={logoWillflow} alt="WillFlow" className="h-14 object-contain" />
       </div>
 
       {/* Progress Steps */}
