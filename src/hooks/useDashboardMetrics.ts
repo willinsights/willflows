@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { startOfMonth, subMonths, format } from 'date-fns';
+import { pt } from 'date-fns/locale';
 
 export interface DashboardMetrics {
   captacao: number;
@@ -30,6 +32,13 @@ export interface RecentActivity {
   user: string;
 }
 
+export interface MonthlyData {
+  month: string;
+  receita: number;
+  custos: number;
+  lucro: number;
+}
+
 export function useDashboardMetrics() {
   const { currentWorkspace } = useWorkspace();
   const [metrics, setMetrics] = useState<DashboardMetrics>({
@@ -44,6 +53,7 @@ export function useDashboardMetrics() {
   });
   const [urgentProjects, setUrgentProjects] = useState<UrgentProject[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -59,7 +69,7 @@ export function useDashboardMetrics() {
       // Fetch projects count by phase
       const { data: projectsData } = await supabase
         .from('projects')
-        .select('id, current_phase, is_delivered, agreed_value, custo_captacao, custo_edicao')
+        .select('id, current_phase, is_delivered, agreed_value, custo_captacao, custo_edicao, created_at, delivered_at')
         .eq('workspace_id', currentWorkspace.id);
 
       const captacao = projectsData?.filter(p => p.current_phase === 'captacao' && !p.is_delivered).length || 0;
@@ -93,8 +103,34 @@ export function useDashboardMetrics() {
         pendingPaymentsCount,
       });
 
+      // Calculate monthly data for chart (last 6 months)
+      const monthlyStats: MonthlyData[] = [];
+      const now = new Date();
+      
+      for (let i = 5; i >= 0; i--) {
+        const monthDate = subMonths(now, i);
+        const monthStart = startOfMonth(monthDate);
+        const monthEnd = startOfMonth(subMonths(now, i - 1));
+        
+        const monthProjects = projectsData?.filter(p => {
+          const createdAt = new Date(p.created_at);
+          return createdAt >= monthStart && createdAt < monthEnd;
+        }) || [];
+        
+        const monthReceita = monthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
+        const monthCustos = monthProjects.reduce((sum, p) => sum + (p.custo_captacao || 0) + (p.custo_edicao || 0), 0);
+        
+        monthlyStats.push({
+          month: format(monthDate, 'MMM', { locale: pt }),
+          receita: monthReceita,
+          custos: monthCustos,
+          lucro: monthReceita - monthCustos,
+        });
+      }
+      
+      setMonthlyData(monthlyStats);
+
       // Fetch urgent projects (high priority or near deadline)
-      const today = new Date().toISOString().split('T')[0];
       const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
       const { data: urgentData } = await supabase
@@ -157,5 +193,5 @@ export function useDashboardMetrics() {
     }
   };
 
-  return { metrics, urgentProjects, recentActivity, loading, refresh: fetchMetrics };
+  return { metrics, urgentProjects, recentActivity, monthlyData, loading, refresh: fetchMetrics };
 }
