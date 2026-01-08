@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   LayoutDashboard,
-  Camera,
+  Video,
   Film,
   CheckCircle2,
   FolderKanban,
@@ -14,12 +14,16 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  Sparkles,
+  Euro,
+  Upload,
+  Tags,
+  UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import logoWillflow from '@/assets/logo-willflow.png';
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -27,23 +31,62 @@ interface AppSidebarProps {
   isMobile?: boolean;
 }
 
-const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/app' },
-  { icon: Camera, label: 'Captação', path: '/app/captacao' },
-  { icon: Film, label: 'Edição', path: '/app/edicao' },
-  { icon: CheckCircle2, label: 'Finalizados', path: '/app/finalizados' },
-  { icon: FolderKanban, label: 'Projetos', path: '/app/projetos' },
-  { icon: Users, label: 'Clientes', path: '/app/clientes' },
-  { icon: Calendar, label: 'Calendário', path: '/app/calendario' },
-  { icon: CreditCard, label: 'Pagamentos', path: '/app/pagamentos' },
-  { icon: BarChart3, label: 'Relatórios', path: '/app/relatorios' },
-  { icon: Settings, label: 'Configurações', path: '/app/configuracoes' },
+interface NavSection {
+  title: string;
+  items: {
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
+    path: string;
+  }[];
+}
+
+const navSections: NavSection[] = [
+  {
+    title: 'VISÃO GERAL',
+    items: [
+      { icon: LayoutDashboard, label: 'Dashboard', path: '/app' },
+    ],
+  },
+  {
+    title: 'PROJETOS',
+    items: [
+      { icon: Video, label: 'Captação', path: '/app/captacao' },
+      { icon: Film, label: 'Edição', path: '/app/edicao' },
+      { icon: CheckCircle2, label: 'Finalizados', path: '/app/finalizados' },
+    ],
+  },
+  {
+    title: 'FINANÇAS',
+    items: [
+      { icon: Euro, label: 'Pagamentos', path: '/app/pagamentos' },
+      { icon: BarChart3, label: 'Relatórios', path: '/app/relatorios' },
+    ],
+  },
+  {
+    title: 'FERRAMENTAS',
+    items: [
+      { icon: Calendar, label: 'Calendário', path: '/app/calendario' },
+      { icon: FolderKanban, label: 'Projetos', path: '/app/projetos' },
+    ],
+  },
+  {
+    title: 'GESTÃO',
+    items: [
+      { icon: Users, label: 'Clientes', path: '/app/clientes' },
+    ],
+  },
+  {
+    title: 'SISTEMA',
+    items: [
+      { icon: Settings, label: 'Configurações', path: '/app/configuracoes' },
+    ],
+  },
 ];
 
 export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
   const location = useLocation();
 
-  const NavItem = ({ item }: { item: typeof navItems[0] }) => {
+  const NavItem = ({ item }: { item: NavSection['items'][0] }) => {
     const isActive = location.pathname === item.path || 
                      (item.path !== '/app' && location.pathname.startsWith(item.path));
     
@@ -88,15 +131,20 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
         collapsed && !isMobile ? 'justify-center' : 'justify-between'
       )}>
         <div className="flex items-center gap-2">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary">
-            <Sparkles className="h-5 w-5 text-primary-foreground" />
-          </div>
+          <img 
+            src={logoWillflow} 
+            alt="WillFlow" 
+            className={cn(
+              'h-8 object-contain',
+              collapsed && !isMobile ? 'h-7' : 'h-8'
+            )} 
+          />
           {(!collapsed || isMobile) && (
             <motion.span
               initial={{ opacity: 0, width: 0 }}
               animate={{ opacity: 1, width: 'auto' }}
               exit={{ opacity: 0, width: 0 }}
-              className="font-bold text-lg gradient-text"
+              className="font-bold text-lg text-foreground"
             >
               WillFlow
             </motion.span>
@@ -126,9 +174,24 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
 
       {/* Navigation */}
       <ScrollArea className="flex-1 py-4">
-        <nav className="px-3 space-y-1">
-          {navItems.map((item) => (
-            <NavItem key={item.path} item={item} />
+        <nav className="px-3 space-y-6">
+          {navSections.map((section) => (
+            <div key={section.title}>
+              {/* Section Title */}
+              {(!collapsed || isMobile) && (
+                <div className="px-3 mb-2">
+                  <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/60 uppercase">
+                    {section.title}
+                  </span>
+                </div>
+              )}
+              {/* Section Items */}
+              <div className="space-y-1">
+                {section.items.map((item) => (
+                  <NavItem key={item.path} item={item} />
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
       </ScrollArea>
