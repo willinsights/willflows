@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus, MoreHorizontal, Pencil, Palette, Trash2 } from 'lucide-react';
+import { Plus, MoreHorizontal, Pencil, Palette, Trash2, ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,16 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { KanbanCard } from './KanbanCard';
 import { cn } from '@/lib/utils';
 import type { KanbanColumnWithProjects } from '@/hooks/useKanban';
@@ -44,6 +54,7 @@ const colorOptions = [
 export function KanbanColumn({ column, onUpdateColumn, onDeleteColumn, onAddProject, onProjectClick }: KanbanColumnProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(column.name);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
@@ -60,126 +71,151 @@ export function KanbanColumn({ column, onUpdateColumn, onDeleteColumn, onAddProj
     onUpdateColumn(column.id, { color });
   };
 
+  const handleDeleteClick = () => {
+    if (column.projects.length > 0) {
+      setShowDeleteDialog(true);
+    } else if (onDeleteColumn) {
+      onDeleteColumn(column.id);
+    }
+  };
+
   return (
-    <div
-      className={cn(
-        'flex flex-col w-[260px] rounded-lg transition-all duration-200',
-        column.is_final ? 'bg-success/5' : 'bg-muted/20',
-        isOver && 'bg-primary/10 ring-1 ring-primary/30'
-      )}
-    >
-      {/* Column Header - Compact */}
-      <div className="flex items-center justify-between px-2.5 py-2 border-b border-border/30">
-        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-          <div
-            className="w-2.5 h-2.5 rounded-full shrink-0"
-            style={{ backgroundColor: column.color }}
-          />
-          
-          {isEditing ? (
-            <Input
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              onBlur={handleSaveName}
-              onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
-              className="h-6 text-xs px-1.5"
-              autoFocus
-            />
-          ) : (
-            <span className="font-medium text-xs truncate">{column.name}</span>
-          )}
-          
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 shrink-0">
-            {column.projects.length}
-          </Badge>
-        </div>
-
-        <div className="flex items-center gap-0.5">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-6 w-6">
-                <MoreHorizontal className="h-3.5 w-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                <Pencil className="h-3.5 w-3.5 mr-2" />
-                Renomear
-              </DropdownMenuItem>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                    <Palette className="h-3.5 w-3.5 mr-2" />
-                    Alterar cor
-                  </DropdownMenuItem>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-2" side="right">
-                  <div className="flex gap-1 flex-wrap max-w-[120px]">
-                    {colorOptions.map((color) => (
-                      <button
-                        key={color}
-                        onClick={() => handleColorChange(color)}
-                        className={cn(
-                          'w-5 h-5 rounded-full transition-transform hover:scale-110',
-                          column.color === color && 'ring-2 ring-offset-1 ring-primary'
-                        )}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-              {onDeleteColumn && !column.is_final && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => onDeleteColumn(column.id)}
-                    className="text-destructive focus:text-destructive"
-                    disabled={column.projects.length > 0}
-                  >
-                    <Trash2 className="h-3.5 w-3.5 mr-2" />
-                    {column.projects.length > 0 ? 'Mover projetos' : 'Apagar coluna'}
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={() => onAddProject(column.id)}
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Column Content */}
+    <>
       <div
-        ref={setNodeRef}
-        className="flex-1 p-1.5 space-y-1.5 overflow-y-auto min-h-[150px] max-h-[calc(100vh-280px)]"
-      >
-        <SortableContext
-          items={column.projects.map(p => p.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          {column.projects.map((project) => (
-            <KanbanCard
-              key={project.id}
-              project={project}
-              onClick={() => onProjectClick(project.id)}
-            />
-          ))}
-        </SortableContext>
-
-        {column.projects.length === 0 && (
-          <div className="flex items-center justify-center h-16 text-[11px] text-muted-foreground border border-dashed border-border/50 rounded-lg">
-            Arraste projetos aqui
-          </div>
+        className={cn(
+          'flex flex-col w-[240px] rounded-lg transition-all duration-150',
+          column.is_final ? 'bg-success/5' : 'bg-muted/30',
+          isOver && 'bg-primary/8 ring-1 ring-primary/30'
         )}
+      >
+        {/* Column Header - Compact */}
+        <div className="flex items-center justify-between px-2 py-1.5 border-b border-border/40">
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <div
+              className="w-2 h-2 rounded-full shrink-0"
+              style={{ backgroundColor: column.color }}
+            />
+            
+            {isEditing ? (
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                onBlur={handleSaveName}
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+                className="h-5 text-[11px] px-1"
+                autoFocus
+              />
+            ) : (
+              <span className="font-medium text-[11px] truncate">{column.name}</span>
+            )}
+            
+            <Badge variant="secondary" className="text-[9px] px-1 py-0 h-3.5 shrink-0 font-normal">
+              {column.projects.length}
+            </Badge>
+          </div>
+
+          <div className="flex items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-5 w-5">
+                  <MoreHorizontal className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-36">
+                <DropdownMenuItem onClick={() => setIsEditing(true)} className="text-xs">
+                  <Pencil className="h-3 w-3 mr-2" />
+                  Renomear
+                </DropdownMenuItem>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-xs">
+                      <Palette className="h-3 w-3 mr-2" />
+                      Alterar cor
+                    </DropdownMenuItem>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-2" side="right">
+                    <div className="flex gap-1 flex-wrap max-w-[100px]">
+                      {colorOptions.map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => handleColorChange(color)}
+                          className={cn(
+                            'w-4 h-4 rounded-full transition-transform hover:scale-110',
+                            column.color === color && 'ring-2 ring-offset-1 ring-primary'
+                          )}
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                {onDeleteColumn && !column.is_final && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={handleDeleteClick}
+                      className="text-destructive focus:text-destructive text-xs"
+                    >
+                      <Trash2 className="h-3 w-3 mr-2" />
+                      Apagar coluna
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5"
+              onClick={() => onAddProject(column.id)}
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Column Content */}
+        <div
+          ref={setNodeRef}
+          className="flex-1 p-1 space-y-1 overflow-y-auto min-h-[120px] max-h-[calc(100vh-220px)]"
+        >
+          <SortableContext
+            items={column.projects.map(p => p.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {column.projects.map((project) => (
+              <KanbanCard
+                key={project.id}
+                project={project}
+                onClick={() => onProjectClick(project.id)}
+              />
+            ))}
+          </SortableContext>
+
+          {column.projects.length === 0 && (
+            <div className="flex items-center justify-center h-12 text-[10px] text-muted-foreground border border-dashed border-border/50 rounded-md">
+              Arraste projetos aqui
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* Delete Dialog - when column has projects */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Coluna não vazia</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta coluna contém {column.projects.length} projeto(s). 
+              Mova os projetos para outra coluna antes de apagar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Entendi</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
