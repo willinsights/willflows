@@ -22,14 +22,14 @@ const typeIcons = {
 const typeLabels = {
   fotografia: 'Foto',
   video: 'Vídeo',
-  foto_video: 'Foto+Vídeo',
+  foto_video: 'F+V',
 };
 
 const priorityConfig = {
   baixa: { class: 'priority-baixa', label: 'Baixa', border: '' },
   media: { class: 'priority-media', label: 'Média', border: '' },
-  alta: { class: 'priority-alta', label: 'Alta', border: 'border-l-4 border-l-warning' },
-  urgente: { class: 'priority-urgente', label: 'Urgente', border: 'border-l-4 border-l-destructive' },
+  alta: { class: 'priority-alta', label: 'Alta', border: 'border-l-2 border-l-warning' },
+  urgente: { class: 'priority-urgente', label: 'Urgente', border: 'border-l-2 border-l-destructive' },
 };
 
 export function KanbanCard({ project, onClick }: KanbanCardProps) {
@@ -69,8 +69,8 @@ export function KanbanCard({ project, onClick }: KanbanCardProps) {
         'kanban-card group relative',
         isDragging && 'dragging opacity-50 z-50',
         priorityInfo.border,
-        isOverdue && 'border-destructive bg-destructive/5',
-        isUrgentDeadline && !isOverdue && 'border-warning bg-warning/5'
+        isOverdue && 'border-destructive/50 bg-destructive/5',
+        isUrgentDeadline && !isOverdue && 'border-warning/50 bg-warning/5'
       )}
       onClick={onClick}
     >
@@ -78,99 +78,87 @@ export function KanbanCard({ project, onClick }: KanbanCardProps) {
       <div
         {...attributes}
         {...listeners}
-        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
+        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing p-0.5"
       >
-        <Grip className="h-4 w-4 text-muted-foreground" />
+        <Grip className="h-3.5 w-3.5 text-muted-foreground" />
       </div>
 
-      {/* Type and Priority Badges */}
-      <div className="flex items-center gap-2 mb-2 flex-wrap">
-        <Badge variant="outline" className="text-xs gap-1">
-          <TypeIcon className="h-3 w-3" />
+      {/* Header: Type + Priority */}
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 gap-1">
+          <TypeIcon className="h-2.5 w-2.5" />
           {typeLabels[project.type]}
         </Badge>
-        <Badge className={cn('text-xs', priorityInfo.class)}>
-          {priorityInfo.label}
-        </Badge>
+        {(project.priority === 'alta' || project.priority === 'urgente') && (
+          <Badge className={cn('text-[10px] px-1.5 py-0 h-5', priorityInfo.class)}>
+            {priorityInfo.label}
+          </Badge>
+        )}
         {isOverdue && (
-          <Badge variant="destructive" className="text-xs gap-1">
-            <AlertTriangle className="h-3 w-3" />
-            Atrasado
+          <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 gap-0.5">
+            <AlertTriangle className="h-2.5 w-2.5" />
           </Badge>
         )}
       </div>
 
       {/* Project Name */}
-      <h4 className="font-medium text-sm mb-1 line-clamp-2 pr-6">
+      <h4 className="font-medium text-xs leading-tight mb-1 line-clamp-2 pr-5">
         {project.name}
       </h4>
 
-      {/* Project Code */}
-      {(project as any).project_code && (
-        <p className="text-xs text-primary font-mono mb-1">
-          {(project as any).project_code}
-        </p>
-      )}
-
       {/* Client Name */}
       {project.clients?.name && (
-        <p className="text-xs text-muted-foreground mb-2 truncate">
+        <p className="text-[11px] text-muted-foreground mb-1.5 truncate">
           {project.clients.name}
         </p>
       )}
 
-      {/* Location */}
+      {/* Location (optional, compact) */}
       {project.city && (
-        <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
-          <MapPin className="h-3 w-3" />
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-1.5">
+          <MapPin className="h-2.5 w-2.5" />
           <span className="truncate">{project.city}</span>
         </div>
       )}
 
-      {/* Task Progress */}
+      {/* Task Progress (if exists) */}
       {taskCount > 0 && (
-        <div className="mb-2">
-          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-            <span className="flex items-center gap-1">
-              <CheckSquare className="h-3 w-3" />
+        <div className="mb-1.5">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-0.5">
+            <span className="flex items-center gap-0.5">
+              <CheckSquare className="h-2.5 w-2.5" />
               Tarefas
             </span>
             <span>{taskCompleted}/{taskCount}</span>
           </div>
-          <Progress value={taskProgress} className="h-1.5" />
+          <Progress value={taskProgress} className="h-1" />
         </div>
       )}
 
       {/* Footer with date */}
-      <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
+      <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-border/30">
         {project.shoot_date ? (
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Calendar className="h-3 w-3" />
-            <span>
-              {format(new Date(project.shoot_date), 'dd MMM', { locale: pt })}
-            </span>
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Calendar className="h-2.5 w-2.5" />
+            <span>{format(new Date(project.shoot_date), 'dd MMM', { locale: pt })}</span>
           </div>
         ) : deliveryDate ? (
           <div className={cn(
-            'flex items-center gap-1 text-xs',
+            'flex items-center gap-1 text-[10px]',
             isOverdue ? 'text-destructive' : isUrgentDeadline ? 'text-warning' : 'text-muted-foreground'
           )}>
-            <Calendar className="h-3 w-3" />
-            <span>
-              Entrega: {format(deliveryDate, 'dd MMM', { locale: pt })}
-            </span>
+            <Calendar className="h-2.5 w-2.5" />
+            <span>{format(deliveryDate, 'dd MMM', { locale: pt })}</span>
           </div>
         ) : (
-          <span className="text-xs text-muted-foreground">Sem data</span>
+          <span className="text-[10px] text-muted-foreground">-</span>
         )}
 
-        {/* Category badge */}
-        {project.category !== 'outro' && (
-          <Badge variant="secondary" className="text-xs">
-            {project.category === 'hotel' ? 'Hotel' : 
-             project.category === 'experiencia' ? 'Experiência' : 
-             project.category === 'evento' ? 'Evento' : ''}
-          </Badge>
+        {/* Project code */}
+        {(project as any).project_code && (
+          <span className="text-[10px] text-primary/70 font-mono">
+            {(project as any).project_code}
+          </span>
         )}
       </div>
     </div>

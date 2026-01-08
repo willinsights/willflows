@@ -103,15 +103,32 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
     setCreateModalOpen(false);
   };
 
-  // Filter columns by search
-  const filteredColumns = useMemo(() => columns.map(column => ({
-    ...column,
-    projects: column.projects.filter(project =>
-      project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.clients?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (project as any).project_code?.toLowerCase().includes(searchQuery.toLowerCase())
-    ),
-  })), [columns, searchQuery]);
+  // Filter columns by search and limit "Entregue" to 7 days
+  const filteredColumns = useMemo(() => {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    return columns.map(column => {
+      let filteredProjects = column.projects.filter(project =>
+        project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.clients?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (project as any).project_code?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+
+      // For "Entregue" column (is_final), only show deliveries from last 7 days
+      if (column.is_final) {
+        filteredProjects = filteredProjects.filter(project => {
+          if (!project.delivered_at) return true;
+          return new Date(project.delivered_at) >= sevenDaysAgo;
+        });
+      }
+
+      return {
+        ...column,
+        projects: filteredProjects,
+      };
+    });
+  }, [columns, searchQuery]);
 
   // Get selected project
   const selectedProject = useMemo(() => {
@@ -122,47 +139,48 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 pb-4">
+      {/* Header - Compact */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-3">
         <div>
-          <h1 className="text-2xl font-bold">{title}</h1>
-          <p className="text-muted-foreground">{description}</p>
+          <h1 className="text-xl font-bold">{title}</h1>
+          <p className="text-xs text-muted-foreground">{description}</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:flex-initial">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               placeholder="Pesquisar..."
-              className="pl-9 w-full sm:w-[200px]"
+              className="pl-8 h-8 text-xs w-full sm:w-[180px]"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Button variant="outline" size="icon">
-            <Filter className="h-4 w-4" />
+          <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+            <Filter className="h-3.5 w-3.5" />
           </Button>
           <Button
-            className="gradient-primary"
+            size="sm"
+            className="gradient-primary h-8 text-xs"
             onClick={() => {
               setSelectedColumnId(null);
               setCreateModalOpen(true);
             }}
           >
-            <Plus className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Novo Projeto</span>
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            <span className="hidden sm:inline">Novo</span>
           </Button>
         </div>
       </div>
 
       {/* Kanban Board */}
-      <div className="flex-1 overflow-x-auto p-6 pt-2">
+      <div className="flex-1 overflow-x-auto px-4 pb-4">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -170,13 +188,13 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-4 h-full min-w-max">
+          <div className="flex gap-3 h-full min-w-max">
             {filteredColumns.map((column, index) => (
               <motion.div
                 key={column.id}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
+                transition={{ delay: index * 0.03 }}
               >
                 <KanbanColumn
                   column={column}
@@ -191,16 +209,16 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
 
             {/* Add Column Button */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: filteredColumns.length * 0.05 }}
+              transition={{ delay: filteredColumns.length * 0.03 }}
             >
               <Button
                 variant="outline"
-                className="h-12 w-[300px] border-dashed"
+                className="h-10 w-[260px] border-dashed text-xs"
                 onClick={() => addColumn('Nova Coluna')}
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-3.5 w-3.5 mr-1" />
                 Adicionar Coluna
               </Button>
             </motion.div>
@@ -208,7 +226,7 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
 
           <DragOverlay>
             {activeProject && (
-              <div className="w-[280px] rotate-3">
+              <div className="w-[240px] rotate-2">
                 <KanbanCard project={activeProject} />
               </div>
             )}
