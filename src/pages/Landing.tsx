@@ -110,6 +110,9 @@ export default function Landing() {
             <Link to="/auth">
               <Button variant="ghost">Entrar</Button>
             </Link>
+            <Link to="/planos">
+              <Button variant="outline" className="hidden sm:inline-flex">Ver planos</Button>
+            </Link>
             <Link to="/auth">
               <Button className="gradient-primary">Começar grátis</Button>
             </Link>

@@ -180,6 +180,19 @@ export function CreateProjectModal({
 
     const project = await createProject(projectData);
 
+    // Save media links if any
+    if (project && mediaLinks.length > 0) {
+      const { supabase } = await import('@/integrations/supabase/client');
+      await supabase.from('project_media_links').insert(
+        mediaLinks.map(link => ({
+          project_id: project.id,
+          link_type: link.type,
+          url: link.url,
+          title: link.title || null,
+        }))
+      );
+    }
+
     setLoading(false);
 
     if (project) {
