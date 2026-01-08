@@ -21,6 +21,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { cn } from '@/lib/utils';
+import { SeedDemoData } from '@/components/demo/SeedDemoData';
 
 // Placeholder data - will be replaced with real data later
 const mockMetrics = {
@@ -97,14 +98,17 @@ export default function Dashboard() {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="space-y-1"
+        className="flex items-start justify-between"
       >
-        <h1 className="text-2xl md:text-3xl font-bold">
-          {getGreeting()}, {userName.split(' ')[0]}!
-        </h1>
-        <p className="text-muted-foreground capitalize">
-          {formattedDate} — {formattedTime}
-        </p>
+        <div className="space-y-1">
+          <h1 className="text-2xl md:text-3xl font-bold">
+            {getGreeting()}, {userName.split(' ')[0]}!
+          </h1>
+          <p className="text-muted-foreground capitalize">
+            {formattedDate} — {formattedTime}
+          </p>
+        </div>
+        <SeedDemoData />
       </motion.div>
 
       {/* Quick Metrics */}
