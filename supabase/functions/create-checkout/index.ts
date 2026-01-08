@@ -20,6 +20,9 @@ const logStep = (step: string, details?: any) => {
 };
 
 serve(async (req) => {
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -64,7 +67,7 @@ serve(async (req) => {
       logStep("No existing Stripe customer found");
     }
 
-    const origin = req.headers.get("origin") || "https://willflow.app";
+    const requestOrigin = req.headers.get("origin") || "https://willflow.app";
 
     // Create a subscription checkout session
     const session = await stripe.checkout.sessions.create({
@@ -77,8 +80,8 @@ serve(async (req) => {
         },
       ],
       mode: "subscription",
-      success_url: `${origin}/app?checkout=success`,
-      cancel_url: `${origin}/planos?checkout=cancelled`,
+      success_url: `${requestOrigin}/app?checkout=success`,
+      cancel_url: `${requestOrigin}/planos?checkout=cancelled`,
       metadata: {
         user_id: user.id,
         workspace_id: workspaceId || "",

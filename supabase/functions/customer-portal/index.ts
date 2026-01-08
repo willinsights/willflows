@@ -20,6 +20,9 @@ const logStep = (step: string, details?: any) => {
 };
 
 serve(async (req) => {
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -58,10 +61,10 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
-    const origin = req.headers.get("origin") || "https://willflow.app";
+    const requestOrigin = req.headers.get("origin") || "https://willflow.app";
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: `${origin}/app/configuracoes`,
+      return_url: `${requestOrigin}/app/configuracoes`,
     });
     
     logStep("Customer portal session created", { sessionId: portalSession.id, url: portalSession.url });
