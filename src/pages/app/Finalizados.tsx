@@ -284,6 +284,7 @@ export default function Finalizados() {
           project={selectedProject}
           open={!!selectedProjectId}
           onOpenChange={(open) => !open && setSelectedProjectId(null)}
+          onUpdate={() => {}}
         />
       )}
     </div>

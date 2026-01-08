@@ -355,6 +355,7 @@ export default function Projetos() {
           project={selectedProject}
           open={!!selectedProjectId}
           onOpenChange={(open) => !open && setSelectedProjectId(null)}
+          onUpdate={() => {}}
         />
       )}
     </div>

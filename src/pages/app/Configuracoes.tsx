@@ -28,7 +28,7 @@ export default function Configuracoes() {
   
   const [workspaceName, setWorkspaceName] = useState(currentWorkspace?.name || '');
   const [currency, setCurrency] = useState(currentWorkspace?.currency || 'EUR');
-  const [country, setCountry] = useState(currentWorkspace?.country || 'PT');
+  const [country, setCountry] = useState<string>(currentWorkspace?.country || 'PT');
   const [timezone, setTimezone] = useState(currentWorkspace?.timezone || 'Europe/Lisbon');
 
   const handleSaveGeneral = () => {
