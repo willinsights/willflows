@@ -137,6 +137,38 @@ export type Database = {
           },
         ]
       }
+      categories: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          workspace_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          workspace_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null
@@ -289,6 +321,7 @@ export type Database = {
           currency: string
           description: string | null
           due_date: string | null
+          freelancer_name: string | null
           id: string
           invoice_number: string | null
           invoice_url: string | null
@@ -309,6 +342,7 @@ export type Database = {
           currency?: string
           description?: string | null
           due_date?: string | null
+          freelancer_name?: string | null
           id?: string
           invoice_number?: string | null
           invoice_url?: string | null
@@ -329,6 +363,7 @@ export type Database = {
           currency?: string
           description?: string | null
           due_date?: string | null
+          freelancer_name?: string | null
           id?: string
           invoice_number?: string | null
           invoice_url?: string | null
@@ -392,6 +427,41 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      project_media_links: {
+        Row: {
+          created_at: string
+          id: string
+          link_type: string
+          project_id: string
+          title: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          link_type?: string
+          project_id: string
+          title?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          link_type?: string
+          project_id?: string
+          title?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_media_links_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_team: {
         Row: {
@@ -487,6 +557,9 @@ export type Database = {
           created_at: string
           created_by: string | null
           current_phase: Database["public"]["Enums"]["kanban_phase"]
+          custo_captacao: number | null
+          custo_edicao: number | null
+          custom_category_id: string | null
           delivered_at: string | null
           delivery_date: string | null
           drive_folder_url: string | null
@@ -494,13 +567,16 @@ export type Database = {
           edicao_column_id: string | null
           estimated_costs: number | null
           frameio_project_id: string | null
+          google_meet_url: string | null
           id: string
           internal_notes: string | null
           is_delivered: boolean
+          item_type: string | null
           name: string
           notes: string | null
           payment_method: string | null
           priority: Database["public"]["Enums"]["priority_level"]
+          project_code: string | null
           region: string | null
           shoot_date: string | null
           shoot_end_time: string | null
@@ -520,6 +596,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           current_phase?: Database["public"]["Enums"]["kanban_phase"]
+          custo_captacao?: number | null
+          custo_edicao?: number | null
+          custom_category_id?: string | null
           delivered_at?: string | null
           delivery_date?: string | null
           drive_folder_url?: string | null
@@ -527,13 +606,16 @@ export type Database = {
           edicao_column_id?: string | null
           estimated_costs?: number | null
           frameio_project_id?: string | null
+          google_meet_url?: string | null
           id?: string
           internal_notes?: string | null
           is_delivered?: boolean
+          item_type?: string | null
           name: string
           notes?: string | null
           payment_method?: string | null
           priority?: Database["public"]["Enums"]["priority_level"]
+          project_code?: string | null
           region?: string | null
           shoot_date?: string | null
           shoot_end_time?: string | null
@@ -553,6 +635,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           current_phase?: Database["public"]["Enums"]["kanban_phase"]
+          custo_captacao?: number | null
+          custo_edicao?: number | null
+          custom_category_id?: string | null
           delivered_at?: string | null
           delivery_date?: string | null
           drive_folder_url?: string | null
@@ -560,13 +645,16 @@ export type Database = {
           edicao_column_id?: string | null
           estimated_costs?: number | null
           frameio_project_id?: string | null
+          google_meet_url?: string | null
           id?: string
           internal_notes?: string | null
           is_delivered?: boolean
+          item_type?: string | null
           name?: string
           notes?: string | null
           payment_method?: string | null
           priority?: Database["public"]["Enums"]["priority_level"]
+          project_code?: string | null
           region?: string | null
           shoot_date?: string | null
           shoot_end_time?: string | null
@@ -588,6 +676,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_custom_category_id_fkey"
+            columns: ["custom_category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
             referencedColumns: ["id"]
           },
           {

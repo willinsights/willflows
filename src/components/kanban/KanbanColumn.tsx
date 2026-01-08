@@ -23,8 +23,10 @@ import type { KanbanColumnWithProjects } from '@/hooks/useKanban';
 interface KanbanColumnProps {
   column: KanbanColumnWithProjects;
   onUpdateColumn: (columnId: string, updates: { name?: string; color?: string }) => void;
+  onDeleteColumn?: (columnId: string) => void;
   onAddProject: (columnId: string) => void;
   onProjectClick: (projectId: string) => void;
+  isOver?: boolean;
 }
 
 const colorOptions = [

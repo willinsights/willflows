@@ -1,9 +1,10 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { format } from 'date-fns';
+import { format, differenceInDays, isPast } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { Calendar, MapPin, Camera, Video, Grip } from 'lucide-react';
+import { Calendar, MapPin, Camera, Video, Grip, CheckSquare, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import type { ProjectWithClient } from '@/hooks/useKanban';
 
@@ -25,10 +26,10 @@ const typeLabels = {
 };
 
 const priorityConfig = {
-  baixa: { class: 'priority-baixa', label: 'Baixa' },
-  media: { class: 'priority-media', label: 'Média' },
-  alta: { class: 'priority-alta', label: 'Alta' },
-  urgente: { class: 'priority-urgente', label: 'Urgente' },
+  baixa: { class: 'priority-baixa', label: 'Baixa', border: '' },
+  media: { class: 'priority-media', label: 'Média', border: '' },
+  alta: { class: 'priority-alta', label: 'Alta', border: 'border-l-4 border-l-warning' },
+  urgente: { class: 'priority-urgente', label: 'Urgente', border: 'border-l-4 border-l-destructive' },
 };
 
 export function KanbanCard({ project, onClick }: KanbanCardProps) {
@@ -49,13 +50,27 @@ export function KanbanCard({ project, onClick }: KanbanCardProps) {
   const TypeIcon = typeIcons[project.type];
   const priorityInfo = priorityConfig[project.priority];
 
+  // Check if deadline is near or passed
+  const deliveryDate = project.delivery_date ? new Date(project.delivery_date) : null;
+  const daysUntilDelivery = deliveryDate ? differenceInDays(deliveryDate, new Date()) : null;
+  const isOverdue = deliveryDate && isPast(deliveryDate);
+  const isUrgentDeadline = daysUntilDelivery !== null && daysUntilDelivery <= 3 && daysUntilDelivery >= 0;
+
+  // Task progress
+  const taskCount = project.task_count || 0;
+  const taskCompleted = project.task_completed || 0;
+  const taskProgress = taskCount > 0 ? (taskCompleted / taskCount) * 100 : 0;
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        'kanban-card group',
-        isDragging && 'dragging opacity-50 z-50'
+        'kanban-card group relative',
+        isDragging && 'dragging opacity-50 z-50',
+        priorityInfo.border,
+        isOverdue && 'border-destructive bg-destructive/5',
+        isUrgentDeadline && !isOverdue && 'border-warning bg-warning/5'
       )}
       onClick={onClick}
     >
@@ -69,22 +84,33 @@ export function KanbanCard({ project, onClick }: KanbanCardProps) {
       </div>
 
       {/* Type and Priority Badges */}
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
         <Badge variant="outline" className="text-xs gap-1">
           <TypeIcon className="h-3 w-3" />
           {typeLabels[project.type]}
         </Badge>
-        {project.priority !== 'media' && (
-          <Badge className={cn('text-xs', priorityInfo.class)}>
-            {priorityInfo.label}
+        <Badge className={cn('text-xs', priorityInfo.class)}>
+          {priorityInfo.label}
+        </Badge>
+        {isOverdue && (
+          <Badge variant="destructive" className="text-xs gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            Atrasado
           </Badge>
         )}
       </div>
 
       {/* Project Name */}
-      <h4 className="font-medium text-sm mb-1 line-clamp-2">
+      <h4 className="font-medium text-sm mb-1 line-clamp-2 pr-6">
         {project.name}
       </h4>
+
+      {/* Project Code */}
+      {(project as any).project_code && (
+        <p className="text-xs text-primary font-mono mb-1">
+          {(project as any).project_code}
+        </p>
+      )}
 
       {/* Client Name */}
       {project.clients?.name && (
@@ -101,6 +127,20 @@ export function KanbanCard({ project, onClick }: KanbanCardProps) {
         </div>
       )}
 
+      {/* Task Progress */}
+      {taskCount > 0 && (
+        <div className="mb-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+            <span className="flex items-center gap-1">
+              <CheckSquare className="h-3 w-3" />
+              Tarefas
+            </span>
+            <span>{taskCompleted}/{taskCount}</span>
+          </div>
+          <Progress value={taskProgress} className="h-1.5" />
+        </div>
+      )}
+
       {/* Footer with date */}
       <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
         {project.shoot_date ? (
@@ -108,6 +148,16 @@ export function KanbanCard({ project, onClick }: KanbanCardProps) {
             <Calendar className="h-3 w-3" />
             <span>
               {format(new Date(project.shoot_date), 'dd MMM', { locale: pt })}
+            </span>
+          </div>
+        ) : deliveryDate ? (
+          <div className={cn(
+            'flex items-center gap-1 text-xs',
+            isOverdue ? 'text-destructive' : isUrgentDeadline ? 'text-warning' : 'text-muted-foreground'
+          )}>
+            <Calendar className="h-3 w-3" />
+            <span>
+              Entrega: {format(deliveryDate, 'dd MMM', { locale: pt })}
             </span>
           </div>
         ) : (
