@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
+import { handleDatabaseError } from '@/lib/error-handler';
 import type { Tables } from '@/integrations/supabase/types';
 
 export type KanbanPhase = 'captacao' | 'edicao';
@@ -88,10 +89,9 @@ export function useKanban(phase: KanbanPhase) {
 
       setColumns(columnsWithProjects);
     } catch (error) {
-      console.error('Error fetching kanban:', error);
       toast({
         title: 'Erro ao carregar Kanban',
-        description: 'Não foi possível carregar as colunas.',
+        description: handleDatabaseError('fetchKanban', error),
         variant: 'destructive',
       });
     } finally {
@@ -188,10 +188,9 @@ export function useKanban(phase: KanbanPhase) {
 
       if (error) throw error;
     } catch (error) {
-      console.error('Error moving project:', error);
       toast({
         title: 'Erro ao mover projeto',
-        description: 'Não foi possível mover o projeto.',
+        description: handleDatabaseError('moveProject', error),
         variant: 'destructive',
       });
       fetchColumns(); // Revert on error
@@ -241,7 +240,7 @@ export function useKanban(phase: KanbanPhase) {
         if (error) throw error;
       }
     } catch (error) {
-      console.error('Error reordering columns:', error);
+      handleDatabaseError('reorderColumns', error);
       fetchColumns(); // Revert on error
     }
   };
@@ -272,9 +271,9 @@ export function useKanban(phase: KanbanPhase) {
 
       toast({ title: 'Coluna atualizada' });
     } catch (error) {
-      console.error('Error updating column:', error);
       toast({
         title: 'Erro ao atualizar coluna',
+        description: handleDatabaseError('updateColumn', error),
         variant: 'destructive',
       });
     }
@@ -314,9 +313,9 @@ export function useKanban(phase: KanbanPhase) {
       toast({ title: 'Coluna criada' });
       fetchColumns();
     } catch (error) {
-      console.error('Error adding column:', error);
       toast({
         title: 'Erro ao criar coluna',
+        description: handleDatabaseError('addColumn', error),
         variant: 'destructive',
       });
     }
@@ -354,9 +353,9 @@ export function useKanban(phase: KanbanPhase) {
       toast({ title: 'Coluna apagada' });
       fetchColumns();
     } catch (error) {
-      console.error('Error deleting column:', error);
       toast({
         title: 'Erro ao apagar coluna',
+        description: handleDatabaseError('deleteColumn', error),
         variant: 'destructive',
       });
     }

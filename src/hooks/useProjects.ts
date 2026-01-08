@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
+import { handleDatabaseError } from '@/lib/error-handler';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 export type Project = Tables<'projects'>;
@@ -72,11 +73,10 @@ export function useProjects() {
       toast({ title: 'Projeto criado com sucesso' });
       setProjects(prev => [data, ...prev]);
       return data;
-    } catch (error: any) {
-      console.error('Error creating project:', error);
+    } catch (error) {
       toast({
         title: 'Erro ao criar projeto',
-        description: error.message,
+        description: handleDatabaseError('createProject', error),
         variant: 'destructive',
       });
       return null;
@@ -97,11 +97,10 @@ export function useProjects() {
       );
 
       toast({ title: 'Projeto atualizado' });
-    } catch (error: any) {
-      console.error('Error updating project:', error);
+    } catch (error) {
       toast({
         title: 'Erro ao atualizar projeto',
-        description: error.message,
+        description: handleDatabaseError('updateProject', error),
         variant: 'destructive',
       });
     }
@@ -118,11 +117,10 @@ export function useProjects() {
 
       setProjects(prev => prev.filter(p => p.id !== projectId));
       toast({ title: 'Projeto removido' });
-    } catch (error: any) {
-      console.error('Error deleting project:', error);
+    } catch (error) {
       toast({
         title: 'Erro ao remover projeto',
-        description: error.message,
+        description: handleDatabaseError('deleteProject', error),
         variant: 'destructive',
       });
     }
