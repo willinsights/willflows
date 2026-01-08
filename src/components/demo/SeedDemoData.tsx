@@ -183,11 +183,12 @@ export function SeedDemoData() {
 
       console.log('Columns found:', captacaoColumns.length, 'captacao,', edicaoColumns.length, 'edicao');
 
-      // 3. Create 25 projects with varied data
+      // 3. Create 25 projects with varied data using 2026 dates
       const projects = [];
-      const today = new Date();
-      const pastMonth = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-      const nextTwoMonths = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000);
+      // Use 2026 dates for demo data
+      const today = new Date('2026-01-08');
+      const pastMonth = new Date('2025-12-01');
+      const nextTwoMonths = new Date('2026-03-15');
 
       for (let i = 0; i < 25; i++) {
         const client = createdClients![i % createdClients!.length];
@@ -216,7 +217,7 @@ export function SeedDemoData() {
 
         projects.push({
           name: `${projectNames[i]} - ${client.name.split(' ')[0]}`,
-          project_code: `WF-${new Date().getFullYear()}-${String(i + 1).padStart(3, '0')}`,
+          project_code: `WF-2026-${String(i + 1).padStart(3, '0')}`,
           workspace_id: currentWorkspace.id,
           client_id: client.id,
           created_by: user.id,
@@ -373,7 +374,7 @@ export function SeedDemoData() {
           due_date: project.delivery_date,
           paid_at: isPaid ? formatDateTime(new Date(project.delivery_date!)) : null,
           description: `Pagamento do projeto: ${project.name}`,
-          invoice_number: isPaid ? `FAT-${new Date().getFullYear()}-${String(allPayments.length + 1).padStart(4, '0')}` : null,
+          invoice_number: isPaid ? `FAT-2026-${String(allPayments.length + 1).padStart(4, '0')}` : null,
         });
 
         // Freelancer costs (payable) - for some projects
