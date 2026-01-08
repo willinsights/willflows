@@ -19,6 +19,12 @@ const PLAN_MAPPING: Record<string, string> = {
   'prod_Tko5DQ15DWTMhz': 'studio',
 };
 
+// Very small in-memory cache to reduce Stripe calls (best-effort; per edge instance)
+const CACHE_TTL_MS = 60 * 1000; // 1 minute
+const subscriptionCache = new Map<
+  string,
+  { expiresAt: number; value: { subscribed: boolean; plan: string | null; subscription_end: string | null } }
+>();
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -48,61 +54,108 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    
-    if (customers.data.length === 0) {
-      logStep("No customer found, returning unsubscribed state");
-      return new Response(JSON.stringify({ 
-        subscribed: false,
-        plan: null,
-        subscription_end: null,
-      }), {
+    const cacheKey = user.email.toLowerCase();
+    const cached = subscriptionCache.get(cacheKey);
+    const now = Date.now();
+
+    if (cached && cached.expiresAt > now) {
+      logStep("Cache hit", { cacheKey });
+      return new Response(JSON.stringify(cached.value), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
     }
 
-    const customerId = customers.data[0].id;
-    logStep("Found Stripe customer", { customerId });
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "active",
-      limit: 1,
-    });
+    try {
+      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
 
-    const hasActiveSub = subscriptions.data.length > 0;
-    let plan: string | null = null;
-    let subscriptionEnd: string | null = null;
-
-    if (hasActiveSub) {
-      const subscription = subscriptions.data[0];
-      // Safely handle the date conversion
-      try {
-        if (subscription.current_period_end) {
-          subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
-        }
-      } catch (dateError) {
-        logStep("Date parsing error", { error: String(dateError), value: subscription.current_period_end });
+      if (customers.data.length === 0) {
+        logStep("No customer found, returning unsubscribed state");
+        const value = { subscribed: false, plan: null, subscription_end: null };
+        subscriptionCache.set(cacheKey, { expiresAt: now + CACHE_TTL_MS, value });
+        return new Response(JSON.stringify(value), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
       }
-      logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
-      
-      const productId = subscription.items.data[0]?.price?.product as string;
-      plan = PLAN_MAPPING[productId] || 'unknown';
-      logStep("Determined subscription plan", { productId, plan });
-    } else {
-      logStep("No active subscription found");
-    }
 
-    return new Response(JSON.stringify({
-      subscribed: hasActiveSub,
-      plan: plan,
-      subscription_end: subscriptionEnd,
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+      const customerId = customers.data[0].id;
+      logStep("Found Stripe customer", { customerId });
+
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: "active",
+        limit: 1,
+      });
+
+      const hasActiveSub = subscriptions.data.length > 0;
+      let plan: string | null = null;
+      let subscriptionEnd: string | null = null;
+
+      if (hasActiveSub) {
+        const subscription = subscriptions.data[0];
+
+        // Safely handle the date conversion
+        const end = (subscription as any).current_period_end;
+        if (typeof end === 'number' && Number.isFinite(end) && end > 0) {
+          subscriptionEnd = new Date(end * 1000).toISOString();
+        } else {
+          logStep("Missing/invalid current_period_end", { value: end });
+        }
+
+        logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
+
+        const productId = subscription.items.data[0]?.price?.product as string | undefined;
+        plan = (productId && PLAN_MAPPING[productId]) ? PLAN_MAPPING[productId] : (productId ? 'unknown' : null);
+        logStep("Determined subscription plan", { productId, plan });
+      } else {
+        logStep("No active subscription found");
+      }
+
+      const value = {
+        subscribed: hasActiveSub,
+        plan,
+        subscription_end: subscriptionEnd,
+      };
+
+      subscriptionCache.set(cacheKey, { expiresAt: now + CACHE_TTL_MS, value });
+
+      return new Response(JSON.stringify(value), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    } catch (stripeError: any) {
+      // Stripe rate limit (429) should not break the app; return cached (even stale) if available.
+      const statusCode = stripeError?.statusCode ?? stripeError?.status ?? null;
+      const message = stripeError?.message ? String(stripeError.message) : String(stripeError);
+
+      if (statusCode === 429 || /rate limit/i.test(message)) {
+        logStep("Stripe rate limited", { statusCode, message });
+
+        if (cached) {
+          logStep("Returning stale cache due to rate limit", { cacheKey });
+          return new Response(JSON.stringify({ ...cached.value, rate_limited: true }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+        }
+
+        // Soft-fail: avoid 500 blank screen
+        return new Response(JSON.stringify({
+          subscribed: false,
+          plan: null,
+          subscription_end: null,
+          rate_limited: true,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
+      throw stripeError;
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
