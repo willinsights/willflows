@@ -7,6 +7,7 @@ import { AppHeader } from './AppHeader';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Button } from '@/components/ui/button';
+import { toast } from '@/hooks/use-toast';
 
 export function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -27,6 +28,13 @@ export function AppLayout() {
     setIsRetrying(true);
     await refreshWorkspaces();
     setIsRetrying(false);
+    
+    if (!fetchError) {
+      toast({
+        title: "Conexão restabelecida",
+        description: "A ligação ao servidor foi restaurada com sucesso.",
+      });
+    }
   };
 
   return (
