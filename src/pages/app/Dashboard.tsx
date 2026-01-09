@@ -112,8 +112,8 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
-      {/* KPIs Row - 6 cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+      {/* KPIs Row - 3 colunas x 2 linhas */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {/* Captação */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
