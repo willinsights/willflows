@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
-import logoWillflow from '@/assets/logo-willflow-sistema.png';
+import { useTheme } from '@/contexts/ThemeContext';
+import logoLight from '@/assets/logo-willflow-purple.png';
+import logoDark from '@/assets/logo-willflow-white.png';
 
 const footerLinks = {
   produto: [
@@ -19,13 +21,16 @@ const footerLinks = {
 };
 
 export function PublicFooter() {
+  const { theme } = useTheme();
+  const logo = theme === 'dark' ? logoDark : logoLight;
+
   return (
     <footer className="py-16 px-4 border-t border-border bg-muted/30">
       <div className="container mx-auto">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <img src={logoWillflow} alt="WillFlow" className="h-10 object-contain mb-4" />
+            <img src={logo} alt="WillFlow" className="h-10 object-contain mb-4" />
             <p className="text-sm text-muted-foreground max-w-xs">
               O CRM + Kanban feito para produção de Foto e Vídeo. Gerencie projetos desde a captação até a entrega.
             </p>
