@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, User, Users, Bell, Shield, Globe, Palette, Calendar, Video, Loader2, Database, CreditCard, Crown, Check, ExternalLink } from 'lucide-react';
+import { Settings, User, Users, Shield, Globe, Palette, Calendar, Video, Loader2, Database as DatabaseIcon, CreditCard, Crown, Check, ExternalLink, X, RefreshCw, Clock, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,16 +15,22 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { SeedDemoData } from '@/components/demo/SeedDemoData';
-import { PLAN_INFO, STRIPE_PRICES, getPriceId } from '@/lib/stripe-prices';
+import { PLAN_INFO, getPriceId } from '@/lib/stripe-prices';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
+import { useWorkspaceInvitations } from '@/hooks/useWorkspaceInvitations';
+import type { Database } from '@/integrations/supabase/types';
+
+type AppRole = Database['public']['Enums']['app_role'];
 
 export default function Configuracoes() {
   const { user } = useAuth();
@@ -32,11 +38,27 @@ export default function Configuracoes() {
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   
+  // Workspace members and invitations
+  const { members, loading: membersLoading, refresh: refreshMembers } = useWorkspaceMembers();
+  const { 
+    invitations, 
+    loading: invitationsLoading, 
+    createInvitation, 
+    cancelInvitation, 
+    resendInvitation,
+    refresh: refreshInvitations 
+  } = useWorkspaceInvitations();
+  
   const [saving, setSaving] = useState(false);
   const [workspaceName, setWorkspaceName] = useState('');
   const [currency, setCurrency] = useState('EUR');
   const [country, setCountry] = useState('PT');
   const [timezone, setTimezone] = useState('Europe/Lisbon');
+  
+  // Team invite state
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<AppRole>('editor');
+  const [inviting, setInviting] = useState(false);
   
   // Subscription state
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
@@ -174,13 +196,133 @@ export default function Configuracoes() {
     }
   };
 
-  const roles = [
+  const roles: { id: AppRole; name: string; description: string }[] = [
     { id: 'admin', name: 'Admin', description: 'Acesso total ao sistema' },
     { id: 'editor', name: 'Editor', description: 'Edita projetos e tarefas' },
     { id: 'captacao', name: 'Captação', description: 'Apenas fase de captação' },
     { id: 'freelancer', name: 'Freelancer', description: 'Vê tarefas atribuídas e ganhos próprios' },
     { id: 'visualizador', name: 'Visualizador', description: 'Apenas visualização' },
   ];
+
+  const getRoleBadgeVariant = (role: string) => {
+    switch (role) {
+      case 'admin': return 'default';
+      case 'editor': return 'secondary';
+      case 'captacao': return 'outline';
+      case 'freelancer': return 'outline';
+      default: return 'outline';
+    }
+  };
+
+  const handleInvite = async () => {
+    if (!inviteEmail.trim()) {
+      toast({
+        title: 'Email obrigatório',
+        description: 'Por favor, insira um email válido.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setInviting(true);
+    const result = await createInvitation(inviteEmail.trim(), inviteRole);
+    setInviting(false);
+
+    if (result.success) {
+      toast({
+        title: 'Convite enviado',
+        description: `Convite enviado para ${inviteEmail}`,
+      });
+      setInviteEmail('');
+      setInviteRole('editor');
+    } else {
+      toast({
+        title: 'Erro ao enviar convite',
+        description: result.error,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleCancelInvitation = async (invitationId: string) => {
+    const result = await cancelInvitation(invitationId);
+    if (result.success) {
+      toast({ title: 'Convite cancelado' });
+    } else {
+      toast({
+        title: 'Erro ao cancelar convite',
+        description: result.error,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleResendInvitation = async (invitationId: string) => {
+    const result = await resendInvitation(invitationId);
+    if (result.success) {
+      toast({ title: 'Convite reenviado', description: 'O prazo de expiração foi estendido por 7 dias.' });
+    } else {
+      toast({
+        title: 'Erro ao reenviar convite',
+        description: result.error,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleRemoveMember = async (memberId: string, memberUserId: string) => {
+    if (memberUserId === user?.id) {
+      toast({
+        title: 'Ação não permitida',
+        description: 'Não é possível remover a si mesmo.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from('workspace_members')
+      .update({ is_active: false })
+      .eq('id', memberId);
+
+    if (error) {
+      toast({
+        title: 'Erro ao remover membro',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({ title: 'Membro removido' });
+      refreshMembers();
+    }
+  };
+
+  const handleUpdateMemberRole = async (memberId: string, newRole: AppRole, memberUserId: string) => {
+    if (memberUserId === user?.id) {
+      toast({
+        title: 'Ação não permitida',
+        description: 'Não é possível alterar a sua própria função.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from('workspace_members')
+      .update({ role: newRole })
+      .eq('id', memberId);
+
+    if (error) {
+      toast({
+        title: 'Erro ao atualizar função',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({ title: 'Função atualizada' });
+      refreshMembers();
+    }
+  };
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -219,7 +361,7 @@ export default function Configuracoes() {
           </TabsTrigger>
           {isAdmin && (
             <TabsTrigger value="dados" className="gap-2 text-xs md:text-sm">
-              <Database className="h-4 w-4" />
+              <DatabaseIcon className="h-4 w-4" />
               <span className="hidden sm:inline">Dados Demo</span>
             </TabsTrigger>
           )}
@@ -531,46 +673,215 @@ export default function Configuracoes() {
 
         {/* Equipa Tab */}
         <TabsContent value="equipa">
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>Gestão de Equipa</CardTitle>
-              <CardDescription>Convide membros e gerencie acessos</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Input placeholder="email@exemplo.com" className="flex-1" />
-                <Select defaultValue="editor">
-                  <SelectTrigger className="w-full sm:w-[140px]">
-                    <SelectValue placeholder="Função" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {roles.map(role => (
-                      <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button className="gradient-primary">Convidar</Button>
-              </div>
-
-              <div className="space-y-3">
-                <h4 className="font-medium">Membros Atuais</h4>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="font-semibold text-primary">
-                        {user?.email?.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="font-medium">{user?.user_metadata?.full_name || user?.email}</p>
-                      <p className="text-sm text-muted-foreground">{user?.email}</p>
-                    </div>
+          <div className="grid gap-6">
+            {/* Invite Form */}
+            {isAdmin && (
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle>Convidar Novo Membro</CardTitle>
+                  <CardDescription>Envie um convite por email para adicionar um novo membro à equipa</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Input 
+                      placeholder="email@exemplo.com" 
+                      className="flex-1" 
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      disabled={inviting}
+                    />
+                    <Select value={inviteRole} onValueChange={(val) => setInviteRole(val as AppRole)}>
+                      <SelectTrigger className="w-full sm:w-[160px]">
+                        <SelectValue placeholder="Função" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {roles.map(role => (
+                          <SelectItem key={role.id} value={role.id}>
+                            {role.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button 
+                      className="gradient-primary" 
+                      onClick={handleInvite}
+                      disabled={inviting || !inviteEmail.trim()}
+                    >
+                      {inviting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          A enviar...
+                        </>
+                      ) : (
+                        'Convidar'
+                      )}
+                    </Button>
                   </div>
-                  <Badge>Admin</Badge>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Pending Invitations */}
+            {isAdmin && invitations.length > 0 && (
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="h-5 w-5" />
+                    Convites Pendentes
+                  </CardTitle>
+                  <CardDescription>
+                    Convites enviados que ainda não foram aceites
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {invitationsLoading ? (
+                      <div className="flex items-center gap-2 py-4">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm text-muted-foreground">A carregar...</span>
+                      </div>
+                    ) : (
+                      invitations.map((invitation) => (
+                        <motion.div
+                          key={invitation.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                              <span className="font-semibold text-muted-foreground">
+                                {invitation.email.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="font-medium">{invitation.email}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Expira {formatDistanceToNow(new Date(invitation.expires_at), { addSuffix: true, locale: pt })}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">{roles.find(r => r.id === invitation.role)?.name}</Badge>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleResendInvitation(invitation.id)}
+                              title="Reenviar convite"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleCancelInvitation(invitation.id)}
+                              title="Cancelar convite"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </motion.div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Current Members */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Membros Atuais
+                </CardTitle>
+                <CardDescription>
+                  {members.length} {members.length === 1 ? 'membro' : 'membros'} no workspace
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {membersLoading ? (
+                    <div className="flex items-center gap-2 py-4">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm text-muted-foreground">A carregar...</span>
+                    </div>
+                  ) : members.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4">Nenhum membro encontrado</p>
+                  ) : (
+                    members.map((member, index) => (
+                      <motion.div
+                        key={member.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={member.avatar_url || undefined} />
+                            <AvatarFallback className="bg-primary/10 text-primary">
+                              {(member.full_name || member.email)?.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{member.full_name || member.email}</p>
+                            <p className="text-sm text-muted-foreground">{member.email}</p>
+                            {member.specialization && member.specialization.length > 0 && (
+                              <div className="flex gap-1 mt-1">
+                                {member.specialization.slice(0, 2).map((spec, i) => (
+                                  <Badge key={i} variant="outline" className="text-xs">
+                                    {spec}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isAdmin && member.user_id !== user?.id ? (
+                            <>
+                              <Select 
+                                value={member.role} 
+                                onValueChange={(val) => handleUpdateMemberRole(member.id, val as AppRole, member.user_id)}
+                              >
+                                <SelectTrigger className="w-[130px] h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {roles.map(role => (
+                                    <SelectItem key={role.id} value={role.id}>
+                                      {role.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoveMember(member.id, member.user_id)}
+                                title="Remover membro"
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <Badge variant={getRoleBadgeVariant(member.role)}>
+                              {roles.find(r => r.id === member.role)?.name || member.role}
+                            </Badge>
+                          )}
+                          {member.user_id === user?.id && (
+                            <Badge variant="secondary" className="ml-1">Você</Badge>
+                          )}
+                        </div>
+                      </motion.div>
+                    ))
+                  )}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* Integrações Tab */}
@@ -671,7 +982,7 @@ export default function Configuracoes() {
             <Card className="glass-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Database className="h-5 w-5" />
+                  <DatabaseIcon className="h-5 w-5" />
                   Dados de Demonstração
                 </CardTitle>
                 <CardDescription>
