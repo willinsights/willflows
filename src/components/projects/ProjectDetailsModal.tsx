@@ -388,14 +388,14 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
                       <div className="space-y-2">
                         <Label>Cliente</Label>
                         <Select 
-                          value={editForm.client_id} 
-                          onValueChange={(value) => setEditForm(prev => ({ ...prev, client_id: value }))}
+                          value={editForm.client_id || "__none__"} 
+                          onValueChange={(value) => setEditForm(prev => ({ ...prev, client_id: value === "__none__" ? "" : value }))}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Selecionar cliente" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Nenhum</SelectItem>
+                            <SelectItem value="__none__">Nenhum</SelectItem>
                             {clients.map(client => (
                               <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
                             ))}
@@ -468,14 +468,14 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
                       <div className="space-y-2">
                         <Label>Categoria Personalizada</Label>
                         <Select 
-                          value={editForm.custom_category_id} 
-                          onValueChange={(value) => setEditForm(prev => ({ ...prev, custom_category_id: value }))}
+                          value={editForm.custom_category_id || "__none__"} 
+                          onValueChange={(value) => setEditForm(prev => ({ ...prev, custom_category_id: value === "__none__" ? "" : value }))}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Selecionar categoria" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Nenhuma</SelectItem>
+                            <SelectItem value="__none__">Nenhuma</SelectItem>
                             {categories.map(cat => (
                               <SelectItem key={cat.id} value={cat.id}>
                                 <div className="flex items-center gap-2">
