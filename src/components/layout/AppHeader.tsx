@@ -1,23 +1,18 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, Search, Moon, Sun, Plus, LogOut, User } from 'lucide-react';
+import { Menu, Search, Plus, FolderOpen, User2, CheckSquare, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CreateProjectModal } from '@/components/projects/CreateProjectModal';
 import { TrialBadge } from '@/components/dashboard/TrialBadge';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import { AccountModal } from '@/components/account/AccountModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useGlobalSearch, SearchResult } from '@/hooks/useGlobalSearch';
+import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface AppHeaderProps {
   onMenuClick: () => void;
@@ -25,16 +20,55 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ onMenuClick }: AppHeaderProps) {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
-  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const [searchOpen, setSearchOpen] = useState(false);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
+  const { results, loading, hasQuery } = useGlobalSearch(searchQuery);
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setSearchFocused(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleResultClick = (result: SearchResult) => {
+    setSearchQuery('');
+    setSearchFocused(false);
+    
+    switch (result.type) {
+      case 'project':
+        navigate('/app/projetos');
+        break;
+      case 'client':
+        navigate('/app/clientes');
+        break;
+      case 'task':
+        navigate('/app/projetos');
+        break;
+    }
+  };
+
+  const getResultIcon = (type: SearchResult['type']) => {
+    switch (type) {
+      case 'project':
+        return <FolderOpen className="h-4 w-4 text-primary" />;
+      case 'client':
+        return <User2 className="h-4 w-4 text-blue-500" />;
+      case 'task':
+        return <CheckSquare className="h-4 w-4 text-green-500" />;
+    }
   };
 
   const getInitials = (name: string | null | undefined) => {
@@ -76,41 +110,85 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
           </div>
         )}
 
-        {/* Search */}
+        {/* Search - Always Visible */}
         <div className="flex-1 flex items-center justify-center px-4">
-          <div
-            className={`relative transition-all duration-200 ${searchOpen ? 'w-full max-w-md' : 'w-auto'}`}
-          >
-            {searchOpen ? (
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Pesquisar projetos, clientes, tarefas..."
-                  className="pl-9 pr-4 bg-muted/50"
-                  autoFocus
-                  onBlur={() => setSearchOpen(false)}
-                />
-              </div>
-            ) : (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSearchOpen(true)}
-                className="text-muted-foreground"
-                type="button"
-              >
-                <Search className="h-5 w-5" />
-              </Button>
-            )}
+          <div ref={searchRef} className="relative w-full max-w-md">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                ref={inputRef}
+                placeholder="Pesquisar projetos, clientes, tarefas..."
+                className="pl-9 pr-9 bg-muted/50"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+              />
+              {searchQuery && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                  onClick={() => {
+                    setSearchQuery('');
+                    inputRef.current?.focus();
+                  }}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+
+            {/* Search Results Dropdown */}
+            <AnimatePresence>
+              {searchFocused && hasQuery && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute top-full left-0 right-0 mt-2 bg-popover border border-border rounded-lg shadow-lg z-50 overflow-hidden"
+                >
+                  {loading ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      A pesquisar...
+                    </div>
+                  ) : results.length > 0 ? (
+                    <div className="max-h-[300px] overflow-y-auto">
+                      {results.map((result) => (
+                        <button
+                          key={`${result.type}-${result.id}`}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left"
+                          onClick={() => handleResultClick(result)}
+                        >
+                          {getResultIcon(result.type)}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{result.title}</p>
+                            {result.subtitle && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                {result.subtitle}
+                              </p>
+                            )}
+                          </div>
+                          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                            {result.meta}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      Nenhum resultado encontrado
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          {/* Trial Badge */}
-          <div className="hidden sm:block">
-            <TrialBadge />
-          </div>
+          {/* Trial Badge - Enhanced */}
+          <TrialBadge variant="header" />
 
           {/* New Project Button */}
           <Button
@@ -135,42 +213,21 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
           {/* Notifications */}
           <NotificationCenter />
 
-          {/* Theme Toggle */}
-          <Button variant="ghost" size="icon" onClick={toggleTheme} type="button">
-            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          {/* User Avatar - Opens Account Modal */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="rounded-full" 
+            type="button"
+            onClick={() => setAccountModalOpen(true)}
+          >
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={user?.user_metadata?.avatar_url} />
+              <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+                {getInitials(userName)}
+              </AvatarFallback>
+            </Avatar>
           </Button>
-
-          {/* User Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full" type="button">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.user_metadata?.avatar_url} />
-                  <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
-                    {getInitials(userName)}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{userName}</p>
-                  <p className="text-xs leading-none text-muted-foreground">{userEmail}</p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate('/app/configuracoes')}>
-                <User className="mr-2 h-4 w-4" />
-                Perfil
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
-                <LogOut className="mr-2 h-4 w-4" />
-                Terminar sessão
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </header>
 
@@ -178,6 +235,11 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
         open={createProjectOpen}
         onOpenChange={setCreateProjectOpen}
         onSuccess={() => setCreateProjectOpen(false)}
+      />
+
+      <AccountModal
+        open={accountModalOpen}
+        onOpenChange={setAccountModalOpen}
       />
     </>
   );
