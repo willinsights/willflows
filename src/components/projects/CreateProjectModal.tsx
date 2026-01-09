@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2, Plus, Calendar as CalendarIcon, Clock, Link2, X } from 'lucide-react';
+import { Loader2, Plus, Calendar as CalendarIcon, Clock, Link2, X, Check, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -27,10 +27,13 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { useProjects } from '@/hooks/useProjects';
 import { useClients, Client } from '@/hooks/useClients';
 import { useCategories, Category } from '@/hooks/useCategories';
+import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { CreateClientModal } from '@/components/clients/CreateClientModal';
 import { CreateCategoryModal } from '@/components/categories/CreateCategoryModal';
@@ -97,6 +100,7 @@ export function CreateProjectModal({
   const { createProject } = useProjects();
   const { clients, loading: clientsLoading, refresh: refreshClients } = useClients();
   const { categories, loading: categoriesLoading, refresh: refreshCategories } = useCategories();
+  const { members: workspaceMembers, loading: membersLoading } = useWorkspaceMembers();
   const { currentWorkspace } = useWorkspace();
   const [loading, setLoading] = useState(false);
   const [createClientOpen, setCreateClientOpen] = useState(false);
@@ -104,6 +108,8 @@ export function CreateProjectModal({
   const [mediaLinks, setMediaLinks] = useState<MediaLink[]>([]);
   const [newLinkType, setNewLinkType] = useState('youtube');
   const [newLinkUrl, setNewLinkUrl] = useState('');
+  const [responsaveisCaptacao, setResponsaveisCaptacao] = useState<string[]>([]);
+  const [responsaveisEdicao, setResponsaveisEdicao] = useState<string[]>([]);
 
   const currency = currentWorkspace?.currency || 'EUR';
   const currencySymbol = currency === 'EUR' ? '€' : 'R$';
@@ -135,6 +141,8 @@ export function CreateProjectModal({
     if (open) {
       form.reset();
       setMediaLinks([]);
+      setResponsaveisCaptacao([]);
+      setResponsaveisEdicao([]);
     }
   }, [open, form]);
 
@@ -181,25 +189,44 @@ export function CreateProjectModal({
 
     const project = await createProject(projectData);
 
-    // Save media links if any
-    if (project && mediaLinks.length > 0) {
-      const { supabase } = await import('@/integrations/supabase/client');
-      await supabase.from('project_media_links').insert(
-        mediaLinks.map(link => ({
-          project_id: project.id,
-          link_type: link.type,
-          url: link.url,
-          title: link.title || null,
-        }))
-      );
-    }
-
-    setLoading(false);
-
     if (project) {
+      const { supabase } = await import('@/integrations/supabase/client');
+      
+      // Save media links if any
+      if (mediaLinks.length > 0) {
+        await supabase.from('project_media_links').insert(
+          mediaLinks.map(link => ({
+            project_id: project.id,
+            link_type: link.type,
+            url: link.url,
+            title: link.title || null,
+          }))
+        );
+      }
+
+      // Save team members (responsáveis)
+      const teamMembers = [
+        ...responsaveisCaptacao.map(userId => ({
+          project_id: project.id,
+          user_id: userId,
+          phase: 'captacao' as const,
+        })),
+        ...responsaveisEdicao.map(userId => ({
+          project_id: project.id,
+          user_id: userId,
+          phase: 'edicao' as const,
+        })),
+      ];
+
+      if (teamMembers.length > 0) {
+        await supabase.from('project_team').insert(teamMembers);
+      }
+
       appToast.projectCreated(data.name);
       onSuccess();
     }
+
+    setLoading(false);
   };
 
   const handleClientCreated = (client: Client) => {
@@ -473,6 +500,174 @@ export function CreateProjectModal({
                   )}
                 </div>
               </div>
+
+              {/* Responsáveis Section */}
+              {!isMeeting && (hasCaptacao || hasEdicao) && (
+                <>
+                  <Separator />
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+                      Responsáveis
+                    </h3>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {hasCaptacao && (
+                        <div className="space-y-2">
+                          <Label className="flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            Responsáveis Captação
+                          </Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full justify-start text-left font-normal min-h-[40px] h-auto"
+                              >
+                                {responsaveisCaptacao.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {responsaveisCaptacao.map(userId => {
+                                      const member = workspaceMembers.find(m => m.user_id === userId);
+                                      return member ? (
+                                        <Badge key={userId} variant="secondary" className="text-xs">
+                                          {member.full_name || member.email}
+                                        </Badge>
+                                      ) : null;
+                                    })}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">Selecionar responsáveis...</span>
+                                )}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[280px] p-2" align="start">
+                              <div className="space-y-1">
+                                {workspaceMembers.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground p-2">Nenhum membro encontrado</p>
+                                ) : (
+                                  workspaceMembers.map(member => (
+                                    <div
+                                      key={member.user_id}
+                                      className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
+                                      onClick={() => {
+                                        setResponsaveisCaptacao(prev =>
+                                          prev.includes(member.user_id)
+                                            ? prev.filter(id => id !== member.user_id)
+                                            : [...prev, member.user_id]
+                                        );
+                                      }}
+                                    >
+                                      <Checkbox
+                                        checked={responsaveisCaptacao.includes(member.user_id)}
+                                        onCheckedChange={() => {}}
+                                        className="pointer-events-none"
+                                      />
+                                      <Avatar className="h-6 w-6">
+                                        <AvatarImage src={member.avatar_url || undefined} />
+                                        <AvatarFallback className="text-xs">
+                                          {(member.full_name || member.email).slice(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div className="flex flex-col flex-1 min-w-0">
+                                        <span className="text-sm font-medium truncate">
+                                          {member.full_name || member.email}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground capitalize">
+                                          {member.role}
+                                        </span>
+                                      </div>
+                                      {responsaveisCaptacao.includes(member.user_id) && (
+                                        <Check className="h-4 w-4 text-primary" />
+                                      )}
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      )}
+
+                      {hasEdicao && (
+                        <div className="space-y-2">
+                          <Label className="flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            Responsáveis Edição
+                          </Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full justify-start text-left font-normal min-h-[40px] h-auto"
+                              >
+                                {responsaveisEdicao.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {responsaveisEdicao.map(userId => {
+                                      const member = workspaceMembers.find(m => m.user_id === userId);
+                                      return member ? (
+                                        <Badge key={userId} variant="secondary" className="text-xs">
+                                          {member.full_name || member.email}
+                                        </Badge>
+                                      ) : null;
+                                    })}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">Selecionar responsáveis...</span>
+                                )}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[280px] p-2" align="start">
+                              <div className="space-y-1">
+                                {workspaceMembers.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground p-2">Nenhum membro encontrado</p>
+                                ) : (
+                                  workspaceMembers.map(member => (
+                                    <div
+                                      key={member.user_id}
+                                      className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
+                                      onClick={() => {
+                                        setResponsaveisEdicao(prev =>
+                                          prev.includes(member.user_id)
+                                            ? prev.filter(id => id !== member.user_id)
+                                            : [...prev, member.user_id]
+                                        );
+                                      }}
+                                    >
+                                      <Checkbox
+                                        checked={responsaveisEdicao.includes(member.user_id)}
+                                        onCheckedChange={() => {}}
+                                        className="pointer-events-none"
+                                      />
+                                      <Avatar className="h-6 w-6">
+                                        <AvatarImage src={member.avatar_url || undefined} />
+                                        <AvatarFallback className="text-xs">
+                                          {(member.full_name || member.email).slice(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div className="flex flex-col flex-1 min-w-0">
+                                        <span className="text-sm font-medium truncate">
+                                          {member.full_name || member.email}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground capitalize">
+                                          {member.role}
+                                        </span>
+                                      </div>
+                                      {responsaveisEdicao.includes(member.user_id) && (
+                                        <Check className="h-4 w-4 text-primary" />
+                                      )}
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Financial Section - Only for projects */}
               {!isMeeting && (
