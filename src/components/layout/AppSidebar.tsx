@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   LayoutDashboard,
@@ -23,7 +23,6 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { NavLink } from '@/components/NavLink';
 import logoWillflow from '@/assets/logo-willflow-sistema.png';
 
 interface AppSidebarProps {
@@ -88,30 +87,11 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const NavItem = ({ item }: { item: NavSection['items'][0] }) => {
-    const isActive = location.pathname === item.path || 
-                     (item.path !== '/app' && location.pathname.startsWith(item.path));
-    
-    const content = (
-      <NavLink
-        to={item.path}
-        title={collapsed && !isMobile ? item.label : undefined}
-        aria-label={collapsed && !isMobile ? item.label : undefined}
-        className={cn(
-          'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
-          'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-          collapsed && !isMobile && 'justify-center px-2'
-        )}
-        activeClassName="bg-primary/10 text-primary font-medium"
-      >
-        <item.icon className={cn('h-5 w-5 flex-shrink-0', isActive && 'text-primary')} />
-        {(!collapsed || isMobile) && (
-          <span className="truncate">{item.label}</span>
-        )}
-      </NavLink>
-    );
-
-    return content;
+  const isActive = (path: string) => {
+    if (path === '/app') {
+      return location.pathname === '/app';
+    }
+    return location.pathname.startsWith(path);
   };
 
   return (
@@ -176,9 +156,28 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
               )}
               {/* Section Items */}
               <div className="space-y-1">
-                {section.items.map((item) => (
-                  <NavItem key={item.path} item={item} />
-                ))}
+                {section.items.map((item) => {
+                  const active = isActive(item.path);
+                  return (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      title={collapsed && !isMobile ? item.label : undefined}
+                      aria-label={collapsed && !isMobile ? item.label : undefined}
+                      className={cn(
+                        'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
+                        'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                        collapsed && !isMobile && 'justify-center px-2',
+                        active && 'bg-primary/10 text-primary font-medium'
+                      )}
+                    >
+                      <item.icon className={cn('h-5 w-5 flex-shrink-0', active && 'text-primary')} />
+                      {(!collapsed || isMobile) && (
+                        <span className="truncate">{item.label}</span>
+                      )}
+                    </NavLink>
+                  );
+                })}
               </div>
             </div>
           ))}
