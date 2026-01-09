@@ -4,7 +4,7 @@ import { pt } from 'date-fns/locale';
 import { 
   Edit, Trash2, CheckCircle, Calendar, MapPin, User, Clock, 
   Link as LinkIcon, AlertTriangle, CheckSquare, Save, X,
-  ExternalLink, Video, Camera, Film, DollarSign, Users, Check, FileText, Folder
+  ExternalLink, Video, Camera, Film, DollarSign, Users, Check, FileText, Folder, MessageSquare, Play
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +39,9 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { cn } from '@/lib/utils';
 import type { ProjectWithClient } from '@/hooks/useKanban';
 import type { Tables } from '@/integrations/supabase/types';
+import { ProjectChecklistTab } from './ProjectChecklistTab';
+import { ProjectCommentsTab } from './ProjectCommentsTab';
+import { ProjectMediaTab } from './ProjectMediaTab';
 
 type Task = Tables<'tasks'>;
 type TaskChecklist = Tables<'task_checklists'>;
@@ -212,23 +215,8 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
     }
   };
 
-  const handleToggleChecklist = async (checklistId: string, isCompleted: boolean) => {
-    try {
-      await supabase
-        .from('task_checklists')
-        .update({ 
-          is_completed: !isCompleted,
-          completed_at: !isCompleted ? new Date().toISOString() : null
-        })
-        .eq('id', checklistId);
-      
-      setChecklists(prev => 
-        prev.map(c => c.id === checklistId ? { ...c, is_completed: !isCompleted } : c)
-      );
-    } catch (error) {
-      console.error('Error toggling checklist:', error);
-    }
-  };
+  // Get the first task ID for the project (for checklist creation)
+  const firstTaskId = tasks.length > 0 ? tasks[0].id : null;
 
   const handleSaveEdit = async () => {
     if (!project) return;
@@ -392,10 +380,11 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
           </DialogHeader>
 
           <Tabs defaultValue="details" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-4">
+            <TabsList className="grid w-full grid-cols-5 mb-4">
               <TabsTrigger value="details">Detalhes</TabsTrigger>
-              <TabsTrigger value="tasks">Tarefas</TabsTrigger>
-              <TabsTrigger value="links">Links</TabsTrigger>
+              <TabsTrigger value="checklist">Checklist</TabsTrigger>
+              <TabsTrigger value="comments">Comentários</TabsTrigger>
+              <TabsTrigger value="media">Media</TabsTrigger>
               <TabsTrigger value="financial">Financeiro</TabsTrigger>
             </TabsList>
 
@@ -1111,113 +1100,34 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
                 )}
               </TabsContent>
 
-              {/* Tasks Tab */}
-              <TabsContent value="tasks" className="space-y-4 pr-4">
-                {checklists.length > 0 ? (
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-medium flex items-center gap-2">
-                        <CheckSquare className="h-4 w-4" />
-                        Checklist ({completedChecklists}/{totalChecklists})
-                      </span>
-                      {completedChecklists < totalChecklists && (
-                        <Badge variant="outline" className="text-yellow-500 border-yellow-500/30">
-                          <AlertTriangle className="h-3 w-3 mr-1" />
-                          Pendente
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      {checklists.map((item) => (
-                        <div 
-                          key={item.id} 
-                          className="flex items-center gap-2 p-2 rounded bg-muted/50 hover:bg-muted cursor-pointer transition-colors"
-                          onClick={() => handleToggleChecklist(item.id, item.is_completed)}
-                        >
-                          <Checkbox checked={item.is_completed} />
-                          <span className={cn("text-sm", item.is_completed && 'line-through text-muted-foreground')}>
-                            {item.title}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center text-muted-foreground py-8">
-                    <CheckSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>Nenhuma tarefa associada</p>
-                  </div>
-                )}
+              {/* Checklist Tab */}
+              <TabsContent value="checklist" className="space-y-4 pr-4">
+                <ProjectChecklistTab
+                  checklists={checklists}
+                  setChecklists={setChecklists}
+                  projectId={project.id}
+                  taskId={firstTaskId}
+                  workspaceId={project.workspace_id}
+                />
               </TabsContent>
 
-              {/* Links Tab */}
-              <TabsContent value="links" className="space-y-4 pr-4">
-                {isEditing ? (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Link do Google Drive</Label>
-                      <Input 
-                        value={editForm.drive_folder_url}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, drive_folder_url: e.target.value }))}
-                        placeholder="https://drive.google.com/..."
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Link do Dropbox</Label>
-                      <Input 
-                        value={editForm.dropbox_folder_url}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, dropbox_folder_url: e.target.value }))}
-                        placeholder="https://dropbox.com/..."
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {(project.drive_folder_url || project.dropbox_folder_url || mediaLinks.length > 0) ? (
-                      <div className="space-y-2">
-                        {project.drive_folder_url && (
-                          <a
-                            href={project.drive_folder_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 hover:bg-muted text-primary transition-colors"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                            <span>Google Drive</span>
-                          </a>
-                        )}
-                        {project.dropbox_folder_url && (
-                          <a
-                            href={project.dropbox_folder_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 hover:bg-muted text-primary transition-colors"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                            <span>Dropbox</span>
-                          </a>
-                        )}
-                        {mediaLinks.map((link) => (
-                          <a
-                            key={link.id}
-                            href={link.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 hover:bg-muted text-primary transition-colors"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                            <span>{link.title || link.link_type}</span>
-                          </a>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center text-muted-foreground py-8">
-                        <LinkIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p>Nenhum link associado</p>
-                      </div>
-                    )}
-                  </>
-                )}
+              {/* Comments Tab */}
+              <TabsContent value="comments" className="space-y-4 pr-4">
+                <ProjectCommentsTab
+                  projectId={project.id}
+                  workspaceId={project.workspace_id}
+                />
+              </TabsContent>
+
+              {/* Media Tab */}
+              <TabsContent value="media" className="space-y-4 pr-4">
+                <ProjectMediaTab
+                  mediaLinks={mediaLinks}
+                  setMediaLinks={setMediaLinks}
+                  projectId={project.id}
+                  driveUrl={project.drive_folder_url}
+                  dropboxUrl={project.dropbox_folder_url}
+                />
               </TabsContent>
 
               {/* Financial Tab */}
