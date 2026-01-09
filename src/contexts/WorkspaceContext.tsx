@@ -13,6 +13,7 @@ interface Workspace {
   logo_url: string | null;
   subscription_plan: 'essencial' | 'pro' | 'studio';
   subscription_status: string;
+  trial_ends_at?: string | null;
 }
 
 interface WorkspaceMember {
