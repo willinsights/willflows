@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, Sun, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeContext';
-import logoWillflow from '@/assets/logo-willflow-sistema.png';
+import logoLight from '@/assets/logo-willflow-purple.png';
+import logoDark from '@/assets/logo-willflow-white.png';
 
 const navLinks = [
   { label: 'Funcionalidades', href: '/funcionalidades' },
@@ -19,12 +20,14 @@ export function PublicHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
 
+  const logo = theme === 'dark' ? logoDark : logoLight;
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex-shrink-0">
-          <img src={logoWillflow} alt="WillFlow" className="h-10 object-contain" />
+          <img src={logo} alt="WillFlow" className="h-10 object-contain" />
         </Link>
 
         {/* Desktop Navigation */}

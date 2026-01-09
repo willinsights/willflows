@@ -1,17 +1,17 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* WillFlow Design System - Liquid Glass Premium Theme
-   Primary Color: #8224e3 (HSL: 270 76% 52%)
-   Secondary Accent: Turquoise/Cyan
+/* WillFlow Design System - Premium Glass Theme
+   Primary Color: #5B4AE4 (HSL: 246 74% 59%) - Violet
+   Accent Color: #00E5E5 (HSL: 180 100% 45%) - Cyan
    All colors MUST be HSL.
 */
 
 @layer base {
   :root {
-    /* Core backgrounds */
+    /* Core backgrounds - Clean white */
     --background: 0 0% 98%;
     --foreground: 240 10% 10%;
 
@@ -23,21 +23,21 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 10%;
 
-    /* Primary - WillFlow Purple #8224e3 */
-    --primary: 185 100% 57%;
+    /* Primary - WillFlow Violet #5B4AE4 */
+    --primary: 246 74% 59%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary */
-    --secondary: 270 30% 96%;
-    --secondary-foreground: 194 76% 40%;
+    /* Secondary - Light violet tint */
+    --secondary: 246 30% 96%;
+    --secondary-foreground: 246 74% 50%;
 
     /* Muted */
     --muted: 240 5% 96%;
     --muted-foreground: 240 5% 45%;
 
-    /* Accent - Turquoise */
-    --accent: 180 70% 94%;
-    --accent-foreground: 180 70% 35%;
+    /* Accent - Cyan #00E5E5 */
+    --accent: 180 100% 94%;
+    --accent-foreground: 180 100% 30%;
 
     /* Destructive */
     --destructive: 0 72% 51%;
@@ -58,36 +58,36 @@
     /* Borders and inputs */
     --border: 240 6% 90%;
     --input: 240 6% 90%;
-    --ring: 270 76% 52%;
+    --ring: 246 74% 59%;
 
     --radius: 1.25rem;
 
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 240 10% 30%;
-    --sidebar-primary: 270 76% 52%;
+    --sidebar-primary: 246 74% 59%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 270 30% 96%;
-    --sidebar-accent-foreground: 270 76% 40%;
+    --sidebar-accent: 246 30% 96%;
+    --sidebar-accent-foreground: 246 74% 50%;
     --sidebar-border: 240 6% 92%;
-    --sidebar-ring: 270 76% 52%;
+    --sidebar-ring: 246 74% 59%;
 
     /* Glass effect variables - Premium Light */
     --glass-blur: 16px;
     --glass-bg: 0 0% 100% / 0.7;
     --glass-border: 240 6% 90%;
     --glass-shadow: 0 1px 3px 0 rgba(0,0,0,0.04), 0 4px 12px -2px rgba(0,0,0,0.06);
-    --glass-shadow-hover: 0 4px 16px -2px rgba(130, 36, 227, 0.1), 0 8px 24px -4px rgba(0,0,0,0.08);
-    --glass-glow: 0 0 32px rgba(130, 36, 227, 0.06);
+    --glass-shadow-hover: 0 4px 16px -2px rgba(91, 74, 228, 0.12), 0 8px 24px -4px rgba(0,0,0,0.08);
+    --glass-glow: 0 0 32px rgba(91, 74, 228, 0.08);
 
     /* Kanban colors */
     --kanban-gray: 220 9% 46%;
     --kanban-blue: 217 91% 60%;
     --kanban-yellow: 38 92% 50%;
     --kanban-green: 142 76% 36%;
-    --kanban-purple: 270 76% 52%;
+    --kanban-purple: 246 74% 59%;
     --kanban-red: 0 72% 51%;
-    --kanban-cyan: 180 70% 45%;
+    --kanban-cyan: 180 100% 45%;
     --shadow-sm: 0px 1px 10.25px 0px hsla(0, 0%, 0%, 0.1);
     --shadow: 0px 1px 20.5px 0px hsla(0, 0%, 0%, 0.1);
     --shadow-md: 0px 1px 30.75px 0px hsla(0, 0%, 0%, 0.1);
@@ -95,33 +95,33 @@
   }
 
   .dark {
-    /* Core backgrounds - Space Black */
-    --background: 240 12% 5%;
+    /* Core backgrounds - Deep Space Black */
+    --background: 240 15% 6%;
     --foreground: 0 0% 95%;
 
     /* Cards with glassmorphism */
-    --card: 240 12% 8%;
+    --card: 240 15% 9%;
     --card-foreground: 0 0% 95%;
 
     /* Popovers */
-    --popover: 240 12% 8%;
+    --popover: 240 15% 9%;
     --popover-foreground: 0 0% 95%;
 
-    /* Primary - WillFlow Purple (brighter for dark) */
-    --primary: 270 76% 62%;
+    /* Primary - WillFlow Violet (brighter for dark) */
+    --primary: 246 74% 65%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary */
-    --secondary: 240 10% 14%;
-    --secondary-foreground: 270 60% 80%;
+    --secondary: 240 12% 14%;
+    --secondary-foreground: 246 60% 80%;
 
     /* Muted */
-    --muted: 240 10% 14%;
+    --muted: 240 12% 14%;
     --muted-foreground: 240 5% 55%;
 
-    /* Accent - Turquoise */
-    --accent: 180 60% 20%;
-    --accent-foreground: 180 70% 70%;
+    /* Accent - Cyan */
+    --accent: 180 70% 18%;
+    --accent-foreground: 180 100% 70%;
 
     /* Destructive */
     --destructive: 0 62% 50%;
@@ -140,36 +140,36 @@
     --info-foreground: 0 0% 100%;
 
     /* Borders and inputs */
-    --border: 240 10% 18%;
-    --input: 240 10% 18%;
-    --ring: 270 76% 60%;
+    --border: 240 12% 18%;
+    --input: 240 12% 18%;
+    --ring: 246 74% 65%;
 
     /* Sidebar */
-    --sidebar-background: 240 12% 6%;
+    --sidebar-background: 240 15% 7%;
     --sidebar-foreground: 0 0% 85%;
-    --sidebar-primary: 270 76% 60%;
+    --sidebar-primary: 246 74% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 270 40% 18%;
-    --sidebar-accent-foreground: 270 60% 80%;
-    --sidebar-border: 240 10% 16%;
-    --sidebar-ring: 270 76% 60%;
+    --sidebar-accent: 246 40% 18%;
+    --sidebar-accent-foreground: 246 60% 80%;
+    --sidebar-border: 240 12% 16%;
+    --sidebar-ring: 246 74% 65%;
 
     /* Glass effect variables - Premium Dark */
     --glass-blur: 20px;
-    --glass-bg: 240 12% 7% / 0.85;
+    --glass-bg: 240 15% 8% / 0.85;
     --glass-border: 0 0% 100% / 0.08;
     --glass-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.4), 0 8px 24px -4px rgba(0, 0, 0, 0.3);
-    --glass-shadow-hover: 0 4px 20px -4px rgba(130, 36, 227, 0.25), 0 12px 32px -8px rgba(0, 0, 0, 0.4);
-    --glass-glow: 0 0 48px rgba(130, 36, 227, 0.15);
+    --glass-shadow-hover: 0 4px 20px -4px rgba(91, 74, 228, 0.3), 0 12px 32px -8px rgba(0, 0, 0, 0.4);
+    --glass-glow: 0 0 48px rgba(91, 74, 228, 0.2);
 
     /* Kanban colors - slightly brighter for dark mode */
     --kanban-gray: 220 9% 55%;
     --kanban-blue: 217 91% 65%;
     --kanban-yellow: 38 92% 55%;
     --kanban-green: 142 70% 45%;
-    --kanban-purple: 270 76% 60%;
+    --kanban-purple: 246 74% 65%;
     --kanban-red: 0 72% 55%;
-    --kanban-cyan: 180 70% 55%;
+    --kanban-cyan: 180 100% 50%;
     --shadow-sm: 0px 1px 10.25px 0px hsla(0, 0%, 0%, 0.1);
     --shadow: 0px 1px 20.5px 0px hsla(0, 0%, 0%, 0.1);
     --shadow-md: 0px 1px 30.75px 0px hsla(0, 0%, 0%, 0.1);
@@ -254,20 +254,20 @@
     -webkit-backdrop-filter: blur(10px);
   }
 
-  /* Gradient text */
+  /* Gradient text - Violet to Cyan */
   .gradient-text {
     @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(270 76% 72%) 100%);
+    background-image: linear-gradient(135deg, hsl(246 74% 59%) 0%, hsl(180 100% 45%) 100%);
   }
 
-  /* Primary gradient background */
+  /* Primary gradient background - Violet to lighter violet */
   .gradient-primary {
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(270 76% 68%) 100%);
+    background: linear-gradient(135deg, hsl(246 74% 59%) 0%, hsl(246 74% 70%) 100%);
   }
 
-  /* Accent gradient (purple to cyan) */
+  /* Accent gradient (violet to cyan) */
   .gradient-accent {
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(180 70% 50%) 100%);
+    background: linear-gradient(135deg, hsl(246 74% 59%) 0%, hsl(180 100% 45%) 100%);
   }
 
   /* Hover glow effect */
@@ -276,7 +276,7 @@
   }
 
   .glow-hover:hover {
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.2);
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.25);
   }
 
   /* Kanban card styles - Compact & Clean */
@@ -289,13 +289,13 @@
 
   .kanban-card:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px -2px rgba(130, 36, 227, 0.12), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 4px 12px -2px rgba(91, 74, 228, 0.15), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     border-color: hsl(var(--primary) / 0.3);
   }
 
   .kanban-card.dragging {
     @apply opacity-70 scale-[1.02];
-    box-shadow: 0 12px 32px -8px rgba(130, 36, 227, 0.2);
+    box-shadow: 0 12px 32px -8px rgba(91, 74, 228, 0.25);
   }
 
   /* Priority badges - compact */
@@ -443,6 +443,18 @@
 
   .toast-glass[data-type="warning"] {
     border-left-color: hsl(var(--warning));
+  }
+
+  /* Pricing card glass - enhanced */
+  .pricing-glass {
+    @apply glass-card p-8;
+    background: hsl(var(--glass-bg));
+    border: 1px solid hsl(var(--border));
+  }
+
+  .pricing-glass.popular {
+    border: 2px solid hsl(var(--primary));
+    box-shadow: var(--glass-glow), var(--glass-shadow-hover);
   }
 }
 
