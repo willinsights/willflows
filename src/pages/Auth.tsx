@@ -4,7 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Sparkles, ArrowLeft, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Loader2 } from 'lucide-react';
+import logoWhite from '@/assets/logo-willflow-white.png';
+import logoPurple from '@/assets/logo-willflow-purple.png';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -119,11 +121,12 @@ export default function Auth() {
           className="w-full max-w-md"
         >
           {/* Logo */}
-          <div className="flex items-center gap-3 mb-8">
-            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary">
-              <Sparkles className="h-7 w-7 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-2xl gradient-text">WillFlow</span>
+          <div className="mb-8">
+            <img 
+              src={theme === 'dark' ? logoWhite : logoPurple} 
+              alt="WillFlow" 
+              className="h-10 w-auto"
+            />
           </div>
 
           {/* Title */}
