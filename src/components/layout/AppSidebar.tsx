@@ -1,4 +1,5 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import type React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   LayoutDashboard,
@@ -23,6 +24,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { NavLink } from '@/components/NavLink';
 import logoWillflow from '@/assets/logo-willflow-sistema.png';
 
 interface AppSidebarProps {
@@ -85,6 +87,7 @@ const navSections: NavSection[] = [
 
 export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const NavItem = ({ item }: { item: NavSection['items'][0] }) => {
     const isActive = location.pathname === item.path || 
@@ -96,9 +99,9 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
         className={cn(
           'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
           'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-          isActive && 'bg-primary/10 text-primary font-medium',
           collapsed && !isMobile && 'justify-center px-2'
         )}
+        activeClassName="bg-primary/10 text-primary font-medium"
       >
         <item.icon className={cn('h-5 w-5 flex-shrink-0', isActive && 'text-primary')} />
         {(!collapsed || isMobile) && (
@@ -130,14 +133,24 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
         'flex items-center h-16 px-4 border-b border-sidebar-border',
         collapsed && !isMobile ? 'justify-center' : 'justify-between'
       )}>
-        <img 
-          src={logoWillflow} 
-          alt="WillFlow" 
+        <button
+          type="button"
+          onClick={() => navigate('/app')}
           className={cn(
-            'object-contain',
-            collapsed && !isMobile ? 'h-8' : 'h-10'
-          )} 
-        />
+            'rounded-md focus-ring',
+            collapsed && !isMobile ? '' : '-ml-1'
+          )}
+          aria-label="Ir para o Dashboard"
+        >
+          <img 
+            src={logoWillflow} 
+            alt="WillFlow" 
+            className={cn(
+              'object-contain cursor-pointer',
+              collapsed && !isMobile ? 'h-8' : 'h-10'
+            )} 
+          />
+        </button>
         
         {isMobile ? (
           <Button

@@ -100,11 +100,21 @@ export function AppHeader({ onMenuClick, sidebarCollapsed }: AppHeaderProps) {
       {/* Actions */}
       <div className="flex items-center gap-2">
         {/* New Project Button */}
-        <Button size="sm" className="hidden sm:flex gap-2 gradient-primary">
+        <Button
+          size="sm"
+          className="hidden sm:flex gap-2 gradient-primary"
+          onClick={() => navigate('/app/projetos')}
+          type="button"
+        >
           <Plus className="h-4 w-4" />
           <span>Novo Projeto</span>
         </Button>
-        <Button size="icon" className="sm:hidden gradient-primary">
+        <Button
+          size="icon"
+          className="sm:hidden gradient-primary"
+          onClick={() => navigate('/app/projetos')}
+          type="button"
+        >
           <Plus className="h-4 w-4" />
         </Button>
 
