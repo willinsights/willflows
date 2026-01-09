@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw, X } from 'lucide-react';
 import { AppSidebar } from './AppSidebar';
 import { AppHeader } from './AppHeader';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -10,6 +10,16 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 
 const RETRY_COOLDOWN_MS = 5000; // 5 seconds cooldown between retries
+
+type ClickDebugInfo = {
+  route: string;
+  tag?: string;
+  id?: string;
+  className?: string;
+  zIndex?: string;
+  position?: string;
+  pointerEvents?: string;
+};
 
 export function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -21,23 +31,40 @@ export function AppLayout() {
 
   const lastRetryTimeRef = useRef(0);
 
-  // Debug (sem poluir console): ALT+click mostra o elemento que está por cima e pode estar a bloquear o menu
-  useEffect(() => {
-    const handler = (event: PointerEvent) => {
-      if (!event.altKey) return;
-      const elAtPoint = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
-      const info = `${elAtPoint?.tagName ?? 'N/A'}${elAtPoint?.id ? `#${elAtPoint.id}` : ''}`;
-      const cls = typeof elAtPoint?.className === 'string' ? elAtPoint.className : '';
+  const debugEnabled = useMemo(() => {
+    try {
+      const url = new URL(window.location.href);
+      return url.searchParams.get('debug') === '1';
+    } catch {
+      return false;
+    }
+  }, []);
 
-      toast({
-        title: 'Debug click (ALT+click)',
-        description: `${info}${cls ? `\n${cls}` : ''}`,
+  const [clickDebug, setClickDebug] = useState<ClickDebugInfo | null>(null);
+  const [debugPanelOpen, setDebugPanelOpen] = useState(true);
+
+  // Debug: detectar overlays invisíveis a capturar cliques
+  useEffect(() => {
+    if (!debugEnabled) return;
+
+    const handler = (event: PointerEvent) => {
+      const elAtPoint = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+      const cs = elAtPoint ? window.getComputedStyle(elAtPoint) : null;
+
+      setClickDebug({
+        route: window.location.pathname,
+        tag: elAtPoint?.tagName,
+        id: elAtPoint?.id,
+        className: typeof elAtPoint?.className === 'string' ? elAtPoint.className : undefined,
+        zIndex: cs?.zIndex,
+        position: cs?.position,
+        pointerEvents: cs?.pointerEvents,
       });
     };
 
     document.addEventListener('pointerdown', handler, true);
     return () => document.removeEventListener('pointerdown', handler, true);
-  }, []);
+  }, [debugEnabled]);
 
   const toggleSidebar = () => {
     if (isMobile) {
@@ -77,6 +104,37 @@ export function AppLayout() {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
+      {debugEnabled && debugPanelOpen && (
+        <div className="fixed bottom-4 left-4 z-[200] w-[340px] rounded-lg border bg-card text-card-foreground shadow-lg">
+          <div className="flex items-center justify-between border-b px-3 py-2">
+            <div className="text-xs font-semibold">Debug cliques (debug=1)</div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setDebugPanelOpen(false)}
+              type="button"
+              aria-label="Fechar debug"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="px-3 py-2 text-xs">
+            <div className="text-muted-foreground">Clique num item do menu e veja qual elemento está por cima.</div>
+            <div className="mt-2 space-y-1">
+              <div><span className="text-muted-foreground">Rota:</span> {clickDebug?.route ?? '-'}</div>
+              <div><span className="text-muted-foreground">Elemento:</span> {clickDebug?.tag ?? '-'}{clickDebug?.id ? `#${clickDebug.id}` : ''}</div>
+              <div className="truncate"><span className="text-muted-foreground">Class:</span> {clickDebug?.className ?? '-'}</div>
+              <div className="grid grid-cols-3 gap-2">
+                <div><span className="text-muted-foreground">z:</span> {clickDebug?.zIndex ?? '-'}</div>
+                <div><span className="text-muted-foreground">pos:</span> {clickDebug?.position ?? '-'}</div>
+                <div><span className="text-muted-foreground">pe:</span> {clickDebug?.pointerEvents ?? '-'}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Global Error Banner */}
       <AnimatePresence mode="wait">
         {fetchError && (
