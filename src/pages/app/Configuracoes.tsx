@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, User, Users, Bell, Shield, Globe, Palette, Calendar, Video, Loader2, Database } from 'lucide-react';
+import { Settings, User, Users, Bell, Shield, Globe, Palette, Calendar, Video, Loader2, Database, CreditCard, Crown, Check, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,10 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { SeedDemoData } from '@/components/demo/SeedDemoData';
+import { PLAN_INFO, STRIPE_PRICES, getPriceId } from '@/lib/stripe-prices';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { pt } from 'date-fns/locale';
 
 export default function Configuracoes() {
   const { user } = useAuth();
@@ -33,6 +37,16 @@ export default function Configuracoes() {
   const [currency, setCurrency] = useState('EUR');
   const [country, setCountry] = useState('PT');
   const [timezone, setTimezone] = useState('Europe/Lisbon');
+  
+  // Subscription state
+  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
+  const [subscriptionData, setSubscriptionData] = useState<{
+    subscribed: boolean;
+    plan: string | null;
+    subscription_end: string | null;
+  } | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
   // Sync form with current workspace
   useEffect(() => {
@@ -43,6 +57,87 @@ export default function Configuracoes() {
       setTimezone(currentWorkspace.timezone);
     }
   }, [currentWorkspace]);
+
+  // Fetch subscription status
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      try {
+        setSubscriptionLoading(true);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        const { data, error } = await supabase.functions.invoke('check-subscription', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+
+        if (error) throw error;
+        setSubscriptionData(data);
+      } catch (error) {
+        console.error('Error fetching subscription:', error);
+      } finally {
+        setSubscriptionLoading(false);
+      }
+    };
+
+    fetchSubscription();
+  }, []);
+
+  const handleOpenPortal = async () => {
+    try {
+      setPortalLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase.functions.invoke('customer-portal', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+
+      if (error) throw error;
+      if (data?.url) {
+        window.open(data.url, '_blank');
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao abrir portal',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setPortalLoading(false);
+    }
+  };
+
+  const handleUpgrade = async (planId: 'starter' | 'pro' | 'studio') => {
+    try {
+      setCheckoutLoading(planId);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const currencyKey = (currentWorkspace?.currency?.toLowerCase() === 'brl' ? 'brl' : 'eur') as 'eur' | 'brl';
+      const priceId = getPriceId(planId, currencyKey, 'monthly');
+
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: { priceId, workspaceId: currentWorkspace?.id },
+      });
+
+      if (error) throw error;
+      if (data?.url) {
+        window.open(data.url, '_blank');
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao iniciar checkout',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setCheckoutLoading(null);
+    }
+  };
+
+  const currentPlan = subscriptionData?.plan || currentWorkspace?.subscription_plan || 'starter';
+  const isSubscribed = subscriptionData?.subscribed ?? false;
 
   const handleSaveGeneral = async () => {
     if (!currentWorkspace) return;
@@ -101,6 +196,10 @@ export default function Configuracoes() {
           <TabsTrigger value="geral" className="gap-2 text-xs md:text-sm">
             <Settings className="h-4 w-4" />
             <span className="hidden sm:inline">Geral</span>
+          </TabsTrigger>
+          <TabsTrigger value="plano" className="gap-2 text-xs md:text-sm">
+            <CreditCard className="h-4 w-4" />
+            <span className="hidden sm:inline">Plano</span>
           </TabsTrigger>
           <TabsTrigger value="perfil" className="gap-2 text-xs md:text-sm">
             <User className="h-4 w-4" />
@@ -229,6 +328,161 @@ export default function Configuracoes() {
                     checked={theme === 'dark'}
                     onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
                   />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Plano Tab */}
+        <TabsContent value="plano">
+          <div className="grid gap-6">
+            {/* Current Plan */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Crown className="h-5 w-5 text-primary" />
+                  Plano Atual
+                </CardTitle>
+                <CardDescription>Gerencie a sua subscrição</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {subscriptionLoading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm text-muted-foreground">A carregar...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between p-4 rounded-lg border border-primary/20 bg-primary/5">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-primary/10">
+                          <Crown className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-lg capitalize">{currentPlan}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {isSubscribed ? 'Subscrição ativa' : 'Período de teste ou sem subscrição'}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge variant={isSubscribed ? 'default' : 'secondary'}>
+                        {isSubscribed ? 'Ativo' : 'Inativo'}
+                      </Badge>
+                    </div>
+
+                    {subscriptionData?.subscription_end && (
+                      <div className="text-sm text-muted-foreground">
+                        <span>Próxima renovação: </span>
+                        <span className="font-medium text-foreground">
+                          {format(new Date(subscriptionData.subscription_end), "d 'de' MMMM 'de' yyyy", { locale: pt })}
+                        </span>
+                      </div>
+                    )}
+
+                    {isSubscribed && (
+                      <Button
+                        variant="outline"
+                        onClick={handleOpenPortal}
+                        disabled={portalLoading}
+                        className="w-full sm:w-auto"
+                      >
+                        {portalLoading ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                        )}
+                        Gerir Subscrição
+                      </Button>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Available Plans */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle>Planos Disponíveis</CardTitle>
+                <CardDescription>Compare os planos e faça upgrade</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-3 gap-4">
+                  {(['starter', 'pro', 'studio'] as const).map((planId) => {
+                    const plan = PLAN_INFO[planId];
+                    const isCurrentPlan = currentPlan === planId;
+                    const currencyKey = (currentWorkspace?.currency?.toLowerCase() === 'brl' ? 'brl' : 'eur') as 'eur' | 'brl';
+                    const price = plan.prices[currencyKey].monthly;
+                    const currencySymbol = currencyKey === 'eur' ? '€' : 'R$';
+
+                    return (
+                      <motion.div
+                        key={planId}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={cn(
+                          'relative p-4 rounded-xl border-2 transition-all',
+                          isCurrentPlan
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/50'
+                        )}
+                      >
+                        {isCurrentPlan && (
+                          <Badge className="absolute -top-2 right-4 bg-primary">
+                            Seu Plano
+                          </Badge>
+                        )}
+                        {'popular' in plan && plan.popular && !isCurrentPlan && (
+                          <Badge className="absolute -top-2 right-4" variant="secondary">
+                            Popular
+                          </Badge>
+                        )}
+
+                        <h3 className="font-semibold text-lg">{plan.name}</h3>
+                        <p className="text-sm text-muted-foreground mb-3">{plan.description}</p>
+
+                        <div className="mb-4">
+                          <span className="text-2xl font-bold">{currencySymbol}{price}</span>
+                          <span className="text-muted-foreground">/mês</span>
+                        </div>
+
+                        <ul className="space-y-2 mb-4 text-sm">
+                          {plan.features.slice(0, 5).map((feature, idx) => (
+                            <li key={idx} className="flex items-center gap-2">
+                              <Check className={cn(
+                                'h-4 w-4',
+                                feature.included ? 'text-success' : 'text-muted-foreground/40'
+                              )} />
+                              <span className={cn(!feature.included && 'text-muted-foreground/60')}>
+                                {feature.name}{typeof feature.value === 'string' ? `: ${feature.value}` : ''}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+
+                        {isCurrentPlan ? (
+                          <Button variant="outline" className="w-full" disabled>
+                            Plano Atual
+                          </Button>
+                        ) : (
+                          <Button
+                            className={cn(
+                              'w-full',
+                              planId === 'pro' && 'gradient-primary'
+                            )}
+                            variant={planId === 'pro' ? 'default' : 'outline'}
+                            onClick={() => handleUpgrade(planId)}
+                            disabled={checkoutLoading === planId}
+                          >
+                            {checkoutLoading === planId ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : null}
+                            {isSubscribed ? 'Mudar Plano' : 'Começar Agora'}
+                          </Button>
+                        )}
+                      </motion.div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
