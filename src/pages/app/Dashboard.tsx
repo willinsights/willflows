@@ -24,6 +24,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { cn } from '@/lib/utils';
 import { ProductTour } from '@/components/tour/ProductTour';
+import { TrialBanner } from '@/components/dashboard/TrialBanner';
 import { useProductTour } from '@/hooks/useProductTour';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
 import { useNavigate } from 'react-router-dom';
@@ -96,7 +97,8 @@ export default function Dashboard() {
         <ProductTour onComplete={completeTour} onSkip={skipTour} />
       )}
 
-      {/* Header - Compact */}
+      {/* Trial Banner */}
+      <TrialBanner />
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
