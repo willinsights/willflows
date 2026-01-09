@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, RefreshCw } from 'lucide-react';
@@ -20,6 +20,24 @@ export function AppLayout() {
   const { fetchError, refreshWorkspaces } = useWorkspace();
 
   const lastRetryTimeRef = useRef(0);
+
+  // Debug (sem poluir console): ALT+click mostra o elemento que está por cima e pode estar a bloquear o menu
+  useEffect(() => {
+    const handler = (event: PointerEvent) => {
+      if (!event.altKey) return;
+      const elAtPoint = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+      const info = `${elAtPoint?.tagName ?? 'N/A'}${elAtPoint?.id ? `#${elAtPoint.id}` : ''}`;
+      const cls = typeof elAtPoint?.className === 'string' ? elAtPoint.className : '';
+
+      toast({
+        title: 'Debug click (ALT+click)',
+        description: `${info}${cls ? `\n${cls}` : ''}`,
+      });
+    };
+
+    document.addEventListener('pointerdown', handler, true);
+    return () => document.removeEventListener('pointerdown', handler, true);
+  }, []);
 
   const toggleSidebar = () => {
     if (isMobile) {
