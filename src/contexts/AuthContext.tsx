@@ -8,6 +8,8 @@ interface SubscriptionState {
   subscribed: boolean;
   plan: SubscriptionPlan;
   subscriptionEnd: string | null;
+  trialExpired: boolean;
+  trialEndsAt: string | null;
   loading: boolean;
 }
 
@@ -38,6 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     subscribed: false,
     plan: null,
     subscriptionEnd: null,
+    trialExpired: false,
+    trialEndsAt: null,
     loading: false,
   });
   
@@ -63,6 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         subscribed: false,
         plan: null,
         subscriptionEnd: null,
+        trialExpired: false,
+        trialEndsAt: null,
         loading: false,
       });
       return;
@@ -85,6 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         subscribed: data?.subscribed ?? false,
         plan: data?.plan ?? null,
         subscriptionEnd: data?.subscription_end ?? null,
+        trialExpired: data?.trial_expired ?? false,
+        trialEndsAt: data?.trial_ends_at ?? null,
         loading: false,
       });
     } catch (error) {
@@ -117,6 +125,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             subscribed: false,
             plan: null,
             subscriptionEnd: null,
+            trialExpired: false,
+            trialEndsAt: null,
             loading: false,
           });
         }

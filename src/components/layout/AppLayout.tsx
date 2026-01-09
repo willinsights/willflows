@@ -6,8 +6,10 @@ import { AppSidebar } from './AppSidebar';
 import { AppHeader } from './AppHeader';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
+import { TrialExpiredModal } from '@/components/subscription/TrialExpiredModal';
 
 const RETRY_COOLDOWN_MS = 5000; // 5 seconds cooldown between retries
 
@@ -28,6 +30,7 @@ export function AppLayout() {
   const [retryCooldown, setRetryCooldown] = useState(false);
   const isMobile = useIsMobile();
   const { fetchError, refreshWorkspaces } = useWorkspace();
+  const { subscription } = useAuth();
 
   const lastRetryTimeRef = useRef(0);
 
@@ -230,6 +233,9 @@ export function AppLayout() {
           </div>
         </main>
       </div>
+
+      {/* Trial Expired Modal */}
+      <TrialExpiredModal open={subscription.trialExpired} />
     </div>
   );
 }

@@ -10,7 +10,7 @@ const allowedOrigins = [
 ];
 
 const getCorsHeaders = (origin: string | null) => ({
-  "Access-Control-Allow-Origin": origin && allowedOrigins.includes(origin) ? origin : 'https://willflow.app',
+  "Access-Control-Allow-Origin": origin && allowedOrigins.includes(origin) ? origin : '*',
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 });
 
@@ -30,7 +30,7 @@ const PLAN_MAPPING: Record<string, string> = {
 const CACHE_TTL_MS = 60 * 1000; // 1 minute
 const subscriptionCache = new Map<
   string,
-  { expiresAt: number; value: { subscribed: boolean; plan: string | null; subscription_end: string | null } }
+  { expiresAt: number; value: { subscribed: boolean; plan: string | null; subscription_end: string | null; trial_expired?: boolean; trial_ends_at?: string | null } }
 >();
 
 serve(async (req) => {
@@ -77,14 +77,39 @@ serve(async (req) => {
       });
     }
 
+    // Get user's workspace to check trial_ends_at
+    const { data: membershipData } = await supabaseClient
+      .from('workspace_members')
+      .select('workspace_id, workspaces(trial_ends_at, subscription_status)')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .limit(1)
+      .single();
+
+    const workspaceData = membershipData?.workspaces as unknown as { trial_ends_at: string | null; subscription_status: string } | null;
+    const trialEndsAt: string | null = workspaceData?.trial_ends_at ?? null;
+    const subscriptionStatus: string = workspaceData?.subscription_status ?? 'trialing';
+    
+    logStep("Workspace info", { trialEndsAt, subscriptionStatus });
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
     try {
       const customers = await stripe.customers.list({ email: user.email, limit: 1 });
 
       if (customers.data.length === 0) {
-        logStep("No customer found, returning unsubscribed state");
-        const value = { subscribed: false, plan: null, subscription_end: null };
+        logStep("No Stripe customer found");
+        
+        // Check if trial expired
+        const trialExpired = trialEndsAt ? new Date(trialEndsAt) < new Date() : false;
+        
+        const value = { 
+          subscribed: !trialExpired, // Still "subscribed" during trial
+          plan: null as string | null, 
+          subscription_end: trialEndsAt,
+          trial_expired: trialExpired,
+          trial_ends_at: trialEndsAt,
+        };
         subscriptionCache.set(cacheKey, { expiresAt: now + CACHE_TTL_MS, value });
         return new Response(JSON.stringify(value), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -121,14 +146,36 @@ serve(async (req) => {
         const productId = subscription.items.data[0]?.price?.product as string | undefined;
         plan = (productId && PLAN_MAPPING[productId]) ? PLAN_MAPPING[productId] : (productId ? 'unknown' : null);
         logStep("Determined subscription plan", { productId, plan });
+
+        // Update workspace subscription status if needed
+        if (membershipData?.workspace_id && subscriptionStatus !== 'active') {
+          await supabaseClient
+            .from('workspaces')
+            .update({ subscription_status: 'active', subscription_plan: plan || 'essencial' })
+            .eq('id', membershipData.workspace_id);
+          logStep("Updated workspace subscription status to active");
+        }
       } else {
-        logStep("No active subscription found");
+        logStep("No active Stripe subscription found");
+      }
+
+      // Check if trial expired (only relevant if no active subscription)
+      const trialExpired = !hasActiveSub && trialEndsAt ? new Date(trialEndsAt) < new Date() : false;
+      
+      if (trialExpired && membershipData?.workspace_id && subscriptionStatus !== 'expired') {
+        await supabaseClient
+          .from('workspaces')
+          .update({ subscription_status: 'expired' })
+          .eq('id', membershipData.workspace_id);
+        logStep("Updated workspace subscription status to expired");
       }
 
       const value = {
-        subscribed: hasActiveSub,
+        subscribed: hasActiveSub || (!trialExpired && !!trialEndsAt),
         plan,
-        subscription_end: subscriptionEnd,
+        subscription_end: hasActiveSub ? subscriptionEnd : (trialEndsAt ?? null),
+        trial_expired: trialExpired,
+        trial_ends_at: trialEndsAt ?? null,
       };
 
       subscriptionCache.set(cacheKey, { expiresAt: now + CACHE_TTL_MS, value });
@@ -155,7 +202,7 @@ serve(async (req) => {
 
         // Soft-fail: avoid 500 blank screen
         return new Response(JSON.stringify({
-          subscribed: false,
+          subscribed: true, // Assume valid during rate limit
           plan: null,
           subscription_end: null,
           rate_limited: true,
