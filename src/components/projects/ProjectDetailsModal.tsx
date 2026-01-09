@@ -4,7 +4,7 @@ import { pt } from 'date-fns/locale';
 import { 
   Edit, Trash2, CheckCircle, Calendar, MapPin, User, Clock, 
   Link as LinkIcon, AlertTriangle, CheckSquare, Save, X,
-  ExternalLink, Video, Camera, Film, DollarSign
+  ExternalLink, Video, Camera, Film, DollarSign, Users, Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   AlertDialog, 
   AlertDialogAction, 
@@ -33,6 +34,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useClients } from '@/hooks/useClients';
 import { useCategories } from '@/hooks/useCategories';
+import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { cn } from '@/lib/utils';
 import type { ProjectWithClient } from '@/hooks/useKanban';
 import type { Tables } from '@/integrations/supabase/types';
@@ -40,6 +42,7 @@ import type { Tables } from '@/integrations/supabase/types';
 type Task = Tables<'tasks'>;
 type TaskChecklist = Tables<'task_checklists'>;
 type MediaLink = Tables<'project_media_links'>;
+type ProjectTeam = Tables<'project_team'>;
 
 interface ProjectDetailsModalProps {
   open: boolean;
@@ -79,14 +82,18 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
   const { toast } = useToast();
   const { clients } = useClients();
   const { categories } = useCategories();
+  const { members: workspaceMembers } = useWorkspaceMembers();
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [checklists, setChecklists] = useState<TaskChecklist[]>([]);
   const [mediaLinks, setMediaLinks] = useState<MediaLink[]>([]);
+  const [projectTeam, setProjectTeam] = useState<ProjectTeam[]>([]);
   const [loading, setLoading] = useState(false);
   const [pendingChecklistItems, setPendingChecklistItems] = useState<TaskChecklist[]>([]);
+  const [responsaveisCaptacao, setResponsaveisCaptacao] = useState<string[]>([]);
+  const [responsaveisEdicao, setResponsaveisEdicao] = useState<string[]>([]);
   
   // Full edit form state
   const [editForm, setEditForm] = useState({
@@ -169,6 +176,20 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
         .eq('project_id', project.id);
       
       setMediaLinks(linksData || []);
+
+      // Fetch project team members
+      const { data: teamData } = await supabase
+        .from('project_team')
+        .select('*')
+        .eq('project_id', project.id);
+      
+      setProjectTeam(teamData || []);
+      
+      // Set responsáveis based on phase
+      const captacaoMembers = (teamData || []).filter(t => t.phase === 'captacao').map(t => t.user_id);
+      const edicaoMembers = (teamData || []).filter(t => t.phase === 'edicao').map(t => t.user_id);
+      setResponsaveisCaptacao(captacaoMembers);
+      setResponsaveisEdicao(edicaoMembers);
     } catch (error) {
       console.error('Error fetching related data:', error);
     }
@@ -223,6 +244,29 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
         .eq('id', project.id);
       
       if (error) throw error;
+
+      // Update project team - delete existing and insert new
+      await supabase
+        .from('project_team')
+        .delete()
+        .eq('project_id', project.id);
+
+      const teamMembers = [
+        ...responsaveisCaptacao.map(userId => ({
+          project_id: project.id,
+          user_id: userId,
+          phase: 'captacao' as const,
+        })),
+        ...responsaveisEdicao.map(userId => ({
+          project_id: project.id,
+          user_id: userId,
+          phase: 'edicao' as const,
+        })),
+      ];
+
+      if (teamMembers.length > 0) {
+        await supabase.from('project_team').insert(teamMembers);
+      }
       
       toast({ title: 'Projeto atualizado com sucesso' });
       setIsEditing(false);
@@ -525,6 +569,164 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
 
                     <Separator />
 
+                    {/* Responsáveis */}
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-sm">Responsáveis</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            Responsáveis Captação
+                          </Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full justify-start text-left font-normal min-h-[40px] h-auto"
+                              >
+                                {responsaveisCaptacao.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {responsaveisCaptacao.map(userId => {
+                                      const member = workspaceMembers.find(m => m.user_id === userId);
+                                      return member ? (
+                                        <Badge key={userId} variant="secondary" className="text-xs">
+                                          {member.full_name || member.email}
+                                        </Badge>
+                                      ) : null;
+                                    })}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">Selecionar responsáveis...</span>
+                                )}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[280px] p-2" align="start">
+                              <div className="space-y-1">
+                                {workspaceMembers.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground p-2">Nenhum membro encontrado</p>
+                                ) : (
+                                  workspaceMembers.map(member => (
+                                    <div
+                                      key={member.user_id}
+                                      className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
+                                      onClick={() => {
+                                        setResponsaveisCaptacao(prev =>
+                                          prev.includes(member.user_id)
+                                            ? prev.filter(id => id !== member.user_id)
+                                            : [...prev, member.user_id]
+                                        );
+                                      }}
+                                    >
+                                      <Checkbox
+                                        checked={responsaveisCaptacao.includes(member.user_id)}
+                                        onCheckedChange={() => {}}
+                                        className="pointer-events-none"
+                                      />
+                                      <Avatar className="h-6 w-6">
+                                        <AvatarImage src={member.avatar_url || undefined} />
+                                        <AvatarFallback className="text-xs">
+                                          {(member.full_name || member.email).slice(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div className="flex flex-col flex-1 min-w-0">
+                                        <span className="text-sm font-medium truncate">
+                                          {member.full_name || member.email}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground capitalize">
+                                          {member.role}
+                                        </span>
+                                      </div>
+                                      {responsaveisCaptacao.includes(member.user_id) && (
+                                        <Check className="h-4 w-4 text-primary" />
+                                      )}
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            Responsáveis Edição
+                          </Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full justify-start text-left font-normal min-h-[40px] h-auto"
+                              >
+                                {responsaveisEdicao.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {responsaveisEdicao.map(userId => {
+                                      const member = workspaceMembers.find(m => m.user_id === userId);
+                                      return member ? (
+                                        <Badge key={userId} variant="secondary" className="text-xs">
+                                          {member.full_name || member.email}
+                                        </Badge>
+                                      ) : null;
+                                    })}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">Selecionar responsáveis...</span>
+                                )}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[280px] p-2" align="start">
+                              <div className="space-y-1">
+                                {workspaceMembers.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground p-2">Nenhum membro encontrado</p>
+                                ) : (
+                                  workspaceMembers.map(member => (
+                                    <div
+                                      key={member.user_id}
+                                      className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
+                                      onClick={() => {
+                                        setResponsaveisEdicao(prev =>
+                                          prev.includes(member.user_id)
+                                            ? prev.filter(id => id !== member.user_id)
+                                            : [...prev, member.user_id]
+                                        );
+                                      }}
+                                    >
+                                      <Checkbox
+                                        checked={responsaveisEdicao.includes(member.user_id)}
+                                        onCheckedChange={() => {}}
+                                        className="pointer-events-none"
+                                      />
+                                      <Avatar className="h-6 w-6">
+                                        <AvatarImage src={member.avatar_url || undefined} />
+                                        <AvatarFallback className="text-xs">
+                                          {(member.full_name || member.email).slice(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div className="flex flex-col flex-1 min-w-0">
+                                        <span className="text-sm font-medium truncate">
+                                          {member.full_name || member.email}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground capitalize">
+                                          {member.role}
+                                        </span>
+                                      </div>
+                                      {responsaveisEdicao.includes(member.user_id) && (
+                                        <Check className="h-4 w-4 text-primary" />
+                                      )}
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator />
+
                     {/* Notes */}
                     <div className="space-y-2">
                       <Label>Notas do Projeto</Label>
@@ -621,6 +823,62 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
                         </div>
                       )}
                     </div>
+
+                    {/* Responsáveis View Mode */}
+                    {(responsaveisCaptacao.length > 0 || responsaveisEdicao.length > 0) && (
+                      <>
+                        <Separator />
+                        <div className="space-y-3">
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Users className="h-3 w-3" /> Responsáveis
+                          </span>
+                          <div className="grid grid-cols-2 gap-4">
+                            {responsaveisCaptacao.length > 0 && (
+                              <div>
+                                <span className="text-xs text-muted-foreground">Captação</span>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {responsaveisCaptacao.map(userId => {
+                                    const member = workspaceMembers.find(m => m.user_id === userId);
+                                    return member ? (
+                                      <div key={userId} className="flex items-center gap-1.5 bg-muted px-2 py-1 rounded-full">
+                                        <Avatar className="h-5 w-5">
+                                          <AvatarImage src={member.avatar_url || undefined} />
+                                          <AvatarFallback className="text-[10px]">
+                                            {(member.full_name || member.email).slice(0, 2).toUpperCase()}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-xs font-medium">{member.full_name || member.email}</span>
+                                      </div>
+                                    ) : null;
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                            {responsaveisEdicao.length > 0 && (
+                              <div>
+                                <span className="text-xs text-muted-foreground">Edição</span>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {responsaveisEdicao.map(userId => {
+                                    const member = workspaceMembers.find(m => m.user_id === userId);
+                                    return member ? (
+                                      <div key={userId} className="flex items-center gap-1.5 bg-muted px-2 py-1 rounded-full">
+                                        <Avatar className="h-5 w-5">
+                                          <AvatarImage src={member.avatar_url || undefined} />
+                                          <AvatarFallback className="text-[10px]">
+                                            {(member.full_name || member.email).slice(0, 2).toUpperCase()}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-xs font-medium">{member.full_name || member.email}</span>
+                                      </div>
+                                    ) : null;
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
 
                     {project.notes && (
                       <>
