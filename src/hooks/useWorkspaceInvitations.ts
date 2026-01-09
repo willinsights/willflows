@@ -65,15 +65,7 @@ export function useWorkspaceInvitations() {
       return { success: false, error: 'Email inválido' };
     }
 
-    // Check if user is already a member
-    const { data: existingMember, error: memberError } = await supabase
-      .from('workspace_members')
-      .select('id')
-      .eq('workspace_id', currentWorkspace.id)
-      .eq('is_active', true)
-      .single();
-
-    // We need to check via profiles since workspace_members doesn't have email
+    // Check if user is already a member via profiles
     const { data: existingProfile } = await supabase
       .from('profiles')
       .select('id')
@@ -109,18 +101,53 @@ export function useWorkspaceInvitations() {
     }
 
     // Create the invitation
-    const { error: insertError } = await supabase
+    const { data: invitation, error: insertError } = await supabase
       .from('workspace_invitations')
       .insert({
         workspace_id: currentWorkspace.id,
         email: email.toLowerCase(),
         role,
         invited_by: user.id,
-      });
+      })
+      .select('id, token')
+      .single();
 
-    if (insertError) {
+    if (insertError || !invitation) {
       console.error('Error creating invitation:', insertError);
       return { success: false, error: 'Erro ao criar convite' };
+    }
+
+    // Get inviter's profile name
+    const { data: inviterProfile } = await supabase
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', user.id)
+      .single();
+
+    // Send invitation email via edge function
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { error: emailError } = await supabase.functions.invoke('send-invitation-email', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          body: {
+            invitationId: invitation.id,
+            email: email.toLowerCase(),
+            workspaceName: currentWorkspace.name,
+            inviterName: inviterProfile?.full_name || inviterProfile?.email || 'Um utilizador',
+            role,
+            token: invitation.token,
+          },
+        });
+
+        if (emailError) {
+          console.warn('Failed to send invitation email:', emailError);
+          // Don't fail the invitation creation if email fails
+        }
+      }
+    } catch (emailErr) {
+      console.warn('Error sending invitation email:', emailErr);
+      // Don't fail the invitation creation if email fails
     }
 
     await fetchInvitations();
