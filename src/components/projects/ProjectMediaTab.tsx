@@ -66,8 +66,6 @@ export function ProjectMediaTab({
     link_type: 'nas',
     url: '',
     title: '',
-    duration: '',
-    description: '',
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -86,8 +84,6 @@ export function ProjectMediaTab({
           link_type: newMedia.link_type,
           url: newMedia.url.trim(),
           title: newMedia.title.trim() || null,
-          duration: newMedia.duration.trim() || null,
-          description: newMedia.description.trim() || null,
         })
         .select()
         .single();
@@ -99,8 +95,6 @@ export function ProjectMediaTab({
         link_type: 'nas',
         url: '',
         title: '',
-        duration: '',
-        description: '',
       });
       setShowAddModal(false);
       toast({ title: 'Link de media adicionado' });
@@ -264,25 +258,6 @@ export function ProjectMediaTab({
                 value={newMedia.title}
                 onChange={(e) => setNewMedia(prev => ({ ...prev, title: e.target.value }))}
                 placeholder="Ex: Vídeo Principal"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Duração (opcional)</Label>
-              <Input
-                value={newMedia.duration}
-                onChange={(e) => setNewMedia(prev => ({ ...prev, duration: e.target.value }))}
-                placeholder="Ex: 02:30"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Descrição (opcional)</Label>
-              <Textarea
-                value={newMedia.description}
-                onChange={(e) => setNewMedia(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Notas sobre o video..."
-                className="min-h-[80px]"
               />
             </div>
           </div>
