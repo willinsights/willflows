@@ -10,10 +10,21 @@ export type KanbanColumn = Tables<'kanban_columns'>;
 export type Project = Tables<'projects'>;
 export type Task = Tables<'tasks'>;
 
+export interface TeamMember {
+  user_id: string;
+  phase: 'captacao' | 'edicao';
+  profile?: {
+    full_name: string | null;
+    avatar_url: string | null;
+    email: string;
+  } | null;
+}
+
 export interface ProjectWithClient extends Project {
   clients?: { name: string } | null;
   task_count?: number;
   task_completed?: number;
+  team_members?: TeamMember[];
 }
 
 export interface KanbanColumnWithProjects extends KanbanColumn {
@@ -63,8 +74,10 @@ export function useKanban(phase: KanbanPhase) {
       // Fetch task counts for projects
       const projectIds = projectsData?.map(p => p.id) || [];
       let taskCounts: Record<string, { total: number; completed: number }> = {};
+      let teamByProject: Record<string, TeamMember[]> = {};
       
       if (projectIds.length > 0) {
+        // Fetch tasks
         const { data: tasksData } = await supabase
           .from('tasks')
           .select('project_id, is_completed')
@@ -81,9 +94,42 @@ export function useKanban(phase: KanbanPhase) {
             }
           });
         }
+
+        // Fetch team members with profiles
+        const { data: teamData } = await supabase
+          .from('project_team')
+          .select('project_id, user_id, phase')
+          .in('project_id', projectIds);
+
+        if (teamData && teamData.length > 0) {
+          // Get unique user IDs
+          const userIds = [...new Set(teamData.map(t => t.user_id))];
+          
+          // Fetch profiles for all team members
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url, email')
+            .in('id', userIds);
+
+          const profilesMap = new Map(
+            profilesData?.map(p => [p.id, { full_name: p.full_name, avatar_url: p.avatar_url, email: p.email }]) || []
+          );
+
+          // Group by project
+          teamData.forEach(member => {
+            if (!teamByProject[member.project_id]) {
+              teamByProject[member.project_id] = [];
+            }
+            teamByProject[member.project_id].push({
+              user_id: member.user_id,
+              phase: member.phase,
+              profile: profilesMap.get(member.user_id) || null,
+            });
+          });
+        }
       }
 
-      // Map projects to columns with task counts
+      // Map projects to columns with task counts and team members
       const columnsWithProjects: KanbanColumnWithProjects[] = (columnsData || []).map(column => ({
         ...column,
         projects: (projectsData || [])
@@ -92,6 +138,7 @@ export function useKanban(phase: KanbanPhase) {
             ...project,
             task_count: taskCounts[project.id]?.total || 0,
             task_completed: taskCounts[project.id]?.completed || 0,
+            team_members: teamByProject[project.id] || [],
           })),
       }));
 
