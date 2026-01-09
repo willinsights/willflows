@@ -199,21 +199,28 @@ export default function Landing() {
     <div className="min-h-screen">
       <PublicHeader />
 
-      {/* Hero */}
-      <section className="pt-32 pb-20 px-4 relative overflow-hidden">
-        {/* Background gradient */}
+      {/* Hero with Depth of Field */}
+      <section className="pt-32 pb-20 px-4 relative overflow-hidden hero-depth">
+        {/* Premium Bokeh Background */}
         <div className="absolute inset-0 -z-10">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-accent/20 rounded-full blur-3xl" />
+          {/* Large bokeh orbs */}
+          <div className="bokeh-orb bokeh-orb-primary w-[500px] h-[500px] -top-32 left-1/4" style={{ animationDelay: '0s' }} />
+          <div className="bokeh-orb bokeh-orb-accent w-[400px] h-[400px] bottom-0 right-1/4" style={{ animationDelay: '-4s' }} />
+          <div className="bokeh-orb bokeh-orb-glow w-[600px] h-[600px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style={{ animationDelay: '-8s' }} />
+          
+          {/* Smaller accent orbs for depth */}
+          <div className="bokeh-orb bokeh-orb-primary w-48 h-48 top-20 right-20 opacity-30" style={{ animationDelay: '-2s' }} />
+          <div className="bokeh-orb bokeh-orb-accent w-32 h-32 bottom-40 left-20 opacity-40" style={{ animationDelay: '-6s' }} />
         </div>
 
-        <div className="container mx-auto text-center max-w-4xl">
+        <div className="container mx-auto text-center max-w-4xl relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="dof-focus"
           >
-            <Badge variant="secondary" className="mb-6">
+            <Badge variant="secondary" className="mb-6 backdrop-blur-sm">
               ✨ 7 dias grátis com cartão • Cancele quando quiser
             </Badge>
             <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
@@ -230,13 +237,13 @@ export default function Landing() {
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link to="/auth?trial=true">
-                <Button size="lg" className="gradient-primary text-lg px-8">
+                <Button size="lg" className="gradient-primary text-lg px-8 glow-ring lens-flare">
                   Começar teste grátis
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
               <Link to="/funcionalidades">
-                <Button size="lg" variant="outline" className="text-lg px-8">
+                <Button size="lg" variant="outline" className="text-lg px-8 backdrop-blur-sm">
                   Ver funcionalidades
                 </Button>
               </Link>
@@ -245,40 +252,53 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Screenshots Showcase */}
-      <section className="py-20 px-4 bg-muted/30 overflow-hidden">
-        <div className="container mx-auto">
+      {/* Screenshots Showcase with Depth of Field */}
+      <section className="py-20 px-4 bg-muted/30 overflow-hidden relative">
+        {/* Subtle bokeh for section */}
+        <div className="bokeh-orb bokeh-orb-primary w-64 h-64 -top-20 right-10 opacity-20" />
+        <div className="bokeh-orb bokeh-orb-accent w-48 h-48 bottom-10 left-10 opacity-15" />
+        
+        <div className="container mx-auto relative z-10">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Veja o WillFlow em ação</h2>
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-3xl md:text-4xl font-bold mb-4"
+            >
+              Veja o WillFlow em ação
+            </motion.h2>
             <p className="text-lg text-muted-foreground">Interface moderna e intuitiva para o seu dia a dia</p>
           </div>
 
-          {/* Main screenshot with blur effect */}
+          {/* Main screenshot with depth layers */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="relative max-w-5xl mx-auto"
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            className="relative max-w-5xl mx-auto screenshot-depth"
           >
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-border">
+            {/* Main focused screenshot */}
+            <div className="screenshot-depth-main rounded-2xl overflow-hidden border border-border/50">
               <img 
                 src={screenshotDashboard} 
                 alt="Dashboard WillFlow" 
                 className="w-full"
               />
-              {/* Gradient overlay at bottom */}
-              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background/80 to-transparent" />
+              {/* Premium gradient overlay */}
+              <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background via-background/50 to-transparent" />
             </div>
 
-            {/* Floating side screenshots with blur */}
+            {/* Floating side screenshots with DoF blur */}
             <motion.div
-              initial={{ opacity: 0, x: -50 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
+              initial={{ opacity: 0, x: -80, rotateY: 15 }}
+              whileInView={{ opacity: 1, x: 0, rotateY: 0 }}
+              transition={{ delay: 0.3, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
               viewport={{ once: true }}
-              className="absolute -left-8 top-1/3 w-64 hidden lg:block"
+              className="absolute -left-12 top-1/4 w-72 hidden lg:block screenshot-depth-layer layer-mid"
             >
-              <div className="glass-card p-2 rotate-[-8deg] shadow-xl">
+              <div className="focal-card p-2 rotate-[-8deg]">
                 <img 
                   src={screenshotKanban} 
                   alt="Kanban" 
@@ -288,13 +308,13 @@ export default function Landing() {
             </motion.div>
 
             <motion.div
-              initial={{ opacity: 0, x: 50 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
+              initial={{ opacity: 0, x: 80, rotateY: -15 }}
+              whileInView={{ opacity: 1, x: 0, rotateY: 0 }}
+              transition={{ delay: 0.4, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
               viewport={{ once: true }}
-              className="absolute -right-8 top-1/2 w-64 hidden lg:block"
+              className="absolute -right-12 top-1/3 w-72 hidden lg:block screenshot-depth-layer layer-mid"
             >
-              <div className="glass-card p-2 rotate-[6deg] shadow-xl">
+              <div className="focal-card p-2 rotate-[6deg]">
                 <img 
                   src={screenshotCalendar} 
                   alt="Calendário" 
@@ -304,8 +324,8 @@ export default function Landing() {
             </motion.div>
           </motion.div>
 
-          {/* Mobile screenshots grid */}
-          <div className="grid grid-cols-2 gap-4 mt-8 lg:hidden">
+          {/* Mobile screenshots grid with focal zoom */}
+          <div className="grid grid-cols-2 gap-4 mt-8 lg:hidden focal-container">
             {screenshots.slice(1).map((screenshot, index) => (
               <motion.div
                 key={screenshot.alt}
@@ -313,7 +333,7 @@ export default function Landing() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
                 viewport={{ once: true }}
-                className="glass-card p-2"
+                className="focal-card p-2"
               >
                 <img 
                   src={screenshot.src} 
@@ -353,28 +373,36 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Features */}
-      <section className="py-20 px-4 bg-muted/30">
-        <div className="container mx-auto">
+      {/* Features with Focal Zoom */}
+      <section className="py-20 px-4 bg-muted/30 relative overflow-hidden">
+        {/* Background bokeh */}
+        <div className="bokeh-orb bokeh-orb-glow w-96 h-96 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-10" />
+        
+        <div className="container mx-auto relative z-10">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-3xl md:text-4xl font-bold mb-4"
+            >
               Tudo o que precisa, num só lugar
-            </h2>
+            </motion.h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Ferramentas poderosas pensadas especificamente para o fluxo de trabalho de criadores visuais
             </p>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 focal-container">
             {features.map((feature, index) => (
               <motion.div
                 key={feature.title}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
+                transition={{ delay: index * 0.08, duration: 0.5 }}
                 viewport={{ once: true }}
-                className="glass-card p-6 hover:shadow-lg transition-shadow"
+                className="focal-card p-6 glow-ring"
               >
-                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 mb-4">
+                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 mb-4 transition-transform group-hover:scale-110">
                   <feature.icon className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="font-semibold text-lg mb-2">{feature.title}</h3>
@@ -384,7 +412,7 @@ export default function Landing() {
           </div>
           <div className="text-center mt-12">
             <Link to="/funcionalidades">
-              <Button variant="outline" size="lg">
+              <Button variant="outline" size="lg" className="backdrop-blur-sm glow-ring">
                 Ver todas as funcionalidades
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -393,21 +421,35 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Pricing */}
-      <section className="py-20 px-4" id="pricing">
-        <div className="container mx-auto">
+      {/* Pricing with Focal Zoom */}
+      <section className="py-20 px-4 relative overflow-hidden" id="pricing">
+        {/* Background bokeh */}
+        <div className="bokeh-orb bokeh-orb-primary w-80 h-80 top-20 -left-20 opacity-15" />
+        <div className="bokeh-orb bokeh-orb-accent w-64 h-64 bottom-20 -right-20 opacity-10" />
+        
+        <div className="container mx-auto relative z-10">
           <div className="text-center mb-12">
             {/* Trial Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-success/10 border border-success/20 text-success mb-6">
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-success/10 border border-success/20 text-success mb-6 backdrop-blur-sm"
+            >
               <CreditCard className="h-4 w-4" />
               <span className="text-sm font-medium">
                 ✅ 7 dias grátis com cartão (cobrança só após o trial)
               </span>
-            </div>
+            </motion.div>
 
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-3xl md:text-4xl font-bold mb-4"
+            >
               Planos simples e transparentes
-            </h2>
+            </motion.h2>
             <p className="text-lg text-muted-foreground mb-8">
               Escolha o plano ideal para o seu negócio
             </p>
@@ -415,7 +457,7 @@ export default function Landing() {
             {/* Toggles Container */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               {/* Currency Toggle */}
-              <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-muted/50 backdrop-blur-sm">
+              <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-muted/50 backdrop-blur-sm border border-border/50">
                 <span className={`text-sm font-medium transition-colors ${!showBRL ? 'text-foreground' : 'text-muted-foreground'}`}>
                   🇵🇹 EUR
                 </span>
@@ -430,7 +472,7 @@ export default function Landing() {
               </div>
 
               {/* Billing Toggle */}
-              <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-muted/50 backdrop-blur-sm">
+              <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-muted/50 backdrop-blur-sm border border-border/50">
                 <span className={`text-sm font-medium transition-colors ${!isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>
                   Mensal
                 </span>
@@ -451,17 +493,17 @@ export default function Landing() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto focal-container">
             {plans.map((plan, index) => (
               <motion.div
                 key={plan.id}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
+                transition={{ delay: index * 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                 viewport={{ once: true }}
-                className={`relative flex flex-col rounded-2xl border backdrop-blur-xl p-6 ${
+                className={`focal-card relative flex flex-col rounded-2xl border p-6 ${
                   plan.popular 
-                    ? 'border-primary bg-primary/5 shadow-xl shadow-primary/10 scale-105 z-10' 
+                    ? 'border-primary bg-primary/5 shadow-xl shadow-primary/10 md:scale-105 z-10' 
                     : 'border-border/50 bg-background/50'
                 }`}
               >
@@ -515,7 +557,7 @@ export default function Landing() {
 
                 <Link to="/auth?trial=true">
                   <Button
-                    className={`w-full ${plan.popular ? 'gradient-primary' : ''}`}
+                    className={`w-full glow-ring ${plan.popular ? 'gradient-primary' : ''}`}
                     variant={plan.popular ? 'default' : 'outline'}
                   >
                     Começar 7 dias grátis
@@ -536,16 +578,33 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="py-20 px-4 bg-muted/30">
-        <div className="container mx-auto max-w-3xl">
-          <h2 className="text-3xl font-bold text-center mb-12">Perguntas frequentes</h2>
+      {/* FAQ with premium styling */}
+      <section className="py-20 px-4 bg-muted/30 relative overflow-hidden">
+        <div className="bokeh-orb bokeh-orb-glow w-72 h-72 top-1/2 left-0 -translate-y-1/2 opacity-10" />
+        
+        <div className="container mx-auto max-w-3xl relative z-10">
+          <motion.h2 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-3xl font-bold text-center mb-12"
+          >
+            Perguntas frequentes
+          </motion.h2>
           <Accordion type="single" collapsible className="space-y-4">
             {faqs.map((faq, index) => (
-              <AccordionItem key={index} value={`item-${index}`} className="glass-card px-6">
-                <AccordionTrigger className="text-left font-medium">{faq.question}</AccordionTrigger>
-                <AccordionContent className="text-muted-foreground">{faq.answer}</AccordionContent>
-              </AccordionItem>
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                viewport={{ once: true }}
+              >
+                <AccordionItem value={`item-${index}`} className="focal-card px-6 border-0">
+                  <AccordionTrigger className="text-left font-medium hover:no-underline">{faq.question}</AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground">{faq.answer}</AccordionContent>
+                </AccordionItem>
+              </motion.div>
             ))}
           </Accordion>
           <div className="text-center mt-8">
@@ -556,19 +615,23 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto">
+      {/* CTA with premium depth effects */}
+      <section className="py-20 px-4 relative overflow-hidden hero-depth">
+        <div className="bokeh-orb bokeh-orb-primary w-96 h-96 top-0 right-0 opacity-20" />
+        <div className="bokeh-orb bokeh-orb-accent w-64 h-64 bottom-0 left-0 opacity-15" />
+        
+        <div className="container mx-auto relative z-10">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="glass-card-elevated p-12 text-center max-w-3xl mx-auto relative overflow-hidden"
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="focal-card p-12 text-center max-w-3xl mx-auto relative overflow-hidden"
           >
-            {/* Gradient background */}
+            {/* Premium gradient glow */}
             <div className="absolute inset-0 -z-10">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-accent/10 rounded-full blur-3xl" />
+              <div className="absolute top-0 right-0 w-64 h-64 bg-primary/15 rounded-full blur-3xl" />
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-[hsl(180_100%_45%/0.1)] rounded-full blur-3xl" />
             </div>
 
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
@@ -578,7 +641,7 @@ export default function Landing() {
               7 dias grátis com cartão. Cancele a qualquer momento.
             </p>
             <Link to="/auth?trial=true">
-              <Button size="lg" className="gradient-primary text-lg px-8">
+              <Button size="lg" className="gradient-primary text-lg px-8 glow-ring lens-flare">
                 Começar teste grátis
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
