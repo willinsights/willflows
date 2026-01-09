@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, Search, Bell, Moon, Sun, Plus, LogOut, User } from 'lucide-react';
+import { Menu, Search, Moon, Sun, Plus, LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -14,6 +14,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CreateProjectModal } from '@/components/projects/CreateProjectModal';
 import { TrialBadge } from '@/components/dashboard/TrialBadge';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -132,10 +133,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
           </Button>
 
           {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative" type="button">
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" />
-          </Button>
+          <NotificationCenter />
 
           {/* Theme Toggle */}
           <Button variant="ghost" size="icon" onClick={toggleTheme} type="button">
