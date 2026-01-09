@@ -1,27 +1,17 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Sparkles,
   Check,
   X,
   ArrowRight,
-  Moon,
-  Sun,
-  ArrowLeft,
   Loader2,
-  Users,
-  FolderKanban,
-  Calendar,
-  BarChart3,
-  Puzzle,
-  Headphones,
+  CreditCard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,143 +22,161 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { PublicHeader } from '@/components/marketing/PublicHeader';
+import { PublicFooter } from '@/components/marketing/PublicFooter';
+import { STRIPE_PRICES } from '@/lib/stripe-prices';
 
-// Stripe Price IDs
-const STRIPE_PRICES = {
-  essencial: {
-    eur: 'price_1SnISxGuTRnB7JCLL32X5m8U',
-    product_id: 'prod_Tko5hx2Pkr7ERk',
-  },
-  pro: {
-    eur: 'price_1SnITEGuTRnB7JCL1bB4woIg',
-    product_id: 'prod_Tko5cR05VWjok0',
-  },
-  studio: {
-    eur: 'price_1SnITPGuTRnB7JCLfcpOdsUs',
-    product_id: 'prod_Tko5DQ15DWTMhz',
-  },
-};
-
+// Plan definitions with pricing
 const plans = [
   {
-    id: 'essencial',
-    name: 'Essencial',
-    description: 'Para freelancers e pequenas equipas',
-    priceEUR: 12,
-    priceBRL: 79,
+    id: 'starter',
+    name: 'Starter',
+    description: 'Para freelancers e profissionais independentes',
+    priceEUR: { monthly: 14, annual: 11 },
+    priceBRL: { monthly: 79, annual: 63 },
+    limits: {
+      workspaces: '1 workspace',
+      users: 'Até 2 utilizadores',
+      projects: '20 projetos ativos',
+    },
     features: [
-      { name: 'Utilizadores', value: '3', included: true },
-      { name: 'Clientes', value: '50', included: true },
-      { name: 'Projetos/mês', value: '30', included: true },
-      { name: 'Kanban Captação + Edição', value: true, included: true },
-      { name: 'CRM básico', value: true, included: true },
-      { name: 'Relatórios simples', value: true, included: true },
-      { name: 'Templates de projeto', value: false, included: false },
-      { name: 'Google Calendar', value: false, included: false },
-      { name: 'Frame.io', value: false, included: false },
-      { name: 'API e Webhooks', value: false, included: false },
+      { name: 'Kanban Captação + Edição', included: true },
+      { name: 'CRM básico', included: true },
+      { name: 'Calendário integrado', included: true },
+      { name: 'Exportação Excel', included: true },
+      { name: 'Relatórios simples', included: true },
+      { name: 'Exportação PDF', included: false },
+      { name: 'Google Calendar', included: false },
+      { name: 'Meet integrado', included: false },
+      { name: 'Frame.io', included: false },
+      { name: 'Automações', included: false },
     ],
+    popular: false,
   },
   {
     id: 'pro',
     name: 'Pro',
     description: 'Para equipas em crescimento',
-    priceEUR: 22,
-    priceBRL: 137,
-    popular: true,
+    priceEUR: { monthly: 24, annual: 19 },
+    priceBRL: { monthly: 149, annual: 119 },
+    limits: {
+      workspaces: 'Até 3 workspaces',
+      users: 'Até 10 utilizadores',
+      projects: 'Projetos ilimitados',
+    },
     features: [
-      { name: 'Utilizadores', value: '10', included: true },
-      { name: 'Clientes', value: '500', included: true },
-      { name: 'Projetos/mês', value: '200', included: true },
-      { name: 'Kanban Captação + Edição', value: true, included: true },
-      { name: 'CRM completo', value: true, included: true },
-      { name: 'Relatórios avançados', value: true, included: true },
-      { name: 'Templates de projeto', value: true, included: true },
-      { name: 'Google Calendar', value: true, included: true },
-      { name: 'Frame.io', value: false, included: false },
-      { name: 'API e Webhooks', value: false, included: false },
+      { name: 'Kanban Captação + Edição', included: true },
+      { name: 'CRM completo', included: true },
+      { name: 'Calendário integrado', included: true },
+      { name: 'Exportação Excel + PDF', included: true },
+      { name: 'Relatórios avançados', included: true },
+      { name: 'Google Calendar', included: true },
+      { name: 'Meet integrado', included: true },
+      { name: 'Templates de projeto', included: true },
+      { name: 'Frame.io', included: false },
+      { name: 'Automações avançadas', included: false },
     ],
+    popular: true,
   },
   {
     id: 'studio',
     name: 'Studio',
     description: 'Para agências e produtoras',
-    priceEUR: 32,
-    priceBRL: 197,
+    priceEUR: { monthly: 32, annual: 26 },
+    priceBRL: { monthly: 197, annual: 158 },
+    limits: {
+      workspaces: 'Até 10 workspaces',
+      users: 'Utilizadores ilimitados',
+      projects: 'Projetos ilimitados',
+    },
     features: [
-      { name: 'Utilizadores', value: '25', included: true },
-      { name: 'Clientes', value: 'Ilimitados', included: true },
-      { name: 'Projetos/mês', value: 'Ilimitados', included: true },
-      { name: 'Kanban Captação + Edição', value: true, included: true },
-      { name: 'CRM completo', value: true, included: true },
-      { name: 'Relatórios avançados', value: true, included: true },
-      { name: 'Templates de projeto', value: true, included: true },
-      { name: 'Google Calendar', value: true, included: true },
-      { name: 'Frame.io', value: true, included: true },
-      { name: 'API e Webhooks', value: true, included: true },
+      { name: 'Kanban Captação + Edição', included: true },
+      { name: 'CRM completo', included: true },
+      { name: 'Calendário integrado', included: true },
+      { name: 'Exportação Excel + PDF', included: true },
+      { name: 'Relatórios avançados', included: true },
+      { name: 'Google Calendar', included: true },
+      { name: 'Meet integrado', included: true },
+      { name: 'Templates de projeto', included: true },
+      { name: 'Frame.io integrado', included: true },
+      { name: 'Automações avançadas', included: true },
+      { name: 'Permissões avançadas', included: true },
+      { name: 'API e Webhooks', included: true },
     ],
+    popular: false,
   },
 ];
 
 const faqs = [
   {
-    question: 'Posso experimentar antes de pagar?',
-    answer: 'Sim! Oferecemos 14 dias de teste gratuito em todos os planos. Não é necessário cartão de crédito para começar.',
+    question: 'Como funciona o período de teste?',
+    answer: 'Ao iniciar a subscrição, tem 7 dias grátis para experimentar todas as funcionalidades. A cobrança só é efetuada após o término do trial.',
   },
   {
     question: 'Posso mudar de plano a qualquer momento?',
-    answer: 'Sim, pode fazer upgrade ou downgrade do seu plano a qualquer momento. As alterações são aplicadas no próximo ciclo de faturação.',
+    answer: 'Sim, pode fazer upgrade ou downgrade do seu plano a qualquer momento. As alterações são aplicadas proporcionalmente ao tempo restante.',
   },
   {
-    question: 'Como funciona a faturação?',
-    answer: 'A faturação é mensal e processada através do Stripe. Aceitamos todos os principais cartões de crédito e débito.',
+    question: 'Como funciona a faturação anual?',
+    answer: 'Com a faturação anual, paga antecipadamente por 12 meses e obtém 20% de desconto. O valor é cobrado uma única vez por ano.',
   },
   {
-    question: 'Os meus dados estão seguros?',
-    answer: 'Absolutamente. Usamos encriptação de ponta a ponta e os seus dados são armazenados em servidores seguros na União Europeia.',
+    question: 'Aceitam pagamentos em Real (BRL)?',
+    answer: 'Sim! Aceitamos pagamentos em Euro (EUR) e Real Brasileiro (BRL). Basta selecionar a moeda preferida antes de subscrever.',
   },
   {
     question: 'Posso cancelar a qualquer momento?',
-    answer: 'Sim, pode cancelar a sua subscrição a qualquer momento. Continuará a ter acesso até ao final do período pago.',
+    answer: 'Sim, pode cancelar a sua subscrição a qualquer momento sem compromisso. Continuará a ter acesso até ao final do período pago.',
+  },
+  {
+    question: 'Os meus dados estão seguros?',
+    answer: 'Absolutamente. Usamos encriptação de ponta a ponta e os seus dados são armazenados em servidores seguros. Processamos pagamentos através do Stripe.',
   },
 ];
 
-const comparisonFeatures = [
-  { category: 'Utilizadores & Limites', icon: Users },
-  { category: 'Funcionalidades', icon: FolderKanban },
-  { category: 'Integrações', icon: Puzzle },
-  { category: 'Suporte', icon: Headphones },
-];
-
 export default function Pricing() {
-  const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const { toast } = useToast();
   const navigate = useNavigate();
   
   const [showBRL, setShowBRL] = useState(false);
+  const [isAnnual, setIsAnnual] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
+  const currency = showBRL ? 'brl' : 'eur';
+  const interval = isAnnual ? 'annual' : 'monthly';
+
+  const getPrice = (plan: typeof plans[0]) => {
+    const prices = showBRL ? plan.priceBRL : plan.priceEUR;
+    return isAnnual ? prices.annual : prices.monthly;
+  };
 
   const handleSelectPlan = async (planId: string) => {
     // If not authenticated, redirect to auth with plan param
     if (!user) {
-      navigate(`/auth?plan=${planId}`);
+      navigate(`/auth?plan=${planId}&currency=${currency}&interval=${interval}`);
       return;
     }
 
     // If no workspace, redirect to onboarding with plan param
     if (!currentWorkspace) {
-      navigate(`/onboarding?plan=${planId}`);
+      navigate(`/onboarding?plan=${planId}&currency=${currency}&interval=${interval}`);
       return;
     }
 
     // If authenticated with workspace, start checkout
     setLoadingPlan(planId);
     try {
+      const priceId = STRIPE_PRICES[planId as keyof typeof STRIPE_PRICES]?.[currency]?.[interval];
+      
+      if (!priceId) {
+        throw new Error('Preço não encontrado');
+      }
+
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: {
-          priceId: STRIPE_PRICES[planId as keyof typeof STRIPE_PRICES].eur,
+          priceId,
           workspaceId: currentWorkspace.id,
         },
       });
@@ -190,34 +198,7 @@ export default function Pricing() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary">
-              <Sparkles className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-xl gradient-text">WillFlow</span>
-          </Link>
-
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={toggleTheme}>
-              {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </Button>
-            <Link to="/">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar
-              </Button>
-            </Link>
-            {!user && (
-              <Link to="/auth">
-                <Button className="gradient-primary">Entrar</Button>
-              </Link>
-            )}
-          </div>
-        </div>
-      </header>
+      <PublicHeader />
 
       {/* Hero */}
       <section className="pt-32 pb-12 px-4">
@@ -227,30 +208,58 @@ export default function Pricing() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <Badge variant="secondary" className="mb-6">
-              14 dias grátis • Sem cartão de crédito
-            </Badge>
+            {/* Trial Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-success/10 border border-success/20 text-success mb-6">
+              <CreditCard className="h-4 w-4" />
+              <span className="text-sm font-medium">
+                ✅ 7 dias grátis com cartão (cobrança só após o trial)
+              </span>
+            </div>
+
             <h1 className="text-4xl md:text-5xl font-bold mb-6">
               Escolha o plano ideal para o seu{' '}
               <span className="gradient-text">negócio</span>
             </h1>
             <p className="text-xl text-muted-foreground mb-8">
-              Comece gratuitamente e faça upgrade conforme cresce. Cancele a qualquer momento.
+              Comece com 7 dias grátis e faça upgrade conforme cresce. Cancele a qualquer momento.
             </p>
 
-            {/* Currency Toggle */}
-            <div className="flex items-center justify-center gap-3">
-              <Label htmlFor="currency" className={!showBRL ? 'font-semibold' : 'text-muted-foreground'}>
-                EUR €
-              </Label>
-              <Switch
-                id="currency"
-                checked={showBRL}
-                onCheckedChange={setShowBRL}
-              />
-              <Label htmlFor="currency" className={showBRL ? 'font-semibold' : 'text-muted-foreground'}>
-                BRL R$
-              </Label>
+            {/* Toggles Container */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+              {/* Currency Toggle */}
+              <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-muted/50 backdrop-blur-sm">
+                <span className={`text-sm font-medium transition-colors ${!showBRL ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  🇵🇹 EUR
+                </span>
+                <Switch
+                  checked={showBRL}
+                  onCheckedChange={setShowBRL}
+                  className="data-[state=checked]:bg-primary"
+                />
+                <span className={`text-sm font-medium transition-colors ${showBRL ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  🇧🇷 BRL
+                </span>
+              </div>
+
+              {/* Billing Toggle */}
+              <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-muted/50 backdrop-blur-sm">
+                <span className={`text-sm font-medium transition-colors ${!isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  Mensal
+                </span>
+                <Switch
+                  checked={isAnnual}
+                  onCheckedChange={setIsAnnual}
+                  className="data-[state=checked]:bg-primary"
+                />
+                <span className={`text-sm font-medium transition-colors ${isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  Anual
+                </span>
+                {isAnnual && (
+                  <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
+                    −20%
+                  </Badge>
+                )}
+              </div>
             </div>
           </motion.div>
         </div>
@@ -266,29 +275,47 @@ export default function Pricing() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className={`glass-card p-6 relative flex flex-col ${
-                  plan.popular ? 'border-2 border-primary scale-105' : ''
+                className={`relative flex flex-col rounded-2xl border backdrop-blur-xl p-6 ${
+                  plan.popular 
+                    ? 'border-primary bg-primary/5 shadow-xl shadow-primary/10 scale-105 z-10' 
+                    : 'border-border/50 bg-background/50'
                 }`}
               >
                 {plan.popular && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 gradient-primary">
-                    Mais popular
+                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 gradient-primary px-4">
+                    Mais vendido
                   </Badge>
                 )}
                 
                 <div className="text-center mb-6">
                   <h3 className="font-bold text-xl mb-1">{plan.name}</h3>
                   <p className="text-sm text-muted-foreground mb-4">{plan.description}</p>
+                  
+                  {/* Price */}
                   <div className="flex items-baseline justify-center gap-1">
                     <span className="text-4xl font-bold">
-                      {showBRL ? `R$${plan.priceBRL}` : `€${plan.priceEUR}`}
+                      {showBRL ? 'R$' : '€'}{getPrice(plan)}
                     </span>
                     <span className="text-muted-foreground">/mês</span>
                   </div>
+                  
+                  {isAnnual && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Faturado anualmente ({showBRL ? 'R$' : '€'}{getPrice(plan) * 12}/ano)
+                    </p>
+                  )}
                 </div>
 
+                {/* Limits */}
+                <div className="space-y-2 mb-6 pb-6 border-b border-border/50">
+                  <p className="text-sm font-medium">{plan.limits.workspaces}</p>
+                  <p className="text-sm font-medium">{plan.limits.users}</p>
+                  <p className="text-sm font-medium">{plan.limits.projects}</p>
+                </div>
+
+                {/* Features */}
                 <ul className="space-y-3 mb-6 flex-1">
-                  {plan.features.slice(0, 6).map((feature) => (
+                  {plan.features.map((feature) => (
                     <li key={feature.name} className="flex items-center gap-2 text-sm">
                       {feature.included ? (
                         <Check className="h-4 w-4 text-success flex-shrink-0" />
@@ -297,7 +324,6 @@ export default function Pricing() {
                       )}
                       <span className={!feature.included ? 'text-muted-foreground/60' : ''}>
                         {feature.name}
-                        {typeof feature.value === 'string' && `: ${feature.value}`}
                       </span>
                     </li>
                   ))}
@@ -312,7 +338,7 @@ export default function Pricing() {
                   {loadingPlan === plan.id ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : null}
-                  {user ? 'Subscrever' : 'Começar agora'}
+                  Começar 7 dias grátis
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </motion.div>
@@ -335,22 +361,41 @@ export default function Pricing() {
                   <th className="text-left py-4 px-4 font-semibold">Funcionalidade</th>
                   {plans.map((plan) => (
                     <th key={plan.id} className="text-center py-4 px-4 font-semibold">
-                      {plan.name}
+                      <span className={plan.popular ? 'gradient-text' : ''}>{plan.name}</span>
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {plans[0].features.map((feature, index) => (
-                  <tr key={feature.name} className="border-b border-border/50">
+                {/* Limits rows */}
+                <tr className="border-b border-border/50 bg-muted/20">
+                  <td className="py-4 px-4 text-sm font-medium">Workspaces</td>
+                  <td className="text-center py-4 px-4 text-sm">1</td>
+                  <td className="text-center py-4 px-4 text-sm font-medium text-primary">Até 3</td>
+                  <td className="text-center py-4 px-4 text-sm">Até 10</td>
+                </tr>
+                <tr className="border-b border-border/50">
+                  <td className="py-4 px-4 text-sm font-medium">Utilizadores</td>
+                  <td className="text-center py-4 px-4 text-sm">Até 2</td>
+                  <td className="text-center py-4 px-4 text-sm font-medium text-primary">Até 10</td>
+                  <td className="text-center py-4 px-4 text-sm">Ilimitados</td>
+                </tr>
+                <tr className="border-b border-border/50 bg-muted/20">
+                  <td className="py-4 px-4 text-sm font-medium">Projetos ativos</td>
+                  <td className="text-center py-4 px-4 text-sm">20</td>
+                  <td className="text-center py-4 px-4 text-sm font-medium text-primary">Ilimitados</td>
+                  <td className="text-center py-4 px-4 text-sm">Ilimitados</td>
+                </tr>
+                {/* Feature rows */}
+                {plans[2].features.map((feature, index) => (
+                  <tr key={feature.name} className={`border-b border-border/50 ${index % 2 === 0 ? '' : 'bg-muted/20'}`}>
                     <td className="py-4 px-4 text-sm">{feature.name}</td>
                     {plans.map((plan) => {
-                      const planFeature = plan.features[index];
+                      const planFeature = plan.features.find(f => f.name === feature.name);
+                      const included = planFeature?.included ?? false;
                       return (
                         <td key={plan.id} className="text-center py-4 px-4">
-                          {typeof planFeature.value === 'string' ? (
-                            <span className="text-sm font-medium">{planFeature.value}</span>
-                          ) : planFeature.included ? (
+                          {included ? (
                             <Check className="h-5 w-5 text-success mx-auto" />
                           ) : (
                             <X className="h-5 w-5 text-muted-foreground/40 mx-auto" />
@@ -378,7 +423,7 @@ export default function Pricing() {
               <AccordionItem
                 key={index}
                 value={`item-${index}`}
-                className="glass-card px-6"
+                className="rounded-xl border border-border/50 bg-background/50 backdrop-blur-sm px-6"
               >
                 <AccordionTrigger className="text-left font-medium">
                   {faq.question}
@@ -399,13 +444,13 @@ export default function Pricing() {
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="glass-card p-12 text-center max-w-3xl mx-auto"
+            className="rounded-2xl border border-primary/20 bg-primary/5 backdrop-blur-xl p-12 text-center max-w-3xl mx-auto"
           >
             <h2 className="text-3xl font-bold mb-4">
-              Pronto para começar?
+              Pronto para transformar o seu workflow?
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              Experimente gratuitamente durante 14 dias. Sem compromisso.
+              Experimente gratuitamente durante 7 dias. Sem compromisso, cancele quando quiser.
             </p>
             <Button
               size="lg"
@@ -419,22 +464,7 @@ export default function Pricing() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12 px-4 border-t border-border">
-        <div className="container mx-auto">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary">
-                <Sparkles className="h-4 w-4 text-primary-foreground" />
-              </div>
-              <span className="font-bold gradient-text">WillFlow</span>
-            </Link>
-            <p className="text-sm text-muted-foreground">
-              © 2026 WillFlow. Todos os direitos reservados.
-            </p>
-          </div>
-        </div>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }
