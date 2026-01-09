@@ -339,21 +339,9 @@ export default function Configuracoes() {
             <Settings className="h-4 w-4" />
             <span className="hidden sm:inline">Geral</span>
           </TabsTrigger>
-          <TabsTrigger value="plano" className="gap-2 text-xs md:text-sm">
-            <CreditCard className="h-4 w-4" />
-            <span className="hidden sm:inline">Plano</span>
-          </TabsTrigger>
           <TabsTrigger value="perfil" className="gap-2 text-xs md:text-sm">
             <User className="h-4 w-4" />
             <span className="hidden sm:inline">Perfil</span>
-          </TabsTrigger>
-          <TabsTrigger value="equipa" className="gap-2 text-xs md:text-sm">
-            <Users className="h-4 w-4" />
-            <span className="hidden sm:inline">Equipa</span>
-          </TabsTrigger>
-          <TabsTrigger value="integracoes" className="gap-2 text-xs md:text-sm">
-            <Globe className="h-4 w-4" />
-            <span className="hidden sm:inline">Integrações</span>
           </TabsTrigger>
           <TabsTrigger value="permissoes" className="gap-2 text-xs md:text-sm">
             <Shield className="h-4 w-4" />

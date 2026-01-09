@@ -1,5 +1,5 @@
 import { differenceInDays, parseISO } from "date-fns";
-import { Sparkles, Clock } from "lucide-react";
+import { Sparkles, Clock, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/tooltip";
 
 interface TrialBadgeProps {
-  variant?: "compact" | "full";
+  variant?: "compact" | "full" | "header";
   className?: string;
 }
 
@@ -29,15 +29,52 @@ export function TrialBadge({ variant = "full", className }: TrialBadgeProps) {
   const daysRemaining = differenceInDays(endDate, today);
 
   // Don't show badge if trial has ended or not in trial period
-  if (daysRemaining > 7 || daysRemaining < 0) {
+  if (daysRemaining > 14 || daysRemaining < 0) {
     return null;
   }
 
   const isUrgent = daysRemaining <= 2;
+  const isWarning = daysRemaining <= 5 && daysRemaining > 2;
 
   const handleClick = () => {
     navigate("/app/configuracoes?tab=plano");
   };
+
+  // Header variant - More prominent, always visible during trial
+  if (variant === "header") {
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={handleClick}
+        className={cn(
+          "gap-2 text-xs font-medium px-3 py-1.5 h-auto relative overflow-hidden",
+          isUrgent
+            ? "text-white bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
+            : isWarning
+            ? "text-orange-900 dark:text-orange-100 bg-gradient-to-r from-orange-200 to-amber-200 dark:from-orange-900/50 dark:to-amber-900/50 hover:from-orange-300 hover:to-amber-300 dark:hover:from-orange-800/50 dark:hover:to-amber-800/50"
+            : "text-primary bg-primary/10 hover:bg-primary/20",
+          isUrgent && "animate-pulse",
+          className
+        )}
+      >
+        {isUrgent ? (
+          <AlertTriangle className="h-3.5 w-3.5" />
+        ) : isWarning ? (
+          <Clock className="h-3.5 w-3.5" />
+        ) : (
+          <Sparkles className="h-3.5 w-3.5" />
+        )}
+        <span>
+          {daysRemaining === 0
+            ? "Trial termina hoje!"
+            : daysRemaining === 1
+            ? "1 dia restante"
+            : `${daysRemaining} dias restantes`}
+        </span>
+      </Button>
+    );
+  }
 
   // Compact variant for sidebar
   if (variant === "compact") {
