@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, RefreshCw } from 'lucide-react';
@@ -18,33 +18,8 @@ export function AppLayout() {
   const [retryCooldown, setRetryCooldown] = useState(false);
   const isMobile = useIsMobile();
   const { fetchError, refreshWorkspaces } = useWorkspace();
-  
+
   const lastRetryTimeRef = useRef(0);
-
-  // Debug: helps detect invisible overlays capturing clicks
-  useEffect(() => {
-    if (!import.meta.env.DEV) return;
-
-    const handler = (event: PointerEvent) => {
-      const target = event.target as HTMLElement | null;
-      const elAtPoint = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
-      // eslint-disable-next-line no-console
-      console.log('[ui-click]', {
-        route: window.location.pathname,
-        x: event.clientX,
-        y: event.clientY,
-        target: target?.tagName,
-        targetId: target?.id,
-        targetClass: target?.className,
-        elAtPoint: elAtPoint?.tagName,
-        elAtPointId: elAtPoint?.id,
-        elAtPointClass: elAtPoint?.className,
-      });
-    };
-
-    document.addEventListener('pointerdown', handler, true);
-    return () => document.removeEventListener('pointerdown', handler, true);
-  }, []);
 
   const toggleSidebar = () => {
     if (isMobile) {
@@ -60,24 +35,24 @@ export function AppLayout() {
     if (now - lastRetryTimeRef.current < RETRY_COOLDOWN_MS) {
       return;
     }
-    
+
     lastRetryTimeRef.current = now;
     setIsRetrying(true);
     setRetryCooldown(true);
-    
+
     await refreshWorkspaces();
-    
+
     setIsRetrying(false);
-    
+
     // Reset cooldown after delay
     setTimeout(() => {
       setRetryCooldown(false);
     }, RETRY_COOLDOWN_MS);
-    
+
     if (!fetchError) {
       toast({
-        title: "Conexão restabelecida",
-        description: "A ligação ao servidor foi restaurada com sucesso.",
+        title: 'Conexão restabelecida',
+        description: 'A ligação ao servidor foi restaurada com sucesso.',
       });
     }
   };
