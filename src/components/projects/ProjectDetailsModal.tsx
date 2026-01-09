@@ -4,7 +4,7 @@ import { pt } from 'date-fns/locale';
 import { 
   Edit, Trash2, CheckCircle, Calendar, MapPin, User, Clock, 
   Link as LinkIcon, AlertTriangle, CheckSquare, Save, X,
-  ExternalLink, Video, Camera, Film, DollarSign, Users, Check
+  ExternalLink, Video, Camera, Film, DollarSign, Users, Check, FileText, Folder
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +35,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useClients } from '@/hooks/useClients';
 import { useCategories } from '@/hooks/useCategories';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { cn } from '@/lib/utils';
 import type { ProjectWithClient } from '@/hooks/useKanban';
 import type { Tables } from '@/integrations/supabase/types';
@@ -78,11 +79,19 @@ const itemTypeLabels: Record<string, string> = {
   reuniao: 'Reunião/Compromisso',
 };
 
+const itemTypeOptions = [
+  { value: 'projeto_captacao', label: 'Projeto de Captação' },
+  { value: 'projeto_edicao', label: 'Projeto de Edição' },
+  { value: 'projeto_completo', label: 'Captação + Edição' },
+  { value: 'reuniao', label: 'Reunião/Compromisso' },
+];
+
 export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: ProjectDetailsModalProps) {
   const { toast } = useToast();
   const { clients } = useClients();
   const { categories } = useCategories();
   const { members: workspaceMembers } = useWorkspaceMembers();
+  const { isAdmin } = useWorkspace();
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
@@ -98,6 +107,8 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
   // Full edit form state
   const [editForm, setEditForm] = useState({
     name: '',
+    item_type: 'projeto_completo' as 'projeto_captacao' | 'projeto_edicao' | 'projeto_completo' | 'reuniao',
+    project_code: '',
     client_id: '',
     type: 'fotografia' as 'fotografia' | 'video' | 'foto_video',
     category: 'outro' as 'hotel' | 'experiencia' | 'evento' | 'outro',
@@ -106,6 +117,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
     shoot_date: null as Date | null,
     delivery_date: null as Date | null,
     shoot_start_time: '',
+    shoot_end_time: '',
     city: '',
     address: '',
     agreed_value: 0,
@@ -115,6 +127,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
     internal_notes: '',
     drive_folder_url: '',
     dropbox_folder_url: '',
+    google_meet_url: '',
   });
 
   // Initialize form when project changes
@@ -123,6 +136,8 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
       fetchRelatedData();
       setEditForm({
         name: project.name,
+        item_type: (project.item_type as 'projeto_captacao' | 'projeto_edicao' | 'projeto_completo' | 'reuniao') || 'projeto_completo',
+        project_code: project.project_code || '',
         client_id: project.client_id || '',
         type: project.type,
         category: project.category,
@@ -131,6 +146,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
         shoot_date: project.shoot_date ? new Date(project.shoot_date) : null,
         delivery_date: project.delivery_date ? new Date(project.delivery_date) : null,
         shoot_start_time: project.shoot_start_time || '',
+        shoot_end_time: project.shoot_end_time || '',
         city: project.city || '',
         address: project.address || '',
         agreed_value: project.agreed_value || 0,
@@ -140,6 +156,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
         internal_notes: project.internal_notes || '',
         drive_folder_url: project.drive_folder_url || '',
         dropbox_folder_url: project.dropbox_folder_url || '',
+        google_meet_url: project.google_meet_url || '',
       });
       setIsEditing(false);
     }
@@ -222,6 +239,8 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
         .from('projects')
         .update({
           name: editForm.name,
+          item_type: editForm.item_type,
+          project_code: editForm.project_code || null,
           client_id: editForm.client_id || null,
           type: editForm.type,
           category: editForm.category,
@@ -230,6 +249,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
           shoot_date: editForm.shoot_date ? format(editForm.shoot_date, 'yyyy-MM-dd') : null,
           delivery_date: editForm.delivery_date ? format(editForm.delivery_date, 'yyyy-MM-dd') : null,
           shoot_start_time: editForm.shoot_start_time || null,
+          shoot_end_time: editForm.shoot_end_time || null,
           city: editForm.city || null,
           address: editForm.address || null,
           agreed_value: editForm.agreed_value,
@@ -239,6 +259,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
           internal_notes: editForm.internal_notes || null,
           drive_folder_url: editForm.drive_folder_url || null,
           dropbox_folder_url: editForm.dropbox_folder_url || null,
+          google_meet_url: editForm.google_meet_url || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', project.id);
@@ -379,10 +400,38 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
             </TabsList>
 
             <ScrollArea className="h-[calc(90vh-280px)]">
-              {/* Details Tab */}
               <TabsContent value="details" className="space-y-4 pr-4">
                 {isEditing ? (
                   <>
+                    {/* Tipo de Item e ID do Projeto */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Tipo de Item</Label>
+                        <Select 
+                          value={editForm.item_type} 
+                          onValueChange={(value: 'projeto_captacao' | 'projeto_edicao' | 'projeto_completo' | 'reuniao') => setEditForm(prev => ({ ...prev, item_type: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {itemTypeOptions.map(opt => (
+                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>ID do Projeto</Label>
+                        <Input 
+                          value={editForm.project_code}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, project_code: e.target.value }))}
+                          placeholder="Ex: PRJ-2024-001"
+                        />
+                      </div>
+                    </div>
+
                     {/* Client Selection */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -404,7 +453,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Tipo</Label>
+                        <Label>Tipo de Mídia</Label>
                         <Select 
                           value={editForm.type} 
                           onValueChange={(value: 'fotografia' | 'video' | 'foto_video') => setEditForm(prev => ({ ...prev, type: value }))}
@@ -492,7 +541,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
                     <Separator />
 
                     {/* Dates */}
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Data de Captação</Label>
                         <Popover>
@@ -515,15 +564,6 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Hora Início</Label>
-                        <Input 
-                          type="time"
-                          value={editForm.shoot_start_time}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, shoot_start_time: e.target.value }))}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
                         <Label>Data de Entrega</Label>
                         <Popover>
                           <PopoverTrigger asChild>
@@ -542,6 +582,25 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
                             />
                           </PopoverContent>
                         </Popover>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Hora Início</Label>
+                        <Input 
+                          type="time"
+                          value={editForm.shoot_start_time}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, shoot_start_time: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Hora Fim</Label>
+                        <Input 
+                          type="time"
+                          value={editForm.shoot_end_time}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, shoot_end_time: e.target.value }))}
+                        />
                       </div>
                     </div>
 
@@ -727,6 +786,48 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
 
                     <Separator />
 
+                    {/* Links & URLs */}
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-sm">Links e Pastas</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="flex items-center gap-2">
+                            <Folder className="h-4 w-4" />
+                            Google Drive
+                          </Label>
+                          <Input 
+                            value={editForm.drive_folder_url}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, drive_folder_url: e.target.value }))}
+                            placeholder="https://drive.google.com/..."
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="flex items-center gap-2">
+                            <Folder className="h-4 w-4" />
+                            Dropbox
+                          </Label>
+                          <Input 
+                            value={editForm.dropbox_folder_url}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, dropbox_folder_url: e.target.value }))}
+                            placeholder="https://dropbox.com/..."
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                          <Video className="h-4 w-4" />
+                          Link Google Meet
+                        </Label>
+                        <Input 
+                          value={editForm.google_meet_url}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, google_meet_url: e.target.value }))}
+                          placeholder="https://meet.google.com/..."
+                        />
+                      </div>
+                    </div>
+
+                    <Separator />
+
                     {/* Notes */}
                     <div className="space-y-2">
                       <Label>Notas do Projeto</Label>
@@ -749,17 +850,40 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
                     </div>
                   </>
                 ) : (
-                  /* View Mode */
+                  /* View Mode - Show ALL fields */
                   <>
+                    {/* Tipo de Item e ID */}
                     <div className="grid grid-cols-2 gap-4">
-                      {project.project_code && (
-                        <div>
-                          <span className="text-xs text-muted-foreground">ID do Projeto</span>
-                          <p className="font-mono text-primary text-sm">{project.project_code}</p>
-                        </div>
-                      )}
                       <div>
-                        <span className="text-xs text-muted-foreground">Tipo</span>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <FileText className="h-3 w-3" /> Tipo de Item
+                        </span>
+                        <p className="font-medium text-sm">
+                          {itemTypeLabels[project.item_type || 'projeto_completo'] || 'Não definido'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">ID do Projeto</span>
+                        <p className={cn("text-sm", project.project_code ? "font-mono text-primary" : "text-muted-foreground italic")}>
+                          {project.project_code || 'Não definido'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Cliente e Tipo de Mídia */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <User className="h-3 w-3" /> Cliente
+                        </span>
+                        <p className={cn("font-medium text-sm", !project.clients?.name && "text-muted-foreground italic")}>
+                          {project.clients?.name || 'Não definido'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">Tipo de Mídia</span>
                         <p className="font-medium text-sm flex items-center gap-1">
                           {project.type === 'fotografia' && <Camera className="h-3 w-3" />}
                           {project.type === 'video' && <Film className="h-3 w-3" />}
@@ -769,126 +893,220 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
                       </div>
                     </div>
 
-                    {project.clients?.name && (
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{project.clients.name}</span>
+                    {/* Categoria e Prioridade */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-xs text-muted-foreground">Categoria</span>
+                        <p className="font-medium text-sm">
+                          {categories.find(c => c.id === project.custom_category_id)?.name || categoryOptions.find(c => c.value === project.category)?.label || 'Outro'}
+                        </p>
                       </div>
-                    )}
-
-                    {project.city && (
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                        <span>{project.city}{project.address && ` - ${project.address}`}</span>
+                      <div>
+                        <span className="text-xs text-muted-foreground">Prioridade</span>
+                        <Badge className={currentPriority?.color}>
+                          {currentPriority?.label}
+                        </Badge>
                       </div>
-                    )}
-
-                    {project.google_meet_url && (
-                      <div className="flex items-center gap-2">
-                        <Video className="h-4 w-4 text-muted-foreground" />
-                        <a 
-                          href={project.google_meet_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline flex items-center gap-1"
-                        >
-                          Entrar na Reunião
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      </div>
-                    )}
+                    </div>
 
                     <Separator />
 
+                    {/* Datas */}
                     <div className="grid grid-cols-2 gap-4">
-                      {project.shoot_date && (
+                      <div>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Calendar className="h-3 w-3" /> Data de Captação
+                        </span>
+                        <p className={cn("font-medium", !project.shoot_date && "text-muted-foreground italic text-sm")}>
+                          {project.shoot_date 
+                            ? format(new Date(project.shoot_date), 'dd/MM/yyyy', { locale: pt })
+                            : 'Não definida'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Clock className="h-3 w-3" /> Data de Entrega
+                        </span>
+                        <p className={cn("font-medium", !project.delivery_date && "text-muted-foreground italic text-sm")}>
+                          {project.delivery_date 
+                            ? format(new Date(project.delivery_date), 'dd/MM/yyyy', { locale: pt })
+                            : 'Não definida'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Horários */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-xs text-muted-foreground">Hora Início</span>
+                        <p className={cn("font-medium text-sm", !project.shoot_start_time && "text-muted-foreground italic")}>
+                          {project.shoot_start_time ? project.shoot_start_time.slice(0, 5) : 'Não definida'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">Hora Fim</span>
+                        <p className={cn("font-medium text-sm", !project.shoot_end_time && "text-muted-foreground italic")}>
+                          {project.shoot_end_time ? project.shoot_end_time.slice(0, 5) : 'Não definida'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Localização */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <MapPin className="h-3 w-3" /> Cidade
+                        </span>
+                        <p className={cn("font-medium text-sm", !project.city && "text-muted-foreground italic")}>
+                          {project.city || 'Não definida'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">Morada</span>
+                        <p className={cn("font-medium text-sm", !project.address && "text-muted-foreground italic")}>
+                          {project.address || 'Não definida'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Responsáveis */}
+                    <div className="space-y-3">
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Users className="h-3 w-3" /> Responsáveis
+                      </span>
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Calendar className="h-3 w-3" /> Data de Captação
-                          </span>
-                          <p className="font-medium">
-                            {format(new Date(project.shoot_date), 'dd/MM/yyyy', { locale: pt })}
-                            {project.shoot_start_time && ` às ${project.shoot_start_time.slice(0, 5)}`}
-                          </p>
+                          <span className="text-xs text-muted-foreground">Captação</span>
+                          {responsaveisCaptacao.length > 0 ? (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {responsaveisCaptacao.map(userId => {
+                                const member = workspaceMembers.find(m => m.user_id === userId);
+                                return member ? (
+                                  <div key={userId} className="flex items-center gap-1.5 bg-muted px-2 py-1 rounded-full">
+                                    <Avatar className="h-5 w-5">
+                                      <AvatarImage src={member.avatar_url || undefined} />
+                                      <AvatarFallback className="text-[10px]">
+                                        {(member.full_name || member.email).slice(0, 2).toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-xs font-medium">{member.full_name || member.email}</span>
+                                  </div>
+                                ) : null;
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground italic mt-1">Nenhum atribuído</p>
+                          )}
                         </div>
-                      )}
-                      {project.delivery_date && (
                         <div>
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Clock className="h-3 w-3" /> Data de Entrega
-                          </span>
-                          <p className="font-medium">
-                            {format(new Date(project.delivery_date), 'dd/MM/yyyy', { locale: pt })}
+                          <span className="text-xs text-muted-foreground">Edição</span>
+                          {responsaveisEdicao.length > 0 ? (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {responsaveisEdicao.map(userId => {
+                                const member = workspaceMembers.find(m => m.user_id === userId);
+                                return member ? (
+                                  <div key={userId} className="flex items-center gap-1.5 bg-muted px-2 py-1 rounded-full">
+                                    <Avatar className="h-5 w-5">
+                                      <AvatarImage src={member.avatar_url || undefined} />
+                                      <AvatarFallback className="text-[10px]">
+                                        {(member.full_name || member.email).slice(0, 2).toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-xs font-medium">{member.full_name || member.email}</span>
+                                  </div>
+                                ) : null;
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground italic mt-1">Nenhum atribuído</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Links e Pastas */}
+                    <div className="space-y-3">
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Folder className="h-3 w-3" /> Links e Pastas
+                      </span>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <span className="text-xs text-muted-foreground">Google Drive</span>
+                          {project.drive_folder_url ? (
+                            <a 
+                              href={project.drive_folder_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline flex items-center gap-1 text-sm mt-1"
+                            >
+                              Abrir pasta
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : (
+                            <p className="text-sm text-muted-foreground italic mt-1">Não definido</p>
+                          )}
+                        </div>
+                        <div>
+                          <span className="text-xs text-muted-foreground">Dropbox</span>
+                          {project.dropbox_folder_url ? (
+                            <a 
+                              href={project.dropbox_folder_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline flex items-center gap-1 text-sm mt-1"
+                            >
+                              Abrir pasta
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : (
+                            <p className="text-sm text-muted-foreground italic mt-1">Não definido</p>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">Google Meet</span>
+                        {project.google_meet_url ? (
+                          <a 
+                            href={project.google_meet_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline flex items-center gap-1 text-sm mt-1"
+                          >
+                            <Video className="h-4 w-4" />
+                            Entrar na Reunião
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        ) : (
+                          <p className="text-sm text-muted-foreground italic mt-1">Não definido</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Notas */}
+                    <div className="space-y-3">
+                      <div>
+                        <span className="text-xs text-muted-foreground">Notas do Projeto</span>
+                        <p className={cn("mt-1 text-sm whitespace-pre-wrap", !project.notes && "text-muted-foreground italic")}>
+                          {project.notes || 'Sem notas'}
+                        </p>
+                      </div>
+                      {isAdmin && (
+                        <div>
+                          <span className="text-xs text-muted-foreground">Notas Internas</span>
+                          <p className={cn("mt-1 text-sm whitespace-pre-wrap", !project.internal_notes && "text-muted-foreground italic")}>
+                            {project.internal_notes || 'Sem notas internas'}
                           </p>
                         </div>
                       )}
                     </div>
-
-                    {/* Responsáveis View Mode */}
-                    {(responsaveisCaptacao.length > 0 || responsaveisEdicao.length > 0) && (
-                      <>
-                        <Separator />
-                        <div className="space-y-3">
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Users className="h-3 w-3" /> Responsáveis
-                          </span>
-                          <div className="grid grid-cols-2 gap-4">
-                            {responsaveisCaptacao.length > 0 && (
-                              <div>
-                                <span className="text-xs text-muted-foreground">Captação</span>
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  {responsaveisCaptacao.map(userId => {
-                                    const member = workspaceMembers.find(m => m.user_id === userId);
-                                    return member ? (
-                                      <div key={userId} className="flex items-center gap-1.5 bg-muted px-2 py-1 rounded-full">
-                                        <Avatar className="h-5 w-5">
-                                          <AvatarImage src={member.avatar_url || undefined} />
-                                          <AvatarFallback className="text-[10px]">
-                                            {(member.full_name || member.email).slice(0, 2).toUpperCase()}
-                                          </AvatarFallback>
-                                        </Avatar>
-                                        <span className="text-xs font-medium">{member.full_name || member.email}</span>
-                                      </div>
-                                    ) : null;
-                                  })}
-                                </div>
-                              </div>
-                            )}
-                            {responsaveisEdicao.length > 0 && (
-                              <div>
-                                <span className="text-xs text-muted-foreground">Edição</span>
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  {responsaveisEdicao.map(userId => {
-                                    const member = workspaceMembers.find(m => m.user_id === userId);
-                                    return member ? (
-                                      <div key={userId} className="flex items-center gap-1.5 bg-muted px-2 py-1 rounded-full">
-                                        <Avatar className="h-5 w-5">
-                                          <AvatarImage src={member.avatar_url || undefined} />
-                                          <AvatarFallback className="text-[10px]">
-                                            {(member.full_name || member.email).slice(0, 2).toUpperCase()}
-                                          </AvatarFallback>
-                                        </Avatar>
-                                        <span className="text-xs font-medium">{member.full_name || member.email}</span>
-                                      </div>
-                                    ) : null;
-                                  })}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {project.notes && (
-                      <>
-                        <Separator />
-                        <div>
-                          <span className="text-xs text-muted-foreground">Notas</span>
-                          <p className="mt-1 text-sm whitespace-pre-wrap">{project.notes}</p>
-                        </div>
-                      </>
-                    )}
                   </>
                 )}
               </TabsContent>
