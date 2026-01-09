@@ -25,6 +25,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const navigate = useNavigate();
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [accountModalInitialTab, setAccountModalInitialTab] = useState<'workspaces' | 'plano' | 'equipa' | 'integracoes'>('workspaces');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -67,7 +68,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
       case 'client':
         return <User2 className="h-4 w-4 text-blue-500" />;
       case 'task':
-        return <CheckSquare className="h-4 w-4 text-green-500" />;
+        return <CheckSquare className="h-4 w-4 text-kanban-cyan" />;
     }
   };
 
@@ -145,7 +146,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="absolute top-full left-0 right-0 mt-2 bg-popover border border-border rounded-lg shadow-lg z-50 overflow-hidden"
+                  className="absolute top-full left-0 right-0 mt-2 bg-popover border border-border rounded-lg shadow-lg z-[100] overflow-hidden"
                 >
                   {loading ? (
                     <div className="p-4 text-center text-sm text-muted-foreground">
@@ -188,7 +189,10 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
         {/* Actions */}
         <div className="flex items-center gap-2">
           {/* Trial Badge - Enhanced */}
-          <TrialBadge variant="header" />
+          <TrialBadge variant="header" onUpgradeClick={() => {
+            setAccountModalInitialTab('plano');
+            setAccountModalOpen(true);
+          }} />
 
           {/* New Project Button */}
           <Button
@@ -219,7 +223,10 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
             size="icon" 
             className="rounded-full" 
             type="button"
-            onClick={() => setAccountModalOpen(true)}
+            onClick={() => {
+              setAccountModalInitialTab('workspaces');
+              setAccountModalOpen(true);
+            }}
           >
             <Avatar className="h-8 w-8">
               <AvatarImage src={user?.user_metadata?.avatar_url} />
@@ -240,6 +247,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
       <AccountModal
         open={accountModalOpen}
         onOpenChange={setAccountModalOpen}
+        initialTab={accountModalInitialTab}
       />
     </>
   );

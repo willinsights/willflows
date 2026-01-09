@@ -1,7 +1,6 @@
 import { differenceInDays, parseISO } from "date-fns";
 import { Sparkles, Clock, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,11 +12,11 @@ import {
 interface TrialBadgeProps {
   variant?: "compact" | "full" | "header";
   className?: string;
+  onUpgradeClick?: () => void;
 }
 
-export function TrialBadge({ variant = "full", className }: TrialBadgeProps) {
+export function TrialBadge({ variant = "full", className, onUpgradeClick }: TrialBadgeProps) {
   const { subscription } = useAuth();
-  const navigate = useNavigate();
 
   // Don't show if not subscribed or no end date
   if (!subscription.subscribed || !subscription.subscriptionEnd) {
@@ -37,7 +36,7 @@ export function TrialBadge({ variant = "full", className }: TrialBadgeProps) {
   const isWarning = daysRemaining <= 5 && daysRemaining > 2;
 
   const handleClick = () => {
-    navigate("/app/configuracoes?tab=plano");
+    onUpgradeClick?.();
   };
 
   // Header variant - More prominent, always visible during trial
@@ -48,7 +47,7 @@ export function TrialBadge({ variant = "full", className }: TrialBadgeProps) {
         size="sm"
         onClick={handleClick}
         className={cn(
-          "gap-2 text-xs font-medium px-3 py-1.5 h-auto relative overflow-hidden",
+          "gap-2 text-xs font-medium px-3 py-1.5 h-auto relative overflow-hidden rounded-full",
           isUrgent
             ? "text-white bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
             : isWarning
@@ -65,12 +64,16 @@ export function TrialBadge({ variant = "full", className }: TrialBadgeProps) {
         ) : (
           <Sparkles className="h-3.5 w-3.5" />
         )}
-        <span>
-          {daysRemaining === 0
-            ? "Trial termina hoje!"
-            : daysRemaining === 1
-            ? "1 dia restante"
-            : `${daysRemaining} dias restantes`}
+        <span className="flex items-center gap-1.5">
+          <span className="font-bold">{daysRemaining}</span>
+          <span>
+            {daysRemaining === 0
+              ? "dias - Trial termina hoje!"
+              : daysRemaining === 1
+              ? "dia restante"
+              : "dias restantes"}
+          </span>
+          <span className="hidden sm:inline text-[10px] opacity-70 ml-1">• Fazer upgrade</span>
         </span>
       </Button>
     );

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -29,15 +29,26 @@ import { cn } from '@/lib/utils';
 interface AccountModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialTab?: 'workspaces' | 'plano' | 'equipa' | 'integracoes';
 }
 
-export function AccountModal({ open, onOpenChange }: AccountModalProps) {
+type TabValue = 'workspaces' | 'plano' | 'equipa' | 'integracoes';
+
+export function AccountModal({ open, onOpenChange, initialTab = 'workspaces' }: AccountModalProps) {
   const { user, signOut, subscription } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const { workspaces, loading: workspacesLoading } = useUserWorkspaces();
-  const [activeTab, setActiveTab] = useState('workspaces');
+  
+  const [activeTab, setActiveTab] = useState<TabValue>(initialTab);
+
+  // Reset to initialTab when modal opens
+  useEffect(() => {
+    if (open) {
+      setActiveTab(initialTab);
+    }
+  }, [open, initialTab]);
 
   const handleSignOut = async () => {
     onOpenChange(false);
@@ -93,7 +104,7 @@ export function AccountModal({ open, onOpenChange }: AccountModalProps) {
 
         <Separator />
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabValue)} className="flex-1 overflow-hidden flex flex-col">
           <TabsList className="grid w-full grid-cols-4 h-auto">
             <TabsTrigger value="workspaces" className="gap-2 text-xs py-2">
               <Building2 className="h-4 w-4" />

@@ -324,8 +324,8 @@ export default function Auth() {
               />
             </div>
 
-            <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CheckCircle2 className="h-8 w-8 text-green-500" />
+            <div className="w-16 h-16 bg-kanban-cyan/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 className="h-8 w-8 text-kanban-cyan" />
             </div>
 
             <h1 className="text-3xl font-bold mb-4">Password atualizada!</h1>
@@ -596,7 +596,7 @@ export default function Auth() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full"
+                    className="w-full border-accent-foreground/30 hover:border-accent-foreground/50 hover:bg-accent/10"
                     onClick={async () => {
                       setLoading(true);
                       const { error } = await signInWithGoogle();

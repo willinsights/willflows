@@ -53,9 +53,9 @@ const projectSchema = z.object({
   delivery_date: z.date().optional(),
   city: z.string().optional(),
   notes: z.string().optional(),
-  agreed_value: z.number().optional(),
-  custo_captacao: z.number().optional(),
-  custo_edicao: z.number().optional(),
+  agreed_value: z.number().min(0, 'Valor não pode ser negativo').optional(),
+  custo_captacao: z.number().min(0, 'Valor não pode ser negativo').optional(),
+  custo_edicao: z.number().min(0, 'Valor não pode ser negativo').optional(),
 });
 
 type ProjectFormData = z.infer<typeof projectSchema>;
