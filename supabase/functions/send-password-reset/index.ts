@@ -1,5 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -8,6 +9,34 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+const logStep = (step: string, details?: any) => {
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  console.log(`[SEND-PASSWORD-RESET] ${step}${detailsStr}`);
+};
+
+// Simple in-memory rate limiting (per email)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_MAX = 3; // Max 3 requests per window
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+
+function checkRateLimit(email: string): boolean {
+  const now = Date.now();
+  const key = email.toLowerCase();
+  const entry = rateLimitMap.get(key);
+  
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+    return true;
+  }
+  
+  if (entry.count >= RATE_LIMIT_MAX) {
+    return false;
+  }
+  
+  entry.count++;
+  return true;
+}
 
 interface PasswordResetEmailRequest {
   email: string;
@@ -22,11 +51,88 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    logStep("Function started");
+
+    // For password reset, we accept unauthenticated requests BUT:
+    // 1. We rate limit by email address
+    // 2. We verify the user exists in our system
+    // 3. We validate the reset link comes from Supabase
+
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
     const { email, name, resetLink }: PasswordResetEmailRequest = await req.json();
     
-    const displayName = name || email.split('@')[0];
+    // Validate inputs
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      logStep("ERROR: Invalid email input");
+      return new Response(
+        JSON.stringify({ error: "Invalid email address" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    if (!resetLink || typeof resetLink !== 'string') {
+      logStep("ERROR: Missing reset link");
+      return new Response(
+        JSON.stringify({ error: "Reset link is required" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Validate reset link is from trusted domains
+    const allowedDomains = ['willflow.app', 'www.willflow.app', 'willflow.pt', 'www.willflow.pt', 'localhost'];
+    try {
+      const linkUrl = new URL(resetLink);
+      const isAllowed = allowedDomains.some(domain => 
+        linkUrl.hostname === domain || linkUrl.hostname.endsWith('.' + domain)
+      );
+      if (!isAllowed) {
+        logStep("ERROR: Untrusted reset link domain", { hostname: linkUrl.hostname });
+        return new Response(
+          JSON.stringify({ error: "Invalid reset link" }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+    } catch {
+      logStep("ERROR: Invalid reset link URL");
+      return new Response(
+        JSON.stringify({ error: "Invalid reset link format" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Rate limiting check
+    if (!checkRateLimit(email)) {
+      logStep("ERROR: Rate limit exceeded", { email });
+      return new Response(
+        JSON.stringify({ error: "Too many requests. Please try again later." }),
+        { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Verify the email exists in our profiles table (user is registered)
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('id, email, full_name')
+      .eq('email', email.toLowerCase())
+      .single();
+
+    if (profileError || !profile) {
+      logStep("User not found - returning success to prevent email enumeration", { email });
+      // Return success to prevent email enumeration attacks
+      return new Response(
+        JSON.stringify({ success: true }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const displayName = name || profile.full_name || email.split('@')[0];
     
-    console.log(`Sending password reset email to ${email}`);
+    logStep(`Sending password reset email to ${email}`);
 
     const emailResponse = await resend.emails.send({
       from: "WillFlow <noreply@willflow.pt>",
@@ -126,16 +232,16 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    console.log("Password reset email sent successfully:", emailResponse);
+    logStep("Password reset email sent successfully", { response: JSON.stringify(emailResponse) });
 
-    return new Response(JSON.stringify(emailResponse), {
+    return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
-    console.error("Error in send-password-reset function:", error);
+    logStep("ERROR", { message: error.message });
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: "Failed to process request" }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
