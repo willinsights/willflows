@@ -34,6 +34,7 @@ import { useCategories, Category } from '@/hooks/useCategories';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { CreateClientModal } from '@/components/clients/CreateClientModal';
 import { CreateCategoryModal } from '@/components/categories/CreateCategoryModal';
+import { appToast } from '@/hooks/useAppToast';
 import type { KanbanPhase } from '@/hooks/useKanban';
 
 const projectSchema = z.object({
@@ -196,6 +197,7 @@ export function CreateProjectModal({
     setLoading(false);
 
     if (project) {
+      appToast.projectCreated(data.name);
       onSuccess();
     }
   };
