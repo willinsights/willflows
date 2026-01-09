@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Menu, Search, Plus, FolderOpen, User2, CheckSquare, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,12 @@ interface AppHeaderProps {
   sidebarCollapsed: boolean;
 }
 
+type SearchDropdownRect = {
+  left: number;
+  top: number;
+  width: number;
+};
+
 export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
@@ -28,6 +35,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const [accountModalInitialTab, setAccountModalInitialTab] = useState<'workspaces' | 'plano' | 'equipa' | 'integracoes'>('workspaces');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
+  const [dropdownRect, setDropdownRect] = useState<SearchDropdownRect | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -44,10 +52,38 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Keep dropdown above everything (portal + fixed positioning)
+  useEffect(() => {
+    if (!searchFocused || !hasQuery) {
+      setDropdownRect(null);
+      return;
+    }
+
+    const update = () => {
+      const inputEl = inputRef.current;
+      if (!inputEl) return;
+      const rect = inputEl.getBoundingClientRect();
+      setDropdownRect({
+        left: rect.left,
+        top: rect.bottom,
+        width: rect.width,
+      });
+    };
+
+    update();
+
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [searchFocused, hasQuery, searchQuery]);
+
   const handleResultClick = (result: SearchResult) => {
     setSearchQuery('');
     setSearchFocused(false);
-    
+
     switch (result.type) {
       case 'project':
         navigate('/app/projetos');
@@ -85,17 +121,57 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const userEmail = user?.email || '';
   const userName = user?.user_metadata?.full_name || userEmail.split('@')[0];
 
+  const dropdown = (
+    <AnimatePresence>
+      {searchFocused && hasQuery && dropdownRect && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          style={{
+            position: 'fixed',
+            left: dropdownRect.left,
+            top: dropdownRect.top + 8,
+            width: dropdownRect.width,
+          }}
+          className="bg-popover border border-border rounded-lg shadow-lg z-[9999] overflow-hidden"
+        >
+          {loading ? (
+            <div className="p-4 text-center text-sm text-muted-foreground">A pesquisar...</div>
+          ) : results.length > 0 ? (
+            <div className="max-h-[300px] overflow-y-auto">
+              {results.map((result) => (
+                <button
+                  key={`${result.type}-${result.id}`}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left"
+                  onClick={() => handleResultClick(result)}
+                >
+                  {getResultIcon(result.type)}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{result.title}</p>
+                    {result.subtitle && (
+                      <p className="text-xs text-muted-foreground truncate">{result.subtitle}</p>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                    {result.meta}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="p-4 text-center text-sm text-muted-foreground">Nenhum resultado encontrado</div>
+          )}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
   return (
     <>
       <header className="flex items-center h-16 px-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         {/* Menu Button (Mobile) */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onMenuClick}
-          className="md:hidden mr-2"
-          type="button"
-        >
+        <Button variant="ghost" size="icon" onClick={onMenuClick} className="md:hidden mr-2" type="button">
           <Menu className="h-5 w-5" />
         </Button>
 
@@ -105,9 +181,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
             <div className="flex items-center justify-center w-6 h-6 rounded bg-primary/10 text-primary text-xs font-bold">
               {currentWorkspace.name.charAt(0).toUpperCase()}
             </div>
-            <span className="hidden sm:inline max-w-[150px] truncate">
-              {currentWorkspace.name}
-            </span>
+            <span className="hidden sm:inline max-w-[150px] truncate">{currentWorkspace.name}</span>
           </div>
         )}
 
@@ -138,61 +212,19 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
                 </Button>
               )}
             </div>
-
-            {/* Search Results Dropdown */}
-            <AnimatePresence>
-              {searchFocused && hasQuery && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="absolute top-full left-0 right-0 mt-2 bg-popover border border-border rounded-lg shadow-lg z-[100] overflow-hidden"
-                >
-                  {loading ? (
-                    <div className="p-4 text-center text-sm text-muted-foreground">
-                      A pesquisar...
-                    </div>
-                  ) : results.length > 0 ? (
-                    <div className="max-h-[300px] overflow-y-auto">
-                      {results.map((result) => (
-                        <button
-                          key={`${result.type}-${result.id}`}
-                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left"
-                          onClick={() => handleResultClick(result)}
-                        >
-                          {getResultIcon(result.type)}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{result.title}</p>
-                            {result.subtitle && (
-                              <p className="text-xs text-muted-foreground truncate">
-                                {result.subtitle}
-                              </p>
-                            )}
-                          </div>
-                          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                            {result.meta}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="p-4 text-center text-sm text-muted-foreground">
-                      Nenhum resultado encontrado
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
         </div>
 
         {/* Actions */}
         <div className="flex items-center gap-2">
           {/* Trial Badge - Enhanced */}
-          <TrialBadge variant="header" onUpgradeClick={() => {
-            setAccountModalInitialTab('plano');
-            setAccountModalOpen(true);
-          }} />
+          <TrialBadge
+            variant="header"
+            onUpgradeClick={() => {
+              setAccountModalInitialTab('plano');
+              setAccountModalOpen(true);
+            }}
+          />
 
           {/* New Project Button */}
           <Button
@@ -218,10 +250,10 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
           <NotificationCenter />
 
           {/* User Avatar - Opens Account Modal */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="rounded-full" 
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full"
             type="button"
             onClick={() => {
               setAccountModalInitialTab('workspaces');
@@ -238,17 +270,17 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
         </div>
       </header>
 
+      {/* Search dropdown rendered in a portal so it stays above all UI */}
+      {typeof document !== 'undefined' && createPortal(dropdown, document.body)}
+
       <CreateProjectModal
         open={createProjectOpen}
         onOpenChange={setCreateProjectOpen}
         onSuccess={() => setCreateProjectOpen(false)}
       />
 
-      <AccountModal
-        open={accountModalOpen}
-        onOpenChange={setAccountModalOpen}
-        initialTab={accountModalInitialTab}
-      />
+      <AccountModal open={accountModalOpen} onOpenChange={setAccountModalOpen} initialTab={accountModalInitialTab} />
     </>
   );
 }
+

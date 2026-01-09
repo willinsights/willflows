@@ -1,16 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Crown, Check, ExternalLink, Loader2 } from 'lucide-react';
+import { Crown, ExternalLink, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { PLAN_INFO, getPriceId } from '@/lib/stripe-prices';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { differenceInDays, format, parseISO } from 'date-fns';
 import { pt } from 'date-fns/locale';
+
+function formatDaysRemaining(daysRemaining: number) {
+  if (daysRemaining < 0) return 'Trial terminado';
+  if (daysRemaining === 0) return 'Termina hoje';
+  if (daysRemaining === 1) return '1 dia restante';
+  return `${daysRemaining} dias restantes`;
+}
 
 export function AccountPlanTab() {
   const { currentWorkspace } = useWorkspace();
@@ -28,7 +34,9 @@ export function AccountPlanTab() {
     const fetchSubscription = async () => {
       try {
         setSubscriptionLoading(true);
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         if (!session) return;
 
         const { data, error } = await supabase.functions.invoke('check-subscription', {
@@ -50,7 +58,9 @@ export function AccountPlanTab() {
   const handleOpenPortal = async () => {
     try {
       setPortalLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) throw new Error('Not authenticated');
 
       const { data, error } = await supabase.functions.invoke('customer-portal', {
@@ -75,7 +85,9 @@ export function AccountPlanTab() {
   const handleUpgrade = async (planId: 'starter' | 'pro' | 'studio') => {
     try {
       setCheckoutLoading(planId);
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) throw new Error('Not authenticated');
 
       const currencyKey = (currentWorkspace?.currency?.toLowerCase() === 'brl' ? 'brl' : 'eur') as 'eur' | 'brl';
@@ -104,6 +116,23 @@ export function AccountPlanTab() {
   const currentPlan = subscriptionData?.plan || currentWorkspace?.subscription_plan || 'essencial';
   const isSubscribed = subscriptionData?.subscribed ?? false;
 
+  const trialEndsAt = (currentWorkspace as any)?.trial_ends_at as string | null | undefined;
+  const trialDaysRemaining = useMemo(() => {
+    if (!trialEndsAt) return null;
+    try {
+      return differenceInDays(parseISO(trialEndsAt), new Date());
+    } catch {
+      return null;
+    }
+  }, [trialEndsAt]);
+
+  const isTrial = useMemo(() => {
+    // Prefer workspace status if present (keeps the UI accurate even if the subscription endpoint returns "subscribed")
+    const status = (currentWorkspace as any)?.subscription_status as string | undefined;
+    if (status) return status !== 'active';
+    return !isSubscribed;
+  }, [currentWorkspace, isSubscribed]);
+
   if (subscriptionLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -123,16 +152,17 @@ export function AccountPlanTab() {
           <div>
             <p className="font-semibold capitalize">{currentPlan}</p>
             <p className="text-sm text-muted-foreground">
-              {isSubscribed ? 'Subscrição ativa' : 'Período de teste'}
+              {isTrial ? 'Período de teste' : 'Subscrição ativa'}
+              {isTrial && typeof trialDaysRemaining === 'number' && (
+                <span className="ml-2 text-foreground/80">• {formatDaysRemaining(trialDaysRemaining)}</span>
+              )}
             </p>
           </div>
         </div>
-        <Badge variant={isSubscribed ? 'default' : 'secondary'}>
-          {isSubscribed ? 'Ativo' : 'Trial'}
-        </Badge>
+        <Badge variant={isTrial ? 'secondary' : 'default'}>{isTrial ? 'Trial' : 'Ativo'}</Badge>
       </div>
 
-      {subscriptionData?.subscription_end && (
+      {subscriptionData?.subscription_end && !isTrial && (
         <p className="text-sm text-muted-foreground">
           Próxima renovação:{' '}
           <span className="font-medium text-foreground">
@@ -141,7 +171,7 @@ export function AccountPlanTab() {
         </p>
       )}
 
-      {isSubscribed && (
+      {!isTrial && (
         <Button
           variant="outline"
           onClick={handleOpenPortal}
@@ -177,16 +207,15 @@ export function AccountPlanTab() {
                 animate={{ opacity: 1, y: 0 }}
                 className={cn(
                   'flex items-center justify-between p-3 rounded-lg border transition-all',
-                  isCurrentPlan
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:border-primary/50'
+                  isCurrentPlan ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
                 )}
               >
                 <div className="flex items-center gap-3">
                   <div>
                     <p className="font-medium capitalize">{planId}</p>
                     <p className="text-sm text-muted-foreground">
-                      {currencySymbol}{price}/mês
+                      {currencySymbol}
+                      {price}/mês
                     </p>
                   </div>
                 </div>
@@ -203,7 +232,7 @@ export function AccountPlanTab() {
                     {checkoutLoading === planInfoKey && (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     )}
-                    {isSubscribed ? 'Mudar' : 'Upgrade'}
+                    {isTrial ? 'Upgrade' : 'Mudar'}
                   </Button>
                 )}
               </motion.div>
