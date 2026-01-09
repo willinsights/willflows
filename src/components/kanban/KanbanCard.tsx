@@ -66,8 +66,10 @@ export function KanbanCard({ project, onClick }: KanbanCardProps) {
       ref={setNodeRef}
       style={style}
       className={cn(
-        'kanban-card group relative',
-        isDragging && 'dragging opacity-60 z-50',
+        'kanban-card group relative transition-all duration-300',
+        'hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/10 hover:z-10',
+        'focus-within:ring-2 focus-within:ring-primary/20',
+        isDragging && 'dragging opacity-60 z-50 scale-105 shadow-2xl shadow-primary/20',
         priorityInfo.border,
         isOverdue && 'border-destructive/40 bg-destructive/5',
         isUrgentDeadline && !isOverdue && 'border-warning/40 bg-warning/5'

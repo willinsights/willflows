@@ -96,7 +96,12 @@ export function AppLayout() {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background">
+    <div className="flex h-screen w-full overflow-hidden bg-background relative">
+      {/* Premium Background Effects - Subtle DoF */}
+      <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/[0.03] dark:bg-primary/[0.05] rounded-full blur-[120px] -translate-y-1/2 translate-x-1/4" />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-accent/[0.03] dark:bg-accent/[0.05] rounded-full blur-[100px] translate-y-1/3 -translate-x-1/4" />
+      </div>
       {debugEnabled && debugPanelOpen && (
         <div className="fixed bottom-4 left-4 z-[200] w-[340px] rounded-lg border bg-card text-card-foreground shadow-lg">
           <div className="flex items-center justify-between border-b px-3 py-2">

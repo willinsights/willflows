@@ -83,9 +83,11 @@ export function KanbanColumn({ column, onUpdateColumn, onDeleteColumn, onAddProj
     <>
       <div
         className={cn(
-          'flex flex-col w-[240px] rounded-lg transition-all duration-150',
+          'flex flex-col w-[240px] rounded-lg transition-all duration-200',
+          'backdrop-blur-sm',
           column.is_final ? 'bg-success/5' : 'bg-muted/30',
-          isOver && 'bg-primary/8 ring-1 ring-primary/30'
+          isOver && 'bg-primary/10 ring-2 ring-primary/40 shadow-lg shadow-primary/10 scale-[1.01]',
+          'hover:shadow-md hover:shadow-black/5'
         )}
       >
         {/* Column Header - Compact */}
