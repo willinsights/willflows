@@ -256,7 +256,7 @@ export default function Landing() {
                 </Button>
               </Link>
               <Link to="/funcionalidades">
-                <Button size="lg" variant="outline" className="text-lg px-8 backdrop-blur-sm">
+                <Button size="lg" variant="outline" className="text-lg px-8 backdrop-blur-sm border-kanban-cyan/50 text-kanban-cyan hover:bg-kanban-cyan/10 hover:border-kanban-cyan">
                   Ver funcionalidades
                 </Button>
               </Link>
