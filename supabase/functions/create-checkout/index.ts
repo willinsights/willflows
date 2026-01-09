@@ -80,7 +80,7 @@ serve(async (req) => {
         },
       ],
       mode: "subscription",
-      success_url: `${requestOrigin}/app?checkout=success`,
+      success_url: `${requestOrigin}/checkout-success`,
       cancel_url: `${requestOrigin}/planos?checkout=cancelled`,
       metadata: {
         user_id: user.id,

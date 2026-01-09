@@ -28,6 +28,7 @@ import Calendario from "./pages/app/Calendario";
 import Pagamentos from "./pages/app/Pagamentos";
 import Relatorios from "./pages/app/Relatorios";
 import Configuracoes from "./pages/app/Configuracoes";
+import CheckoutSuccess from "./pages/CheckoutSuccess";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -57,6 +58,14 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <Onboarding />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/checkout-success"
+                  element={
+                    <ProtectedRoute>
+                      <CheckoutSuccess />
                     </ProtectedRoute>
                   }
                 />
