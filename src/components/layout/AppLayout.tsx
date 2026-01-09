@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Outlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, RefreshCw } from 'lucide-react';
@@ -20,6 +20,31 @@ export function AppLayout() {
   const { fetchError, refreshWorkspaces } = useWorkspace();
   
   const lastRetryTimeRef = useRef(0);
+
+  // Debug: helps detect invisible overlays capturing clicks
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+
+    const handler = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      const elAtPoint = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+      // eslint-disable-next-line no-console
+      console.log('[ui-click]', {
+        route: window.location.pathname,
+        x: event.clientX,
+        y: event.clientY,
+        target: target?.tagName,
+        targetId: target?.id,
+        targetClass: target?.className,
+        elAtPoint: elAtPoint?.tagName,
+        elAtPointId: elAtPoint?.id,
+        elAtPointClass: elAtPoint?.className,
+      });
+    };
+
+    document.addEventListener('pointerdown', handler, true);
+    return () => document.removeEventListener('pointerdown', handler, true);
+  }, []);
 
   const toggleSidebar = () => {
     if (isMobile) {

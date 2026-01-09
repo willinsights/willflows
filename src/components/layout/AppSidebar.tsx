@@ -23,7 +23,6 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { NavLink } from '@/components/NavLink';
 import logoWillflow from '@/assets/logo-willflow-sistema.png';
 
@@ -96,6 +95,8 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
     const content = (
       <NavLink
         to={item.path}
+        title={collapsed && !isMobile ? item.label : undefined}
+        aria-label={collapsed && !isMobile ? item.label : undefined}
         className={cn(
           'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
           'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
@@ -109,19 +110,6 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
         )}
       </NavLink>
     );
-
-    if (collapsed && !isMobile) {
-      return (
-        <Tooltip delayDuration={0}>
-          <TooltipTrigger asChild>
-            {content}
-          </TooltipTrigger>
-          <TooltipContent side="right" className="font-medium">
-            {item.label}
-          </TooltipContent>
-        </Tooltip>
-      );
-    }
 
     return content;
   };
