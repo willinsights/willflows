@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Plus, ExternalLink, Trash2, HardDrive, Play, Youtube, Video, FolderOpen, Link as LinkIcon } from 'lucide-react';
+import { Plus, ExternalLink, Trash2, Pencil, HardDrive, Play, Youtube, Video, FolderOpen, Link as LinkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -62,12 +61,21 @@ export function ProjectMediaTab({
 }: ProjectMediaTabProps) {
   const { toast } = useToast();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingMedia, setEditingMedia] = useState<MediaLink | null>(null);
   const [newMedia, setNewMedia] = useState({
     link_type: 'nas',
     url: '',
     title: '',
   });
   const [submitting, setSubmitting] = useState(false);
+
+  const resetForm = () => {
+    setNewMedia({
+      link_type: 'nas',
+      url: '',
+      title: '',
+    });
+  };
 
   const handleAddMedia = async () => {
     if (!newMedia.url.trim()) {
@@ -91,11 +99,7 @@ export function ProjectMediaTab({
       if (error) throw error;
 
       setMediaLinks(prev => [...prev, data]);
-      setNewMedia({
-        link_type: 'nas',
-        url: '',
-        title: '',
-      });
+      resetForm();
       setShowAddModal(false);
       toast({ title: 'Link de media adicionado' });
     } catch (error: any) {
@@ -103,6 +107,53 @@ export function ProjectMediaTab({
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleEditMedia = async () => {
+    if (!editingMedia || !newMedia.url.trim()) {
+      toast({ title: 'URL é obrigatório', variant: 'destructive' });
+      return;
+    }
+    setSubmitting(true);
+
+    try {
+      const { data, error } = await supabase
+        .from('project_media_links')
+        .update({
+          link_type: newMedia.link_type,
+          url: newMedia.url.trim(),
+          title: newMedia.title.trim() || null,
+        })
+        .eq('id', editingMedia.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setMediaLinks(prev => prev.map(l => l.id === editingMedia.id ? data : l));
+      resetForm();
+      setEditingMedia(null);
+      toast({ title: 'Link atualizado' });
+    } catch (error: any) {
+      toast({ title: 'Erro ao atualizar link', description: error.message, variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openEditModal = (link: MediaLink) => {
+    setEditingMedia(link);
+    setNewMedia({
+      link_type: link.link_type,
+      url: link.url,
+      title: link.title || '',
+    });
+  };
+
+  const closeModal = () => {
+    setShowAddModal(false);
+    setEditingMedia(null);
+    resetForm();
   };
 
   const handleDelete = async (linkId: string) => {
@@ -126,6 +177,8 @@ export function ProjectMediaTab({
     ...(dropboxUrl ? [{ id: 'dropbox', url: dropboxUrl, link_type: 'dropbox', title: 'Dropbox' }] : []),
     ...mediaLinks,
   ];
+
+  const isModalOpen = showAddModal || !!editingMedia;
 
   return (
     <div className="space-y-4">
@@ -155,16 +208,6 @@ export function ProjectMediaTab({
                       {getMediaLabel(link.link_type)}
                     </Badge>
                   </div>
-                  {!isBuiltIn && mediaLink.duration && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Duração: {mediaLink.duration}
-                    </p>
-                  )}
-                  {!isBuiltIn && mediaLink.description && (
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                      {mediaLink.description}
-                    </p>
-                  )}
                 </div>
 
                 <div className="flex items-center gap-1">
@@ -178,14 +221,24 @@ export function ProjectMediaTab({
                   </Button>
                   
                   {!isBuiltIn && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => handleDelete(link.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => openEditModal(mediaLink)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => handleDelete(link.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
@@ -210,13 +263,17 @@ export function ProjectMediaTab({
         Adicionar Media
       </Button>
 
-      {/* Add Media Modal */}
-      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+      {/* Add/Edit Media Modal */}
+      <Dialog open={isModalOpen} onOpenChange={(open) => !open && closeModal()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Adicionar Link de Media</DialogTitle>
+            <DialogTitle>
+              {editingMedia ? 'Editar Link de Media' : 'Adicionar Link de Media'}
+            </DialogTitle>
             <DialogDescription>
-              Adicione links da NAS, Frame.io, Vimeo, YouTube ou Google Drive.
+              {editingMedia 
+                ? 'Atualize as informações do link de media.'
+                : 'Adicione links da NAS, Frame.io, Vimeo, YouTube ou Google Drive.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -263,11 +320,14 @@ export function ProjectMediaTab({
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddModal(false)}>
+            <Button variant="outline" onClick={closeModal}>
               Cancelar
             </Button>
-            <Button onClick={handleAddMedia} disabled={submitting}>
-              Adicionar
+            <Button 
+              onClick={editingMedia ? handleEditMedia : handleAddMedia} 
+              disabled={submitting}
+            >
+              {editingMedia ? 'Guardar' : 'Adicionar'}
             </Button>
           </DialogFooter>
         </DialogContent>
