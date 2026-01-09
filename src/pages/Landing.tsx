@@ -23,9 +23,13 @@ import {
 } from '@/components/ui/accordion';
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
-import screenshotDashboard from '@/assets/screenshot-dashboard.png';
-import screenshotKanban from '@/assets/screenshot-kanban.png';
-import screenshotCalendar from '@/assets/screenshot-calendar.png';
+import screenshotDashboard from '@/assets/screenshot-dashboard-full.png';
+import screenshotKanban from '@/assets/screenshot-kanban-card.png';
+import screenshotCalendar from '@/assets/screenshot-calendario.png';
+import screenshotReceita from '@/assets/screenshot-receita.png';
+import screenshotMargem from '@/assets/screenshot-margem.png';
+import screenshotOverview from '@/assets/screenshot-overview.png';
+import screenshotBlur from '@/assets/screenshot-blur-bg.png';
 
 const features = [
   {
@@ -116,6 +120,21 @@ const screenshots = [
     src: screenshotCalendar,
     alt: 'Calendário WillFlow',
     title: 'Calendário Integrado',
+  },
+  {
+    src: screenshotReceita,
+    alt: 'Receita e Lucro',
+    title: 'Receita e Lucro',
+  },
+  {
+    src: screenshotMargem,
+    alt: 'Margem de Lucro',
+    title: 'Margem de Lucro',
+  },
+  {
+    src: screenshotOverview,
+    alt: 'Overview do Sistema',
+    title: 'Visão Geral',
   },
 ];
 
@@ -277,10 +296,10 @@ export default function Landing() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            className="relative max-w-5xl mx-auto screenshot-depth"
+            className="relative max-w-5xl mx-auto screenshot-depth mb-16"
           >
             {/* Main focused screenshot */}
-            <div className="screenshot-depth-main rounded-2xl overflow-hidden border border-border/50">
+            <div className="screenshot-depth-main rounded-2xl overflow-hidden border border-border/50 shadow-2xl shadow-primary/10">
               <img 
                 src={screenshotDashboard} 
                 alt="Dashboard WillFlow" 
@@ -296,9 +315,9 @@ export default function Landing() {
               whileInView={{ opacity: 1, x: 0, rotateY: 0 }}
               transition={{ delay: 0.3, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
               viewport={{ once: true }}
-              className="absolute -left-12 top-1/4 w-72 hidden lg:block screenshot-depth-layer layer-mid"
+              className="absolute -left-16 top-1/4 w-80 hidden lg:block screenshot-depth-layer layer-mid"
             >
-              <div className="focal-card p-2 rotate-[-8deg]">
+              <div className="focal-card p-2 rotate-[-8deg] shadow-xl shadow-primary/20">
                 <img 
                   src={screenshotKanban} 
                   alt="Kanban" 
@@ -312,9 +331,9 @@ export default function Landing() {
               whileInView={{ opacity: 1, x: 0, rotateY: 0 }}
               transition={{ delay: 0.4, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
               viewport={{ once: true }}
-              className="absolute -right-12 top-1/3 w-72 hidden lg:block screenshot-depth-layer layer-mid"
+              className="absolute -right-16 top-1/3 w-80 hidden lg:block screenshot-depth-layer layer-mid"
             >
-              <div className="focal-card p-2 rotate-[6deg]">
+              <div className="focal-card p-2 rotate-[6deg] shadow-xl shadow-accent/20">
                 <img 
                   src={screenshotCalendar} 
                   alt="Calendário" 
@@ -322,25 +341,60 @@ export default function Landing() {
                 />
               </div>
             </motion.div>
+
+            {/* Additional floating screenshots */}
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+              viewport={{ once: true }}
+              className="absolute -left-8 bottom-10 w-64 hidden xl:block screenshot-depth-layer layer-far"
+            >
+              <div className="focal-card p-2 rotate-[-4deg] shadow-lg shadow-success/10">
+                <img 
+                  src={screenshotReceita} 
+                  alt="Receita" 
+                  className="rounded-lg w-full"
+                />
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+              viewport={{ once: true }}
+              className="absolute -right-8 bottom-16 w-64 hidden xl:block screenshot-depth-layer layer-far"
+            >
+              <div className="focal-card p-2 rotate-[4deg] shadow-lg shadow-primary/10">
+                <img 
+                  src={screenshotMargem} 
+                  alt="Margem" 
+                  className="rounded-lg w-full"
+                />
+              </div>
+            </motion.div>
           </motion.div>
 
-          {/* Mobile screenshots grid with focal zoom */}
-          <div className="grid grid-cols-2 gap-4 mt-8 lg:hidden focal-container">
-            {screenshots.slice(1).map((screenshot, index) => (
+          {/* Secondary screenshots grid */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-6 max-w-4xl mx-auto focal-container">
+            {screenshots.slice(1, 4).map((screenshot, index) => (
               <motion.div
                 key={screenshot.alt}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
                 viewport={{ once: true }}
-                className="focal-card p-2"
+                className="focal-card p-3 group"
               >
-                <img 
-                  src={screenshot.src} 
-                  alt={screenshot.alt} 
-                  className="rounded-lg w-full"
-                />
-                <p className="text-sm text-center mt-2 text-muted-foreground">{screenshot.title}</p>
+                <div className="overflow-hidden rounded-lg">
+                  <img 
+                    src={screenshot.src} 
+                    alt={screenshot.alt} 
+                    className="w-full transition-transform duration-500 group-hover:scale-105"
+                  />
+                </div>
+                <p className="text-sm text-center mt-3 text-muted-foreground font-medium">{screenshot.title}</p>
               </motion.div>
             ))}
           </div>
