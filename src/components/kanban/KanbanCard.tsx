@@ -5,6 +5,8 @@ import { pt } from 'date-fns/locale';
 import { Calendar, MapPin, Camera, Video, Grip, CheckSquare, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { ProjectWithClient } from '@/hooks/useKanban';
 
@@ -60,6 +62,11 @@ export function KanbanCard({ project, onClick }: KanbanCardProps) {
   const taskCount = project.task_count || 0;
   const taskCompleted = project.task_completed || 0;
   const taskProgress = taskCount > 0 ? (taskCompleted / taskCount) * 100 : 0;
+
+  // Get team members (limit display to 3)
+  const teamMembers = project.team_members || [];
+  const displayedMembers = teamMembers.slice(0, 3);
+  const remainingCount = teamMembers.length - 3;
 
   return (
     <div
@@ -135,27 +142,73 @@ export function KanbanCard({ project, onClick }: KanbanCardProps) {
         </div>
       )}
 
-      {/* Footer with date */}
+      {/* Footer with date and team */}
       <div className="flex items-center justify-between mt-1 pt-1 border-t border-border/40">
-        {project.shoot_date ? (
-          <div className="flex items-center gap-0.5 text-[9px] text-muted-foreground">
-            <Calendar className="h-2.5 w-2.5" />
-            <span>{format(new Date(project.shoot_date), 'dd MMM', { locale: pt })}</span>
-          </div>
-        ) : deliveryDate ? (
-          <div className={cn(
-            'flex items-center gap-0.5 text-[9px]',
-            isOverdue ? 'text-destructive' : isUrgentDeadline ? 'text-warning' : 'text-muted-foreground'
-          )}>
-            <Calendar className="h-2.5 w-2.5" />
-            <span>{format(deliveryDate, 'dd MMM', { locale: pt })}</span>
-          </div>
-        ) : (
-          <span className="text-[9px] text-muted-foreground">-</span>
+        <div className="flex items-center gap-1">
+          {project.shoot_date ? (
+            <div className="flex items-center gap-0.5 text-[9px] text-muted-foreground">
+              <Calendar className="h-2.5 w-2.5" />
+              <span>{format(new Date(project.shoot_date), 'dd MMM', { locale: pt })}</span>
+            </div>
+          ) : deliveryDate ? (
+            <div className={cn(
+              'flex items-center gap-0.5 text-[9px]',
+              isOverdue ? 'text-destructive' : isUrgentDeadline ? 'text-warning' : 'text-muted-foreground'
+            )}>
+              <Calendar className="h-2.5 w-2.5" />
+              <span>{format(deliveryDate, 'dd MMM', { locale: pt })}</span>
+            </div>
+          ) : (
+            <span className="text-[9px] text-muted-foreground">-</span>
+          )}
+        </div>
+
+        {/* Team Avatars */}
+        {displayedMembers.length > 0 && (
+          <TooltipProvider>
+            <div className="flex -space-x-1.5">
+              {displayedMembers.map((member) => {
+                const initials = member.profile?.full_name
+                  ? member.profile.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                  : member.profile?.email?.[0]?.toUpperCase() || '?';
+                
+                return (
+                  <Tooltip key={member.user_id}>
+                    <TooltipTrigger asChild>
+                      <Avatar className="h-4 w-4 border border-background">
+                        <AvatarImage src={member.profile?.avatar_url || undefined} />
+                        <AvatarFallback className="text-[6px] bg-primary/10 text-primary">
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-[10px] px-2 py-1">
+                      <p>{member.profile?.full_name || member.profile?.email}</p>
+                      <p className="text-muted-foreground capitalize">{member.phase}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+              {remainingCount > 0 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Avatar className="h-4 w-4 border border-background">
+                      <AvatarFallback className="text-[6px] bg-muted text-muted-foreground">
+                        +{remainingCount}
+                      </AvatarFallback>
+                    </Avatar>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-[10px] px-2 py-1">
+                    <p>+{remainingCount} mais</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          </TooltipProvider>
         )}
 
-        {/* Project code */}
-        {(project as any).project_code && (
+        {/* Project code - only show if no team members */}
+        {displayedMembers.length === 0 && (project as any).project_code && (
           <span className="text-[9px] text-primary/60 font-mono">
             {(project as any).project_code}
           </span>
