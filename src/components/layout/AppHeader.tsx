@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, Search, Bell, Moon, Sun, Plus, LogOut, User, ChevronDown } from 'lucide-react';
+import { Menu, Search, Bell, Moon, Sun, Plus, LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { cn } from '@/lib/utils';
+
 
 interface AppHeaderProps {
   onMenuClick: () => void;
@@ -24,7 +24,7 @@ interface AppHeaderProps {
 
 export function AppHeader({ onMenuClick, sidebarCollapsed }: AppHeaderProps) {
   const { user, signOut } = useAuth();
-  const { currentWorkspace, workspaces, setCurrentWorkspace } = useWorkspace();
+  const { currentWorkspace } = useWorkspace();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -59,48 +59,21 @@ export function AppHeader({ onMenuClick, sidebarCollapsed }: AppHeaderProps) {
         <Menu className="h-5 w-5" />
       </Button>
 
-      {/* Workspace Selector */}
+      {/* Workspace Name */}
       {currentWorkspace && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="gap-2 font-medium">
-              <div className="flex items-center justify-center w-6 h-6 rounded bg-primary/10 text-primary text-xs font-bold">
-                {currentWorkspace.name.charAt(0).toUpperCase()}
-              </div>
-              <span className="hidden sm:inline max-w-[150px] truncate">
-                {currentWorkspace.name}
-              </span>
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {workspaces.map((workspace) => (
-              <DropdownMenuItem
-                key={workspace.id}
-                onClick={() => setCurrentWorkspace(workspace)}
-                className={cn(
-                  'cursor-pointer',
-                  workspace.id === currentWorkspace.id && 'bg-accent'
-                )}
-              >
-                <div className="flex items-center justify-center w-6 h-6 rounded bg-primary/10 text-primary text-xs font-bold mr-2">
-                  {workspace.name.charAt(0).toUpperCase()}
-                </div>
-                {workspace.name}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-2 font-medium">
+          <div className="flex items-center justify-center w-6 h-6 rounded bg-primary/10 text-primary text-xs font-bold">
+            {currentWorkspace.name.charAt(0).toUpperCase()}
+          </div>
+          <span className="hidden sm:inline max-w-[150px] truncate">
+            {currentWorkspace.name}
+          </span>
+        </div>
       )}
 
       {/* Search */}
       <div className="flex-1 flex items-center justify-center px-4">
-        <div className={cn(
-          'relative transition-all duration-200',
-          searchOpen ? 'w-full max-w-md' : 'w-auto'
-        )}>
+        <div className={`relative transition-all duration-200 ${searchOpen ? 'w-full max-w-md' : 'w-auto'}`}>
           {searchOpen ? (
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
