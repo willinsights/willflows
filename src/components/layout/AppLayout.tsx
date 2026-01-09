@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, RefreshCw, X } from 'lucide-react';
@@ -31,19 +31,12 @@ export function AppLayout() {
 
   const lastRetryTimeRef = useRef(0);
 
-  const debugEnabled = useMemo(() => {
-    try {
-      const url = new URL(window.location.href);
-      return url.searchParams.get('debug') === '1';
-    } catch {
-      return false;
-    }
-  }, []);
+  // Debug sempre ativo em DEV: ajuda a identificar overlays que bloqueiam cliques.
+  const debugEnabled = import.meta.env.DEV;
 
   const [clickDebug, setClickDebug] = useState<ClickDebugInfo | null>(null);
   const [debugPanelOpen, setDebugPanelOpen] = useState(true);
 
-  // Debug: detectar overlays invisíveis a capturar cliques
   useEffect(() => {
     if (!debugEnabled) return;
 
