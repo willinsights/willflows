@@ -1,5 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -7,6 +8,11 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
+};
+
+const logStep = (step: string, details?: any) => {
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  console.log(`[SEND-WELCOME-EMAIL] ${step}${detailsStr}`);
 };
 
 interface WelcomeEmailRequest {
@@ -21,9 +27,69 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    logStep("Function started");
+
+    // Verify authentication - only authenticated users can trigger welcome emails
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      logStep("ERROR: No authorization header");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized - No valid authorization header" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      logStep("ERROR: Invalid token", { error: claimsError?.message });
+      return new Response(
+        JSON.stringify({ error: "Unauthorized - Invalid token" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const userId = claimsData.claims.sub;
+    const userEmail = claimsData.claims.email;
+    logStep("User authenticated", { userId, userEmail });
+
     const { email, name }: WelcomeEmailRequest = await req.json();
     
-    console.log(`Sending welcome email to ${email} (${name})`);
+    // Validate input
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      logStep("ERROR: Invalid email input");
+      return new Response(
+        JSON.stringify({ error: "Invalid email address" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    if (!name || typeof name !== 'string' || name.length > 100) {
+      logStep("ERROR: Invalid name input");
+      return new Response(
+        JSON.stringify({ error: "Invalid name" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Security check: Users can only send welcome emails to themselves
+    // or admins can send to workspace members (simplified: only to self for now)
+    if (email.toLowerCase() !== userEmail?.toLowerCase()) {
+      logStep("ERROR: Cannot send email to different user", { requestedEmail: email, userEmail });
+      return new Response(
+        JSON.stringify({ error: "Cannot send email to a different user" }),
+        { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    logStep(`Sending welcome email to ${email} (${name})`);
 
     const emailResponse = await resend.emails.send({
       from: "WillFlow <noreply@willflow.pt>",
@@ -148,16 +214,16 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    console.log("Welcome email sent successfully:", emailResponse);
+    logStep("Welcome email sent successfully", { response: JSON.stringify(emailResponse) });
 
     return new Response(JSON.stringify(emailResponse), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
-    console.error("Error in send-welcome-email function:", error);
+    logStep("ERROR", { message: error.message });
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: "Failed to send email" }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
