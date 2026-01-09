@@ -10,13 +10,13 @@ export function useProductTour() {
     const completed = localStorage.getItem(TOUR_STORAGE_KEY);
     if (completed === 'true') {
       setTourCompleted(true);
-    } else {
-      // Show tour after a short delay on first visit
-      const timer = setTimeout(() => {
-        setShowTour(true);
-      }, 1000);
-      return () => clearTimeout(timer);
+      setShowTour(false);
+      return;
     }
+
+    // Não abrir automaticamente: o tour deve ser acionado pelo utilizador (ex.: em Configurações)
+    setTourCompleted(false);
+    setShowTour(false);
   }, []);
 
   const completeTour = () => {
