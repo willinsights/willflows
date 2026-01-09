@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
@@ -12,16 +12,23 @@ export interface Category {
 }
 
 export function useCategories() {
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspace, fetchError } = useWorkspace();
   const { toast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Refs to prevent duplicate fetches
+  const isFetchingRef = useRef(false);
+  const lastFetchedWorkspaceIdRef = useRef<string | null>(null);
 
   const fetchCategories = useCallback(async () => {
-    if (!currentWorkspace) return;
+    if (!currentWorkspace?.id || fetchError) return;
+    if (isFetchingRef.current) return;
 
     try {
+      isFetchingRef.current = true;
       setLoading(true);
+      
       const { data, error } = await supabase
         .from('categories')
         .select('*')
@@ -30,16 +37,23 @@ export function useCategories() {
 
       if (error) throw error;
       setCategories(data || []);
+      lastFetchedWorkspaceIdRef.current = currentWorkspace.id;
     } catch (error) {
       console.error('Error fetching categories:', error);
     } finally {
+      isFetchingRef.current = false;
       setLoading(false);
     }
-  }, [currentWorkspace]);
+  }, [currentWorkspace?.id, fetchError]);
 
   useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
+    // Only fetch if workspace ID changed
+    if (currentWorkspace?.id && currentWorkspace.id !== lastFetchedWorkspaceIdRef.current && !fetchError) {
+      fetchCategories();
+    } else if (!currentWorkspace) {
+      setLoading(false);
+    }
+  }, [currentWorkspace?.id, fetchError]);
 
   const createCategory = async (name: string, color: string = '#8224e3') => {
     if (!currentWorkspace) return null;

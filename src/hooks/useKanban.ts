@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
@@ -21,15 +21,23 @@ export interface KanbanColumnWithProjects extends KanbanColumn {
 }
 
 export function useKanban(phase: KanbanPhase) {
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspace, fetchError } = useWorkspace();
   const { toast } = useToast();
   const [columns, setColumns] = useState<KanbanColumnWithProjects[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Refs to prevent duplicate fetches
+  const isFetchingRef = useRef(false);
+  const lastFetchedKeyRef = useRef<string | null>(null);
 
   const fetchColumns = useCallback(async () => {
-    if (!currentWorkspace) return;
+    if (!currentWorkspace?.id || fetchError) return;
+    if (isFetchingRef.current) return;
+    
+    const fetchKey = `${currentWorkspace.id}-${phase}`;
 
     try {
+      isFetchingRef.current = true;
       setLoading(true);
       
       // Fetch columns for this phase
@@ -88,6 +96,7 @@ export function useKanban(phase: KanbanPhase) {
       }));
 
       setColumns(columnsWithProjects);
+      lastFetchedKeyRef.current = fetchKey;
     } catch (error) {
       toast({
         title: 'Erro ao carregar Kanban',
@@ -95,13 +104,20 @@ export function useKanban(phase: KanbanPhase) {
         variant: 'destructive',
       });
     } finally {
+      isFetchingRef.current = false;
       setLoading(false);
     }
-  }, [currentWorkspace, phase, toast]);
+  }, [currentWorkspace?.id, phase, fetchError, toast]);
 
   useEffect(() => {
-    fetchColumns();
-  }, [fetchColumns]);
+    const fetchKey = `${currentWorkspace?.id}-${phase}`;
+    // Only fetch if key changed
+    if (currentWorkspace?.id && fetchKey !== lastFetchedKeyRef.current && !fetchError) {
+      fetchColumns();
+    } else if (!currentWorkspace) {
+      setLoading(false);
+    }
+  }, [currentWorkspace?.id, phase, fetchError]);
 
   const moveProject = async (projectId: string, targetColumnId: string) => {
     if (!currentWorkspace) return;

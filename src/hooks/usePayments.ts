@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
@@ -14,16 +14,23 @@ export interface PaymentWithDetails extends Payment {
 }
 
 export function usePayments() {
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspace, fetchError } = useWorkspace();
   const { toast } = useToast();
   const [payments, setPayments] = useState<PaymentWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Refs to prevent duplicate fetches
+  const isFetchingRef = useRef(false);
+  const lastFetchedWorkspaceIdRef = useRef<string | null>(null);
 
   const fetchPayments = useCallback(async () => {
-    if (!currentWorkspace) return;
+    if (!currentWorkspace?.id || fetchError) return;
+    if (isFetchingRef.current) return;
 
     try {
+      isFetchingRef.current = true;
       setLoading(true);
+      
       const { data, error } = await supabase
         .from('payments')
         .select('*, clients(name), projects(name, project_code)')
@@ -32,16 +39,23 @@ export function usePayments() {
 
       if (error) throw error;
       setPayments(data || []);
+      lastFetchedWorkspaceIdRef.current = currentWorkspace.id;
     } catch (error) {
       console.error('Error fetching payments:', error);
     } finally {
+      isFetchingRef.current = false;
       setLoading(false);
     }
-  }, [currentWorkspace]);
+  }, [currentWorkspace?.id, fetchError]);
 
   useEffect(() => {
-    fetchPayments();
-  }, [fetchPayments]);
+    // Only fetch if workspace ID changed
+    if (currentWorkspace?.id && currentWorkspace.id !== lastFetchedWorkspaceIdRef.current && !fetchError) {
+      fetchPayments();
+    } else if (!currentWorkspace) {
+      setLoading(false);
+    }
+  }, [currentWorkspace?.id, fetchError]);
 
   const createPayment = async (payment: Omit<PaymentInsert, 'workspace_id'>) => {
     if (!currentWorkspace) return null;

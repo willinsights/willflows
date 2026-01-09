@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
@@ -13,16 +13,23 @@ export interface CalendarEventWithProject extends CalendarEvent {
 }
 
 export function useCalendarEvents() {
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspace, fetchError } = useWorkspace();
   const { toast } = useToast();
   const [events, setEvents] = useState<CalendarEventWithProject[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Refs to prevent duplicate fetches
+  const isFetchingRef = useRef(false);
+  const lastFetchedWorkspaceIdRef = useRef<string | null>(null);
 
   const fetchEvents = useCallback(async () => {
-    if (!currentWorkspace) return;
+    if (!currentWorkspace?.id || fetchError) return;
+    if (isFetchingRef.current) return;
 
     try {
+      isFetchingRef.current = true;
       setLoading(true);
+      
       const { data, error } = await supabase
         .from('calendar_events')
         .select('*, projects(name, client_id)')
@@ -31,16 +38,23 @@ export function useCalendarEvents() {
 
       if (error) throw error;
       setEvents(data || []);
+      lastFetchedWorkspaceIdRef.current = currentWorkspace.id;
     } catch (error) {
       console.error('Error fetching calendar events:', error);
     } finally {
+      isFetchingRef.current = false;
       setLoading(false);
     }
-  }, [currentWorkspace]);
+  }, [currentWorkspace?.id, fetchError]);
 
   useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
+    // Only fetch if workspace ID changed
+    if (currentWorkspace?.id && currentWorkspace.id !== lastFetchedWorkspaceIdRef.current && !fetchError) {
+      fetchEvents();
+    } else if (!currentWorkspace) {
+      setLoading(false);
+    }
+  }, [currentWorkspace?.id, fetchError]);
 
   const createEvent = async (event: Omit<CalendarEventInsert, 'workspace_id'>) => {
     if (!currentWorkspace) return null;

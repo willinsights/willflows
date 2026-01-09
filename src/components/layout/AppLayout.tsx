@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Outlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, RefreshCw } from 'lucide-react';
@@ -9,12 +9,17 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 
+const RETRY_COOLDOWN_MS = 5000; // 5 seconds cooldown between retries
+
 export function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [retryCooldown, setRetryCooldown] = useState(false);
   const isMobile = useIsMobile();
   const { fetchError, refreshWorkspaces } = useWorkspace();
+  
+  const lastRetryTimeRef = useRef(0);
 
   const toggleSidebar = () => {
     if (isMobile) {
@@ -25,9 +30,24 @@ export function AppLayout() {
   };
 
   const handleRetry = async () => {
+    // Enforce cooldown
+    const now = Date.now();
+    if (now - lastRetryTimeRef.current < RETRY_COOLDOWN_MS) {
+      return;
+    }
+    
+    lastRetryTimeRef.current = now;
     setIsRetrying(true);
+    setRetryCooldown(true);
+    
     await refreshWorkspaces();
+    
     setIsRetrying(false);
+    
+    // Reset cooldown after delay
+    setTimeout(() => {
+      setRetryCooldown(false);
+    }, RETRY_COOLDOWN_MS);
     
     if (!fetchError) {
       toast({
@@ -65,7 +85,7 @@ export function AppLayout() {
                 variant="secondary"
                 size="sm"
                 onClick={handleRetry}
-                disabled={isRetrying}
+                disabled={isRetrying || retryCooldown}
                 className="shrink-0"
               >
                 {isRetrying ? (
@@ -73,7 +93,7 @@ export function AppLayout() {
                 ) : (
                   <RefreshCw className="h-4 w-4 mr-2" />
                 )}
-                Tentar novamente
+                {retryCooldown && !isRetrying ? 'Aguarde...' : 'Tentar novamente'}
               </Button>
             </div>
           </motion.div>
