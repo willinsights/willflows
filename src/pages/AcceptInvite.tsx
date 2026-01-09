@@ -47,49 +47,40 @@ export default function AcceptInvite() {
     }
 
     const fetchInvitation = async () => {
+      // Use secure RPC function to fetch invitation by token
+      // This prevents exposing all invitations to unauthenticated users
       const { data, error } = await supabase
-        .from('workspace_invitations')
-        .select(`
-          id,
-          email,
-          role,
-          workspace_id,
-          expires_at,
-          accepted_at,
-          workspaces!inner(name)
-        `)
-        .eq('token', token)
-        .single();
+        .rpc('get_invitation_by_token', { _token: token });
 
-      if (error || !data) {
+      if (error || !data || data.length === 0) {
         setViewState('invalid');
         return;
       }
 
-      // Check if already accepted
-      if (data.accepted_at) {
+      const invitationData = data[0];
+
+      // Check if already accepted (RPC already filters this, but double-check)
+      if (invitationData.accepted_at) {
         setViewState('invalid');
         return;
       }
 
-      // Check if expired
-      if (new Date(data.expires_at) < new Date()) {
+      // Check if expired (RPC already filters this, but double-check)
+      if (new Date(invitationData.expires_at) < new Date()) {
         setViewState('expired');
         return;
       }
 
-      const workspaceData = data.workspaces as { name: string };
-      
       setInvitation({
-        id: data.id,
-        email: data.email,
-        role: data.role,
-        workspace_id: data.workspace_id,
-        workspace_name: workspaceData.name,
+        id: invitationData.id,
+        email: invitationData.email,
+        role: invitationData.role,
+        workspace_id: invitationData.workspace_id,
+        workspace_name: invitationData.workspace_name,
         inviter_name: null,
-        expires_at: data.expires_at,
+        expires_at: invitationData.expires_at,
       });
-      setEmail(data.email);
+      setEmail(invitationData.email);
     };
 
     fetchInvitation();

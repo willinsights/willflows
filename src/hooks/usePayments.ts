@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { handleDatabaseError } from '@/lib/error-handler';
+import { paymentSchema, paymentUpdateSchema, validateWithSchema } from '@/lib/validation-schemas';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 export type Payment = Tables<'payments'>;
@@ -60,13 +61,26 @@ export function usePayments() {
   const createPayment = async (payment: Omit<PaymentInsert, 'workspace_id'>) => {
     if (!currentWorkspace) return null;
 
+    // Validate input before database operation
+    const validation = validateWithSchema(paymentSchema, payment);
+    if (!validation.success) {
+      toast({
+        title: 'Dados inválidos',
+        description: validation.error,
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    const validatedData = validation.data;
+
     try {
       const { data, error } = await supabase
         .from('payments')
         .insert({
-          ...payment,
+          ...validatedData,
           workspace_id: currentWorkspace.id,
-        })
+        } as any)
         .select('*, clients(name), projects(name, project_code)')
         .single();
 
@@ -86,10 +100,23 @@ export function usePayments() {
   };
 
   const updatePayment = async (paymentId: string, updates: Partial<Payment>) => {
+    // Validate update data
+    const validation = validateWithSchema(paymentUpdateSchema, updates);
+    if (!validation.success) {
+      toast({
+        title: 'Dados inválidos',
+        description: validation.error,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const validatedData = validation.data;
+
     try {
       const { error } = await supabase
         .from('payments')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update({ ...validatedData, updated_at: new Date().toISOString() } as any)
         .eq('id', paymentId);
 
       if (error) throw error;

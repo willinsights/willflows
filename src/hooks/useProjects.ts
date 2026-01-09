@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { handleDatabaseError } from '@/lib/error-handler';
+import { projectSchema, projectUpdateSchema, validateWithSchema } from '@/lib/validation-schemas';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 export type Project = Tables<'projects'>;
@@ -60,6 +61,19 @@ export function useProjects() {
   const createProject = async (project: Omit<ProjectInsert, 'workspace_id'>) => {
     if (!currentWorkspace) return null;
 
+    // Validate input before database operation
+    const validation = validateWithSchema(projectSchema, project);
+    if (!validation.success) {
+      toast({
+        title: 'Dados inválidos',
+        description: validation.error,
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    const validatedData = validation.data;
+
     try {
       // Get first column for captacao phase
       const { data: firstColumn } = await supabase
@@ -74,11 +88,11 @@ export function useProjects() {
       const { data, error } = await supabase
         .from('projects')
         .insert({
-          ...project,
+          ...validatedData,
           workspace_id: currentWorkspace.id,
           captacao_column_id: firstColumn?.id || null,
           current_phase: 'captacao',
-        })
+        } as any)
         .select('*, clients(name)')
         .single();
 
@@ -98,10 +112,23 @@ export function useProjects() {
   };
 
   const updateProject = async (projectId: string, updates: Partial<Project>) => {
+    // Validate update data
+    const validation = validateWithSchema(projectUpdateSchema, updates);
+    if (!validation.success) {
+      toast({
+        title: 'Dados inválidos',
+        description: validation.error,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const validatedData = validation.data;
+
     try {
       const { error } = await supabase
         .from('projects')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update({ ...validatedData, updated_at: new Date().toISOString() } as any)
         .eq('id', projectId);
 
       if (error) throw error;
