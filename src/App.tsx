@@ -14,6 +14,10 @@ import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Pricing from "./pages/Pricing";
+import Features from "./pages/Features";
+import Integrations from "./pages/Integrations";
+import Security from "./pages/Security";
+import Help from "./pages/Help";
 import Dashboard from "./pages/app/Dashboard";
 import Captacao from "./pages/app/Captacao";
 import Edicao from "./pages/app/Edicao";
@@ -42,6 +46,10 @@ const App = () => (
                 <Route path="/" element={<Landing />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/planos" element={<Pricing />} />
+                <Route path="/funcionalidades" element={<Features />} />
+                <Route path="/integracoes" element={<Integrations />} />
+                <Route path="/seguranca" element={<Security />} />
+                <Route path="/ajuda" element={<Help />} />
                 
                 {/* Protected Routes */}
                 <Route
