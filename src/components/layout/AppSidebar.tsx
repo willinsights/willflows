@@ -23,6 +23,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { TrialBadge } from '@/components/dashboard/TrialBadge';
 import logoWillflow from '@/assets/logo-willflow-sistema.png';
 
 interface AppSidebarProps {
@@ -183,6 +184,15 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
           ))}
         </nav>
       </ScrollArea>
+
+      {/* Trial Badge */}
+      <div className="px-3 pb-2">
+        {collapsed && !isMobile ? (
+          <TrialBadge variant="compact" />
+        ) : (
+          <TrialBadge variant="full" className="w-full justify-center" />
+        )}
+      </div>
 
       {/* Collapse Button (desktop only) */}
       {!isMobile && collapsed && (
