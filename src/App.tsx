@@ -30,6 +30,7 @@ import Relatorios from "./pages/app/Relatorios";
 import Configuracoes from "./pages/app/Configuracoes";
 import CheckoutSuccess from "./pages/CheckoutSuccess";
 import NotFound from "./pages/NotFound";
+import AcceptInvite from "./pages/AcceptInvite";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +52,7 @@ const App = () => (
                 <Route path="/integracoes" element={<Integrations />} />
                 <Route path="/seguranca" element={<Security />} />
                 <Route path="/ajuda" element={<Help />} />
+                <Route path="/convite" element={<AcceptInvite />} />
                 
                 {/* Protected Routes */}
                 <Route
