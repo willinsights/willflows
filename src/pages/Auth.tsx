@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, ArrowLeft, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Loader2, CheckCircle2, Mail } from 'lucide-react';
 import logoWhite from '@/assets/logo-willflow-white.png';
 import logoPurple from '@/assets/logo-willflow-purple.png';
 import { Button } from '@/components/ui/button';
@@ -28,24 +28,56 @@ const signupSchema = loginSchema.extend({
   path: ['confirmPassword'],
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().email('Email inválido'),
+});
+
+const resetPasswordSchema = z.object({
+  password: z.string().min(6, 'A password deve ter pelo menos 6 caracteres'),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'As passwords não coincidem',
+  path: ['confirmPassword'],
+});
+
 type LoginFormData = z.infer<typeof loginSchema>;
 type SignupFormData = z.infer<typeof signupSchema>;
+type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
+type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
+
+type AuthMode = 'login' | 'signup' | 'forgot' | 'reset';
 
 export default function Auth() {
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [searchParams] = useSearchParams();
+  const urlMode = searchParams.get('mode');
+  
+  const [mode, setMode] = useState<AuthMode>(() => {
+    if (urlMode === 'reset') return 'reset';
+    return 'login';
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp, user } = useAuth();
+  const [emailSent, setEmailSent] = useState(false);
+  const [passwordUpdated, setPasswordUpdated] = useState(false);
+  
+  const { signIn, signUp, user, resetPassword, updatePassword } = useAuth();
   const { theme } = useTheme();
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Redirect if already logged in
+  // Redirect if already logged in (but not in reset mode)
   useEffect(() => {
-    if (user) {
+    if (user && mode !== 'reset') {
       navigate('/app');
     }
-  }, [user, navigate]);
+  }, [user, navigate, mode]);
+
+  // Handle URL mode parameter
+  useEffect(() => {
+    if (urlMode === 'reset') {
+      setMode('reset');
+    }
+  }, [urlMode]);
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -55,6 +87,16 @@ export default function Auth() {
   const signupForm = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
     defaultValues: { email: '', password: '', confirmPassword: '', fullName: '' },
+  });
+
+  const forgotPasswordForm = useForm<ForgotPasswordFormData>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: { email: '' },
+  });
+
+  const resetPasswordForm = useForm<ResetPasswordFormData>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: { password: '', confirmPassword: '' },
   });
 
   const handleLogin = async (data: LoginFormData) => {
@@ -99,16 +141,238 @@ export default function Auth() {
     }
   };
 
-  const currentForm = mode === 'login' ? loginForm : signupForm;
-  const onSubmit = mode === 'login' ? handleLogin : handleSignup;
+  const handleForgotPassword = async (data: ForgotPasswordFormData) => {
+    setLoading(true);
+    const { error } = await resetPassword(data.email);
+    setLoading(false);
+
+    if (error) {
+      toast({
+        title: 'Erro ao enviar email',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      setEmailSent(true);
+    }
+  };
+
+  const handleResetPassword = async (data: ResetPasswordFormData) => {
+    setLoading(true);
+    const { error } = await updatePassword(data.password);
+    setLoading(false);
+
+    if (error) {
+      toast({
+        title: 'Erro ao atualizar password',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      setPasswordUpdated(true);
+      toast({
+        title: 'Password atualizada!',
+        description: 'A sua password foi atualizada com sucesso.',
+      });
+    }
+  };
+
+  const getFormConfig = () => {
+    switch (mode) {
+      case 'login':
+        return { form: loginForm, onSubmit: handleLogin };
+      case 'signup':
+        return { form: signupForm, onSubmit: handleSignup };
+      case 'forgot':
+        return { form: forgotPasswordForm, onSubmit: handleForgotPassword };
+      case 'reset':
+        return { form: resetPasswordForm, onSubmit: handleResetPassword };
+    }
+  };
+
+  const { form: currentForm, onSubmit } = getFormConfig();
+
+  const getTitle = () => {
+    switch (mode) {
+      case 'login':
+        return 'Bem-vindo de volta';
+      case 'signup':
+        return 'Criar conta';
+      case 'forgot':
+        return 'Recuperar password';
+      case 'reset':
+        return 'Nova password';
+    }
+  };
+
+  const getSubtitle = () => {
+    switch (mode) {
+      case 'login':
+        return 'Introduza os seus dados para aceder à sua conta';
+      case 'signup':
+        return 'Preencha os dados para começar a usar o WillFlow';
+      case 'forgot':
+        return 'Introduza o seu email para receber um link de recuperação';
+      case 'reset':
+        return 'Introduza a sua nova password';
+    }
+  };
+
+  const getButtonText = () => {
+    if (loading) {
+      switch (mode) {
+        case 'login':
+          return 'A entrar...';
+        case 'signup':
+          return 'A criar conta...';
+        case 'forgot':
+          return 'A enviar...';
+        case 'reset':
+          return 'A atualizar...';
+      }
+    }
+    switch (mode) {
+      case 'login':
+        return 'Entrar';
+      case 'signup':
+        return 'Criar conta';
+      case 'forgot':
+        return 'Enviar email';
+      case 'reset':
+        return 'Atualizar password';
+    }
+  };
+
+  // Success state for forgot password
+  if (mode === 'forgot' && emailSent) {
+    return (
+      <div className="min-h-screen flex">
+        <div className="flex-1 flex flex-col justify-center items-center p-8 relative">
+          <Link
+            to="/"
+            className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Voltar</span>
+          </Link>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-md text-center"
+          >
+            <div className="mb-8">
+              <img 
+                src={theme === 'dark' ? logoWhite : logoPurple} 
+                alt="WillFlow" 
+                className="h-10 w-auto mx-auto"
+              />
+            </div>
+
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Mail className="h-8 w-8 text-primary" />
+            </div>
+
+            <h1 className="text-3xl font-bold mb-4">Verifique o seu email</h1>
+            <p className="text-muted-foreground mb-8">
+              Enviámos um link de recuperação para o seu email. 
+              Clique no link para redefinir a sua password.
+            </p>
+
+            <Button
+              variant="outline"
+              onClick={() => {
+                setMode('login');
+                setEmailSent(false);
+              }}
+              className="w-full"
+            >
+              Voltar ao login
+            </Button>
+          </motion.div>
+        </div>
+
+        {/* Right Side - Visual */}
+        <div className="hidden lg:flex flex-1 relative overflow-hidden">
+          <div className="absolute inset-0 gradient-primary opacity-90" />
+          <div
+            className="absolute inset-0 opacity-30"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Success state for password reset
+  if (mode === 'reset' && passwordUpdated) {
+    return (
+      <div className="min-h-screen flex">
+        <div className="flex-1 flex flex-col justify-center items-center p-8 relative">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-md text-center"
+          >
+            <div className="mb-8">
+              <img 
+                src={theme === 'dark' ? logoWhite : logoPurple} 
+                alt="WillFlow" 
+                className="h-10 w-auto mx-auto"
+              />
+            </div>
+
+            <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 className="h-8 w-8 text-green-500" />
+            </div>
+
+            <h1 className="text-3xl font-bold mb-4">Password atualizada!</h1>
+            <p className="text-muted-foreground mb-8">
+              A sua password foi atualizada com sucesso. 
+              Já pode iniciar sessão com a nova password.
+            </p>
+
+            <Button
+              onClick={() => navigate('/auth')}
+              className="w-full gradient-primary"
+            >
+              Ir para o login
+            </Button>
+          </motion.div>
+        </div>
+
+        {/* Right Side - Visual */}
+        <div className="hidden lg:flex flex-1 relative overflow-hidden">
+          <div className="absolute inset-0 gradient-primary opacity-90" />
+          <div
+            className="absolute inset-0 opacity-30"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Form */}
       <div className="flex-1 flex flex-col justify-center items-center p-8 relative">
-        {/* Back to Home */}
+        {/* Back to Home or previous mode */}
         <Link
-          to="/"
+          to={mode === 'forgot' || mode === 'reset' ? '#' : '/'}
+          onClick={(e) => {
+            if (mode === 'forgot') {
+              e.preventDefault();
+              setMode('login');
+            } else if (mode === 'reset') {
+              e.preventDefault();
+              navigate('/auth');
+            }
+          }}
           className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -131,23 +395,17 @@ export default function Auth() {
 
           {/* Title */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">
-              {mode === 'login' ? 'Bem-vindo de volta' : 'Criar conta'}
-            </h1>
-            <p className="text-muted-foreground">
-              {mode === 'login'
-                ? 'Introduza os seus dados para aceder à sua conta'
-                : 'Preencha os dados para começar a usar o WillFlow'}
-            </p>
+            <h1 className="text-3xl font-bold mb-2">{getTitle()}</h1>
+            <p className="text-muted-foreground">{getSubtitle()}</p>
           </div>
 
           {/* Form */}
           <AnimatePresence mode="wait">
             <motion.form
               key={mode}
-              initial={{ opacity: 0, x: mode === 'login' ? -20 : 20 }}
+              initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: mode === 'login' ? 20 : -20 }}
+              exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.2 }}
               onSubmit={currentForm.handleSubmit(onSubmit as any)}
               className="space-y-4"
@@ -171,73 +429,142 @@ export default function Auth() {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="seu@email.com"
-                  {...(mode === 'login' ? loginForm.register('email') : signupForm.register('email'))}
-                  className={cn(
-                    (mode === 'login' ? loginForm.formState.errors.email : signupForm.formState.errors.email) && 'border-destructive'
-                  )}
-                />
-                {(mode === 'login' ? loginForm.formState.errors.email : signupForm.formState.errors.email) && (
-                  <p className="text-sm text-destructive">
-                    {(mode === 'login' ? loginForm.formState.errors.email : signupForm.formState.errors.email)?.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
+              {(mode === 'login' || mode === 'signup' || mode === 'forgot') && (
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
                   <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    {...(mode === 'login' ? loginForm.register('password') : signupForm.register('password'))}
+                    id="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    {...(mode === 'login' 
+                      ? loginForm.register('email') 
+                      : mode === 'signup' 
+                        ? signupForm.register('email')
+                        : forgotPasswordForm.register('email')
+                    )}
                     className={cn(
-                      'pr-10',
-                      (mode === 'login' ? loginForm.formState.errors.password : signupForm.formState.errors.password) && 'border-destructive'
+                      (mode === 'login' 
+                        ? loginForm.formState.errors.email 
+                        : mode === 'signup'
+                          ? signupForm.formState.errors.email
+                          : forgotPasswordForm.formState.errors.email
+                      ) && 'border-destructive'
                     )}
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </Button>
+                  {(mode === 'login' 
+                    ? loginForm.formState.errors.email 
+                    : mode === 'signup'
+                      ? signupForm.formState.errors.email
+                      : forgotPasswordForm.formState.errors.email
+                  ) && (
+                    <p className="text-sm text-destructive">
+                      {(mode === 'login' 
+                        ? loginForm.formState.errors.email 
+                        : mode === 'signup'
+                          ? signupForm.formState.errors.email
+                          : forgotPasswordForm.formState.errors.email
+                      )?.message}
+                    </p>
+                  )}
                 </div>
-                {currentForm.formState.errors.password && (
-                  <p className="text-sm text-destructive">
-                    {currentForm.formState.errors.password.message}
-                  </p>
-                )}
-              </div>
+              )}
 
-              {mode === 'signup' && (
+              {(mode === 'login' || mode === 'signup' || mode === 'reset') && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">
+                      {mode === 'reset' ? 'Nova password' : 'Password'}
+                    </Label>
+                    {mode === 'login' && (
+                      <button
+                        type="button"
+                        onClick={() => setMode('forgot')}
+                        className="text-sm text-primary hover:underline"
+                      >
+                        Esqueceu a password?
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      {...(mode === 'login' 
+                        ? loginForm.register('password') 
+                        : mode === 'signup'
+                          ? signupForm.register('password')
+                          : resetPasswordForm.register('password')
+                      )}
+                      className={cn(
+                        'pr-10',
+                        (mode === 'login' 
+                          ? loginForm.formState.errors.password 
+                          : mode === 'signup'
+                            ? signupForm.formState.errors.password
+                            : resetPasswordForm.formState.errors.password
+                        ) && 'border-destructive'
+                      )}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
+                  {(mode === 'login' 
+                    ? loginForm.formState.errors.password 
+                    : mode === 'signup'
+                      ? signupForm.formState.errors.password
+                      : resetPasswordForm.formState.errors.password
+                  ) && (
+                    <p className="text-sm text-destructive">
+                      {(mode === 'login' 
+                        ? loginForm.formState.errors.password 
+                        : mode === 'signup'
+                          ? signupForm.formState.errors.password
+                          : resetPasswordForm.formState.errors.password
+                      )?.message}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {(mode === 'signup' || mode === 'reset') && (
                 <div className="space-y-2">
                   <Label htmlFor="confirmPassword">Confirmar password</Label>
                   <Input
                     id="confirmPassword"
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
-                    {...signupForm.register('confirmPassword')}
+                    {...(mode === 'signup' 
+                      ? signupForm.register('confirmPassword')
+                      : resetPasswordForm.register('confirmPassword')
+                    )}
                     className={cn(
-                      signupForm.formState.errors.confirmPassword && 'border-destructive'
+                      (mode === 'signup'
+                        ? signupForm.formState.errors.confirmPassword
+                        : resetPasswordForm.formState.errors.confirmPassword
+                      ) && 'border-destructive'
                     )}
                   />
-                  {signupForm.formState.errors.confirmPassword && (
+                  {(mode === 'signup'
+                    ? signupForm.formState.errors.confirmPassword
+                    : resetPasswordForm.formState.errors.confirmPassword
+                  ) && (
                     <p className="text-sm text-destructive">
-                      {signupForm.formState.errors.confirmPassword.message}
+                      {(mode === 'signup'
+                        ? signupForm.formState.errors.confirmPassword
+                        : resetPasswordForm.formState.errors.confirmPassword
+                      )?.message}
                     </p>
                   )}
                 </div>
@@ -248,32 +575,28 @@ export default function Auth() {
                 className="w-full gradient-primary"
                 disabled={loading}
               >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {mode === 'login' ? 'A entrar...' : 'A criar conta...'}
-                  </>
-                ) : (
-                  mode === 'login' ? 'Entrar' : 'Criar conta'
-                )}
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {getButtonText()}
               </Button>
             </motion.form>
           </AnimatePresence>
 
           {/* Toggle Mode */}
-          <div className="mt-6 text-center">
-            <p className="text-muted-foreground">
-              {mode === 'login' ? 'Ainda não tem conta?' : 'Já tem uma conta?'}
-              {' '}
-              <button
-                type="button"
-                onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-                className="text-primary font-medium hover:underline"
-              >
-                {mode === 'login' ? 'Criar conta' : 'Iniciar sessão'}
-              </button>
-            </p>
-          </div>
+          {(mode === 'login' || mode === 'signup') && (
+            <div className="mt-6 text-center">
+              <p className="text-muted-foreground">
+                {mode === 'login' ? 'Ainda não tem conta?' : 'Já tem uma conta?'}
+                {' '}
+                <button
+                  type="button"
+                  onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+                  className="text-primary font-medium hover:underline"
+                >
+                  {mode === 'login' ? 'Criar conta' : 'Iniciar sessão'}
+                </button>
+              </p>
+            </div>
+          )}
         </motion.div>
       </div>
 
