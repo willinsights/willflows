@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CreateProjectModal } from '@/components/projects/CreateProjectModal';
+import { TrialBadge } from '@/components/dashboard/TrialBadge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -105,6 +106,11 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          {/* Trial Badge */}
+          <div className="hidden sm:block">
+            <TrialBadge />
+          </div>
+
           {/* New Project Button */}
           <Button
             size="sm"
