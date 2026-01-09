@@ -145,7 +145,12 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden relative">
+      {/* Subtle focal background glow */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10">
+        <div className="absolute top-1/4 left-1/3 w-[400px] h-[400px] bg-primary/[0.02] dark:bg-primary/[0.04] rounded-full blur-[80px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] bg-success/[0.02] dark:bg-success/[0.03] rounded-full blur-[60px]" />
+      </div>
       {/* Header - Compact */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-3 py-2 border-b border-border/40 shrink-0">
         <div>
