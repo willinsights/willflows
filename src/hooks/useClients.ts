@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { handleDatabaseError } from '@/lib/error-handler';
+import { clientSchema, validateWithSchema } from '@/lib/validation-schemas';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 export type Client = Tables<'clients'>;
@@ -56,13 +57,26 @@ export function useClients() {
   const createClient = async (client: Omit<ClientInsert, 'workspace_id'>) => {
     if (!currentWorkspace) return null;
 
+    // Validate input before database operation
+    const validation = validateWithSchema(clientSchema, client);
+    if (!validation.success) {
+      toast({
+        title: 'Dados inválidos',
+        description: validation.error,
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    const validatedData = validation.data;
+
     try {
       const { data, error } = await supabase
         .from('clients')
         .insert({
-          ...client,
+          ...validatedData,
           workspace_id: currentWorkspace.id,
-        })
+        } as any)
         .select()
         .single();
 
