@@ -121,18 +121,18 @@ export default function Dashboard() {
           transition={{ delay: 0.03 }}
         >
           <Card className="metric-card hover:border-primary/30">
-            <CardContent className="p-2.5">
-              <div className="flex items-center justify-between">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-md bg-primary/10">
-                  <Camera className="h-3.5 w-3.5 text-primary" />
+                  <Camera className="h-4 w-4 text-primary" />
                 </div>
                 {loading ? (
-                  <Skeleton className="h-6 w-8" />
+                  <Skeleton className="h-7 w-8" />
                 ) : (
-                  <span className="text-xl font-bold">{metrics.captacao}</span>
+                  <span className="text-2xl font-bold">{metrics.captacao}</span>
                 )}
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1">Em Captação</p>
+              <p className="text-xs text-muted-foreground mt-2">Em Captação</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -144,18 +144,18 @@ export default function Dashboard() {
           transition={{ delay: 0.06 }}
         >
           <Card className="metric-card hover:border-primary/30">
-            <CardContent className="p-2.5">
-              <div className="flex items-center justify-between">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-md bg-info/10">
-                  <Film className="h-3.5 w-3.5 text-info" />
+                  <Film className="h-4 w-4 text-info" />
                 </div>
                 {loading ? (
-                  <Skeleton className="h-6 w-8" />
+                  <Skeleton className="h-7 w-8" />
                 ) : (
-                  <span className="text-xl font-bold">{metrics.edicao}</span>
+                  <span className="text-2xl font-bold">{metrics.edicao}</span>
                 )}
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1">Em Edição</p>
+              <p className="text-xs text-muted-foreground mt-2">Em Edição</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -167,18 +167,18 @@ export default function Dashboard() {
           transition={{ delay: 0.09 }}
         >
           <Card className="metric-card hover:border-success/30">
-            <CardContent className="p-2.5">
-              <div className="flex items-center justify-between">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-md bg-success/10">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                  <CheckCircle2 className="h-4 w-4 text-success" />
                 </div>
                 {loading ? (
-                  <Skeleton className="h-6 w-8" />
+                  <Skeleton className="h-7 w-8" />
                 ) : (
-                  <span className="text-xl font-bold">{metrics.entregues}</span>
+                  <span className="text-2xl font-bold">{metrics.entregues}</span>
                 )}
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1">Entregues (mês)</p>
+              <p className="text-xs text-muted-foreground mt-2">Entregues (mês)</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -190,18 +190,18 @@ export default function Dashboard() {
           transition={{ delay: 0.12 }}
         >
           <Card className="metric-card hover:border-success/30">
-            <CardContent className="p-2.5">
-              <div className="flex items-center justify-between">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-md bg-success/10">
-                  <TrendingUp className="h-3.5 w-3.5 text-success" />
+                  <TrendingUp className="h-4 w-4 text-success" />
                 </div>
                 {loading ? (
-                  <Skeleton className="h-5 w-14" />
+                  <Skeleton className="h-7 w-16" />
                 ) : (
-                  <span className="text-base font-bold text-success">{formatCurrency(metrics.receita)}</span>
+                  <span className="text-lg font-bold text-success">{formatCurrency(metrics.receita)}</span>
                 )}
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1">Receita</p>
+              <p className="text-xs text-muted-foreground mt-2">Receita</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -213,18 +213,18 @@ export default function Dashboard() {
           transition={{ delay: 0.15 }}
         >
           <Card className="metric-card hover:border-destructive/30">
-            <CardContent className="p-2.5">
-              <div className="flex items-center justify-between">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-md bg-destructive/10">
-                  <TrendingDown className="h-3.5 w-3.5 text-destructive" />
+                  <TrendingDown className="h-4 w-4 text-destructive" />
                 </div>
                 {loading ? (
-                  <Skeleton className="h-5 w-14" />
+                  <Skeleton className="h-7 w-16" />
                 ) : (
-                  <span className="text-base font-bold text-destructive">{formatCurrency(metrics.custos)}</span>
+                  <span className="text-lg font-bold text-destructive">{formatCurrency(metrics.custos)}</span>
                 )}
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1">Custos</p>
+              <p className="text-xs text-muted-foreground mt-2">Custos</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -236,23 +236,23 @@ export default function Dashboard() {
           transition={{ delay: 0.18 }}
         >
           <Card className="metric-card border-primary/20 hover:border-primary/40 bg-primary/5">
-            <CardContent className="p-2.5">
-              <div className="flex items-center justify-between">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-md bg-primary/15">
-                  <Wallet className="h-3.5 w-3.5 text-primary" />
+                  <Wallet className="h-4 w-4 text-primary" />
                 </div>
                 {loading ? (
-                  <Skeleton className="h-5 w-14" />
+                  <Skeleton className="h-7 w-16" />
                 ) : (
                   <span className={cn(
-                    "text-base font-bold",
+                    "text-lg font-bold",
                     metrics.lucro >= 0 ? "text-primary" : "text-destructive"
                   )}>
                     {formatCurrency(metrics.lucro)}
                   </span>
                 )}
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1">Lucro (mês)</p>
+              <p className="text-xs text-muted-foreground mt-2">Lucro (mês)</p>
             </CardContent>
           </Card>
         </motion.div>
