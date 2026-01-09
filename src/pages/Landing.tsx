@@ -271,12 +271,8 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Screenshots Showcase with Depth of Field */}
-      <section className="py-20 px-4 bg-muted/30 overflow-hidden relative">
-        {/* Subtle bokeh for section */}
-        <div className="bokeh-orb bokeh-orb-primary w-64 h-64 -top-20 right-10 opacity-20" />
-        <div className="bokeh-orb bokeh-orb-accent w-48 h-48 bottom-10 left-10 opacity-15" />
-        
+      {/* Screenshots Showcase - Cards flutuantes sobre imagem de fundo */}
+      <section className="py-20 px-4 overflow-hidden relative">
         <div className="container mx-auto relative z-10">
           <div className="text-center mb-12">
             <motion.h2 
@@ -290,113 +286,113 @@ export default function Landing() {
             <p className="text-lg text-muted-foreground">Interface moderna e intuitiva para o seu dia a dia</p>
           </div>
 
-          {/* Main screenshot with depth layers */}
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            className="relative max-w-5xl mx-auto screenshot-depth mb-16"
-          >
-            {/* Main focused screenshot */}
-            <div className="screenshot-depth-main rounded-2xl overflow-hidden border border-border/50 shadow-2xl shadow-primary/10">
+          {/* Container com imagem de fundo e cards flutuantes */}
+          <div className="relative min-h-[500px] md:min-h-[600px] lg:min-h-[700px] max-w-6xl mx-auto rounded-3xl overflow-hidden">
+            {/* Imagem de fundo grande */}
+            <div className="absolute inset-0">
               <img 
                 src={screenshotDashboard} 
-                alt="Dashboard WillFlow" 
-                className="w-full"
+                alt="Dashboard Willflow" 
+                className="w-full h-full object-cover object-top opacity-25 dark:opacity-15 blur-[3px] scale-105"
               />
-              {/* Premium gradient overlay */}
-              <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background via-background/50 to-transparent" />
+              {/* Overlays gradiente */}
+              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/40" />
+              <div className="absolute inset-0 bg-gradient-to-b from-background/50 via-transparent to-background" />
+              <div className="absolute inset-0 bg-gradient-to-r from-background/30 via-transparent to-background/30" />
             </div>
 
-            {/* Floating side screenshots with DoF blur */}
-            <motion.div
-              initial={{ opacity: 0, x: -80, rotateY: 15 }}
-              whileInView={{ opacity: 1, x: 0, rotateY: 0 }}
-              transition={{ delay: 0.3, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-              viewport={{ once: true }}
-              className="absolute -left-16 top-1/4 w-80 hidden lg:block screenshot-depth-layer layer-mid"
-            >
-              <div className="focal-card p-2 rotate-[-8deg] shadow-xl shadow-primary/20">
-                <img 
-                  src={screenshotKanban} 
-                  alt="Kanban" 
-                  className="rounded-lg w-full"
-                />
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: 80, rotateY: -15 }}
-              whileInView={{ opacity: 1, x: 0, rotateY: 0 }}
-              transition={{ delay: 0.4, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-              viewport={{ once: true }}
-              className="absolute -right-16 top-1/3 w-80 hidden lg:block screenshot-depth-layer layer-mid"
-            >
-              <div className="focal-card p-2 rotate-[6deg] shadow-xl shadow-accent/20">
-                <img 
-                  src={screenshotCalendar} 
-                  alt="Calendário" 
-                  className="rounded-lg w-full"
-                />
-              </div>
-            </motion.div>
-
-            {/* Additional floating screenshots */}
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-              viewport={{ once: true }}
-              className="absolute -left-8 bottom-10 w-64 hidden xl:block screenshot-depth-layer layer-far"
-            >
-              <div className="focal-card p-2 rotate-[-4deg] shadow-lg shadow-success/10">
-                <img 
-                  src={screenshotReceita} 
-                  alt="Receita" 
-                  className="rounded-lg w-full"
-                />
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-              viewport={{ once: true }}
-              className="absolute -right-8 bottom-16 w-64 hidden xl:block screenshot-depth-layer layer-far"
-            >
-              <div className="focal-card p-2 rotate-[4deg] shadow-lg shadow-primary/10">
-                <img 
-                  src={screenshotMargem} 
-                  alt="Margem" 
-                  className="rounded-lg w-full"
-                />
-              </div>
-            </motion.div>
-          </motion.div>
-
-          {/* Secondary screenshots grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6 max-w-4xl mx-auto focal-container">
-            {screenshots.slice(1, 4).map((screenshot, index) => (
+            {/* Cards flutuantes */}
+            <div className="relative z-10 h-full min-h-[500px] md:min-h-[600px] lg:min-h-[700px] p-4">
+              {/* Card 1 - Receita (topo esquerda) */}
               <motion.div
-                key={screenshot.alt}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
+                initial={{ opacity: 0, y: 40, rotate: -3 }}
+                whileInView={{ opacity: 1, y: 0, rotate: -3 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
                 viewport={{ once: true }}
-                className="focal-card p-3 group"
+                className="absolute top-6 left-4 md:top-10 md:left-[5%] lg:left-[8%] w-[140px] md:w-[200px] lg:w-[260px]"
               >
-                <div className="overflow-hidden rounded-lg">
+                <div className="relative group cursor-pointer">
+                  <div className="absolute -inset-2 bg-gradient-to-r from-primary/40 to-purple-500/40 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
                   <img 
-                    src={screenshot.src} 
-                    alt={screenshot.alt} 
-                    className="w-full transition-transform duration-500 group-hover:scale-105"
+                    src={screenshotReceita} 
+                    alt="Receita" 
+                    className="relative rounded-xl shadow-2xl ring-1 ring-white/20 dark:ring-white/10 transform group-hover:scale-105 group-hover:-rotate-1 transition-all duration-500"
                   />
                 </div>
-                <p className="text-sm text-center mt-3 text-muted-foreground font-medium">{screenshot.title}</p>
               </motion.div>
-            ))}
+
+              {/* Card 2 - Kanban Card (topo direita) */}
+              <motion.div
+                initial={{ opacity: 0, y: 40, rotate: 4 }}
+                whileInView={{ opacity: 1, y: 0, rotate: 4 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                viewport={{ once: true }}
+                className="absolute top-12 right-4 md:top-16 md:right-[5%] lg:right-[10%] w-[130px] md:w-[180px] lg:w-[220px]"
+              >
+                <div className="relative group cursor-pointer">
+                  <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500/40 to-teal-500/40 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
+                  <img 
+                    src={screenshotKanban} 
+                    alt="Kanban Card" 
+                    className="relative rounded-xl shadow-2xl ring-1 ring-white/20 dark:ring-white/10 transform group-hover:scale-105 group-hover:rotate-2 transition-all duration-500"
+                  />
+                </div>
+              </motion.div>
+
+              {/* Card 3 - Calendário (centro - destaque principal) */}
+              <motion.div
+                initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.7, delay: 0.3 }}
+                viewport={{ once: true }}
+                className="absolute top-[30%] left-1/2 -translate-x-1/2 w-[240px] md:w-[320px] lg:w-[400px] z-20"
+              >
+                <div className="relative group cursor-pointer">
+                  <div className="absolute -inset-3 bg-gradient-to-r from-primary/50 via-purple-500/50 to-pink-500/50 rounded-2xl blur-2xl opacity-70 group-hover:opacity-100 transition-all duration-500" />
+                  <img 
+                    src={screenshotCalendar} 
+                    alt="Calendário" 
+                    className="relative rounded-xl shadow-2xl ring-2 ring-white/30 dark:ring-white/20 transform group-hover:scale-[1.03] transition-all duration-500"
+                  />
+                </div>
+              </motion.div>
+
+              {/* Card 4 - Margem (baixo esquerda) */}
+              <motion.div
+                initial={{ opacity: 0, y: 40, rotate: 2 }}
+                whileInView={{ opacity: 1, y: 0, rotate: 2 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+                viewport={{ once: true }}
+                className="absolute bottom-16 left-6 md:bottom-20 md:left-[8%] lg:left-[12%] w-[150px] md:w-[220px] lg:w-[280px]"
+              >
+                <div className="relative group cursor-pointer">
+                  <div className="absolute -inset-2 bg-gradient-to-r from-amber-500/40 to-orange-500/40 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
+                  <img 
+                    src={screenshotMargem} 
+                    alt="Margem" 
+                    className="relative rounded-xl shadow-2xl ring-1 ring-white/20 dark:ring-white/10 transform group-hover:scale-105 group-hover:rotate-0 transition-all duration-500"
+                  />
+                </div>
+              </motion.div>
+
+              {/* Card 5 - Overview (baixo direita) */}
+              <motion.div
+                initial={{ opacity: 0, y: 40, rotate: -2 }}
+                whileInView={{ opacity: 1, y: 0, rotate: -2 }}
+                transition={{ duration: 0.6, delay: 0.5 }}
+                viewport={{ once: true }}
+                className="absolute bottom-10 right-6 md:bottom-14 md:right-[6%] lg:right-[10%] w-[160px] md:w-[200px] lg:w-[260px]"
+              >
+                <div className="relative group cursor-pointer">
+                  <div className="absolute -inset-2 bg-gradient-to-r from-blue-500/40 to-cyan-500/40 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
+                  <img 
+                    src={screenshotOverview} 
+                    alt="Overview" 
+                    className="relative rounded-xl shadow-2xl ring-1 ring-white/20 dark:ring-white/10 transform group-hover:scale-105 group-hover:-rotate-1 transition-all duration-500"
+                  />
+                </div>
+              </motion.div>
+            </div>
           </div>
         </div>
       </section>
