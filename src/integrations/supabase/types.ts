@@ -475,9 +475,46 @@ export type Database = {
         }
         Relationships: []
       }
+      project_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          project_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          project_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          project_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_comments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_media_links: {
         Row: {
           created_at: string
+          description: string | null
+          duration: string | null
           id: string
           link_type: string
           project_id: string
@@ -486,6 +523,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          description?: string | null
+          duration?: string | null
           id?: string
           link_type?: string
           project_id: string
@@ -494,6 +533,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          description?: string | null
+          duration?: string | null
           id?: string
           link_type?: string
           project_id?: string
