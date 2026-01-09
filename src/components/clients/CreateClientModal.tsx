@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useClients } from '@/hooks/useClients';
+import { appToast } from '@/hooks/useAppToast';
 
 const clientSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
@@ -69,6 +70,7 @@ export function CreateClientModal({
     if (client) {
       form.reset();
       onOpenChange(false);
+      appToast.clientCreated(data.name);
       onSuccess?.(client);
     }
   };
