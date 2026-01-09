@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, Check, CheckCheck, Clock, Info, AlertTriangle, X, Trash2 } from 'lucide-react';
+import { Bell, Check, CheckCheck, Clock, Info, AlertTriangle, X, Trash2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -9,55 +9,11 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNotifications, NotificationType } from '@/hooks/useNotifications';
+import { formatDistanceToNow } from 'date-fns';
+import { pt } from 'date-fns/locale';
 
-export type NotificationType = 'success' | 'error' | 'warning' | 'info';
-
-export interface Notification {
-  id: string;
-  type: NotificationType;
-  title: string;
-  message: string;
-  timestamp: Date;
-  read: boolean;
-}
-
-// Mock notifications - in production this would come from a hook/context
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'success',
-    title: 'Projeto entregue',
-    message: 'O projeto "Casamento Silva" foi marcado como entregue.',
-    timestamp: new Date(Date.now() - 1000 * 60 * 5), // 5 min ago
-    read: false,
-  },
-  {
-    id: '2',
-    type: 'warning',
-    title: 'Prazo próximo',
-    message: 'O projeto "Hotel Lisbon" tem entrega em 2 dias.',
-    timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 min ago
-    read: false,
-  },
-  {
-    id: '3',
-    type: 'info',
-    title: 'Novo comentário',
-    message: 'João adicionou um comentário no projeto "Evento Corporate".',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-    read: true,
-  },
-  {
-    id: '4',
-    type: 'error',
-    title: 'Pagamento vencido',
-    message: 'O pagamento do cliente "Maria Santos" está vencido há 5 dias.',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-    read: true,
-  },
-];
-
-const typeConfig = {
+const typeConfig: Record<NotificationType, { icon: typeof Check; color: string; bg: string; border: string }> = {
   success: {
     icon: Check,
     color: 'text-success',
@@ -84,42 +40,25 @@ const typeConfig = {
   },
 };
 
-function formatTimeAgo(date: Date): string {
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const minutes = Math.floor(diff / (1000 * 60));
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-  if (minutes < 1) return 'Agora';
-  if (minutes < 60) return `${minutes}m`;
-  if (hours < 24) return `${hours}h`;
-  return `${days}d`;
+function formatTimeAgo(dateString: string): string {
+  try {
+    return formatDistanceToNow(new Date(dateString), { addSuffix: false, locale: pt });
+  } catch {
+    return '';
+  }
 }
 
 export function NotificationCenter() {
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const {
+    notifications,
+    loading,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    clearAll,
+  } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
-  };
-
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
-
-  const deleteNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  };
-
-  const clearAll = () => {
-    setNotifications([]);
-  };
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -158,7 +97,7 @@ export function NotificationCenter() {
             <h3 className="font-semibold text-sm">Notificações</h3>
             {unreadCount > 0 && (
               <span className="px-2 py-0.5 text-[10px] font-medium bg-primary/10 text-primary rounded-full">
-                {unreadCount} novas
+                {unreadCount} {unreadCount === 1 ? 'nova' : 'novas'}
               </span>
             )}
           </div>
@@ -190,7 +129,11 @@ export function NotificationCenter() {
         {/* Notifications List */}
         <ScrollArea className="max-h-[400px]">
           <AnimatePresence mode="popLayout">
-            {notifications.length === 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : notifications.length === 0 ? (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -212,7 +155,7 @@ export function NotificationCenter() {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: 20, height: 0 }}
-                      transition={{ delay: index * 0.05 }}
+                      transition={{ delay: index * 0.03 }}
                       className={cn(
                         'group relative px-4 py-3 cursor-pointer transition-all duration-200',
                         'hover:bg-muted/40',
@@ -249,7 +192,7 @@ export function NotificationCenter() {
                               {notification.title}
                             </p>
                             <span className="text-[10px] text-muted-foreground shrink-0">
-                              {formatTimeAgo(notification.timestamp)}
+                              {formatTimeAgo(notification.created_at)}
                             </span>
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
