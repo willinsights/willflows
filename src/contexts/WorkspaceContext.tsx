@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 
@@ -36,6 +36,8 @@ interface WorkspaceContextType {
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 const CACHE_KEY = 'willflow_workspace_cache';
+const FETCH_COOLDOWN_MS = 30000; // 30 seconds cooldown after error
+const MAX_RETRIES = 3;
 
 function getCachedWorkspace(): { workspace: Workspace; membership: WorkspaceMember } | null {
   try {
@@ -71,6 +73,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [membership, setMembership] = useState<WorkspaceMember | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
+  
+  // Refs to prevent infinite loops
+  const isFetchingRef = useRef(false);
+  const lastErrorTimeRef = useRef(0);
+  const retryCountRef = useRef(0);
+  const hasFetchedRef = useRef(false);
+  const currentUserIdRef = useRef<string | null>(null);
 
   const refreshWorkspace = async (): Promise<void> => {
     if (!user) {
@@ -79,11 +88,24 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       setFetchError(false);
       clearCachedWorkspace();
+      hasFetchedRef.current = false;
+      currentUserIdRef.current = null;
+      return;
+    }
+
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) {
+      return;
+    }
+
+    // If we had an error, enforce cooldown
+    const now = Date.now();
+    if (fetchError && (now - lastErrorTimeRef.current) < FETCH_COOLDOWN_MS) {
       return;
     }
 
     try {
-      setFetchError(false);
+      isFetchingRef.current = true;
       
       // Get user's first active workspace membership
       const { data: membershipData, error: memberError } = await supabase
@@ -101,6 +123,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           setMembership(null);
           clearCachedWorkspace();
           setLoading(false);
+          setFetchError(false);
+          hasFetchedRef.current = true;
+          retryCountRef.current = 0;
           return;
         }
         throw memberError;
@@ -119,33 +144,68 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setWorkspace(ws);
         setMembership(mem);
         setCachedWorkspace(ws, mem);
+        setFetchError(false);
+        hasFetchedRef.current = true;
+        retryCountRef.current = 0;
       }
     } catch (error: any) {
       console.error('Error fetching workspace:', error);
+      lastErrorTimeRef.current = Date.now();
+      
+      // Only retry if under max retries
+      if (retryCountRef.current < MAX_RETRIES) {
+        retryCountRef.current++;
+        const delay = Math.pow(2, retryCountRef.current) * 1000; // 2s, 4s, 8s
+        
+        // Schedule retry with exponential backoff
+        setTimeout(() => {
+          isFetchingRef.current = false;
+          refreshWorkspace();
+        }, delay);
+        
+        // Try to use cached data while retrying
+        const cached = getCachedWorkspace();
+        if (cached) {
+          setWorkspace(cached.workspace);
+          setMembership(cached.membership);
+        }
+        return;
+      }
+      
+      // Max retries exceeded - show error
       setFetchError(true);
       
-      // Try to use cached data on error
+      // Try to use cached data on final error
       const cached = getCachedWorkspace();
       if (cached) {
         setWorkspace(cached.workspace);
         setMembership(cached.membership);
       }
     } finally {
+      isFetchingRef.current = false;
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // Reset if user changed
+    if (user?.id !== currentUserIdRef.current) {
+      hasFetchedRef.current = false;
+      retryCountRef.current = 0;
+      currentUserIdRef.current = user?.id || null;
+    }
+
     if (user) {
       // Try to use cache first for faster initial load
       const cached = getCachedWorkspace();
-      if (cached) {
+      if (cached && !hasFetchedRef.current) {
         setWorkspace(cached.workspace);
         setMembership(cached.membership);
         setLoading(false);
-        // Still refresh in background
-        refreshWorkspace();
-      } else {
+      }
+      
+      // Only fetch if we haven't fetched yet for this user
+      if (!hasFetchedRef.current) {
         refreshWorkspace();
       }
     } else {

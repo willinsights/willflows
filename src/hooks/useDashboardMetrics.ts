@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { startOfMonth, subMonths, format } from 'date-fns';
@@ -40,7 +40,7 @@ export interface MonthlyData {
 }
 
 export function useDashboardMetrics() {
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspace, fetchError } = useWorkspace();
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     captacao: 0,
     edicao: 0,
@@ -55,17 +55,18 @@ export function useDashboardMetrics() {
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Refs to prevent duplicate fetches
+  const isFetchingRef = useRef(false);
+  const lastFetchedWorkspaceIdRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (currentWorkspace) {
-      fetchMetrics();
-    }
-  }, [currentWorkspace]);
-
-  const fetchMetrics = async () => {
-    if (!currentWorkspace) return;
+  const fetchMetrics = useCallback(async () => {
+    if (!currentWorkspace?.id || fetchError) return;
+    if (isFetchingRef.current) return;
 
     try {
+      isFetchingRef.current = true;
+      
       // Fetch projects count by phase
       const { data: projectsData } = await supabase
         .from('projects')
@@ -186,12 +187,23 @@ export function useDashboardMetrics() {
       });
 
       setRecentActivity(activities);
+      lastFetchedWorkspaceIdRef.current = currentWorkspace.id;
     } catch (error) {
       console.error('Error fetching dashboard metrics:', error);
     } finally {
+      isFetchingRef.current = false;
       setLoading(false);
     }
-  };
+  }, [currentWorkspace?.id, fetchError]);
+
+  useEffect(() => {
+    // Only fetch if workspace ID changed and we have a valid workspace
+    if (currentWorkspace?.id && currentWorkspace.id !== lastFetchedWorkspaceIdRef.current && !fetchError) {
+      fetchMetrics();
+    } else if (!currentWorkspace) {
+      setLoading(false);
+    }
+  }, [currentWorkspace?.id, fetchError]);
 
   return { metrics, urgentProjects, recentActivity, monthlyData, loading, refresh: fetchMetrics };
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
@@ -14,16 +14,23 @@ export interface ProjectWithClient extends Project {
 }
 
 export function useProjects() {
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspace, fetchError } = useWorkspace();
   const { toast } = useToast();
   const [projects, setProjects] = useState<ProjectWithClient[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Refs to prevent duplicate fetches
+  const isFetchingRef = useRef(false);
+  const lastFetchedWorkspaceIdRef = useRef<string | null>(null);
 
   const fetchProjects = useCallback(async () => {
-    if (!currentWorkspace) return;
+    if (!currentWorkspace?.id || fetchError) return;
+    if (isFetchingRef.current) return;
 
     try {
+      isFetchingRef.current = true;
       setLoading(true);
+      
       const { data, error } = await supabase
         .from('projects')
         .select('*, clients(name)')
@@ -32,16 +39,23 @@ export function useProjects() {
 
       if (error) throw error;
       setProjects(data || []);
+      lastFetchedWorkspaceIdRef.current = currentWorkspace.id;
     } catch (error) {
       console.error('Error fetching projects:', error);
     } finally {
+      isFetchingRef.current = false;
       setLoading(false);
     }
-  }, [currentWorkspace]);
+  }, [currentWorkspace?.id, fetchError]);
 
   useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
+    // Only fetch if workspace ID changed
+    if (currentWorkspace?.id && currentWorkspace.id !== lastFetchedWorkspaceIdRef.current && !fetchError) {
+      fetchProjects();
+    } else if (!currentWorkspace) {
+      setLoading(false);
+    }
+  }, [currentWorkspace?.id, fetchError]);
 
   const createProject = async (project: Omit<ProjectInsert, 'workspace_id'>) => {
     if (!currentWorkspace) return null;
