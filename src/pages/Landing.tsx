@@ -28,8 +28,7 @@ import screenshotKanban from '@/assets/screenshot-kanban-card.png';
 import screenshotCalendar from '@/assets/screenshot-calendario.png';
 import screenshotReceita from '@/assets/screenshot-receita.png';
 import screenshotMargem from '@/assets/screenshot-margem.png';
-import screenshotOverview from '@/assets/screenshot-overview.png';
-import screenshotBlur from '@/assets/screenshot-blur-bg.png';
+import screenshotDashboardBg from '@/assets/screenshot-dashboard-bg.png';
 
 const features = [
   {
@@ -130,11 +129,6 @@ const screenshots = [
     src: screenshotMargem,
     alt: 'Margem de Lucro',
     title: 'Margem de Lucro',
-  },
-  {
-    src: screenshotOverview,
-    alt: 'Overview do Sistema',
-    title: 'Visão Geral',
   },
 ];
 
@@ -287,29 +281,28 @@ export default function Landing() {
           </div>
 
           {/* Container com imagem de fundo e cards flutuantes */}
-          <div className="relative min-h-[500px] md:min-h-[600px] lg:min-h-[700px] max-w-6xl mx-auto rounded-3xl overflow-hidden">
-            {/* Imagem de fundo grande */}
+          <div className="relative min-h-[550px] md:min-h-[650px] lg:min-h-[750px] max-w-6xl mx-auto rounded-3xl overflow-hidden">
+            {/* Imagem de fundo grande com desfoque */}
             <div className="absolute inset-0">
               <img 
-                src={screenshotDashboard} 
+                src={screenshotDashboardBg} 
                 alt="Dashboard Willflow" 
-                className="w-full h-full object-cover object-top opacity-25 dark:opacity-15 blur-[3px] scale-105"
+                className="w-full h-full object-cover object-center opacity-40 dark:opacity-30 blur-[4px] scale-105"
               />
-              {/* Overlays gradiente */}
-              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/40" />
-              <div className="absolute inset-0 bg-gradient-to-b from-background/50 via-transparent to-background" />
-              <div className="absolute inset-0 bg-gradient-to-r from-background/30 via-transparent to-background/30" />
+              {/* Overlays gradiente suaves */}
+              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-background/20" />
+              <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-transparent to-background/80" />
             </div>
 
-            {/* Cards flutuantes */}
-            <div className="relative z-10 h-full min-h-[500px] md:min-h-[600px] lg:min-h-[700px] p-4">
+            {/* Cards flutuantes - 4 cards nos cantos */}
+            <div className="relative z-10 h-full min-h-[550px] md:min-h-[650px] lg:min-h-[750px] p-4">
               {/* Card 1 - Receita (topo esquerda) */}
               <motion.div
                 initial={{ opacity: 0, y: 40, rotate: -3 }}
                 whileInView={{ opacity: 1, y: 0, rotate: -3 }}
                 transition={{ duration: 0.6, delay: 0.1 }}
                 viewport={{ once: true }}
-                className="absolute top-6 left-4 md:top-10 md:left-[5%] lg:left-[8%] w-[140px] md:w-[200px] lg:w-[260px]"
+                className="absolute top-8 left-4 md:top-12 md:left-[8%] lg:left-[10%] w-[160px] md:w-[220px] lg:w-[280px]"
               >
                 <div className="relative group cursor-pointer">
                   <div className="absolute -inset-2 bg-gradient-to-r from-primary/40 to-purple-500/40 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
@@ -327,7 +320,7 @@ export default function Landing() {
                 whileInView={{ opacity: 1, y: 0, rotate: 4 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
                 viewport={{ once: true }}
-                className="absolute top-12 right-4 md:top-16 md:right-[5%] lg:right-[10%] w-[130px] md:w-[180px] lg:w-[220px]"
+                className="absolute top-10 right-4 md:top-14 md:right-[8%] lg:right-[12%] w-[140px] md:w-[180px] lg:w-[220px]"
               >
                 <div className="relative group cursor-pointer">
                   <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500/40 to-teal-500/40 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
@@ -339,31 +332,13 @@ export default function Landing() {
                 </div>
               </motion.div>
 
-              {/* Card 3 - Calendário (centro - destaque principal) */}
-              <motion.div
-                initial={{ opacity: 0, y: 50, scale: 0.9 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.7, delay: 0.3 }}
-                viewport={{ once: true }}
-                className="absolute top-[30%] left-1/2 -translate-x-1/2 w-[240px] md:w-[320px] lg:w-[400px] z-20"
-              >
-                <div className="relative group cursor-pointer">
-                  <div className="absolute -inset-3 bg-gradient-to-r from-primary/50 via-purple-500/50 to-pink-500/50 rounded-2xl blur-2xl opacity-70 group-hover:opacity-100 transition-all duration-500" />
-                  <img 
-                    src={screenshotCalendar} 
-                    alt="Calendário" 
-                    className="relative rounded-xl shadow-2xl ring-2 ring-white/30 dark:ring-white/20 transform group-hover:scale-[1.03] transition-all duration-500"
-                  />
-                </div>
-              </motion.div>
-
-              {/* Card 4 - Margem (baixo esquerda) */}
+              {/* Card 3 - Margem (baixo esquerda) */}
               <motion.div
                 initial={{ opacity: 0, y: 40, rotate: 2 }}
                 whileInView={{ opacity: 1, y: 0, rotate: 2 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
                 viewport={{ once: true }}
-                className="absolute bottom-16 left-6 md:bottom-20 md:left-[8%] lg:left-[12%] w-[150px] md:w-[220px] lg:w-[280px]"
+                className="absolute bottom-32 md:bottom-36 lg:bottom-40 left-4 md:left-[6%] lg:left-[8%] w-[180px] md:w-[260px] lg:w-[320px]"
               >
                 <div className="relative group cursor-pointer">
                   <div className="absolute -inset-2 bg-gradient-to-r from-amber-500/40 to-orange-500/40 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
@@ -375,19 +350,19 @@ export default function Landing() {
                 </div>
               </motion.div>
 
-              {/* Card 5 - Overview (baixo direita) */}
+              {/* Card 4 - Calendário (baixo direita - menor) */}
               <motion.div
                 initial={{ opacity: 0, y: 40, rotate: -2 }}
                 whileInView={{ opacity: 1, y: 0, rotate: -2 }}
-                transition={{ duration: 0.6, delay: 0.5 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
                 viewport={{ once: true }}
-                className="absolute bottom-10 right-6 md:bottom-14 md:right-[6%] lg:right-[10%] w-[160px] md:w-[200px] lg:w-[260px]"
+                className="absolute bottom-16 md:bottom-20 lg:bottom-24 right-4 md:right-[6%] lg:right-[8%] w-[200px] md:w-[280px] lg:w-[360px]"
               >
                 <div className="relative group cursor-pointer">
-                  <div className="absolute -inset-2 bg-gradient-to-r from-blue-500/40 to-cyan-500/40 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
+                  <div className="absolute -inset-2 bg-gradient-to-r from-primary/40 via-purple-500/40 to-pink-500/40 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
                   <img 
-                    src={screenshotOverview} 
-                    alt="Overview" 
+                    src={screenshotCalendar} 
+                    alt="Calendário" 
                     className="relative rounded-xl shadow-2xl ring-1 ring-white/20 dark:ring-white/10 transform group-hover:scale-105 group-hover:-rotate-1 transition-all duration-500"
                   />
                 </div>
