@@ -1150,6 +1150,10 @@ export type Database = {
         Args: { _user_id: string; _workspace_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      is_valid_invitation_token: {
+        Args: { _token: string; _workspace_id: string }
+        Returns: boolean
+      }
       is_workspace_admin: {
         Args: { _user_id: string; _workspace_id: string }
         Returns: boolean
