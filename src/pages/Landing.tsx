@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import {
   Accordion,
   AccordionContent,
@@ -22,7 +23,6 @@ import {
 } from '@/components/ui/accordion';
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
-import { PLAN_INFO } from '@/lib/stripe-prices';
 import screenshotDashboard from '@/assets/screenshot-dashboard.png';
 import screenshotKanban from '@/assets/screenshot-kanban.png';
 import screenshotCalendar from '@/assets/screenshot-calendar.png';
@@ -119,23 +119,80 @@ const screenshots = [
   },
 ];
 
-export default function Landing() {
-  const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly');
-  const [currency] = useState<'eur' | 'brl'>('eur');
+// Plan definitions matching Pricing page
+const plans = [
+  {
+    id: 'starter',
+    name: 'Starter',
+    description: 'Para freelancers e profissionais independentes',
+    priceEUR: { monthly: 14, annual: 11 },
+    priceBRL: { monthly: 79, annual: 63 },
+    limits: {
+      workspaces: '1 workspace',
+      users: 'Até 2 utilizadores',
+      projects: '20 projetos ativos',
+    },
+    features: [
+      { name: 'Exportação Excel', included: true },
+      { name: 'Relatórios simples', included: true },
+      { name: 'Exportação PDF', included: false },
+      { name: 'Google Calendar', included: false },
+      { name: 'Meet integrado', included: false },
+      { name: 'Frame.io', included: false },
+    ],
+    popular: false,
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    description: 'Para equipas em crescimento',
+    priceEUR: { monthly: 24, annual: 19 },
+    priceBRL: { monthly: 149, annual: 119 },
+    limits: {
+      workspaces: 'Até 3 workspaces',
+      users: 'Até 10 utilizadores',
+      projects: 'Projetos ilimitados',
+    },
+    features: [
+      { name: 'Exportação Excel + PDF', included: true },
+      { name: 'Relatórios avançados', included: true },
+      { name: 'Google Calendar', included: true },
+      { name: 'Meet integrado', included: true },
+      { name: 'Templates de projeto', included: true },
+      { name: 'Frame.io', included: false },
+    ],
+    popular: true,
+  },
+  {
+    id: 'studio',
+    name: 'Studio',
+    description: 'Para agências e produtoras',
+    priceEUR: { monthly: 32, annual: 26 },
+    priceBRL: { monthly: 197, annual: 158 },
+    limits: {
+      workspaces: 'Até 10 workspaces',
+      users: 'Utilizadores ilimitados',
+      projects: 'Projetos ilimitados',
+    },
+    features: [
+      { name: 'Exportação Excel + PDF', included: true },
+      { name: 'Relatórios avançados', included: true },
+      { name: 'Google Calendar', included: true },
+      { name: 'Meet integrado', included: true },
+      { name: 'Frame.io integrado', included: true },
+      { name: 'Automações avançadas', included: true },
+    ],
+    popular: false,
+  },
+];
 
-  const plans = [
-    { id: 'starter' as const, popular: false, ...PLAN_INFO.starter },
-    { id: 'pro' as const, popular: true, ...PLAN_INFO.pro },
-    { id: 'studio' as const, popular: false, ...PLAN_INFO.studio },
-  ];
+export default function Landing() {
+  const [showBRL, setShowBRL] = useState(false);
+  const [isAnnual, setIsAnnual] = useState(false);
 
   const getPrice = (plan: typeof plans[0]) => {
-    const prices = plan.prices[currency];
-    return billingInterval === 'monthly' ? prices.monthly : prices.yearly / 12;
-  };
-
-  const getYearlyTotal = (plan: typeof plans[0]) => {
-    return plan.prices[currency].yearly;
+    const prices = showBRL ? plan.priceBRL : plan.priceEUR;
+    return isAnnual ? prices.annual : prices.monthly;
   };
 
   return (
@@ -340,38 +397,57 @@ export default function Landing() {
       <section className="py-20 px-4" id="pricing">
         <div className="container mx-auto">
           <div className="text-center mb-12">
+            {/* Trial Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-success/10 border border-success/20 text-success mb-6">
+              <CreditCard className="h-4 w-4" />
+              <span className="text-sm font-medium">
+                ✅ 7 dias grátis com cartão (cobrança só após o trial)
+              </span>
+            </div>
+
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
               Planos simples e transparentes
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              Escolha o plano ideal para o seu negócio. 7 dias grátis para testar.
+              Escolha o plano ideal para o seu negócio
             </p>
 
-            {/* Billing Toggle */}
-            <div className="inline-flex items-center gap-4 glass-card p-2">
-              <button
-                onClick={() => setBillingInterval('monthly')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  billingInterval === 'monthly'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Mensal
-              </button>
-              <button
-                onClick={() => setBillingInterval('yearly')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
-                  billingInterval === 'yearly'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Anual
-                <Badge variant="secondary" className="bg-success/10 text-success text-xs">
-                  -20%
-                </Badge>
-              </button>
+            {/* Toggles Container */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              {/* Currency Toggle */}
+              <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-muted/50 backdrop-blur-sm">
+                <span className={`text-sm font-medium transition-colors ${!showBRL ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  🇵🇹 EUR
+                </span>
+                <Switch
+                  checked={showBRL}
+                  onCheckedChange={setShowBRL}
+                  className="data-[state=checked]:bg-primary"
+                />
+                <span className={`text-sm font-medium transition-colors ${showBRL ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  🇧🇷 BRL
+                </span>
+              </div>
+
+              {/* Billing Toggle */}
+              <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-muted/50 backdrop-blur-sm">
+                <span className={`text-sm font-medium transition-colors ${!isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  Mensal
+                </span>
+                <Switch
+                  checked={isAnnual}
+                  onCheckedChange={setIsAnnual}
+                  className="data-[state=checked]:bg-primary"
+                />
+                <span className={`text-sm font-medium transition-colors ${isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  Anual
+                </span>
+                {isAnnual && (
+                  <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
+                    −20%
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
 
@@ -383,11 +459,15 @@ export default function Landing() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
                 viewport={{ once: true }}
-                className={`pricing-glass relative ${plan.popular ? 'popular' : ''}`}
+                className={`relative flex flex-col rounded-2xl border backdrop-blur-xl p-6 ${
+                  plan.popular 
+                    ? 'border-primary bg-primary/5 shadow-xl shadow-primary/10 scale-105 z-10' 
+                    : 'border-border/50 bg-background/50'
+                }`}
               >
                 {plan.popular && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 gradient-primary">
-                    Mais popular
+                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 gradient-primary px-4">
+                    Mais vendido
                   </Badge>
                 )}
                 
@@ -395,43 +475,38 @@ export default function Landing() {
                   <h3 className="font-bold text-xl mb-1">{plan.name}</h3>
                   <p className="text-sm text-muted-foreground mb-4">{plan.description}</p>
                   
+                  {/* Price */}
                   <div className="flex items-baseline justify-center gap-1">
                     <span className="text-4xl font-bold">
-                      {currency === 'eur' ? '€' : 'R$'}
-                      {getPrice(plan).toFixed(billingInterval === 'yearly' ? 2 : 0)}
+                      {showBRL ? 'R$' : '€'}{getPrice(plan)}
                     </span>
                     <span className="text-muted-foreground">/mês</span>
                   </div>
                   
-                  {billingInterval === 'yearly' && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {currency === 'eur' ? '€' : 'R$'}{getYearlyTotal(plan).toFixed(2)}/ano
+                  {isAnnual && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Faturado anualmente ({showBRL ? 'R$' : '€'}{getPrice(plan) * 12}/ano)
                     </p>
                   )}
                 </div>
 
-                <ul className="space-y-3 mb-8">
-                  <li className="flex items-center gap-2 text-sm">
-                    <Check className="h-4 w-4 text-success flex-shrink-0" />
-                    <span>{plan.limits.workspaces} workspace{plan.limits.workspaces !== 1 ? 's' : ''}</span>
-                  </li>
-                  <li className="flex items-center gap-2 text-sm">
-                    <Check className="h-4 w-4 text-success flex-shrink-0" />
-                    <span>{plan.limits.users} utilizadores</span>
-                  </li>
-                  <li className="flex items-center gap-2 text-sm">
-                    <Check className="h-4 w-4 text-success flex-shrink-0" />
-                    <span>{plan.limits.projects} projetos</span>
-                  </li>
-                  
-                  {plan.features.slice(3, 9).map((feature) => (
+                {/* Limits */}
+                <div className="space-y-2 mb-6 pb-6 border-b border-border/50">
+                  <p className="text-sm font-medium">{plan.limits.workspaces}</p>
+                  <p className="text-sm font-medium">{plan.limits.users}</p>
+                  <p className="text-sm font-medium">{plan.limits.projects}</p>
+                </div>
+
+                {/* Features */}
+                <ul className="space-y-3 mb-6 flex-1">
+                  {plan.features.map((feature) => (
                     <li key={feature.name} className="flex items-center gap-2 text-sm">
                       {feature.included ? (
                         <Check className="h-4 w-4 text-success flex-shrink-0" />
                       ) : (
-                        <X className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />
+                        <X className="h-4 w-4 text-muted-foreground/40 flex-shrink-0" />
                       )}
-                      <span className={!feature.included ? 'text-muted-foreground/50' : ''}>
+                      <span className={!feature.included ? 'text-muted-foreground/60' : ''}>
                         {feature.name}
                       </span>
                     </li>
@@ -443,16 +518,21 @@ export default function Landing() {
                     className={`w-full ${plan.popular ? 'gradient-primary' : ''}`}
                     variant={plan.popular ? 'default' : 'outline'}
                   >
-                    Começar teste grátis
+                    Começar 7 dias grátis
+                    <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
               </motion.div>
             ))}
           </div>
 
-          <p className="text-center text-sm text-muted-foreground mt-8">
-            Todos os planos incluem 7 dias de teste grátis. Cancele a qualquer momento.
-          </p>
+          <div className="text-center mt-8">
+            <Link to="/planos">
+              <Button variant="link" className="text-primary">
+                Ver comparação completa →
+              </Button>
+            </Link>
+          </div>
         </div>
       </section>
 
