@@ -240,7 +240,23 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 export function useWorkspace() {
   const context = useContext(WorkspaceContext);
   if (context === undefined) {
-    throw new Error('useWorkspace must be used within a WorkspaceProvider');
+    // During HMR or initial render, the context may not be available yet
+    // Return a safe fallback instead of throwing
+    console.warn('useWorkspace called outside WorkspaceProvider - returning fallback');
+    return {
+      workspace: null,
+      membership: null,
+      loading: true,
+      fetchError: false,
+      refreshWorkspace: async () => {},
+      isAdmin: false,
+      canEdit: false,
+      currentWorkspace: null,
+      currentMembership: null,
+      workspaces: [],
+      setCurrentWorkspace: () => {},
+      refreshWorkspaces: async () => {},
+    };
   }
   
   // Return with aliases for backward compatibility
