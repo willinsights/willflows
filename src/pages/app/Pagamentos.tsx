@@ -83,7 +83,7 @@ export default function Pagamentos() {
       // Fetch projects with pending extra costs (for summaries)
       const { data: costsData } = await supabase
         .from('projects')
-        .select('id, name, custos_extras, custos_extras_payment_status')
+        .select('id, name, project_code, custos_extras, custos_extras_payment_status')
         .eq('workspace_id', currentWorkspace.id)
         .gt('custos_extras', 0)
         .in('custos_extras_payment_status', ['pendente', 'vencido', null]);
@@ -95,7 +95,7 @@ export default function Pagamentos() {
       // Fetch ALL projects with extra costs (for the tab)
       const { data: allCostsData } = await supabase
         .from('projects')
-        .select('id, name, custos_extras, custos_extras_payment_status')
+        .select('id, name, project_code, custos_extras, custos_extras_payment_status')
         .eq('workspace_id', currentWorkspace.id)
         .gt('custos_extras', 0);
       
@@ -265,7 +265,7 @@ export default function Pagamentos() {
 
   // Prepare projects list for freelancer component
   const projectsList = useMemo(() => {
-    return projects.map(p => ({ id: p.id, name: p.name }));
+    return projects.map(p => ({ id: p.id, name: p.name, project_code: p.project_code }));
   }, [projects]);
 
   if (loading) {
@@ -334,10 +334,13 @@ export default function Pagamentos() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="previsao">Previsão</TabsTrigger>
-          <TabsTrigger value="clientes">Pagamentos Clientes</TabsTrigger>
-          <TabsTrigger value="colaboradores">Pagamentos Colaboradores</TabsTrigger>
+          <TabsTrigger value="clientes">Pag. Clientes</TabsTrigger>
+          <TabsTrigger value="colaboradores">Pag. Colaboradores</TabsTrigger>
           <TabsTrigger value="custos-extras">Custos Extras</TabsTrigger>
-          <TabsTrigger value="faturas">Export Faturas</TabsTrigger>
+          <TabsTrigger value="faturas" disabled className="opacity-50">
+            Emitir Fatura
+            <span className="ml-1 text-[10px] text-muted-foreground">(brevemente)</span>
+          </TabsTrigger>
         </TabsList>
 
         {/* Previsão Tab */}
@@ -506,6 +509,7 @@ export default function Pagamentos() {
           <ClientPaymentsControl
             payments={payments}
             clients={clientsList}
+            projects={projectsList}
             onStatusChange={handleClientStatusChange}
             formatCurrency={formatCurrency}
           />

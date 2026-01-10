@@ -47,6 +47,7 @@ export interface ProjectTeamPayment {
 interface Project {
   id: string;
   name: string;
+  project_code?: string | null;
 }
 
 interface Member {
@@ -87,6 +88,11 @@ export function FreelancerPaymentsControl({
     return project?.name || 'Projeto';
   };
 
+  const getProjectCode = (projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    return project?.project_code || projectId.slice(0, 8).toUpperCase();
+  };
+
   const filteredPayments = useMemo(() => {
     return teamPayments.filter(tp => {
       if (filters.memberId && tp.user_id !== filters.memberId) return false;
@@ -97,13 +103,14 @@ export function FreelancerPaymentsControl({
 
   const exportData = useMemo(() => {
     return filteredPayments.map(tp => ({
+      id: getProjectCode(tp.project_id),
       projeto: getProjectName(tp.project_id),
       contraparte: getMemberName(tp.user_id),
       fase: tp.phase === 'captacao' ? 'Captação' : 'Edição',
       status: statusLabels[tp.payment_status] || tp.payment_status,
       valor: formatCurrency(tp.payment_amount || 0),
     }));
-  }, [filteredPayments, formatCurrency]);
+  }, [filteredPayments, formatCurrency, projects]);
 
   return (
     <Card className="glass-card">
@@ -138,6 +145,7 @@ export function FreelancerPaymentsControl({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[100px]">ID</TableHead>
                 <TableHead>Projeto</TableHead>
                 <TableHead>Colaborador</TableHead>
                 <TableHead>Fase</TableHead>
@@ -148,6 +156,9 @@ export function FreelancerPaymentsControl({
             <TableBody>
               {filteredPayments.map(tp => (
                 <TableRow key={tp.id}>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {getProjectCode(tp.project_id)}
+                  </TableCell>
                   <TableCell className="font-medium">
                     {getProjectName(tp.project_id)}
                   </TableCell>
