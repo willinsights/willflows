@@ -70,6 +70,7 @@ export default function Onboarding() {
   const urlPlan = searchParams.get('plan') || 'pro';
   const urlCurrency = searchParams.get('currency') as 'eur' | 'brl' | null;
   const urlInterval = searchParams.get('interval') as 'monthly' | 'annual' | null;
+  const isCreatingNew = searchParams.get('new') === 'true';
 
   // State
   const [step, setStep] = useState<Step>('region');
@@ -81,12 +82,12 @@ export default function Onboarding() {
 
   const showBRL = country === 'BR';
 
-  // If user already has workspace, redirect to app
+  // If user already has workspace and is NOT creating a new one, redirect to app
   useEffect(() => {
-    if (currentWorkspace) {
+    if (currentWorkspace && !isCreatingNew) {
       navigate('/app', { replace: true });
     }
-  }, [currentWorkspace, navigate]);
+  }, [currentWorkspace, navigate, isCreatingNew]);
 
   // Generate workspace name from user data
   const getWorkspaceName = (): string => {
@@ -229,7 +230,9 @@ export default function Onboarding() {
               className="space-y-6"
             >
               <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold mb-2">Bem-vindo ao WillFlow!</h1>
+                <h1 className="text-2xl font-bold mb-2">
+                  {isCreatingNew ? 'Criar novo workspace' : 'Bem-vindo ao WillFlow!'}
+                </h1>
                 <p className="text-muted-foreground">
                   Selecione a sua região para configurar moeda e fuso horário
                 </p>

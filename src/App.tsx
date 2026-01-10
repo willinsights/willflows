@@ -29,6 +29,7 @@ import Calendario from "./pages/app/Calendario";
 import Pagamentos from "./pages/app/Pagamentos";
 import Relatorios from "./pages/app/Relatorios";
 import Configuracoes from "./pages/app/Configuracoes";
+import Equipa from "./pages/app/Equipa";
 import CheckoutSuccess from "./pages/CheckoutSuccess";
 import NotFound from "./pages/NotFound";
 import AcceptInvite from "./pages/AcceptInvite";
@@ -93,6 +94,7 @@ const App = () => (
                   <Route path="pagamentos" element={<Pagamentos />} />
                   <Route path="relatorios" element={<Relatorios />} />
                   <Route path="configuracoes" element={<Configuracoes />} />
+                  <Route path="equipa" element={<Equipa />} />
                 </Route>
 
                 {/* Catch-all */}

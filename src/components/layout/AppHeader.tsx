@@ -9,8 +9,8 @@ import { CreateProjectModal } from '@/components/projects/CreateProjectModal';
 import { TrialBadge } from '@/components/dashboard/TrialBadge';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { AccountModal } from '@/components/account/AccountModal';
+import { WorkspaceSelector } from '@/components/workspace/WorkspaceSelector';
 import { useAuth } from '@/contexts/AuthContext';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useGlobalSearch, SearchResult } from '@/hooks/useGlobalSearch';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -28,7 +28,6 @@ type SearchDropdownRect = {
 
 export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const { user } = useAuth();
-  const { currentWorkspace } = useWorkspace();
   const navigate = useNavigate();
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
@@ -175,15 +174,8 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
           <Menu className="h-5 w-5" />
         </Button>
 
-        {/* Workspace Name */}
-        {currentWorkspace && (
-          <div className="flex items-center gap-2 font-medium">
-            <div className="flex items-center justify-center w-6 h-6 rounded bg-primary/10 text-primary text-xs font-bold">
-              {currentWorkspace.name.charAt(0).toUpperCase()}
-            </div>
-            <span className="hidden sm:inline max-w-[150px] truncate">{currentWorkspace.name}</span>
-          </div>
-        )}
+        {/* Workspace Selector */}
+        <WorkspaceSelector />
 
         {/* Search - Always Visible */}
         <div className="flex-1 flex items-center justify-center px-4">
