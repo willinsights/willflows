@@ -42,6 +42,7 @@ import type { Tables } from '@/integrations/supabase/types';
 import { ProjectChecklistTab } from './ProjectChecklistTab';
 import { ProjectCommentsTab } from './ProjectCommentsTab';
 import { ProjectMediaTab } from './ProjectMediaTab';
+import { ProjectFinancialTab } from './ProjectFinancialTab';
 
 type Task = Tables<'tasks'>;
 type TaskChecklist = Tables<'task_checklists'>;
@@ -1132,68 +1133,25 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
 
               {/* Financial Tab */}
               <TabsContent value="financial" className="space-y-4 pr-4">
-                {isEditing ? (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label>Preço Cliente (€)</Label>
-                        <Input 
-                          type="number" 
-                          value={editForm.agreed_value}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, agreed_value: Number(e.target.value) }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Custo Captação (€)</Label>
-                        <Input 
-                          type="number" 
-                          value={editForm.custo_captacao}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, custo_captacao: Number(e.target.value) }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Custo Edição (€)</Label>
-                        <Input 
-                          type="number" 
-                          value={editForm.custo_edicao}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, custo_edicao: Number(e.target.value) }))}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Lucro Estimado</span>
-                        <span className={cn("text-xl font-bold", profit >= 0 ? "text-success" : "text-destructive")}>
-                          €{profit.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <DollarSign className="h-3 w-3" /> Preço Cliente
-                      </span>
-                      <p className="text-xl font-bold text-success mt-1">
-                        €{(project.agreed_value || 0).toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
-                      <span className="text-xs text-muted-foreground">Custos Totais</span>
-                      <p className="text-xl font-bold text-destructive mt-1">
-                        €{((project.custo_captacao || 0) + (project.custo_edicao || 0)).toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-                      <span className="text-xs text-muted-foreground">Lucro</span>
-                      <p className="text-xl font-bold text-primary mt-1">
-                        €{((project.agreed_value || 0) - (project.custo_captacao || 0) - (project.custo_edicao || 0)).toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-                )}
+                <ProjectFinancialTab
+                  projectId={project.id}
+                  project={{
+                    agreed_value: project.agreed_value,
+                    custo_captacao: project.custo_captacao,
+                    custo_edicao: project.custo_edicao,
+                    client_id: project.client_id,
+                  }}
+                  projectTeam={projectTeam}
+                  workspaceMembers={workspaceMembers}
+                  isEditing={isEditing}
+                  editForm={{
+                    agreed_value: editForm.agreed_value,
+                    custo_captacao: editForm.custo_captacao,
+                    custo_edicao: editForm.custo_edicao,
+                  }}
+                  setEditForm={setEditForm}
+                  onTeamPaymentUpdate={fetchRelatedData}
+                />
               </TabsContent>
             </ScrollArea>
           </Tabs>
