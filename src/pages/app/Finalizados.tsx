@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Calendar as CalendarIcon, Download, FileText, Camera, Film, Video, Eye, X } from 'lucide-react';
+import { Search, Filter, Calendar as CalendarIcon, Download, FileText, Camera, Film, Video, Eye, X, Users } from 'lucide-react';
 import { format, isWithinInterval, parseISO } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Select,
   SelectContent,
@@ -27,7 +29,9 @@ import {
 import { useProjects } from '@/hooks/useProjects';
 import { useClients } from '@/hooks/useClients';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { ProjectDetailsModal } from '@/components/projects/ProjectDetailsModal';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 const typeIcons: Record<string, any> = {
@@ -46,12 +50,14 @@ export default function Finalizados() {
   const { projects } = useProjects();
   const { clients } = useClients();
   const { currentWorkspace } = useWorkspace();
+  const { members: workspaceMembers } = useWorkspaceMembers();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterClient, setFilterClient] = useState<string>('all');
   const [filterType, setFilterType] = useState<string>('all');
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [projectTeams, setProjectTeams] = useState<Record<string, { captacao: string[]; edicao: string[] }>>({});
 
   const currency = currentWorkspace?.currency || 'EUR';
 
@@ -60,6 +66,72 @@ export default function Finalizados() {
       style: 'currency',
       currency,
     }).format(value);
+  };
+
+  // Fetch project teams for all completed projects
+  useEffect(() => {
+    const fetchProjectTeams = async () => {
+      const deliveredProjectIds = projects.filter(p => p.is_delivered).map(p => p.id);
+      if (deliveredProjectIds.length === 0) return;
+
+      const { data } = await supabase
+        .from('project_team')
+        .select('project_id, user_id, phase')
+        .in('project_id', deliveredProjectIds);
+
+      if (data) {
+        const teamsMap: Record<string, { captacao: string[]; edicao: string[] }> = {};
+        data.forEach(item => {
+          if (!teamsMap[item.project_id]) {
+            teamsMap[item.project_id] = { captacao: [], edicao: [] };
+          }
+          teamsMap[item.project_id][item.phase].push(item.user_id);
+        });
+        setProjectTeams(teamsMap);
+      }
+    };
+
+    fetchProjectTeams();
+  }, [projects]);
+
+  const getMemberInfo = (userId: string) => {
+    const member = workspaceMembers.find(m => m.user_id === userId);
+    return member || null;
+  };
+
+  const renderTeamAvatars = (userIds: string[]) => {
+    if (userIds.length === 0) {
+      return <span className="text-xs text-muted-foreground">-</span>;
+    }
+
+    return (
+      <div className="flex -space-x-2">
+        {userIds.slice(0, 3).map(userId => {
+          const member = getMemberInfo(userId);
+          if (!member) return null;
+          return (
+            <Tooltip key={userId}>
+              <TooltipTrigger asChild>
+                <Avatar className="h-6 w-6 border-2 border-background">
+                  <AvatarImage src={member.avatar_url || undefined} />
+                  <AvatarFallback className="text-[10px] bg-primary/20 text-primary">
+                    {(member.full_name || member.email || '?').charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              </TooltipTrigger>
+              <TooltipContent>
+                {member.full_name || member.email}
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
+        {userIds.length > 3 && (
+          <div className="h-6 w-6 rounded-full bg-muted border-2 border-background flex items-center justify-center">
+            <span className="text-[10px] text-muted-foreground">+{userIds.length - 3}</span>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const clearFilters = () => {
@@ -119,18 +191,32 @@ export default function Finalizados() {
   const totalRevenue = completedProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
   const selectedProject = selectedProjectId ? projects.find(p => p.id === selectedProjectId) : null;
 
+  const getTeamNames = (userIds: string[]) => {
+    return userIds
+      .map(id => {
+        const member = getMemberInfo(id);
+        return member?.full_name || member?.email || '';
+      })
+      .filter(Boolean)
+      .join(', ') || '-';
+  };
+
   const exportToCSV = () => {
     if (completedProjects.length === 0) return;
     
-    const headers = ['Projeto', 'Código', 'Cliente', 'Tipo', 'Data de Entrega', 'Valor'];
-    const rows = completedProjects.map(project => [
-      project.name,
-      project.project_code || '',
-      project.clients?.name || 'Sem cliente',
-      typeLabels[project.type],
-      project.delivered_at ? format(new Date(project.delivered_at), 'dd/MM/yyyy') : 'N/A',
-      project.agreed_value?.toFixed(2) || '0.00',
-    ]);
+    const headers = ['Projeto', 'Código', 'Cliente', 'Tipo', 'Data de Entrega', 'Captação', 'Edição'];
+    const rows = completedProjects.map(project => {
+      const team = projectTeams[project.id] || { captacao: [], edicao: [] };
+      return [
+        project.name,
+        project.project_code || '',
+        project.clients?.name || 'Sem cliente',
+        typeLabels[project.type],
+        project.delivered_at ? format(new Date(project.delivered_at), 'dd/MM/yyyy') : 'N/A',
+        getTeamNames(team.captacao),
+        getTeamNames(team.edicao),
+      ];
+    });
 
     const csvContent = [
       headers.join(','),
@@ -163,14 +249,12 @@ export default function Finalizados() {
           th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
           th { background-color: #8224e3; color: white; }
           tr:nth-child(even) { background-color: #f9f9f9; }
-          .total { font-weight: bold; text-align: right; margin-top: 10px; }
         </style>
       </head>
       <body>
         <h1>Projetos Finalizados</h1>
         <div class="summary">
-          <strong>Total de Projetos:</strong> ${completedProjects.length} | 
-          <strong>Receita Total:</strong> ${formatCurrency(totalRevenue)}
+          <strong>Total de Projetos:</strong> ${completedProjects.length}
         </div>
         <table>
           <thead>
@@ -180,23 +264,26 @@ export default function Finalizados() {
               <th>Cliente</th>
               <th>Tipo</th>
               <th>Data de Entrega</th>
-              <th>Valor</th>
+              <th>Captação</th>
+              <th>Edição</th>
             </tr>
           </thead>
           <tbody>
-            ${completedProjects.map(project => `
+            ${completedProjects.map(project => {
+              const team = projectTeams[project.id] || { captacao: [], edicao: [] };
+              return `
               <tr>
                 <td>${project.name}</td>
                 <td>${project.project_code || '-'}</td>
                 <td>${project.clients?.name || 'Sem cliente'}</td>
                 <td>${typeLabels[project.type]}</td>
                 <td>${project.delivered_at ? format(new Date(project.delivered_at), 'dd/MM/yyyy') : 'N/A'}</td>
-                <td>${formatCurrency(project.agreed_value || 0)}</td>
+                <td>${getTeamNames(team.captacao)}</td>
+                <td>${getTeamNames(team.edicao)}</td>
               </tr>
-            `).join('')}
+            `}).join('')}
           </tbody>
         </table>
-        <p class="total">Receita Total: ${formatCurrency(totalRevenue)}</p>
       </body>
       </html>
     `;
@@ -383,13 +470,15 @@ export default function Finalizados() {
                 <TableHead>Cliente</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Data de Entrega</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
+                <TableHead>Captação</TableHead>
+                <TableHead>Edição</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {completedProjects.map((project, index) => {
                 const TypeIcon = typeIcons[project.type] || Camera;
+                const team = projectTeams[project.id] || { captacao: [], edicao: [] };
                 return (
                   <motion.tr
                     key={project.id}
@@ -425,8 +514,11 @@ export default function Finalizados() {
                         ? format(new Date(project.delivered_at), 'dd/MM/yyyy', { locale: pt })
                         : 'N/A'}
                     </TableCell>
-                    <TableCell className="text-right font-medium text-success">
-                      {formatCurrency(project.agreed_value || 0)}
+                    <TableCell>
+                      {renderTeamAvatars(team.captacao)}
+                    </TableCell>
+                    <TableCell>
+                      {renderTeamAvatars(team.edicao)}
                     </TableCell>
                     <TableCell>
                       <Button
