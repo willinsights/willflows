@@ -56,6 +56,7 @@ const projectSchema = z.object({
   agreed_value: z.number().min(0, 'Valor não pode ser negativo').optional(),
   custo_captacao: z.number().min(0, 'Valor não pode ser negativo').optional(),
   custo_edicao: z.number().min(0, 'Valor não pode ser negativo').optional(),
+  custos_extras: z.number().min(0, 'Valor não pode ser negativo').optional(),
 });
 
 type ProjectFormData = z.infer<typeof projectSchema>;
@@ -128,6 +129,7 @@ export function CreateProjectModal({
       agreed_value: 0,
       custo_captacao: 0,
       custo_edicao: 0,
+      custos_extras: 0,
     },
   });
 
@@ -184,6 +186,7 @@ export function CreateProjectModal({
       agreed_value: data.agreed_value || 0,
       custo_captacao: data.custo_captacao || 0,
       custo_edicao: data.custo_edicao || 0,
+      custos_extras: data.custos_extras || 0,
       current_phase: currentPhase,
     };
 
@@ -678,7 +681,7 @@ export function CreateProjectModal({
                       Financeiro
                     </h3>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Preço Cliente ({currencySymbol}) *</Label>
                         <Input
@@ -715,6 +718,17 @@ export function CreateProjectModal({
                           />
                         </div>
                       )}
+
+                      <div className="space-y-2">
+                        <Label>Custos Extras ({currencySymbol})</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="Equipamento, deslocação..."
+                          {...form.register('custos_extras', { valueAsNumber: true })}
+                        />
+                      </div>
                     </div>
                   </div>
                 </>
