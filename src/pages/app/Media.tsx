@@ -291,25 +291,6 @@ export default function Media() {
               ))}
             </SelectContent>
           </Select>
-
-          <div className="flex items-center gap-1 border rounded-md p-1">
-            <Button
-              variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setViewMode('grid')}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setViewMode('list')}
-            >
-              <List className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
       </div>
 
@@ -345,16 +326,11 @@ export default function Media() {
                 )}
                 <Badge variant="secondary">{group.items.length}</Badge>
               </div>
-              <div className={cn(
-                viewMode === 'grid' 
-                  ? "grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-                  : "space-y-2"
-              )}>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {group.items.map((link, index) => (
-                  <MediaCard 
+                  <MediaCard
                     key={link.id} 
                     link={link} 
-                    viewMode={viewMode} 
                     index={index}
                     showProject={false}
                   />
@@ -363,16 +339,10 @@ export default function Media() {
             </div>
           ))}
         </div>
-      ) : viewMode === 'grid' ? (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredMedia.map((link, index) => (
-            <MediaCard key={link.id} link={link} viewMode="grid" index={index} showProject />
-          ))}
-        </div>
       ) : (
-        <div className="space-y-2">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredMedia.map((link, index) => (
-            <MediaCard key={link.id} link={link} viewMode="list" index={index} showProject />
+            <MediaCard key={link.id} link={link} index={index} showProject />
           ))}
         </div>
       )}
@@ -382,64 +352,13 @@ export default function Media() {
 
 interface MediaCardProps {
   link: MediaLink;
-  viewMode: 'grid' | 'list';
   index: number;
   showProject: boolean;
 }
 
-function MediaCard({ link, viewMode, index, showProject }: MediaCardProps) {
+function MediaCard({ link, index, showProject }: MediaCardProps) {
   const Icon = getMediaIcon(link.link_type?.toLowerCase() || 'outro');
   const typeLabel = mediaTypes.find(m => m.value === (link.link_type?.toLowerCase() || 'outro'))?.label || 'Outro';
-
-  if (viewMode === 'list') {
-    return (
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: index * 0.03 }}
-      >
-        <Card className="glass-card hover:shadow-lg transition-all">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-4">
-              <div className={cn(
-                "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
-                getMediaBgColor(link.link_type?.toLowerCase() || 'outro'),
-                "text-white"
-              )}>
-                <Icon className="h-5 w-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold truncate">{link.title || 'Sem título'}</h3>
-                  <Badge variant="outline" className={getMediaColor(link.link_type?.toLowerCase() || 'outro')}>
-                    {typeLabel}
-                  </Badge>
-                </div>
-                {showProject && link.project_name && (
-                  <p className="text-sm text-muted-foreground truncate">
-                    {link.project_name} {link.client_name && `• ${link.client_name}`}
-                  </p>
-                )}
-              </div>
-              <div className="flex items-center gap-3 flex-shrink-0">
-                <span className="text-sm text-muted-foreground">
-                  {format(new Date(link.created_at), 'dd/MM/yyyy', { locale: pt })}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => window.open(link.url, '_blank')}
-                >
-                  <ExternalLink className="h-4 w-4 mr-1" />
-                  Abrir
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-    );
-  }
 
   return (
     <motion.div
