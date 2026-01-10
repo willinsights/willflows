@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { handleDatabaseError } from '@/lib/error-handler';
+import { calendarEventSchema, validateWithSchema } from '@/lib/validation-schemas';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 export type CalendarEvent = Tables<'calendar_events'>;
@@ -59,13 +60,39 @@ export function useCalendarEvents() {
   const createEvent = async (event: Omit<CalendarEventInsert, 'workspace_id'>) => {
     if (!currentWorkspace) return null;
 
+    // Validate event data
+    const validation = validateWithSchema(calendarEventSchema.partial().extend({
+      title: calendarEventSchema.shape.title,
+      start_at: calendarEventSchema.shape.start_at,
+    }), event);
+    
+    if (!validation.success) {
+      toast({
+        title: 'Dados inválidos',
+        description: validation.error,
+        variant: 'destructive',
+      });
+      return null;
+    }
+
     try {
+      const insertData: CalendarEventInsert = {
+        title: validation.data.title,
+        start_at: validation.data.start_at,
+        workspace_id: currentWorkspace.id,
+        description: validation.data.description ?? null,
+        end_at: validation.data.end_at ?? null,
+        all_day: validation.data.all_day ?? false,
+        location: validation.data.location ?? null,
+        event_type: validation.data.event_type ?? 'meeting',
+        video_call_url: validation.data.video_call_url ?? null,
+        project_id: validation.data.project_id ?? null,
+        task_id: validation.data.task_id ?? null,
+      };
+
       const { data, error } = await supabase
         .from('calendar_events')
-        .insert({
-          ...event,
-          workspace_id: currentWorkspace.id,
-        })
+        .insert(insertData)
         .select('*, projects(name, client_id)')
         .single();
 
@@ -85,10 +112,22 @@ export function useCalendarEvents() {
   };
 
   const updateEvent = async (eventId: string, updates: Partial<CalendarEvent>) => {
+    // Validate update data
+    const validation = validateWithSchema(calendarEventSchema.partial(), updates);
+    
+    if (!validation.success) {
+      toast({
+        title: 'Dados inválidos',
+        description: validation.error,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('calendar_events')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update({ ...validation.data, updated_at: new Date().toISOString() })
         .eq('id', eventId);
 
       if (error) throw error;

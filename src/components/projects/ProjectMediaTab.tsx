@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { projectMediaLinkSchema, validateWithSchema } from '@/lib/validation-schemas';
 import type { Tables } from '@/integrations/supabase/types';
 
 type MediaLink = Tables<'project_media_links'>;
@@ -78,10 +79,19 @@ export function ProjectMediaTab({
   };
 
   const handleAddMedia = async () => {
-    if (!newMedia.url.trim()) {
-      toast({ title: 'URL é obrigatório', variant: 'destructive' });
+    // Validate media link data
+    const validation = validateWithSchema(projectMediaLinkSchema, {
+      url: newMedia.url,
+      title: newMedia.title || null,
+      link_type: newMedia.link_type,
+      project_id: projectId,
+    });
+    
+    if (!validation.success) {
+      toast({ title: 'Dados inválidos', description: validation.error, variant: 'destructive' });
       return;
     }
+    
     setSubmitting(true);
 
     try {
@@ -89,9 +99,9 @@ export function ProjectMediaTab({
         .from('project_media_links')
         .insert({
           project_id: projectId,
-          link_type: newMedia.link_type,
-          url: newMedia.url.trim(),
-          title: newMedia.title.trim() || null,
+          link_type: validation.data.link_type,
+          url: validation.data.url,
+          title: validation.data.title,
         })
         .select()
         .single();
@@ -110,19 +120,30 @@ export function ProjectMediaTab({
   };
 
   const handleEditMedia = async () => {
-    if (!editingMedia || !newMedia.url.trim()) {
-      toast({ title: 'URL é obrigatório', variant: 'destructive' });
+    if (!editingMedia) return;
+    
+    // Validate media link data
+    const validation = validateWithSchema(projectMediaLinkSchema, {
+      url: newMedia.url,
+      title: newMedia.title || null,
+      link_type: newMedia.link_type,
+      project_id: projectId,
+    });
+    
+    if (!validation.success) {
+      toast({ title: 'Dados inválidos', description: validation.error, variant: 'destructive' });
       return;
     }
+    
     setSubmitting(true);
 
     try {
       const { data, error } = await supabase
         .from('project_media_links')
         .update({
-          link_type: newMedia.link_type,
-          url: newMedia.url.trim(),
-          title: newMedia.title.trim() || null,
+          link_type: validation.data.link_type,
+          url: validation.data.url,
+          title: validation.data.title,
         })
         .eq('id', editingMedia.id)
         .select()

@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { handleDatabaseError } from '@/lib/error-handler';
+import { kanbanColumnSchema, kanbanColumnUpdateSchema, validateWithSchema } from '@/lib/validation-schemas';
 import type { Tables } from '@/integrations/supabase/types';
 
 export type KanbanPhase = 'captacao' | 'edicao';
@@ -339,6 +340,23 @@ export function useKanban(phase: KanbanPhase) {
       return;
     }
 
+    // Validate update data (only name and color fields)
+    const fieldsToValidate: Record<string, unknown> = {};
+    if (updates.name !== undefined) fieldsToValidate.name = updates.name;
+    if (updates.color !== undefined) fieldsToValidate.color = updates.color;
+    
+    if (Object.keys(fieldsToValidate).length > 0) {
+      const validation = validateWithSchema(kanbanColumnUpdateSchema, fieldsToValidate);
+      if (!validation.success) {
+        toast({
+          title: 'Dados inválidos',
+          description: validation.error,
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     try {
       const { error } = await supabase
         .from('kanban_columns')
@@ -364,6 +382,17 @@ export function useKanban(phase: KanbanPhase) {
   const addColumn = async (name: string, color: string = '#6b7280') => {
     if (!currentWorkspace) return;
 
+    // Validate column data
+    const validation = validateWithSchema(kanbanColumnSchema, { name, color });
+    if (!validation.success) {
+      toast({
+        title: 'Dados inválidos',
+        description: validation.error,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       // Get position before final column
       const finalColumnIndex = columns.findIndex(c => c.is_final);
@@ -381,8 +410,8 @@ export function useKanban(phase: KanbanPhase) {
         .from('kanban_columns')
         .insert({
           workspace_id: currentWorkspace.id,
-          name,
-          color,
+          name: validation.data.name,
+          color: validation.data.color || color,
           phase,
           position: newPosition,
           is_final: false,
