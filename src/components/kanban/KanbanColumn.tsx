@@ -55,6 +55,7 @@ export function KanbanColumn({ column, onUpdateColumn, onDeleteColumn, onAddProj
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(column.name);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
@@ -69,6 +70,7 @@ export function KanbanColumn({ column, onUpdateColumn, onDeleteColumn, onAddProj
 
   const handleColorChange = (color: string) => {
     onUpdateColumn(column.id, { color });
+    setShowColorPicker(false);
   };
 
   const handleDeleteClick = () => {
@@ -93,10 +95,30 @@ export function KanbanColumn({ column, onUpdateColumn, onDeleteColumn, onAddProj
         {/* Column Header - Compact */}
         <div className="flex items-center justify-between px-2 py-1.5 border-b border-border/40">
           <div className="flex items-center gap-1.5 flex-1 min-w-0">
-            <div
-              className="w-2 h-2 rounded-full shrink-0"
-              style={{ backgroundColor: column.color }}
-            />
+            <Popover open={showColorPicker} onOpenChange={setShowColorPicker}>
+              <PopoverTrigger asChild>
+                <button
+                  className="w-2 h-2 rounded-full shrink-0 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
+                  style={{ backgroundColor: column.color }}
+                  title="Alterar cor"
+                />
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-2" side="bottom" align="start">
+                <div className="flex gap-1 flex-wrap max-w-[100px]">
+                  {colorOptions.map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => handleColorChange(color)}
+                      className={cn(
+                        'w-4 h-4 rounded-full transition-transform hover:scale-110',
+                        column.color === color && 'ring-2 ring-offset-1 ring-primary'
+                      )}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
             
             {isEditing ? (
               <Input
@@ -128,29 +150,10 @@ export function KanbanColumn({ column, onUpdateColumn, onDeleteColumn, onAddProj
                   <Pencil className="h-3 w-3 mr-2" />
                   Renomear
                 </DropdownMenuItem>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-xs">
-                      <Palette className="h-3 w-3 mr-2" />
-                      Alterar cor
-                    </DropdownMenuItem>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-2" side="right">
-                    <div className="flex gap-1 flex-wrap max-w-[100px]">
-                      {colorOptions.map((color) => (
-                        <button
-                          key={color}
-                          onClick={() => handleColorChange(color)}
-                          className={cn(
-                            'w-4 h-4 rounded-full transition-transform hover:scale-110',
-                            column.color === color && 'ring-2 ring-offset-1 ring-primary'
-                          )}
-                          style={{ backgroundColor: color }}
-                        />
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                <DropdownMenuItem onClick={() => setShowColorPicker(true)} className="text-xs">
+                  <Palette className="h-3 w-3 mr-2" />
+                  Alterar cor
+                </DropdownMenuItem>
                 {onDeleteColumn && !column.is_final && (
                   <>
                     <DropdownMenuSeparator />
