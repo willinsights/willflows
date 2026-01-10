@@ -649,6 +649,7 @@ export type Database = {
           custo_edicao: number | null
           custom_category_id: string | null
           custos_extras: number | null
+          custos_extras_payment_status: string | null
           delivered_at: string | null
           delivery_date: string | null
           drive_folder_url: string | null
@@ -689,6 +690,7 @@ export type Database = {
           custo_edicao?: number | null
           custom_category_id?: string | null
           custos_extras?: number | null
+          custos_extras_payment_status?: string | null
           delivered_at?: string | null
           delivery_date?: string | null
           drive_folder_url?: string | null
@@ -729,6 +731,7 @@ export type Database = {
           custo_edicao?: number | null
           custom_category_id?: string | null
           custos_extras?: number | null
+          custos_extras_payment_status?: string | null
           delivered_at?: string | null
           delivery_date?: string | null
           drive_folder_url?: string | null

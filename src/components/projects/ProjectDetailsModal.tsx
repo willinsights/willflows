@@ -1143,6 +1143,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
                     custo_captacao: project.custo_captacao,
                     custo_edicao: project.custo_edicao,
                     custos_extras: (project as any).custos_extras,
+                    custos_extras_payment_status: (project as any).custos_extras_payment_status,
                     client_id: project.client_id,
                   }}
                   projectTeam={projectTeam}
