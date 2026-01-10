@@ -119,6 +119,96 @@ export default function Finalizados() {
   const totalRevenue = completedProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
   const selectedProject = selectedProjectId ? projects.find(p => p.id === selectedProjectId) : null;
 
+  const exportToCSV = () => {
+    if (completedProjects.length === 0) return;
+    
+    const headers = ['Projeto', 'Código', 'Cliente', 'Tipo', 'Data de Entrega', 'Valor'];
+    const rows = completedProjects.map(project => [
+      project.name,
+      project.project_code || '',
+      project.clients?.name || 'Sem cliente',
+      typeLabels[project.type],
+      project.delivered_at ? format(new Date(project.delivered_at), 'dd/MM/yyyy') : 'N/A',
+      project.agreed_value?.toFixed(2) || '0.00',
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `projetos-finalizados-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportToPDF = () => {
+    if (completedProjects.length === 0) return;
+    
+    // Create printable HTML
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Projetos Finalizados</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h1 { color: #333; margin-bottom: 20px; }
+          .summary { margin-bottom: 20px; padding: 10px; background: #f5f5f5; border-radius: 4px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #8224e3; color: white; }
+          tr:nth-child(even) { background-color: #f9f9f9; }
+          .total { font-weight: bold; text-align: right; margin-top: 10px; }
+        </style>
+      </head>
+      <body>
+        <h1>Projetos Finalizados</h1>
+        <div class="summary">
+          <strong>Total de Projetos:</strong> ${completedProjects.length} | 
+          <strong>Receita Total:</strong> ${formatCurrency(totalRevenue)}
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Projeto</th>
+              <th>Código</th>
+              <th>Cliente</th>
+              <th>Tipo</th>
+              <th>Data de Entrega</th>
+              <th>Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${completedProjects.map(project => `
+              <tr>
+                <td>${project.name}</td>
+                <td>${project.project_code || '-'}</td>
+                <td>${project.clients?.name || 'Sem cliente'}</td>
+                <td>${typeLabels[project.type]}</td>
+                <td>${project.delivered_at ? format(new Date(project.delivered_at), 'dd/MM/yyyy') : 'N/A'}</td>
+                <td>${formatCurrency(project.agreed_value || 0)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <p class="total">Receita Total: ${formatCurrency(totalRevenue)}</p>
+      </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -128,11 +218,23 @@ export default function Finalizados() {
           <p className="text-muted-foreground">Histórico completo de projetos concluídos</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-2"
+            onClick={exportToCSV}
+            disabled={completedProjects.length === 0}
+          >
             <Download className="h-4 w-4" />
             CSV
           </Button>
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-2"
+            onClick={exportToPDF}
+            disabled={completedProjects.length === 0}
+          >
             <FileText className="h-4 w-4" />
             PDF
           </Button>
