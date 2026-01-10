@@ -72,8 +72,10 @@ export function KanbanCard({ project, onClick }: KanbanCardProps) {
     <div
       ref={setNodeRef}
       style={style}
+      {...attributes}
+      {...listeners}
       className={cn(
-        'kanban-card group relative transition-all duration-300',
+        'kanban-card group relative transition-all duration-300 cursor-grab active:cursor-grabbing',
         'hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/10 hover:z-10',
         'focus-within:ring-2 focus-within:ring-primary/20',
         isDragging && 'dragging opacity-60 z-50 scale-105 shadow-2xl shadow-primary/20',
@@ -83,12 +85,8 @@ export function KanbanCard({ project, onClick }: KanbanCardProps) {
       )}
       onClick={onClick}
     >
-      {/* Drag Handle */}
-      <div
-        {...attributes}
-        {...listeners}
-        className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-muted"
-      >
+      {/* Drag Handle - visual indicator only */}
+      <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded">
         <Grip className="h-3 w-3 text-muted-foreground" />
       </div>
 
