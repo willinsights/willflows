@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus, MoreHorizontal, Pencil, Palette, Trash2, ArrowRight } from 'lucide-react';
+import { Plus, MoreHorizontal, Pencil, Trash2, ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -149,10 +149,6 @@ export function KanbanColumn({ column, onUpdateColumn, onDeleteColumn, onAddProj
                 <DropdownMenuItem onClick={() => setIsEditing(true)} className="text-xs">
                   <Pencil className="h-3 w-3 mr-2" />
                   Renomear
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowColorPicker(true)} className="text-xs">
-                  <Palette className="h-3 w-3 mr-2" />
-                  Alterar cor
                 </DropdownMenuItem>
                 {onDeleteColumn && !column.is_final && (
                   <>
