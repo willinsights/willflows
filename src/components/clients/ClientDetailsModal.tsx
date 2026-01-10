@@ -269,101 +269,40 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
                 </Card>
               </div>
 
-              {/* Financial Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {/* Notes if available */}
+              {client.notes && (
                 <Card className="glass-card">
-                  <CardContent className="p-3">
-                    <p className="text-xs text-muted-foreground">Receita Total</p>
-                    <p className="text-lg font-bold text-success">{formatCurrency(stats.totalRevenue)}</p>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">Notas</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{client.notes}</p>
                   </CardContent>
                 </Card>
-                <Card className="glass-card">
-                  <CardContent className="p-3">
-                    <p className="text-xs text-muted-foreground">Custos Totais</p>
-                    <p className="text-lg font-bold text-destructive">{formatCurrency(stats.totalCosts)}</p>
-                  </CardContent>
-                </Card>
-                <Card className="glass-card">
-                  <CardContent className="p-3">
-                    <p className="text-xs text-muted-foreground">Margem Total</p>
-                    <p className="text-lg font-bold text-primary">{formatCurrency(stats.margin)}</p>
-                  </CardContent>
-                </Card>
-                <Card className="glass-card">
-                  <CardContent className="p-3">
-                    <p className="text-xs text-muted-foreground">Projetos</p>
-                    <p className="text-lg font-bold text-primary">{stats.totalProjects}</p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-wrap gap-2 pt-2">
-                {client.email && (
-                  <Button variant="outline" size="sm" asChild>
-                    <a href={`mailto:${client.email}`}>
-                      <Mail className="h-4 w-4 mr-2" />
-                      Enviar Email
-                    </a>
-                  </Button>
-                )}
-                {client.phone && (
-                  <Button variant="outline" size="sm" asChild>
-                    <a href={`tel:${client.phone}`}>
-                      <Phone className="h-4 w-4 mr-2" />
-                      Ligar
-                    </a>
-                  </Button>
-                )}
-                <Button variant="outline" size="sm">
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  Nova Comunicação
-                </Button>
-              </div>
+              )}
             </TabsContent>
 
             {/* Projects Tab */}
             <TabsContent value="projects" className="p-6 pt-4 space-y-6 mt-0">
-              {/* Project Stats */}
-              <div className="grid md:grid-cols-3 gap-4">
-                <Card className="glass-card">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground">Total de Projetos</p>
-                      <Video className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <p className="text-2xl font-bold mt-1">{stats.totalProjects}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      <span className="text-primary">{stats.activeProjects} ativos</span>
-                      {' · '}
-                      <span className="text-success">{stats.completedProjects} finalizados</span>
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card className="glass-card">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground">Receita Total</p>
-                      <Euro className="h-5 w-5 text-success" />
-                    </div>
-                    <p className="text-2xl font-bold text-success mt-1">{formatCurrency(stats.totalRevenue)}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Custos: {formatCurrency(stats.totalCosts)}
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card className="glass-card">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground">Margem Total</p>
-                      <TrendingUp className="h-5 w-5 text-primary" />
-                    </div>
-                    <p className="text-2xl font-bold text-primary mt-1">{formatCurrency(stats.margin)}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {stats.marginPercent.toFixed(1)}% margem
-                    </p>
-                  </CardContent>
-                </Card>
+              {/* Summary Stats - Compact */}
+              <div className="grid grid-cols-4 gap-3">
+                <div className="text-center p-3 rounded-lg bg-muted/50">
+                  <p className="text-xl font-bold">{stats.totalProjects}</p>
+                  <p className="text-xs text-muted-foreground">Total</p>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-primary/10">
+                  <p className="text-xl font-bold text-primary">{stats.activeProjects}</p>
+                  <p className="text-xs text-muted-foreground">Ativos</p>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-success/10">
+                  <p className="text-xl font-bold text-success">{formatCurrency(stats.totalRevenue)}</p>
+                  <p className="text-xs text-muted-foreground">Receita</p>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-muted/50">
+                  <p className="text-xl font-bold">{stats.marginPercent.toFixed(0)}%</p>
+                  <p className="text-xs text-muted-foreground">Margem</p>
+                </div>
               </div>
 
               {/* Projects Table */}
