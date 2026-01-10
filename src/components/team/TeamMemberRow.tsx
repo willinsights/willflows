@@ -145,7 +145,7 @@ export function TeamMemberRow({
             </Badge>
           )}
         </TableCell>
-        <TableCell className="hidden md:table-cell">
+        <TableCell className="hidden lg:table-cell">
           {member.specialization?.length ? (
             <div className="flex flex-wrap gap-1">
               {member.specialization.slice(0, 2).map((spec) => (

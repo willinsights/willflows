@@ -92,7 +92,7 @@ export function PendingInviteRow({ invitation, onResend, onCancel }: PendingInvi
             {roleLabels[invitation.role]} (pendente)
           </Badge>
         </TableCell>
-        <TableCell className="hidden md:table-cell">
+        <TableCell className="hidden lg:table-cell">
           <span className="text-muted-foreground text-sm">—</span>
         </TableCell>
         <TableCell className="text-right">
