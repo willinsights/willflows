@@ -84,6 +84,12 @@ export function ClientPaymentsControl({
     });
   }, [clientPayments, filters]);
 
+  const totalPending = useMemo(() => {
+    return filteredPayments
+      .filter(p => p.status !== 'pago')
+      .reduce((sum, p) => sum + p.amount, 0);
+  }, [filteredPayments]);
+
   const getProjectCode = (projectId: string | null) => {
     if (!projectId) return null;
     const project = projects.find(p => p.id === projectId);
@@ -105,13 +111,13 @@ export function ClientPaymentsControl({
 
   return (
     <Card className="glass-card">
-      <CardHeader>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <CardHeader className="pb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <CardTitle className="text-lg flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-success" />
-            Controle de Pagamentos - Clientes
+            Pagamentos Clientes
           </CardTitle>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <PaymentFilters
               filters={filters}
               onFilterChange={setFilters}
@@ -126,6 +132,11 @@ export function ClientPaymentsControl({
             />
           </div>
         </div>
+        {totalPending > 0 && (
+          <div className="mt-2 text-sm text-muted-foreground">
+            Total pendente: <span className="font-semibold text-success">{formatCurrency(totalPending)}</span>
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         {filteredPayments.length === 0 ? (

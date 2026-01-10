@@ -101,6 +101,12 @@ export function FreelancerPaymentsControl({
     });
   }, [teamPayments, filters]);
 
+  const totalPending = useMemo(() => {
+    return filteredPayments
+      .filter(tp => tp.payment_status !== 'pago')
+      .reduce((sum, tp) => sum + (tp.payment_amount || 0), 0);
+  }, [filteredPayments]);
+
   const exportData = useMemo(() => {
     return filteredPayments.map(tp => ({
       id: getProjectCode(tp.project_id),
@@ -114,13 +120,13 @@ export function FreelancerPaymentsControl({
 
   return (
     <Card className="glass-card">
-      <CardHeader>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <CardHeader className="pb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <CardTitle className="text-lg flex items-center gap-2">
             <Users className="h-5 w-5 text-destructive" />
-            Controle de Pagamentos - Colaboradores
+            Pagamentos Colaboradores
           </CardTitle>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <PaymentFilters
               filters={filters}
               onFilterChange={setFilters}
@@ -135,6 +141,11 @@ export function FreelancerPaymentsControl({
             />
           </div>
         </div>
+        {totalPending > 0 && (
+          <div className="mt-2 text-sm text-muted-foreground">
+            Total pendente: <span className="font-semibold text-destructive">{formatCurrency(totalPending)}</span>
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         {filteredPayments.length === 0 ? (

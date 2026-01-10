@@ -92,8 +92,8 @@ export function ExtraCostsPaymentsControl({
       <CardHeader className="pb-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <CardTitle className="text-lg flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Custos Extras dos Projetos
+            <Package className="h-5 w-5 text-warning" />
+            Custos Extras
           </CardTitle>
           <div className="flex flex-wrap items-center gap-2">
             <PaymentFilters
