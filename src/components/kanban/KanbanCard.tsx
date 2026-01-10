@@ -81,7 +81,8 @@ export function KanbanCard({ project, onClick }: KanbanCardProps) {
         isDragging && 'dragging opacity-60 z-50 scale-105 shadow-2xl shadow-primary/20',
         priorityInfo.border,
         isOverdue && 'border-destructive/40 bg-destructive/5',
-        isUrgentDeadline && !isOverdue && 'border-warning/40 bg-warning/5'
+        isUrgentDeadline && !isOverdue && 'border-warning/40 bg-warning/5',
+        (project.priority === 'urgente' || project.priority === 'alta') && 'animate-[pulse_3s_ease-in-out_infinite] ring-1 ring-warning/30'
       )}
       onClick={onClick}
     >
