@@ -17,7 +17,7 @@ import {
   parseISO,
 } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Camera, Film, Video, Calendar as CalendarIcon, Clock, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Camera, Film, Video, Calendar as CalendarIcon, Clock, ExternalLink, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,6 +32,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useProjects, ProjectWithClient } from '@/hooks/useProjects';
 import { useCalendarEvents } from '@/hooks/useCalendarEvents';
 import { ProjectDetailsModal } from '@/components/projects/ProjectDetailsModal';
+import { CreateEventModal } from '@/components/calendar/CreateEventModal';
 import { cn } from '@/lib/utils';
 
 const typeIcons: Record<string, any> = {
@@ -55,12 +56,15 @@ interface CalendarItem {
 
 export default function Calendario() {
   const { projects, refresh } = useProjects();
-  const { events } = useCalendarEvents();
+  const { events, createEvent, refresh: refreshEvents } = useCalendarEvents();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedProject, setSelectedProject] = useState<ProjectWithClient | null>(null);
   const [showProjectDetails, setShowProjectDetails] = useState(false);
+  const [showCreateEvent, setShowCreateEvent] = useState(false);
+  const [newEventDate, setNewEventDate] = useState<Date | undefined>();
+  const [newEventHour, setNewEventHour] = useState<number | undefined>();
 
   // Build calendar items from projects and events
   const calendarItems = useMemo(() => {
@@ -194,6 +198,32 @@ export default function Calendario() {
     }
   };
 
+  // Handle empty slot click to create new event
+  const handleSlotClick = (date: Date, hour?: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setNewEventDate(date);
+    setNewEventHour(hour);
+    setShowCreateEvent(true);
+  };
+
+  // Handle event creation
+  const handleCreateEvent = async (eventData: {
+    title: string;
+    description?: string;
+    start_at: string;
+    end_at?: string;
+    all_day: boolean;
+    location?: string;
+    event_type: string;
+    video_call_url?: string;
+  }) => {
+    const result = await createEvent(eventData);
+    if (result) {
+      refreshEvents();
+    }
+    return result;
+  };
+
   // Navigation handlers based on view mode
   const handlePrev = () => {
     if (viewMode === 'month') {
@@ -251,6 +281,10 @@ export default function Calendario() {
           </Button>
           <Button variant="outline" size="icon" onClick={handleNext}>
             <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button onClick={() => handleSlotClick(currentDate)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Novo Evento
           </Button>
         </div>
       </div>
@@ -401,15 +435,21 @@ export default function Calendario() {
                     return (
                       <div 
                         key={dayIndex} 
+                        onClick={(e) => handleSlotClick(day, hour, e)}
                         className={cn(
-                          "p-1 border-r border-border last:border-r-0 space-y-1",
-                          isToday && "bg-primary/5"
+                          "p-1 border-r border-border last:border-r-0 space-y-1 cursor-pointer hover:bg-muted/50 transition-colors min-h-[60px]",
+                          isToday && "bg-primary/5 hover:bg-primary/10"
                         )}
                       >
+                        {dayItems.length === 0 && (
+                          <div className="w-full h-full flex items-center justify-center opacity-0 hover:opacity-50 transition-opacity">
+                            <Plus className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
                         {dayItems.map(item => (
                           <div
                             key={item.id}
-                            onClick={() => handleItemClick(item)}
+                            onClick={(e) => { e.stopPropagation(); handleItemClick(item); }}
                             className={cn(
                               'text-xs px-1.5 py-1 rounded truncate cursor-pointer hover:opacity-80 transition-opacity',
                               getTypeColor(item.type)
@@ -458,7 +498,14 @@ export default function Calendario() {
                 });
 
                 return (
-                  <div key={hour} className="flex border-b border-border min-h-[80px]">
+                  <div 
+                    key={hour} 
+                    onClick={(e) => dayItems.length === 0 ? handleSlotClick(currentDate, hour, e) : undefined}
+                    className={cn(
+                      "flex border-b border-border min-h-[80px]",
+                      dayItems.length === 0 && "cursor-pointer hover:bg-muted/30 transition-colors"
+                    )}
+                  >
                     <div className="w-20 p-3 text-sm text-muted-foreground border-r border-border flex-shrink-0">
                       {hour.toString().padStart(2, '0')}:00
                     </div>
@@ -525,6 +572,22 @@ export default function Calendario() {
               {selectedDate && format(selectedDate, "EEEE, d 'de' MMMM", { locale: pt })}
             </DialogTitle>
           </DialogHeader>
+          
+          {/* Add Event Button */}
+          <Button 
+            variant="outline" 
+            className="w-full gap-2"
+            onClick={() => {
+              if (selectedDate) {
+                handleSlotClick(selectedDate);
+                setSelectedDate(null);
+              }
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            Adicionar Evento
+          </Button>
+          
           <ScrollArea className="max-h-[60vh]">
             {selectedDateItems.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
@@ -612,6 +675,15 @@ export default function Calendario() {
           }}
         />
       )}
+
+      {/* Create Event Modal */}
+      <CreateEventModal
+        open={showCreateEvent}
+        onOpenChange={setShowCreateEvent}
+        onSubmit={handleCreateEvent}
+        initialDate={newEventDate}
+        initialHour={newEventHour}
+      />
     </div>
   );
 }
