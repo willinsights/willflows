@@ -26,8 +26,10 @@ import { cn } from '@/lib/utils';
 import { ProductTour } from '@/components/tour/ProductTour';
 import { TrialBanner } from '@/components/dashboard/TrialBanner';
 import { useProductTour } from '@/hooks/useProductTour';
-import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
+import { useDashboardMetrics, UrgentProject } from '@/hooks/useDashboardMetrics';
 import { useNavigate } from 'react-router-dom';
+import { ProjectDetailsModal } from '@/components/projects/ProjectDetailsModal';
+import type { ProjectWithClient } from '@/hooks/useKanban';
 import {
   AreaChart,
   Area,
@@ -45,7 +47,57 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
   const { showTour, completeTour, skipTour } = useProductTour();
-  const { metrics, urgentProjects, recentActivity, monthlyData, loading } = useDashboardMetrics();
+  const { metrics, urgentProjects, recentActivity, monthlyData, loading, refresh } = useDashboardMetrics();
+  
+  // State for project details modal
+  const [selectedProject, setSelectedProject] = useState<ProjectWithClient | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleProjectClick = (project: UrgentProject) => {
+    // Convert UrgentProject to minimal ProjectWithClient for modal
+    const projectForModal: ProjectWithClient = {
+      id: project.id,
+      name: project.name,
+      type: project.type as 'fotografia' | 'video' | 'foto_video',
+      priority: project.priority as 'baixa' | 'media' | 'alta' | 'urgente',
+      current_phase: 'captacao',
+      is_delivered: false,
+      workspace_id: currentWorkspace?.id || '',
+      created_at: '',
+      updated_at: '',
+      category: 'outro',
+      clients: { name: project.client },
+      delivery_date: project.date || null,
+      agreed_value: null,
+      custo_captacao: null,
+      custo_edicao: null,
+      client_id: null,
+      shoot_date: null,
+      shoot_start_time: null,
+      shoot_end_time: null,
+      address: null,
+      city: null,
+      country: null,
+      region: null,
+      captacao_column_id: null,
+      edicao_column_id: null,
+      notes: null,
+      internal_notes: null,
+      drive_folder_url: null,
+      dropbox_folder_url: null,
+      frameio_project_id: null,
+      google_meet_url: null,
+      estimated_costs: null,
+      payment_method: null,
+      delivered_at: null,
+      created_by: null,
+      custom_category_id: null,
+      project_code: null,
+      item_type: null,
+    };
+    setSelectedProject(projectForModal);
+    setIsModalOpen(true);
+  };
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -203,7 +255,7 @@ export default function Dashboard() {
                   <span className="text-lg font-bold text-success">{formatCurrency(metrics.receita)}</span>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground mt-2">Receita</p>
+              <p className="text-xs text-muted-foreground mt-2">Receita (mês)</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -226,7 +278,7 @@ export default function Dashboard() {
                   <span className="text-lg font-bold text-destructive">{formatCurrency(metrics.custos)}</span>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground mt-2">Custos</p>
+              <p className="text-xs text-muted-foreground mt-2">Custos (mês)</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -379,7 +431,7 @@ export default function Dashboard() {
                 variant="ghost" 
                 size="sm" 
                 className="text-primary h-7 text-xs px-2" 
-                onClick={() => navigate('/app/captacao')}
+                onClick={() => navigate('/app/projetos?filter=urgentes')}
               >
                 Ver todos
                 <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -405,7 +457,7 @@ export default function Dashboard() {
                         <div
                           key={project.id}
                           className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-all cursor-pointer group border border-transparent hover:border-primary/10"
-                          onClick={() => navigate('/app/captacao')}
+                          onClick={() => handleProjectClick(project)}
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary/10 shrink-0 group-hover:bg-primary/15 transition-colors">
@@ -531,6 +583,14 @@ export default function Dashboard() {
           </motion.div>
         </div>
       </div>
+
+      {/* Project Details Modal */}
+      <ProjectDetailsModal
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+        project={selectedProject}
+        onUpdate={refresh}
+      />
     </div>
   );
 }

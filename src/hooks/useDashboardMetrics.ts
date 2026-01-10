@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { startOfMonth, subMonths, format } from 'date-fns';
+import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
 export interface DashboardMetrics {
@@ -67,6 +67,11 @@ export function useDashboardMetrics() {
     try {
       isFetchingRef.current = true;
       
+      // Current month boundaries
+      const now = new Date();
+      const currentMonthStart = startOfMonth(now);
+      const currentMonthEnd = endOfMonth(now);
+      
       // Fetch projects count by phase
       const { data: projectsData } = await supabase
         .from('projects')
@@ -75,11 +80,22 @@ export function useDashboardMetrics() {
 
       const captacao = projectsData?.filter(p => p.current_phase === 'captacao' && !p.is_delivered).length || 0;
       const edicao = projectsData?.filter(p => p.current_phase === 'edicao' && !p.is_delivered).length || 0;
-      const entregues = projectsData?.filter(p => p.is_delivered).length || 0;
+      
+      // Count delivered projects for current month
+      const entregues = projectsData?.filter(p => {
+        if (!p.is_delivered || !p.delivered_at) return false;
+        const deliveredAt = new Date(p.delivered_at);
+        return deliveredAt >= currentMonthStart && deliveredAt <= currentMonthEnd;
+      }).length || 0;
 
-      // Calculate financial metrics
-      const receita = projectsData?.reduce((sum, p) => sum + (p.agreed_value || 0), 0) || 0;
-      const custos = projectsData?.reduce((sum, p) => sum + (p.custo_captacao || 0) + (p.custo_edicao || 0), 0) || 0;
+      // Calculate financial metrics for CURRENT MONTH only
+      const currentMonthProjects = projectsData?.filter(p => {
+        const createdAt = new Date(p.created_at);
+        return createdAt >= currentMonthStart && createdAt <= currentMonthEnd;
+      }) || [];
+      
+      const receita = currentMonthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
+      const custos = currentMonthProjects.reduce((sum, p) => sum + (p.custo_captacao || 0) + (p.custo_edicao || 0), 0);
       const lucro = receita - custos;
 
       // Fetch pending payments
@@ -106,7 +122,6 @@ export function useDashboardMetrics() {
 
       // Calculate monthly data for chart (last 6 months)
       const monthlyStats: MonthlyData[] = [];
-      const now = new Date();
       
       for (let i = 5; i >= 0; i--) {
         const monthDate = subMonths(now, i);

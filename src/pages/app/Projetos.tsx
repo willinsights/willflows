@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Filter, LayoutGrid, List, Camera, Film, Video, Calendar } from 'lucide-react';
+import { Plus, Search, Filter, LayoutGrid, List, Camera, Film, Video, Calendar, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -47,6 +48,7 @@ const phaseLabels: Record<string, string> = {
 };
 
 export default function Projetos() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { projects, loading } = useProjects();
   const { clients } = useClients();
   const { currentWorkspace } = useWorkspace();
@@ -54,9 +56,24 @@ export default function Projetos() {
   const [filterType, setFilterType] = useState<string>('all');
   const [filterPhase, setFilterPhase] = useState<string>('all');
   const [filterClient, setFilterClient] = useState<string>('all');
+  const [filterPriority, setFilterPriority] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+
+  // Handle URL filter param
+  useEffect(() => {
+    const filterParam = searchParams.get('filter');
+    if (filterParam === 'urgentes') {
+      setFilterPriority('urgentes');
+    }
+  }, [searchParams]);
+
+  const clearUrgentFilter = () => {
+    setFilterPriority('all');
+    searchParams.delete('filter');
+    setSearchParams(searchParams);
+  };
 
   const currency = currentWorkspace?.currency || 'EUR';
 
@@ -93,11 +110,17 @@ export default function Projetos() {
       // Client filter
       if (filterClient !== 'all' && project.client_id !== filterClient) return false;
 
+      // Priority filter (urgentes = alta + urgente)
+      if (filterPriority === 'urgentes') {
+        if (project.priority !== 'alta' && project.priority !== 'urgente') return false;
+      }
+
       return true;
     });
-  }, [projects, searchQuery, filterType, filterPhase, filterClient]);
+  }, [projects, searchQuery, filterType, filterPhase, filterClient, filterPriority]);
 
   const selectedProject = selectedProjectId ? projects.find(p => p.id === selectedProjectId) : null;
+  const isUrgentFilter = filterPriority === 'urgentes';
 
   if (loading) {
     return (
@@ -109,11 +132,26 @@ export default function Projetos() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Urgent Filter Banner */}
+      {isUrgentFilter && (
+        <div className="flex items-center justify-between p-3 rounded-lg bg-warning/10 border border-warning/20">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-warning" />
+            <span className="text-sm font-medium">A mostrar apenas projetos urgentes (alta e urgente)</span>
+          </div>
+          <Button variant="ghost" size="sm" onClick={clearUrgentFilter}>
+            Limpar filtro
+          </Button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Projetos</h1>
-          <p className="text-muted-foreground">Todos os projetos ativos do workspace</p>
+          <h1 className="text-2xl font-bold">{isUrgentFilter ? 'Projetos Urgentes' : 'Projetos'}</h1>
+          <p className="text-muted-foreground">
+            {isUrgentFilter ? 'Projetos com prioridade alta ou urgente' : 'Todos os projetos ativos do workspace'}
+          </p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:flex-initial">
@@ -189,7 +227,7 @@ export default function Projetos() {
           </SelectContent>
         </Select>
 
-        {(filterType !== 'all' || filterPhase !== 'all' || filterClient !== 'all') && (
+        {(filterType !== 'all' || filterPhase !== 'all' || filterClient !== 'all' || filterPriority !== 'all') && (
           <Button
             variant="ghost"
             size="sm"
@@ -197,6 +235,7 @@ export default function Projetos() {
               setFilterType('all');
               setFilterPhase('all');
               setFilterClient('all');
+              clearUrgentFilter();
             }}
           >
             Limpar filtros
