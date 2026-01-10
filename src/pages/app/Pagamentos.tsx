@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, isWithinInterval } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -16,6 +16,8 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
+  Users,
+  Package,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,6 +42,8 @@ import {
 import { usePayments } from '@/hooks/usePayments';
 import { useProjects } from '@/hooks/useProjects';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 const statusLabels: Record<string, string> = {
@@ -56,15 +60,36 @@ const statusColors: Record<string, string> = {
   cancelado: 'bg-muted text-muted-foreground',
 };
 
+interface ProjectTeamPayment {
+  id: string;
+  project_id: string;
+  user_id: string;
+  phase: 'captacao' | 'edicao';
+  payment_amount: number | null;
+  payment_status: string;
+}
+
+interface ProjectCustoExtra {
+  id: string;
+  name: string;
+  custos_extras: number | null;
+  custos_extras_payment_status: string | null;
+}
+
 export default function Pagamentos() {
   const { payments, loading, summaries } = usePayments();
   const { projects } = useProjects();
   const { currentWorkspace } = useWorkspace();
+  const { members } = useWorkspaceMembers();
   const [activeTab, setActiveTab] = useState('previsao');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  
+  // Data for collaborator and extra costs
+  const [teamPayments, setTeamPayments] = useState<ProjectTeamPayment[]>([]);
+  const [projectCosts, setProjectCosts] = useState<ProjectCustoExtra[]>([]);
 
   const currency = currentWorkspace?.currency || 'EUR';
 
@@ -73,6 +98,46 @@ export default function Pagamentos() {
       style: 'currency',
       currency,
     }).format(value);
+  };
+
+  // Fetch collaborator payments and project extra costs
+  useEffect(() => {
+    const fetchAdditionalData = async () => {
+      if (!currentWorkspace?.id) return;
+      
+      // Fetch team payments that are not paid
+      const { data: teamData } = await supabase
+        .from('project_team')
+        .select('id, project_id, user_id, phase, payment_amount, payment_status')
+        .in('payment_status', ['pendente', 'vencido']);
+      
+      if (teamData) {
+        // Filter to only workspace projects
+        const projectIds = projects.map(p => p.id);
+        const filteredTeamData = teamData.filter(t => projectIds.includes(t.project_id));
+        setTeamPayments(filteredTeamData as ProjectTeamPayment[]);
+      }
+      
+      // Fetch projects with pending extra costs
+      const { data: costsData } = await supabase
+        .from('projects')
+        .select('id, name, custos_extras, custos_extras_payment_status')
+        .eq('workspace_id', currentWorkspace.id)
+        .gt('custos_extras', 0)
+        .in('custos_extras_payment_status', ['pendente', 'vencido', null]);
+      
+      if (costsData) {
+        setProjectCosts(costsData as ProjectCustoExtra[]);
+      }
+    };
+    
+    fetchAdditionalData();
+  }, [currentWorkspace?.id, projects]);
+
+  // Get member name
+  const getMemberName = (userId: string) => {
+    const member = members.find(m => m.user_id === userId);
+    return member?.full_name || 'Colaborador';
   };
 
   // Filter payments for the current month view
@@ -87,12 +152,55 @@ export default function Pagamentos() {
     });
   }, [payments, currentMonth]);
 
-  // Calculate monthly forecasts
+  // Calculate monthly forecasts including collaborators and extra costs
   const monthlyForecast = useMemo(() => {
     const receivable = monthPayments.filter(p => p.is_receivable && p.status !== 'pago').reduce((sum, p) => sum + p.amount, 0);
     const payable = monthPayments.filter(p => !p.is_receivable && p.status !== 'pago').reduce((sum, p) => sum + p.amount, 0);
-    return { receivable, payable, net: receivable - payable };
-  }, [monthPayments]);
+    
+    // Team payments by phase
+    const teamCaptacao = teamPayments
+      .filter(tp => tp.phase === 'captacao' && tp.payment_status !== 'pago')
+      .reduce((sum, tp) => sum + (tp.payment_amount || 0), 0);
+    
+    const teamEdicao = teamPayments
+      .filter(tp => tp.phase === 'edicao' && tp.payment_status !== 'pago')
+      .reduce((sum, tp) => sum + (tp.payment_amount || 0), 0);
+    
+    const teamTotal = teamCaptacao + teamEdicao;
+    
+    // Extra costs
+    const custosExtras = projectCosts
+      .filter(p => p.custos_extras_payment_status !== 'pago')
+      .reduce((sum, p) => sum + (p.custos_extras || 0), 0);
+    
+    const totalPayable = payable + teamTotal + custosExtras;
+    
+    return { 
+      receivable, 
+      payable, 
+      teamTotal,
+      teamCaptacao,
+      teamEdicao,
+      custosExtras,
+      totalPayable,
+      net: receivable - totalPayable 
+    };
+  }, [monthPayments, teamPayments, projectCosts]);
+
+  // Calculate total payable including team and extra costs for summary
+  const totalPayableWithExtras = useMemo(() => {
+    const basePayable = summaries.totalPayable;
+    
+    const teamTotal = teamPayments
+      .filter(tp => tp.payment_status !== 'pago')
+      .reduce((sum, tp) => sum + (tp.payment_amount || 0), 0);
+    
+    const custosExtras = projectCosts
+      .filter(p => p.custos_extras_payment_status !== 'pago')
+      .reduce((sum, p) => sum + (p.custos_extras || 0), 0);
+    
+    return basePayable + teamTotal + custosExtras;
+  }, [summaries.totalPayable, teamPayments, projectCosts]);
 
   // Filtered payments
   const filteredPayments = useMemo(() => {
@@ -150,15 +258,17 @@ export default function Pagamentos() {
               <span className="text-2xl font-bold text-success">{formatCurrency(summaries.totalReceivable)}</span>
             </div>
             <p className="text-sm text-muted-foreground mt-1">A Receber</p>
+            <p className="text-xs text-muted-foreground/70">Total pendente</p>
           </CardContent>
         </Card>
         <Card className="glass-card">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <TrendingDown className="h-5 w-5 text-destructive" />
-              <span className="text-2xl font-bold text-destructive">{formatCurrency(summaries.totalPayable)}</span>
+              <span className="text-2xl font-bold text-destructive">{formatCurrency(totalPayableWithExtras)}</span>
             </div>
             <p className="text-sm text-muted-foreground mt-1">A Pagar</p>
+            <p className="text-xs text-muted-foreground/70">Colaboradores + Custos</p>
           </CardContent>
         </Card>
         <Card className="glass-card">
@@ -168,6 +278,7 @@ export default function Pagamentos() {
               <span className="text-2xl font-bold">{formatCurrency(summaries.totalReceived)}</span>
             </div>
             <p className="text-sm text-muted-foreground mt-1">Recebido</p>
+            <p className="text-xs text-muted-foreground/70">Total recebido</p>
           </CardContent>
         </Card>
         <Card className="glass-card">
@@ -177,6 +288,7 @@ export default function Pagamentos() {
               <span className="text-2xl font-bold">{summaries.overdue}</span>
             </div>
             <p className="text-sm text-muted-foreground mt-1">Vencidos</p>
+            <p className="text-xs text-muted-foreground/70">Pagamentos atrasados</p>
           </CardContent>
         </Card>
       </div>
@@ -210,12 +322,14 @@ export default function Pagamentos() {
               <CardContent className="p-6 text-center">
                 <p className="text-sm text-muted-foreground mb-2">Previsão de Entrada</p>
                 <p className="text-3xl font-bold text-success">{formatCurrency(monthlyForecast.receivable)}</p>
+                <p className="text-xs text-muted-foreground/70 mt-1">Pagamentos de clientes</p>
               </CardContent>
             </Card>
             <Card className="glass-card border-destructive/20">
               <CardContent className="p-6 text-center">
                 <p className="text-sm text-muted-foreground mb-2">Previsão de Saída</p>
-                <p className="text-3xl font-bold text-destructive">{formatCurrency(monthlyForecast.payable)}</p>
+                <p className="text-3xl font-bold text-destructive">{formatCurrency(monthlyForecast.totalPayable)}</p>
+                <p className="text-xs text-muted-foreground/70 mt-1">Colaboradores + Custos</p>
               </CardContent>
             </Card>
             <Card className="glass-card border-primary/20">
@@ -227,6 +341,64 @@ export default function Pagamentos() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Breakdown of Payable */}
+          {(monthlyForecast.teamTotal > 0 || monthlyForecast.custosExtras > 0) && (
+            <Card className="glass-card">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <TrendingDown className="h-5 w-5 text-destructive" />
+                  Detalhes de Saídas Previstas
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Collaborator Payments */}
+                {monthlyForecast.teamTotal > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">A Pagar Colaboradores</span>
+                      </div>
+                      <span className="font-bold text-destructive">{formatCurrency(monthlyForecast.teamTotal)}</span>
+                    </div>
+                    <div className="ml-6 space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Captação</span>
+                        <span>{formatCurrency(monthlyForecast.teamCaptacao)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Edição</span>
+                        <span>{formatCurrency(monthlyForecast.teamEdicao)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Extra Costs */}
+                {monthlyForecast.custosExtras > 0 && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Package className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">Custos Extras</span>
+                    </div>
+                    <span className="font-bold text-destructive">{formatCurrency(monthlyForecast.custosExtras)}</span>
+                  </div>
+                )}
+                
+                {/* Other payments */}
+                {monthlyForecast.payable > 0 && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">Outros Pagamentos</span>
+                    </div>
+                    <span className="font-bold text-destructive">{formatCurrency(monthlyForecast.payable)}</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Month Payments */}
           <Card className="glass-card">
