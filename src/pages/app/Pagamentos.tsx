@@ -193,6 +193,19 @@ export default function Pagamentos() {
     }));
   }, [monthPayments, formatCurrency]);
 
+  // Forecast summary for export
+  const forecastSummary = useMemo(() => ({
+    receivable: formatCurrency(monthlyForecast.receivable),
+    totalPayable: formatCurrency(monthlyForecast.totalPayable),
+    net: formatCurrency(monthlyForecast.net),
+    teamTotal: formatCurrency(monthlyForecast.teamTotal),
+    teamCaptacao: formatCurrency(monthlyForecast.teamCaptacao),
+    teamEdicao: formatCurrency(monthlyForecast.teamEdicao),
+    custosExtras: formatCurrency(monthlyForecast.custosExtras),
+    payable: formatCurrency(monthlyForecast.payable),
+    month: format(currentMonth, 'MMMM yyyy', { locale: pt }),
+  }), [monthlyForecast, currentMonth, formatCurrency]);
+
   // Handle client payment status change
   const handleClientStatusChange = async (paymentId: string, newStatus: string) => {
     await updatePaymentStatus(paymentId, newStatus);
@@ -306,7 +319,8 @@ export default function Pagamentos() {
             <PaymentExportButtons
               data={previsaoExportData}
               filename={`previsao-${format(currentMonth, 'yyyy-MM')}`}
-              type="clients"
+              type="previsao"
+              forecastSummary={forecastSummary}
             />
           </div>
 
