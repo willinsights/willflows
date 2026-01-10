@@ -44,6 +44,7 @@ interface PaymentFiltersProps {
   showClientFilter?: boolean;
   showMemberFilter?: boolean;
   showStatusFilter?: boolean;
+  showDateFilter?: boolean;
 }
 
 export function PaymentFilters({
@@ -54,6 +55,7 @@ export function PaymentFilters({
   showClientFilter = false,
   showMemberFilter = false,
   showStatusFilter = true,
+  showDateFilter = true,
 }: PaymentFiltersProps) {
   const hasActiveFilters = filters.dateFrom || filters.dateTo || filters.clientId || filters.memberId || filters.status;
 
@@ -70,62 +72,66 @@ export function PaymentFilters({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {/* Date From */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className={cn(
-              'justify-start text-left font-normal',
-              !filters.dateFrom && 'text-muted-foreground'
-            )}
-          >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {filters.dateFrom ? (
-              format(filters.dateFrom, 'dd/MM/yyyy', { locale: pt })
-            ) : (
-              'Data início'
-            )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            mode="single"
-            selected={filters.dateFrom || undefined}
-            onSelect={(date) => onFilterChange({ ...filters, dateFrom: date || null })}
-            locale={pt}
-          />
-        </PopoverContent>
-      </Popover>
+      {showDateFilter && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                'justify-start text-left font-normal',
+                !filters.dateFrom && 'text-muted-foreground'
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {filters.dateFrom ? (
+                format(filters.dateFrom, 'dd/MM/yyyy', { locale: pt })
+              ) : (
+                'Data início'
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={filters.dateFrom || undefined}
+              onSelect={(date) => onFilterChange({ ...filters, dateFrom: date || null })}
+              locale={pt}
+            />
+          </PopoverContent>
+        </Popover>
+      )}
 
       {/* Date To */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className={cn(
-              'justify-start text-left font-normal',
-              !filters.dateTo && 'text-muted-foreground'
-            )}
-          >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {filters.dateTo ? (
-              format(filters.dateTo, 'dd/MM/yyyy', { locale: pt })
-            ) : (
-              'Data fim'
-            )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            mode="single"
-            selected={filters.dateTo || undefined}
-            onSelect={(date) => onFilterChange({ ...filters, dateTo: date || null })}
-            locale={pt}
-          />
-        </PopoverContent>
-      </Popover>
+      {showDateFilter && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                'justify-start text-left font-normal',
+                !filters.dateTo && 'text-muted-foreground'
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {filters.dateTo ? (
+                format(filters.dateTo, 'dd/MM/yyyy', { locale: pt })
+              ) : (
+                'Data fim'
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={filters.dateTo || undefined}
+              onSelect={(date) => onFilterChange({ ...filters, dateTo: date || null })}
+              locale={pt}
+            />
+          </PopoverContent>
+        </Popover>
+      )}
 
       {/* Client Filter */}
       {showClientFilter && clients.length > 0 && (

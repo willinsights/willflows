@@ -2,9 +2,9 @@ import { FileSpreadsheet, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
-interface ExportData {
+export interface ExportData {
   projeto: string;
-  contraparte: string;
+  contraparte?: string;
   vencimento?: string;
   status: string;
   valor: string;
@@ -26,7 +26,7 @@ interface ForecastSummary {
 interface PaymentExportButtonsProps {
   data: ExportData[];
   filename: string;
-  type: 'clients' | 'freelancers' | 'invoices' | 'previsao';
+  type: 'clients' | 'freelancers' | 'invoices' | 'previsao' | 'custos';
   forecastSummary?: ForecastSummary;
 }
 
@@ -74,12 +74,16 @@ export function PaymentExportButtons({ data, filename, type, forecastSummary }: 
 
     const headers = type === 'freelancers' 
       ? ['Projeto', 'Colaborador', 'Fase', 'Status', 'Valor']
+      : type === 'custos'
+      ? ['Projeto', 'Status', 'Valor']
       : ['Projeto', 'Cliente', 'Vencimento', 'Status', 'Valor'];
     
     const rows = data.map(item => 
       type === 'freelancers'
-        ? [item.projeto, item.contraparte, item.fase || '', item.status, item.valor]
-        : [item.projeto, item.contraparte, item.vencimento || '', item.status, item.valor]
+        ? [item.projeto, item.contraparte || '', item.fase || '', item.status, item.valor]
+        : type === 'custos'
+        ? [item.projeto, item.status, item.valor]
+        : [item.projeto, item.contraparte || '', item.vencimento || '', item.status, item.valor]
     );
 
     csvContent += [
@@ -115,21 +119,30 @@ export function PaymentExportButtons({ data, filename, type, forecastSummary }: 
 
     const headers = type === 'freelancers' 
       ? ['Projeto', 'Colaborador', 'Fase', 'Status', 'Valor']
+      : type === 'custos'
+      ? ['Projeto', 'Status', 'Valor']
       : ['Projeto', 'Cliente', 'Vencimento', 'Status', 'Valor'];
 
     const tableRows = data.map(item => {
       if (type === 'freelancers') {
         return `<tr>
           <td>${item.projeto}</td>
-          <td>${item.contraparte}</td>
+          <td>${item.contraparte || '-'}</td>
           <td>${item.fase || '-'}</td>
+          <td>${item.status}</td>
+          <td style="text-align: right">${item.valor}</td>
+        </tr>`;
+      }
+      if (type === 'custos') {
+        return `<tr>
+          <td>${item.projeto}</td>
           <td>${item.status}</td>
           <td style="text-align: right">${item.valor}</td>
         </tr>`;
       }
       return `<tr>
         <td>${item.projeto}</td>
-        <td>${item.contraparte}</td>
+        <td>${item.contraparte || '-'}</td>
         <td>${item.vencimento || '-'}</td>
         <td>${item.status}</td>
         <td style="text-align: right">${item.valor}</td>

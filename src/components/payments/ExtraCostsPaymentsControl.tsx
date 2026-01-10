@@ -1,0 +1,163 @@
+import { useState, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Package } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { PaymentFilters, type FilterState } from './PaymentFilters';
+import { PaymentExportButtons } from './PaymentExportButtons';
+
+const statusLabels: Record<string, string> = {
+  pendente: 'Pendente',
+  pago: 'Pago',
+  vencido: 'Vencido',
+  cancelado: 'Cancelado',
+};
+
+const statusColors: Record<string, string> = {
+  pendente: 'bg-warning/10 text-warning border-warning/20',
+  pago: 'bg-success/10 text-success border-success/20',
+  vencido: 'bg-destructive/10 text-destructive border-destructive/20',
+  cancelado: 'bg-muted text-muted-foreground',
+};
+
+export interface ProjectCustoExtra {
+  id: string;
+  name: string;
+  custos_extras: number | null;
+  custos_extras_payment_status: string | null;
+}
+
+interface ExtraCostsPaymentsControlProps {
+  projectCosts: ProjectCustoExtra[];
+  onStatusChange: (projectId: string, newStatus: string) => Promise<void>;
+  formatCurrency: (value: number) => string;
+}
+
+export function ExtraCostsPaymentsControl({
+  projectCosts,
+  onStatusChange,
+  formatCurrency,
+}: ExtraCostsPaymentsControlProps) {
+  const [filters, setFilters] = useState<FilterState>({
+    dateFrom: null,
+    dateTo: null,
+    clientId: null,
+    memberId: null,
+    status: null,
+  });
+
+  const filteredCosts = useMemo(() => {
+    return projectCosts.filter(cost => {
+      // Filter by status
+      if (filters.status && (cost.custos_extras_payment_status || 'pendente') !== filters.status) {
+        return false;
+      }
+      return true;
+    });
+  }, [projectCosts, filters]);
+
+  const exportData = useMemo(() => {
+    return filteredCosts.map(cost => ({
+      projeto: cost.name,
+      status: statusLabels[cost.custos_extras_payment_status || 'pendente'] || 'Pendente',
+      valor: formatCurrency(cost.custos_extras || 0),
+    }));
+  }, [filteredCosts, formatCurrency]);
+
+  const totalPending = useMemo(() => {
+    return filteredCosts
+      .filter(c => (c.custos_extras_payment_status || 'pendente') !== 'pago')
+      .reduce((sum, c) => sum + (c.custos_extras || 0), 0);
+  }, [filteredCosts]);
+
+  return (
+    <Card className="glass-card">
+      <CardHeader className="pb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Package className="h-5 w-5" />
+            Custos Extras dos Projetos
+          </CardTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            <PaymentFilters
+              filters={filters}
+              onFilterChange={setFilters}
+              showClientFilter={false}
+              showMemberFilter={false}
+              showStatusFilter={true}
+              showDateFilter={false}
+            />
+            <PaymentExportButtons
+              data={exportData}
+              filename="custos-extras"
+              type="custos"
+            />
+          </div>
+        </div>
+        {totalPending > 0 && (
+          <div className="mt-2 text-sm text-muted-foreground">
+            Total pendente: <span className="font-semibold text-destructive">{formatCurrency(totalPending)}</span>
+          </div>
+        )}
+      </CardHeader>
+      <CardContent>
+        {filteredCosts.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8">
+            Nenhum custo extra encontrado
+          </p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Projeto</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredCosts.map((cost) => (
+                <TableRow key={cost.id}>
+                  <TableCell className="font-medium">{cost.name}</TableCell>
+                  <TableCell>
+                    <Select
+                      value={cost.custos_extras_payment_status || 'pendente'}
+                      onValueChange={(value) => onStatusChange(cost.id, value)}
+                    >
+                      <SelectTrigger className={cn('w-[130px]', statusColors[cost.custos_extras_payment_status || 'pendente'])}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pendente">Pendente</SelectItem>
+                        <SelectItem value="pago">Pago</SelectItem>
+                        <SelectItem value="vencido">Vencido</SelectItem>
+                        <SelectItem value="cancelado">Cancelado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell className="text-right font-medium text-destructive">
+                    {formatCurrency(cost.custos_extras || 0)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

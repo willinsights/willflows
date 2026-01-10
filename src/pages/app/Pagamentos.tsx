@@ -30,6 +30,8 @@ import { cn } from '@/lib/utils';
 import { ClientPaymentsControl } from '@/components/payments/ClientPaymentsControl';
 import { FreelancerPaymentsControl, type ProjectTeamPayment } from '@/components/payments/FreelancerPaymentsControl';
 import { PaymentExportButtons } from '@/components/payments/PaymentExportButtons';
+import { ExtraCostsPaymentsControl, type ProjectCustoExtra } from '@/components/payments/ExtraCostsPaymentsControl';
+import { useQueryClient } from '@tanstack/react-query';
 
 const statusLabels: Record<string, string> = {
   pendente: 'Pendente',
@@ -45,12 +47,6 @@ const statusColors: Record<string, string> = {
   cancelado: 'bg-muted text-muted-foreground',
 };
 
-interface ProjectCustoExtra {
-  id: string;
-  name: string;
-  custos_extras: number | null;
-  custos_extras_payment_status: string | null;
-}
 
 export default function Pagamentos() {
   const { payments, loading, summaries, updatePaymentStatus } = usePayments();
@@ -59,12 +55,16 @@ export default function Pagamentos() {
   const { clients } = useClients();
   const { currentWorkspace } = useWorkspace();
   const { members } = useWorkspaceMembers();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('previsao');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   
   // Data for extra costs
   const [projectCosts, setProjectCosts] = useState<ProjectCustoExtra[]>([]);
+  
+  // Fetch all project costs (not just pending)
+  const [allProjectCosts, setAllProjectCosts] = useState<ProjectCustoExtra[]>([]);
 
   const currency = currentWorkspace?.currency || 'EUR';
 
@@ -80,7 +80,7 @@ export default function Pagamentos() {
     const fetchAdditionalData = async () => {
       if (!currentWorkspace?.id) return;
       
-      // Fetch projects with pending extra costs
+      // Fetch projects with pending extra costs (for summaries)
       const { data: costsData } = await supabase
         .from('projects')
         .select('id, name, custos_extras, custos_extras_payment_status')
@@ -90,6 +90,17 @@ export default function Pagamentos() {
       
       if (costsData) {
         setProjectCosts(costsData as ProjectCustoExtra[]);
+      }
+      
+      // Fetch ALL projects with extra costs (for the tab)
+      const { data: allCostsData } = await supabase
+        .from('projects')
+        .select('id, name, custos_extras, custos_extras_payment_status')
+        .eq('workspace_id', currentWorkspace.id)
+        .gt('custos_extras', 0);
+      
+      if (allCostsData) {
+        setAllProjectCosts(allCostsData as ProjectCustoExtra[]);
       }
     };
     
@@ -216,6 +227,32 @@ export default function Pagamentos() {
     await updateTeamPaymentStatus(teamId, newStatus);
   };
 
+  // Handle extra costs status change
+  const handleCostStatusChange = async (projectId: string, newStatus: string) => {
+    await supabase
+      .from('projects')
+      .update({ custos_extras_payment_status: newStatus })
+      .eq('id', projectId);
+    
+    // Refresh data
+    const { data: costsData } = await supabase
+      .from('projects')
+      .select('id, name, custos_extras, custos_extras_payment_status')
+      .eq('workspace_id', currentWorkspace?.id)
+      .gt('custos_extras', 0);
+    
+    if (costsData) {
+      setAllProjectCosts(costsData as ProjectCustoExtra[]);
+      setProjectCosts(costsData.filter(c => 
+        c.custos_extras_payment_status === 'pendente' || 
+        c.custos_extras_payment_status === 'vencido' || 
+        c.custos_extras_payment_status === null
+      ) as ProjectCustoExtra[]);
+    }
+    
+    queryClient.invalidateQueries({ queryKey: ['projects'] });
+  };
+
   // Prepare clients list for filters
   const clientsList = useMemo(() => {
     return clients.map(c => ({ id: c.id, name: c.name }));
@@ -295,10 +332,12 @@ export default function Pagamentos() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="previsao">Previsão</TabsTrigger>
-          <TabsTrigger value="pagamentos">Pagamentos</TabsTrigger>
-          <TabsTrigger value="faturas">Exportar Faturas</TabsTrigger>
+          <TabsTrigger value="clientes">Pagamentos Clientes</TabsTrigger>
+          <TabsTrigger value="colaboradores">Pagamentos Colaboradores</TabsTrigger>
+          <TabsTrigger value="custos-extras">Custos Extras</TabsTrigger>
+          <TabsTrigger value="faturas">Export Faturas</TabsTrigger>
         </TabsList>
 
         {/* Previsão Tab */}
@@ -462,20 +501,32 @@ export default function Pagamentos() {
           </Card>
         </TabsContent>
 
-        {/* Pagamentos Tab */}
-        <TabsContent value="pagamentos" className="space-y-6">
+        {/* Pagamentos Clientes Tab */}
+        <TabsContent value="clientes" className="space-y-6">
           <ClientPaymentsControl
             payments={payments}
             clients={clientsList}
             onStatusChange={handleClientStatusChange}
             formatCurrency={formatCurrency}
           />
+        </TabsContent>
 
+        {/* Pagamentos Colaboradores Tab */}
+        <TabsContent value="colaboradores" className="space-y-6">
           <FreelancerPaymentsControl
             teamPayments={typedTeamPayments}
             projects={projectsList}
             members={membersList}
             onStatusChange={handleFreelancerStatusChange}
+            formatCurrency={formatCurrency}
+          />
+        </TabsContent>
+
+        {/* Custos Extras Tab */}
+        <TabsContent value="custos-extras" className="space-y-6">
+          <ExtraCostsPaymentsControl
+            projectCosts={allProjectCosts}
+            onStatusChange={handleCostStatusChange}
             formatCurrency={formatCurrency}
           />
         </TabsContent>
