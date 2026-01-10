@@ -792,17 +792,3 @@
       0 20px 40px -20px hsl(var(--primary) / 0.3);
   }
 }
-
-/* Urgent card glow pulse animation */
-@keyframes urgent-glow {
-  0%, 100% {
-    box-shadow: 0 0 0 0 hsl(var(--warning) / 0.4), var(--glass-shadow);
-  }
-  50% {
-    box-shadow: 0 0 12px 4px hsl(var(--warning) / 0.3), var(--glass-shadow);
-  }
-}
-
-.animate-urgent-pulse {
-  animation: urgent-glow 2s ease-in-out infinite;
-}
