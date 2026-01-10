@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Mail, UserPlus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -15,12 +16,12 @@ import type { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
 
-const roleOptions: { value: AppRole; label: string; description: string }[] = [
-  { value: 'admin', label: 'Admin', description: 'Acesso total ao workspace' },
-  { value: 'editor', label: 'Editor', description: 'Gerir projetos e tarefas' },
-  { value: 'captacao', label: 'Captação', description: 'Apenas fase de captação' },
-  { value: 'freelancer', label: 'Freelancer', description: 'Apenas projetos atribuídos' },
-  { value: 'visualizador', label: 'Visualizador', description: 'Apenas visualização' },
+const roleOptions: { value: AppRole; label: string }[] = [
+  { value: 'admin', label: 'Admin' },
+  { value: 'editor', label: 'Editor' },
+  { value: 'captacao', label: 'Captação' },
+  { value: 'freelancer', label: 'Freelancer' },
+  { value: 'visualizador', label: 'Visualizador' },
 ];
 
 interface InviteMemberFormProps {
@@ -63,34 +64,40 @@ export function InviteMemberForm({ onSuccess }: InviteMemberFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
-      <div className="flex-1 relative">
-        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          type="email"
-          placeholder="email@exemplo.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="pl-9"
-          required
-        />
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <div className="relative">
+          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            id="email"
+            type="email"
+            placeholder="email@exemplo.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="pl-9"
+            required
+          />
+        </div>
       </div>
-      <Select value={role} onValueChange={(v) => setRole(v as AppRole)}>
-        <SelectTrigger className="w-full sm:w-[160px]">
-          <SelectValue placeholder="Selecionar role" />
-        </SelectTrigger>
-        <SelectContent>
-          {roleOptions.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              <div className="flex flex-col">
-                <span>{option.label}</span>
-                <span className="text-xs text-muted-foreground">{option.description}</span>
-              </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Button type="submit" disabled={loading || !email.trim()} className="gradient-primary">
+      
+      <div className="space-y-2">
+        <Label htmlFor="role">Role</Label>
+        <Select value={role} onValueChange={(v) => setRole(v as AppRole)}>
+          <SelectTrigger id="role" className="w-full">
+            <SelectValue placeholder="Selecionar role" />
+          </SelectTrigger>
+          <SelectContent>
+            {roleOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Button type="submit" disabled={loading || !email.trim()} className="w-full gradient-primary">
         {loading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (

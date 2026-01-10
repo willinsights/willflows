@@ -153,22 +153,22 @@ export default function Equipa() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Equipa</h1>
-          <p className="text-muted-foreground">Gerir membros e permissões do workspace</p>
+          <p className="text-sm text-muted-foreground">Gerir membros e permissões do workspace</p>
         </div>
         {isAdmin && (
           <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="gradient-primary">
+              <Button className="gradient-primary w-full sm:w-auto sm:self-start">
                 <UserPlus className="h-4 w-4 mr-2" />
                 Convidar membro
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Convidar novo membro</DialogTitle>
                 <DialogDescription>
@@ -187,7 +187,7 @@ export default function Equipa() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Membros</CardTitle>
@@ -222,17 +222,17 @@ export default function Equipa() {
 
       {/* Members Table */}
       <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col gap-4">
             <div>
-              <CardTitle>Membros</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-lg">Membros</CardTitle>
+              <CardDescription className="text-sm">
                 {filteredMembers.length} membro{filteredMembers.length !== 1 && 's'}
                 {invitations.length > 0 && ` • ${invitations.length} pendente${invitations.length !== 1 ? 's' : ''}`}
               </CardDescription>
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
-              <div className="relative">
+              <div className="relative flex-1 sm:flex-initial">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Pesquisar membro..."
@@ -257,15 +257,15 @@ export default function Equipa() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
+        <CardContent className="p-0 sm:p-6 sm:pt-0">
+          <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Membro</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead className="hidden md:table-cell">Especialização</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+                  <TableHead className="min-w-[200px]">Membro</TableHead>
+                  <TableHead className="min-w-[100px]">Role</TableHead>
+                  <TableHead className="hidden lg:table-cell">Especialização</TableHead>
+                  <TableHead className="text-right w-[80px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
