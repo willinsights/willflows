@@ -1,0 +1,395 @@
+import { useState, useEffect } from 'react';
+import { DollarSign, User, Camera, Film, CreditCard, Calendar } from 'lucide-react';
+import { format } from 'date-fns';
+import { pt } from 'date-fns/locale';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import type { Tables } from '@/integrations/supabase/types';
+
+type ProjectTeam = Tables<'project_team'>;
+type Payment = Tables<'payments'>;
+type PaymentStatus = 'pendente' | 'pago' | 'vencido' | 'cancelado';
+
+interface WorkspaceMember {
+  user_id: string;
+  full_name: string | null;
+  email: string;
+  avatar_url: string | null;
+}
+
+interface ProjectFinancialTabProps {
+  projectId: string;
+  project: {
+    agreed_value: number | null;
+    custo_captacao: number | null;
+    custo_edicao: number | null;
+    client_id: string | null;
+  };
+  projectTeam: ProjectTeam[];
+  workspaceMembers: WorkspaceMember[];
+  isEditing: boolean;
+  editForm: {
+    agreed_value: number;
+    custo_captacao: number;
+    custo_edicao: number;
+  };
+  setEditForm: (fn: (prev: any) => any) => void;
+  onTeamPaymentUpdate: () => void;
+}
+
+const paymentStatusOptions = [
+  { value: 'pendente', label: 'Pendente', color: 'bg-yellow-500/20 text-yellow-600 border-yellow-500/30' },
+  { value: 'pago', label: 'Pago', color: 'bg-success/20 text-success border-success/30' },
+  { value: 'vencido', label: 'Vencido', color: 'bg-destructive/20 text-destructive border-destructive/30' },
+  { value: 'cancelado', label: 'Cancelado', color: 'bg-muted text-muted-foreground border-border' },
+];
+
+export function ProjectFinancialTab({
+  projectId,
+  project,
+  projectTeam,
+  workspaceMembers,
+  isEditing,
+  editForm,
+  setEditForm,
+  onTeamPaymentUpdate,
+}: ProjectFinancialTabProps) {
+  const { toast } = useToast();
+  const [clientPayment, setClientPayment] = useState<Payment | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Separate team members by phase
+  const captacaoTeam = projectTeam.filter(t => t.phase === 'captacao');
+  const edicaoTeam = projectTeam.filter(t => t.phase === 'edicao');
+
+  // Calculate profit
+  const agreedValue = isEditing ? editForm.agreed_value : (project.agreed_value || 0);
+  const custoCaptacao = isEditing ? editForm.custo_captacao : (project.custo_captacao || 0);
+  const custoEdicao = isEditing ? editForm.custo_edicao : (project.custo_edicao || 0);
+  const profit = agreedValue - custoCaptacao - custoEdicao;
+
+  // Fetch client payment
+  useEffect(() => {
+    const fetchClientPayment = async () => {
+      if (!projectId) return;
+      
+      const { data } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('is_receivable', true)
+        .maybeSingle();
+      
+      setClientPayment(data);
+    };
+
+    fetchClientPayment();
+  }, [projectId]);
+
+  const getMemberInfo = (userId: string) => {
+    const member = workspaceMembers.find(m => m.user_id === userId);
+    return member || { full_name: 'Desconhecido', avatar_url: null, email: '' };
+  };
+
+  const handleClientPaymentStatusChange = async (newStatus: PaymentStatus) => {
+    if (!clientPayment) return;
+    setLoading(true);
+
+    try {
+      const updates: Partial<Payment> = {
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (newStatus === 'pago') {
+        updates.paid_at = new Date().toISOString();
+      } else {
+        updates.paid_at = null;
+      }
+
+      const { error } = await supabase
+        .from('payments')
+        .update(updates)
+        .eq('id', clientPayment.id);
+
+      if (error) throw error;
+
+      setClientPayment(prev => prev ? { ...prev, ...updates } : null);
+      toast({ title: 'Status do pagamento atualizado' });
+    } catch (error: any) {
+      toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTeamMemberPaymentChange = async (
+    memberId: string, 
+    field: 'payment_status' | 'payment_amount',
+    value: PaymentStatus | number
+  ) => {
+    setLoading(true);
+
+    try {
+      const updates: Partial<ProjectTeam> = {
+        [field]: value,
+      };
+
+      const { error } = await supabase
+        .from('project_team')
+        .update(updates)
+        .eq('id', memberId);
+
+      if (error) throw error;
+
+      toast({ title: 'Pagamento atualizado' });
+      onTeamPaymentUpdate();
+    } catch (error: any) {
+      toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusBadge = (status: PaymentStatus) => {
+    const option = paymentStatusOptions.find(o => o.value === status);
+    return option || paymentStatusOptions[0];
+  };
+
+  const renderTeamPaymentSection = (
+    title: string, 
+    icon: React.ReactNode, 
+    team: ProjectTeam[],
+    phase: 'captacao' | 'edicao'
+  ) => {
+    if (team.length === 0) {
+      return (
+        <div className="p-4 bg-muted/30 rounded-lg border border-border/50">
+          <div className="flex items-center gap-2 mb-2 text-muted-foreground">
+            {icon}
+            <span className="font-medium">{title}</span>
+          </div>
+          <p className="text-sm text-muted-foreground">Nenhum membro atribuído</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="p-4 bg-muted/30 rounded-lg border border-border/50 space-y-3">
+        <div className="flex items-center gap-2 text-foreground">
+          {icon}
+          <span className="font-medium">{title}</span>
+          <Badge variant="outline" className="ml-auto">{team.length} membro(s)</Badge>
+        </div>
+        
+        <div className="space-y-3">
+          {team.map((member) => {
+            const profile = getMemberInfo(member.user_id);
+            const statusOption = getStatusBadge(member.payment_status);
+            
+            return (
+              <div 
+                key={member.id} 
+                className="flex items-center gap-3 p-3 bg-background/50 rounded-lg border border-border/30"
+              >
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={profile.avatar_url || undefined} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                    {(profile.full_name || profile.email || '?').charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {profile.full_name || profile.email || 'Desconhecido'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="w-24">
+                    <Input
+                      type="number"
+                      placeholder="€0.00"
+                      value={member.payment_amount || ''}
+                      onChange={(e) => handleTeamMemberPaymentChange(
+                        member.id, 
+                        'payment_amount', 
+                        Number(e.target.value)
+                      )}
+                      className="h-8 text-sm"
+                      disabled={loading}
+                    />
+                  </div>
+                  
+                  <Select
+                    value={member.payment_status}
+                    onValueChange={(value: PaymentStatus) => 
+                      handleTeamMemberPaymentChange(member.id, 'payment_status', value)
+                    }
+                    disabled={loading}
+                  >
+                    <SelectTrigger className="w-28 h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {paymentStatusOptions.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          <span className={cn("px-2 py-0.5 rounded text-xs", opt.color)}>
+                            {opt.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Financial Summary */}
+      {isEditing ? (
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Preço Cliente (€)</Label>
+              <Input 
+                type="number" 
+                value={editForm.agreed_value}
+                onChange={(e) => setEditForm((prev: any) => ({ ...prev, agreed_value: Number(e.target.value) }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Custo Captação (€)</Label>
+              <Input 
+                type="number" 
+                value={editForm.custo_captacao}
+                onChange={(e) => setEditForm((prev: any) => ({ ...prev, custo_captacao: Number(e.target.value) }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Custo Edição (€)</Label>
+              <Input 
+                type="number" 
+                value={editForm.custo_edicao}
+                onChange={(e) => setEditForm((prev: any) => ({ ...prev, custo_edicao: Number(e.target.value) }))}
+              />
+            </div>
+          </div>
+
+          <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Lucro Estimado</span>
+              <span className={cn("text-xl font-bold", profit >= 0 ? "text-success" : "text-destructive")}>
+                €{profit.toFixed(2)}
+              </span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-4">
+          <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <DollarSign className="h-3 w-3" /> Preço Cliente
+            </span>
+            <p className="text-xl font-bold text-success mt-1">
+              €{agreedValue.toFixed(2)}
+            </p>
+          </div>
+          <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
+            <span className="text-xs text-muted-foreground">Custos Totais</span>
+            <p className="text-xl font-bold text-destructive mt-1">
+              €{(custoCaptacao + custoEdicao).toFixed(2)}
+            </p>
+          </div>
+          <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+            <span className="text-xs text-muted-foreground">Lucro</span>
+            <p className={cn("text-xl font-bold mt-1", profit >= 0 ? "text-primary" : "text-destructive")}>
+              €{profit.toFixed(2)}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <Separator />
+
+      {/* Client Payment Status */}
+      <div className="p-4 bg-muted/30 rounded-lg border border-border/50 space-y-3">
+        <div className="flex items-center gap-2 text-foreground">
+          <CreditCard className="h-4 w-4" />
+          <span className="font-medium">Pagamento do Cliente</span>
+        </div>
+
+        {clientPayment ? (
+          <div className="flex items-center justify-between p-3 bg-background/50 rounded-lg border border-border/30">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">€{clientPayment.amount.toFixed(2)}</p>
+              {clientPayment.due_date && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  Vencimento: {format(new Date(clientPayment.due_date), 'dd/MM/yyyy', { locale: pt })}
+                </p>
+              )}
+            </div>
+            
+            <Select
+              value={clientPayment.status}
+              onValueChange={(value: PaymentStatus) => handleClientPaymentStatusChange(value)}
+              disabled={loading}
+            >
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {paymentStatusOptions.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    <span className={cn("px-2 py-0.5 rounded text-xs", opt.color)}>
+                      {opt.label}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          <div className="p-3 bg-background/50 rounded-lg border border-border/30 text-center">
+            <p className="text-sm text-muted-foreground">
+              {project.client_id 
+                ? 'Nenhum pagamento registado para este projeto'
+                : 'Sem cliente associado'
+              }
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Team Payments - Captação */}
+      {renderTeamPaymentSection(
+        'Pagamento Captação',
+        <Camera className="h-4 w-4" />,
+        captacaoTeam,
+        'captacao'
+      )}
+
+      {/* Team Payments - Edição */}
+      {renderTeamPaymentSection(
+        'Pagamento Edição',
+        <Film className="h-4 w-4" />,
+        edicaoTeam,
+        'edicao'
+      )}
+    </div>
+  );
+}
