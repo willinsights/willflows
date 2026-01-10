@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DollarSign, User, Camera, Film, CreditCard, Calendar } from 'lucide-react';
+import { DollarSign, User, Camera, Film, CreditCard, Calendar, Package } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Label } from '@/components/ui/label';
@@ -30,6 +30,7 @@ interface ProjectFinancialTabProps {
     agreed_value: number | null;
     custo_captacao: number | null;
     custo_edicao: number | null;
+    custos_extras: number | null;
     client_id: string | null;
   };
   projectTeam: ProjectTeam[];
@@ -39,6 +40,7 @@ interface ProjectFinancialTabProps {
     agreed_value: number;
     custo_captacao: number;
     custo_edicao: number;
+    custos_extras: number;
   };
   setEditForm: (fn: (prev: any) => any) => void;
   onTeamPaymentUpdate: () => void;
@@ -73,7 +75,9 @@ export function ProjectFinancialTab({
   const agreedValue = isEditing ? editForm.agreed_value : (project.agreed_value || 0);
   const custoCaptacao = isEditing ? editForm.custo_captacao : (project.custo_captacao || 0);
   const custoEdicao = isEditing ? editForm.custo_edicao : (project.custo_edicao || 0);
-  const profit = agreedValue - custoCaptacao - custoEdicao;
+  const custosExtras = isEditing ? editForm.custos_extras : (project.custos_extras || 0);
+  const totalCustos = custoCaptacao + custoEdicao + custosExtras;
+  const profit = agreedValue - totalCustos;
 
   // Fetch client payment
   useEffect(() => {
@@ -262,7 +266,7 @@ export function ProjectFinancialTab({
       {/* Financial Summary */}
       {isEditing ? (
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Preço Cliente (€)</Label>
               <Input 
@@ -287,6 +291,15 @@ export function ProjectFinancialTab({
                 onChange={(e) => setEditForm((prev: any) => ({ ...prev, custo_edicao: Number(e.target.value) }))}
               />
             </div>
+            <div className="space-y-2">
+              <Label>Custos Extras (€)</Label>
+              <Input 
+                type="number" 
+                value={editForm.custos_extras}
+                onChange={(e) => setEditForm((prev: any) => ({ ...prev, custos_extras: Number(e.target.value) }))}
+                placeholder="Equipamento, deslocação..."
+              />
+            </div>
           </div>
 
           <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
@@ -296,10 +309,13 @@ export function ProjectFinancialTab({
                 €{profit.toFixed(2)}
               </span>
             </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              (Preço Cliente - Captação - Edição - Extras)
+            </p>
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <DollarSign className="h-3 w-3" /> Preço Cliente
@@ -322,6 +338,14 @@ export function ProjectFinancialTab({
             </span>
             <p className="text-xl font-bold text-destructive mt-1">
               €{custoEdicao.toFixed(2)}
+            </p>
+          </div>
+          <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <Package className="h-3 w-3" /> Custos Extras
+            </span>
+            <p className="text-xl font-bold text-destructive mt-1">
+              €{custosExtras.toFixed(2)}
             </p>
           </div>
           <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
