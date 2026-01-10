@@ -31,6 +31,7 @@ interface ProjectFinancialTabProps {
     custo_captacao: number | null;
     custo_edicao: number | null;
     custos_extras: number | null;
+    custos_extras_payment_status?: string | null;
     client_id: string | null;
   };
   projectTeam: ProjectTeam[];
@@ -165,6 +166,79 @@ export function ProjectFinancialTab({
   const getStatusBadge = (status: PaymentStatus) => {
     const option = paymentStatusOptions.find(o => o.value === status);
     return option || paymentStatusOptions[0];
+  };
+
+  // Custos Extras Payment Section Component
+  const CustosExtrasPaymentSection = ({
+    projectId,
+    custosExtras,
+    currentStatus,
+    loading,
+    setLoading,
+  }: {
+    projectId: string;
+    custosExtras: number;
+    currentStatus: PaymentStatus;
+    loading: boolean;
+    setLoading: (v: boolean) => void;
+  }) => {
+    const [status, setStatus] = useState<PaymentStatus>(currentStatus);
+
+    const handleCustosExtrasPaymentStatusChange = async (newStatus: PaymentStatus) => {
+      setLoading(true);
+      try {
+        const { error } = await supabase
+          .from('projects')
+          .update({ custos_extras_payment_status: newStatus })
+          .eq('id', projectId);
+
+        if (error) throw error;
+
+        setStatus(newStatus);
+        toast({ title: 'Status do pagamento atualizado' });
+      } catch (error: any) {
+        toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const statusOption = getStatusBadge(status);
+
+    return (
+      <div className="p-4 bg-muted/30 rounded-lg border border-border/50 space-y-3">
+        <div className="flex items-center gap-2 text-foreground">
+          <Package className="h-4 w-4" />
+          <span className="font-medium">Pagamento Custos Extras</span>
+        </div>
+
+        <div className="flex items-center justify-between p-3 bg-background/50 rounded-lg border border-border/30">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">€{custosExtras.toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground">Equipamento, deslocação, etc.</p>
+          </div>
+          
+          <Select
+            value={status}
+            onValueChange={(value: PaymentStatus) => handleCustosExtrasPaymentStatusChange(value)}
+            disabled={loading}
+          >
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {paymentStatusOptions.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  <span className={cn("px-2 py-0.5 rounded text-xs", opt.color)}>
+                    {opt.label}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    );
   };
 
   const renderTeamPaymentSection = (
@@ -415,6 +489,17 @@ export function ProjectFinancialTab({
           </div>
         )}
       </div>
+
+      {/* Custos Extras Payment Status */}
+      {custosExtras > 0 && (
+        <CustosExtrasPaymentSection
+          projectId={projectId}
+          custosExtras={custosExtras}
+          currentStatus={(project.custos_extras_payment_status as PaymentStatus) || 'pendente'}
+          loading={loading}
+          setLoading={setLoading}
+        />
+      )}
 
       {/* Team Payments - Captação */}
       {renderTeamPaymentSection(
