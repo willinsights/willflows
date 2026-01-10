@@ -130,6 +130,7 @@ export function useKanban(phase: KanbanPhase) {
       }
 
       // Map projects to columns with task counts and team members
+      // Sort urgent projects by delivery date (closest first)
       const columnsWithProjects: KanbanColumnWithProjects[] = (columnsData || []).map(column => ({
         ...column,
         projects: (projectsData || [])
@@ -139,7 +140,25 @@ export function useKanban(phase: KanbanPhase) {
             task_count: taskCounts[project.id]?.total || 0,
             task_completed: taskCounts[project.id]?.completed || 0,
             team_members: teamByProject[project.id] || [],
-          })),
+          }))
+          .sort((a, b) => {
+            const isUrgentA = a.priority === 'alta' || a.priority === 'urgente';
+            const isUrgentB = b.priority === 'alta' || b.priority === 'urgente';
+            
+            // Urgent projects come first
+            if (isUrgentA && !isUrgentB) return -1;
+            if (!isUrgentA && isUrgentB) return 1;
+            
+            // Among urgent projects, sort by delivery date (closest first)
+            if (isUrgentA && isUrgentB) {
+              const dateA = a.delivery_date ? new Date(a.delivery_date).getTime() : Infinity;
+              const dateB = b.delivery_date ? new Date(b.delivery_date).getTime() : Infinity;
+              return dateA - dateB;
+            }
+            
+            // Non-urgent: maintain original order (by created_at)
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          }),
       }));
 
       setColumns(columnsWithProjects);
