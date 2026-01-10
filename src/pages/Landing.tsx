@@ -323,7 +323,7 @@ export default function Landing() {
                 className="absolute top-10 right-4 md:top-14 md:right-[8%] lg:right-[12%] w-[140px] md:w-[180px] lg:w-[220px]"
               >
                 <div className="relative group cursor-pointer">
-                  <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500/40 to-teal-500/40 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
+                  <div className="absolute -inset-2 bg-gradient-to-r from-primary/40 to-kanban-cyan/40 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
                   <img 
                     src={screenshotKanban} 
                     alt="Kanban Card" 

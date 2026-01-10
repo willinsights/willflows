@@ -18,8 +18,8 @@ interface CreateCategoryModalProps {
 }
 
 const colorOptions = [
-  '#8224e3', '#3b82f6', '#22c55e', '#f59e0b', 
-  '#ef4444', '#ec4899', '#6366f1', '#14b8a6'
+  '#8224e3', '#3b82f6', '#00E5E5', '#f59e0b', 
+  '#ef4444', '#ec4899', '#6366f1', '#22d3ee'
 ];
 
 export function CreateCategoryModal({

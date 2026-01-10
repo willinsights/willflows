@@ -83,7 +83,7 @@ export function AccountIntegrationsTab({ planName }: AccountIntegrationsTabProps
                 <div className={cn(
                   'p-2 rounded-lg',
                   integration.connected 
-                    ? 'bg-green-500/10 text-green-500' 
+                    ? 'bg-success/10 text-success' 
                     : 'bg-muted text-muted-foreground'
                 )}>
                   {integration.icon}
@@ -111,7 +111,7 @@ export function AccountIntegrationsTab({ planName }: AccountIntegrationsTabProps
                   Em breve
                 </Badge>
               ) : integration.connected ? (
-                <Badge variant="default" className="bg-green-500 text-xs">
+                <Badge variant="default" className="bg-success text-xs">
                   Conectado
                 </Badge>
               ) : hasAccess ? (

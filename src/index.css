@@ -36,8 +36,8 @@
     --muted-foreground: 240 5% 45%;
 
     /* Accent - Cyan #00E5E5 */
-    --accent: 180 100% 94%;
-    --accent-foreground: 180 100% 30%;
+    --accent: 180 100% 35%;
+    --accent-foreground: 0 0% 100%;
 
     /* Destructive */
     --destructive: 0 72% 51%;
@@ -120,8 +120,8 @@
     --muted-foreground: 240 5% 55%;
 
     /* Accent - Cyan */
-    --accent: 180 70% 18%;
-    --accent-foreground: 180 100% 70%;
+    --accent: 180 100% 45%;
+    --accent-foreground: 0 0% 100%;
 
     /* Destructive */
     --destructive: 0 62% 50%;

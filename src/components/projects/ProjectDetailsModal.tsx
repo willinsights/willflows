@@ -1164,7 +1164,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
                     <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-muted-foreground">Lucro Estimado</span>
-                        <span className={cn("text-xl font-bold", profit >= 0 ? "text-green-500" : "text-red-500")}>
+                        <span className={cn("text-xl font-bold", profit >= 0 ? "text-success" : "text-destructive")}>
                           €{profit.toFixed(2)}
                         </span>
                       </div>
@@ -1176,13 +1176,13 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
                         <DollarSign className="h-3 w-3" /> Preço Cliente
                       </span>
-                      <p className="text-xl font-bold text-green-500 mt-1">
+                      <p className="text-xl font-bold text-success mt-1">
                         €{(project.agreed_value || 0).toFixed(2)}
                       </p>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
                       <span className="text-xs text-muted-foreground">Custos Totais</span>
-                      <p className="text-xl font-bold text-red-500 mt-1">
+                      <p className="text-xl font-bold text-destructive mt-1">
                         €{((project.custo_captacao || 0) + (project.custo_edicao || 0)).toFixed(2)}
                       </p>
                     </div>
