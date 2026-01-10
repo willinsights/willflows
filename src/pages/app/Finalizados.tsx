@@ -1,12 +1,14 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Calendar, Download, MoreHorizontal, Camera, Film, Video, Eye } from 'lucide-react';
-import { format, subMonths, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns';
+import { Search, Filter, Calendar as CalendarIcon, Download, FileText, Camera, Film, Video, Eye, X } from 'lucide-react';
+import { format, isWithinInterval, parseISO } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -15,15 +17,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useProjects } from '@/hooks/useProjects';
 import { useClients } from '@/hooks/useClients';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { ProjectDetailsModal } from '@/components/projects/ProjectDetailsModal';
+import { cn } from '@/lib/utils';
 
 const typeIcons: Record<string, any> = {
   fotografia: Camera,
@@ -43,7 +48,9 @@ export default function Finalizados() {
   const { currentWorkspace } = useWorkspace();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterClient, setFilterClient] = useState<string>('all');
-  const [filterPeriod, setFilterPeriod] = useState<string>('all');
+  const [filterType, setFilterType] = useState<string>('all');
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   const currency = currentWorkspace?.currency || 'EUR';
@@ -54,6 +61,16 @@ export default function Finalizados() {
       currency,
     }).format(value);
   };
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setFilterClient('all');
+    setFilterType('all');
+    setStartDate(undefined);
+    setEndDate(undefined);
+  };
+
+  const hasActiveFilters = searchQuery || filterClient !== 'all' || filterType !== 'all' || startDate || endDate;
 
   const completedProjects = useMemo(() => {
     return projects
@@ -74,25 +91,19 @@ export default function Finalizados() {
         // Client filter
         if (filterClient !== 'all' && project.client_id !== filterClient) return false;
 
-        // Period filter
-        if (filterPeriod !== 'all' && project.delivered_at) {
-          const deliveredDate = new Date(project.delivered_at);
-          const now = new Date();
+        // Type filter
+        if (filterType !== 'all' && project.type !== filterType) return false;
+
+        // Date range filter
+        if ((startDate || endDate) && project.delivered_at) {
+          const deliveredDate = parseISO(project.delivered_at);
           
-          switch (filterPeriod) {
-            case 'this_month':
-              if (!isWithinInterval(deliveredDate, { start: startOfMonth(now), end: endOfMonth(now) })) return false;
-              break;
-            case 'last_month':
-              const lastMonth = subMonths(now, 1);
-              if (!isWithinInterval(deliveredDate, { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) })) return false;
-              break;
-            case 'last_3_months':
-              if (deliveredDate < subMonths(now, 3)) return false;
-              break;
-            case 'last_6_months':
-              if (deliveredDate < subMonths(now, 6)) return false;
-              break;
+          if (startDate && endDate) {
+            if (!isWithinInterval(deliveredDate, { start: startDate, end: endDate })) return false;
+          } else if (startDate && deliveredDate < startDate) {
+            return false;
+          } else if (endDate && deliveredDate > endDate) {
+            return false;
           }
         }
 
@@ -103,7 +114,7 @@ export default function Finalizados() {
         const dateB = b.delivered_at ? new Date(b.delivered_at).getTime() : 0;
         return dateB - dateA;
       });
-  }, [projects, searchQuery, filterClient, filterPeriod]);
+  }, [projects, searchQuery, filterClient, filterType, startDate, endDate]);
 
   const totalRevenue = completedProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
   const selectedProject = selectedProjectId ? projects.find(p => p.id === selectedProjectId) : null;
@@ -113,67 +124,230 @@ export default function Finalizados() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Finalizados</h1>
-          <p className="text-muted-foreground">Arquivo de projetos entregues</p>
+          <h1 className="text-2xl font-bold text-primary">Projetos Finalizados</h1>
+          <p className="text-muted-foreground">Histórico completo de projetos concluídos</p>
         </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="relative flex-1 sm:flex-initial">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Pesquisar projetos..."
-              className="pl-9 w-full sm:w-[250px]"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <Select value={filterClient} onValueChange={setFilterClient}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Cliente" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os clientes</SelectItem>
-            {clients.map(client => (
-              <SelectItem key={client.id} value={client.id}>
-                {client.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={filterPeriod} onValueChange={setFilterPeriod}>
-          <SelectTrigger className="w-[180px]">
-            <Calendar className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Período" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todo o período</SelectItem>
-            <SelectItem value="this_month">Este mês</SelectItem>
-            <SelectItem value="last_month">Mês passado</SelectItem>
-            <SelectItem value="last_3_months">Últimos 3 meses</SelectItem>
-            <SelectItem value="last_6_months">Últimos 6 meses</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {(filterClient !== 'all' || filterPeriod !== 'all') && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setFilterClient('all');
-              setFilterPeriod('all');
-            }}
-          >
-            Limpar filtros
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2">
+            <Download className="h-4 w-4" />
+            CSV
           </Button>
-        )}
+          <Button variant="outline" size="sm" className="gap-2">
+            <FileText className="h-4 w-4" />
+            PDF
+          </Button>
+        </div>
       </div>
 
-      {/* Summary */}
+      {/* Filters Card */}
+      <Card className="glass-card">
+        <CardContent className="p-4 space-y-4">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Filter className="h-4 w-4" />
+            Filtros
+          </div>
+          
+          {/* First row: Search, Client, Type, Clear */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="relative md:col-span-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por título ou cliente..."
+                className="pl-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <Select value={filterClient} onValueChange={setFilterClient}>
+              <SelectTrigger>
+                <SelectValue placeholder="Todos os clientes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os clientes</SelectItem>
+                {clients.map(client => (
+                  <SelectItem key={client.id} value={client.id}>
+                    {client.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Todos os tipos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os tipos</SelectItem>
+                <SelectItem value="fotografia">Fotografia</SelectItem>
+                <SelectItem value="video">Vídeo</SelectItem>
+                <SelectItem value="foto_video">Foto + Vídeo</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button 
+              variant="outline" 
+              onClick={clearFilters}
+              disabled={!hasActiveFilters}
+              className="w-full"
+            >
+              Limpar Filtros
+            </Button>
+          </div>
+
+          {/* Second row: Date range */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Data inicial</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !startDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {startDate ? format(startDate, "dd/MM/yyyy") : "dd/mm/aaaa"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    onSelect={setStartDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Data final</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !endDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {endDate ? format(endDate, "dd/MM/yyyy") : "dd/mm/aaaa"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    onSelect={setEndDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Results count */}
+      <div className="text-sm text-muted-foreground">
+        Mostrando <span className="text-primary font-medium">{completedProjects.length}</span> de <span className="text-primary font-medium">{projects.filter(p => p.is_delivered).length}</span> projetos
+      </div>
+
+      {/* Projects Table */}
+      {completedProjects.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center justify-center py-20 text-center"
+        >
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+            <CalendarIcon className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h3 className="text-lg font-semibold mb-2">Nenhum projeto finalizado</h3>
+          <p className="text-muted-foreground max-w-sm">
+            Os projetos entregues aparecerão aqui.
+          </p>
+        </motion.div>
+      ) : (
+        <Card className="glass-card overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Projeto</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Data de Entrega</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {completedProjects.map((project, index) => {
+                const TypeIcon = typeIcons[project.type] || Camera;
+                return (
+                  <motion.tr
+                    key={project.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.03 }}
+                    className="group hover:bg-muted/50 cursor-pointer"
+                    onClick={() => setSelectedProjectId(project.id)}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-success/10">
+                          <TypeIcon className="h-4 w-4 text-success" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{project.name}</p>
+                          {project.project_code && (
+                            <p className="text-xs text-muted-foreground">{project.project_code}</p>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {project.clients?.name || 'Sem cliente'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="text-xs">
+                        {typeLabels[project.type]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {project.delivered_at 
+                        ? format(new Date(project.delivered_at), 'dd/MM/yyyy', { locale: pt })
+                        : 'N/A'}
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-success">
+                      {formatCurrency(project.agreed_value || 0)}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedProjectId(project.id);
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </motion.tr>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
+
+      {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <Card className="glass-card">
           <CardContent className="p-4">
@@ -196,87 +370,6 @@ export default function Finalizados() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Projects List */}
-      {completedProjects.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center justify-center py-20 text-center"
-        >
-          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-            <Calendar className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-semibold mb-2">Nenhum projeto finalizado</h3>
-          <p className="text-muted-foreground max-w-sm">
-            Os projetos entregues aparecerão aqui.
-          </p>
-        </motion.div>
-      ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {completedProjects.map((project, index) => {
-            const TypeIcon = typeIcons[project.type] || Camera;
-            return (
-              <motion.div
-                key={project.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <Card className="glass-card hover:shadow-lg transition-all cursor-pointer group">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-success/10">
-                          <TypeIcon className="h-5 w-5 text-success" />
-                        </div>
-                        <Badge variant="secondary" className="text-xs">
-                          {typeLabels[project.type]}
-                        </Badge>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setSelectedProjectId(project.id)}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            Ver detalhes
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Download className="h-4 w-4 mr-2" />
-                            Exportar
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-
-                    <h3 className="font-semibold mb-1">{project.name}</h3>
-                    <p className="text-sm text-muted-foreground mb-3">{project.clients?.name || 'Sem cliente'}</p>
-
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        Entregue: {project.delivered_at 
-                          ? format(new Date(project.delivered_at), 'dd/MM/yyyy', { locale: pt })
-                          : 'N/A'}
-                      </span>
-                      <span className="font-medium text-success">
-                        {formatCurrency(project.agreed_value || 0)}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
-        </div>
-      )}
 
       {/* Project Details Modal */}
       {selectedProject && (
