@@ -74,6 +74,7 @@ const navSections: NavSection[] = [
     title: 'GESTÃO',
     items: [
       { icon: Users, label: 'Clientes', path: '/app/clientes' },
+      { icon: UserCog, label: 'Equipa', path: '/app/equipa' },
     ],
   },
   {
