@@ -125,3 +125,38 @@ export function validateWithSchema<T>(schema: z.ZodSchema<T>, data: unknown): Va
 export const projectUpdateSchema = projectSchema.partial();
 export const clientUpdateSchema = clientSchema.partial();
 export const paymentUpdateSchema = paymentSchema.partial();
+
+// Kanban column validation schema
+export const kanbanColumnSchema = z.object({
+  name: z.string().min(1, 'Nome é obrigatório').max(50, 'Nome muito longo (max 50 caracteres)').trim(),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Cor inválida (formato: #RRGGBB)').optional(),
+});
+
+export type ValidatedKanbanColumn = z.infer<typeof kanbanColumnSchema>;
+export const kanbanColumnUpdateSchema = kanbanColumnSchema.partial();
+
+// Comment validation schema (for project comments)
+export const projectCommentSchema = z.object({
+  content: z.string().min(1, 'Comentário não pode estar vazio').max(5000, 'Comentário muito longo (max 5000 caracteres)').trim(),
+  project_id: z.string().uuid('ID de projeto inválido'),
+});
+
+export type ValidatedProjectComment = z.infer<typeof projectCommentSchema>;
+
+// Media link validation schema (enhanced)
+export const projectMediaLinkSchema = z.object({
+  url: z.string().url('URL inválida').min(1, 'URL é obrigatória').max(2000, 'URL muito longa'),
+  title: z.string().max(200, 'Título muito longo (max 200 caracteres)').nullable().optional(),
+  link_type: z.string().max(50, 'Tipo muito longo').default('outro'),
+  project_id: z.string().uuid('ID de projeto inválido'),
+});
+
+export type ValidatedProjectMediaLink = z.infer<typeof projectMediaLinkSchema>;
+
+// Checklist item validation schema
+export const checklistItemSchema = z.object({
+  title: z.string().min(1, 'Título é obrigatório').max(500, 'Título muito longo (max 500 caracteres)').trim(),
+  task_id: z.string().uuid('ID de tarefa inválido'),
+});
+
+export type ValidatedChecklistItem = z.infer<typeof checklistItemSchema>;

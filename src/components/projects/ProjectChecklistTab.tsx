@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { checklistItemSchema, validateWithSchema } from '@/lib/validation-schemas';
 import {
   DndContext,
   closestCenter,
@@ -218,13 +219,24 @@ export function ProjectChecklistTab({
       currentTaskId = newTask.id;
     }
 
+    // Validate checklist item data
+    const validation = validateWithSchema(checklistItemSchema, {
+      title: newItemTitle,
+      task_id: currentTaskId,
+    });
+    
+    if (!validation.success) {
+      toast({ title: 'Dados inválidos', description: validation.error, variant: 'destructive' });
+      return;
+    }
+
     const newPosition = checklists.length;
     
     const { data, error } = await supabase
       .from('task_checklists')
       .insert({
         task_id: currentTaskId,
-        title: newItemTitle.trim(),
+        title: validation.data.title,
         position: newPosition,
         is_completed: false,
       })
@@ -249,10 +261,25 @@ export function ProjectChecklistTab({
 
   const handleSaveEdit = async () => {
     if (!editingId || !editTitle.trim()) return;
+    
+    // Get the current checklist item to get its task_id
+    const currentItem = checklists.find(c => c.id === editingId);
+    if (!currentItem) return;
+
+    // Validate edit data
+    const validation = validateWithSchema(checklistItemSchema, {
+      title: editTitle,
+      task_id: currentItem.task_id,
+    });
+    
+    if (!validation.success) {
+      toast({ title: 'Dados inválidos', description: validation.error, variant: 'destructive' });
+      return;
+    }
 
     const { error } = await supabase
       .from('task_checklists')
-      .update({ title: editTitle.trim() })
+      .update({ title: validation.data.title })
       .eq('id', editingId);
 
     if (error) {
@@ -261,7 +288,7 @@ export function ProjectChecklistTab({
     }
 
     setChecklists(prev => 
-      prev.map(c => c.id === editingId ? { ...c, title: editTitle.trim() } : c)
+      prev.map(c => c.id === editingId ? { ...c, title: validation.data.title } : c)
     );
     setEditingId(null);
     setEditTitle('');

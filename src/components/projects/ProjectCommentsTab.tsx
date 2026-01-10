@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { cn } from '@/lib/utils';
+import { projectCommentSchema, validateWithSchema } from '@/lib/validation-schemas';
 
 interface ProjectComment {
   id: string;
@@ -63,6 +64,18 @@ export function ProjectCommentsTab({ projectId, workspaceId }: ProjectCommentsTa
 
   const handleAddComment = async () => {
     if (!newComment.trim() || !user) return;
+    
+    // Validate comment data
+    const validation = validateWithSchema(projectCommentSchema, {
+      content: newComment,
+      project_id: projectId,
+    });
+    
+    if (!validation.success) {
+      toast({ title: 'Dados inválidos', description: validation.error, variant: 'destructive' });
+      return;
+    }
+    
     setSubmitting(true);
 
     try {
@@ -71,7 +84,7 @@ export function ProjectCommentsTab({ projectId, workspaceId }: ProjectCommentsTa
         .insert({
           project_id: projectId,
           user_id: user.id,
-          content: newComment.trim(),
+          content: validation.data.content,
         })
         .select()
         .single();
@@ -95,18 +108,30 @@ export function ProjectCommentsTab({ projectId, workspaceId }: ProjectCommentsTa
 
   const handleSaveEdit = async () => {
     if (!editingId || !editContent.trim()) return;
+    
+    // Validate edit data
+    const validation = validateWithSchema(projectCommentSchema, {
+      content: editContent,
+      project_id: projectId,
+    });
+    
+    if (!validation.success) {
+      toast({ title: 'Dados inválidos', description: validation.error, variant: 'destructive' });
+      return;
+    }
+    
     setSubmitting(true);
 
     try {
       const { error } = await supabase
         .from('project_comments')
-        .update({ content: editContent.trim() })
+        .update({ content: validation.data.content })
         .eq('id', editingId);
 
       if (error) throw error;
 
       setComments(prev => 
-        prev.map(c => c.id === editingId ? { ...c, content: editContent.trim(), updated_at: new Date().toISOString() } : c)
+        prev.map(c => c.id === editingId ? { ...c, content: validation.data.content, updated_at: new Date().toISOString() } : c)
       );
       setEditingId(null);
       setEditContent('');
