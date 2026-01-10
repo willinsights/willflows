@@ -48,6 +48,7 @@ interface ClientPaymentsControlProps {
   clients: Client[];
   onStatusChange: (paymentId: string, newStatus: string) => Promise<void>;
   formatCurrency: (value: number) => string;
+  projects?: { id: string; name: string; project_code: string | null }[];
 }
 
 export function ClientPaymentsControl({
@@ -55,6 +56,7 @@ export function ClientPaymentsControl({
   clients,
   onStatusChange,
   formatCurrency,
+  projects = [],
 }: ClientPaymentsControlProps) {
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: null,
@@ -82,8 +84,15 @@ export function ClientPaymentsControl({
     });
   }, [clientPayments, filters]);
 
+  const getProjectCode = (projectId: string | null) => {
+    if (!projectId) return null;
+    const project = projects.find(p => p.id === projectId);
+    return project?.project_code || projectId.slice(0, 8).toUpperCase();
+  };
+
   const exportData = useMemo(() => {
     return filteredPayments.map(payment => ({
+      id: getProjectCode(payment.project_id) || '-',
       projeto: payment.description || payment.projects?.name || 'Pagamento',
       contraparte: payment.clients?.name || '-',
       vencimento: payment.due_date 
@@ -92,7 +101,7 @@ export function ClientPaymentsControl({
       status: statusLabels[payment.status] || payment.status,
       valor: formatCurrency(payment.amount),
     }));
-  }, [filteredPayments, formatCurrency]);
+  }, [filteredPayments, formatCurrency, projects]);
 
   return (
     <Card className="glass-card">
@@ -127,6 +136,7 @@ export function ClientPaymentsControl({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[100px]">ID</TableHead>
                 <TableHead>Projeto</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Vencimento</TableHead>
@@ -137,12 +147,13 @@ export function ClientPaymentsControl({
             <TableBody>
               {filteredPayments.map(payment => (
                 <TableRow key={payment.id}>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {getProjectCode(payment.project_id) || '-'}
+                  </TableCell>
                   <TableCell className="font-medium">
                     {payment.description || payment.projects?.name || 'Pagamento'}
                   </TableCell>
-                  <TableCell>
-                    {payment.clients?.name || '-'}
-                  </TableCell>
+                  <TableCell>{payment.clients?.name || '-'}</TableCell>
                   <TableCell>
                     {payment.due_date
                       ? format(new Date(payment.due_date), 'dd/MM/yyyy', { locale: pt })

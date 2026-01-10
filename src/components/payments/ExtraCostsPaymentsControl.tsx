@@ -38,6 +38,7 @@ const statusColors: Record<string, string> = {
 export interface ProjectCustoExtra {
   id: string;
   name: string;
+  project_code?: string | null;
   custos_extras: number | null;
   custos_extras_payment_status: string | null;
 }
@@ -73,6 +74,7 @@ export function ExtraCostsPaymentsControl({
 
   const exportData = useMemo(() => {
     return filteredCosts.map(cost => ({
+      id: cost.project_code || cost.id.slice(0, 8).toUpperCase(),
       projeto: cost.name,
       status: statusLabels[cost.custos_extras_payment_status || 'pendente'] || 'Pendente',
       valor: formatCurrency(cost.custos_extras || 0),
@@ -124,6 +126,7 @@ export function ExtraCostsPaymentsControl({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[100px]">ID</TableHead>
                 <TableHead>Projeto</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
@@ -132,6 +135,9 @@ export function ExtraCostsPaymentsControl({
             <TableBody>
               {filteredCosts.map((cost) => (
                 <TableRow key={cost.id}>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {cost.project_code || cost.id.slice(0, 8).toUpperCase()}
+                  </TableCell>
                   <TableCell className="font-medium">{cost.name}</TableCell>
                   <TableCell>
                     <Select

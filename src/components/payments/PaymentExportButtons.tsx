@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
 export interface ExportData {
+  id?: string;
   projeto: string;
   contraparte?: string;
   vencimento?: string;
@@ -73,16 +74,20 @@ export function PaymentExportButtons({ data, filename, type, forecastSummary }: 
     }
 
     const headers = type === 'freelancers' 
-      ? ['Projeto', 'Colaborador', 'Fase', 'Status', 'Valor']
+      ? ['ID', 'Projeto', 'Colaborador', 'Fase', 'Status', 'Valor']
       : type === 'custos'
-      ? ['Projeto', 'Status', 'Valor']
+      ? ['ID', 'Projeto', 'Status', 'Valor']
+      : type === 'clients'
+      ? ['ID', 'Projeto', 'Cliente', 'Vencimento', 'Status', 'Valor']
       : ['Projeto', 'Cliente', 'Vencimento', 'Status', 'Valor'];
     
     const rows = data.map(item => 
       type === 'freelancers'
-        ? [item.projeto, item.contraparte || '', item.fase || '', item.status, item.valor]
+        ? [item.id || '', item.projeto, item.contraparte || '', item.fase || '', item.status, item.valor]
         : type === 'custos'
-        ? [item.projeto, item.status, item.valor]
+        ? [item.id || '', item.projeto, item.status, item.valor]
+        : type === 'clients'
+        ? [item.id || '', item.projeto, item.contraparte || '', item.vencimento || '', item.status, item.valor]
         : [item.projeto, item.contraparte || '', item.vencimento || '', item.status, item.valor]
     );
 
@@ -118,14 +123,17 @@ export function PaymentExportButtons({ data, filename, type, forecastSummary }: 
     }
 
     const headers = type === 'freelancers' 
-      ? ['Projeto', 'Colaborador', 'Fase', 'Status', 'Valor']
+      ? ['ID', 'Projeto', 'Colaborador', 'Fase', 'Status', 'Valor']
       : type === 'custos'
-      ? ['Projeto', 'Status', 'Valor']
+      ? ['ID', 'Projeto', 'Status', 'Valor']
+      : type === 'clients'
+      ? ['ID', 'Projeto', 'Cliente', 'Vencimento', 'Status', 'Valor']
       : ['Projeto', 'Cliente', 'Vencimento', 'Status', 'Valor'];
 
     const tableRows = data.map(item => {
       if (type === 'freelancers') {
         return `<tr>
+          <td class="id-cell">${item.id || '-'}</td>
           <td>${item.projeto}</td>
           <td>${item.contraparte || '-'}</td>
           <td>${item.fase || '-'}</td>
@@ -135,7 +143,18 @@ export function PaymentExportButtons({ data, filename, type, forecastSummary }: 
       }
       if (type === 'custos') {
         return `<tr>
+          <td class="id-cell">${item.id || '-'}</td>
           <td>${item.projeto}</td>
+          <td>${item.status}</td>
+          <td style="text-align: right">${item.valor}</td>
+        </tr>`;
+      }
+      if (type === 'clients') {
+        return `<tr>
+          <td class="id-cell">${item.id || '-'}</td>
+          <td>${item.projeto}</td>
+          <td>${item.contraparte || '-'}</td>
+          <td>${item.vencimento || '-'}</td>
           <td>${item.status}</td>
           <td style="text-align: right">${item.valor}</td>
         </tr>`;
