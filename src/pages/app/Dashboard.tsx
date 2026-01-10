@@ -94,6 +94,7 @@ export default function Dashboard() {
       custom_category_id: null,
       project_code: null,
       item_type: null,
+      custos_extras: null,
     };
     setSelectedProject(projectForModal);
     setIsModalOpen(true);

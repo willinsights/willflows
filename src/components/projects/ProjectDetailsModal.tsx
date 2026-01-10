@@ -127,6 +127,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
     agreed_value: 0,
     custo_captacao: 0,
     custo_edicao: 0,
+    custos_extras: 0,
     notes: '',
     internal_notes: '',
     drive_folder_url: '',
@@ -156,6 +157,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
         agreed_value: project.agreed_value || 0,
         custo_captacao: project.custo_captacao || 0,
         custo_edicao: project.custo_edicao || 0,
+        custos_extras: (project as any).custos_extras || 0,
         notes: project.notes || '',
         internal_notes: project.internal_notes || '',
         drive_folder_url: project.drive_folder_url || '',
@@ -244,6 +246,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
           agreed_value: editForm.agreed_value,
           custo_captacao: editForm.custo_captacao,
           custo_edicao: editForm.custo_edicao,
+          custos_extras: editForm.custos_extras,
           notes: editForm.notes || null,
           internal_notes: editForm.internal_notes || null,
           drive_folder_url: editForm.drive_folder_url || null,
@@ -1139,6 +1142,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
                     agreed_value: project.agreed_value,
                     custo_captacao: project.custo_captacao,
                     custo_edicao: project.custo_edicao,
+                    custos_extras: (project as any).custos_extras,
                     client_id: project.client_id,
                   }}
                   projectTeam={projectTeam}
@@ -1148,6 +1152,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
                     agreed_value: editForm.agreed_value,
                     custo_captacao: editForm.custo_captacao,
                     custo_edicao: editForm.custo_edicao,
+                    custos_extras: editForm.custos_extras,
                   }}
                   setEditForm={setEditForm}
                   onTeamPaymentUpdate={fetchRelatedData}
