@@ -57,6 +57,8 @@ export default function Finalizados() {
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [filterResponsavel, setFilterResponsavel] = useState<string>('all');
+  const [filterPhase, setFilterPhase] = useState<string>('all');
   const [projectTeams, setProjectTeams] = useState<Record<string, { captacao: string[]; edicao: string[] }>>({});
 
   const currency = currentWorkspace?.currency || 'EUR';
@@ -138,11 +140,13 @@ export default function Finalizados() {
     setSearchQuery('');
     setFilterClient('all');
     setFilterType('all');
+    setFilterResponsavel('all');
+    setFilterPhase('all');
     setStartDate(undefined);
     setEndDate(undefined);
   };
 
-  const hasActiveFilters = searchQuery || filterClient !== 'all' || filterType !== 'all' || startDate || endDate;
+  const hasActiveFilters = searchQuery || filterClient !== 'all' || filterType !== 'all' || filterResponsavel !== 'all' || filterPhase !== 'all' || startDate || endDate;
 
   const completedProjects = useMemo(() => {
     return projects
@@ -166,6 +170,21 @@ export default function Finalizados() {
         // Type filter
         if (filterType !== 'all' && project.type !== filterType) return false;
 
+        // Responsável filter
+        if (filterResponsavel !== 'all') {
+          const team = projectTeams[project.id];
+          if (!team) return false;
+          
+          if (filterPhase === 'captacao') {
+            if (!team.captacao.includes(filterResponsavel)) return false;
+          } else if (filterPhase === 'edicao') {
+            if (!team.edicao.includes(filterResponsavel)) return false;
+          } else {
+            // Any phase
+            if (!team.captacao.includes(filterResponsavel) && !team.edicao.includes(filterResponsavel)) return false;
+          }
+        }
+
         // Date range filter
         if ((startDate || endDate) && project.delivered_at) {
           const deliveredDate = parseISO(project.delivered_at);
@@ -186,7 +205,20 @@ export default function Finalizados() {
         const dateB = b.delivered_at ? new Date(b.delivered_at).getTime() : 0;
         return dateB - dateA;
       });
-  }, [projects, searchQuery, filterClient, filterType, startDate, endDate]);
+  }, [projects, searchQuery, filterClient, filterType, filterResponsavel, filterPhase, projectTeams, startDate, endDate]);
+
+  // Get unique team members who have worked on finished projects
+  const teamMembersInProjects = useMemo(() => {
+    const memberIds = new Set<string>();
+    Object.values(projectTeams).forEach(team => {
+      team.captacao.forEach(id => memberIds.add(id));
+      team.edicao.forEach(id => memberIds.add(id));
+    });
+    return Array.from(memberIds)
+      .map(id => getMemberInfo(id))
+      .filter(Boolean)
+      .sort((a, b) => (a?.full_name || a?.email || '').localeCompare(b?.full_name || b?.email || ''));
+  }, [projectTeams, workspaceMembers]);
 
   const totalRevenue = completedProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
   const selectedProject = selectedProjectId ? projects.find(p => p.id === selectedProjectId) : null;
@@ -384,7 +416,49 @@ export default function Finalizados() {
             </Button>
           </div>
 
-          {/* Second row: Date range */}
+          {/* Second row: Responsável filter */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Select value={filterResponsavel} onValueChange={setFilterResponsavel}>
+              <SelectTrigger>
+                <SelectValue placeholder="Todos os responsáveis" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os responsáveis</SelectItem>
+                {teamMembersInProjects.map(member => member && (
+                  <SelectItem key={member.user_id} value={member.user_id}>
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-5 w-5">
+                        <AvatarImage src={member.avatar_url || undefined} />
+                        <AvatarFallback className="text-[8px]">
+                          {(member.full_name || member.email || '?').charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      {member.full_name || member.email}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select 
+              value={filterPhase} 
+              onValueChange={setFilterPhase}
+              disabled={filterResponsavel === 'all'}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Qualquer fase" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Qualquer fase</SelectItem>
+                <SelectItem value="captacao">Captação</SelectItem>
+                <SelectItem value="edicao">Edição</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div /> {/* Spacer */}
+          </div>
+
+          {/* Third row: Date range */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Data inicial</label>
