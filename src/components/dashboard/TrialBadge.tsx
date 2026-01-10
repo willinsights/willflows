@@ -35,12 +35,12 @@ export function TrialBadge({ variant = "full", className, onUpgradeClick }: Tria
   // - No workspace
   // - Subscription is active (not trialing)
   // - No trial end date
-  // - More than 14 days remaining (shouldn't happen with 7-day trial)
+  // - More than 7 days remaining (trial is 7 days max)
   // - Trial already expired (handled by modal)
   if (!currentWorkspace) return null;
   if (subscriptionStatus === 'active') return null;
   if (daysRemaining === null) return null;
-  if (daysRemaining > 14 || daysRemaining < 0) return null;
+  if (daysRemaining > 7 || daysRemaining < 0) return null;
 
   const isUrgent = daysRemaining <= 2;
   const isWarning = daysRemaining <= 5 && daysRemaining > 2;
