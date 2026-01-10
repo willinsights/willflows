@@ -297,7 +297,7 @@ export default function Pagamentos() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="previsao">Previsão</TabsTrigger>
-          <TabsTrigger value="lista">Lista Completa</TabsTrigger>
+          <TabsTrigger value="pagamentos">Pagamentos</TabsTrigger>
           <TabsTrigger value="faturas">Exportar Faturas</TabsTrigger>
         </TabsList>
 
@@ -454,83 +454,154 @@ export default function Pagamentos() {
           </Card>
         </TabsContent>
 
-        {/* Lista Completa Tab */}
-        <TabsContent value="lista" className="space-y-4">
-          {/* Filters */}
-          <div className="flex flex-wrap gap-3">
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="receivable">A Receber</SelectItem>
-                <SelectItem value="payable">A Pagar</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os status</SelectItem>
-                <SelectItem value="pendente">Pendente</SelectItem>
-                <SelectItem value="pago">Pago</SelectItem>
-                <SelectItem value="vencido">Vencido</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Payments Table */}
+        {/* Pagamentos Tab */}
+        <TabsContent value="pagamentos" className="space-y-6">
+          {/* Controle de Pagamentos - Clientes */}
           <Card className="glass-card">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Cliente/Fornecedor</TableHead>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPayments.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                      Nenhum pagamento encontrado
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredPayments.map(payment => (
-                    <TableRow key={payment.id}>
-                      <TableCell className="font-medium">
-                        {payment.description || payment.projects?.name || 'Pagamento'}
-                      </TableCell>
-                      <TableCell>
-                        {payment.clients?.name || payment.freelancer_name || '-'}
-                      </TableCell>
-                      <TableCell>
-                        {payment.due_date
-                          ? format(new Date(payment.due_date), 'dd/MM/yyyy', { locale: pt })
-                          : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={cn(statusColors[payment.status])}>
-                          {statusLabels[payment.status]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className={cn(
-                        'text-right font-medium',
-                        payment.is_receivable ? 'text-success' : 'text-destructive'
-                      )}>
-                        {payment.is_receivable ? '+' : '-'}{formatCurrency(payment.amount)}
-                      </TableCell>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-success" />
+                Controle de Pagamentos - Clientes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {payments.filter(p => p.is_receivable).length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  Nenhum pagamento de cliente registado
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Projeto</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Vencimento</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {payments.filter(p => p.is_receivable).map(payment => (
+                      <TableRow key={payment.id}>
+                        <TableCell className="font-medium">
+                          {payment.description || payment.projects?.name || 'Pagamento'}
+                        </TableCell>
+                        <TableCell>
+                          {payment.clients?.name || '-'}
+                        </TableCell>
+                        <TableCell>
+                          {payment.due_date
+                            ? format(new Date(payment.due_date), 'dd/MM/yyyy', { locale: pt })
+                            : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={payment.status}
+                            onValueChange={async (newStatus) => {
+                              await supabase
+                                .from('payments')
+                                .update({ 
+                                  status: newStatus as 'pendente' | 'pago' | 'vencido' | 'cancelado',
+                                  paid_at: newStatus === 'pago' ? new Date().toISOString() : null
+                                })
+                                .eq('id', payment.id);
+                              window.location.reload();
+                            }}
+                          >
+                            <SelectTrigger className={cn('w-[130px]', statusColors[payment.status])}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pendente">Pendente</SelectItem>
+                              <SelectItem value="pago">Pago</SelectItem>
+                              <SelectItem value="vencido">Vencido</SelectItem>
+                              <SelectItem value="cancelado">Cancelado</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="text-right font-medium text-success">
+                          +{formatCurrency(payment.amount)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Controle de Pagamentos - Freelancers */}
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Users className="h-5 w-5 text-destructive" />
+                Controle de Pagamentos - Freelancers
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {teamPayments.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  Nenhum pagamento a freelancer pendente
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Projeto</TableHead>
+                      <TableHead>Freelancer</TableHead>
+                      <TableHead>Fase</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {teamPayments.map(tp => {
+                      const project = projects.find(p => p.id === tp.project_id);
+                      return (
+                        <TableRow key={tp.id}>
+                          <TableCell className="font-medium">
+                            {project?.name || 'Projeto'}
+                          </TableCell>
+                          <TableCell>
+                            {getMemberName(tp.user_id)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={tp.phase === 'captacao' ? 'bg-blue-500/10 text-blue-500' : 'bg-purple-500/10 text-purple-500'}>
+                              {tp.phase === 'captacao' ? 'Captação' : 'Edição'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={tp.payment_status}
+                            onValueChange={async (newStatus) => {
+                                await supabase
+                                  .from('project_team')
+                                  .update({ payment_status: newStatus as 'pendente' | 'pago' | 'vencido' | 'cancelado' })
+                                  .eq('id', tp.id);
+                                window.location.reload();
+                              }}
+                            >
+                              <SelectTrigger className={cn('w-[130px]', statusColors[tp.payment_status] || statusColors.pendente)}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pendente">Pendente</SelectItem>
+                                <SelectItem value="pago">Pago</SelectItem>
+                                <SelectItem value="vencido">Vencido</SelectItem>
+                                <SelectItem value="cancelado">Cancelado</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-destructive">
+                            -{formatCurrency(tp.payment_amount || 0)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
           </Card>
         </TabsContent>
 
