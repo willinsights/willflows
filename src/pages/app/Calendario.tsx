@@ -9,12 +9,15 @@ import {
   addMonths,
   subMonths,
   addDays,
+  subDays,
+  addWeeks,
+  subWeeks,
   isSameMonth,
   isSameDay,
   parseISO,
 } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { Plus, ChevronLeft, ChevronRight, Camera, Film, Video, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Camera, Film, Video, Calendar as CalendarIcon, Clock, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -26,8 +29,9 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useProjects } from '@/hooks/useProjects';
+import { useProjects, ProjectWithClient } from '@/hooks/useProjects';
 import { useCalendarEvents } from '@/hooks/useCalendarEvents';
+import { ProjectDetailsModal } from '@/components/projects/ProjectDetailsModal';
 import { cn } from '@/lib/utils';
 
 const typeIcons: Record<string, any> = {
@@ -38,6 +42,7 @@ const typeIcons: Record<string, any> = {
 
 interface CalendarItem {
   id: string;
+  projectId?: string;
   title: string;
   date: Date;
   type: 'shoot' | 'delivery' | 'event' | 'meeting';
@@ -49,11 +54,13 @@ interface CalendarItem {
 }
 
 export default function Calendario() {
-  const { projects } = useProjects();
+  const { projects, refresh } = useProjects();
   const { events } = useCalendarEvents();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedProject, setSelectedProject] = useState<ProjectWithClient | null>(null);
+  const [showProjectDetails, setShowProjectDetails] = useState(false);
 
   // Build calendar items from projects and events
   const calendarItems = useMemo(() => {
@@ -64,6 +71,7 @@ export default function Calendario() {
       if (project.shoot_date) {
         items.push({
           id: `shoot-${project.id}`,
+          projectId: project.id,
           title: project.name,
           date: parseISO(project.shoot_date),
           type: 'shoot',
@@ -77,6 +85,7 @@ export default function Calendario() {
       if (project.delivery_date) {
         items.push({
           id: `delivery-${project.id}`,
+          projectId: project.id,
           title: project.name,
           date: parseISO(project.delivery_date),
           type: 'delivery',
@@ -89,6 +98,7 @@ export default function Calendario() {
       if (project.google_meet_url && project.item_type === 'reuniao') {
         items.push({
           id: `meeting-${project.id}`,
+          projectId: project.id,
           title: project.name,
           date: project.shoot_date ? parseISO(project.shoot_date) : new Date(),
           type: 'meeting',
@@ -103,6 +113,7 @@ export default function Calendario() {
     events.forEach(event => {
       items.push({
         id: `event-${event.id}`,
+        projectId: event.project_id || undefined,
         title: event.title,
         date: parseISO(event.start_at),
         type: event.event_type === 'meeting' ? 'meeting' : 'event',
@@ -137,6 +148,19 @@ export default function Calendario() {
     return days;
   }, [currentDate]);
 
+  // Generate week days for week view
+  const weekDays = useMemo(() => {
+    const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+    const days: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      days.push(addDays(weekStart, i));
+    }
+    return days;
+  }, [currentDate]);
+
+  // Hours for day/week view
+  const hours = Array.from({ length: 13 }, (_, i) => i + 8); // 8:00 to 20:00
+
   const getTypeColor = (type: CalendarItem['type']) => {
     switch (type) {
       case 'shoot': return 'bg-primary text-primary-foreground';
@@ -157,6 +181,59 @@ export default function Calendario() {
     }
   };
 
+  // Handle item click to open project details
+  const handleItemClick = (item: CalendarItem, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (item.projectId) {
+      const project = projects.find(p => p.id === item.projectId);
+      if (project) {
+        setSelectedProject(project);
+        setShowProjectDetails(true);
+        setSelectedDate(null);
+      }
+    }
+  };
+
+  // Navigation handlers based on view mode
+  const handlePrev = () => {
+    if (viewMode === 'month') {
+      setCurrentDate(subMonths(currentDate, 1));
+    } else if (viewMode === 'week') {
+      setCurrentDate(subWeeks(currentDate, 1));
+    } else {
+      setCurrentDate(subDays(currentDate, 1));
+    }
+  };
+
+  const handleNext = () => {
+    if (viewMode === 'month') {
+      setCurrentDate(addMonths(currentDate, 1));
+    } else if (viewMode === 'week') {
+      setCurrentDate(addWeeks(currentDate, 1));
+    } else {
+      setCurrentDate(addDays(currentDate, 1));
+    }
+  };
+
+  const getHeaderLabel = () => {
+    if (viewMode === 'month') {
+      return format(currentDate, 'MMMM yyyy', { locale: pt });
+    } else if (viewMode === 'week') {
+      const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+      const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+      return `${format(weekStart, 'd MMM', { locale: pt })} - ${format(weekEnd, 'd MMM yyyy', { locale: pt })}`;
+    } else {
+      return format(currentDate, "EEEE, d 'de' MMMM yyyy", { locale: pt });
+    }
+  };
+
+  // Parse time string to hour number
+  const parseTimeToHour = (timeStr?: string): number | null => {
+    if (!timeStr) return null;
+    const match = timeStr.match(/^(\d{1,2})/);
+    return match ? parseInt(match[1], 10) : null;
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -166,13 +243,13 @@ export default function Calendario() {
           <p className="text-muted-foreground">Captações, entregas e compromissos</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => setCurrentDate(subMonths(currentDate, 1))}>
+          <Button variant="outline" size="icon" onClick={handlePrev}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" className="min-w-[140px]">
-            {format(currentDate, 'MMMM yyyy', { locale: pt })}
+          <Button variant="outline" className="min-w-[180px] capitalize">
+            {getHeaderLabel()}
           </Button>
-          <Button variant="outline" size="icon" onClick={() => setCurrentDate(addMonths(currentDate, 1))}>
+          <Button variant="outline" size="icon" onClick={handleNext}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
@@ -250,8 +327,9 @@ export default function Calendario() {
                       {dayItems.slice(0, 3).map(item => (
                         <div
                           key={item.id}
+                          onClick={(e) => handleItemClick(item, e)}
                           className={cn(
-                            'text-xs px-1.5 py-0.5 rounded truncate',
+                            'text-xs px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity',
                             getTypeColor(item.type)
                           )}
                         >
@@ -275,22 +353,166 @@ export default function Calendario() {
 
       {/* Week View */}
       {viewMode === 'week' && (
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <p className="text-center text-muted-foreground py-8">
-              Vista semanal em desenvolvimento
-            </p>
+        <Card className="glass-card overflow-hidden">
+          <CardContent className="p-0">
+            {/* Weekday Headers */}
+            <div className="grid grid-cols-8 border-b border-border">
+              <div className="p-3 text-center text-sm font-medium text-muted-foreground border-r border-border">
+                Hora
+              </div>
+              {weekDays.map((day, index) => {
+                const isToday = isSameDay(day, new Date());
+                return (
+                  <div 
+                    key={index} 
+                    className={cn(
+                      "p-3 text-center border-r border-border last:border-r-0",
+                      isToday && "bg-primary/10"
+                    )}
+                  >
+                    <div className="text-sm font-medium text-muted-foreground">
+                      {format(day, 'EEE', { locale: pt })}
+                    </div>
+                    <div className={cn(
+                      "text-lg font-semibold",
+                      isToday && "text-primary"
+                    )}>
+                      {format(day, 'd')}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Time Grid */}
+            <div className="max-h-[600px] overflow-y-auto">
+              {hours.map(hour => (
+                <div key={hour} className="grid grid-cols-8 border-b border-border min-h-[60px]">
+                  <div className="p-2 text-xs text-muted-foreground border-r border-border flex items-start justify-center">
+                    {hour.toString().padStart(2, '0')}:00
+                  </div>
+                  {weekDays.map((day, dayIndex) => {
+                    const dayItems = getItemsForDate(day).filter(item => {
+                      const itemHour = parseTimeToHour(item.time);
+                      return itemHour === hour || (!item.time && hour === 8);
+                    });
+                    const isToday = isSameDay(day, new Date());
+
+                    return (
+                      <div 
+                        key={dayIndex} 
+                        className={cn(
+                          "p-1 border-r border-border last:border-r-0 space-y-1",
+                          isToday && "bg-primary/5"
+                        )}
+                      >
+                        {dayItems.map(item => (
+                          <div
+                            key={item.id}
+                            onClick={() => handleItemClick(item)}
+                            className={cn(
+                              'text-xs px-1.5 py-1 rounded truncate cursor-pointer hover:opacity-80 transition-opacity',
+                              getTypeColor(item.type)
+                            )}
+                            title={`${item.title}${item.clientName ? ` - ${item.clientName}` : ''}`}
+                          >
+                            <div className="font-medium truncate">{item.title}</div>
+                            {item.clientName && (
+                              <div className="text-[10px] opacity-80 truncate">{item.clientName}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
 
       {/* Day View */}
       {viewMode === 'day' && (
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <p className="text-center text-muted-foreground py-8">
-              Vista diária em desenvolvimento
-            </p>
+        <Card className="glass-card overflow-hidden">
+          <CardContent className="p-0">
+            {/* Day Header */}
+            <div className={cn(
+              "p-4 border-b border-border text-center",
+              isSameDay(currentDate, new Date()) && "bg-primary/10"
+            )}>
+              <div className="text-lg font-semibold capitalize">
+                {format(currentDate, "EEEE, d 'de' MMMM", { locale: pt })}
+              </div>
+              {isSameDay(currentDate, new Date()) && (
+                <Badge variant="secondary" className="mt-1">Hoje</Badge>
+              )}
+            </div>
+
+            {/* Time Slots */}
+            <div className="max-h-[600px] overflow-y-auto">
+              {hours.map(hour => {
+                const dayItems = getItemsForDate(currentDate).filter(item => {
+                  const itemHour = parseTimeToHour(item.time);
+                  return itemHour === hour || (!item.time && hour === 8);
+                });
+
+                return (
+                  <div key={hour} className="flex border-b border-border min-h-[80px]">
+                    <div className="w-20 p-3 text-sm text-muted-foreground border-r border-border flex-shrink-0">
+                      {hour.toString().padStart(2, '0')}:00
+                    </div>
+                    <div className="flex-1 p-2 space-y-2">
+                      {dayItems.map(item => {
+                        const TypeIcon = item.projectType ? typeIcons[item.projectType] : CalendarIcon;
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => handleItemClick(item)}
+                            className={cn(
+                              'flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:opacity-90 transition-opacity',
+                              getTypeColor(item.type)
+                            )}
+                          >
+                            {TypeIcon && <TypeIcon className="h-5 w-5 flex-shrink-0" />}
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate">{item.title}</div>
+                              {item.clientName && (
+                                <div className="text-sm opacity-80 truncate">{item.clientName}</div>
+                              )}
+                            </div>
+                            <div className="text-sm opacity-80 flex-shrink-0">
+                              {item.time && (
+                                <span>
+                                  {item.time}
+                                  {item.endTime && ` - ${item.endTime}`}
+                                </span>
+                              )}
+                            </div>
+                            {item.meetUrl && (
+                              <a
+                                href={item.meetUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex-shrink-0"
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {dayItems.length === 0 && hour === 8 && getItemsForDate(currentDate).length === 0 && (
+                        <div className="text-sm text-muted-foreground italic">
+                          Sem eventos
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -299,7 +521,7 @@ export default function Calendario() {
       <Dialog open={!!selectedDate} onOpenChange={() => setSelectedDate(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="capitalize">
               {selectedDate && format(selectedDate, "EEEE, d 'de' MMMM", { locale: pt })}
             </DialogTitle>
           </DialogHeader>
@@ -315,7 +537,11 @@ export default function Calendario() {
                   return (
                     <div
                       key={item.id}
-                      className="flex items-start gap-3 p-3 rounded-lg bg-muted/50"
+                      onClick={() => handleItemClick(item)}
+                      className={cn(
+                        "flex items-start gap-3 p-3 rounded-lg bg-muted/50 transition-colors",
+                        item.projectId && "cursor-pointer hover:bg-muted/70"
+                      )}
                     >
                       <div className={cn(
                         'w-10 h-10 rounded-lg flex items-center justify-center',
@@ -354,10 +580,15 @@ export default function Calendario() {
                             href={item.meetUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm text-primary hover:underline mt-1 inline-block"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-sm text-primary hover:underline mt-1 inline-flex items-center gap-1"
                           >
+                            <ExternalLink className="h-3 w-3" />
                             Abrir Google Meet
                           </a>
+                        )}
+                        {item.projectId && (
+                          <p className="text-xs text-primary mt-1">Clique para ver detalhes →</p>
                         )}
                       </div>
                     </div>
@@ -368,6 +599,19 @@ export default function Calendario() {
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* Project Details Modal */}
+      {selectedProject && (
+        <ProjectDetailsModal
+          open={showProjectDetails}
+          onOpenChange={setShowProjectDetails}
+          project={selectedProject}
+          onUpdate={() => {
+            refresh();
+            setSelectedProject(null);
+          }}
+        />
+      )}
     </div>
   );
 }
