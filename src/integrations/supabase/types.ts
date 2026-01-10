@@ -169,6 +169,99 @@ export type Database = {
           },
         ]
       }
+      client_communications: {
+        Row: {
+          client_id: string
+          contact_date: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          subject: string
+          type: string
+          workspace_id: string
+        }
+        Insert: {
+          client_id: string
+          contact_date?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          subject: string
+          type?: string
+          workspace_id: string
+        }
+        Update: {
+          client_id?: string
+          contact_date?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          subject?: string
+          type?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_communications_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_communications_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_notes: {
+        Row: {
+          client_id: string
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          workspace_id: string
+        }
+        Insert: {
+          client_id: string
+          content: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          workspace_id: string
+        }
+        Update: {
+          client_id?: string
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_notes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_notes_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null
