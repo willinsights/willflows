@@ -160,7 +160,7 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
           <div className="px-6">
             <TabsList className="w-full justify-start bg-muted/50">
               <TabsTrigger value="info" className="gap-2">
@@ -174,14 +174,11 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
                   {stats.totalProjects}
                 </Badge>
               </TabsTrigger>
-              <TabsTrigger value="communication" className="gap-2">
-                <MessageSquare className="h-4 w-4" />
-                Comunicação
-              </TabsTrigger>
             </TabsList>
           </div>
 
-          <ScrollArea className="flex-1 max-h-[60vh]">
+          <div className="flex-1 overflow-hidden">
+            <ScrollArea className="h-[60vh]">
             {/* Info Tab */}
             <TabsContent value="info" className="p-6 pt-4 space-y-6 mt-0">
               {/* Quick Actions */}
@@ -414,43 +411,8 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
                 </div>
               )}
             </TabsContent>
-
-            {/* Communication Tab */}
-            <TabsContent value="communication" className="p-6 pt-4 space-y-6 mt-0">
-              {/* Communication History */}
-              <Card className="glass-card">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                    <h4 className="font-semibold">Histórico de Comunicações</h4>
-                  </div>
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <MessageSquare className="h-12 w-12 text-muted-foreground/30 mb-3" />
-                    <p className="text-muted-foreground">Nenhuma comunicação registrada</p>
-                    <p className="text-sm text-muted-foreground">Clique em "Comunicação" para adicionar</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Internal Notes */}
-              <Card className="glass-card">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    <h4 className="font-semibold">Notas Internas</h4>
-                  </div>
-                  {client.notes ? (
-                    <p className="text-sm text-muted-foreground">{client.notes}</p>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-8 text-center">
-                      <FileText className="h-12 w-12 text-muted-foreground/30 mb-3" />
-                      <p className="text-muted-foreground">Nenhuma nota registrada</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </ScrollArea>
+            </ScrollArea>
+          </div>
         </Tabs>
       </DialogContent>
     </Dialog>
