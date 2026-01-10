@@ -67,7 +67,7 @@ const navSections: NavSection[] = [
     title: 'FERRAMENTAS',
     items: [
       { icon: Calendar, label: 'Calendário', path: '/app/calendario' },
-      { icon: FolderKanban, label: 'Projetos', path: '/app/projetos' },
+      { icon: Upload, label: 'Media', path: '/app/media' },
     ],
   },
   {
