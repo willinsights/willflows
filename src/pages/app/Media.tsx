@@ -362,51 +362,56 @@ function MediaCard({ link, index, showProject }: MediaCardProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
+      initial={{ opacity: 0, scale: 0.95, y: 10 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ 
+        delay: index * 0.03,
+        duration: 0.2,
+        ease: "easeOut"
+      }}
+      whileHover={{ scale: 1.02, y: -2 }}
+      whileTap={{ scale: 0.98 }}
     >
-      <Card className="glass-card hover:shadow-lg transition-all h-full">
-        <CardContent className="p-4 flex flex-col h-full">
-          <Badge 
-            variant="outline" 
-            className={cn("w-fit mb-3", getMediaColor(link.link_type?.toLowerCase() || 'outro'))}
-          >
-            <Icon className="h-3 w-3 mr-1" />
-            {typeLabel}
-          </Badge>
-          
+      <Card className="glass-card hover:shadow-lg hover:border-primary/30 transition-all duration-200 cursor-pointer group">
+        <CardContent className="p-3 flex items-center gap-3">
           <div className={cn(
-            "w-16 h-16 rounded-xl flex items-center justify-center mb-4 mx-auto",
+            "w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-110",
             getMediaBgColor(link.link_type?.toLowerCase() || 'outro'),
             "text-white"
           )}>
-            <Icon className="h-8 w-8" />
+            <Icon className="h-4 w-4" />
           </div>
 
-          <h3 className="font-semibold text-center mb-1 line-clamp-2">
-            {link.title || 'Sem título'}
-          </h3>
-          
-          {showProject && link.project_name && (
-            <p className="text-sm text-primary text-center mb-1">{link.project_name}</p>
-          )}
-          
-          {showProject && link.client_name && (
-            <p className="text-sm text-muted-foreground text-center">{link.client_name}</p>
-          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+                {link.title || 'Sem título'}
+              </h3>
+              <Badge 
+                variant="outline" 
+                className={cn("text-[10px] px-1.5 py-0 h-4 flex-shrink-0", getMediaColor(link.link_type?.toLowerCase() || 'outro'))}
+              >
+                {typeLabel}
+              </Badge>
+            </div>
+            {showProject && (
+              <p className="text-xs text-muted-foreground truncate">
+                {link.project_name}{link.client_name && ` • ${link.client_name}`}
+              </p>
+            )}
+          </div>
 
-          <div className="mt-auto pt-4 flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">
-              {format(new Date(link.created_at), 'dd/MM/yyyy', { locale: pt })}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-[10px] text-muted-foreground hidden sm:block">
+              {format(new Date(link.created_at), 'dd/MM', { locale: pt })}
             </span>
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
+              className="h-7 w-7 opacity-60 group-hover:opacity-100 transition-opacity"
               onClick={() => window.open(link.url, '_blank')}
             >
-              <ExternalLink className="h-4 w-4 mr-1" />
-              Abrir
+              <ExternalLink className="h-3.5 w-3.5" />
             </Button>
           </div>
         </CardContent>
