@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
@@ -14,164 +15,258 @@ export interface PaymentWithDetails extends Payment {
   projects: { name: string; project_code: string | null } | null;
 }
 
+async function fetchPaymentsFromDb(workspaceId: string): Promise<PaymentWithDetails[]> {
+  const { data, error } = await supabase
+    .from('payments')
+    .select('*, clients(name), projects(name, project_code)')
+    .eq('workspace_id', workspaceId)
+    .order('due_date', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
 export function usePayments() {
   const { currentWorkspace, fetchError } = useWorkspace();
   const { toast } = useToast();
-  const [payments, setPayments] = useState<PaymentWithDetails[]>([]);
-  const [loading, setLoading] = useState(true);
-  
-  // Refs to prevent duplicate fetches
-  const isFetchingRef = useRef(false);
-  const lastFetchedWorkspaceIdRef = useRef<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const fetchPayments = useCallback(async () => {
-    if (!currentWorkspace?.id || fetchError) return;
-    if (isFetchingRef.current) return;
+  const workspaceId = currentWorkspace?.id;
 
-    try {
-      isFetchingRef.current = true;
-      setLoading(true);
+  const { data: payments = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ['payments', workspaceId],
+    queryFn: () => fetchPaymentsFromDb(workspaceId!),
+    enabled: !!workspaceId && !fetchError,
+    staleTime: 30000,
+  });
+
+  const createPaymentMutation = useMutation({
+    mutationFn: async (payment: Omit<PaymentInsert, 'workspace_id'>) => {
+      if (!workspaceId) throw new Error('No workspace');
       
-      const { data, error } = await supabase
-        .from('payments')
-        .select('*, clients(name), projects(name, project_code)')
-        .eq('workspace_id', currentWorkspace.id)
-        .order('due_date', { ascending: true });
+      const validation = validateWithSchema(paymentSchema, payment);
+      if (!validation.success) {
+        throw new Error(validation.error);
+      }
 
-      if (error) throw error;
-      setPayments(data || []);
-      lastFetchedWorkspaceIdRef.current = currentWorkspace.id;
-    } catch (error) {
-      console.error('Error fetching payments:', error);
-    } finally {
-      isFetchingRef.current = false;
-      setLoading(false);
-    }
-  }, [currentWorkspace?.id, fetchError]);
-
-  useEffect(() => {
-    // Only fetch if workspace ID changed
-    if (currentWorkspace?.id && currentWorkspace.id !== lastFetchedWorkspaceIdRef.current && !fetchError) {
-      fetchPayments();
-    } else if (!currentWorkspace) {
-      setLoading(false);
-    }
-  }, [currentWorkspace?.id, fetchError]);
-
-  const createPayment = async (payment: Omit<PaymentInsert, 'workspace_id'>) => {
-    if (!currentWorkspace) return null;
-
-    // Validate input before database operation
-    const validation = validateWithSchema(paymentSchema, payment);
-    if (!validation.success) {
-      toast({
-        title: 'Dados inválidos',
-        description: validation.error,
-        variant: 'destructive',
-      });
-      return null;
-    }
-
-    const validatedData = validation.data;
-
-    try {
       const { data, error } = await supabase
         .from('payments')
         .insert({
-          ...validatedData,
-          workspace_id: currentWorkspace.id,
+          ...validation.data,
+          workspace_id: workspaceId,
         } as any)
         .select('*, clients(name), projects(name, project_code)')
         .single();
 
       if (error) throw error;
-
-      toast({ title: 'Pagamento criado com sucesso' });
-      setPayments(prev => [...prev, data]);
       return data;
-    } catch (error) {
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payments', workspaceId] });
+      toast({ title: 'Pagamento criado com sucesso' });
+    },
+    onError: (error) => {
       toast({
         title: 'Erro ao criar pagamento',
         description: handleDatabaseError('createPayment', error),
         variant: 'destructive',
       });
-      return null;
-    }
-  };
+    },
+  });
 
-  const updatePayment = async (paymentId: string, updates: Partial<Payment>) => {
-    // Validate update data
-    const validation = validateWithSchema(paymentUpdateSchema, updates);
-    if (!validation.success) {
-      toast({
-        title: 'Dados inválidos',
-        description: validation.error,
-        variant: 'destructive',
-      });
-      return;
-    }
+  const updatePaymentMutation = useMutation({
+    mutationFn: async ({ paymentId, updates }: { paymentId: string; updates: Partial<Payment> }) => {
+      const validation = validateWithSchema(paymentUpdateSchema, updates);
+      if (!validation.success) {
+        throw new Error(validation.error);
+      }
 
-    const validatedData = validation.data;
-
-    try {
       const { error } = await supabase
         .from('payments')
-        .update({ ...validatedData, updated_at: new Date().toISOString() } as any)
+        .update({ ...validation.data, updated_at: new Date().toISOString() } as any)
         .eq('id', paymentId);
 
       if (error) throw error;
-
-      setPayments(prev =>
-        prev.map(p => (p.id === paymentId ? { ...p, ...updates } : p))
-      );
-
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payments', workspaceId] });
       toast({ title: 'Pagamento atualizado' });
-    } catch (error) {
+    },
+    onError: (error) => {
       toast({
         title: 'Erro ao atualizar pagamento',
         description: handleDatabaseError('updatePayment', error),
         variant: 'destructive',
       });
-    }
-  };
+    },
+  });
 
-  const deletePayment = async (paymentId: string) => {
-    try {
+  const updatePaymentStatusMutation = useMutation({
+    mutationFn: async ({ paymentId, status }: { paymentId: string; status: string }) => {
+      const { error } = await supabase
+        .from('payments')
+        .update({ 
+          status: status as 'pendente' | 'pago' | 'vencido' | 'cancelado',
+          paid_at: status === 'pago' ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', paymentId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payments', workspaceId] });
+      toast({ title: 'Status atualizado' });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Erro ao atualizar status',
+        description: handleDatabaseError('updatePaymentStatus', error),
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deletePaymentMutation = useMutation({
+    mutationFn: async (paymentId: string) => {
       const { error } = await supabase
         .from('payments')
         .delete()
         .eq('id', paymentId);
 
       if (error) throw error;
-
-      setPayments(prev => prev.filter(p => p.id !== paymentId));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payments', workspaceId] });
       toast({ title: 'Pagamento removido' });
-    } catch (error) {
+    },
+    onError: (error) => {
       toast({
         title: 'Erro ao remover pagamento',
         description: handleDatabaseError('deletePayment', error),
         variant: 'destructive',
       });
-    }
-  };
+    },
+  });
+
+  const createPayment = useCallback(
+    async (payment: Omit<PaymentInsert, 'workspace_id'>) => {
+      if (!currentWorkspace) return null;
+      return createPaymentMutation.mutateAsync(payment);
+    },
+    [currentWorkspace, createPaymentMutation]
+  );
+
+  const updatePayment = useCallback(
+    async (paymentId: string, updates: Partial<Payment>) => {
+      return updatePaymentMutation.mutateAsync({ paymentId, updates });
+    },
+    [updatePaymentMutation]
+  );
+
+  const updatePaymentStatus = useCallback(
+    async (paymentId: string, status: string) => {
+      return updatePaymentStatusMutation.mutateAsync({ paymentId, status });
+    },
+    [updatePaymentStatusMutation]
+  );
+
+  const deletePayment = useCallback(
+    async (paymentId: string) => {
+      return deletePaymentMutation.mutateAsync(paymentId);
+    },
+    [deletePaymentMutation]
+  );
 
   // Calculate summaries
-  const summaries = {
+  const summaries = useMemo(() => ({
     totalReceivable: payments.filter(p => p.is_receivable && p.status !== 'pago').reduce((sum, p) => sum + p.amount, 0),
     totalPayable: payments.filter(p => !p.is_receivable && p.status !== 'pago').reduce((sum, p) => sum + p.amount, 0),
     totalReceived: payments.filter(p => p.is_receivable && p.status === 'pago').reduce((sum, p) => sum + p.amount, 0),
     totalPaid: payments.filter(p => !p.is_receivable && p.status === 'pago').reduce((sum, p) => sum + p.amount, 0),
     overdue: payments.filter(p => p.status === 'vencido').length,
     pending: payments.filter(p => p.status === 'pendente').length,
-  };
+  }), [payments]);
 
   return {
     payments,
     loading,
     createPayment,
     updatePayment,
+    updatePaymentStatus,
     deletePayment,
-    refresh: fetchPayments,
+    refresh: refetch,
     summaries,
+  };
+}
+
+// Hook for team payments
+export function useTeamPayments() {
+  const { currentWorkspace } = useWorkspace();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const workspaceId = currentWorkspace?.id;
+
+  const { data: teamPayments = [], isLoading: loading } = useQuery({
+    queryKey: ['teamPayments', workspaceId],
+    queryFn: async () => {
+      if (!workspaceId) return [];
+      
+      // Get workspace projects first
+      const { data: projectsData } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('workspace_id', workspaceId);
+      
+      const projectIds = projectsData?.map(p => p.id) || [];
+      
+      if (projectIds.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from('project_team')
+        .select('id, project_id, user_id, phase, payment_amount, payment_status')
+        .in('project_id', projectIds);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!workspaceId,
+    staleTime: 30000,
+  });
+
+  const updateTeamPaymentStatusMutation = useMutation({
+    mutationFn: async ({ teamId, status }: { teamId: string; status: string }) => {
+      const { error } = await supabase
+        .from('project_team')
+        .update({ payment_status: status as 'pendente' | 'pago' | 'vencido' | 'cancelado' })
+        .eq('id', teamId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teamPayments', workspaceId] });
+      toast({ title: 'Status atualizado' });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Erro ao atualizar status',
+        description: handleDatabaseError('updateTeamPaymentStatus', error),
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const updateTeamPaymentStatus = useCallback(
+    async (teamId: string, status: string) => {
+      return updateTeamPaymentStatusMutation.mutateAsync({ teamId, status });
+    },
+    [updateTeamPaymentStatusMutation]
+  );
+
+  return {
+    teamPayments,
+    loading,
+    updateTeamPaymentStatus,
   };
 }

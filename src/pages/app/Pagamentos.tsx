@@ -3,13 +3,9 @@ import { motion } from 'framer-motion';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, isWithinInterval } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import {
-  Plus,
   CreditCard,
-  Filter,
-  Download,
   TrendingUp,
   TrendingDown,
-  Clock,
   CheckCircle2,
   AlertCircle,
   FileSpreadsheet,
@@ -24,27 +20,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { usePayments } from '@/hooks/usePayments';
+import { usePayments, useTeamPayments } from '@/hooks/usePayments';
 import { useProjects } from '@/hooks/useProjects';
+import { useClients } from '@/hooks/useClients';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { ClientPaymentsControl } from '@/components/payments/ClientPaymentsControl';
+import { FreelancerPaymentsControl, type ProjectTeamPayment } from '@/components/payments/FreelancerPaymentsControl';
+import { PaymentExportButtons } from '@/components/payments/PaymentExportButtons';
 
 const statusLabels: Record<string, string> = {
   pendente: 'Pendente',
@@ -60,15 +45,6 @@ const statusColors: Record<string, string> = {
   cancelado: 'bg-muted text-muted-foreground',
 };
 
-interface ProjectTeamPayment {
-  id: string;
-  project_id: string;
-  user_id: string;
-  phase: 'captacao' | 'edicao';
-  payment_amount: number | null;
-  payment_status: string;
-}
-
 interface ProjectCustoExtra {
   id: string;
   name: string;
@@ -77,18 +53,17 @@ interface ProjectCustoExtra {
 }
 
 export default function Pagamentos() {
-  const { payments, loading, summaries } = usePayments();
+  const { payments, loading, summaries, updatePaymentStatus } = usePayments();
+  const { teamPayments, updateTeamPaymentStatus } = useTeamPayments();
   const { projects } = useProjects();
+  const { clients } = useClients();
   const { currentWorkspace } = useWorkspace();
   const { members } = useWorkspaceMembers();
   const [activeTab, setActiveTab] = useState('previsao');
-  const [filterType, setFilterType] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   
-  // Data for collaborator and extra costs
-  const [teamPayments, setTeamPayments] = useState<ProjectTeamPayment[]>([]);
+  // Data for extra costs
   const [projectCosts, setProjectCosts] = useState<ProjectCustoExtra[]>([]);
 
   const currency = currentWorkspace?.currency || 'EUR';
@@ -100,23 +75,10 @@ export default function Pagamentos() {
     }).format(value);
   };
 
-  // Fetch collaborator payments and project extra costs
+  // Fetch project extra costs
   useEffect(() => {
     const fetchAdditionalData = async () => {
       if (!currentWorkspace?.id) return;
-      
-      // Fetch team payments that are not paid
-      const { data: teamData } = await supabase
-        .from('project_team')
-        .select('id, project_id, user_id, phase, payment_amount, payment_status')
-        .in('payment_status', ['pendente', 'vencido']);
-      
-      if (teamData) {
-        // Filter to only workspace projects
-        const projectIds = projects.map(p => p.id);
-        const filteredTeamData = teamData.filter(t => projectIds.includes(t.project_id));
-        setTeamPayments(filteredTeamData as ProjectTeamPayment[]);
-      }
       
       // Fetch projects with pending extra costs
       const { data: costsData } = await supabase
@@ -132,13 +94,7 @@ export default function Pagamentos() {
     };
     
     fetchAdditionalData();
-  }, [currentWorkspace?.id, projects]);
-
-  // Get member name
-  const getMemberName = (userId: string) => {
-    const member = members.find(m => m.user_id === userId);
-    return member?.full_name || 'Colaborador';
-  };
+  }, [currentWorkspace?.id]);
 
   // Filter payments for the current month view
   const monthPayments = useMemo(() => {
@@ -152,17 +108,20 @@ export default function Pagamentos() {
     });
   }, [payments, currentMonth]);
 
+  // Cast teamPayments to the correct type
+  const typedTeamPayments = teamPayments as ProjectTeamPayment[];
+
   // Calculate monthly forecasts including collaborators and extra costs
   const monthlyForecast = useMemo(() => {
     const receivable = monthPayments.filter(p => p.is_receivable && p.status !== 'pago').reduce((sum, p) => sum + p.amount, 0);
     const payable = monthPayments.filter(p => !p.is_receivable && p.status !== 'pago').reduce((sum, p) => sum + p.amount, 0);
     
     // Team payments by phase
-    const teamCaptacao = teamPayments
+    const teamCaptacao = typedTeamPayments
       .filter(tp => tp.phase === 'captacao' && tp.payment_status !== 'pago')
       .reduce((sum, tp) => sum + (tp.payment_amount || 0), 0);
     
-    const teamEdicao = teamPayments
+    const teamEdicao = typedTeamPayments
       .filter(tp => tp.phase === 'edicao' && tp.payment_status !== 'pago')
       .reduce((sum, tp) => sum + (tp.payment_amount || 0), 0);
     
@@ -185,13 +144,13 @@ export default function Pagamentos() {
       totalPayable,
       net: receivable - totalPayable 
     };
-  }, [monthPayments, teamPayments, projectCosts]);
+  }, [monthPayments, typedTeamPayments, projectCosts]);
 
   // Calculate total payable including team and extra costs for summary
   const totalPayableWithExtras = useMemo(() => {
     const basePayable = summaries.totalPayable;
     
-    const teamTotal = teamPayments
+    const teamTotal = typedTeamPayments
       .filter(tp => tp.payment_status !== 'pago')
       .reduce((sum, tp) => sum + (tp.payment_amount || 0), 0);
     
@@ -200,17 +159,7 @@ export default function Pagamentos() {
       .reduce((sum, p) => sum + (p.custos_extras || 0), 0);
     
     return basePayable + teamTotal + custosExtras;
-  }, [summaries.totalPayable, teamPayments, projectCosts]);
-
-  // Filtered payments
-  const filteredPayments = useMemo(() => {
-    return payments.filter(payment => {
-      if (filterType === 'receivable' && !payment.is_receivable) return false;
-      if (filterType === 'payable' && payment.is_receivable) return false;
-      if (filterStatus !== 'all' && payment.status !== filterStatus) return false;
-      return true;
-    });
-  }, [payments, filterType, filterStatus]);
+  }, [summaries.totalPayable, typedTeamPayments, projectCosts]);
 
   // Projects available for invoicing
   const invoiceableProjects = useMemo(() => {
@@ -230,6 +179,44 @@ export default function Pagamentos() {
       .filter(p => selectedProjects.includes(p.id))
       .reduce((sum, p) => sum + (p.agreed_value || 0), 0);
   }, [invoiceableProjects, selectedProjects]);
+
+  // Export data for previsão tab
+  const previsaoExportData = useMemo(() => {
+    return monthPayments.map(payment => ({
+      projeto: payment.description || payment.projects?.name || 'Pagamento',
+      contraparte: payment.clients?.name || payment.freelancer_name || 'N/A',
+      vencimento: payment.due_date 
+        ? format(new Date(payment.due_date), 'dd/MM/yyyy', { locale: pt })
+        : '-',
+      status: statusLabels[payment.status] || payment.status,
+      valor: `${payment.is_receivable ? '+' : '-'}${formatCurrency(payment.amount)}`,
+    }));
+  }, [monthPayments, formatCurrency]);
+
+  // Handle client payment status change
+  const handleClientStatusChange = async (paymentId: string, newStatus: string) => {
+    await updatePaymentStatus(paymentId, newStatus);
+  };
+
+  // Handle freelancer payment status change
+  const handleFreelancerStatusChange = async (teamId: string, newStatus: string) => {
+    await updateTeamPaymentStatus(teamId, newStatus);
+  };
+
+  // Prepare clients list for filters
+  const clientsList = useMemo(() => {
+    return clients.map(c => ({ id: c.id, name: c.name }));
+  }, [clients]);
+
+  // Prepare members list for filters
+  const membersList = useMemo(() => {
+    return members.map(m => ({ user_id: m.user_id, full_name: m.full_name }));
+  }, [members]);
+
+  // Prepare projects list for freelancer component
+  const projectsList = useMemo(() => {
+    return projects.map(p => ({ id: p.id, name: p.name }));
+  }, [projects]);
 
   if (loading) {
     return (
@@ -303,17 +290,24 @@ export default function Pagamentos() {
 
         {/* Previsão Tab */}
         <TabsContent value="previsao" className="space-y-6">
-          {/* Month Navigator */}
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" className="min-w-[140px]">
-              {format(currentMonth, 'MMMM yyyy', { locale: pt })}
-            </Button>
-            <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+          {/* Month Navigator with Export */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" className="min-w-[140px]">
+                {format(currentMonth, 'MMMM yyyy', { locale: pt })}
+              </Button>
+              <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+            <PaymentExportButtons
+              data={previsaoExportData}
+              filename={`previsao-${format(currentMonth, 'yyyy-MM')}`}
+              type="clients"
+            />
           </div>
 
           {/* Monthly Forecast */}
@@ -456,153 +450,20 @@ export default function Pagamentos() {
 
         {/* Pagamentos Tab */}
         <TabsContent value="pagamentos" className="space-y-6">
-          {/* Controle de Pagamentos - Clientes */}
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-success" />
-                Controle de Pagamentos - Clientes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {payments.filter(p => p.is_receivable).length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhum pagamento de cliente registado
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Projeto</TableHead>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Vencimento</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {payments.filter(p => p.is_receivable).map(payment => (
-                      <TableRow key={payment.id}>
-                        <TableCell className="font-medium">
-                          {payment.description || payment.projects?.name || 'Pagamento'}
-                        </TableCell>
-                        <TableCell>
-                          {payment.clients?.name || '-'}
-                        </TableCell>
-                        <TableCell>
-                          {payment.due_date
-                            ? format(new Date(payment.due_date), 'dd/MM/yyyy', { locale: pt })
-                            : '-'}
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={payment.status}
-                            onValueChange={async (newStatus) => {
-                              await supabase
-                                .from('payments')
-                                .update({ 
-                                  status: newStatus as 'pendente' | 'pago' | 'vencido' | 'cancelado',
-                                  paid_at: newStatus === 'pago' ? new Date().toISOString() : null
-                                })
-                                .eq('id', payment.id);
-                              window.location.reload();
-                            }}
-                          >
-                            <SelectTrigger className={cn('w-[130px]', statusColors[payment.status])}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pendente">Pendente</SelectItem>
-                              <SelectItem value="pago">Pago</SelectItem>
-                              <SelectItem value="vencido">Vencido</SelectItem>
-                              <SelectItem value="cancelado">Cancelado</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell className="text-right font-medium text-success">
-                          +{formatCurrency(payment.amount)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+          <ClientPaymentsControl
+            payments={payments}
+            clients={clientsList}
+            onStatusChange={handleClientStatusChange}
+            formatCurrency={formatCurrency}
+          />
 
-          {/* Controle de Pagamentos - Freelancers */}
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Users className="h-5 w-5 text-destructive" />
-                Controle de Pagamentos - Freelancers
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {teamPayments.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhum pagamento a freelancer pendente
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Projeto</TableHead>
-                      <TableHead>Freelancer</TableHead>
-                      <TableHead>Fase</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {teamPayments.map(tp => {
-                      const project = projects.find(p => p.id === tp.project_id);
-                      return (
-                        <TableRow key={tp.id}>
-                          <TableCell className="font-medium">
-                            {project?.name || 'Projeto'}
-                          </TableCell>
-                          <TableCell>
-                            {getMemberName(tp.user_id)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={tp.phase === 'captacao' ? 'bg-blue-500/10 text-blue-500' : 'bg-purple-500/10 text-purple-500'}>
-                              {tp.phase === 'captacao' ? 'Captação' : 'Edição'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Select
-                              value={tp.payment_status}
-                            onValueChange={async (newStatus) => {
-                                await supabase
-                                  .from('project_team')
-                                  .update({ payment_status: newStatus as 'pendente' | 'pago' | 'vencido' | 'cancelado' })
-                                  .eq('id', tp.id);
-                                window.location.reload();
-                              }}
-                            >
-                              <SelectTrigger className={cn('w-[130px]', statusColors[tp.payment_status] || statusColors.pendente)}>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="pendente">Pendente</SelectItem>
-                                <SelectItem value="pago">Pago</SelectItem>
-                                <SelectItem value="vencido">Vencido</SelectItem>
-                                <SelectItem value="cancelado">Cancelado</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell className="text-right font-medium text-destructive">
-                            -{formatCurrency(tp.payment_amount || 0)}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+          <FreelancerPaymentsControl
+            teamPayments={typedTeamPayments}
+            projects={projectsList}
+            members={membersList}
+            onStatusChange={handleFreelancerStatusChange}
+            formatCurrency={formatCurrency}
+          />
         </TabsContent>
 
         {/* Faturas Tab */}
