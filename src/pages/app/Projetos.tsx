@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Filter, LayoutGrid, List, Camera, Film, Video, Calendar, AlertCircle } from 'lucide-react';
-import { format } from 'date-fns';
+import { Plus, Search, Filter, LayoutGrid, List, Camera, Film, Video, Calendar, AlertCircle, Clock } from 'lucide-react';
+import { format, differenceInDays, isPast, isToday } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -61,13 +61,43 @@ export default function Projetos() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
-  // Handle URL filter param
+  // Handle URL filter param - set list view for urgent filter
   useEffect(() => {
     const filterParam = searchParams.get('filter');
     if (filterParam === 'urgentes') {
       setFilterPriority('urgentes');
+      setViewMode('list');
     }
   }, [searchParams]);
+
+  // Helper to calculate days remaining
+  const getDaysRemaining = (deliveryDate: string | null) => {
+    if (!deliveryDate) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const delivery = new Date(deliveryDate);
+    delivery.setHours(0, 0, 0, 0);
+    return differenceInDays(delivery, today);
+  };
+
+  // Helper to get badge styles based on days remaining
+  const getDaysRemainingBadge = (days: number | null) => {
+    if (days === null) return null;
+    
+    if (days < 0) {
+      return { text: `${Math.abs(days)}d atrasado`, className: 'bg-destructive text-destructive-foreground' };
+    }
+    if (days === 0) {
+      return { text: 'Hoje', className: 'bg-destructive text-destructive-foreground' };
+    }
+    if (days <= 2) {
+      return { text: `${days}d restante${days > 1 ? 's' : ''}`, className: 'bg-warning text-warning-foreground' };
+    }
+    if (days <= 7) {
+      return { text: `${days}d restantes`, className: 'bg-info/80 text-white' };
+    }
+    return { text: `${days}d restantes`, className: 'bg-muted text-muted-foreground' };
+  };
 
   const clearUrgentFilter = () => {
     setFilterPriority('all');
@@ -163,24 +193,26 @@ export default function Projetos() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className="flex items-center gap-1 border rounded-md p-1">
-            <Button
-              variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setViewMode('grid')}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setViewMode('list')}
-            >
-              <List className="h-4 w-4" />
-            </Button>
-          </div>
+          {!isUrgentFilter && (
+            <div className="flex items-center gap-1 border rounded-md p-1">
+              <Button
+                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setViewMode('grid')}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setViewMode('list')}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
           <Button className="gradient-primary" onClick={() => setShowCreateModal(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Novo Projeto
@@ -271,10 +303,13 @@ export default function Projetos() {
             </Button>
           )}
         </motion.div>
-      ) : viewMode === 'grid' ? (
+      ) : viewMode === 'grid' && !isUrgentFilter ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredProjects.map((project, index) => {
             const TypeIcon = typeIcons[project.type] || Camera;
+            const daysRemaining = getDaysRemaining(project.delivery_date);
+            const daysBadge = getDaysRemainingBadge(daysRemaining);
+            const isUrgentProject = project.priority === 'alta' || project.priority === 'urgente';
             return (
               <motion.div
                 key={project.id}
@@ -309,11 +344,19 @@ export default function Projetos() {
                     )}
 
                     <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <Calendar className="h-3.5 w-3.5" />
-                        {project.delivery_date
-                          ? format(new Date(project.delivery_date), 'dd/MM', { locale: pt })
-                          : 'Sem data'}
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <Calendar className="h-3.5 w-3.5" />
+                          {project.delivery_date
+                            ? format(new Date(project.delivery_date), 'dd/MM', { locale: pt })
+                            : 'Sem data'}
+                        </div>
+                        {isUrgentProject && daysBadge && (
+                          <Badge className={cn('text-xs', daysBadge.className)}>
+                            <Clock className="h-3 w-3 mr-1" />
+                            {daysBadge.text}
+                          </Badge>
+                        )}
                       </div>
                       {project.agreed_value && (
                         <span className="font-medium text-success">
@@ -331,6 +374,9 @@ export default function Projetos() {
         <div className="space-y-2">
           {filteredProjects.map((project, index) => {
             const TypeIcon = typeIcons[project.type] || Camera;
+            const daysRemaining = getDaysRemaining(project.delivery_date);
+            const daysBadge = getDaysRemainingBadge(daysRemaining);
+            const isUrgentProject = project.priority === 'alta' || project.priority === 'urgente';
             return (
               <motion.div
                 key={project.id}
@@ -361,11 +407,18 @@ export default function Projetos() {
                         <Badge variant="outline" className={cn(priorityColors[project.priority])}>
                           {priorityLabels[project.priority]}
                         </Badge>
-                        <div className="text-sm text-muted-foreground w-20 text-right">
-                          {project.delivery_date
-                            ? format(new Date(project.delivery_date), 'dd/MM/yy', { locale: pt })
-                            : '-'}
-                        </div>
+                        {isUrgentProject && daysBadge ? (
+                          <Badge className={cn('text-xs min-w-[90px] justify-center', daysBadge.className)}>
+                            <Clock className="h-3 w-3 mr-1" />
+                            {daysBadge.text}
+                          </Badge>
+                        ) : (
+                          <div className="text-sm text-muted-foreground min-w-[90px] text-center">
+                            {project.delivery_date
+                              ? format(new Date(project.delivery_date), 'dd/MM/yy', { locale: pt })
+                              : '-'}
+                          </div>
+                        )}
                         {project.agreed_value && (
                           <span className="font-medium text-success w-24 text-right">
                             {formatCurrency(project.agreed_value)}
