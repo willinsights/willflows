@@ -315,44 +315,51 @@ export function ProjectFinancialTab({
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <DollarSign className="h-3 w-3" /> Preço Cliente
-            </span>
-            <p className="text-xl font-bold text-success mt-1">
-              €{agreedValue.toFixed(2)}
-            </p>
+        <div className="space-y-4">
+          {/* Linha 1: Receita e Custos operacionais */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <DollarSign className="h-3 w-3" /> Preço Cliente
+              </span>
+              <p className="text-xl font-bold text-success mt-1">
+                €{agreedValue.toFixed(2)}
+              </p>
+            </div>
+            <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Camera className="h-3 w-3" /> Custo Captação
+              </span>
+              <p className="text-xl font-bold text-destructive mt-1">
+                €{custoCaptacao.toFixed(2)}
+              </p>
+            </div>
+            <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Film className="h-3 w-3" /> Custo Edição
+              </span>
+              <p className="text-xl font-bold text-destructive mt-1">
+                €{custoEdicao.toFixed(2)}
+              </p>
+            </div>
           </div>
-          <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Camera className="h-3 w-3" /> Custo Captação
-            </span>
-            <p className="text-xl font-bold text-destructive mt-1">
-              €{custoCaptacao.toFixed(2)}
-            </p>
-          </div>
-          <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Film className="h-3 w-3" /> Custo Edição
-            </span>
-            <p className="text-xl font-bold text-destructive mt-1">
-              €{custoEdicao.toFixed(2)}
-            </p>
-          </div>
-          <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Package className="h-3 w-3" /> Custos Extras
-            </span>
-            <p className="text-xl font-bold text-destructive mt-1">
-              €{custosExtras.toFixed(2)}
-            </p>
-          </div>
-          <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-            <span className="text-xs text-muted-foreground">Lucro</span>
-            <p className={cn("text-xl font-bold mt-1", profit >= 0 ? "text-primary" : "text-destructive")}>
-              €{profit.toFixed(2)}
-            </p>
+
+          {/* Linha 2: Extras e Lucro */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Package className="h-3 w-3" /> Custos Extras
+              </span>
+              <p className="text-xl font-bold text-destructive mt-1">
+                €{custosExtras.toFixed(2)}
+              </p>
+            </div>
+            <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+              <span className="text-xs text-muted-foreground">Lucro</span>
+              <p className={cn("text-xl font-bold mt-1", profit >= 0 ? "text-primary" : "text-destructive")}>
+                €{profit.toFixed(2)}
+              </p>
+            </div>
           </div>
         </div>
       )}
