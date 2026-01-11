@@ -57,9 +57,12 @@ export function WorkspaceSelector() {
     setSwitching(true);
     try {
       await setCurrentWorkspace(workspaceId);
-      // Reload the page to refresh all data with new workspace context
-      window.location.href = '/app';
+      // Small delay to ensure state is saved before reload
+      setTimeout(() => {
+        window.location.href = '/app';
+      }, 100);
     } catch (error) {
+      console.error('Error switching workspace:', error);
       toast({
         title: 'Erro ao trocar workspace',
         description: 'Tente novamente mais tarde.',
