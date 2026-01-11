@@ -197,77 +197,83 @@ const plans = [
   },
 ];
 
-// Showcase with Background and Floating Cards Component
+// Showcase with Background and Floating Cards at Edges
 function ShowcaseWithBackground({ features }: { features: typeof showcaseFeatures }) {
   const [selectedFeature, setSelectedFeature] = useState<number | null>(null);
   
-  const featureIcons = [Kanban, CreditCard, Calendar, BarChart3];
+  // Positions for cards at the edges (avoiding center where the man is)
+  const cardPositions = [
+    'top-4 left-4 md:top-8 md:left-8',           // Top left
+    'top-4 right-4 md:top-8 md:right-8',         // Top right
+    'bottom-4 left-4 md:bottom-8 md:left-8',     // Bottom left
+    'bottom-4 right-4 md:bottom-8 md:right-8',   // Bottom right
+  ];
+
+  // Different floating animation delays for each card
+  const floatingDelays = [0, 0.5, 1, 1.5];
 
   return (
-    <div className="relative max-w-6xl mx-auto">
-      {/* Background Image Container */}
-      <div className="relative rounded-3xl overflow-hidden min-h-[500px] md:min-h-[600px]">
-        {/* Hero Background Image */}
+    <>
+      {/* Full-width Background Image Container */}
+      <div className="relative w-full overflow-hidden min-h-[450px] md:min-h-[600px] lg:min-h-[700px]">
+        {/* Hero Background Image - Full Width */}
         <img 
           src={heroShowcase} 
           alt="WillFlow Background" 
           className="absolute inset-0 w-full h-full object-cover"
         />
         
-        {/* Dark Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70" />
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-kanban-cyan/10" />
+        {/* Subtle Gradient Overlay - keeping the man visible */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/40" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/20" />
         
-        {/* Floating Cards Grid */}
-        <div className="relative z-10 p-6 md:p-12 h-full flex items-center justify-center">
-          <div className="grid grid-cols-2 gap-4 md:gap-6 max-w-3xl w-full">
-            {features.map((feature, index) => {
-              const IconComponent = featureIcons[index];
-              return (
-                <motion.div
-                  key={feature.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1, duration: 0.5 }}
-                  viewport={{ once: true }}
-                  whileHover={{ y: -8, scale: 1.02 }}
-                  onClick={() => setSelectedFeature(selectedFeature === index ? null : index)}
-                  className="group cursor-pointer"
-                >
-                  <div className="relative backdrop-blur-xl bg-white/10 dark:bg-black/30 border border-white/20 dark:border-white/10 rounded-2xl p-4 md:p-6 transition-all duration-300 hover:bg-white/15 dark:hover:bg-black/40 hover:border-white/30 hover:shadow-2xl hover:shadow-primary/20">
-                    {/* Icon & Title */}
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-xl bg-primary/20 backdrop-blur-sm group-hover:bg-primary/30 transition-colors">
-                        <IconComponent className="h-5 w-5 md:h-6 md:w-6 text-white" />
-                      </div>
-                      <h3 className="font-semibold text-white text-sm md:text-base">{feature.label}</h3>
-                    </div>
-                    
-                    {/* Thumbnail */}
-                    <div className="relative rounded-xl overflow-hidden mb-3 border border-white/10">
-                      <img 
-                        src={feature.image} 
-                        alt={feature.label}
-                        className="w-full h-24 md:h-32 object-cover object-top transition-transform duration-500 group-hover:scale-110"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                    
-                    {/* Description */}
-                    <p className="text-white/70 text-xs md:text-sm leading-relaxed">{feature.description}</p>
-                    
-                    {/* Hover Glow */}
-                    <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-kanban-cyan/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-60 transition-opacity -z-10" />
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
+        {/* Floating Cards at the Edges - Only Images */}
+        {features.map((feature, index) => (
+          <motion.div
+            key={feature.id}
+            className={`absolute ${cardPositions[index]} z-10`}
+            // Continuous floating animation
+            animate={{ 
+              y: [0, -12, 0],
+              rotate: [0, index % 2 === 0 ? 1 : -1, 0],
+            }}
+            transition={{ 
+              duration: 4 + index * 0.3,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: floatingDelays[index],
+            }}
+            whileHover={{ 
+              scale: 1.15, 
+              y: -20,
+              rotate: 0,
+              transition: { duration: 0.3 }
+            }}
+            onClick={() => setSelectedFeature(index)}
+          >
+            {/* Card with only image */}
+            <div className="relative w-32 h-24 sm:w-40 sm:h-28 md:w-52 md:h-36 lg:w-60 lg:h-44 rounded-xl overflow-hidden 
+                          backdrop-blur-sm bg-white/10 p-1.5 
+                          border border-white/30 
+                          shadow-2xl shadow-black/40
+                          cursor-pointer 
+                          transition-all duration-300
+                          hover:shadow-primary/40 hover:border-white/50
+                          group">
+              <img 
+                src={feature.image}
+                alt={feature.label}
+                className="w-full h-full object-cover object-top rounded-lg transition-transform duration-500 group-hover:scale-105"
+              />
+              {/* Subtle glow on hover */}
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-t from-primary/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            </div>
+          </motion.div>
+        ))}
         
         {/* Corner Glow Effects */}
-        <div className="absolute top-0 left-0 w-64 h-64 bg-primary/30 rounded-full blur-[100px] -translate-x-1/2 -translate-y-1/2" />
-        <div className="absolute bottom-0 right-0 w-64 h-64 bg-kanban-cyan/30 rounded-full blur-[100px] translate-x-1/2 translate-y-1/2" />
+        <div className="absolute top-0 left-0 w-48 h-48 md:w-64 md:h-64 bg-primary/20 rounded-full blur-[80px] -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+        <div className="absolute bottom-0 right-0 w-48 h-48 md:w-64 md:h-64 bg-kanban-cyan/20 rounded-full blur-[80px] translate-x-1/2 translate-y-1/2 pointer-events-none" />
       </div>
 
       {/* Expanded Feature Modal */}
@@ -299,18 +305,11 @@ function ShowcaseWithBackground({ features }: { features: typeof showcaseFeature
                 alt={features[selectedFeature].label}
                 className="w-full h-auto"
               />
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-6">
-                <h3 className="text-2xl font-bold text-white mb-2">{features[selectedFeature].label}</h3>
-                <p className="text-white/80">{features[selectedFeature].description}</p>
-              </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-      
-      {/* Background Glow */}
-      <div className="absolute -inset-8 bg-gradient-to-r from-primary/15 via-purple-500/10 to-kanban-cyan/15 rounded-[3rem] blur-3xl -z-10 opacity-50" />
-    </div>
+    </>
   );
 }
 
@@ -380,24 +379,10 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Screenshots Showcase - Background with Floating Cards */}
-      <section className="py-20 px-4 overflow-hidden relative">
-        <div className="container mx-auto relative z-10">
-          <div className="text-center mb-12">
-            <motion.h2 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-3xl md:text-4xl font-bold mb-4"
-            >
-              Veja o WillFlow em ação
-            </motion.h2>
-            <p className="text-lg text-muted-foreground">Clique nos cards para ver cada funcionalidade em detalhe</p>
-          </div>
-
-          {/* Showcase with Background and Cards */}
-          <ShowcaseWithBackground features={showcaseFeatures} />
-        </div>
+      {/* Screenshots Showcase - Full Width Background with Floating Cards */}
+      <section className="py-0 overflow-hidden relative">
+        {/* Showcase with Full-Width Background and Floating Cards at Edges */}
+        <ShowcaseWithBackground features={showcaseFeatures} />
       </section>
 
       {/* How it works */}
