@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Calendar,
   CreditCard,
@@ -23,12 +23,11 @@ import {
 } from '@/components/ui/accordion';
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
-import screenshotDashboard from '@/assets/screenshot-dashboard-full.png';
-import screenshotKanban from '@/assets/screenshot-kanban-card.png';
-import screenshotCalendar from '@/assets/screenshot-calendario.png';
-import screenshotReceita from '@/assets/screenshot-receita.png';
-import screenshotMargem from '@/assets/screenshot-margem.png';
-import screenshotDashboardBg from '@/assets/screenshot-dashboard-bg.png';
+import heroShowcase from '@/assets/hero-showcase.png';
+import screenshotKanbanDetail from '@/assets/screenshot-kanban-detail.png';
+import screenshotReceitaDetail from '@/assets/screenshot-receita-detail.png';
+import screenshotCalendarioDetail from '@/assets/screenshot-calendario-detail.png';
+import screenshotMargemDetail from '@/assets/screenshot-margem-detail.png';
 
 const features = [
   {
@@ -104,31 +103,30 @@ const faqs = [
   },
 ];
 
-const screenshots = [
+const showcaseFeatures = [
   {
-    src: screenshotDashboard,
-    alt: 'Dashboard WillFlow',
-    title: 'Dashboard Completo',
+    id: 'kanban',
+    label: 'Kanban Visual',
+    image: screenshotKanbanDetail,
+    description: 'Acompanhe cada projeto desde a captação até a entrega',
   },
   {
-    src: screenshotKanban,
-    alt: 'Kanban WillFlow',
-    title: 'Kanban Visual',
+    id: 'financas',
+    label: 'Finanças',
+    image: screenshotReceitaDetail,
+    description: 'Controle receitas, custos e lucro em tempo real',
   },
   {
-    src: screenshotCalendar,
-    alt: 'Calendário WillFlow',
-    title: 'Calendário Integrado',
+    id: 'calendario',
+    label: 'Calendário',
+    image: screenshotCalendarioDetail,
+    description: 'Visualize compromissos, sessões e entregas',
   },
   {
-    src: screenshotReceita,
-    alt: 'Receita e Lucro',
-    title: 'Receita e Lucro',
-  },
-  {
-    src: screenshotMargem,
-    alt: 'Margem de Lucro',
-    title: 'Margem de Lucro',
+    id: 'relatorios',
+    label: 'Relatórios',
+    image: screenshotMargemDetail,
+    description: 'Analise o desempenho do seu negócio',
   },
 ];
 
@@ -199,6 +197,70 @@ const plans = [
   },
 ];
 
+// Showcase Feature Tabs Component
+function ShowcaseFeatureTabs({ features }: { features: typeof showcaseFeatures }) {
+  const [activeTab, setActiveTab] = useState(0);
+
+  return (
+    <div className="max-w-5xl mx-auto">
+      {/* Tab Buttons */}
+      <div className="flex flex-wrap justify-center gap-2 md:gap-4 mb-8">
+        {features.map((feature, index) => (
+          <button
+            key={feature.id}
+            onClick={() => setActiveTab(index)}
+            className={`px-4 py-2 md:px-6 md:py-3 rounded-xl font-medium transition-all duration-300 ${
+              activeTab === index
+                ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
+                : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {feature.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      <div className="relative min-h-[400px] md:min-h-[500px]">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 20, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.98 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            className="relative"
+          >
+            {/* Screenshot */}
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl">
+              <img 
+                src={features[activeTab].image} 
+                alt={features[activeTab].label} 
+                className="w-full h-auto"
+              />
+              {/* Gradient overlay at bottom */}
+              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background/80 to-transparent" />
+              
+              {/* Description overlay */}
+              <div className="absolute bottom-6 left-6 right-6">
+                <h3 className="text-xl md:text-2xl font-bold text-white mb-2">
+                  {features[activeTab].label}
+                </h3>
+                <p className="text-white/80">
+                  {features[activeTab].description}
+                </p>
+              </div>
+            </div>
+
+            {/* Glow effect */}
+            <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-purple-500/15 to-kanban-cyan/20 rounded-3xl blur-3xl -z-10 opacity-50" />
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
 export default function Landing() {
   const [showBRL, setShowBRL] = useState(false);
   const [isAnnual, setIsAnnual] = useState(false);
@@ -265,7 +327,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Screenshots Showcase - Cards flutuantes sobre imagem de fundo */}
+      {/* Screenshots Showcase - Hero image with tabs */}
       <section className="py-20 px-4 overflow-hidden relative">
         <div className="container mx-auto relative z-10">
           <div className="text-center mb-12">
@@ -280,95 +342,30 @@ export default function Landing() {
             <p className="text-lg text-muted-foreground">Interface moderna e intuitiva para o seu dia a dia</p>
           </div>
 
-          {/* Container com imagem de fundo e cards flutuantes */}
-          <div className="relative min-h-[550px] md:min-h-[650px] lg:min-h-[750px] max-w-6xl mx-auto rounded-3xl overflow-hidden">
-            {/* Imagem de fundo grande com desfoque */}
-            <div className="absolute inset-0">
+          {/* Hero Showcase Image */}
+          <motion.div 
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
+            className="relative max-w-5xl mx-auto mb-16"
+          >
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl">
               <img 
-                src={screenshotDashboardBg} 
-                alt="Dashboard Willflow" 
-                className="w-full h-full object-cover object-center opacity-40 dark:opacity-30 blur-[4px] scale-105"
+                src={heroShowcase} 
+                alt="WillFlow em ação" 
+                className="w-full h-auto"
               />
-              {/* Overlays gradiente suaves */}
-              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-background/20" />
-              <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-transparent to-background/80" />
+              {/* Subtle gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-background/20 to-transparent pointer-events-none" />
             </div>
+            
+            {/* Glow effect behind */}
+            <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-purple-500/10 to-kanban-cyan/20 rounded-3xl blur-3xl -z-10 opacity-60" />
+          </motion.div>
 
-            {/* Cards flutuantes - 4 cards nos cantos */}
-            <div className="relative z-10 h-full min-h-[550px] md:min-h-[650px] lg:min-h-[750px] p-4">
-              {/* Card 1 - Receita (topo esquerda) */}
-              <motion.div
-                initial={{ opacity: 0, y: 40, rotate: -3 }}
-                whileInView={{ opacity: 1, y: 0, rotate: -3 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
-                viewport={{ once: true }}
-                className="absolute top-8 left-4 md:top-12 md:left-[8%] lg:left-[10%] w-[160px] md:w-[220px] lg:w-[280px]"
-              >
-                <div className="relative group cursor-pointer">
-                  <div className="absolute -inset-2 bg-gradient-to-r from-primary/40 to-purple-500/40 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
-                  <img 
-                    src={screenshotReceita} 
-                    alt="Receita" 
-                    className="relative rounded-xl shadow-2xl ring-1 ring-white/20 dark:ring-white/10 transform group-hover:scale-105 group-hover:-rotate-1 transition-all duration-500"
-                  />
-                </div>
-              </motion.div>
-
-              {/* Card 2 - Kanban Card (topo direita) */}
-              <motion.div
-                initial={{ opacity: 0, y: 40, rotate: 4 }}
-                whileInView={{ opacity: 1, y: 0, rotate: 4 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                viewport={{ once: true }}
-                className="absolute top-10 right-4 md:top-14 md:right-[8%] lg:right-[12%] w-[140px] md:w-[180px] lg:w-[220px]"
-              >
-                <div className="relative group cursor-pointer">
-                  <div className="absolute -inset-2 bg-gradient-to-r from-primary/40 to-kanban-cyan/40 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
-                  <img 
-                    src={screenshotKanban} 
-                    alt="Kanban Card" 
-                    className="relative rounded-xl shadow-2xl ring-1 ring-white/20 dark:ring-white/10 transform group-hover:scale-105 group-hover:rotate-2 transition-all duration-500"
-                  />
-                </div>
-              </motion.div>
-
-              {/* Card 3 - Margem (baixo esquerda) */}
-              <motion.div
-                initial={{ opacity: 0, y: 40, rotate: 2 }}
-                whileInView={{ opacity: 1, y: 0, rotate: 2 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-                viewport={{ once: true }}
-                className="absolute bottom-32 md:bottom-36 lg:bottom-40 left-4 md:left-[6%] lg:left-[8%] w-[180px] md:w-[260px] lg:w-[320px]"
-              >
-                <div className="relative group cursor-pointer">
-                  <div className="absolute -inset-2 bg-gradient-to-r from-amber-500/40 to-orange-500/40 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
-                  <img 
-                    src={screenshotMargem} 
-                    alt="Margem" 
-                    className="relative rounded-xl shadow-2xl ring-1 ring-white/20 dark:ring-white/10 transform group-hover:scale-105 group-hover:rotate-0 transition-all duration-500"
-                  />
-                </div>
-              </motion.div>
-
-              {/* Card 4 - Calendário (baixo direita - menor) */}
-              <motion.div
-                initial={{ opacity: 0, y: 40, rotate: -2 }}
-                whileInView={{ opacity: 1, y: 0, rotate: -2 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                viewport={{ once: true }}
-                className="absolute bottom-16 md:bottom-20 lg:bottom-24 right-4 md:right-[6%] lg:right-[8%] w-[200px] md:w-[280px] lg:w-[360px]"
-              >
-                <div className="relative group cursor-pointer">
-                  <div className="absolute -inset-2 bg-gradient-to-r from-primary/40 via-purple-500/40 to-pink-500/40 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
-                  <img 
-                    src={screenshotCalendar} 
-                    alt="Calendário" 
-                    className="relative rounded-xl shadow-2xl ring-1 ring-white/20 dark:ring-white/10 transform group-hover:scale-105 group-hover:-rotate-1 transition-all duration-500"
-                  />
-                </div>
-              </motion.div>
-            </div>
-          </div>
+          {/* Feature Tabs */}
+          <ShowcaseFeatureTabs features={showcaseFeatures} />
         </div>
       </section>
 
