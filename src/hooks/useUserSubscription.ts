@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -49,6 +49,11 @@ export function useUserSubscription() {
     loading: true,
     error: null,
   });
+  
+  // Prevent concurrent fetches
+  const isFetchingRef = useRef(false);
+  const lastFetchRef = useRef<number>(0);
+  const FETCH_COOLDOWN_MS = 5000;
 
   const fetchSubscription = useCallback(async () => {
     if (!user?.id || !session) {
@@ -56,6 +61,19 @@ export function useUserSubscription() {
       return;
     }
 
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) {
+      return;
+    }
+    
+    // Enforce cooldown to prevent excessive calls
+    const now = Date.now();
+    if (now - lastFetchRef.current < FETCH_COOLDOWN_MS) {
+      return;
+    }
+
+    isFetchingRef.current = true;
+    lastFetchRef.current = now;
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
@@ -89,17 +107,30 @@ export function useUserSubscription() {
 
       const limits = PLAN_LIMITS[subscription.plan] || PLAN_LIMITS.essencial;
 
-      // Fetch usage counts using RPC functions
-      const [workspacesResult, usersResult, projectsResult] = await Promise.all([
-        supabase.rpc('count_admin_workspaces', { p_user_id: user.id }),
-        supabase.rpc('count_total_invited_users', { p_user_id: user.id }),
-        supabase.rpc('count_total_projects', { p_user_id: user.id }),
-      ]);
+      // Fetch usage counts using RPC functions - with individual error handling
+      let workspacesCount = 0;
+      let usersCount = 0;
+      let projectsCount = 0;
+
+      try {
+        const [workspacesResult, usersResult, projectsResult] = await Promise.all([
+          supabase.rpc('count_admin_workspaces', { p_user_id: user.id }),
+          supabase.rpc('count_total_invited_users', { p_user_id: user.id }),
+          supabase.rpc('count_total_projects', { p_user_id: user.id }),
+        ]);
+        
+        workspacesCount = workspacesResult.data ?? 0;
+        usersCount = usersResult.data ?? 0;
+        projectsCount = projectsResult.data ?? 0;
+      } catch (rpcError) {
+        console.warn('Error fetching usage counts:', rpcError);
+        // Continue with zeros if RPC fails
+      }
 
       const usage: SubscriptionUsage = {
-        workspaces: workspacesResult.data ?? 0,
-        users: usersResult.data ?? 0,
-        projects: projectsResult.data ?? 0,
+        workspaces: workspacesCount,
+        users: usersCount,
+        projects: projectsCount,
       };
 
       setState({
@@ -116,6 +147,8 @@ export function useUserSubscription() {
         loading: false,
         error: error.message || 'Erro ao carregar subscrição',
       }));
+    } finally {
+      isFetchingRef.current = false;
     }
   }, [user?.id, session]);
 
