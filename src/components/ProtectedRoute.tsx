@@ -9,11 +9,11 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading: authLoading } = useAuth();
-  const { allWorkspaces, loading: workspaceLoading, currentWorkspace, fetchError, isAdmin } = useWorkspace();
+  const { allWorkspaces, loading: workspaceLoading, currentWorkspace, fetchError } = useWorkspace();
   const location = useLocation();
 
   // Show loading while checking auth
-  if (authLoading || workspaceLoading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -24,6 +24,16 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   // Redirect to auth if not logged in
   if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
+  }
+
+  // IMPORTANT: Wait for workspace data to fully load before making any navigation decisions
+  // This prevents the flash of onboarding page when user has workspaces
+  if (workspaceLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   // Don't redirect to onboarding if there was a fetch error (network issues)
