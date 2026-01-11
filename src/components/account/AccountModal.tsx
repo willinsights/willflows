@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { useTheme } from '@/contexts/ThemeContext';
 import { AccountTeamTab } from './AccountTeamTab';
 import { AccountIntegrationsTab } from './AccountIntegrationsTab';
@@ -30,7 +30,7 @@ type TabValue = 'equipa' | 'integracoes';
 
 export function AccountModal({ open, onOpenChange, initialTab = 'equipa' }: AccountModalProps) {
   const { user, signOut } = useAuth();
-  const { currentWorkspace } = useWorkspace();
+  const { subscription } = useUserSubscription();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   
@@ -51,7 +51,7 @@ export function AccountModal({ open, onOpenChange, initialTab = 'equipa' }: Acco
 
   const userEmail = user?.email || '';
   const userName = user?.user_metadata?.full_name || userEmail.split('@')[0];
-  const planName = currentWorkspace?.subscription_plan || 'essencial';
+  const planName = subscription?.plan || 'essencial';
 
   const getInitials = (name: string) => {
     return name

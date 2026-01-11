@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Crown, ExternalLink, Loader2, CreditCard, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { PLAN_INFO, getPriceId } from '@/lib/stripe-prices';
@@ -20,41 +21,10 @@ function formatDaysRemaining(daysRemaining: number) {
 
 export function AccountPlanTab() {
   const { currentWorkspace, isAdmin } = useWorkspace();
+  const { subscription, loading: subscriptionLoading } = useUserSubscription();
   const { toast } = useToast();
-  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
-  const [subscriptionData, setSubscriptionData] = useState<{
-    subscribed: boolean;
-    plan: string | null;
-    subscription_end: string | null;
-    trial_expired?: boolean;
-  } | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchSubscription = async () => {
-      try {
-        setSubscriptionLoading(true);
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (!session) return;
-
-        const { data, error } = await supabase.functions.invoke('check-subscription', {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-
-        if (error) throw error;
-        setSubscriptionData(data);
-      } catch (error) {
-        console.error('Error fetching subscription:', error);
-      } finally {
-        setSubscriptionLoading(false);
-      }
-    };
-
-    fetchSubscription();
-  }, []);
 
   const handleOpenPortal = async () => {
     if (!isAdmin) {
@@ -142,26 +112,22 @@ export function AccountPlanTab() {
     }
   };
 
-  const currentPlan = subscriptionData?.plan || currentWorkspace?.subscription_plan || 'essencial';
-  const isSubscribed = subscriptionData?.subscribed ?? false;
-  const trialExpired = subscriptionData?.trial_expired ?? false;
+  // Use user subscription data
+  const currentPlan = subscription?.plan || 'essencial';
+  const isSubscribed = subscription?.status === 'active';
+  const isTrial = subscription?.status === 'trialing';
+  const trialExpired = subscription?.status === 'trialing' && subscription?.trialEndsAt 
+    ? differenceInDays(parseISO(subscription.trialEndsAt), new Date()) < 0 
+    : false;
 
-  const trialEndsAt = (currentWorkspace as any)?.trial_ends_at as string | null | undefined;
   const trialDaysRemaining = useMemo(() => {
-    if (!trialEndsAt) return null;
+    if (!subscription?.trialEndsAt) return null;
     try {
-      return differenceInDays(parseISO(trialEndsAt), new Date());
+      return differenceInDays(parseISO(subscription.trialEndsAt), new Date());
     } catch {
       return null;
     }
-  }, [trialEndsAt]);
-
-  const isTrial = useMemo(() => {
-    const status = (currentWorkspace as any)?.subscription_status as string | undefined;
-    if (status === 'active') return false;
-    if (status === 'trialing') return true;
-    return !isSubscribed || trialExpired === false;
-  }, [currentWorkspace, isSubscribed, trialExpired]);
+  }, [subscription?.trialEndsAt]);
 
   if (subscriptionLoading) {
     return (
@@ -193,7 +159,7 @@ export function AccountPlanTab() {
             </div>
             <div>
               <p className="font-semibold capitalize">{currentPlan}</p>
-              <p className="text-sm text-muted-foreground">Plano atual do workspace</p>
+              <p className="text-sm text-muted-foreground">Plano atual</p>
             </div>
           </div>
           <Badge variant="secondary">{isTrial ? 'Trial' : 'Ativo'}</Badge>
@@ -249,17 +215,17 @@ export function AccountPlanTab() {
         </Badge>
       </div>
 
-      {subscriptionData?.subscription_end && !isTrial && !trialExpired && (
+      {subscription?.currentPeriodEnd && isSubscribed && (
         <p className="text-sm text-muted-foreground">
           Próxima renovação:{' '}
           <span className="font-medium text-foreground">
-            {format(new Date(subscriptionData.subscription_end), "d 'de' MMMM 'de' yyyy", { locale: pt })}
+            {format(new Date(subscription.currentPeriodEnd), "d 'de' MMMM 'de' yyyy", { locale: pt })}
           </span>
         </p>
       )}
 
       {/* Manage Subscription Button - Only show if user has active subscription */}
-      {!isTrial && !trialExpired && (
+      {isSubscribed && (
         <Button
           variant="outline"
           onClick={handleOpenPortal}

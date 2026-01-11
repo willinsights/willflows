@@ -1,28 +1,36 @@
+import { useMemo } from "react";
 import { differenceInDays, parseISO } from "date-fns";
 import { Sparkles, ArrowRight, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
+import { useUserSubscription } from "@/hooks/useUserSubscription";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 export function TrialBanner() {
-  const { subscription } = useAuth();
+  const { subscription, loading } = useUserSubscription();
   const navigate = useNavigate();
 
-  // Don't show if not subscribed or no end date
-  if (!subscription.subscribed || !subscription.subscriptionEnd) {
-    return null;
-  }
+  const daysRemaining = useMemo(() => {
+    if (!subscription?.trialEndsAt) return null;
+    try {
+      return differenceInDays(parseISO(subscription.trialEndsAt), new Date());
+    } catch {
+      return null;
+    }
+  }, [subscription?.trialEndsAt]);
 
-  const endDate = parseISO(subscription.subscriptionEnd);
-  const today = new Date();
-  const daysRemaining = differenceInDays(endDate, today);
-
-  // Don't show banner if trial has ended (more than 7 days since start means not in trial)
-  // Trial is 7 days, so if more than 7 days remaining, user is in normal subscription
-  if (daysRemaining > 7 || daysRemaining < 0) {
-    return null;
-  }
+  // Don't show if:
+  // - Loading
+  // - No subscription data
+  // - Subscription is active (not trialing)
+  // - No trial end date
+  // - More than 7 days remaining (trial is 7 days max)
+  // - Trial already expired (handled by modal)
+  if (loading) return null;
+  if (!subscription) return null;
+  if (subscription.status === 'active') return null;
+  if (daysRemaining === null) return null;
+  if (daysRemaining > 7 || daysRemaining < 0) return null;
 
   const isUrgent = daysRemaining <= 2;
 

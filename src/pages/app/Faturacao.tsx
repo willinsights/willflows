@@ -232,9 +232,7 @@ export default function Faturacao() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Plano</span>
-                      <span className="font-medium capitalize">
-                        {workspace?.subscription_plan || 'Starter'}
-                      </span>
+                      <span className="font-medium capitalize">Plano Ativo</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Próxima faturação</span>
