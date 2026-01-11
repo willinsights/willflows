@@ -22,7 +22,7 @@ import Dashboard from "./pages/app/Dashboard";
 import Captacao from "./pages/app/Captacao";
 import Edicao from "./pages/app/Edicao";
 import Finalizados from "./pages/app/Finalizados";
-import Projetos from "./pages/app/Projetos";
+
 import Media from "./pages/app/Media";
 import Clientes from "./pages/app/Clientes";
 import Calendario from "./pages/app/Calendario";
@@ -89,7 +89,7 @@ const App = () => (
                   <Route path="captacao" element={<Captacao />} />
                   <Route path="edicao" element={<Edicao />} />
                   <Route path="finalizados" element={<Finalizados />} />
-                  <Route path="projetos" element={<Projetos />} />
+                  
                   <Route path="media" element={<Media />} />
                   <Route path="clientes" element={<Clientes />} />
                   <Route path="calendario" element={<Calendario />} />

@@ -150,7 +150,7 @@ export function WorkspaceSelector() {
                     <p className="font-medium truncate">{workspace.name}</p>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="text-[10px] h-4 px-1.5">
-                        {planLabels[currentPlan] || planLabels[workspace.subscription_plan] || workspace.subscription_plan}
+                        {planLabels[currentPlan] || 'Starter'}
                       </Badge>
                       <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-primary/10 text-primary">
                         Admin

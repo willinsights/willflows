@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { useToast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
 import { format, differenceInDays, parseISO } from 'date-fns';
@@ -77,6 +78,7 @@ function formatDaysRemaining(daysRemaining: number) {
 
 export default function Conta() {
   const { workspace, membership, isAdmin, currentWorkspace } = useWorkspace();
+  const { subscription: userSubscription, loading: userSubLoading } = useUserSubscription();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('plano');
   
@@ -84,20 +86,10 @@ export default function Conta() {
   const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null);
   const [billingLoading, setBillingLoading] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
-  
-  // Subscription state
-  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
-  const [subscriptionData, setSubscriptionData] = useState<{
-    subscribed: boolean;
-    plan: string | null;
-    subscription_end: string | null;
-    trial_expired?: boolean;
-  } | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
   useEffect(() => {
     fetchBillingInfo();
-    fetchSubscription();
   }, []);
 
   const fetchBillingInfo = async () => {
@@ -121,25 +113,6 @@ export default function Conta() {
       console.error('Error fetching billing info:', error);
     } finally {
       setBillingLoading(false);
-    }
-  };
-
-  const fetchSubscription = async () => {
-    try {
-      setSubscriptionLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const { data, error } = await supabase.functions.invoke('check-subscription', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-
-      if (error) throw error;
-      setSubscriptionData(data);
-    } catch (error) {
-      console.error('Error fetching subscription:', error);
-    } finally {
-      setSubscriptionLoading(false);
     }
   };
 
@@ -246,19 +219,22 @@ export default function Conta() {
     return `💳 ${brand}`;
   };
 
-  const currentPlan = subscriptionData?.plan || currentWorkspace?.subscription_plan || 'essencial';
-  const isSubscribed = subscriptionData?.subscribed ?? false;
-  const trialExpired = subscriptionData?.trial_expired ?? false;
+  // Use user subscription data
+  const currentPlan = userSubscription?.plan || 'essencial';
+  const isSubscribed = userSubscription?.status === 'active';
+  const isTrial = userSubscription?.status === 'trialing';
+  const trialExpired = userSubscription?.status === 'trialing' && userSubscription?.trialEndsAt 
+    ? differenceInDays(parseISO(userSubscription.trialEndsAt), new Date()) < 0 
+    : false;
 
-  const trialEndsAt = (currentWorkspace as any)?.trial_ends_at as string | null | undefined;
-  const trialDaysRemaining = trialEndsAt ? differenceInDays(parseISO(trialEndsAt), new Date()) : null;
-
-  const isTrial = (() => {
-    const status = (currentWorkspace as any)?.subscription_status as string | undefined;
-    if (status === 'active') return false;
-    if (status === 'trialing') return true;
-    return !isSubscribed || trialExpired === false;
-  })();
+  const trialDaysRemaining = useMemo(() => {
+    if (!userSubscription?.trialEndsAt) return null;
+    try {
+      return differenceInDays(parseISO(userSubscription.trialEndsAt), new Date());
+    } catch {
+      return null;
+    }
+  }, [userSubscription?.trialEndsAt]);
 
   if (!isAdmin) {
     return (
@@ -311,7 +287,7 @@ export default function Conta() {
 
         {/* Plano Tab */}
         <TabsContent value="plano" className="space-y-6">
-          {subscriptionLoading ? (
+          {userSubLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-24 w-full" />
               <Skeleton className="h-48 w-full" />
@@ -368,16 +344,16 @@ export default function Conta() {
                     </Badge>
                   </div>
                 </CardHeader>
-                {subscriptionData?.subscription_end && !isTrial && !trialExpired && (
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      Próxima renovação:{' '}
-                      <span className="font-medium text-foreground">
-                        {format(new Date(subscriptionData.subscription_end), "d 'de' MMMM 'de' yyyy", { locale: pt })}
-                      </span>
-                    </p>
-                  </CardContent>
-                )}
+              {userSubscription?.currentPeriodEnd && isSubscribed && (
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Próxima renovação:{' '}
+                    <span className="font-medium text-foreground">
+                      {format(new Date(userSubscription.currentPeriodEnd), "d 'de' MMMM 'de' yyyy", { locale: pt })}
+                    </span>
+                  </p>
+                </CardContent>
+              )}
               </Card>
 
               {/* Available Plans */}

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { differenceInDays, parseISO } from "date-fns";
 import { Sparkles, Clock, AlertTriangle } from "lucide-react";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useUserSubscription } from "@/hooks/useUserSubscription";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,28 +17,27 @@ interface TrialBadgeProps {
 }
 
 export function TrialBadge({ variant = "full", className, onUpgradeClick }: TrialBadgeProps) {
-  const { currentWorkspace } = useWorkspace();
-
-  const trialEndsAt = (currentWorkspace as any)?.trial_ends_at as string | null | undefined;
-  const subscriptionStatus = (currentWorkspace as any)?.subscription_status as string | undefined;
+  const { subscription, loading } = useUserSubscription();
 
   const daysRemaining = useMemo(() => {
-    if (!trialEndsAt) return null;
+    if (!subscription?.trialEndsAt) return null;
     try {
-      return differenceInDays(parseISO(trialEndsAt), new Date());
+      return differenceInDays(parseISO(subscription.trialEndsAt), new Date());
     } catch {
       return null;
     }
-  }, [trialEndsAt]);
+  }, [subscription?.trialEndsAt]);
 
   // Don't show if:
-  // - No workspace
+  // - Loading
+  // - No subscription data
   // - Subscription is active (not trialing)
   // - No trial end date
   // - More than 7 days remaining (trial is 7 days max)
   // - Trial already expired (handled by modal)
-  if (!currentWorkspace) return null;
-  if (subscriptionStatus === 'active') return null;
+  if (loading) return null;
+  if (!subscription) return null;
+  if (subscription.status === 'active') return null;
   if (daysRemaining === null) return null;
   if (daysRemaining > 7 || daysRemaining < 0) return null;
 
