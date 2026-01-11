@@ -21,16 +21,27 @@ const logStep = (step: string, details?: any) => {
 
 // Plan mapping by product ID
 const PLAN_MAPPING: Record<string, string> = {
-  'prod_Tko5hx2Pkr7ERk': 'essencial',
-  'prod_Tko5cR05VWjok0': 'pro',
-  'prod_Tko5DQ15DWTMhz': 'studio',
+  'prod_Tl6rw16ZNqHrWd': 'essencial',
+  'prod_Tl6rsZkoz6yqYu': 'pro',
+  'prod_Tl6rxTvnCICjTL': 'studio',
 };
 
-// Very small in-memory cache to reduce Stripe calls (best-effort; per edge instance)
+// Very small in-memory cache to reduce Stripe calls
 const CACHE_TTL_MS = 60 * 1000; // 1 minute
 const subscriptionCache = new Map<
   string,
-  { expiresAt: number; value: { subscribed: boolean; plan: string | null; subscription_end: string | null; trial_expired?: boolean; trial_ends_at?: string | null } }
+  { 
+    expiresAt: number; 
+    value: { 
+      subscribed: boolean; 
+      plan: string | null; 
+      subscription_end: string | null; 
+      trial_expired?: boolean; 
+      trial_ends_at?: string | null;
+      limits?: { workspaces: number; users: number; projects: number };
+      usage?: { workspaces: number; users: number; projects: number };
+    } 
+  }
 >();
 
 serve(async (req) => {
@@ -65,7 +76,7 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const cacheKey = user.email.toLowerCase();
+    const cacheKey = user.id;
     const cached = subscriptionCache.get(cacheKey);
     const now = Date.now();
 
@@ -77,20 +88,85 @@ serve(async (req) => {
       });
     }
 
-    // Get user's workspace to check trial_ends_at
+    // Get user subscription from the centralized table
+    const { data: userSubData, error: userSubError } = await supabaseClient
+      .from('user_subscriptions')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    // Get usage counts
+    const [workspacesResult, usersResult, projectsResult] = await Promise.all([
+      supabaseClient.rpc('count_admin_workspaces', { p_user_id: user.id }),
+      supabaseClient.rpc('count_total_invited_users', { p_user_id: user.id }),
+      supabaseClient.rpc('count_total_projects', { p_user_id: user.id }),
+    ]);
+
+    const usage = {
+      workspaces: workspacesResult.data ?? 0,
+      users: usersResult.data ?? 0,
+      projects: projectsResult.data ?? 0,
+    };
+
+    logStep("Usage counts", usage);
+
+    // If user has a subscription record
+    if (userSubData) {
+      const plan = userSubData.subscription_plan;
+      const status = userSubData.subscription_status;
+      const trialEndsAt = userSubData.trial_ends_at;
+      const currentPeriodEnd = userSubData.current_period_end;
+
+      // Define limits based on plan
+      const limits = {
+        workspaces: plan === 'studio' ? 10 : plan === 'pro' ? 3 : 1,
+        users: plan === 'studio' ? 999 : plan === 'pro' ? 10 : 2,
+        projects: plan === 'studio' ? 999 : plan === 'pro' ? 999 : 15,
+      };
+
+      const trialExpired = trialEndsAt ? new Date(trialEndsAt) < new Date() : false;
+      const isActive = status === 'active' || (status === 'trialing' && !trialExpired);
+
+      const value = {
+        subscribed: isActive,
+        plan,
+        subscription_end: currentPeriodEnd || trialEndsAt,
+        trial_expired: status === 'trialing' && trialExpired,
+        trial_ends_at: trialEndsAt,
+        limits,
+        usage,
+      };
+
+      subscriptionCache.set(cacheKey, { expiresAt: now + CACHE_TTL_MS, value });
+      logStep("Returning user subscription from DB", { plan, status, isActive });
+
+      return new Response(JSON.stringify(value), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
+    // Fall back to checking Stripe directly if no DB record
+    logStep("No subscription record found, checking Stripe");
+
+    // Get trial info from workspace as fallback
     const { data: membershipData } = await supabaseClient
       .from('workspace_members')
-      .select('workspace_id, workspaces(trial_ends_at, subscription_status)')
+      .select('workspace_id, workspaces(trial_ends_at, subscription_status, subscription_plan)')
       .eq('user_id', user.id)
       .eq('is_active', true)
+      .eq('role', 'admin')
       .limit(1)
       .single();
 
-    const workspaceData = membershipData?.workspaces as unknown as { trial_ends_at: string | null; subscription_status: string } | null;
-    const trialEndsAt: string | null = workspaceData?.trial_ends_at ?? null;
-    const subscriptionStatus: string = workspaceData?.subscription_status ?? 'trialing';
+    const workspaceData = membershipData?.workspaces as unknown as { 
+      trial_ends_at: string | null; 
+      subscription_status: string;
+      subscription_plan: string;
+    } | null;
     
-    logStep("Workspace info", { trialEndsAt, subscriptionStatus });
+    const trialEndsAt = workspaceData?.trial_ends_at ?? null;
+    const workspacePlan = workspaceData?.subscription_plan ?? 'essencial';
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
@@ -100,16 +176,24 @@ serve(async (req) => {
       if (customers.data.length === 0) {
         logStep("No Stripe customer found");
         
-        // Check if trial expired
         const trialExpired = trialEndsAt ? new Date(trialEndsAt) < new Date() : false;
         
+        const limits = {
+          workspaces: 1,
+          users: 2,
+          projects: 15,
+        };
+
         const value = { 
-          subscribed: !trialExpired, // Still "subscribed" during trial
-          plan: null as string | null, 
+          subscribed: !trialExpired,
+          plan: workspacePlan,
           subscription_end: trialEndsAt,
           trial_expired: trialExpired,
           trial_ends_at: trialEndsAt,
+          limits,
+          usage,
         };
+        
         subscriptionCache.set(cacheKey, { expiresAt: now + CACHE_TTL_MS, value });
         return new Response(JSON.stringify(value), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -127,48 +211,41 @@ serve(async (req) => {
       });
 
       const hasActiveSub = subscriptions.data.length > 0;
-      let plan: string | null = null;
+      let plan: string | null = workspacePlan;
       let subscriptionEnd: string | null = null;
 
       if (hasActiveSub) {
         const subscription = subscriptions.data[0];
-
-        // Safely handle the date conversion
         const end = (subscription as any).current_period_end;
         if (typeof end === 'number' && Number.isFinite(end) && end > 0) {
           subscriptionEnd = new Date(end * 1000).toISOString();
-        } else {
-          logStep("Missing/invalid current_period_end", { value: end });
         }
-
-        logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
 
         const productId = subscription.items.data[0]?.price?.product as string | undefined;
-        plan = (productId && PLAN_MAPPING[productId]) ? PLAN_MAPPING[productId] : (productId ? 'unknown' : null);
-        logStep("Determined subscription plan", { productId, plan });
+        plan = (productId && PLAN_MAPPING[productId]) ? PLAN_MAPPING[productId] : workspacePlan;
+        logStep("Active subscription found", { subscriptionId: subscription.id, plan });
 
-        // Update workspace subscription status if needed
-        if (membershipData?.workspace_id && subscriptionStatus !== 'active') {
-          await supabaseClient
-            .from('workspaces')
-            .update({ subscription_status: 'active', subscription_plan: plan || 'essencial' })
-            .eq('id', membershipData.workspace_id);
-          logStep("Updated workspace subscription status to active");
-        }
-      } else {
-        logStep("No active Stripe subscription found");
-      }
-
-      // Check if trial expired (only relevant if no active subscription)
-      const trialExpired = !hasActiveSub && trialEndsAt ? new Date(trialEndsAt) < new Date() : false;
-      
-      if (trialExpired && membershipData?.workspace_id && subscriptionStatus !== 'expired') {
+        // Create/update user subscription record
         await supabaseClient
-          .from('workspaces')
-          .update({ subscription_status: 'expired' })
-          .eq('id', membershipData.workspace_id);
-        logStep("Updated workspace subscription status to expired");
+          .from('user_subscriptions')
+          .upsert({
+            user_id: user.id,
+            subscription_plan: plan,
+            subscription_status: 'active',
+            stripe_customer_id: customerId,
+            stripe_subscription_id: subscription.id,
+            current_period_end: subscriptionEnd,
+            trial_ends_at: null,
+          }, { onConflict: 'user_id' });
       }
+
+      const trialExpired = !hasActiveSub && trialEndsAt ? new Date(trialEndsAt) < new Date() : false;
+
+      const limits = {
+        workspaces: plan === 'studio' ? 10 : plan === 'pro' ? 3 : 1,
+        users: plan === 'studio' ? 999 : plan === 'pro' ? 10 : 2,
+        projects: plan === 'studio' ? 999 : plan === 'pro' ? 999 : 15,
+      };
 
       const value = {
         subscribed: hasActiveSub || (!trialExpired && !!trialEndsAt),
@@ -176,6 +253,8 @@ serve(async (req) => {
         subscription_end: hasActiveSub ? subscriptionEnd : (trialEndsAt ?? null),
         trial_expired: trialExpired,
         trial_ends_at: trialEndsAt ?? null,
+        limits,
+        usage,
       };
 
       subscriptionCache.set(cacheKey, { expiresAt: now + CACHE_TTL_MS, value });
@@ -185,7 +264,6 @@ serve(async (req) => {
         status: 200,
       });
     } catch (stripeError: any) {
-      // Stripe rate limit (429) should not break the app; return cached (even stale) if available.
       const statusCode = stripeError?.statusCode ?? stripeError?.status ?? null;
       const message = stripeError?.message ? String(stripeError.message) : String(stripeError);
 
@@ -193,19 +271,19 @@ serve(async (req) => {
         logStep("Stripe rate limited", { statusCode, message });
 
         if (cached) {
-          logStep("Returning stale cache due to rate limit", { cacheKey });
           return new Response(JSON.stringify({ ...cached.value, rate_limited: true }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 200,
           });
         }
 
-        // Soft-fail: avoid 500 blank screen
         return new Response(JSON.stringify({
-          subscribed: true, // Assume valid during rate limit
-          plan: null,
+          subscribed: true,
+          plan: workspacePlan,
           subscription_end: null,
           rate_limited: true,
+          limits: { workspaces: 1, users: 2, projects: 15 },
+          usage,
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 200,

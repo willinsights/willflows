@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import type { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
@@ -17,9 +18,18 @@ export interface WorkspaceInvitation {
   accepted_at: string | null;
 }
 
+export interface InvitationResult {
+  success: boolean;
+  error?: string;
+  requiresUpgrade?: boolean;
+  currentUsage?: number;
+  limit?: number;
+}
+
 export function useWorkspaceInvitations() {
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
+  const { limits, usage, canUseFeature } = usePlanFeatures();
   const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -54,9 +64,20 @@ export function useWorkspaceInvitations() {
     fetchInvitations();
   }, [fetchInvitations]);
 
-  const createInvitation = async (email: string, role: AppRole): Promise<{ success: boolean; error?: string }> => {
+  const createInvitation = async (email: string, role: AppRole): Promise<InvitationResult> => {
     if (!currentWorkspace?.id || !user?.id) {
       return { success: false, error: 'Workspace ou utilizador não encontrado' };
+    }
+
+    // Check if user can invite more members based on their plan limits
+    if (!canUseFeature('users')) {
+      return { 
+        success: false, 
+        error: `Limite de ${limits.users} utilizadores atingido. Faça upgrade para convidar mais membros.`,
+        requiresUpgrade: true,
+        currentUsage: usage.users,
+        limit: limits.users,
+      };
     }
 
     // Validate email format
@@ -195,5 +216,11 @@ export function useWorkspaceInvitations() {
     createInvitation,
     cancelInvitation,
     resendInvitation,
+    // Expose limits for UI
+    userLimits: {
+      current: usage.users,
+      max: limits.users,
+      canInvite: canUseFeature('users'),
+    },
   };
 }
