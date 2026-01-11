@@ -1173,6 +1173,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_subscriptions: {
+        Row: {
+          created_at: string
+          current_period_end: string | null
+          id: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_plan: Database["public"]["Enums"]["subscription_plan"]
+          subscription_status: string
+          trial_ends_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_plan?: Database["public"]["Enums"]["subscription_plan"]
+          subscription_status?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_plan?: Database["public"]["Enums"]["subscription_plan"]
+          subscription_status?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       workspace_invitations: {
         Row: {
           accepted_at: string | null
@@ -1372,6 +1411,12 @@ export type Database = {
     }
     Functions: {
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
+      count_admin_workspaces: { Args: { p_user_id: string }; Returns: number }
+      count_total_invited_users: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
+      count_total_projects: { Args: { p_user_id: string }; Returns: number }
       create_workspace_with_admin: {
         Args: {
           p_country: Database["public"]["Enums"]["country_region"]
@@ -1393,6 +1438,18 @@ export type Database = {
           role: Database["public"]["Enums"]["app_role"]
           workspace_id: string
           workspace_name: string
+        }[]
+      }
+      get_user_subscription_info: {
+        Args: { p_user_id: string }
+        Returns: {
+          current_period_end: string
+          projects_limit: number
+          subscription_plan: Database["public"]["Enums"]["subscription_plan"]
+          subscription_status: string
+          trial_ends_at: string
+          users_limit: number
+          workspaces_limit: number
         }[]
       }
       get_workspace_role: {
