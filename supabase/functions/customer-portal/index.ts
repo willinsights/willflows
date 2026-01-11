@@ -64,7 +64,7 @@ serve(async (req) => {
     const requestOrigin = req.headers.get("origin") || "https://willflow.app";
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: `${requestOrigin}/app/configuracoes`,
+      return_url: `${requestOrigin}/app/conta`,
     });
     
     logStep("Customer portal session created", { sessionId: portalSession.id, url: portalSession.url });
