@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { Loader2 } from 'lucide-react';
+import { FullPageLoader } from '@/components/layout/FullPageLoader';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -12,13 +12,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { allWorkspaces, loading: workspaceLoading, currentWorkspace, fetchError } = useWorkspace();
   const location = useLocation();
 
-  // Show loading while checking auth
+  // Show branded loading while checking auth
   if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <FullPageLoader />;
   }
 
   // Redirect to auth if not logged in
@@ -29,11 +25,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   // IMPORTANT: Wait for workspace data to fully load before making any navigation decisions
   // This prevents the flash of onboarding page when user has workspaces
   if (workspaceLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <FullPageLoader />;
   }
 
   // Don't redirect to onboarding if there was a fetch error (network issues)
