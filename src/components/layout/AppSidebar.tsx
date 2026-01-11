@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TrialBadge } from '@/components/dashboard/TrialBadge';
 import { useTheme } from '@/contexts/ThemeContext';
-import logoLight from '@/assets/logo-willflow.png';
+import logoLight from '@/assets/logo-willflow-black.png';
 import logoDark from '@/assets/logo-willflow-white.png';
 
 interface AppSidebarProps {

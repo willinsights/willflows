@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTheme } from '@/contexts/ThemeContext';
-import logoLight from '@/assets/logo-willflow.png';
+import logoLight from '@/assets/logo-willflow-black.png';
 import logoDark from '@/assets/logo-willflow-white.png';
 
 const footerLinks = {
