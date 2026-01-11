@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Crown, Users, Globe, Building2, Plus, 
-  ChevronRight, Loader2, LogOut, Moon, Sun, Settings
+  Crown, Users, Globe, LogOut, Moon, Sun, Settings
 } from 'lucide-react';
 import {
   Dialog,
@@ -19,27 +17,22 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useUserWorkspaces } from '@/hooks/useUserWorkspaces';
-import { AccountWorkspacesTab } from './AccountWorkspacesTab';
-import { AccountPlanTab } from './AccountPlanTab';
 import { AccountTeamTab } from './AccountTeamTab';
 import { AccountIntegrationsTab } from './AccountIntegrationsTab';
-import { cn } from '@/lib/utils';
 
 interface AccountModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initialTab?: 'workspaces' | 'plano' | 'equipa' | 'integracoes';
+  initialTab?: 'equipa' | 'integracoes';
 }
 
-type TabValue = 'workspaces' | 'plano' | 'equipa' | 'integracoes';
+type TabValue = 'equipa' | 'integracoes';
 
-export function AccountModal({ open, onOpenChange, initialTab = 'workspaces' }: AccountModalProps) {
-  const { user, signOut, subscription } = useAuth();
+export function AccountModal({ open, onOpenChange, initialTab = 'equipa' }: AccountModalProps) {
+  const { user, signOut } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const { workspaces, loading: workspacesLoading } = useUserWorkspaces();
   
   const [activeTab, setActiveTab] = useState<TabValue>(initialTab);
 
@@ -105,22 +98,7 @@ export function AccountModal({ open, onOpenChange, initialTab = 'workspaces' }: 
         <Separator />
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabValue)} className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="grid w-full grid-cols-4 h-auto">
-            <TabsTrigger value="workspaces" className="gap-2 text-xs py-2">
-              <Building2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Workspaces</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="plano" 
-              className="gap-2 text-xs py-2"
-              onClick={() => {
-                onOpenChange(false);
-                navigate('/app/conta');
-              }}
-            >
-              <Crown className="h-4 w-4" />
-              <span className="hidden sm:inline">Conta</span>
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 h-auto">
             <TabsTrigger value="equipa" className="gap-2 text-xs py-2">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Equipa</span>
@@ -132,19 +110,6 @@ export function AccountModal({ open, onOpenChange, initialTab = 'workspaces' }: 
           </TabsList>
 
           <div className="flex-1 overflow-y-auto py-4">
-            <TabsContent value="workspaces" className="mt-0 h-full">
-              <AccountWorkspacesTab 
-                workspaces={workspaces} 
-                loading={workspacesLoading}
-                currentWorkspaceId={currentWorkspace?.id}
-                planName={planName}
-              />
-            </TabsContent>
-            
-            <TabsContent value="plano" className="mt-0 h-full">
-              <AccountPlanTab />
-            </TabsContent>
-            
             <TabsContent value="equipa" className="mt-0 h-full">
               <AccountTeamTab />
             </TabsContent>

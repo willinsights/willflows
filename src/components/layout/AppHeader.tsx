@@ -31,7 +31,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const navigate = useNavigate();
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
-  const [accountModalInitialTab, setAccountModalInitialTab] = useState<'workspaces' | 'plano' | 'equipa' | 'integracoes'>('workspaces');
+  const [accountModalInitialTab, setAccountModalInitialTab] = useState<'equipa' | 'integracoes'>('equipa');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [dropdownRect, setDropdownRect] = useState<SearchDropdownRect | null>(null);
@@ -213,8 +213,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
           <TrialBadge
             variant="header"
             onUpgradeClick={() => {
-              setAccountModalInitialTab('plano');
-              setAccountModalOpen(true);
+              navigate('/app/conta');
             }}
           />
 
@@ -248,7 +247,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
             className="rounded-full"
             type="button"
             onClick={() => {
-              setAccountModalInitialTab('workspaces');
+              setAccountModalInitialTab('equipa');
               setAccountModalOpen(true);
             }}
           >
