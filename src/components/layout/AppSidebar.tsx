@@ -19,6 +19,7 @@ import {
   Upload,
   Tags,
   UserCog,
+  Receipt,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -63,6 +64,7 @@ const navSections: NavSection[] = [
     title: 'FINANÇAS',
     items: [
       { icon: Euro, label: 'Pagamentos', path: '/app/pagamentos' },
+      { icon: Receipt, label: 'Faturação', path: '/app/faturacao' },
       { icon: BarChart3, label: 'Relatórios', path: '/app/relatorios' },
     ],
   },

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, User, Users, Shield, Globe, Palette, Calendar, Video, Loader2, Database as DatabaseIcon, CreditCard, Crown, Check, ExternalLink, X, RefreshCw, Clock, Trash2 } from 'lucide-react';
+import { Settings, User, Users, Shield, Globe, Palette, Calendar, Video, Loader2, Database as DatabaseIcon, CreditCard, Crown, Check, ExternalLink, X, RefreshCw, Clock, Trash2, Receipt } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -40,6 +41,7 @@ export default function Configuracoes() {
   const { currentWorkspace, refreshWorkspaces, isAdmin } = useWorkspace();
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   // Workspace members and invitations
   const { members, loading: membersLoading, refresh: refreshMembers } = useWorkspaceMembers();
@@ -574,19 +576,29 @@ export default function Configuracoes() {
                     )}
 
                     {isSubscribed && (
-                      <Button
-                        variant="outline"
-                        onClick={handleOpenPortal}
-                        disabled={portalLoading}
-                        className="w-full sm:w-auto"
-                      >
-                        {portalLoading ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <ExternalLink className="h-4 w-4 mr-2" />
-                        )}
-                        Gerir Subscrição
-                      </Button>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <Button
+                          variant="outline"
+                          onClick={handleOpenPortal}
+                          disabled={portalLoading}
+                          className="w-full sm:w-auto"
+                        >
+                          {portalLoading ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                          )}
+                          Gerir Subscrição
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => navigate('/app/faturacao')}
+                          className="w-full sm:w-auto"
+                        >
+                          <Receipt className="h-4 w-4 mr-2" />
+                          Ver Faturas
+                        </Button>
+                      </div>
                     )}
                   </>
                 )}
