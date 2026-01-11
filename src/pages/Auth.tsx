@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, ArrowLeft, Loader2, CheckCircle2, Mail } from 'lucide-react';
 import logoWhite from '@/assets/logo-willflow-white.png';
-import logoBlack from '@/assets/logo-willflow.png';
+import logoBlack from '@/assets/logo-willflow-black.png';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
