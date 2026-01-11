@@ -197,66 +197,119 @@ const plans = [
   },
 ];
 
-// Showcase Feature Tabs Component
-function ShowcaseFeatureTabs({ features }: { features: typeof showcaseFeatures }) {
-  const [activeTab, setActiveTab] = useState(0);
+// Showcase with Background and Floating Cards Component
+function ShowcaseWithBackground({ features }: { features: typeof showcaseFeatures }) {
+  const [selectedFeature, setSelectedFeature] = useState<number | null>(null);
+  
+  const featureIcons = [Kanban, CreditCard, Calendar, BarChart3];
 
   return (
-    <div className="max-w-5xl mx-auto">
-      {/* Tab Buttons */}
-      <div className="flex flex-wrap justify-center gap-2 md:gap-4 mb-8">
-        {features.map((feature, index) => (
-          <button
-            key={feature.id}
-            onClick={() => setActiveTab(index)}
-            className={`px-4 py-2 md:px-6 md:py-3 rounded-xl font-medium transition-all duration-300 ${
-              activeTab === index
-                ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
-                : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {feature.label}
-          </button>
-        ))}
+    <div className="relative max-w-6xl mx-auto">
+      {/* Background Image Container */}
+      <div className="relative rounded-3xl overflow-hidden min-h-[500px] md:min-h-[600px]">
+        {/* Hero Background Image */}
+        <img 
+          src={heroShowcase} 
+          alt="WillFlow Background" 
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        
+        {/* Dark Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70" />
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-kanban-cyan/10" />
+        
+        {/* Floating Cards Grid */}
+        <div className="relative z-10 p-6 md:p-12 h-full flex items-center justify-center">
+          <div className="grid grid-cols-2 gap-4 md:gap-6 max-w-3xl w-full">
+            {features.map((feature, index) => {
+              const IconComponent = featureIcons[index];
+              return (
+                <motion.div
+                  key={feature.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1, duration: 0.5 }}
+                  viewport={{ once: true }}
+                  whileHover={{ y: -8, scale: 1.02 }}
+                  onClick={() => setSelectedFeature(selectedFeature === index ? null : index)}
+                  className="group cursor-pointer"
+                >
+                  <div className="relative backdrop-blur-xl bg-white/10 dark:bg-black/30 border border-white/20 dark:border-white/10 rounded-2xl p-4 md:p-6 transition-all duration-300 hover:bg-white/15 dark:hover:bg-black/40 hover:border-white/30 hover:shadow-2xl hover:shadow-primary/20">
+                    {/* Icon & Title */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-xl bg-primary/20 backdrop-blur-sm group-hover:bg-primary/30 transition-colors">
+                        <IconComponent className="h-5 w-5 md:h-6 md:w-6 text-white" />
+                      </div>
+                      <h3 className="font-semibold text-white text-sm md:text-base">{feature.label}</h3>
+                    </div>
+                    
+                    {/* Thumbnail */}
+                    <div className="relative rounded-xl overflow-hidden mb-3 border border-white/10">
+                      <img 
+                        src={feature.image} 
+                        alt={feature.label}
+                        className="w-full h-24 md:h-32 object-cover object-top transition-transform duration-500 group-hover:scale-110"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                    
+                    {/* Description */}
+                    <p className="text-white/70 text-xs md:text-sm leading-relaxed">{feature.description}</p>
+                    
+                    {/* Hover Glow */}
+                    <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-kanban-cyan/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-60 transition-opacity -z-10" />
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+        
+        {/* Corner Glow Effects */}
+        <div className="absolute top-0 left-0 w-64 h-64 bg-primary/30 rounded-full blur-[100px] -translate-x-1/2 -translate-y-1/2" />
+        <div className="absolute bottom-0 right-0 w-64 h-64 bg-kanban-cyan/30 rounded-full blur-[100px] translate-x-1/2 translate-y-1/2" />
       </div>
 
-      {/* Tab Content */}
-      <div className="relative min-h-[400px] md:min-h-[500px]">
-        <AnimatePresence mode="wait">
+      {/* Expanded Feature Modal */}
+      <AnimatePresence>
+        {selectedFeature !== null && (
           <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 20, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.98 }}
-            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            className="relative"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={() => setSelectedFeature(null)}
           >
-            {/* Screenshot */}
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="relative max-w-4xl w-full bg-card rounded-2xl overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setSelectedFeature(null)}
+                className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
               <img 
-                src={features[activeTab].image} 
-                alt={features[activeTab].label} 
+                src={features[selectedFeature].image} 
+                alt={features[selectedFeature].label}
                 className="w-full h-auto"
               />
-              {/* Gradient overlay at bottom */}
-              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background/80 to-transparent" />
-              
-              {/* Description overlay */}
-              <div className="absolute bottom-6 left-6 right-6">
-                <h3 className="text-xl md:text-2xl font-bold text-white mb-2">
-                  {features[activeTab].label}
-                </h3>
-                <p className="text-white/80">
-                  {features[activeTab].description}
-                </p>
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-6">
+                <h3 className="text-2xl font-bold text-white mb-2">{features[selectedFeature].label}</h3>
+                <p className="text-white/80">{features[selectedFeature].description}</p>
               </div>
-            </div>
-
-            {/* Glow effect */}
-            <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-purple-500/15 to-kanban-cyan/20 rounded-3xl blur-3xl -z-10 opacity-50" />
+            </motion.div>
           </motion.div>
-        </AnimatePresence>
-      </div>
+        )}
+      </AnimatePresence>
+      
+      {/* Background Glow */}
+      <div className="absolute -inset-8 bg-gradient-to-r from-primary/15 via-purple-500/10 to-kanban-cyan/15 rounded-[3rem] blur-3xl -z-10 opacity-50" />
     </div>
   );
 }
@@ -327,7 +380,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Screenshots Showcase - Hero image with tabs */}
+      {/* Screenshots Showcase - Background with Floating Cards */}
       <section className="py-20 px-4 overflow-hidden relative">
         <div className="container mx-auto relative z-10">
           <div className="text-center mb-12">
@@ -339,33 +392,11 @@ export default function Landing() {
             >
               Veja o WillFlow em ação
             </motion.h2>
-            <p className="text-lg text-muted-foreground">Interface moderna e intuitiva para o seu dia a dia</p>
+            <p className="text-lg text-muted-foreground">Clique nos cards para ver cada funcionalidade em detalhe</p>
           </div>
 
-          {/* Hero Showcase Image */}
-          <motion.div 
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="relative max-w-5xl mx-auto mb-16"
-          >
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl">
-              <img 
-                src={heroShowcase} 
-                alt="WillFlow em ação" 
-                className="w-full h-auto"
-              />
-              {/* Subtle gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-background/20 to-transparent pointer-events-none" />
-            </div>
-            
-            {/* Glow effect behind */}
-            <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-purple-500/10 to-kanban-cyan/20 rounded-3xl blur-3xl -z-10 opacity-60" />
-          </motion.div>
-
-          {/* Feature Tabs */}
-          <ShowcaseFeatureTabs features={showcaseFeatures} />
+          {/* Showcase with Background and Cards */}
+          <ShowcaseWithBackground features={showcaseFeatures} />
         </div>
       </section>
 
