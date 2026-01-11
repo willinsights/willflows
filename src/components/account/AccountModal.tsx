@@ -110,9 +110,16 @@ export function AccountModal({ open, onOpenChange, initialTab = 'workspaces' }: 
               <Building2 className="h-4 w-4" />
               <span className="hidden sm:inline">Workspaces</span>
             </TabsTrigger>
-            <TabsTrigger value="plano" className="gap-2 text-xs py-2">
+            <TabsTrigger 
+              value="plano" 
+              className="gap-2 text-xs py-2"
+              onClick={() => {
+                onOpenChange(false);
+                navigate('/app/conta');
+              }}
+            >
               <Crown className="h-4 w-4" />
-              <span className="hidden sm:inline">Plano</span>
+              <span className="hidden sm:inline">Conta</span>
             </TabsTrigger>
             <TabsTrigger value="equipa" className="gap-2 text-xs py-2">
               <Users className="h-4 w-4" />
