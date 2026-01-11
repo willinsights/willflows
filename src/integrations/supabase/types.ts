@@ -1122,6 +1122,57 @@ export type Database = {
           },
         ]
       }
+      user_preferences: {
+        Row: {
+          created_at: string
+          email_marketing: boolean
+          email_payment_reminders: boolean
+          email_project_updates: boolean
+          email_team_activity: boolean
+          email_weekly_summary: boolean
+          id: string
+          notify_deadline_reminder: boolean
+          notify_new_project: boolean
+          notify_payment_received: boolean
+          notify_task_assigned: boolean
+          notify_team_updates: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_marketing?: boolean
+          email_payment_reminders?: boolean
+          email_project_updates?: boolean
+          email_team_activity?: boolean
+          email_weekly_summary?: boolean
+          id?: string
+          notify_deadline_reminder?: boolean
+          notify_new_project?: boolean
+          notify_payment_received?: boolean
+          notify_task_assigned?: boolean
+          notify_team_updates?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_marketing?: boolean
+          email_payment_reminders?: boolean
+          email_project_updates?: boolean
+          email_team_activity?: boolean
+          email_weekly_summary?: boolean
+          id?: string
+          notify_deadline_reminder?: boolean
+          notify_new_project?: boolean
+          notify_payment_received?: boolean
+          notify_task_assigned?: boolean
+          notify_team_updates?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       workspace_invitations: {
         Row: {
           accepted_at: string | null
@@ -1223,6 +1274,44 @@ export type Database = {
           },
         ]
       }
+      workspace_role_permissions: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          permission_key: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          permission_key: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          permission_key?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_role_permissions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspaces: {
         Row: {
           country: Database["public"]["Enums"]["country_region"]
@@ -1309,6 +1398,10 @@ export type Database = {
       get_workspace_role: {
         Args: { _user_id: string; _workspace_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      initialize_workspace_permissions: {
+        Args: { _workspace_id: string }
+        Returns: undefined
       }
       is_valid_invitation_token: {
         Args: { _token: string; _workspace_id: string }
