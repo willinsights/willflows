@@ -28,6 +28,9 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useWorkspaceInvitations } from '@/hooks/useWorkspaceInvitations';
+import { EmailPreferencesCard } from '@/components/settings/EmailPreferencesCard';
+import { NotificationPreferencesCard } from '@/components/settings/NotificationPreferencesCard';
+import { PermissionsMatrix } from '@/components/settings/PermissionsMatrix';
 import type { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
@@ -621,42 +624,50 @@ export default function Configuracoes() {
 
         {/* Perfil Tab */}
         <TabsContent value="perfil">
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>Perfil do Utilizador</CardTitle>
-              <CardDescription>Gerencie suas informações pessoais</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-2xl font-bold text-primary">
-                    {user?.email?.charAt(0).toUpperCase()}
-                  </span>
+          <div className="grid gap-6">
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle>Perfil do Utilizador</CardTitle>
+                <CardDescription>Gerencie suas informações pessoais</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-primary">
+                      {user?.email?.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-medium">{user?.user_metadata?.full_name || 'Utilizador'}</p>
+                    <p className="text-sm text-muted-foreground">{user?.email}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium">{user?.user_metadata?.full_name || 'Utilizador'}</p>
-                  <p className="text-sm text-muted-foreground">{user?.email}</p>
-                </div>
-              </div>
 
-              <div className="grid gap-4 pt-4">
-                <div className="grid gap-2">
-                  <Label>Nome Completo</Label>
-                  <Input defaultValue={user?.user_metadata?.full_name || ''} placeholder="Seu nome" />
+                <div className="grid gap-4 pt-4">
+                  <div className="grid gap-2">
+                    <Label>Nome Completo</Label>
+                    <Input defaultValue={user?.user_metadata?.full_name || ''} placeholder="Seu nome" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Email</Label>
+                    <Input value={user?.email || ''} disabled />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Telefone</Label>
+                    <Input placeholder="+351 912 345 678" />
+                  </div>
                 </div>
-                <div className="grid gap-2">
-                  <Label>Email</Label>
-                  <Input value={user?.email || ''} disabled />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Telefone</Label>
-                  <Input placeholder="+351 912 345 678" />
-                </div>
-              </div>
 
-              <Button className="gradient-primary">Salvar Perfil</Button>
-            </CardContent>
-          </Card>
+                <Button className="gradient-primary">Salvar Perfil</Button>
+              </CardContent>
+            </Card>
+
+            {/* Email Preferences */}
+            <EmailPreferencesCard />
+
+            {/* Notification Preferences */}
+            <NotificationPreferencesCard />
+          </div>
         </TabsContent>
 
         {/* Equipa Tab */}
@@ -930,38 +941,7 @@ export default function Configuracoes() {
 
         {/* Permissões Tab */}
         <TabsContent value="permissoes">
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>Matriz de Permissões</CardTitle>
-              <CardDescription>Configure as permissões por função</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {roles.map((role, index) => (
-                  <motion.div
-                    key={role.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className="flex items-center justify-between p-4 rounded-lg bg-muted/50"
-                  >
-                    <div>
-                      <p className="font-medium">{role.name}</p>
-                      <p className="text-sm text-muted-foreground">{role.description}</p>
-                    </div>
-                    <Button variant="outline" size="sm">Editar</Button>
-                  </motion.div>
-                ))}
-              </div>
-
-              <div className="mt-6 p-4 rounded-lg border border-info/20 bg-info/5">
-                <p className="text-sm text-info">
-                  <strong>Nota:</strong> Freelancers só visualizam tarefas atribuídas e seus próprios ganhos. 
-                  Não têm acesso ao preço global do cliente.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <PermissionsMatrix />
         </TabsContent>
 
         {/* Dados Demo Tab */}
