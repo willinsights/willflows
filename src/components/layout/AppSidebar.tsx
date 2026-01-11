@@ -51,6 +51,7 @@ const navSections: NavSection[] = [
   {
     title: 'PROJETOS',
     items: [
+      { icon: FolderKanban, label: 'Todos Projetos', path: '/app/projetos' },
       { icon: Video, label: 'Captação', path: '/app/captacao' },
       { icon: Film, label: 'Edição', path: '/app/edicao' },
       { icon: CheckCircle2, label: 'Finalizados', path: '/app/finalizados' },
