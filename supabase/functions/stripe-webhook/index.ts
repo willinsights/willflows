@@ -75,6 +75,70 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
+    // Helper function to find user by email
+    const findUserByEmail = async (email: string) => {
+      const { data: profile, error } = await supabaseClient
+        .from('profiles')
+        .select('id')
+        .eq('email', email.toLowerCase())
+        .single();
+      
+      if (error) {
+        logStep("Error finding user by email", { email, error: error.message });
+        return null;
+      }
+      return profile?.id;
+    };
+
+    // Helper function to update user subscription
+    const updateUserSubscription = async (
+      userId: string,
+      updates: {
+        subscription_plan?: string;
+        subscription_status?: string;
+        stripe_customer_id?: string;
+        stripe_subscription_id?: string;
+        trial_ends_at?: string | null;
+        current_period_end?: string | null;
+      }
+    ) => {
+      // Try to update existing record
+      const { data: existing, error: selectError } = await supabaseClient
+        .from('user_subscriptions')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+
+      if (existing) {
+        const { error } = await supabaseClient
+          .from('user_subscriptions')
+          .update({ ...updates, updated_at: new Date().toISOString() })
+          .eq('user_id', userId);
+        
+        if (error) {
+          logStep("ERROR updating user subscription", { userId, error: error.message });
+          return false;
+        }
+      } else {
+        // Insert new record
+        const { error } = await supabaseClient
+          .from('user_subscriptions')
+          .insert({
+            user_id: userId,
+            subscription_plan: updates.subscription_plan || 'essencial',
+            subscription_status: updates.subscription_status || 'trialing',
+            ...updates,
+          });
+        
+        if (error) {
+          logStep("ERROR inserting user subscription", { userId, error: error.message });
+          return false;
+        }
+      }
+      
+      return true;
+    };
+
     // Process the event
     switch (event.type) {
       case "checkout.session.completed": {
@@ -87,10 +151,17 @@ serve(async (req) => {
         });
 
         if (session.mode === "subscription" && session.subscription) {
-          const workspaceId = session.metadata?.workspace_id;
+          const userId = session.metadata?.user_id;
+          const customerEmail = session.customer_email;
           
-          if (!workspaceId) {
-            logStep("WARNING: No workspace_id in session metadata");
+          // Try to find user ID from metadata first, then by email
+          let targetUserId = userId;
+          if (!targetUserId && customerEmail) {
+            targetUserId = await findUserByEmail(customerEmail);
+          }
+
+          if (!targetUserId) {
+            logStep("WARNING: Could not find user for checkout session");
             break;
           }
 
@@ -98,31 +169,43 @@ serve(async (req) => {
           const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
           const productId = subscription.items.data[0]?.price.product as string;
           const plan = PRODUCT_TO_PLAN[productId] || 'essencial';
+          
+          const currentPeriodEnd = subscription.current_period_end 
+            ? new Date(subscription.current_period_end * 1000).toISOString()
+            : null;
 
-          logStep("Updating workspace after checkout", { 
-            workspaceId, 
+          logStep("Updating user subscription after checkout", { 
+            userId: targetUserId, 
             customerId: session.customer, 
             subscriptionId: session.subscription,
-            productId,
             plan
           });
 
-          const { error } = await supabaseClient
-            .from("workspaces")
-            .update({
-              stripe_customer_id: session.customer as string,
-              stripe_subscription_id: session.subscription as string,
-              subscription_plan: plan,
-              subscription_status: "active",
-              trial_ends_at: null, // Clear trial when subscription starts
-            })
-            .eq("id", workspaceId);
+          await updateUserSubscription(targetUserId, {
+            subscription_plan: plan,
+            subscription_status: "active",
+            stripe_customer_id: session.customer as string,
+            stripe_subscription_id: session.subscription as string,
+            trial_ends_at: null,
+            current_period_end: currentPeriodEnd,
+          });
 
-          if (error) {
-            logStep("ERROR: Failed to update workspace", { error: error.message });
-          } else {
-            logStep("Workspace updated successfully", { workspaceId, plan });
+          // Also update workspace for backward compatibility
+          const workspaceId = session.metadata?.workspace_id;
+          if (workspaceId) {
+            await supabaseClient
+              .from("workspaces")
+              .update({
+                stripe_customer_id: session.customer as string,
+                stripe_subscription_id: session.subscription as string,
+                subscription_plan: plan,
+                subscription_status: "active",
+                trial_ends_at: null,
+              })
+              .eq("id", workspaceId);
           }
+          
+          logStep("User subscription updated successfully", { userId: targetUserId, plan });
         }
         break;
       }
@@ -139,6 +222,10 @@ serve(async (req) => {
         const customerId = subscription.customer as string;
         const productId = subscription.items.data[0]?.price.product as string;
         const plan = PRODUCT_TO_PLAN[productId] || 'essencial';
+        
+        const currentPeriodEnd = subscription.current_period_end 
+          ? new Date(subscription.current_period_end * 1000).toISOString()
+          : null;
 
         // Map Stripe status to our status
         let subscriptionStatus: string;
@@ -160,15 +247,25 @@ serve(async (req) => {
             subscriptionStatus = subscription.status;
         }
 
-        logStep("Updating workspace subscription", { 
-          customerId, 
-          plan, 
-          subscriptionStatus,
-          productId
-        });
+        // Find user by Stripe customer ID
+        const { data: userSub } = await supabaseClient
+          .from('user_subscriptions')
+          .select('user_id')
+          .eq('stripe_customer_id', customerId)
+          .single();
 
-        // Find and update the workspace by stripe_customer_id
-        const { error } = await supabaseClient
+        if (userSub?.user_id) {
+          await updateUserSubscription(userSub.user_id, {
+            subscription_plan: plan,
+            subscription_status: subscriptionStatus,
+            stripe_subscription_id: subscription.id,
+            current_period_end: currentPeriodEnd,
+          });
+          logStep("User subscription updated", { userId: userSub.user_id, plan, status: subscriptionStatus });
+        }
+
+        // Also update workspace for backward compatibility
+        await supabaseClient
           .from("workspaces")
           .update({
             subscription_plan: plan,
@@ -176,12 +273,7 @@ serve(async (req) => {
             stripe_subscription_id: subscription.id,
           })
           .eq("stripe_customer_id", customerId);
-
-        if (error) {
-          logStep("ERROR: Failed to update workspace by customer_id", { error: error.message });
-        } else {
-          logStep("Workspace subscription updated successfully");
-        }
+        
         break;
       }
 
@@ -194,18 +286,26 @@ serve(async (req) => {
 
         const customerId = subscription.customer as string;
 
-        const { error } = await supabaseClient
-          .from("workspaces")
-          .update({
-            subscription_status: "canceled",
-          })
-          .eq("stripe_customer_id", customerId);
+        // Update user subscription
+        const { data: userSub } = await supabaseClient
+          .from('user_subscriptions')
+          .select('user_id')
+          .eq('stripe_customer_id', customerId)
+          .single();
 
-        if (error) {
-          logStep("ERROR: Failed to mark subscription as canceled", { error: error.message });
-        } else {
-          logStep("Subscription marked as canceled");
+        if (userSub?.user_id) {
+          await updateUserSubscription(userSub.user_id, {
+            subscription_status: "canceled",
+          });
+          logStep("User subscription marked as canceled", { userId: userSub.user_id });
         }
+
+        // Also update workspace for backward compatibility
+        await supabaseClient
+          .from("workspaces")
+          .update({ subscription_status: "canceled" })
+          .eq("stripe_customer_id", customerId);
+        
         break;
       }
 
@@ -220,18 +320,26 @@ serve(async (req) => {
         if (invoice.subscription) {
           const customerId = invoice.customer as string;
 
-          const { error } = await supabaseClient
-            .from("workspaces")
-            .update({
-              subscription_status: "active",
-            })
-            .eq("stripe_customer_id", customerId);
+          // Update user subscription
+          const { data: userSub } = await supabaseClient
+            .from('user_subscriptions')
+            .select('user_id')
+            .eq('stripe_customer_id', customerId)
+            .single();
 
-          if (error) {
-            logStep("ERROR: Failed to update status to active after invoice paid", { error: error.message });
-          } else {
-            logStep("Workspace status updated to active after invoice paid");
+          if (userSub?.user_id) {
+            await updateUserSubscription(userSub.user_id, {
+              subscription_status: "active",
+            });
           }
+
+          // Also update workspace for backward compatibility
+          await supabaseClient
+            .from("workspaces")
+            .update({ subscription_status: "active" })
+            .eq("stripe_customer_id", customerId);
+          
+          logStep("Subscription status updated to active after invoice paid");
         }
         break;
       }
@@ -245,18 +353,26 @@ serve(async (req) => {
 
         const customerId = invoice.customer as string;
 
-        const { error } = await supabaseClient
-          .from("workspaces")
-          .update({
-            subscription_status: "past_due",
-          })
-          .eq("stripe_customer_id", customerId);
+        // Update user subscription
+        const { data: userSub } = await supabaseClient
+          .from('user_subscriptions')
+          .select('user_id')
+          .eq('stripe_customer_id', customerId)
+          .single();
 
-        if (error) {
-          logStep("ERROR: Failed to update status to past_due", { error: error.message });
-        } else {
-          logStep("Workspace status updated to past_due after payment failure");
+        if (userSub?.user_id) {
+          await updateUserSubscription(userSub.user_id, {
+            subscription_status: "past_due",
+          });
         }
+
+        // Also update workspace for backward compatibility
+        await supabaseClient
+          .from("workspaces")
+          .update({ subscription_status: "past_due" })
+          .eq("stripe_customer_id", customerId);
+        
+        logStep("Subscription status updated to past_due after payment failure");
         break;
       }
 
@@ -275,7 +391,6 @@ serve(async (req) => {
     logStep("ERROR in webhook", { message: errorMessage });
     
     // Return 200 even on error to prevent Stripe from retrying
-    // Log the error for debugging
     return new Response(JSON.stringify({ error: errorMessage, received: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

@@ -83,8 +83,8 @@ serve(async (req) => {
       success_url: `${requestOrigin}/checkout-success`,
       cancel_url: `${requestOrigin}/planos?checkout=cancelled`,
       metadata: {
-        user_id: user.id,
-        workspace_id: workspaceId || "",
+        user_id: user.id,  // Store user_id for webhook to update user_subscriptions
+        workspace_id: workspaceId || "",  // Keep for backward compatibility
       },
       subscription_data: {
         trial_period_days: 7,
