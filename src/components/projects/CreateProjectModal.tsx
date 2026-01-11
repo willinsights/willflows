@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2, Plus, Calendar as CalendarIcon, Clock, Link2, X, Check, Users } from 'lucide-react';
+import { Loader2, Plus, Calendar as CalendarIcon, Clock, Link2, X, Check, Users, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -29,14 +29,17 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { useProjects } from '@/hooks/useProjects';
 import { useClients, Client } from '@/hooks/useClients';
 import { useCategories, Category } from '@/hooks/useCategories';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { CreateClientModal } from '@/components/clients/CreateClientModal';
 import { CreateCategoryModal } from '@/components/categories/CreateCategoryModal';
+import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 import { appToast } from '@/hooks/useAppToast';
 import type { KanbanPhase } from '@/hooks/useKanban';
 
@@ -103,6 +106,14 @@ export function CreateProjectModal({
   const { categories, loading: categoriesLoading, refresh: refreshCategories } = useCategories();
   const { members: workspaceMembers, loading: membersLoading } = useWorkspaceMembers();
   const { currentWorkspace } = useWorkspace();
+  const { 
+    checkFeature, 
+    upgradeAlert, 
+    closeUpgradeAlert, 
+    usage, 
+    limits,
+    currentPlan 
+  } = usePlanFeatures();
   const [loading, setLoading] = useState(false);
   const [createClientOpen, setCreateClientOpen] = useState(false);
   const [createCategoryOpen, setCreateCategoryOpen] = useState(false);
@@ -114,6 +125,13 @@ export function CreateProjectModal({
 
   const currency = currentWorkspace?.currency || 'EUR';
   const currencySymbol = currency === 'EUR' ? '€' : 'R$';
+  
+  // Calculate active projects usage percentage
+  const activeProjects = usage?.projects || 0;
+  const projectsLimit = limits?.projects || 15;
+  const usagePercentage = Math.min((activeProjects / projectsLimit) * 100, 100);
+  const isNearLimit = usagePercentage >= 80;
+  const isAtLimit = activeProjects >= projectsLimit;
 
   const form = useForm<ProjectFormData>({
     resolver: zodResolver(projectSchema),
@@ -160,6 +178,11 @@ export function CreateProjectModal({
   };
 
   const onSubmit = async (data: ProjectFormData) => {
+    // Check project limit before creating
+    if (!checkFeature('projects')) {
+      return; // UpgradeAlert will be shown automatically
+    }
+    
     setLoading(true);
     
     // Determine initial phase based on item_type
@@ -250,6 +273,38 @@ export function CreateProjectModal({
         <DialogContent className="max-w-2xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="text-xl">Criar Novo Projeto</DialogTitle>
+            
+            {/* Active Projects Usage Indicator */}
+            <div className="pt-2">
+              <div className="flex items-center justify-between text-sm mb-1.5">
+                <span className="text-muted-foreground">Projetos ativos</span>
+                <span className={cn(
+                  "font-medium",
+                  isAtLimit ? "text-destructive" : isNearLimit ? "text-amber-500" : "text-foreground"
+                )}>
+                  {activeProjects}/{projectsLimit}
+                </span>
+              </div>
+              <Progress 
+                value={usagePercentage} 
+                className={cn(
+                  "h-2",
+                  isAtLimit ? "[&>div]:bg-destructive" : isNearLimit ? "[&>div]:bg-amber-500" : ""
+                )}
+              />
+              {isNearLimit && !isAtLimit && (
+                <p className="text-xs text-amber-500 mt-1 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Está a aproximar-se do limite do seu plano
+                </p>
+              )}
+              {isAtLimit && (
+                <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Limite atingido. Finalize projetos ou faça upgrade.
+                </p>
+              )}
+            </div>
           </DialogHeader>
 
           <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
@@ -835,6 +890,21 @@ export function CreateProjectModal({
         open={createCategoryOpen}
         onOpenChange={setCreateCategoryOpen}
         onSuccess={handleCategoryCreated}
+      />
+
+      <UpgradeAlert
+        isOpen={upgradeAlert.isOpen}
+        onClose={closeUpgradeAlert}
+        feature={upgradeAlert.feature}
+        requiredPlan={upgradeAlert.requiredPlan}
+        currentPlan={currentPlan}
+        isLimitReached={upgradeAlert.isLimitReached}
+        currentUsage={activeProjects}
+        limit={projectsLimit}
+        alternativeAction={{
+          label: '💡 Alternativa: Finalize projetos existentes',
+          description: 'Projetos entregues não contam para o limite. Finalize projetos para liberar espaço.',
+        }}
       />
     </>
   );
