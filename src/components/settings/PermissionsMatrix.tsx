@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -167,8 +167,8 @@ export function PermissionsMatrix() {
             </thead>
             <tbody>
               {Object.entries(groupedPermissions).map(([category, perms]) => (
-                <>
-                  <tr key={`cat-${category}`} className="bg-muted/30">
+                <React.Fragment key={`cat-${category}`}>
+                  <tr className="bg-muted/30">
                     <td colSpan={6} className="py-2 px-2 font-semibold text-sm uppercase tracking-wide text-muted-foreground">
                       {category}
                     </td>
@@ -208,7 +208,7 @@ export function PermissionsMatrix() {
                       ))}
                     </motion.tr>
                   ))}
-                </>
+                </React.Fragment>
               ))}
             </tbody>
           </table>

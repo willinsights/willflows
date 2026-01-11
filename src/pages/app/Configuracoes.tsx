@@ -58,6 +58,11 @@ export default function Configuracoes() {
   const [country, setCountry] = useState('PT');
   const [timezone, setTimezone] = useState('Europe/Lisbon');
   
+  // Profile state
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+  
   // Team invite state
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<AppRole>('editor');
@@ -82,6 +87,14 @@ export default function Configuracoes() {
       setTimezone(currentWorkspace.timezone);
     }
   }, [currentWorkspace]);
+
+  // Sync profile state with user data
+  useEffect(() => {
+    if (user) {
+      setFullName(user.user_metadata?.full_name || '');
+      setPhone(user.user_metadata?.phone || '');
+    }
+  }, [user]);
 
   // Fetch subscription status
   useEffect(() => {
@@ -196,6 +209,45 @@ export default function Configuracoes() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: { 
+          full_name: fullName,
+          phone: phone,
+        }
+      });
+      
+      if (error) throw error;
+      
+      // Also update the profiles table if it exists
+      if (user?.id) {
+        await supabase
+          .from('profiles')
+          .update({ 
+            full_name: fullName,
+            phone: phone,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', user.id);
+      }
+      
+      toast({ 
+        title: 'Perfil atualizado', 
+        description: 'As suas informações foram guardadas com sucesso.' 
+      });
+    } catch (error: any) {
+      toast({ 
+        title: 'Erro ao atualizar perfil', 
+        description: error.message,
+        variant: 'destructive' 
+      });
+    } finally {
+      setSavingProfile(false);
     }
   };
 
@@ -342,9 +394,17 @@ export default function Configuracoes() {
             <Settings className="h-4 w-4" />
             <span className="hidden sm:inline">Geral</span>
           </TabsTrigger>
+          <TabsTrigger value="plano" className="gap-2 text-xs md:text-sm">
+            <CreditCard className="h-4 w-4" />
+            <span className="hidden sm:inline">Plano</span>
+          </TabsTrigger>
           <TabsTrigger value="perfil" className="gap-2 text-xs md:text-sm">
             <User className="h-4 w-4" />
             <span className="hidden sm:inline">Perfil</span>
+          </TabsTrigger>
+          <TabsTrigger value="equipa" className="gap-2 text-xs md:text-sm">
+            <Users className="h-4 w-4" />
+            <span className="hidden sm:inline">Equipa</span>
           </TabsTrigger>
           <TabsTrigger value="permissoes" className="gap-2 text-xs md:text-sm">
             <Shield className="h-4 w-4" />
@@ -646,7 +706,11 @@ export default function Configuracoes() {
                 <div className="grid gap-4 pt-4">
                   <div className="grid gap-2">
                     <Label>Nome Completo</Label>
-                    <Input defaultValue={user?.user_metadata?.full_name || ''} placeholder="Seu nome" />
+                    <Input 
+                      value={fullName} 
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Seu nome" 
+                    />
                   </div>
                   <div className="grid gap-2">
                     <Label>Email</Label>
@@ -654,11 +718,28 @@ export default function Configuracoes() {
                   </div>
                   <div className="grid gap-2">
                     <Label>Telefone</Label>
-                    <Input placeholder="+351 912 345 678" />
+                    <Input 
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+351 912 345 678" 
+                    />
                   </div>
                 </div>
 
-                <Button className="gradient-primary">Salvar Perfil</Button>
+                <Button 
+                  className="gradient-primary" 
+                  onClick={handleSaveProfile}
+                  disabled={savingProfile}
+                >
+                  {savingProfile ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      A guardar...
+                    </>
+                  ) : (
+                    'Salvar Perfil'
+                  )}
+                </Button>
               </CardContent>
             </Card>
 

@@ -160,6 +160,111 @@ export default function Relatorios() {
     };
   }, [projects, clients]);
 
+  // Export functions
+  const handleExportExcel = () => {
+    // Prepare CSV data
+    const headers = ['Mês', 'Receita', 'Custos', 'Lucro', 'Projetos'];
+    const rows = monthlyData.map(m => [
+      m.month,
+      m.receita,
+      m.custos,
+      m.lucro,
+      m.projetos,
+    ]);
+
+    const csvContent = [
+      headers.join(';'),
+      ...rows.map(row => row.join(';'))
+    ].join('\n');
+
+    // Add BOM for Excel to recognize UTF-8
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `relatorio-financeiro-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportPDF = () => {
+    // For PDF, we'll create a printable version
+    const printContent = `
+      <html>
+        <head>
+          <title>Relatório Financeiro - ${format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: pt })}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #333; margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+            th { background-color: #f5f5f5; font-weight: bold; }
+            tr:nth-child(even) { background-color: #fafafa; }
+            .header { margin-bottom: 30px; }
+            .summary { display: flex; gap: 20px; margin-bottom: 30px; }
+            .summary-card { padding: 15px; background: #f5f5f5; border-radius: 8px; }
+            .summary-label { font-size: 12px; color: #666; }
+            .summary-value { font-size: 24px; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Relatório Financeiro</h1>
+            <p>Período: Últimos ${period} meses</p>
+            <p>Gerado em: ${format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: pt })}</p>
+          </div>
+          <div class="summary">
+            <div class="summary-card">
+              <div class="summary-label">Receita Total</div>
+              <div class="summary-value">${formatCurrency(summaryMetrics.totalRevenue)}</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">Lucro</div>
+              <div class="summary-value">${formatCurrency(summaryMetrics.profit)}</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">Margem</div>
+              <div class="summary-value">${summaryMetrics.margin.toFixed(1)}%</div>
+            </div>
+          </div>
+          <h2>Evolução Mensal</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Mês</th>
+                <th>Receita</th>
+                <th>Custos</th>
+                <th>Lucro</th>
+                <th>Projetos</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${monthlyData.map(m => `
+                <tr>
+                  <td>${m.month}</td>
+                  <td>${formatCurrency(m.receita)}</td>
+                  <td>${formatCurrency(m.custos)}</td>
+                  <td>${formatCurrency(m.lucro)}</td>
+                  <td>${m.projetos}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -180,11 +285,11 @@ export default function Relatorios() {
               <SelectItem value="12">Último ano</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExportExcel}>
             <FileSpreadsheet className="h-4 w-4 mr-2" />
             Excel
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExportPDF}>
             <FileText className="h-4 w-4 mr-2" />
             PDF
           </Button>

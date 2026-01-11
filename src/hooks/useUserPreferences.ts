@@ -59,18 +59,21 @@ export function useUserPreferences() {
     } else if (data) {
       setPreferences(data as UserPreferences);
     } else {
-      // Create default preferences if none exist
-      const { data: newData, error: insertError } = await supabase
+      // Create default preferences if none exist - use upsert to prevent race condition
+      const { data: newData, error: upsertError } = await supabase
         .from('user_preferences')
-        .insert({
+        .upsert({
           user_id: user.id,
           ...defaultPreferences,
+        }, { 
+          onConflict: 'user_id',
+          ignoreDuplicates: false 
         })
         .select()
         .single();
 
-      if (insertError) {
-        console.error('Error creating user preferences:', insertError);
+      if (upsertError) {
+        console.error('Error creating user preferences:', upsertError);
         setPreferences(null);
       } else {
         setPreferences(newData as UserPreferences);
