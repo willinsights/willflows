@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Crown, ExternalLink, Loader2 } from 'lucide-react';
+import { Crown, ExternalLink, Loader2, CreditCard, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -19,13 +19,14 @@ function formatDaysRemaining(daysRemaining: number) {
 }
 
 export function AccountPlanTab() {
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspace, isAdmin } = useWorkspace();
   const { toast } = useToast();
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
   const [subscriptionData, setSubscriptionData] = useState<{
     subscribed: boolean;
     plan: string | null;
     subscription_end: string | null;
+    trial_expired?: boolean;
   } | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
@@ -56,6 +57,15 @@ export function AccountPlanTab() {
   }, []);
 
   const handleOpenPortal = async () => {
+    if (!isAdmin) {
+      toast({
+        title: 'Sem permissão',
+        description: 'Apenas administradores podem gerir a subscrição.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setPortalLoading(true);
       const {
@@ -72,17 +82,36 @@ export function AccountPlanTab() {
         window.open(data.url, '_blank');
       }
     } catch (error: any) {
-      toast({
-        title: 'Erro ao abrir portal',
-        description: error.message,
-        variant: 'destructive',
-      });
+      const errorMessage = error.message || 'Erro desconhecido';
+      
+      // Handle case where user has no Stripe customer (trial only)
+      if (errorMessage.includes('No Stripe customer found')) {
+        toast({
+          title: 'Sem subscrição ativa',
+          description: 'Escolha um plano abaixo para começar.',
+        });
+      } else {
+        toast({
+          title: 'Erro ao abrir portal',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+      }
     } finally {
       setPortalLoading(false);
     }
   };
 
   const handleUpgrade = async (planId: 'starter' | 'pro' | 'studio') => {
+    if (!isAdmin) {
+      toast({
+        title: 'Sem permissão',
+        description: 'Apenas administradores podem alterar o plano.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setCheckoutLoading(planId);
       const {
@@ -115,6 +144,7 @@ export function AccountPlanTab() {
 
   const currentPlan = subscriptionData?.plan || currentWorkspace?.subscription_plan || 'essencial';
   const isSubscribed = subscriptionData?.subscribed ?? false;
+  const trialExpired = subscriptionData?.trial_expired ?? false;
 
   const trialEndsAt = (currentWorkspace as any)?.trial_ends_at as string | null | undefined;
   const trialDaysRemaining = useMemo(() => {
@@ -127,11 +157,11 @@ export function AccountPlanTab() {
   }, [trialEndsAt]);
 
   const isTrial = useMemo(() => {
-    // Prefer workspace status if present (keeps the UI accurate even if the subscription endpoint returns "subscribed")
     const status = (currentWorkspace as any)?.subscription_status as string | undefined;
-    if (status) return status !== 'active';
-    return !isSubscribed;
-  }, [currentWorkspace, isSubscribed]);
+    if (status === 'active') return false;
+    if (status === 'trialing') return true;
+    return !isSubscribed || trialExpired === false;
+  }, [currentWorkspace, isSubscribed, trialExpired]);
 
   if (subscriptionLoading) {
     return (
@@ -141,28 +171,85 @@ export function AccountPlanTab() {
     );
   }
 
+  // Not admin warning
+  if (!isAdmin) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 p-4 rounded-lg border border-muted bg-muted/50">
+          <AlertTriangle className="h-5 w-5 text-muted-foreground" />
+          <div>
+            <p className="font-medium">Acesso restrito</p>
+            <p className="text-sm text-muted-foreground">
+              Apenas administradores do workspace podem gerir a subscrição.
+            </p>
+          </div>
+        </div>
+
+        {/* Show current plan info (read-only) */}
+        <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/30">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-muted">
+              <Crown className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="font-semibold capitalize">{currentPlan}</p>
+              <p className="text-sm text-muted-foreground">Plano atual do workspace</p>
+            </div>
+          </div>
+          <Badge variant="secondary">{isTrial ? 'Trial' : 'Ativo'}</Badge>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
+      {/* Trial Expired Warning */}
+      {trialExpired && (
+        <div className="flex items-center gap-3 p-4 rounded-lg border border-destructive/50 bg-destructive/10">
+          <AlertTriangle className="h-5 w-5 text-destructive" />
+          <div className="flex-1">
+            <p className="font-medium text-destructive">Trial expirado</p>
+            <p className="text-sm text-muted-foreground">
+              Escolha um plano para continuar a usar o WillFlow.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Current Plan */}
-      <div className="flex items-center justify-between p-4 rounded-lg border border-primary/20 bg-primary/5">
+      <div className={cn(
+        "flex items-center justify-between p-4 rounded-lg border",
+        trialExpired 
+          ? "border-destructive/30 bg-destructive/5" 
+          : "border-primary/20 bg-primary/5"
+      )}>
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <Crown className="h-5 w-5 text-primary" />
+          <div className={cn(
+            "p-2 rounded-lg",
+            trialExpired ? "bg-destructive/10" : "bg-primary/10"
+          )}>
+            <Crown className={cn(
+              "h-5 w-5",
+              trialExpired ? "text-destructive" : "text-primary"
+            )} />
           </div>
           <div>
             <p className="font-semibold capitalize">{currentPlan}</p>
             <p className="text-sm text-muted-foreground">
-              {isTrial ? 'Período de teste' : 'Subscrição ativa'}
-              {isTrial && typeof trialDaysRemaining === 'number' && (
+              {trialExpired ? 'Trial expirado' : isTrial ? 'Período de teste' : 'Subscrição ativa'}
+              {isTrial && !trialExpired && typeof trialDaysRemaining === 'number' && (
                 <span className="ml-2 text-foreground/80">• {formatDaysRemaining(trialDaysRemaining)}</span>
               )}
             </p>
           </div>
         </div>
-        <Badge variant={isTrial ? 'secondary' : 'default'}>{isTrial ? 'Trial' : 'Ativo'}</Badge>
+        <Badge variant={trialExpired ? 'destructive' : isTrial ? 'secondary' : 'default'}>
+          {trialExpired ? 'Expirado' : isTrial ? 'Trial' : 'Ativo'}
+        </Badge>
       </div>
 
-      {subscriptionData?.subscription_end && !isTrial && (
+      {subscriptionData?.subscription_end && !isTrial && !trialExpired && (
         <p className="text-sm text-muted-foreground">
           Próxima renovação:{' '}
           <span className="font-medium text-foreground">
@@ -171,7 +258,8 @@ export function AccountPlanTab() {
         </p>
       )}
 
-      {!isTrial && (
+      {/* Manage Subscription Button - Only show if user has active subscription */}
+      {!isTrial && !trialExpired && (
         <Button
           variant="outline"
           onClick={handleOpenPortal}
@@ -189,16 +277,19 @@ export function AccountPlanTab() {
 
       {/* Available Plans */}
       <div className="space-y-2">
-        <p className="text-sm font-medium">Planos Disponíveis</p>
+        <p className="text-sm font-medium">
+          {trialExpired || isTrial ? 'Escolha o seu plano' : 'Planos Disponíveis'}
+        </p>
         <div className="grid gap-2">
-          {(['essencial', 'pro', 'studio'] as const).map((planId) => {
-            // Map our internal plan names to the PLAN_INFO keys
-            const planInfoKey = planId === 'essencial' ? 'starter' : planId;
-            const plan = PLAN_INFO[planInfoKey as keyof typeof PLAN_INFO];
-            const isCurrentPlan = currentPlan === planId;
+          {(['starter', 'pro', 'studio'] as const).map((planId) => {
+            const plan = PLAN_INFO[planId];
+            // Map PLAN_INFO keys to our internal plan names
+            const internalPlanId = planId === 'starter' ? 'essencial' : planId;
+            const isCurrentPlan = currentPlan === internalPlanId && !trialExpired;
             const currencyKey = (currentWorkspace?.currency?.toLowerCase() === 'brl' ? 'brl' : 'eur') as 'eur' | 'brl';
             const price = plan.prices[currencyKey].monthly;
             const currencySymbol = currencyKey === 'eur' ? '€' : 'R$';
+            const isPopular = planId === 'pro';
 
             return (
               <motion.div
@@ -207,12 +298,20 @@ export function AccountPlanTab() {
                 animate={{ opacity: 1, y: 0 }}
                 className={cn(
                   'flex items-center justify-between p-3 rounded-lg border transition-all',
-                  isCurrentPlan ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                  isCurrentPlan ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50',
+                  isPopular && !isCurrentPlan && 'ring-1 ring-primary/20'
                 )}
               >
                 <div className="flex items-center gap-3">
                   <div>
-                    <p className="font-medium capitalize">{planId}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium capitalize">{plan.name}</p>
+                      {isPopular && (
+                        <Badge variant="default" className="text-[10px] gradient-primary">
+                          Popular
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground">
                       {currencySymbol}
                       {price}/mês
@@ -224,15 +323,16 @@ export function AccountPlanTab() {
                 ) : (
                   <Button
                     size="sm"
-                    variant={planId === 'pro' ? 'default' : 'outline'}
-                    onClick={() => handleUpgrade(planInfoKey as 'starter' | 'pro' | 'studio')}
-                    disabled={checkoutLoading === planInfoKey}
-                    className={cn(planId === 'pro' && 'gradient-primary')}
+                    variant={isPopular ? 'default' : 'outline'}
+                    onClick={() => handleUpgrade(planId)}
+                    disabled={checkoutLoading === planId}
+                    className={cn(isPopular && 'gradient-primary')}
                   >
-                    {checkoutLoading === planInfoKey && (
+                    {checkoutLoading === planId && (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     )}
-                    {isTrial ? 'Upgrade' : 'Mudar'}
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    {trialExpired || isTrial ? 'Subscrever' : 'Mudar'}
                   </Button>
                 )}
               </motion.div>
@@ -240,6 +340,10 @@ export function AccountPlanTab() {
           })}
         </div>
       </div>
+
+      <p className="text-xs text-muted-foreground text-center">
+        7 dias grátis • Cancele quando quiser
+      </p>
     </div>
   );
 }
