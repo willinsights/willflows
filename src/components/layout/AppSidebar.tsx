@@ -24,7 +24,9 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TrialBadge } from '@/components/dashboard/TrialBadge';
-import logoWillflow from '@/assets/logo-willflow-sistema.png';
+import { useTheme } from '@/contexts/ThemeContext';
+import logoLight from '@/assets/logo-willflow.png';
+import logoDark from '@/assets/logo-willflow-white.png';
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -89,6 +91,9 @@ const navSections: NavSection[] = [
 export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { theme } = useTheme();
+
+  const logo = theme === 'dark' ? logoDark : logoLight;
 
   const isActive = (path: string) => {
     if (path === '/app') {
@@ -114,7 +119,7 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
           aria-label="Ir para o Dashboard"
         >
           <img 
-            src={logoWillflow} 
+            src={logo} 
             alt="WillFlow" 
             className={cn(
               'object-contain cursor-pointer',
