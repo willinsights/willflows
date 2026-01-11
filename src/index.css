@@ -11,11 +11,11 @@
 
 @layer base {
   :root {
-    /* Core backgrounds - Clean white */
-    --background: 0 0% 98%;
+    /* Core backgrounds - Light gray for depth */
+    --background: 220 14% 96%;
     --foreground: 240 10% 10%;
 
-    /* Cards with glassmorphism */
+    /* Cards with soft shadows */
     --card: 0 0% 100%;
     --card-foreground: 240 10% 10%;
 
@@ -27,13 +27,13 @@
     --primary: 246 74% 59%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary - Light violet tint */
-    --secondary: 246 30% 96%;
+    /* Secondary - Light gray tint */
+    --secondary: 220 14% 94%;
     --secondary-foreground: 246 74% 50%;
 
-    /* Muted */
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 5% 45%;
+    /* Muted - Gray tones */
+    --muted: 220 14% 92%;
+    --muted-foreground: 220 9% 46%;
 
     /* Accent - Cyan #00E5E5 */
     --accent: 180 100% 35%;
@@ -55,30 +55,30 @@
     --info: 217 91% 60%;
     --info-foreground: 0 0% 100%;
 
-    /* Borders and inputs */
-    --border: 240 6% 90%;
-    --input: 240 6% 90%;
+    /* Borders and inputs - More visible gray */
+    --border: 220 13% 86%;
+    --input: 220 13% 86%;
     --ring: 246 74% 59%;
 
     --radius: 1.25rem;
 
-    /* Sidebar */
+    /* Sidebar - Light gray background */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 240 10% 30%;
+    --sidebar-foreground: 220 9% 30%;
     --sidebar-primary: 246 74% 59%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 246 30% 96%;
+    --sidebar-accent: 220 14% 94%;
     --sidebar-accent-foreground: 246 74% 50%;
-    --sidebar-border: 240 6% 92%;
+    --sidebar-border: 220 13% 90%;
     --sidebar-ring: 246 74% 59%;
 
-    /* Glass effect variables - Premium Light */
+    /* Glass effect variables - Enhanced Light with shadows */
     --glass-blur: 16px;
-    --glass-bg: 0 0% 100% / 0.7;
-    --glass-border: 240 6% 90%;
-    --glass-shadow: 0 1px 3px 0 rgba(0,0,0,0.04), 0 4px 12px -2px rgba(0,0,0,0.06);
-    --glass-shadow-hover: 0 4px 16px -2px rgba(91, 74, 228, 0.12), 0 8px 24px -4px rgba(0,0,0,0.08);
-    --glass-glow: 0 0 32px rgba(91, 74, 228, 0.08);
+    --glass-bg: 0 0% 100% / 0.85;
+    --glass-border: 220 13% 88%;
+    --glass-shadow: 0 1px 3px 0 rgba(0,0,0,0.08), 0 4px 16px -2px rgba(0,0,0,0.1), 0 8px 24px -4px rgba(0,0,0,0.06);
+    --glass-shadow-hover: 0 4px 20px -2px rgba(91, 74, 228, 0.15), 0 12px 32px -4px rgba(0,0,0,0.12);
+    --glass-glow: 0 0 32px rgba(91, 74, 228, 0.1);
 
     /* Kanban colors */
     --kanban-gray: 220 9% 46%;
@@ -88,10 +88,12 @@
     --kanban-purple: 246 74% 59%;
     --kanban-red: 0 72% 51%;
     --kanban-cyan: 180 100% 45%;
-    --shadow-sm: 0px 1px 10.25px 0px hsla(0, 0%, 0%, 0.1);
-    --shadow: 0px 1px 20.5px 0px hsla(0, 0%, 0%, 0.1);
-    --shadow-md: 0px 1px 30.75px 0px hsla(0, 0%, 0%, 0.1);
-    --shadow-lg: 0px 1px 51.25px 0px hsla(0, 0%, 0%, 0.1);
+    
+    /* Shadows - Enhanced for light mode */
+    --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05), 0 1px 4px 0 rgba(0,0,0,0.06);
+    --shadow: 0 2px 4px 0 rgba(0,0,0,0.06), 0 4px 12px -2px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 8px 0 rgba(0,0,0,0.08), 0 8px 24px -4px rgba(0,0,0,0.1);
+    --shadow-lg: 0 8px 16px 0 rgba(0,0,0,0.1), 0 16px 48px -8px rgba(0,0,0,0.12);
   }
 
   .dark {

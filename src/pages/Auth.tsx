@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, ArrowLeft, Loader2, CheckCircle2, Mail } from 'lucide-react';
 import logoWhite from '@/assets/logo-willflow-white.png';
-import logoPurple from '@/assets/logo-willflow-purple.png';
+import logoBlack from '@/assets/logo-willflow.png';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -263,7 +263,7 @@ export default function Auth() {
           >
             <div className="mb-8">
               <img 
-                src={theme === 'dark' ? logoWhite : logoPurple} 
+                src={theme === 'dark' ? logoWhite : logoBlack} 
                 alt="WillFlow" 
                 className="h-10 w-auto mx-auto"
               />
@@ -318,7 +318,7 @@ export default function Auth() {
           >
             <div className="mb-8">
               <img 
-                src={theme === 'dark' ? logoWhite : logoPurple} 
+                src={theme === 'dark' ? logoWhite : logoBlack} 
                 alt="WillFlow" 
                 className="h-10 w-auto mx-auto"
               />
@@ -387,7 +387,7 @@ export default function Auth() {
           {/* Logo */}
           <div className="mb-8">
             <img 
-              src={theme === 'dark' ? logoWhite : logoPurple} 
+              src={theme === 'dark' ? logoWhite : logoBlack} 
               alt="WillFlow" 
               className="h-10 w-auto"
             />

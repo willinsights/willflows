@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, Sun, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeContext';
-import logoLight from '@/assets/logo-willflow-purple.png';
+import logoLight from '@/assets/logo-willflow.png';
 import logoDark from '@/assets/logo-willflow-white.png';
 
 const navLinks = [
