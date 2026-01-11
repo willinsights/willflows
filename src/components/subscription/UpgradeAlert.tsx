@@ -27,6 +27,10 @@ interface UpgradeAlertProps {
   isLimitReached?: boolean;
   currentUsage?: number;
   limit?: number;
+  alternativeAction?: {
+    label: string;
+    description: string;
+  };
 }
 
 const PLAN_LABELS: Record<SubscriptionPlan, string> = {
@@ -50,6 +54,7 @@ export function UpgradeAlert({
   isLimitReached = false,
   currentUsage,
   limit,
+  alternativeAction,
 }: UpgradeAlertProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -140,6 +145,14 @@ export function UpgradeAlert({
               </div>
             </div>
           </div>
+
+          {/* Alternative action hint */}
+          {alternativeAction && (
+            <div className="rounded-lg border border-dashed border-muted-foreground/30 p-3 bg-background">
+              <p className="text-sm font-medium text-foreground">{alternativeAction.label}</p>
+              <p className="text-xs text-muted-foreground mt-1">{alternativeAction.description}</p>
+            </div>
+          )}
 
           {/* Current vs Required plan */}
           <div className="flex items-center justify-center gap-4">

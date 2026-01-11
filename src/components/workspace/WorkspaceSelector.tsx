@@ -243,10 +243,10 @@ export function WorkspaceSelector() {
       <UpgradeAlert
         isOpen={upgradeAlert.isOpen}
         onClose={closeUpgradeAlert}
-        feature={upgradeAlert.featureInfo}
+        feature={upgradeAlert.feature}
         requiredPlan={upgradeAlert.requiredPlan}
         currentPlan={currentPlan}
-        isLimitReached={upgradeAlert.feature === 'workspaces'}
+        isLimitReached={upgradeAlert.isLimitReached}
         currentUsage={usage.workspaces}
         limit={limits.workspaces}
       />

@@ -94,9 +94,9 @@ function isPlanAtLeast(userPlan: SubscriptionPlan, requiredPlan: SubscriptionPla
 
 export interface UpgradeAlertState {
   isOpen: boolean;
-  feature: FeatureKey | null;
-  featureInfo: FeatureInfo | null;
+  feature: FeatureInfo | null;
   requiredPlan: SubscriptionPlan | null;
+  isLimitReached: boolean;
 }
 
 export function usePlanFeatures() {
@@ -104,8 +104,8 @@ export function usePlanFeatures() {
   const [upgradeAlert, setUpgradeAlert] = useState<UpgradeAlertState>({
     isOpen: false,
     feature: null,
-    featureInfo: null,
     requiredPlan: null,
+    isLimitReached: false,
   });
 
   const currentPlan = subscription?.plan || 'essencial';
@@ -166,24 +166,28 @@ export function usePlanFeatures() {
 
     const featureInfo = FEATURES[feature];
     const requiredPlan = getUpgradePlan(feature);
+    
+    // Determine if it's a limit issue vs plan issue
+    const isLimitReached = ['workspaces', 'users', 'projects'].includes(feature) && 
+      isPlanAtLeast(currentPlan, featureInfo.minimumPlan);
 
     setUpgradeAlert({
       isOpen: true,
-      feature,
-      featureInfo,
+      feature: featureInfo,
       requiredPlan,
+      isLimitReached,
     });
 
     return false;
-  }, [canUseFeature, getUpgradePlan]);
+  }, [canUseFeature, getUpgradePlan, currentPlan]);
 
   // Close upgrade alert
   const closeUpgradeAlert = useCallback(() => {
     setUpgradeAlert({
       isOpen: false,
       feature: null,
-      featureInfo: null,
       requiredPlan: null,
+      isLimitReached: false,
     });
   }, []);
 
