@@ -31,6 +31,7 @@ import Relatorios from "./pages/app/Relatorios";
 import Configuracoes from "./pages/app/Configuracoes";
 import Equipa from "./pages/app/Equipa";
 import Faturacao from "./pages/app/Faturacao";
+import Conta from "./pages/app/Conta";
 import CheckoutSuccess from "./pages/CheckoutSuccess";
 import NotFound from "./pages/NotFound";
 import AcceptInvite from "./pages/AcceptInvite";
@@ -97,6 +98,7 @@ const App = () => (
                   <Route path="configuracoes" element={<Configuracoes />} />
                   <Route path="equipa" element={<Equipa />} />
                   <Route path="faturacao" element={<Faturacao />} />
+                  <Route path="conta" element={<Conta />} />
                 </Route>
 
                 {/* Catch-all */}

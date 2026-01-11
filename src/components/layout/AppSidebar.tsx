@@ -64,7 +64,6 @@ const navSections: NavSection[] = [
     title: 'FINANÇAS',
     items: [
       { icon: Euro, label: 'Pagamentos', path: '/app/pagamentos' },
-      { icon: Receipt, label: 'Faturação', path: '/app/faturacao' },
       { icon: BarChart3, label: 'Relatórios', path: '/app/relatorios' },
     ],
   },
@@ -86,6 +85,7 @@ const navSections: NavSection[] = [
     title: 'SISTEMA',
     items: [
       { icon: Settings, label: 'Configurações', path: '/app/configuracoes' },
+      { icon: CreditCard, label: 'Conta', path: '/app/conta' },
     ],
   },
 ];
