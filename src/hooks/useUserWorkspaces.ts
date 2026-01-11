@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
+// Re-export the type for backward compatibility
 export interface UserWorkspace {
   id: string;
   name: string;
@@ -11,60 +10,19 @@ export interface UserWorkspace {
   logo_url?: string | null;
 }
 
+// This hook now just wraps useWorkspace for backward compatibility
 export function useUserWorkspaces() {
-  const { user } = useAuth();
-  const [workspaces, setWorkspaces] = useState<UserWorkspace[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { allWorkspaces, loading, refreshWorkspace } = useWorkspace();
 
-  const fetchWorkspaces = useCallback(async () => {
-    if (!user?.id) {
-      setWorkspaces([]);
-      setLoading(false);
-      return;
-    }
+  // Map to the expected format
+  const workspaces: UserWorkspace[] = allWorkspaces.map(w => ({
+    id: w.id,
+    name: w.name,
+    slug: w.slug,
+    subscription_plan: w.subscription_plan,
+    role: w.role,
+    logo_url: w.logo_url,
+  }));
 
-    try {
-      setLoading(true);
-      
-      const { data, error } = await supabase
-        .from('workspace_members')
-        .select(`
-          role,
-          workspaces (
-            id,
-            name,
-            slug,
-            subscription_plan,
-            logo_url
-          )
-        `)
-        .eq('user_id', user.id)
-        .eq('is_active', true);
-
-      if (error) throw error;
-
-      const userWorkspaces: UserWorkspace[] = (data || [])
-        .filter((m: any) => m.workspaces)
-        .map((m: any) => ({
-          id: m.workspaces.id,
-          name: m.workspaces.name,
-          slug: m.workspaces.slug,
-          subscription_plan: m.workspaces.subscription_plan,
-          role: m.role,
-          logo_url: m.workspaces.logo_url,
-        }));
-
-      setWorkspaces(userWorkspaces);
-    } catch (error) {
-      console.error('Error fetching user workspaces:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    fetchWorkspaces();
-  }, [fetchWorkspaces]);
-
-  return { workspaces, loading, refresh: fetchWorkspaces };
+  return { workspaces, loading, refresh: refreshWorkspace };
 }
