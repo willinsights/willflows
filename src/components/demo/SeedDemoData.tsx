@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Loader2, Database, Trash2 } from 'lucide-react';
+import { logger } from '@/lib/logger';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -116,7 +117,7 @@ export function SeedDemoData() {
     setLoading(true);
     try {
       // 0. Clear existing demo data first to avoid duplicates
-      console.log('Clearing existing data before seeding...');
+      logger.log('Clearing existing data before seeding...');
       
       // Get existing projects to clean related data
       const { data: existingProjects } = await supabase
@@ -151,7 +152,7 @@ export function SeedDemoData() {
       await supabase.from('projects').delete().eq('workspace_id', currentWorkspace.id);
       await supabase.from('clients').delete().eq('workspace_id', currentWorkspace.id);
       
-      console.log('Existing data cleared successfully');
+      logger.log('Existing data cleared successfully');
 
       // 1. Create clients
       const { data: createdClients, error: clientsError } = await supabase
@@ -166,7 +167,7 @@ export function SeedDemoData() {
         .select();
 
       if (clientsError) throw clientsError;
-      console.log('Created clients:', createdClients?.length);
+      logger.log('Created clients:', createdClients?.length);
 
       // 2. Get kanban columns
       const { data: columns, error: colError } = await supabase
@@ -181,7 +182,7 @@ export function SeedDemoData() {
       const captacaoColumns = columns?.filter(c => c.phase === 'captacao') || [];
       const edicaoColumns = columns?.filter(c => c.phase === 'edicao') || [];
 
-      console.log('Columns found:', captacaoColumns.length, 'captacao,', edicaoColumns.length, 'edicao');
+      logger.log('Columns found:', captacaoColumns.length, 'captacao,', edicaoColumns.length, 'edicao');
 
       // 3. Create 25 projects with varied data using 2026 dates
       const projects = [];
@@ -249,7 +250,7 @@ export function SeedDemoData() {
         .select();
 
       if (projectsError) throw projectsError;
-      console.log('Created projects:', createdProjects?.length);
+      logger.log('Created projects:', createdProjects?.length);
 
       // 4. Create tasks for each project
       const allTasks: any[] = [];
@@ -284,7 +285,7 @@ export function SeedDemoData() {
         .select();
 
       if (tasksError) throw tasksError;
-      console.log('Created tasks:', createdTasks?.length);
+      logger.log('Created tasks:', createdTasks?.length);
 
       // 5. Create checklists for some tasks
       const allChecklists: any[] = [];
@@ -309,7 +310,7 @@ export function SeedDemoData() {
           .from('task_checklists')
           .insert(allChecklists);
         if (checklistError) throw checklistError;
-        console.log('Created checklists:', allChecklists.length);
+        logger.log('Created checklists:', allChecklists.length);
       }
 
       // 6. Create media links for some projects
@@ -355,7 +356,7 @@ export function SeedDemoData() {
           .from('project_media_links')
           .insert(allMediaLinks);
         if (linksError) throw linksError;
-        console.log('Created media links:', allMediaLinks.length);
+        logger.log('Created media links:', allMediaLinks.length);
       }
 
       // 7. Create payments
@@ -399,7 +400,7 @@ export function SeedDemoData() {
         .insert(allPayments);
 
       if (paymentsError) throw paymentsError;
-      console.log('Created payments:', allPayments.length);
+      logger.log('Created payments:', allPayments.length);
 
       // 8. Create calendar events
       const allEvents: any[] = [];
@@ -480,14 +481,14 @@ export function SeedDemoData() {
         .insert(allEvents);
 
       if (eventsError) throw eventsError;
-      console.log('Created calendar events:', allEvents.length);
+      logger.log('Created calendar events:', allEvents.length);
 
       toast({
         title: 'Dados de demonstração criados com sucesso!',
         description: `${createdClients?.length} clientes, ${createdProjects?.length} projetos, ${createdTasks?.length} tarefas, ${allChecklists.length} checklists, ${allMediaLinks.length} links, ${allPayments.length} pagamentos e ${allEvents.length} eventos.`,
       });
     } catch (error: any) {
-      console.error('Error seeding data:', error);
+      logger.error('Error seeding data:', error);
       toast({
         title: 'Erro ao criar dados',
         description: error.message,
@@ -541,7 +542,7 @@ export function SeedDemoData() {
         description: 'Todos os dados de demonstração foram removidos com sucesso.',
       });
     } catch (error: any) {
-      console.error('Error clearing data:', error);
+      logger.error('Error clearing data:', error);
       toast({
         title: 'Erro ao remover dados',
         description: error.message,
