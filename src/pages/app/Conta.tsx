@@ -26,7 +26,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { useToast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
-import { format, differenceInDays, parseISO } from 'date-fns';
+import { format, differenceInDays, parseISO, isValid } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { PLAN_INFO, getPriceId } from '@/lib/stripe-prices';
 import { cn } from '@/lib/utils';
@@ -74,6 +74,15 @@ function formatDaysRemaining(daysRemaining: number) {
   if (daysRemaining === 0) return 'Termina hoje';
   if (daysRemaining === 1) return '1 dia restante';
   return `${daysRemaining} dias restantes`;
+}
+
+function formatDatePt(date: Date, fmt: string) {
+  if (!isValid(date)) return '—';
+  try {
+    return format(date, fmt, { locale: pt });
+  } catch {
+    return '—';
+  }
 }
 
 export default function Conta() {
@@ -349,7 +358,7 @@ export default function Conta() {
                   <p className="text-sm text-muted-foreground">
                     Próxima renovação:{' '}
                     <span className="font-medium text-foreground">
-                      {format(new Date(userSubscription.currentPeriodEnd), "d 'de' MMMM 'de' yyyy", { locale: pt })}
+                      {formatDatePt(new Date(userSubscription.currentPeriodEnd), "d 'de' MMMM 'de' yyyy") }
                     </span>
                   </p>
                 </CardContent>
@@ -510,7 +519,7 @@ export default function Conta() {
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground">Próxima faturação</span>
                         <span className="font-medium">
-                          {format(new Date(billingInfo.subscription.currentPeriodEnd * 1000), "d 'de' MMMM, yyyy", { locale: pt })}
+                          {formatDatePt(new Date(billingInfo.subscription.currentPeriodEnd * 1000), "d 'de' MMMM, yyyy")}
                         </span>
                       </div>
                       {billingInfo.subscription.cancelAtPeriodEnd && (
@@ -628,7 +637,7 @@ export default function Conta() {
                               {invoice.number || invoice.id.slice(-8).toUpperCase()}
                             </TableCell>
                             <TableCell>
-                              {format(new Date(invoice.created * 1000), "d MMM yyyy", { locale: pt })}
+                              {formatDatePt(new Date(invoice.created * 1000), "d MMM yyyy")}
                             </TableCell>
                             <TableCell className="max-w-[200px] truncate">
                               {invoice.description}
