@@ -134,7 +134,8 @@ const handler = async (req: Request): Promise<Response> => {
     
     logStep(`Sending password reset email to ${email}`);
 
-    const appUrl = Deno.env.get("APP_URL") || "https://willflow.app";
+    // Always use production domain for assets
+    const appUrl = "https://willflow.app";
 
     const emailResponse = await resend.emails.send({
       from: "WillFlow <noreply@willflow.app>",

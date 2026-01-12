@@ -68,7 +68,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     logStep(`Sending beta welcome email to ${email}`);
 
-    const appUrl = Deno.env.get("APP_URL") || "https://willflow.app";
+    // Always use production domain for assets
+    const appUrl = "https://willflow.app";
 
     // Send email using Resend API
     const emailResponse = await fetch("https://api.resend.com/emails", {
