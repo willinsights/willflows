@@ -6,10 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Logo } from '@/components/ui/logo';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle, XCircle, UserPlus, Mail, Lock, ArrowRight } from 'lucide-react';
-import logoWhite from '@/assets/logo-willflow-white.png';
-import logo from '@/assets/logo-willflow.png';
 
 type InvitationData = {
   id: string;
@@ -266,8 +265,7 @@ export default function AcceptInvite() {
         {/* Logo */}
         <div className="flex justify-center mb-8">
           <Link to="/">
-            <img src={logo} alt="Willflow" className="h-10 dark:hidden" />
-            <img src={logoWhite} alt="Willflow" className="h-10 hidden dark:block" />
+            <Logo className="h-10" />
           </Link>
         </div>
 
