@@ -23,7 +23,14 @@ import {
 } from '@/components/ui/accordion';
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
-import heroShowcase from '@/assets/hero-showcase.png';
+
+// Dark mode screenshots for the new hero
+import screenshotDashboard from '@/assets/screenshot-dark-dashboard.png';
+import screenshotKanban from '@/assets/screenshot-dark-kanban.png';
+import screenshotCalendar from '@/assets/screenshot-dark-calendar.png';
+import screenshotPayments from '@/assets/screenshot-dark-payments.png';
+
+// Detail screenshots for modal
 import screenshotKanbanDetail from '@/assets/screenshot-kanban-detail.png';
 import screenshotReceitaDetail from '@/assets/screenshot-receita-detail.png';
 import screenshotCalendarioDetail from '@/assets/screenshot-calendario-detail.png';
@@ -197,193 +204,299 @@ const plans = [
   },
 ];
 
-// Showcase with Background and Floating Cards at Edges
-function ShowcaseWithBackground({ features }: { features: typeof showcaseFeatures }) {
-  const [selectedFeature, setSelectedFeature] = useState<number | null>(null);
-  
-  // Positions for cards at the edges (avoiding center where the man is)
-  const cardPositions = [
-    'top-4 left-4 md:top-8 md:left-8',           // Top left
-    'top-4 right-4 md:top-8 md:right-8',         // Top right
-    'bottom-4 left-4 md:bottom-8 md:left-8',     // Bottom left
-    'bottom-4 right-4 md:bottom-8 md:right-8',   // Bottom right
-  ];
+// Floating screenshot component for the hero
+interface FloatingScreenshotProps {
+  src: string;
+  alt: string;
+  className?: string;
+  delay?: number;
+  onClick?: () => void;
+}
 
-  // Different floating animation delays for each card
-  const floatingDelays = [0, 0.5, 1, 1.5];
-
+function FloatingScreenshot({ src, alt, className = '', delay = 0, onClick }: FloatingScreenshotProps) {
   return (
-    <>
-      {/* Full-width Background Image Container */}
-      <div className="relative w-full overflow-hidden min-h-[450px] md:min-h-[600px] lg:min-h-[700px]">
-        {/* Hero Background Image - Full Width */}
+    <motion.div
+      className={`absolute cursor-pointer ${className}`}
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ 
+        opacity: 1, 
+        y: [0, -15, 0],
+      }}
+      transition={{
+        opacity: { duration: 0.8, delay },
+        y: { 
+          duration: 5 + delay, 
+          repeat: Infinity, 
+          ease: "easeInOut",
+          delay,
+        },
+      }}
+      whileHover={{ 
+        scale: 1.05, 
+        y: -20,
+        transition: { duration: 0.3 }
+      }}
+      onClick={onClick}
+    >
+      <div className="relative rounded-xl overflow-hidden shadow-2xl shadow-black/50 border border-white/10 backdrop-blur-sm">
         <img 
-          src={heroShowcase} 
-          alt="WillFlow Background" 
-          className="absolute inset-0 w-full h-full object-cover"
+          src={src}
+          alt={alt}
+          className="w-full h-full object-cover object-top"
         />
-        
-        {/* Subtle Gradient Overlay - keeping the man visible */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/40" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/20" />
-        
-        {/* Floating Cards at the Edges - Only Images */}
-        {features.map((feature, index) => (
-          <motion.div
-            key={feature.id}
-            className={`absolute ${cardPositions[index]} z-10`}
-            // Continuous floating animation
-            animate={{ 
-              y: [0, -12, 0],
-              rotate: [0, index % 2 === 0 ? 1 : -1, 0],
-            }}
-            transition={{ 
-              duration: 4 + index * 0.3,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: floatingDelays[index],
-            }}
-            whileHover={{ 
-              scale: 1.15, 
-              y: -20,
-              rotate: 0,
-              transition: { duration: 0.3 }
-            }}
-            onClick={() => setSelectedFeature(index)}
-          >
-            {/* Card with only image */}
-            <div className="relative w-32 h-24 sm:w-40 sm:h-28 md:w-52 md:h-36 lg:w-60 lg:h-44 rounded-xl overflow-hidden 
-                          backdrop-blur-sm bg-white/10 p-1.5 
-                          border border-white/30 
-                          shadow-2xl shadow-black/40
-                          cursor-pointer 
-                          transition-all duration-300
-                          hover:shadow-primary/40 hover:border-white/50
-                          group">
-              <img 
-                src={feature.image}
-                alt={feature.label}
-                className="w-full h-full object-cover object-top rounded-lg transition-transform duration-500 group-hover:scale-105"
-              />
-              {/* Subtle glow on hover */}
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-t from-primary/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            </div>
-          </motion.div>
-        ))}
-        
-        {/* Corner Glow Effects */}
-        <div className="absolute top-0 left-0 w-48 h-48 md:w-64 md:h-64 bg-primary/20 rounded-full blur-[80px] -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-        <div className="absolute bottom-0 right-0 w-48 h-48 md:w-64 md:h-64 bg-kanban-cyan/20 rounded-full blur-[80px] translate-x-1/2 translate-y-1/2 pointer-events-none" />
+        {/* Hover glow overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300" />
       </div>
-
-      {/* Expanded Feature Modal */}
-      <AnimatePresence>
-        {selectedFeature !== null && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-            onClick={() => setSelectedFeature(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative max-w-4xl w-full bg-card rounded-2xl overflow-hidden shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                onClick={() => setSelectedFeature(null)}
-                className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-              <img 
-                src={features[selectedFeature].image} 
-                alt={features[selectedFeature].label}
-                className="w-full h-auto"
-              />
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+    </motion.div>
   );
 }
 
 export default function Landing() {
   const [showBRL, setShowBRL] = useState(false);
   const [isAnnual, setIsAnnual] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const getPrice = (plan: typeof plans[0]) => {
     const prices = showBRL ? plan.priceBRL : plan.priceEUR;
     return isAnnual ? prices.annual : prices.monthly;
   };
 
+  const heroScreenshots = [
+    { src: screenshotDashboard, alt: 'Dashboard WillFlow' },
+    { src: screenshotKanban, alt: 'Kanban WillFlow' },
+    { src: screenshotCalendar, alt: 'Calendário WillFlow' },
+    { src: screenshotPayments, alt: 'Pagamentos WillFlow' },
+  ];
+
   return (
     <div className="min-h-screen">
       <PublicHeader />
 
-      {/* Hero with Depth of Field */}
-      <section className="pt-32 pb-20 px-4 relative overflow-hidden hero-depth">
-        {/* Premium Bokeh Background */}
+      {/* Hero Section - ClickUp Style with Floating Screenshots */}
+      <section className="relative min-h-[90vh] pt-24 pb-20 overflow-hidden">
+        {/* Gradient Background */}
         <div className="absolute inset-0 -z-10">
-          {/* Large bokeh orbs */}
-          <div className="bokeh-orb bokeh-orb-primary w-[500px] h-[500px] -top-32 left-1/4" style={{ animationDelay: '0s' }} />
-          <div className="bokeh-orb bokeh-orb-accent w-[400px] h-[400px] bottom-0 right-1/4" style={{ animationDelay: '-4s' }} />
-          <div className="bokeh-orb bokeh-orb-glow w-[600px] h-[600px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style={{ animationDelay: '-8s' }} />
+          {/* Main mesh gradient */}
+          <div 
+            className="absolute inset-0"
+            style={{
+              background: `
+                radial-gradient(ellipse 80% 60% at 50% 0%, hsl(var(--primary) / 0.25) 0%, transparent 50%),
+                radial-gradient(ellipse 60% 50% at 80% 50%, hsl(180 100% 45% / 0.2) 0%, transparent 50%),
+                radial-gradient(ellipse 50% 40% at 20% 80%, hsl(330 80% 55% / 0.15) 0%, transparent 50%),
+                linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--background) / 0.95) 100%)
+              `,
+            }}
+          />
           
-          {/* Smaller accent orbs for depth */}
-          <div className="bokeh-orb bokeh-orb-primary w-48 h-48 top-20 right-20 opacity-30" style={{ animationDelay: '-2s' }} />
-          <div className="bokeh-orb bokeh-orb-accent w-32 h-32 bottom-40 left-20 opacity-40" style={{ animationDelay: '-6s' }} />
+          {/* Animated gradient orbs */}
+          <motion.div 
+            className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full opacity-30"
+            style={{
+              background: 'radial-gradient(circle, hsl(var(--primary) / 0.4) 0%, transparent 70%)',
+              filter: 'blur(80px)',
+            }}
+            animate={{ 
+              x: [0, 50, 0], 
+              y: [0, 30, 0],
+              scale: [1, 1.1, 1],
+            }}
+            transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.div 
+            className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full opacity-25"
+            style={{
+              background: 'radial-gradient(circle, hsl(180 100% 45% / 0.4) 0%, transparent 70%)',
+              filter: 'blur(80px)',
+            }}
+            animate={{ 
+              x: [0, -40, 0], 
+              y: [0, -40, 0],
+              scale: [1, 1.15, 1],
+            }}
+            transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          />
+          <motion.div 
+            className="absolute top-1/2 left-0 w-[400px] h-[400px] rounded-full opacity-20"
+            style={{
+              background: 'radial-gradient(circle, hsl(330 80% 55% / 0.3) 0%, transparent 70%)',
+              filter: 'blur(60px)',
+            }}
+            animate={{ 
+              x: [0, 30, 0], 
+              y: [0, -30, 0],
+            }}
+            transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 4 }}
+          />
         </div>
 
-        <div className="container mx-auto text-center max-w-4xl relative z-10">
+        {/* Floating Screenshots - Desktop */}
+        <div className="hidden lg:block">
+          {/* Left side - Dashboard (partially visible) */}
+          <FloatingScreenshot
+            src={screenshotDashboard}
+            alt="Dashboard"
+            className="left-[-8%] top-[20%] w-[380px] rotate-[-6deg]"
+            delay={0}
+            onClick={() => setSelectedImage(screenshotDashboard)}
+          />
+          
+          {/* Right side - Kanban (larger, more visible) */}
+          <FloatingScreenshot
+            src={screenshotKanban}
+            alt="Kanban"
+            className="right-[-5%] top-[18%] w-[420px] rotate-[4deg]"
+            delay={0.3}
+            onClick={() => setSelectedImage(screenshotKanban)}
+          />
+          
+          {/* Bottom left - Calendar */}
+          <FloatingScreenshot
+            src={screenshotCalendar}
+            alt="Calendário"
+            className="left-[2%] bottom-[5%] w-[320px] rotate-[-3deg]"
+            delay={0.6}
+            onClick={() => setSelectedImage(screenshotCalendar)}
+          />
+          
+          {/* Bottom right - Payments */}
+          <FloatingScreenshot
+            src={screenshotPayments}
+            alt="Pagamentos"
+            className="right-[3%] bottom-[8%] w-[340px] rotate-[5deg]"
+            delay={0.9}
+            onClick={() => setSelectedImage(screenshotPayments)}
+          />
+        </div>
+
+        {/* Floating Screenshots - Tablet */}
+        <div className="hidden md:block lg:hidden">
+          <FloatingScreenshot
+            src={screenshotDashboard}
+            alt="Dashboard"
+            className="left-[-15%] top-[25%] w-[280px] rotate-[-6deg] opacity-70"
+            delay={0}
+            onClick={() => setSelectedImage(screenshotDashboard)}
+          />
+          <FloatingScreenshot
+            src={screenshotKanban}
+            alt="Kanban"
+            className="right-[-12%] top-[22%] w-[300px] rotate-[4deg] opacity-70"
+            delay={0.3}
+            onClick={() => setSelectedImage(screenshotKanban)}
+          />
+        </div>
+
+        {/* Central Content */}
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="max-w-3xl mx-auto text-center pt-12 lg:pt-20">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <Badge variant="secondary" className="mb-6 backdrop-blur-md bg-background/60 border-primary/20">
+                ✨ 7 dias grátis com cartão • Cancele quando quiser
+              </Badge>
+              
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-[1.1] tracking-tight">
+                O CRM + Kanban{' '}
+                <br className="hidden sm:block" />
+                feito para{' '}
+                <span className="gradient-text">Foto e Vídeo</span>
+              </h1>
+              
+              <p className="text-lg sm:text-xl text-muted-foreground mb-6 max-w-2xl mx-auto leading-relaxed">
+                Captação → Edição → Entrega. Gerencie projetos, clientes, calendário e finanças num só lugar.
+              </p>
+              
+              <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground mb-10">
+                <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border/50">
+                  <Check className="h-4 w-4 text-success" /> 7 dias grátis
+                </span>
+                <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border/50">
+                  <Check className="h-4 w-4 text-success" /> EUR ou BRL
+                </span>
+                <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border/50">
+                  <Check className="h-4 w-4 text-success" /> Dark/Light mode
+                </span>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <Link to="/auth?trial=true">
+                  <Button size="lg" className="gradient-primary text-lg px-8 h-14 glow-ring lens-flare">
+                    Começar teste grátis
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                </Link>
+                <Link to="/funcionalidades">
+                  <Button size="lg" variant="outline" className="text-lg px-8 h-14 backdrop-blur-sm border-kanban-cyan/50 text-kanban-cyan hover:bg-kanban-cyan/10 hover:border-kanban-cyan">
+                    Ver funcionalidades
+                  </Button>
+                </Link>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+
+        {/* Mobile Screenshots Preview */}
+        <div className="lg:hidden mt-12 px-4">
+          <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide">
+            {heroScreenshots.map((screenshot, index) => (
+              <motion.div
+                key={screenshot.alt}
+                initial={{ opacity: 0, x: 30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 + index * 0.1 }}
+                className="flex-shrink-0 snap-center first:ml-4 last:mr-4"
+                onClick={() => setSelectedImage(screenshot.src)}
+              >
+                <div className="w-64 sm:w-72 rounded-xl overflow-hidden shadow-xl shadow-black/30 border border-white/10">
+                  <img 
+                    src={screenshot.src} 
+                    alt={screenshot.alt}
+                    className="w-full h-auto"
+                  />
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Image Modal */}
+      <AnimatePresence>
+        {selectedImage && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="dof-focus"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={() => setSelectedImage(null)}
           >
-            <Badge variant="secondary" className="mb-6 backdrop-blur-sm">
-              ✨ 7 dias grátis com cartão • Cancele quando quiser
-            </Badge>
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-              O CRM + Kanban feito para{' '}
-              <span className="gradient-text">Foto e Vídeo</span>
-            </h1>
-            <p className="text-xl text-muted-foreground mb-4 max-w-2xl mx-auto">
-              Captação → Edição → Entrega. Gerencie projetos, clientes, calendário e finanças num só lugar.
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-muted-foreground mb-8">
-              <span className="flex items-center gap-1"><Check className="h-4 w-4 text-success" /> 7 dias grátis</span>
-              <span className="flex items-center gap-1"><Check className="h-4 w-4 text-success" /> EUR ou BRL</span>
-              <span className="flex items-center gap-1"><Check className="h-4 w-4 text-success" /> Dark/Light mode</span>
-            </div>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link to="/auth?trial=true">
-                <Button size="lg" className="gradient-primary text-lg px-8 glow-ring lens-flare">
-                  Começar teste grátis
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
-              <Link to="/funcionalidades">
-                <Button size="lg" variant="outline" className="text-lg px-8 backdrop-blur-sm border-kanban-cyan/50 text-kanban-cyan hover:bg-kanban-cyan/10 hover:border-kanban-cyan">
-                  Ver funcionalidades
-                </Button>
-              </Link>
-            </div>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="relative max-w-5xl w-full bg-card rounded-2xl overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setSelectedImage(null)}
+                className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <img 
+                src={selectedImage} 
+                alt="Screenshot ampliado"
+                className="w-full h-auto"
+              />
+            </motion.div>
           </motion.div>
-        </div>
-      </section>
-
-      {/* Screenshots Showcase - Full Width Background with Floating Cards */}
-      <section className="py-0 overflow-hidden relative">
-        {/* Showcase with Full-Width Background and Floating Cards at Edges */}
-        <ShowcaseWithBackground features={showcaseFeatures} />
-      </section>
+        )}
+      </AnimatePresence>
 
       {/* How it works */}
       <section className="py-20 px-4">
