@@ -28,6 +28,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Logo } from '@/components/ui/logo';
 import { TrialBadge } from '@/components/dashboard/TrialBadge';
 import { isBetaModeEnabled } from '@/contexts/BetaContext';
+import { useAuth } from '@/contexts/AuthContext';
+
+const SUPER_ADMIN_EMAIL = 'willdeisgn7@gmail.com';
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -100,10 +103,12 @@ const betaSection: NavSection = {
 export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const isBetaMode = isBetaModeEnabled();
+  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
 
-  // Add beta section if in beta mode
-  const sections = isBetaMode ? [...navSections, betaSection] : navSections;
+  // Add beta section only if in beta mode AND user is super admin
+  const sections = (isBetaMode && isSuperAdmin) ? [...navSections, betaSection] : navSections;
 
   const isActive = (path: string) => {
     if (path === '/app') {
