@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { TrialExpiredModal } from '@/components/subscription/TrialExpiredModal';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const RETRY_COOLDOWN_MS = 5000; // 5 seconds cooldown between retries
 
@@ -229,7 +230,9 @@ export function AppLayout() {
         
         <main className={`flex-1 overflow-auto ${fetchError ? 'pt-14' : ''}`}>
           <div className="h-full">
-            <Outlet />
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
           </div>
         </main>
       </div>

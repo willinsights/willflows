@@ -4,21 +4,22 @@ import { motion } from "framer-motion";
 import { CheckCircle, Loader2, ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAuth } from "@/contexts/AuthContext";
+import { useUserSubscription } from "@/hooks/useUserSubscription";
 
 const CheckoutSuccess = () => {
   const navigate = useNavigate();
-  const { checkSubscription, subscription } = useAuth();
+  const { subscription, refresh, loading: subscriptionLoading } = useUserSubscription();
   const [isLoading, setIsLoading] = useState(true);
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
     const verifySubscription = async () => {
-      await checkSubscription();
-      setIsLoading(false);
+      await refresh();
+      // Small delay to ensure data is loaded
+      setTimeout(() => setIsLoading(false), 500);
     };
     verifySubscription();
-  }, [checkSubscription]);
+  }, [refresh]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -99,7 +100,7 @@ const CheckoutSuccess = () => {
               >
                 Bem-vindo ao plano{" "}
                 <span className="font-semibold text-primary">
-                  {getPlanDisplayName(subscription.plan)}
+                  {getPlanDisplayName(subscription?.plan || null)}
                 </span>
               </motion.p>
             </div>
