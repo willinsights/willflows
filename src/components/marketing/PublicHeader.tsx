@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, Sun, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeContext';
+import { isBetaModeEnabled } from '@/contexts/BetaContext';
 import logoLight from '@/assets/logo-willflow-black.png';
 import logoDark from '@/assets/logo-willflow-white.png';
 
@@ -19,6 +20,7 @@ export function PublicHeader() {
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const isBetaMode = isBetaModeEnabled();
 
   const logo = theme === 'dark' ? logoDark : logoLight;
 
@@ -57,11 +59,14 @@ export function PublicHeader() {
             <Button variant="ghost">Entrar</Button>
           </Link>
           
-          <Link to="/auth?trial=true" className="hidden sm:block">
-            <Button className="gradient-primary">
-              Começar teste grátis
-            </Button>
-          </Link>
+          {/* Only show signup CTA if NOT in beta mode */}
+          {!isBetaMode && (
+            <Link to="/auth?trial=true" className="hidden sm:block">
+              <Button className="gradient-primary">
+                Começar teste grátis
+              </Button>
+            </Link>
+          )}
 
           {/* Mobile Menu Button */}
           <Button
@@ -112,11 +117,14 @@ export function PublicHeader() {
                   <Button variant="outline" className="w-full">Entrar</Button>
                 </Link>
                 
-                <Link to="/auth?trial=true" onClick={() => setMobileMenuOpen(false)}>
-                  <Button className="w-full gradient-primary">
-                    Começar teste grátis (7 dias)
-                  </Button>
-                </Link>
+                {/* Only show signup CTA if NOT in beta mode */}
+                {!isBetaMode && (
+                  <Link to="/auth?trial=true" onClick={() => setMobileMenuOpen(false)}>
+                    <Button className="w-full gradient-primary">
+                      Começar teste grátis (7 dias)
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
           </motion.div>
