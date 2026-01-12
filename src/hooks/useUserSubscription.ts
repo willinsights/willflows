@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { PLAN_LIMITS, getPlanLimits, PLAN_DB_MAPPING, type PlanId } from '@/lib/plans';
 
+// Database subscription plan type
 export type SubscriptionPlan = 'essencial' | 'pro' | 'studio';
 
 export interface UserSubscription {
@@ -33,18 +35,14 @@ export interface UserSubscriptionState {
   error: string | null;
 }
 
-// Default limits by plan
-const PLAN_LIMITS: Record<SubscriptionPlan, SubscriptionLimits> = {
-  essencial: { workspaces: 1, users: 2, projects: 15 },
-  pro: { workspaces: 3, users: 10, projects: 999 },
-  studio: { workspaces: 10, users: 999, projects: 999 },
-};
+// Use centralized plan limits
+const DEFAULT_LIMITS = getPlanLimits('starter');
 
 export function useUserSubscription() {
   const { user, session } = useAuth();
   const [state, setState] = useState<UserSubscriptionState>({
     subscription: null,
-    limits: PLAN_LIMITS.essencial,
+    limits: DEFAULT_LIMITS,
     usage: { workspaces: 0, users: 0, projects: 0 },
     loading: true,
     error: null,
@@ -105,7 +103,7 @@ export function useUserSubscription() {
         stripeSubscriptionId: null,
       };
 
-      const limits = PLAN_LIMITS[subscription.plan] || PLAN_LIMITS.essencial;
+      const limits = getPlanLimits(subscription.plan);
 
       // Fetch usage counts using RPC functions - with individual error handling
       let workspacesCount = 0;
