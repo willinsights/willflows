@@ -92,7 +92,7 @@ const handler = async (req: Request): Promise<Response> => {
     logStep(`Sending welcome email to ${email} (${name})`);
 
     const emailResponse = await resend.emails.send({
-      from: "WillFlow <noreply@willflow.pt>",
+      from: "WillFlow <noreply@willflow.app>",
       to: [email],
       subject: "Bem-vindo ao WillFlow! 🎉",
       html: `
