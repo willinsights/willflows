@@ -3,10 +3,9 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, Sun, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/ui/logo';
 import { useTheme } from '@/contexts/ThemeContext';
 import { isBetaModeEnabled } from '@/contexts/BetaContext';
-import logoLight from '@/assets/logo-willflow-black.png';
-import logoDark from '@/assets/logo-willflow-white.png';
 
 const navLinks = [
   { label: 'Funcionalidades', href: '/funcionalidades' },
@@ -22,14 +21,12 @@ export function PublicHeader() {
   const location = useLocation();
   const isBetaMode = isBetaModeEnabled();
 
-  const logo = theme === 'dark' ? logoDark : logoLight;
-
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex-shrink-0">
-          <img src={logo} alt="WillFlow" className="h-10 object-contain" />
+          <Logo className="h-10" />
         </Link>
 
         {/* Desktop Navigation */}

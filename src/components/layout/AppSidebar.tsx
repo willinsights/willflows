@@ -25,11 +25,9 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Logo } from '@/components/ui/logo';
 import { TrialBadge } from '@/components/dashboard/TrialBadge';
-import { useTheme } from '@/contexts/ThemeContext';
 import { isBetaModeEnabled } from '@/contexts/BetaContext';
-import logoLight from '@/assets/logo-willflow-black.png';
-import logoDark from '@/assets/logo-willflow-white.png';
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -102,10 +100,7 @@ const betaSection: NavSection = {
 export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { theme } = useTheme();
   const isBetaMode = isBetaModeEnabled();
-
-  const logo = theme === 'dark' ? logoDark : logoLight;
 
   // Add beta section if in beta mode
   const sections = isBetaMode ? [...navSections, betaSection] : navSections;
@@ -133,14 +128,10 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
           )}
           aria-label="Ir para o Dashboard"
         >
-          <img 
-            src={logo} 
-            alt="WillFlow" 
-            className={cn(
-              'object-contain cursor-pointer',
-              collapsed && !isMobile ? 'h-8' : 'h-10'
-            )} 
-          />
+          <Logo className={cn(
+            'cursor-pointer',
+            collapsed && !isMobile ? 'h-8' : 'h-10'
+          )} />
         </button>
         
         {isMobile ? (

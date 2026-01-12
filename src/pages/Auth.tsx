@@ -5,14 +5,12 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, ArrowLeft, Loader2, CheckCircle2, Mail, Lock } from 'lucide-react';
-import logoWhite from '@/assets/logo-willflow-white.png';
-import logoBlack from '@/assets/logo-willflow-black.png';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Logo } from '@/components/ui/logo';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeContext';
 import { isBetaModeEnabled } from '@/contexts/BetaContext';
 import { useBetaInvite } from '@/hooks/useBetaInvite';
 import { supabase } from '@/integrations/supabase/client';
@@ -74,7 +72,6 @@ export default function Auth() {
   const [passwordUpdated, setPasswordUpdated] = useState(false);
   
   const { signIn, signUp, user, resetPassword, updatePassword, signInWithGoogle } = useAuth();
-  const { theme } = useTheme();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -327,11 +324,7 @@ export default function Auth() {
             className="w-full max-w-md text-center"
           >
             <div className="mb-8">
-              <img 
-                src={theme === 'dark' ? logoWhite : logoBlack} 
-                alt="WillFlow" 
-                className="h-10 w-auto mx-auto"
-              />
+              <Logo className="h-10 mx-auto" />
             </div>
 
             <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -386,11 +379,7 @@ export default function Auth() {
             className="w-full max-w-md text-center"
           >
             <div className="mb-8">
-              <img 
-                src={theme === 'dark' ? logoWhite : logoBlack} 
-                alt="WillFlow" 
-                className="h-10 w-auto mx-auto"
-              />
+              <Logo className="h-10 mx-auto" />
             </div>
 
             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -441,11 +430,7 @@ export default function Auth() {
             className="w-full max-w-md text-center"
           >
             <div className="mb-8">
-              <img 
-                src={theme === 'dark' ? logoWhite : logoBlack} 
-                alt="WillFlow" 
-                className="h-10 w-auto mx-auto"
-              />
+              <Logo className="h-10 mx-auto" />
             </div>
 
             <div className="w-16 h-16 bg-kanban-cyan/10 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -510,11 +495,7 @@ export default function Auth() {
         >
           {/* Logo */}
           <div className="mb-8">
-            <img 
-              src={theme === 'dark' ? logoWhite : logoBlack} 
-              alt="WillFlow" 
-              className="h-10 w-auto"
-            />
+            <Logo className="h-10" />
           </div>
 
           {/* Title */}

@@ -1,12 +1,7 @@
 import { motion } from 'framer-motion';
-import logoWhite from '@/assets/logo-willflow-white.png';
-import logoPurple from '@/assets/logo-willflow-purple.png';
-import { useTheme } from '@/contexts/ThemeContext';
+import { Logo } from '@/components/ui/logo';
 
 export function FullPageLoader() {
-  const { theme } = useTheme();
-  const logo = theme === 'dark' ? logoWhite : logoPurple;
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background">
       <motion.div
@@ -15,7 +10,7 @@ export function FullPageLoader() {
         transition={{ duration: 0.3 }}
         className="flex flex-col items-center gap-6"
       >
-        <img src={logo} alt="WillFlow" className="h-10 w-auto" />
+        <Logo className="h-10" />
         
         <div className="flex items-center gap-2">
           <motion.div
