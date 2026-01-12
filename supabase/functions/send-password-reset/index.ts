@@ -134,6 +134,8 @@ const handler = async (req: Request): Promise<Response> => {
     
     logStep(`Sending password reset email to ${email}`);
 
+    const appUrl = Deno.env.get("APP_URL") || "https://willflow.app";
+
     const emailResponse = await resend.emails.send({
       from: "WillFlow <noreply@willflow.app>",
       to: [email],
@@ -153,7 +155,7 @@ const handler = async (req: Request): Promise<Response> => {
                   <!-- Header with gradient -->
                   <tr>
                     <td style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); padding: 40px 40px 30px; text-align: center;">
-                      <img src="https://willflow.app/logo-willflow-white.png" alt="WillFlow" style="height: 40px; margin-bottom: 12px;" />
+                      <img src="${appUrl}/logo-willflow-white.png" alt="WillFlow" style="height: 40px; margin-bottom: 12px;" />
                       <p style="margin: 0; color: rgba(255,255,255,0.9); font-size: 14px;">Gestão de Projetos para Criativos</p>
                     </td>
                   </tr>

@@ -104,7 +104,7 @@ const handler = async (req: Request): Promise<Response> => {
             <div style="max-width: 560px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden;">
               <!-- Header -->
               <div style="background: linear-gradient(135deg, #8224e3 0%, #a855f7 100%); padding: 32px; text-align: center;">
-                <img src="https://willflow.app/logo-willflow-white.png" alt="WillFlow" style="height: 36px;" />
+                <img src="${appUrl}/logo-willflow-white.png" alt="WillFlow" style="height: 36px;" />
               </div>
               
               <!-- Content -->
