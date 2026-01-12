@@ -402,6 +402,19 @@ export default function Calendario() {
                   );
                 })}
               </div>
+
+              {/* Empty State Overlay for no items */}
+              {calendarItems.length === 0 && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-10 pointer-events-none">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                    <CalendarIcon className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">Calendário vazio</h3>
+                  <p className="text-muted-foreground text-sm max-w-xs text-center">
+                    Comece adicionando projetos com datas de captação ou crie eventos.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
           
