@@ -188,9 +188,23 @@ export default function AcceptInvite() {
             data: {
               full_name: fullName,
             },
+            emailRedirectTo: `${window.location.origin}/convite?token=${token}`,
           },
         });
-        if (error) throw error;
+        
+        if (error) {
+          // If user already exists, switch to login mode automatically
+          if (error.message?.includes('already registered') || error.message?.includes('User already registered')) {
+            setAuthMode('login');
+            toast({
+              title: "Conta já existe",
+              description: "Este email já está registado. Por favor, faça login para aceitar o convite.",
+            });
+            setSubmitting(false);
+            return;
+          }
+          throw error;
+        }
         
         toast({
           title: "Conta criada!",
@@ -201,7 +215,18 @@ export default function AcceptInvite() {
           email,
           password,
         });
-        if (error) throw error;
+        if (error) {
+          if (error.message?.includes('Invalid login credentials')) {
+            toast({
+              title: "Credenciais inválidas",
+              description: "Email ou password incorretos. Por favor, tente novamente.",
+              variant: "destructive",
+            });
+            setSubmitting(false);
+            return;
+          }
+          throw error;
+        }
       }
     } catch (error: any) {
       toast({
