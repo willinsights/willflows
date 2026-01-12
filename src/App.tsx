@@ -1,3 +1,4 @@
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,36 +9,49 @@ import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { FullPageLoader } from "@/components/layout/FullPageLoader";
 
-// Pages
-import Landing from "./pages/Landing";
-import Auth from "./pages/Auth";
-import Onboarding from "./pages/Onboarding";
-import Pricing from "./pages/Pricing";
-import Features from "./pages/Features";
-import Integrations from "./pages/Integrations";
-import Security from "./pages/Security";
-import Help from "./pages/Help";
-import Dashboard from "./pages/app/Dashboard";
-import Captacao from "./pages/app/Captacao";
-import Edicao from "./pages/app/Edicao";
-import Finalizados from "./pages/app/Finalizados";
+// Lazy loaded public pages
+const Landing = lazy(() => import("./pages/Landing"));
+const Auth = lazy(() => import("./pages/Auth"));
+const Pricing = lazy(() => import("./pages/Pricing"));
+const Features = lazy(() => import("./pages/Features"));
+const Integrations = lazy(() => import("./pages/Integrations"));
+const Security = lazy(() => import("./pages/Security"));
+const Help = lazy(() => import("./pages/Help"));
+const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
-import Media from "./pages/app/Media";
-import Clientes from "./pages/app/Clientes";
-import Calendario from "./pages/app/Calendario";
-import Pagamentos from "./pages/app/Pagamentos";
-import Relatorios from "./pages/app/Relatorios";
-import Configuracoes from "./pages/app/Configuracoes";
-import Equipa from "./pages/app/Equipa";
-import Faturacao from "./pages/app/Faturacao";
-import Conta from "./pages/app/Conta";
-import CheckoutSuccess from "./pages/CheckoutSuccess";
-import NotFound from "./pages/NotFound";
-import AcceptInvite from "./pages/AcceptInvite";
-import BetaAdmin from "./pages/app/BetaAdmin";
+// Lazy loaded protected pages
+const Onboarding = lazy(() => import("./pages/Onboarding"));
+const CheckoutSuccess = lazy(() => import("./pages/CheckoutSuccess"));
 
-const queryClient = new QueryClient();
+// Lazy loaded app pages
+const Dashboard = lazy(() => import("./pages/app/Dashboard"));
+const Captacao = lazy(() => import("./pages/app/Captacao"));
+const Edicao = lazy(() => import("./pages/app/Edicao"));
+const Finalizados = lazy(() => import("./pages/app/Finalizados"));
+const Media = lazy(() => import("./pages/app/Media"));
+const Clientes = lazy(() => import("./pages/app/Clientes"));
+const Calendario = lazy(() => import("./pages/app/Calendario"));
+const Pagamentos = lazy(() => import("./pages/app/Pagamentos"));
+const Relatorios = lazy(() => import("./pages/app/Relatorios"));
+const Configuracoes = lazy(() => import("./pages/app/Configuracoes"));
+const Equipa = lazy(() => import("./pages/app/Equipa"));
+const Faturacao = lazy(() => import("./pages/app/Faturacao"));
+const Conta = lazy(() => import("./pages/app/Conta"));
+const BetaAdmin = lazy(() => import("./pages/app/BetaAdmin"));
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 30, // 30 minutes (previously cacheTime)
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -48,64 +62,65 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/" element={<Landing />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/planos" element={<Pricing />} />
-                <Route path="/funcionalidades" element={<Features />} />
-                <Route path="/integracoes" element={<Integrations />} />
-                <Route path="/seguranca" element={<Security />} />
-                <Route path="/ajuda" element={<Help />} />
-                <Route path="/convite" element={<AcceptInvite />} />
-                
-                {/* Protected Routes */}
-                <Route
-                  path="/onboarding"
-                  element={
-                    <ProtectedRoute>
-                      <Onboarding />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/checkout-success"
-                  element={
-                    <ProtectedRoute>
-                      <CheckoutSuccess />
-                    </ProtectedRoute>
-                  }
-                />
-                
-                {/* App Routes with Layout */}
-                <Route
-                  path="/app"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route index element={<Dashboard />} />
-                  <Route path="captacao" element={<Captacao />} />
-                  <Route path="edicao" element={<Edicao />} />
-                  <Route path="finalizados" element={<Finalizados />} />
+              <Suspense fallback={<FullPageLoader />}>
+                <Routes>
+                  {/* Public Routes */}
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/planos" element={<Pricing />} />
+                  <Route path="/funcionalidades" element={<Features />} />
+                  <Route path="/integracoes" element={<Integrations />} />
+                  <Route path="/seguranca" element={<Security />} />
+                  <Route path="/ajuda" element={<Help />} />
+                  <Route path="/convite" element={<AcceptInvite />} />
                   
-                  <Route path="media" element={<Media />} />
-                  <Route path="clientes" element={<Clientes />} />
-                  <Route path="calendario" element={<Calendario />} />
-                  <Route path="pagamentos" element={<Pagamentos />} />
-                  <Route path="relatorios" element={<Relatorios />} />
-                  <Route path="configuracoes" element={<Configuracoes />} />
-                  <Route path="equipa" element={<Equipa />} />
-                  <Route path="faturacao" element={<Faturacao />} />
-                  <Route path="conta" element={<Conta />} />
-                  <Route path="beta-admin" element={<BetaAdmin />} />
-                </Route>
+                  {/* Protected Routes */}
+                  <Route
+                    path="/onboarding"
+                    element={
+                      <ProtectedRoute>
+                        <Onboarding />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/checkout-success"
+                    element={
+                      <ProtectedRoute>
+                        <CheckoutSuccess />
+                      </ProtectedRoute>
+                    }
+                  />
+                  
+                  {/* App Routes with Layout */}
+                  <Route
+                    path="/app"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<Dashboard />} />
+                    <Route path="captacao" element={<Captacao />} />
+                    <Route path="edicao" element={<Edicao />} />
+                    <Route path="finalizados" element={<Finalizados />} />
+                    <Route path="media" element={<Media />} />
+                    <Route path="clientes" element={<Clientes />} />
+                    <Route path="calendario" element={<Calendario />} />
+                    <Route path="pagamentos" element={<Pagamentos />} />
+                    <Route path="relatorios" element={<Relatorios />} />
+                    <Route path="configuracoes" element={<Configuracoes />} />
+                    <Route path="equipa" element={<Equipa />} />
+                    <Route path="faturacao" element={<Faturacao />} />
+                    <Route path="conta" element={<Conta />} />
+                    <Route path="beta-admin" element={<BetaAdmin />} />
+                  </Route>
 
-                {/* Catch-all */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+                  {/* Catch-all */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
             </BrowserRouter>
           </TooltipProvider>
         </WorkspaceProvider>
