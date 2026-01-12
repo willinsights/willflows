@@ -14,8 +14,9 @@ import {
   Eye,
   Trash2
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { TrendingDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -87,17 +88,60 @@ export default function Clientes() {
     return stats;
   }, [clients, projects]);
 
-  // Global stats
+  // Global stats with real month-over-month calculations
   const globalStats = useMemo(() => {
+    const now = new Date();
+    const currentMonthStart = startOfMonth(now);
+    const previousMonthStart = startOfMonth(subMonths(now, 1));
+    const previousMonthEnd = endOfMonth(subMonths(now, 1));
+
     const totalRevenue = Object.values(clientStats).reduce((sum, s) => sum + s.totalRevenue, 0);
     const totalActiveProjects = Object.values(clientStats).reduce((sum, s) => sum + s.activeProjects, 0);
-    const avgProjectValue = clients.length > 0 ? totalRevenue / Math.max(projects.length, 1) : 0;
+    const avgProjectValue = projects.length > 0 ? totalRevenue / projects.length : 0;
     const clientsWithProjects = clients.filter(c => clientStats[c.id]?.activeProjects > 0).length;
     
-    // Simulated month-over-month changes
-    const newClientsThisMonth = 2;
-    const revenueChange = 15;
-    const avgValueChange = 8;
+    // Calculate new clients this month (based on created_at)
+    const newClientsThisMonth = clients.filter(c => 
+      new Date(c.created_at) >= currentMonthStart
+    ).length;
+    
+    // Calculate current month revenue
+    const currentMonthRevenue = projects
+      .filter(p => new Date(p.created_at) >= currentMonthStart)
+      .reduce((sum, p) => sum + (p.agreed_value || 0), 0);
+    
+    // Calculate previous month revenue
+    const previousMonthRevenue = projects
+      .filter(p => {
+        const createdAt = new Date(p.created_at);
+        return createdAt >= previousMonthStart && createdAt <= previousMonthEnd;
+      })
+      .reduce((sum, p) => sum + (p.agreed_value || 0), 0);
+    
+    // Calculate revenue change percentage
+    const revenueChange = previousMonthRevenue > 0 
+      ? Math.round(((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100)
+      : null; // null means no data to compare
+    
+    // Calculate current month average project value
+    const currentMonthProjects = projects.filter(p => new Date(p.created_at) >= currentMonthStart);
+    const currentMonthAvg = currentMonthProjects.length > 0 
+      ? currentMonthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0) / currentMonthProjects.length 
+      : 0;
+    
+    // Calculate previous month average project value
+    const previousMonthProjects = projects.filter(p => {
+      const createdAt = new Date(p.created_at);
+      return createdAt >= previousMonthStart && createdAt <= previousMonthEnd;
+    });
+    const previousMonthAvg = previousMonthProjects.length > 0 
+      ? previousMonthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0) / previousMonthProjects.length 
+      : 0;
+    
+    // Calculate average value change percentage
+    const avgValueChange = previousMonthAvg > 0 
+      ? Math.round(((currentMonthAvg - previousMonthAvg) / previousMonthAvg) * 100)
+      : null; // null means no data to compare
     
     return {
       totalRevenue,
@@ -107,6 +151,7 @@ export default function Clientes() {
       newClientsThisMonth,
       revenueChange,
       avgValueChange,
+      hasPreviousMonthData: previousMonthRevenue > 0 || previousMonthProjects.length > 0,
     };
   }, [clientStats, clients, projects]);
 
@@ -223,7 +268,9 @@ export default function Clientes() {
               <Users className="h-5 w-5 text-primary" />
             </div>
             <p className="text-2xl font-bold">{clients.length}</p>
-            <p className="text-xs text-success mt-1">+{globalStats.newClientsThisMonth} novos este mês</p>
+            {globalStats.newClientsThisMonth > 0 && (
+              <p className="text-xs text-success mt-1">+{globalStats.newClientsThisMonth} novos este mês</p>
+            )}
           </CardContent>
         </Card>
         
@@ -234,7 +281,21 @@ export default function Clientes() {
               <Euro className="h-5 w-5 text-success" />
             </div>
             <p className="text-2xl font-bold text-success">{formatCurrency(globalStats.totalRevenue)}</p>
-            <p className="text-xs text-success mt-1">+{globalStats.revenueChange}% vs mês anterior</p>
+            {globalStats.revenueChange !== null ? (
+              <p className={cn(
+                "text-xs mt-1 flex items-center gap-1",
+                globalStats.revenueChange >= 0 ? "text-success" : "text-destructive"
+              )}>
+                {globalStats.revenueChange >= 0 ? (
+                  <TrendingUp className="h-3 w-3" />
+                ) : (
+                  <TrendingDown className="h-3 w-3" />
+                )}
+                {globalStats.revenueChange >= 0 ? '+' : ''}{globalStats.revenueChange}% vs mês anterior
+              </p>
+            ) : globalStats.totalRevenue > 0 ? (
+              <p className="text-xs text-muted-foreground mt-1">Sem dados do mês anterior</p>
+            ) : null}
           </CardContent>
         </Card>
 
@@ -245,7 +306,21 @@ export default function Clientes() {
               <TrendingUp className="h-5 w-5 text-primary" />
             </div>
             <p className="text-2xl font-bold">{formatCurrency(globalStats.avgProjectValue)}</p>
-            <p className="text-xs text-success mt-1">+{globalStats.avgValueChange}% vs mês anterior</p>
+            {globalStats.avgValueChange !== null ? (
+              <p className={cn(
+                "text-xs mt-1 flex items-center gap-1",
+                globalStats.avgValueChange >= 0 ? "text-success" : "text-destructive"
+              )}>
+                {globalStats.avgValueChange >= 0 ? (
+                  <TrendingUp className="h-3 w-3" />
+                ) : (
+                  <TrendingDown className="h-3 w-3" />
+                )}
+                {globalStats.avgValueChange >= 0 ? '+' : ''}{globalStats.avgValueChange}% vs mês anterior
+              </p>
+            ) : globalStats.avgProjectValue > 0 ? (
+              <p className="text-xs text-muted-foreground mt-1">Sem dados do mês anterior</p>
+            ) : null}
           </CardContent>
         </Card>
 
