@@ -14,6 +14,11 @@ export interface DashboardMetrics {
   lucro: number;
   pendingPayments: number;
   pendingPaymentsCount: number;
+  // Month-over-month changes (null = no previous data)
+  receitaChange: number | null;
+  custosChange: number | null;
+  lucroChange: number | null;
+  entreguesChange: number | null;
 }
 
 export interface UrgentProject {
@@ -51,6 +56,10 @@ export function useDashboardMetrics() {
     lucro: 0,
     pendingPayments: 0,
     pendingPaymentsCount: 0,
+    receitaChange: null,
+    custosChange: null,
+    lucroChange: null,
+    entreguesChange: null,
   });
   const [urgentProjects, setUrgentProjects] = useState<UrgentProject[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
@@ -73,10 +82,14 @@ export function useDashboardMetrics() {
       const currentMonthStart = startOfMonth(now);
       const currentMonthEnd = endOfMonth(now);
       
+      // Previous month boundaries
+      const previousMonthStart = startOfMonth(subMonths(now, 1));
+      const previousMonthEnd = endOfMonth(subMonths(now, 1));
+      
       // Fetch projects count by phase
       const { data: projectsData } = await supabase
         .from('projects')
-        .select('id, current_phase, is_delivered, agreed_value, custo_captacao, custo_edicao, created_at, delivered_at')
+        .select('id, current_phase, is_delivered, agreed_value, custo_captacao, custo_edicao, custos_extras, created_at, delivered_at')
         .eq('workspace_id', currentWorkspace.id);
 
       const captacao = projectsData?.filter(p => p.current_phase === 'captacao' && !p.is_delivered).length || 0;
@@ -88,6 +101,13 @@ export function useDashboardMetrics() {
         const deliveredAt = new Date(p.delivered_at);
         return deliveredAt >= currentMonthStart && deliveredAt <= currentMonthEnd;
       }).length || 0;
+      
+      // Count delivered projects for previous month
+      const entreguesPrevious = projectsData?.filter(p => {
+        if (!p.is_delivered || !p.delivered_at) return false;
+        const deliveredAt = new Date(p.delivered_at);
+        return deliveredAt >= previousMonthStart && deliveredAt <= previousMonthEnd;
+      }).length || 0;
 
       // Calculate financial metrics for CURRENT MONTH only
       const currentMonthProjects = projectsData?.filter(p => {
@@ -96,8 +116,37 @@ export function useDashboardMetrics() {
       }) || [];
       
       const receita = currentMonthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
-      const custos = currentMonthProjects.reduce((sum, p) => sum + (p.custo_captacao || 0) + (p.custo_edicao || 0), 0);
+      const custos = currentMonthProjects.reduce((sum, p) => 
+        sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
       const lucro = receita - custos;
+      
+      // Calculate financial metrics for PREVIOUS MONTH
+      const previousMonthProjects = projectsData?.filter(p => {
+        const createdAt = new Date(p.created_at);
+        return createdAt >= previousMonthStart && createdAt <= previousMonthEnd;
+      }) || [];
+      
+      const receitaPrevious = previousMonthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
+      const custosPrevious = previousMonthProjects.reduce((sum, p) => 
+        sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
+      const lucroPrevious = receitaPrevious - custosPrevious;
+      
+      // Calculate percentage changes
+      const receitaChange = receitaPrevious > 0 
+        ? Math.round(((receita - receitaPrevious) / receitaPrevious) * 100)
+        : null;
+      
+      const custosChange = custosPrevious > 0 
+        ? Math.round(((custos - custosPrevious) / custosPrevious) * 100)
+        : null;
+      
+      const lucroChange = lucroPrevious !== 0 
+        ? Math.round(((lucro - lucroPrevious) / Math.abs(lucroPrevious)) * 100)
+        : null;
+      
+      const entreguesChange = entreguesPrevious > 0 
+        ? Math.round(((entregues - entreguesPrevious) / entreguesPrevious) * 100)
+        : null;
 
       // Fetch pending payments
       const { data: paymentsData } = await supabase
@@ -119,6 +168,10 @@ export function useDashboardMetrics() {
         lucro,
         pendingPayments,
         pendingPaymentsCount,
+        receitaChange,
+        custosChange,
+        lucroChange,
+        entreguesChange,
       });
 
       // Calculate monthly data for chart (last 6 months)

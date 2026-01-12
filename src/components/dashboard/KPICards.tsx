@@ -18,6 +18,34 @@ interface KPICardsProps {
   loading: boolean;
 }
 
+function ChangeIndicator({ 
+  change, 
+  invertColor = false 
+}: { 
+  change: number | null; 
+  invertColor?: boolean;
+}) {
+  if (change === null) return null;
+  
+  const isPositive = change >= 0;
+  // For costs, positive change (increase) is bad, so we invert the color
+  const showAsPositive = invertColor ? !isPositive : isPositive;
+  
+  return (
+    <span className={cn(
+      "text-[10px] flex items-center gap-0.5 mt-0.5",
+      showAsPositive ? "text-success" : "text-destructive"
+    )}>
+      {isPositive ? (
+        <TrendingUp className="h-2.5 w-2.5" />
+      ) : (
+        <TrendingDown className="h-2.5 w-2.5" />
+      )}
+      {isPositive ? '+' : ''}{change}%
+    </span>
+  );
+}
+
 export function KPICards({ metrics, loading }: KPICardsProps) {
   const { formatCurrency } = useCurrentWorkspace();
 
@@ -50,6 +78,7 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
       bgColor: 'bg-success/10',
       cardClass: 'hover:border-success/30',
       valueClass: '',
+      change: metrics.entreguesChange,
       delay: 0.09,
     },
     {
@@ -61,6 +90,7 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
       cardClass: 'hover:border-success/30',
       valueClass: 'text-success text-lg',
       isCurrency: true,
+      change: metrics.receitaChange,
       delay: 0.12,
     },
     {
@@ -72,6 +102,8 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
       cardClass: 'hover:border-destructive/30',
       valueClass: 'text-destructive text-lg',
       isCurrency: true,
+      change: metrics.custosChange,
+      invertColor: true, // For costs, increase is bad
       delay: 0.15,
     },
     {
@@ -83,13 +115,14 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
       cardClass: 'border-primary/20 hover:border-primary/40 bg-primary/5',
       valueClass: cn('text-lg', metrics.lucro >= 0 ? 'text-primary' : 'text-destructive'),
       isCurrency: true,
+      change: metrics.lucroChange,
       delay: 0.18,
     },
   ];
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-      {kpiData.map((kpi, index) => (
+      {kpiData.map((kpi) => (
         <motion.div
           key={kpi.label}
           initial={{ opacity: 0, y: 8 }}
@@ -102,13 +135,20 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
                 <div className={cn('p-1.5 rounded-md', kpi.bgColor)}>
                   <kpi.icon className={cn('h-4 w-4', kpi.iconColor)} />
                 </div>
-                {loading ? (
-                  <Skeleton className={cn('h-7', kpi.isCurrency ? 'w-16' : 'w-8')} />
-                ) : (
-                  <span className={cn('font-bold', kpi.isCurrency ? kpi.valueClass : 'text-2xl')}>
-                    {kpi.value}
-                  </span>
-                )}
+                <div className="flex flex-col">
+                  {loading ? (
+                    <Skeleton className={cn('h-7', kpi.isCurrency ? 'w-16' : 'w-8')} />
+                  ) : (
+                    <>
+                      <span className={cn('font-bold', kpi.isCurrency ? kpi.valueClass : 'text-2xl')}>
+                        {kpi.value}
+                      </span>
+                      {'change' in kpi && (
+                        <ChangeIndicator change={kpi.change ?? null} invertColor={kpi.invertColor} />
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
               <p className="text-xs text-muted-foreground mt-2">{kpi.label}</p>
             </CardContent>
