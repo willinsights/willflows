@@ -78,8 +78,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Sending invitation email to ${email} for workspace ${workspaceName}`);
 
-    // Build the invitation link
-    const appUrl = Deno.env.get("APP_URL") || "https://willflow.app";
+    // Build the invitation link - always use production domain for assets
+    const appUrl = "https://willflow.app";
     const inviteLink = `${appUrl}/convite?token=${inviteToken}`;
 
     // Send email using Resend API directly via fetch

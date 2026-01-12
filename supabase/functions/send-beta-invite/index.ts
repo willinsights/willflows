@@ -69,8 +69,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     logStep(`Sending beta invite email to ${email}`);
 
-    // Build the invitation link
-    const appUrl = Deno.env.get("APP_URL") || "https://willflow.app";
+    // Build the invitation link - always use production domain for assets
+    const appUrl = "https://willflow.app";
     const inviteLink = `${appUrl}/auth?invite=${inviteToken}`;
 
     // Send email using Resend API
