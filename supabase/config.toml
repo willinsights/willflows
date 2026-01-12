@@ -19,6 +19,9 @@ verify_jwt = false
 [functions.send-beta-invite]
 verify_jwt = false
 
+[functions.send-beta-welcome]
+verify_jwt = false
+
 [functions.check-subscription]
 verify_jwt = false
 
