@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { handleDatabaseError } from '@/lib/error-handler';
+import { logger } from '@/lib/logger';
 
 export interface ClientNote {
   id: string;
@@ -42,7 +43,7 @@ export function useClientNotes(clientId: string | null) {
       if (error) throw error;
       setNotes(data || []);
     } catch (error) {
-      console.error('Error fetching notes:', error);
+      logger.error('Error fetching notes:', error);
     } finally {
       setLoading(false);
     }

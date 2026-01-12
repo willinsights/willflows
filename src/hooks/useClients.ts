@@ -4,6 +4,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { handleDatabaseError } from '@/lib/error-handler';
 import { clientSchema, validateWithSchema } from '@/lib/validation-schemas';
+import { logger } from '@/lib/logger';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 export type Client = Tables<'clients'>;
@@ -38,7 +39,7 @@ export function useClients() {
       setClients(data || []);
       lastFetchedWorkspaceIdRef.current = currentWorkspace.id;
     } catch (error) {
-      console.error('Error fetching clients:', error);
+      logger.error('Error fetching clients:', error);
     } finally {
       isFetchingRef.current = false;
       setLoading(false);

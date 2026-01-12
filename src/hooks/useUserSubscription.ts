@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { PLAN_LIMITS, getPlanLimits, PLAN_DB_MAPPING, type PlanId } from '@/lib/plans';
+import { logger } from '@/lib/logger';
 
 // Database subscription plan type
 export type SubscriptionPlan = 'essencial' | 'pro' | 'studio';
@@ -121,7 +122,7 @@ export function useUserSubscription() {
         usersCount = usersResult.data ?? 0;
         projectsCount = projectsResult.data ?? 0;
       } catch (rpcError) {
-        console.warn('Error fetching usage counts:', rpcError);
+        logger.warn('Error fetching usage counts:', rpcError);
         // Continue with zeros if RPC fails
       }
 
@@ -139,7 +140,7 @@ export function useUserSubscription() {
         error: null,
       });
     } catch (error: any) {
-      console.error('Error fetching user subscription:', error);
+      logger.error('Error fetching user subscription:', error);
       setState(prev => ({
         ...prev,
         loading: false,

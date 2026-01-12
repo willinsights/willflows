@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { logger } from '@/lib/logger';
 
 export interface DashboardMetrics {
   captacao: number;
@@ -204,7 +205,7 @@ export function useDashboardMetrics() {
       setRecentActivity(activities);
       lastFetchedWorkspaceIdRef.current = currentWorkspace.id;
     } catch (error) {
-      console.error('Error fetching dashboard metrics:', error);
+      logger.error('Error fetching dashboard metrics:', error);
     } finally {
       isFetchingRef.current = false;
       setLoading(false);

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { logger } from '@/lib/logger';
 
 export interface UserPreferences {
   id: string;
@@ -54,7 +55,7 @@ export function useUserPreferences() {
       .maybeSingle();
 
     if (error) {
-      console.error('Error fetching user preferences:', error);
+      logger.error('Error fetching user preferences:', error);
       setPreferences(null);
     } else if (data) {
       setPreferences(data as UserPreferences);
@@ -73,7 +74,7 @@ export function useUserPreferences() {
         .single();
 
       if (upsertError) {
-        console.error('Error creating user preferences:', upsertError);
+        logger.error('Error creating user preferences:', upsertError);
         setPreferences(null);
       } else {
         setPreferences(newData as UserPreferences);
@@ -103,7 +104,7 @@ export function useUserPreferences() {
     setSaving(false);
 
     if (error) {
-      console.error('Error updating user preferences:', error);
+      logger.error('Error updating user preferences:', error);
       return { success: false, error: error.message };
     }
 

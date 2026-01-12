@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { logger } from '@/lib/logger';
 
 export interface WorkspaceMember {
   id: string;
@@ -45,7 +46,7 @@ export function useWorkspaceMembers() {
       .eq('is_active', true);
 
     if (error) {
-      console.error('Error fetching workspace members:', error);
+      logger.error('Error fetching workspace members:', error);
       setMembers([]);
     } else {
       const formattedMembers: WorkspaceMember[] = (data || []).map((member: any) => ({
