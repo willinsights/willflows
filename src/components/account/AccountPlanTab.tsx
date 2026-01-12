@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { PLAN_INFO, getPriceId } from '@/lib/stripe-prices';
 import { cn } from '@/lib/utils';
-import { differenceInDays, format, parseISO } from 'date-fns';
+import { differenceInDays, format, parseISO, isValid } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
 function formatDaysRemaining(daysRemaining: number) {
@@ -116,18 +116,25 @@ export function AccountPlanTab() {
   const currentPlan = subscription?.plan || 'essencial';
   const isSubscribed = subscription?.status === 'active';
   const isTrial = subscription?.status === 'trialing';
-  const trialExpired = subscription?.status === 'trialing' && subscription?.trialEndsAt 
-    ? differenceInDays(parseISO(subscription.trialEndsAt), new Date()) < 0 
-    : false;
 
-  const trialDaysRemaining = useMemo(() => {
+  const trialEndsDate = useMemo(() => {
     if (!subscription?.trialEndsAt) return null;
     try {
-      return differenceInDays(parseISO(subscription.trialEndsAt), new Date());
+      const d = parseISO(subscription.trialEndsAt);
+      return isValid(d) ? d : null;
     } catch {
       return null;
     }
   }, [subscription?.trialEndsAt]);
+
+  const trialDaysRemaining = useMemo(() => {
+    if (!trialEndsDate) return null;
+    return differenceInDays(trialEndsDate, new Date());
+  }, [trialEndsDate]);
+
+  const trialExpired = isTrial && typeof trialDaysRemaining === 'number'
+    ? trialDaysRemaining < 0
+    : false;
 
   if (subscriptionLoading) {
     return (
