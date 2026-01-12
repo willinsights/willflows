@@ -153,8 +153,8 @@ const handler = async (req: Request): Promise<Response> => {
                   <!-- Header with gradient -->
                   <tr>
                     <td style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); padding: 40px 40px 30px; text-align: center;">
-                      <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">WillFlow</h1>
-                      <p style="margin: 10px 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">Gestão de Projetos para Criativos</p>
+                      <img src="https://willflow.app/logo-willflow-white.png" alt="WillFlow" style="height: 40px; margin-bottom: 12px;" />
+                      <p style="margin: 0; color: rgba(255,255,255,0.9); font-size: 14px;">Gestão de Projetos para Criativos</p>
                     </td>
                   </tr>
                   
