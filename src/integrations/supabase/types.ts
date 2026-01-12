@@ -88,6 +88,50 @@ export type Database = {
         }
         Relationships: []
       }
+      beta_waitlist: {
+        Row: {
+          company: string | null
+          created_at: string | null
+          email: string
+          id: string
+          invite_token_id: string | null
+          invited_at: string | null
+          name: string | null
+          notes: string | null
+          source: string | null
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string | null
+          email: string
+          id?: string
+          invite_token_id?: string | null
+          invited_at?: string | null
+          name?: string | null
+          notes?: string | null
+          source?: string | null
+        }
+        Update: {
+          company?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          invite_token_id?: string | null
+          invited_at?: string | null
+          name?: string | null
+          notes?: string | null
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beta_waitlist_invite_token_id_fkey"
+            columns: ["invite_token_id"]
+            isOneToOne: false
+            referencedRelation: "beta_invite_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_events: {
         Row: {
           all_day: boolean

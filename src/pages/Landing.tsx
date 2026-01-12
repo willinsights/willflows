@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/accordion';
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
+import { WaitlistForm } from '@/components/marketing/WaitlistForm';
 
 // Dark mode screenshots for the new hero
 import screenshotDashboard from '@/assets/screenshot-dark-dashboard.png';
@@ -398,7 +399,11 @@ export default function Landing() {
               transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             >
               <Badge variant="secondary" className="mb-6 backdrop-blur-md bg-background/60 border-primary/20">
-                ✨ 7 dias grátis com cartão • Cancele quando quiser
+                {isBetaMode ? (
+                  '🚀 Beta Privado • Acesso por convite'
+                ) : (
+                  '✨ 7 dias grátis com cartão • Cancele quando quiser'
+                )}
               </Badge>
               
               <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-[1.1] tracking-tight">
@@ -424,28 +429,34 @@ export default function Landing() {
                 </span>
               </div>
               
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                {isBetaMode ? (
-                  <Link to="/auth">
-                    <Button size="lg" className="gradient-primary text-lg px-8 h-14 glow-ring lens-flare">
-                      Entrar na conta
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </Button>
-                  </Link>
-                ) : (
+              {isBetaMode ? (
+                <div className="max-w-xl mx-auto">
+                  <WaitlistForm variant="hero" />
+                  <div className="mt-4 flex items-center justify-center gap-4">
+                    <span className="text-muted-foreground">Já tem convite?</span>
+                    <Link to="/auth">
+                      <Button variant="ghost" size="sm">
+                        Entrar na conta
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                   <Link to="/auth?trial=true">
                     <Button size="lg" className="gradient-primary text-lg px-8 h-14 glow-ring lens-flare">
                       Começar teste grátis
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </Button>
                   </Link>
-                )}
-                <Link to="/funcionalidades">
-                  <Button size="lg" variant="outline" className="text-lg px-8 h-14 backdrop-blur-sm border-kanban-cyan/50 text-kanban-cyan hover:bg-kanban-cyan/10 hover:border-kanban-cyan">
-                    Ver funcionalidades
-                  </Button>
-                </Link>
-              </div>
+                  <Link to="/funcionalidades">
+                    <Button size="lg" variant="outline" className="text-lg px-8 h-14 backdrop-blur-sm border-kanban-cyan/50 text-kanban-cyan hover:bg-kanban-cyan/10 hover:border-kanban-cyan">
+                      Ver funcionalidades
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </motion.div>
           </div>
         </div>

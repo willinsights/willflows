@@ -20,12 +20,14 @@ import {
   Tags,
   UserCog,
   Receipt,
+  Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TrialBadge } from '@/components/dashboard/TrialBadge';
 import { useTheme } from '@/contexts/ThemeContext';
+import { isBetaModeEnabled } from '@/contexts/BetaContext';
 import logoLight from '@/assets/logo-willflow-black.png';
 import logoDark from '@/assets/logo-willflow-white.png';
 
@@ -90,12 +92,24 @@ const navSections: NavSection[] = [
   },
 ];
 
+// Beta admin section - only shown when beta mode is enabled
+const betaSection: NavSection = {
+  title: 'ADMIN',
+  items: [
+    { icon: Shield, label: 'Gestão Beta', path: '/app/beta-admin' },
+  ],
+};
+
 export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const isBetaMode = isBetaModeEnabled();
 
   const logo = theme === 'dark' ? logoDark : logoLight;
+
+  // Add beta section if in beta mode
+  const sections = isBetaMode ? [...navSections, betaSection] : navSections;
 
   const isActive = (path: string) => {
     if (path === '/app') {
@@ -154,7 +168,7 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
       {/* Navigation */}
       <ScrollArea className="flex-1 py-4">
         <nav className="px-3 space-y-6">
-          {navSections.map((section) => (
+          {sections.map((section) => (
             <div key={section.title}>
               {/* Section Title */}
               {(!collapsed || isMobile) && (

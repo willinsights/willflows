@@ -35,6 +35,7 @@ import Conta from "./pages/app/Conta";
 import CheckoutSuccess from "./pages/CheckoutSuccess";
 import NotFound from "./pages/NotFound";
 import AcceptInvite from "./pages/AcceptInvite";
+import BetaAdmin from "./pages/app/BetaAdmin";
 
 const queryClient = new QueryClient();
 
@@ -99,6 +100,7 @@ const App = () => (
                   <Route path="equipa" element={<Equipa />} />
                   <Route path="faturacao" element={<Faturacao />} />
                   <Route path="conta" element={<Conta />} />
+                  <Route path="beta-admin" element={<BetaAdmin />} />
                 </Route>
 
                 {/* Catch-all */}
