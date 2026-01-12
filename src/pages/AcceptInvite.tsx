@@ -89,6 +89,8 @@ export default function AcceptInvite() {
   // Check user status when invitation is loaded and user auth state changes
   useEffect(() => {
     if (!invitation || authLoading) return;
+    // Prevent checking if we're already in a terminal state
+    if (viewState === 'ready' || viewState === 'already_member' || viewState === 'success' || viewState === 'accepting') return;
 
     const checkUserStatus = async () => {
       if (!user) {
@@ -108,13 +110,20 @@ export default function AcceptInvite() {
       }
 
       // Check if already a member
-      const { data: existingMember } = await supabase
+      const { data: existingMember, error } = await supabase
         .from('workspace_members')
         .select('id')
         .eq('workspace_id', invitation.workspace_id)
         .eq('user_id', user.id)
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking membership:', error);
+        // Don't block the flow, proceed to ready state
+        setViewState('ready');
+        return;
+      }
 
       if (existingMember) {
         setViewState('already_member');
@@ -125,7 +134,8 @@ export default function AcceptInvite() {
     };
 
     checkUserStatus();
-  }, [invitation, user, authLoading, toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invitation, user, authLoading]);
 
   const handleAcceptInvite = async () => {
     if (!invitation || !user) return;
