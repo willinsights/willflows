@@ -135,7 +135,7 @@ const handler = async (req: Request): Promise<Response> => {
     logStep(`Sending password reset email to ${email}`);
 
     const emailResponse = await resend.emails.send({
-      from: "WillFlow <noreply@willflow.pt>",
+      from: "WillFlow <noreply@willflow.app>",
       to: [email],
       subject: "Redefinir a sua password - WillFlow",
       html: `

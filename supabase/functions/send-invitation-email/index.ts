@@ -90,7 +90,7 @@ const handler = async (req: Request): Promise<Response> => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "WillFlow <onboarding@resend.dev>",
+        from: "WillFlow <noreply@willflow.app>",
         to: [email],
         subject: `${inviterName || "Alguém"} convidou-te para o workspace "${workspaceName}"`,
         html: `

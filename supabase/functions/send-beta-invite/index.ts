@@ -81,7 +81,7 @@ const handler = async (req: Request): Promise<Response> => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "WillFlow <onboarding@resend.dev>",
+        from: "WillFlow <noreply@willflow.app>",
         to: [email],
         subject: "🎉 O teu convite para o WillFlow Beta chegou!",
         html: `
