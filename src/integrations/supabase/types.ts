@@ -1537,6 +1537,7 @@ export type Database = {
         Args: { _workspace_id: string }
         Returns: undefined
       }
+      is_service_role: { Args: never; Returns: boolean }
       is_valid_invitation_token: {
         Args: { _token: string; _workspace_id: string }
         Returns: boolean
