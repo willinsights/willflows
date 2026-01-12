@@ -232,18 +232,25 @@ export default function Conta() {
   const currentPlan = userSubscription?.plan || 'essencial';
   const isSubscribed = userSubscription?.status === 'active';
   const isTrial = userSubscription?.status === 'trialing';
-  const trialExpired = userSubscription?.status === 'trialing' && userSubscription?.trialEndsAt 
-    ? differenceInDays(parseISO(userSubscription.trialEndsAt), new Date()) < 0 
-    : false;
 
-  const trialDaysRemaining = useMemo(() => {
+  const trialEndsDate = useMemo(() => {
     if (!userSubscription?.trialEndsAt) return null;
     try {
-      return differenceInDays(parseISO(userSubscription.trialEndsAt), new Date());
+      const d = parseISO(userSubscription.trialEndsAt);
+      return isValid(d) ? d : null;
     } catch {
       return null;
     }
   }, [userSubscription?.trialEndsAt]);
+
+  const trialDaysRemaining = useMemo(() => {
+    if (!trialEndsDate) return null;
+    return differenceInDays(trialEndsDate, new Date());
+  }, [trialEndsDate]);
+
+  const trialExpired = isTrial && typeof trialDaysRemaining === 'number'
+    ? trialDaysRemaining < 0
+    : false;
 
   if (!isAdmin) {
     return (
