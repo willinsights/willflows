@@ -30,7 +30,7 @@ import { TrialBadge } from '@/components/dashboard/TrialBadge';
 import { isBetaModeEnabled } from '@/contexts/BetaContext';
 import { useAuth } from '@/contexts/AuthContext';
 
-const SUPER_ADMIN_EMAIL = 'willdeisgn7@gmail.com';
+const SUPER_ADMIN_EMAIL = 'willdesign7@gmail.com';
 
 interface AppSidebarProps {
   collapsed: boolean;
