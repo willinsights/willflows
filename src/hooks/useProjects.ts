@@ -4,6 +4,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { handleDatabaseError } from '@/lib/error-handler';
 import { projectSchema, projectUpdateSchema, validateWithSchema } from '@/lib/validation-schemas';
+import { logger } from '@/lib/logger';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 export type Project = Tables<'projects'>;
@@ -42,7 +43,7 @@ export function useProjects() {
       setProjects(data || []);
       lastFetchedWorkspaceIdRef.current = currentWorkspace.id;
     } catch (error) {
-      console.error('Error fetching projects:', error);
+      logger.error('Error fetching projects:', error);
     } finally {
       isFetchingRef.current = false;
       setLoading(false);

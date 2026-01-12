@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
+import { logger } from '@/lib/logger';
 import type { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
@@ -51,7 +52,7 @@ export function useWorkspaceInvitations() {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching invitations:', error);
+      logger.error('Error fetching invitations:', error);
       setInvitations([]);
     } else {
       setInvitations(data || []);
@@ -134,7 +135,7 @@ export function useWorkspaceInvitations() {
       .single();
 
     if (insertError || !invitation) {
-      console.error('Error creating invitation:', insertError);
+      logger.error('Error creating invitation:', insertError);
       return { success: false, error: 'Erro ao criar convite' };
     }
 
@@ -162,12 +163,12 @@ export function useWorkspaceInvitations() {
         });
 
         if (emailError) {
-          console.warn('Failed to send invitation email:', emailError);
+          logger.warn('Failed to send invitation email:', emailError);
           // Don't fail the invitation creation if email fails
         }
       }
     } catch (emailErr) {
-      console.warn('Error sending invitation email:', emailErr);
+      logger.warn('Error sending invitation email:', emailErr);
       // Don't fail the invitation creation if email fails
     }
 
@@ -182,7 +183,7 @@ export function useWorkspaceInvitations() {
       .eq('id', invitationId);
 
     if (error) {
-      console.error('Error canceling invitation:', error);
+      logger.error('Error canceling invitation:', error);
       return { success: false, error: 'Erro ao cancelar convite' };
     }
 
@@ -201,7 +202,7 @@ export function useWorkspaceInvitations() {
       .eq('id', invitationId);
 
     if (error) {
-      console.error('Error resending invitation:', error);
+      logger.error('Error resending invitation:', error);
       return { success: false, error: 'Erro ao reenviar convite' };
     }
 

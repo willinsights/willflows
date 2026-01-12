@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { logger } from '@/lib/logger';
 import type { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
@@ -90,7 +91,7 @@ export function useRolePermissions() {
       .eq('workspace_id', currentWorkspace.id);
 
     if (error) {
-      console.error('Error fetching role permissions:', error);
+      logger.error('Error fetching role permissions:', error);
       setPermissions([]);
     } else {
       // If no permissions exist, initialize them
@@ -113,7 +114,7 @@ export function useRolePermissions() {
     });
 
     if (error) {
-      console.error('Error initializing permissions:', error);
+      logger.error('Error initializing permissions:', error);
     }
 
     // Fetch the newly created permissions
@@ -159,7 +160,7 @@ export function useRolePermissions() {
     setSaving(false);
 
     if (error) {
-      console.error('Error updating permission:', error);
+      logger.error('Error updating permission:', error);
       return { success: false, error: error.message };
     }
 

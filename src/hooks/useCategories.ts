@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 
 export interface Category {
   id: string;
@@ -39,7 +40,7 @@ export function useCategories() {
       setCategories(data || []);
       lastFetchedWorkspaceIdRef.current = currentWorkspace.id;
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      logger.error('Error fetching categories:', error);
     } finally {
       isFetchingRef.current = false;
       setLoading(false);
@@ -75,7 +76,7 @@ export function useCategories() {
       setCategories(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
       return data;
     } catch (error: any) {
-      console.error('Error creating category:', error);
+      logger.error('Error creating category:', error);
       toast({
         title: 'Erro ao criar categoria',
         description: error.message,

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 
 interface BetaInvite {
   id: string;
@@ -32,7 +33,7 @@ export function useBetaInvite(token: string | null) {
           .maybeSingle();
 
         if (queryError) {
-          console.error('Error verifying beta token:', queryError);
+          logger.error('Error verifying beta token:', queryError);
           setError('Erro ao verificar convite');
           setIsValid(false);
           setIsLoading(false);
@@ -66,7 +67,7 @@ export function useBetaInvite(token: string | null) {
         setIsValid(true);
         setIsLoading(false);
       } catch (err) {
-        console.error('Error verifying beta token:', err);
+        logger.error('Error verifying beta token:', err);
         setError('Erro ao verificar convite');
         setIsValid(false);
         setIsLoading(false);
@@ -88,7 +89,7 @@ export function useBetaInvite(token: string | null) {
       .eq('token', token);
 
     if (updateError) {
-      console.error('Error marking invite as used:', updateError);
+      logger.error('Error marking invite as used:', updateError);
       return { error: updateError.message };
     }
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useDebounce } from '@/hooks/use-debounce';
+import { logger } from '@/lib/logger';
 
 export interface SearchResult {
   id: string;
@@ -98,7 +99,7 @@ export function useGlobalSearch(query: string) {
 
       setResults(searchResults);
     } catch (error) {
-      console.error('Search error:', error);
+      logger.error('Search error:', error);
       setResults([]);
     } finally {
       setLoading(false);

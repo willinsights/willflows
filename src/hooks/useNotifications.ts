@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { appToast } from '@/hooks/useAppToast';
+import { logger } from '@/lib/logger';
 
 export type NotificationType = 'success' | 'error' | 'warning' | 'info';
 
@@ -48,7 +49,7 @@ export function useNotifications() {
       setNotifications(typedData);
       setUnreadCount(typedData.filter((n) => !n.read).length);
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      logger.error('Error fetching notifications:', error);
     } finally {
       setLoading(false);
     }
@@ -69,7 +70,7 @@ export function useNotifications() {
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      logger.error('Error marking notification as read:', error);
     }
   }, []);
 
@@ -89,7 +90,7 @@ export function useNotifications() {
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
+      logger.error('Error marking all notifications as read:', error);
     }
   }, [user?.id]);
 
@@ -110,7 +111,7 @@ export function useNotifications() {
         setUnreadCount((prev) => Math.max(0, prev - 1));
       }
     } catch (error) {
-      console.error('Error deleting notification:', error);
+      logger.error('Error deleting notification:', error);
     }
   }, [notifications]);
 
@@ -129,7 +130,7 @@ export function useNotifications() {
       setNotifications([]);
       setUnreadCount(0);
     } catch (error) {
-      console.error('Error clearing notifications:', error);
+      logger.error('Error clearing notifications:', error);
     }
   }, [user?.id]);
 
@@ -157,7 +158,7 @@ export function useNotifications() {
 
       if (error) throw error;
     } catch (error) {
-      console.error('Error creating notification:', error);
+      logger.error('Error creating notification:', error);
     }
   }, [currentWorkspace?.id]);
 
