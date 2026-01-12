@@ -448,8 +448,12 @@ export default function Dashboard() {
                     ))}
                   </div>
                 ) : urgentProjects.length === 0 ? (
-                  <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-                    Nenhum projeto urgente 🎉
+                  <div className="flex flex-col items-center justify-center h-full text-center py-6">
+                    <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center mb-2">
+                      <CheckCircle2 className="h-5 w-5 text-success" />
+                    </div>
+                    <p className="text-sm font-medium text-success">Tudo em dia! 🎉</p>
+                    <p className="text-xs text-muted-foreground mt-1">Nenhum projeto urgente</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -559,8 +563,9 @@ export default function Dashboard() {
                       ))}
                     </div>
                   ) : recentActivity.length === 0 ? (
-                    <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-                      Nenhuma atividade recente
+                    <div className="flex flex-col items-center justify-center h-full text-center">
+                      <Clock className="h-5 w-5 text-muted-foreground/50 mb-1" />
+                      <p className="text-xs text-muted-foreground">Nenhuma atividade recente</p>
                     </div>
                   ) : (
                     <div className="space-y-2">

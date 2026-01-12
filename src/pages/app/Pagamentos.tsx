@@ -392,6 +392,23 @@ export default function Pagamentos() {
             </Card>
           </div>
 
+          {/* Empty State for Month */}
+          {monthPayments.length === 0 && (
+            <Card className="glass-card">
+              <CardContent className="py-12">
+                <div className="flex flex-col items-center justify-center text-center">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                    <CreditCard className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">Sem pagamentos neste mês</h3>
+                  <p className="text-muted-foreground text-sm max-w-sm">
+                    Não há pagamentos registados para {format(currentMonth, 'MMMM yyyy', { locale: pt })}. Os pagamentos serão exibidos quando tiver projetos com valores definidos.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Breakdown of Payable */}
           {(monthlyForecast.teamTotal > 0 || monthlyForecast.custosExtras > 0) && (
             <Card className="glass-card">
