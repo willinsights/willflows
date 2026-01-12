@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { isBetaModeEnabled } from '@/contexts/BetaContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Calendar,
@@ -255,6 +256,7 @@ export default function Landing() {
   const [showBRL, setShowBRL] = useState(false);
   const [isAnnual, setIsAnnual] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const isBetaMode = isBetaModeEnabled();
 
   const getPrice = (plan: typeof plans[0]) => {
     const prices = showBRL ? plan.priceBRL : plan.priceEUR;
@@ -423,12 +425,21 @@ export default function Landing() {
               </div>
               
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link to="/auth?trial=true">
-                  <Button size="lg" className="gradient-primary text-lg px-8 h-14 glow-ring lens-flare">
-                    Começar teste grátis
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
+                {isBetaMode ? (
+                  <Link to="/auth">
+                    <Button size="lg" className="gradient-primary text-lg px-8 h-14 glow-ring lens-flare">
+                      Entrar na conta
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link to="/auth?trial=true">
+                    <Button size="lg" className="gradient-primary text-lg px-8 h-14 glow-ring lens-flare">
+                      Começar teste grátis
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Button>
+                  </Link>
+                )}
                 <Link to="/funcionalidades">
                   <Button size="lg" variant="outline" className="text-lg px-8 h-14 backdrop-blur-sm border-kanban-cyan/50 text-kanban-cyan hover:bg-kanban-cyan/10 hover:border-kanban-cyan">
                     Ver funcionalidades

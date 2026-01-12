@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, ArrowLeft, Loader2, CheckCircle2, Mail } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Loader2, CheckCircle2, Mail, Lock } from 'lucide-react';
 import logoWhite from '@/assets/logo-willflow-white.png';
 import logoBlack from '@/assets/logo-willflow-black.png';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,8 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { isBetaModeEnabled } from '@/contexts/BetaContext';
+import { useBetaInvite } from '@/hooks/useBetaInvite';
 import { cn } from '@/lib/utils';
 
 const loginSchema = z.object({
@@ -50,9 +52,19 @@ type AuthMode = 'login' | 'signup' | 'forgot' | 'reset';
 export default function Auth() {
   const [searchParams] = useSearchParams();
   const urlMode = searchParams.get('mode');
+  const inviteToken = searchParams.get('invite');
+  const isBetaMode = isBetaModeEnabled();
+  
+  // Beta invite verification
+  const { isValid: isValidInvite, isLoading: isLoadingInvite, error: inviteError, markAsUsed } = useBetaInvite(inviteToken);
+  
+  // Determine if signup should be allowed
+  const canSignup = !isBetaMode || (isBetaMode && isValidInvite);
   
   const [mode, setMode] = useState<AuthMode>(() => {
     if (urlMode === 'reset') return 'reset';
+    // In beta mode with valid invite, allow signup
+    if (inviteToken) return 'signup';
     return 'login';
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -78,6 +90,14 @@ export default function Auth() {
       setMode('reset');
     }
   }, [urlMode]);
+
+  // Handle beta mode restrictions
+  useEffect(() => {
+    // In beta mode, if user tries to signup without valid invite, force login mode
+    if (isBetaMode && mode === 'signup' && !inviteToken && !isLoadingInvite) {
+      setMode('login');
+    }
+  }, [isBetaMode, mode, inviteToken, isLoadingInvite]);
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -118,6 +138,16 @@ export default function Auth() {
   };
 
   const handleSignup = async (data: SignupFormData) => {
+    // Double-check beta mode restrictions
+    if (isBetaMode && !isValidInvite) {
+      toast({
+        title: 'Acesso restrito',
+        description: 'O registo está disponível apenas com convite válido.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
     const { error } = await signUp(data.email, data.password, data.fullName);
     setLoading(false);
@@ -133,6 +163,12 @@ export default function Auth() {
         variant: 'destructive',
       });
     } else {
+      // Mark invite as used if in beta mode (user id will be set after redirect)
+      if (isBetaMode && inviteToken) {
+        // We'll mark the token as used - user id not needed for basic tracking
+        await markAsUsed('');
+      }
+      
       toast({
         title: 'Conta criada com sucesso!',
         description: 'Bem-vindo ao WillFlow.',
@@ -197,7 +233,7 @@ export default function Auth() {
       case 'login':
         return 'Bem-vindo de volta';
       case 'signup':
-        return 'Criar conta';
+        return isBetaMode ? 'Criar conta (Beta)' : 'Criar conta';
       case 'forgot':
         return 'Recuperar password';
       case 'reset':
@@ -210,7 +246,9 @@ export default function Auth() {
       case 'login':
         return 'Introduza os seus dados para aceder à sua conta';
       case 'signup':
-        return 'Preencha os dados para começar a usar o WillFlow';
+        return isBetaMode 
+          ? 'Você foi convidado para testar o WillFlow'
+          : 'Preencha os dados para começar a usar o WillFlow';
       case 'forgot':
         return 'Introduza o seu email para receber um link de recuperação';
       case 'reset':
@@ -242,6 +280,77 @@ export default function Auth() {
         return 'Atualizar password';
     }
   };
+
+  // Loading state for beta invite verification
+  if (isBetaMode && inviteToken && isLoadingInvite) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">A verificar convite...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Invalid invite state in beta mode
+  if (isBetaMode && inviteToken && !isValidInvite && !isLoadingInvite) {
+    return (
+      <div className="min-h-screen flex">
+        <div className="flex-1 flex flex-col justify-center items-center p-8 relative">
+          <Link
+            to="/"
+            className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Voltar</span>
+          </Link>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-md text-center"
+          >
+            <div className="mb-8">
+              <img 
+                src={theme === 'dark' ? logoWhite : logoBlack} 
+                alt="WillFlow" 
+                className="h-10 w-auto mx-auto"
+              />
+            </div>
+
+            <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Lock className="h-8 w-8 text-destructive" />
+            </div>
+
+            <h1 className="text-3xl font-bold mb-4">Convite inválido</h1>
+            <p className="text-muted-foreground mb-8">
+              {inviteError || 'Este convite não é válido, já foi utilizado ou expirou.'}
+            </p>
+
+            <Button
+              variant="outline"
+              onClick={() => navigate('/auth')}
+              className="w-full"
+            >
+              Voltar ao login
+            </Button>
+          </motion.div>
+        </div>
+
+        {/* Right Side - Visual */}
+        <div className="hidden lg:flex flex-1 relative overflow-hidden">
+          <div className="absolute inset-0 gradient-primary opacity-90" />
+          <div
+            className="absolute inset-0 opacity-30"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   // Success state for forgot password
   if (mode === 'forgot' && emailSent) {
@@ -398,6 +507,16 @@ export default function Auth() {
             <h1 className="text-3xl font-bold mb-2">{getTitle()}</h1>
             <p className="text-muted-foreground">{getSubtitle()}</p>
           </div>
+
+          {/* Beta invite badge */}
+          {isBetaMode && mode === 'signup' && isValidInvite && (
+            <div className="mb-6 p-3 rounded-lg bg-primary/10 border border-primary/20">
+              <p className="text-sm text-primary flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4" />
+                Convite válido! Pode criar a sua conta.
+              </p>
+            </div>
+          )}
 
           {/* Form */}
           <AnimatePresence mode="wait">
@@ -579,8 +698,8 @@ export default function Auth() {
                 {getButtonText()}
               </Button>
 
-              {/* Google Sign In - only for login and signup */}
-              {(mode === 'login' || mode === 'signup') && (
+              {/* Google Sign In - only for login and signup (when allowed) */}
+              {(mode === 'login' || (mode === 'signup' && canSignup)) && (
                 <>
                   <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
@@ -636,19 +755,44 @@ export default function Auth() {
             </motion.form>
           </AnimatePresence>
 
-          {/* Toggle Mode */}
-          {(mode === 'login' || mode === 'signup') && (
+          {/* Toggle Mode - Only show if signup is allowed */}
+          {mode === 'login' && !isBetaMode && (
             <div className="mt-6 text-center">
               <p className="text-muted-foreground">
-                {mode === 'login' ? 'Ainda não tem conta?' : 'Já tem uma conta?'}
+                Ainda não tem conta?
                 {' '}
                 <button
                   type="button"
-                  onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+                  onClick={() => setMode('signup')}
                   className="text-primary font-medium hover:underline"
                 >
-                  {mode === 'login' ? 'Criar conta' : 'Iniciar sessão'}
+                  Criar conta
                 </button>
+              </p>
+            </div>
+          )}
+          
+          {mode === 'signup' && canSignup && (
+            <div className="mt-6 text-center">
+              <p className="text-muted-foreground">
+                Já tem uma conta?
+                {' '}
+                <button
+                  type="button"
+                  onClick={() => setMode('login')}
+                  className="text-primary font-medium hover:underline"
+                >
+                  Iniciar sessão
+                </button>
+              </p>
+            </div>
+          )}
+
+          {/* Beta mode info */}
+          {isBetaMode && mode === 'login' && (
+            <div className="mt-6 p-4 rounded-lg bg-muted/50 border border-border">
+              <p className="text-sm text-muted-foreground text-center">
+                O registo está atualmente limitado a utilizadores convidados.
               </p>
             </div>
           )}
