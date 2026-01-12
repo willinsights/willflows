@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { isBetaModeEnabled } from '@/contexts/BetaContext';
 import { useBetaInvite } from '@/hooks/useBetaInvite';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 const loginSchema = z.object({
@@ -137,6 +138,19 @@ export default function Auth() {
     }
   };
 
+  const sendBetaWelcomeEmail = async (email: string, name: string) => {
+    try {
+      const { error } = await supabase.functions.invoke('send-beta-welcome', {
+        body: { email, name },
+      });
+      if (error) {
+        console.error('Error sending beta welcome email:', error);
+      }
+    } catch (err) {
+      console.error('Error sending beta welcome email:', err);
+    }
+  };
+
   const handleSignup = async (data: SignupFormData) => {
     // Double-check beta mode restrictions
     if (isBetaMode && !isValidInvite) {
@@ -163,10 +177,11 @@ export default function Auth() {
         variant: 'destructive',
       });
     } else {
-      // Mark invite as used if in beta mode (user id will be set after redirect)
+      // Mark invite as used if in beta mode
       if (isBetaMode && inviteToken) {
-        // We'll mark the token as used - user id not needed for basic tracking
         await markAsUsed('');
+        // Send beta welcome email
+        sendBetaWelcomeEmail(data.email, data.fullName);
       }
       
       toast({
