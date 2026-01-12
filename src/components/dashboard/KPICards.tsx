@@ -10,7 +10,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
 import type { DashboardMetrics } from '@/hooks/useDashboardMetrics';
 
 interface KPICardsProps {
@@ -19,17 +19,7 @@ interface KPICardsProps {
 }
 
 export function KPICards({ metrics, loading }: KPICardsProps) {
-  const { currentWorkspace } = useWorkspace();
-  const currency = currentWorkspace?.currency || 'EUR';
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat(currentWorkspace?.locale || 'pt-PT', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
+  const { formatCurrency } = useCurrentWorkspace();
 
   const kpiData = [
     {

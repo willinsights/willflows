@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { BarChart3 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
 import type { MonthlyData } from '@/hooks/useDashboardMetrics';
 import {
   AreaChart,
@@ -21,17 +21,7 @@ interface FinancialChartProps {
 }
 
 export function FinancialChart({ monthlyData, loading }: FinancialChartProps) {
-  const { currentWorkspace } = useWorkspace();
-  const currency = currentWorkspace?.currency || 'EUR';
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat(currentWorkspace?.locale || 'pt-PT', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
+  const { formatCurrency } = useCurrentWorkspace();
 
   return (
     <motion.div

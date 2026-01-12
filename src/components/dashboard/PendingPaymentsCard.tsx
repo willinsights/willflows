@@ -3,7 +3,7 @@ import { CreditCard, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
 import { useNavigate } from 'react-router-dom';
 
 interface PendingPaymentsCardProps {
@@ -13,18 +13,8 @@ interface PendingPaymentsCardProps {
 }
 
 export function PendingPaymentsCard({ pendingPayments, pendingPaymentsCount, loading }: PendingPaymentsCardProps) {
-  const { currentWorkspace } = useWorkspace();
+  const { formatCurrency } = useCurrentWorkspace();
   const navigate = useNavigate();
-  const currency = currentWorkspace?.currency || 'EUR';
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat(currentWorkspace?.locale || 'pt-PT', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
 
   return (
     <motion.div
