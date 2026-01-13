@@ -10,6 +10,9 @@ export interface SearchResult {
   title: string;
   subtitle?: string;
   meta?: string;
+  currentPhase?: 'captacao' | 'edicao';
+  isDelivered?: boolean;
+  projectId?: string;
 }
 
 export function useGlobalSearch(query: string) {
@@ -37,7 +40,7 @@ export function useGlobalSearch(query: string) {
       const [projectsRes, clientsRes, tasksRes] = await Promise.all([
         supabase
           .from('projects')
-          .select('id, name, clients(name)')
+          .select('id, name, current_phase, is_delivered, clients(name)')
           .eq('workspace_id', currentWorkspace.id)
           .ilike('name', `%${term}%`)
           .limit(5),
@@ -50,7 +53,7 @@ export function useGlobalSearch(query: string) {
           .limit(5),
         supabase
           .from('tasks')
-          .select('id, title, project_id, projects(name)')
+          .select('id, title, project_id, projects(name, current_phase, is_delivered)')
           .eq('workspace_id', currentWorkspace.id)
           .ilike('title', `%${term}%`)
           .limit(5),
@@ -67,6 +70,8 @@ export function useGlobalSearch(query: string) {
             title: project.name,
             subtitle: project.clients?.name || undefined,
             meta: 'Projeto',
+            currentPhase: project.current_phase,
+            isDelivered: project.is_delivered,
           });
         });
       }
@@ -93,6 +98,9 @@ export function useGlobalSearch(query: string) {
             title: task.title,
             subtitle: task.projects?.name || undefined,
             meta: 'Tarefa',
+            projectId: task.project_id,
+            currentPhase: task.projects?.current_phase,
+            isDelivered: task.projects?.is_delivered,
           });
         });
       }
