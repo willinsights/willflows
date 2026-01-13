@@ -1550,6 +1550,17 @@ export type Database = {
         Args: { _user_id: string; _workspace_id: string }
         Returns: boolean
       }
+      verify_beta_token: {
+        Args: { _token: string }
+        Returns: {
+          email: string
+          expires_at: string
+          id: string
+          is_valid: boolean
+          used_at: string
+          used_by: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "editor" | "captacao" | "freelancer" | "visualizador"
