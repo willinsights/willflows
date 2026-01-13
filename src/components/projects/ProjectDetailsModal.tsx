@@ -385,10 +385,21 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
       
       const result = data as { can_deliver: boolean; reason: string | null; pending_tasks: number; pending_checklists: number } | null;
       if (result && !result.can_deliver) {
-        // Mostrar diálogo com itens pendentes
-        const tasksInPhase = tasks.filter(t => t.phase === project.current_phase);
-        const taskIdsInPhase = new Set(tasksInPhase.map(t => t.id));
-        const pending = checklists.filter(c => taskIdsInPhase.has(c.task_id) && !c.is_completed);
+        // Para projeto_completo em edição (entrega final), mostrar TODOS os pendentes
+        // Para outros casos, mostrar apenas da fase atual
+        const itemType = project.item_type || 'projeto_completo';
+        const isFullProjectFinalDelivery = itemType === 'projeto_completo' && project.current_phase === 'edicao';
+        
+        let pending: TaskChecklist[];
+        if (isFullProjectFinalDelivery) {
+          // Todos os checklists pendentes do projeto
+          pending = checklists.filter(c => !c.is_completed);
+        } else {
+          // Apenas checklists da fase atual
+          const tasksInPhase = tasks.filter(t => t.phase === project.current_phase);
+          const taskIdsInPhase = new Set(tasksInPhase.map(t => t.id));
+          pending = checklists.filter(c => taskIdsInPhase.has(c.task_id) && !c.is_completed);
+        }
         
         setPendingChecklistItems(pending);
         setShowCompleteDialog(true);
