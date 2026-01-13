@@ -7,8 +7,14 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
+// Routes that are always accessible even with expired trial
+const ALWAYS_ACCESSIBLE_ROUTES = [
+  '/app/conta',
+  '/app/configuracoes',
+];
+
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, subscription } = useAuth();
   const { allWorkspaces, loading: workspaceLoading, currentWorkspace, fetchError } = useWorkspace();
   const location = useLocation();
 
@@ -25,6 +31,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   // IMPORTANT: Wait for workspace data to fully load before making any navigation decisions
   // This prevents the flash of onboarding page when user has workspaces
   if (workspaceLoading) {
+    return <FullPageLoader />;
+  }
+
+  // Wait for subscription data to load
+  if (subscription.loading) {
     return <FullPageLoader />;
   }
 
@@ -49,6 +60,17 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       return <Navigate to="/app" replace />;
     }
   }
+
+  // Check if trial expired - allow access to account/settings pages
+  // The TrialExpiredModal in AppLayout will handle blocking the UI
+  // This allows users to navigate to account page to upgrade
+  const isAlwaysAccessible = ALWAYS_ACCESSIBLE_ROUTES.some(route => 
+    location.pathname.startsWith(route)
+  );
+
+  // If trial expired and trying to access restricted route, still render
+  // The modal will block interaction - but we could also redirect here if needed
+  // For now, we let the modal handle it to preserve URL
 
   return <>{children}</>;
 }

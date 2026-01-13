@@ -1,6 +1,8 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useUserSubscription } from '@/hooks/useUserSubscription';
+import { isTrialExpired, hasPaidSubscription } from '@/lib/subscription-utils';
 
 // Simplified subscription state - detailed subscription info comes from useUserSubscription hook
 interface AuthContextType {
@@ -26,20 +28,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+// Internal provider that uses the subscription hook
+function AuthProviderInner({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Minimal subscription state - useUserSubscription provides full details
-  const [subscription] = useState({
-    subscribed: false,
-    plan: null as string | null,
-    subscriptionEnd: null as string | null,
-    trialExpired: false,
-    trialEndsAt: null as string | null,
-    loading: false,
-  });
+  // Get subscription data from the dedicated hook
+  const { subscription: userSubscription, loading: subscriptionLoading } = useUserSubscription();
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -128,6 +124,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   }, []);
 
+  // Compute subscription state from userSubscription
+  const subscription = useMemo(() => {
+    if (!userSubscription) {
+      return {
+        subscribed: false,
+        plan: null,
+        subscriptionEnd: null,
+        trialExpired: false,
+        trialEndsAt: null,
+        loading: subscriptionLoading,
+      };
+    }
+
+    const trialExpiredStatus = isTrialExpired(userSubscription);
+    const isPaid = hasPaidSubscription(userSubscription);
+
+    return {
+      subscribed: isPaid || (userSubscription.status === 'trialing' && !trialExpiredStatus),
+      plan: userSubscription.plan,
+      subscriptionEnd: userSubscription.currentPeriodEnd,
+      trialExpired: trialExpiredStatus && !isPaid,
+      trialEndsAt: userSubscription.trialEndsAt,
+      loading: subscriptionLoading,
+    };
+  }, [userSubscription, subscriptionLoading]);
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -144,6 +166,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
+}
+
+// Wrapper provider that can be used at the app root
+export function AuthProvider({ children }: { children: ReactNode }) {
+  return <AuthProviderInner>{children}</AuthProviderInner>;
 }
 
 export function useAuth() {

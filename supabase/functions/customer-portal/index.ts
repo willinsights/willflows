@@ -54,12 +54,37 @@ serve(async (req) => {
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     
-    if (customers.data.length === 0) {
-      throw new Error("No Stripe customer found for this user");
-    }
+    let customerId: string;
     
-    const customerId = customers.data[0].id;
-    logStep("Found Stripe customer", { customerId });
+    if (customers.data.length === 0) {
+      // Create a new Stripe customer if one doesn't exist
+      logStep("No Stripe customer found, creating one", { email: user.email });
+      const newCustomer = await stripe.customers.create({
+        email: user.email,
+        metadata: {
+          user_id: user.id,
+        },
+      });
+      customerId = newCustomer.id;
+      logStep("Created new Stripe customer", { customerId });
+
+      // Update user subscription record with the new customer ID
+      const { error: updateError } = await supabaseClient
+        .from('user_subscriptions')
+        .upsert({
+          user_id: user.id,
+          stripe_customer_id: customerId,
+          subscription_status: 'trialing',
+          subscription_plan: 'essencial',
+        }, { onConflict: 'user_id' });
+
+      if (updateError) {
+        logStep("Warning: Failed to update user subscription with customer ID", { error: updateError.message });
+      }
+    } else {
+      customerId = customers.data[0].id;
+      logStep("Found existing Stripe customer", { customerId });
+    }
 
     const requestOrigin = req.headers.get("origin") || "https://willflow.app";
     const portalSession = await stripe.billingPortal.sessions.create({

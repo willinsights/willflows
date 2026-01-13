@@ -101,6 +101,16 @@ export function TrialExpiredModal({ open }: TrialExpiredModalProps) {
           </DialogDescription>
         </DialogHeader>
 
+        {/* Data safety message */}
+        <div className="bg-success/10 border border-success/20 rounded-lg p-4 text-center">
+          <p className="text-sm text-success font-medium">
+            🔒 Os seus dados estão guardados em segurança
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Ao subscrever, terá acesso imediato a todos os seus projetos e clientes.
+          </p>
+        </div>
+
         <div className="grid grid-cols-3 gap-3 my-6">
           {plans.map((plan) => {
             const planInfo = PLAN_INFO[plan.id as keyof typeof PLAN_INFO];
