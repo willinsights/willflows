@@ -54,7 +54,7 @@ export function UrgentProjectsCard({ urgentProjects, loading, onProjectClick }: 
             variant="ghost" 
             size="sm" 
             className="text-primary h-7 text-xs px-2" 
-            onClick={() => navigate('/app/projetos?filter=urgentes')}
+            onClick={() => navigate('/app/captacao?priority=urgente,alta')}
           >
             Ver todos
             <ArrowRight className="ml-1 h-3.5 w-3.5" />
