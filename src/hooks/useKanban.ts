@@ -197,14 +197,18 @@ export function useKanban(phase: KanbanPhase) {
     if (targetColumn?.is_final && project) {
       const itemType = (project as any).item_type || 'projeto_completo';
       
-      // Determine if we should validate checklists based on item_type and phase
-      // - captacao only: validate in captacao final column
-      // - edicao only: validate in edicao final column  
-      // - projeto_completo: validate in both phases' final columns
+      // Reuniões/Compromissos podem ser concluídos em qualquer fase sem validação
+      // Determine if we should validate checklists based on item_type and phase:
+      // - projeto_captacao: validate only in captacao final column
+      // - projeto_edicao: validate only in edicao final column  
+      // - projeto_completo: validate ONLY in edicao final column (not captacao)
+      // - reuniao: no validation (can be completed freely)
       const shouldValidate = 
-        (itemType === 'captacao' && phase === 'captacao') ||
-        (itemType === 'edicao' && phase === 'edicao') ||
-        (itemType === 'projeto_completo');
+        itemType !== 'reuniao' && (
+          (itemType === 'projeto_captacao' && phase === 'captacao') ||
+          (itemType === 'projeto_edicao' && phase === 'edicao') ||
+          (itemType === 'projeto_completo' && phase === 'edicao')
+        );
       
       if (shouldValidate) {
         // Fetch tasks for this project
