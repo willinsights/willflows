@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef, ReactNode, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './AuthContext';
+import { User } from '@supabase/supabase-js';
 
 interface Workspace {
   id: string;
@@ -92,7 +92,9 @@ function setLastWorkspaceId(workspaceId: string) {
 }
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  // Manage our own auth state to avoid circular dependency with AuthContext
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [membership, setMembership] = useState<WorkspaceMember | null>(null);
   const [allWorkspaces, setAllWorkspaces] = useState<WorkspaceWithRole[]>([]);
@@ -105,6 +107,25 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const retryCountRef = useRef(0);
   const hasFetchedRef = useRef(false);
   const currentUserIdRef = useRef<string | null>(null);
+
+  // Listen to auth state changes directly from supabase
+  useEffect(() => {
+    // Set up auth state listener
+    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+        setAuthLoading(false);
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+
+    return () => authSubscription.unsubscribe();
+  }, []);
 
   const setCurrentWorkspace = useCallback(async (workspaceId: string): Promise<void> => {
     if (!user) return;
@@ -343,13 +364,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const isAdmin = membership?.role === 'admin';
   const canEdit = ['admin', 'editor', 'captacao'].includes(membership?.role || '');
 
+  // Include authLoading in overall loading state
+  const isLoading = authLoading || loading;
+
   return (
     <WorkspaceContext.Provider
       value={{
         workspace,
         membership,
         allWorkspaces,
-        loading,
+        loading: isLoading,
         fetchError,
         refreshWorkspace,
         setCurrentWorkspace,
