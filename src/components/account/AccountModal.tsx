@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Crown, Users, Globe, LogOut, Moon, Sun, Settings
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,23 @@ export function AccountModal({ open, onOpenChange, initialTab = 'equipa' }: Acco
   const navigate = useNavigate();
   
   const [activeTab, setActiveTab] = useState<TabValue>(initialTab);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  // Fetch avatar from profiles table
+  useEffect(() => {
+    const fetchAvatar = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', user.id)
+        .single();
+      if (data?.avatar_url) {
+        setAvatarUrl(data.avatar_url);
+      }
+    };
+    fetchAvatar();
+  }, [user]);
 
   // Reset to initialTab when modal opens
   useEffect(() => {
@@ -78,7 +96,7 @@ export function AccountModal({ open, onOpenChange, initialTab = 'equipa' }: Acco
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
               <Avatar className="h-14 w-14">
-                <AvatarImage src={user?.user_metadata?.avatar_url} />
+                <AvatarImage src={avatarUrl || user?.user_metadata?.avatar_url} />
                 <AvatarFallback className="bg-primary/10 text-primary text-lg font-medium">
                   {getInitials(userName)}
                 </AvatarFallback>
