@@ -168,12 +168,176 @@ export function useProjects() {
     }
   };
 
+  const duplicateProject = async (projectId: string, newName?: string): Promise<ProjectWithClient | null> => {
+    if (!currentWorkspace) return null;
+
+    try {
+      // 1. Fetch original project
+      const { data: originalProject, error: fetchError } = await supabase
+        .from('projects')
+        .select('*, clients(name)')
+        .eq('id', projectId)
+        .single();
+
+      if (fetchError || !originalProject) throw fetchError;
+
+      // 2. Create new project with copied data
+      const projectCopy = {
+        name: newName || `${originalProject.name} (cópia)`,
+        workspace_id: currentWorkspace.id,
+        item_type: originalProject.item_type,
+        project_code: originalProject.project_code ? `${originalProject.project_code}-COPY` : null,
+        type: originalProject.type,
+        category: originalProject.category,
+        custom_category_id: originalProject.custom_category_id,
+        priority: originalProject.priority,
+        client_id: originalProject.client_id,
+        city: originalProject.city,
+        address: originalProject.address,
+        notes: originalProject.notes,
+        internal_notes: originalProject.internal_notes,
+        agreed_value: originalProject.agreed_value,
+        custo_captacao: originalProject.custo_captacao,
+        custo_edicao: originalProject.custo_edicao,
+        custos_extras: originalProject.custos_extras,
+        drive_folder_url: null, // Don't copy URLs
+        dropbox_folder_url: null,
+        google_meet_url: null,
+        current_phase: 'captacao' as const,
+        is_delivered: false,
+      };
+
+      // Get first column for captacao phase
+      const { data: firstColumn } = await supabase
+        .from('kanban_columns')
+        .select('id')
+        .eq('workspace_id', currentWorkspace.id)
+        .eq('phase', 'captacao')
+        .order('position', { ascending: true })
+        .limit(1)
+        .single();
+
+      const { data: newProject, error: insertError } = await supabase
+        .from('projects')
+        .insert({
+          ...projectCopy,
+          captacao_column_id: firstColumn?.id || null,
+        } as any)
+        .select('*, clients(name)')
+        .single();
+
+      if (insertError) throw insertError;
+
+      // 3. Copy tasks
+      const { data: originalTasks } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('project_id', projectId);
+
+      if (originalTasks && originalTasks.length > 0) {
+        const taskIdMap = new Map<string, string>();
+
+        for (const task of originalTasks) {
+          const { data: newTask } = await supabase
+            .from('tasks')
+            .insert({
+              workspace_id: currentWorkspace.id,
+              project_id: newProject.id,
+              title: task.title,
+              description: task.description,
+              phase: task.phase,
+              priority: task.priority,
+              position: task.position,
+              is_completed: false,
+            })
+            .select()
+            .single();
+
+          if (newTask) {
+            taskIdMap.set(task.id, newTask.id);
+          }
+        }
+
+        // 4. Copy task checklists
+        const taskIds = originalTasks.map(t => t.id);
+        const { data: originalChecklists } = await supabase
+          .from('task_checklists')
+          .select('*')
+          .in('task_id', taskIds);
+
+        if (originalChecklists && originalChecklists.length > 0) {
+          const checklistsToInsert = originalChecklists
+            .filter(cl => taskIdMap.has(cl.task_id))
+            .map(cl => ({
+              task_id: taskIdMap.get(cl.task_id)!,
+              title: cl.title,
+              position: cl.position,
+              is_completed: false,
+            }));
+
+          if (checklistsToInsert.length > 0) {
+            await supabase.from('task_checklists').insert(checklistsToInsert);
+          }
+        }
+      }
+
+      // 5. Copy project team
+      const { data: originalTeam } = await supabase
+        .from('project_team')
+        .select('*')
+        .eq('project_id', projectId);
+
+      if (originalTeam && originalTeam.length > 0) {
+        const teamToInsert = originalTeam.map(member => ({
+          project_id: newProject.id,
+          user_id: member.user_id,
+          phase: member.phase,
+          payment_amount: null, // Reset payment info
+          payment_status: 'pendente' as const,
+        }));
+
+        await supabase.from('project_team').insert(teamToInsert);
+      }
+
+      // 6. Copy media links
+      const { data: originalLinks } = await supabase
+        .from('project_media_links')
+        .select('*')
+        .eq('project_id', projectId);
+
+      if (originalLinks && originalLinks.length > 0) {
+        const linksToInsert = originalLinks.map(link => ({
+          project_id: newProject.id,
+          link_type: link.link_type,
+          url: link.url,
+          title: link.title,
+          description: link.description,
+        }));
+
+        await supabase.from('project_media_links').insert(linksToInsert);
+      }
+
+      toast({ title: 'Projeto duplicado com sucesso' });
+      setProjects(prev => [newProject, ...prev]);
+      return newProject;
+    } catch (error) {
+      logger.error('Error duplicating project:', error);
+      toast({
+        title: 'Erro ao duplicar projeto',
+        description: handleDatabaseError('duplicateProject', error),
+        variant: 'destructive',
+      });
+      return null;
+    }
+  };
+
   return {
     projects,
     loading,
     createProject,
     updateProject,
     deleteProject,
+    duplicateProject,
     refresh: fetchProjects,
   };
 }

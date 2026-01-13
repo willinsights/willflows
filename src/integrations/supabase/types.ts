@@ -761,37 +761,46 @@ export type Database = {
       }
       project_templates: {
         Row: {
-          checklist_templates: Json
-          created_at: string
+          checklist_templates: Json | null
+          created_at: string | null
+          default_priority: string | null
+          description: string | null
           id: string
-          is_default: boolean
+          is_default: boolean | null
+          item_type: string | null
           name: string
-          task_templates: Json
-          type: Database["public"]["Enums"]["project_type"]
-          updated_at: string
-          workspace_id: string
+          task_templates: Json | null
+          type: string | null
+          updated_at: string | null
+          workspace_id: string | null
         }
         Insert: {
-          checklist_templates?: Json
-          created_at?: string
+          checklist_templates?: Json | null
+          created_at?: string | null
+          default_priority?: string | null
+          description?: string | null
           id?: string
-          is_default?: boolean
+          is_default?: boolean | null
+          item_type?: string | null
           name: string
-          task_templates?: Json
-          type: Database["public"]["Enums"]["project_type"]
-          updated_at?: string
-          workspace_id: string
+          task_templates?: Json | null
+          type?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
         }
         Update: {
-          checklist_templates?: Json
-          created_at?: string
+          checklist_templates?: Json | null
+          created_at?: string | null
+          default_priority?: string | null
+          description?: string | null
           id?: string
-          is_default?: boolean
+          is_default?: boolean | null
+          item_type?: string | null
           name?: string
-          task_templates?: Json
-          type?: Database["public"]["Enums"]["project_type"]
-          updated_at?: string
-          workspace_id?: string
+          task_templates?: Json | null
+          type?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
         }
         Relationships: [
           {
