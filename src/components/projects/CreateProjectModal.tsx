@@ -41,6 +41,8 @@ import { CreateClientModal } from '@/components/clients/CreateClientModal';
 import { CreateCategoryModal } from '@/components/categories/CreateCategoryModal';
 import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 import { appToast } from '@/hooks/useAppToast';
+import { ProjectTemplateSelector } from '@/components/projects/ProjectTemplateSelector';
+import { ProjectTemplate } from '@/hooks/useProjectTemplates';
 import type { KanbanPhase } from '@/hooks/useKanban';
 
 const projectSchema = z.object({
@@ -122,6 +124,7 @@ export function CreateProjectModal({
   const [newLinkUrl, setNewLinkUrl] = useState('');
   const [responsaveisCaptacao, setResponsaveisCaptacao] = useState<string[]>([]);
   const [responsaveisEdicao, setResponsaveisEdicao] = useState<string[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<ProjectTemplate | null>(null);
 
   const currency = currentWorkspace?.currency || 'EUR';
   const currencySymbol = currency === 'EUR' ? '€' : 'R$';
@@ -163,8 +166,17 @@ export function CreateProjectModal({
       setMediaLinks([]);
       setResponsaveisCaptacao([]);
       setResponsaveisEdicao([]);
+      setSelectedTemplate(null);
     }
   }, [open, form]);
+
+  const handleTemplateSelect = (template: ProjectTemplate | null) => {
+    setSelectedTemplate(template);
+    if (template) {
+      form.setValue('item_type', template.item_type as any);
+      form.setValue('priority', template.default_priority as any);
+    }
+  };
 
   const addMediaLink = () => {
     if (newLinkUrl.trim()) {
@@ -248,6 +260,38 @@ export function CreateProjectModal({
         await supabase.from('project_team').insert(teamMembers);
       }
 
+      // Create tasks and checklists from template if selected
+      if (selectedTemplate) {
+        // Create tasks
+        if (selectedTemplate.task_templates.length > 0) {
+          const tasksToCreate = selectedTemplate.task_templates.map((t, idx) => ({
+            workspace_id: currentWorkspace?.id,
+            project_id: project.id,
+            title: t.title,
+            phase: t.phase,
+            position: idx,
+            is_completed: false,
+          }));
+          
+          const { data: createdTasks } = await supabase
+            .from('tasks')
+            .insert(tasksToCreate)
+            .select();
+
+          // Create checklist items for first task
+          if (createdTasks && createdTasks.length > 0 && selectedTemplate.checklist_templates.length > 0) {
+            const checklistItems = selectedTemplate.checklist_templates.map((c, idx) => ({
+              task_id: createdTasks[0].id,
+              title: c.title,
+              position: idx,
+              is_completed: false,
+            }));
+            
+            await supabase.from('task_checklists').insert(checklistItems);
+          }
+        }
+      }
+
       appToast.projectCreated(data.name);
       onSuccess();
     }
@@ -309,7 +353,16 @@ export function CreateProjectModal({
 
           <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Item Type Selection */}
+              {/* Template Selector */}
+              <div className="space-y-2">
+                <Label>Começar com um template</Label>
+                <ProjectTemplateSelector
+                  selectedTemplateId={selectedTemplate?.id || null}
+                  onSelectTemplate={handleTemplateSelect}
+                />
+              </div>
+
+              <Separator />
               <div className="space-y-2">
                 <Label>Tipo de Item *</Label>
                 <div className="grid grid-cols-2 gap-2">

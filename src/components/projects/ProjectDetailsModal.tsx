@@ -4,7 +4,7 @@ import { pt } from 'date-fns/locale';
 import { 
   Edit, Trash2, CheckCircle, Calendar, MapPin, User, Clock, 
   Link as LinkIcon, AlertTriangle, CheckSquare, Save, X,
-  ExternalLink, Video, Camera, Film, DollarSign, Users, Check, FileText, Folder, MessageSquare, Play
+  ExternalLink, Video, Camera, Film, DollarSign, Users, Check, FileText, Folder, MessageSquare, Play, Copy
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useProjects } from '@/hooks/useProjects';
 import { useClients } from '@/hooks/useClients';
 import { useCategories } from '@/hooks/useCategories';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
@@ -93,6 +94,7 @@ const itemTypeOptions = [
 
 export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: ProjectDetailsModalProps) {
   const { toast } = useToast();
+  const { duplicateProject } = useProjects();
   const { clients } = useClients();
   const { categories } = useCategories();
   const { members: workspaceMembers } = useWorkspaceMembers();
@@ -101,6 +103,9 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [duplicateName, setDuplicateName] = useState('');
+  const [duplicating, setDuplicating] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [checklists, setChecklists] = useState<TaskChecklist[]>([]);
   const [mediaLinks, setMediaLinks] = useState<MediaLink[]>([]);
@@ -353,6 +358,29 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
       toast({ title: 'Erro ao concluir', description: error.message, variant: 'destructive' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDuplicate = async () => {
+    if (!project) return;
+    setDuplicating(true);
+    
+    const result = await duplicateProject(project.id, duplicateName || undefined);
+    
+    if (result) {
+      setShowDuplicateDialog(false);
+      setDuplicateName('');
+      onOpenChange(false);
+      onUpdate();
+    }
+    
+    setDuplicating(false);
+  };
+
+  const openDuplicateDialog = () => {
+    if (project) {
+      setDuplicateName(`${project.name} (cópia)`);
+      setShowDuplicateDialog(true);
     }
   };
 
@@ -1166,14 +1194,24 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
 
           {/* Actions */}
           <div className="flex justify-between gap-2 pt-4 border-t">
-            <Button 
-              variant="destructive" 
-              size="sm"
-              onClick={() => setShowDeleteDialog(true)}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Apagar
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={() => setShowDeleteDialog(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Apagar
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={openDuplicateDialog}
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                Duplicar
+              </Button>
+            </div>
             
             <div className="flex gap-2">
               {isEditing ? (
@@ -1253,6 +1291,38 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setShowCompleteDialog(false)}>
               Entendido
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Duplicate Project Dialog */}
+      <AlertDialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Copy className="h-5 w-5" />
+              Duplicar Projeto
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <p>Será criada uma cópia do projeto incluindo tarefas, checklist, equipa e links de media.</p>
+                <div className="space-y-2">
+                  <Label htmlFor="duplicate-name">Nome do novo projeto</Label>
+                  <Input
+                    id="duplicate-name"
+                    value={duplicateName}
+                    onChange={(e) => setDuplicateName(e.target.value)}
+                    placeholder="Nome do projeto"
+                  />
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={duplicating}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDuplicate} disabled={duplicating || !duplicateName.trim()}>
+              {duplicating ? 'A duplicar...' : 'Duplicar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

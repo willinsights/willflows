@@ -6,14 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CreateProjectModal } from '@/components/projects/CreateProjectModal';
+import { ProjectDetailsModal } from '@/components/projects/ProjectDetailsModal';
 import { TrialBadge } from '@/components/dashboard/TrialBadge';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { AccountModal } from '@/components/account/AccountModal';
 import { WorkspaceSelector } from '@/components/workspace/WorkspaceSelector';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGlobalSearch, SearchResult } from '@/hooks/useGlobalSearch';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { ProjectWithClient } from '@/hooks/useProjects';
 
 interface AppHeaderProps {
   onMenuClick: () => void;
@@ -35,6 +38,9 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [dropdownRect, setDropdownRect] = useState<SearchDropdownRect | null>(null);
+  const [selectedProject, setSelectedProject] = useState<ProjectWithClient | null>(null);
+  const [projectModalOpen, setProjectModalOpen] = useState(false);
+  const [loadingProject, setLoadingProject] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -85,21 +91,44 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
     return '/app/captacao';
   };
 
-  const handleResultClick = (result: SearchResult) => {
+  const handleResultClick = async (result: SearchResult) => {
     setSearchQuery('');
     setSearchFocused(false);
 
-    switch (result.type) {
-      case 'project':
+    if (result.type === 'project' || result.type === 'task') {
+      const projectId = result.type === 'task' ? result.projectId : result.id;
+      if (!projectId) {
         navigate(getProjectRoute(result.isDelivered, result.currentPhase));
-        break;
-      case 'client':
-        navigate('/app/clientes');
-        break;
-      case 'task':
+        return;
+      }
+
+      setLoadingProject(true);
+      try {
+        const { data, error } = await supabase
+          .from('projects')
+          .select('*, clients(name)')
+          .eq('id', projectId)
+          .single();
+
+        if (error) throw error;
+        if (data) {
+          setSelectedProject(data as ProjectWithClient);
+          setProjectModalOpen(true);
+        }
+      } catch (err) {
+        console.error('Error fetching project:', err);
         navigate(getProjectRoute(result.isDelivered, result.currentPhase));
-        break;
+      } finally {
+        setLoadingProject(false);
+      }
+    } else if (result.type === 'client') {
+      navigate('/app/clientes');
     }
+  };
+
+  const handleProjectModalUpdate = () => {
+    setProjectModalOpen(false);
+    setSelectedProject(null);
   };
 
   const getResultIcon = (type: SearchResult['type']) => {
@@ -277,7 +306,13 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
       />
 
       <AccountModal open={accountModalOpen} onOpenChange={setAccountModalOpen} initialTab={accountModalInitialTab} />
+
+      <ProjectDetailsModal
+        open={projectModalOpen}
+        onOpenChange={setProjectModalOpen}
+        project={selectedProject}
+        onUpdate={handleProjectModalUpdate}
+      />
     </>
   );
 }
-
