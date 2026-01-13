@@ -191,45 +191,88 @@ export function useKanban(phase: KanbanPhase) {
 
     const columnField = phase === 'captacao' ? 'captacao_column_id' : 'edicao_column_id';
     const targetColumn = columns.find(c => c.id === targetColumnId);
+    const project = columns.flatMap(c => c.projects).find(p => p.id === projectId);
     
-    // Check if moving to "Entregue" column (is_final)
-    if (targetColumn?.is_final) {
-      // Find the project
-      const project = columns.flatMap(c => c.projects).find(p => p.id === projectId);
+    // Check if moving to final column - validate checklists
+    if (targetColumn?.is_final && project) {
+      const itemType = (project as any).item_type || 'projeto_completo';
+      
+      // Determine if we should validate checklists based on item_type and phase
+      // - captacao only: validate in captacao final column
+      // - edicao only: validate in edicao final column  
+      // - projeto_completo: validate in both phases' final columns
+      const shouldValidate = 
+        (itemType === 'captacao' && phase === 'captacao') ||
+        (itemType === 'edicao' && phase === 'edicao') ||
+        (itemType === 'projeto_completo');
+      
+      if (shouldValidate) {
+        // Fetch tasks for this project
+        const { data: tasks } = await supabase
+          .from('tasks')
+          .select('id, is_completed, phase')
+          .eq('project_id', projectId);
+        
+        // Get task IDs to fetch checklists
+        const taskIds = tasks?.map(t => t.id) || [];
+        
+        let incompleteChecklists = 0;
+        if (taskIds.length > 0) {
+          const { data: checklists } = await supabase
+            .from('task_checklists')
+            .select('id, is_completed')
+            .in('task_id', taskIds);
+          
+          incompleteChecklists = checklists?.filter(c => !c.is_completed).length || 0;
+        }
+        
+        // Count incomplete tasks for current phase
+        const incompleteTasks = tasks?.filter(t => !t.is_completed && t.phase === phase).length || 0;
+        
+        if (incompleteTasks > 0 || incompleteChecklists > 0) {
+          const parts = [];
+          if (incompleteTasks > 0) parts.push(`${incompleteTasks} tarefa${incompleteTasks > 1 ? 's' : ''}`);
+          if (incompleteChecklists > 0) parts.push(`${incompleteChecklists} item${incompleteChecklists > 1 ? 'ns' : ''} de checklist`);
+          
+          toast({
+            title: 'Checklist incompleta',
+            description: `Existem ${parts.join(' e ')} por concluir antes de finalizar.`,
+            variant: 'destructive',
+          });
+          return; // Prevent the move
+        }
+      }
       
       // Check if project is captacao+edicao type and we're in captacao phase
-      if (project && phase === 'captacao') {
-        const itemType = (project as any).item_type;
-        if (itemType === 'projeto_completo') {
-          // Move to first column of edicao phase
-          const { data: edicaoColumns } = await supabase
-            .from('kanban_columns')
-            .select('id')
-            .eq('workspace_id', currentWorkspace.id)
-            .eq('phase', 'edicao')
-            .order('position', { ascending: true })
-            .limit(1);
+      if (phase === 'captacao' && itemType === 'projeto_completo') {
+        // Move to first column of edicao phase
+        const { data: edicaoColumns } = await supabase
+          .from('kanban_columns')
+          .select('id')
+          .eq('workspace_id', currentWorkspace.id)
+          .eq('phase', 'edicao')
+          .order('position', { ascending: true })
+          .limit(1);
 
-          if (edicaoColumns && edicaoColumns.length > 0) {
-            // Update project to edicao phase
-            await supabase
-              .from('projects')
-              .update({
-                current_phase: 'edicao',
-                edicao_column_id: edicaoColumns[0].id,
-                captacao_column_id: targetColumnId,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', projectId);
+        if (edicaoColumns && edicaoColumns.length > 0) {
+          // Update project to edicao phase
+          await supabase
+            .from('projects')
+            .update({
+              current_phase: 'edicao',
+              edicao_column_id: edicaoColumns[0].id,
+              captacao_column_id: targetColumnId,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', projectId);
 
-            toast({
-              title: 'Projeto transferido para Edição',
-              description: 'O projeto foi movido automaticamente para o Kanban de Edição.',
-            });
-            
-            fetchColumns();
-            return;
-          }
+          toast({
+            title: 'Projeto transferido para Edição',
+            description: 'O projeto foi movido automaticamente para o Kanban de Edição.',
+          });
+          
+          fetchColumns();
+          return;
         }
       }
     }
