@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { handleDatabaseError } from '@/lib/error-handler';
 import { kanbanColumnSchema, kanbanColumnUpdateSchema, validateWithSchema } from '@/lib/validation-schemas';
 import type { Tables } from '@/integrations/supabase/types';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 export type KanbanPhase = 'captacao' | 'edicao';
 export type KanbanColumn = Tables<'kanban_columns'>;
@@ -49,6 +50,15 @@ const initialPendingAlert: PendingAlertState = {
   checklists: 0,
 };
 
+// Debounce helper
+function debounce<T extends (...args: unknown[]) => void>(fn: T, delay: number): T {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  return ((...args: unknown[]) => {
+    if (timeoutId) clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn(...args), delay);
+  }) as T;
+}
+
 export function useKanban(phase: KanbanPhase) {
   const { currentWorkspace, fetchError } = useWorkspace();
   const { toast } = useToast();
@@ -56,9 +66,10 @@ export function useKanban(phase: KanbanPhase) {
   const [loading, setLoading] = useState(true);
   const [pendingAlert, setPendingAlert] = useState<PendingAlertState>(initialPendingAlert);
   
-  // Refs to prevent duplicate fetches
+  // Refs to prevent duplicate fetches and track local updates
   const isFetchingRef = useRef(false);
   const lastFetchedKeyRef = useRef<string | null>(null);
+  const lastLocalUpdateRef = useRef<string | null>(null);
 
   const clearPendingAlert = useCallback(() => {
     setPendingAlert(initialPendingAlert);
@@ -259,6 +270,16 @@ export function useKanban(phase: KanbanPhase) {
     }
   }, [currentWorkspace?.id, phase, fetchError, toast]);
 
+  // Debounced fetch for realtime updates
+  const debouncedFetchColumns = useMemo(
+    () => debounce(() => {
+      if (!isFetchingRef.current) {
+        fetchColumns();
+      }
+    }, 300),
+    [fetchColumns]
+  );
+
   useEffect(() => {
     const fetchKey = `${currentWorkspace?.id}-${phase}`;
     // Only fetch if key changed
@@ -268,6 +289,123 @@ export function useKanban(phase: KanbanPhase) {
       setLoading(false);
     }
   }, [currentWorkspace?.id, phase, fetchError]);
+
+  // Realtime subscription for Kanban updates
+  useEffect(() => {
+    if (!currentWorkspace?.id) return;
+
+    const channelName = `kanban-realtime-${currentWorkspace.id}-${phase}`;
+    
+    const handleProjectChange = (payload: RealtimePostgresChangesPayload<Project>) => {
+      const newData = payload.new as Project | undefined;
+      const oldData = payload.old as Partial<Project> | undefined;
+      
+      // Ignore local updates
+      if (newData?.id && lastLocalUpdateRef.current === newData.id) return;
+      if (oldData?.id && lastLocalUpdateRef.current === oldData.id) return;
+      
+      // Only refresh if the project is in this phase
+      const relevantPhase = newData?.current_phase || oldData?.current_phase;
+      if (relevantPhase === phase || oldData?.current_phase === phase) {
+        console.log('[Kanban Realtime] Project change detected:', payload.eventType);
+        debouncedFetchColumns();
+      }
+    };
+
+    const handleColumnChange = (payload: RealtimePostgresChangesPayload<KanbanColumn>) => {
+      const newData = payload.new as KanbanColumn | undefined;
+      const oldData = payload.old as Partial<KanbanColumn> | undefined;
+      
+      // Only refresh if the column is in this phase
+      const relevantPhase = newData?.phase || oldData?.phase;
+      if (relevantPhase === phase) {
+        console.log('[Kanban Realtime] Column change detected:', payload.eventType);
+        debouncedFetchColumns();
+      }
+    };
+
+    const handleTaskChange = (payload: RealtimePostgresChangesPayload<Task>) => {
+      const newData = payload.new as Task | undefined;
+      const oldData = payload.old as Partial<Task> | undefined;
+      
+      // Only refresh if the task is in this phase
+      const relevantPhase = newData?.phase || oldData?.phase;
+      if (relevantPhase === phase) {
+        console.log('[Kanban Realtime] Task change detected:', payload.eventType);
+        debouncedFetchColumns();
+      }
+    };
+
+    const handleChecklistChange = () => {
+      // Checklists affect counters, so we refresh
+      console.log('[Kanban Realtime] Checklist change detected');
+      debouncedFetchColumns();
+    };
+
+    const handleTeamChange = () => {
+      // Team changes affect project cards
+      console.log('[Kanban Realtime] Team change detected');
+      debouncedFetchColumns();
+    };
+
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'projects',
+          filter: `workspace_id=eq.${currentWorkspace.id}`
+        },
+        handleProjectChange
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'kanban_columns',
+          filter: `workspace_id=eq.${currentWorkspace.id}`
+        },
+        handleColumnChange
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks',
+          filter: `workspace_id=eq.${currentWorkspace.id}`
+        },
+        handleTaskChange
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'task_checklists'
+        },
+        handleChecklistChange
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'project_team'
+        },
+        handleTeamChange
+      )
+      .subscribe((status) => {
+        console.log('[Kanban Realtime] Subscription status:', status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentWorkspace?.id, phase, debouncedFetchColumns]);
 
   const moveProject = async (projectId: string, targetColumnId: string) => {
     if (!currentWorkspace) return;
@@ -390,6 +528,9 @@ export function useKanban(phase: KanbanPhase) {
     });
 
     try {
+      // Mark as local update to avoid realtime echo
+      lastLocalUpdateRef.current = projectId;
+      
       const { error } = await supabase
         .from('projects')
         .update({ 
@@ -399,7 +540,15 @@ export function useKanban(phase: KanbanPhase) {
         .eq('id', projectId);
 
       if (error) throw error;
+      
+      // Clear local update marker after a delay
+      setTimeout(() => {
+        if (lastLocalUpdateRef.current === projectId) {
+          lastLocalUpdateRef.current = null;
+        }
+      }, 2000);
     } catch (error) {
+      lastLocalUpdateRef.current = null;
       toast({
         title: 'Erro ao mover projeto',
         description: handleDatabaseError('moveProject', error),
