@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DollarSign, User, Camera, Film, CreditCard, Calendar, Package } from 'lucide-react';
+import { DollarSign, User, Camera, Film, CreditCard, Calendar, Package, Lock } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { cn } from '@/lib/utils';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -65,8 +66,21 @@ export function ProjectFinancialTab({
   onTeamPaymentUpdate,
 }: ProjectFinancialTabProps) {
   const { toast } = useToast();
+  const { canViewAllFinancials, canViewOwnFinancials, userId } = useFinancialPermissions();
   const [clientPayment, setClientPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Se não pode ver valores financeiros, mostra mensagem
+  if (!canViewOwnFinancials) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <Lock className="h-12 w-12 text-muted-foreground/50 mb-3" />
+        <p className="text-muted-foreground">
+          Não tem permissão para ver informação financeira.
+        </p>
+      </div>
+    );
+  }
 
   // Separate team members by phase
   const captacaoTeam = projectTeam.filter(t => t.phase === 'captacao');

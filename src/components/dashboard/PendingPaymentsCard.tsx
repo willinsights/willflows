@@ -1,20 +1,44 @@
 import { motion } from 'framer-motion';
-import { CreditCard, ArrowRight } from 'lucide-react';
+import { CreditCard, ArrowRight, Lock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useNavigate } from 'react-router-dom';
 
 interface PendingPaymentsCardProps {
   pendingPayments: number;
   pendingPaymentsCount: number;
   loading: boolean;
+  /** For non-admins, show own pending payments */
+  ownPendingPayments?: number;
+  ownPendingPaymentsCount?: number;
 }
 
-export function PendingPaymentsCard({ pendingPayments, pendingPaymentsCount, loading }: PendingPaymentsCardProps) {
+export function PendingPaymentsCard({ 
+  pendingPayments, 
+  pendingPaymentsCount, 
+  loading,
+  ownPendingPayments = 0,
+  ownPendingPaymentsCount = 0,
+}: PendingPaymentsCardProps) {
   const { formatCurrency } = useCurrentWorkspace();
+  const { canViewAllFinancials, canViewOwnFinancials } = useFinancialPermissions();
   const navigate = useNavigate();
+
+  // Visualizador não vê este card
+  if (!canViewOwnFinancials) {
+    return null;
+  }
+
+  // Determinar valores a mostrar baseado nas permissões
+  const displayValue = canViewAllFinancials ? pendingPayments : ownPendingPayments;
+  const displayCount = canViewAllFinancials ? pendingPaymentsCount : ownPendingPaymentsCount;
+  const cardTitle = canViewAllFinancials ? 'Pagamentos Pendentes' : 'Seus Pagamentos';
+  const subtitle = canViewAllFinancials 
+    ? `${displayCount} pagamento(s) por receber`
+    : `${displayCount} pagamento(s) a receber`;
 
   return (
     <motion.div
@@ -29,7 +53,7 @@ export function PendingPaymentsCard({ pendingPayments, pendingPaymentsCount, loa
             <div className="p-1.5 rounded-md bg-primary/10">
               <CreditCard className="h-4 w-4 text-primary" />
             </div>
-            Pagamentos Pendentes
+            {cardTitle}
           </CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4">
@@ -38,9 +62,9 @@ export function PendingPaymentsCard({ pendingPayments, pendingPaymentsCount, loa
               <Skeleton className="h-8 w-24" />
             ) : (
               <div>
-                <p className="text-2xl font-bold text-warning">{formatCurrency(pendingPayments)}</p>
+                <p className="text-2xl font-bold text-warning">{formatCurrency(displayValue)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {pendingPaymentsCount} pagamento(s) por receber
+                  {subtitle}
                 </p>
               </div>
             )}

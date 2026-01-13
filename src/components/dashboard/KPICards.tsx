@@ -6,11 +6,13 @@ import {
   TrendingUp,
   TrendingDown,
   Wallet,
+  Lock,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import type { DashboardMetrics } from '@/hooks/useDashboardMetrics';
 
 interface KPICardsProps {
@@ -48,8 +50,10 @@ function ChangeIndicator({
 
 export function KPICards({ metrics, loading }: KPICardsProps) {
   const { formatCurrency } = useCurrentWorkspace();
+  const { canViewAllFinancials } = useFinancialPermissions();
 
-  const kpiData = [
+  // Base KPI data (always visible)
+  const baseKpiData = [
     {
       label: 'Em Captação',
       value: metrics.captacao,
@@ -81,6 +85,10 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
       change: metrics.entreguesChange,
       delay: 0.09,
     },
+  ];
+
+  // Financial KPI data (only for admins)
+  const financialKpiData = canViewAllFinancials ? [
     {
       label: 'Receita (mês)',
       value: formatCurrency(metrics.receita),
@@ -103,7 +111,7 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
       valueClass: 'text-destructive text-lg',
       isCurrency: true,
       change: metrics.custosChange,
-      invertColor: true, // For costs, increase is bad
+      invertColor: true,
       delay: 0.15,
     },
     {
@@ -118,7 +126,47 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
       change: metrics.lucroChange,
       delay: 0.18,
     },
+  ] : [
+    // Placeholder cards for non-admins
+    {
+      label: 'Receita (mês)',
+      value: '---',
+      icon: Lock,
+      iconColor: 'text-muted-foreground',
+      bgColor: 'bg-muted/50',
+      cardClass: 'opacity-60',
+      valueClass: 'text-muted-foreground text-lg',
+      isCurrency: true,
+      delay: 0.12,
+      isRestricted: true,
+    },
+    {
+      label: 'Custos (mês)',
+      value: '---',
+      icon: Lock,
+      iconColor: 'text-muted-foreground',
+      bgColor: 'bg-muted/50',
+      cardClass: 'opacity-60',
+      valueClass: 'text-muted-foreground text-lg',
+      isCurrency: true,
+      delay: 0.15,
+      isRestricted: true,
+    },
+    {
+      label: 'Lucro (mês)',
+      value: '---',
+      icon: Lock,
+      iconColor: 'text-muted-foreground',
+      bgColor: 'bg-muted/50',
+      cardClass: 'opacity-60',
+      valueClass: 'text-muted-foreground text-lg',
+      isCurrency: true,
+      delay: 0.18,
+      isRestricted: true,
+    },
   ];
+
+  const kpiData = [...baseKpiData, ...financialKpiData];
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -137,20 +185,25 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
                 </div>
                 <div className="flex flex-col">
                   {loading ? (
-                    <Skeleton className={cn('h-7', kpi.isCurrency ? 'w-16' : 'w-8')} />
+                    <Skeleton className={cn('h-7', 'isCurrency' in kpi && kpi.isCurrency ? 'w-16' : 'w-8')} />
                   ) : (
                     <>
-                      <span className={cn('font-bold', kpi.isCurrency ? kpi.valueClass : 'text-2xl')}>
+                      <span className={cn('font-bold', 'isCurrency' in kpi && kpi.isCurrency ? kpi.valueClass : 'text-2xl')}>
                         {kpi.value}
                       </span>
-                      {'change' in kpi && (
-                        <ChangeIndicator change={kpi.change ?? null} invertColor={kpi.invertColor} />
+                      {'change' in kpi && !('isRestricted' in kpi) && (
+                        <ChangeIndicator change={kpi.change ?? null} invertColor={'invertColor' in kpi ? kpi.invertColor : false} />
                       )}
                     </>
                   )}
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">{kpi.label}</p>
+              <p className="text-xs text-muted-foreground mt-2">
+                {kpi.label}
+                {'isRestricted' in kpi && (
+                  <span className="ml-1 text-[10px]">(restrito)</span>
+                )}
+              </p>
             </CardContent>
           </Card>
         </motion.div>

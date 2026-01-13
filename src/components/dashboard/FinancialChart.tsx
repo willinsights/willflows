@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, Lock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import type { MonthlyData } from '@/hooks/useDashboardMetrics';
 import {
   AreaChart,
@@ -22,6 +23,37 @@ interface FinancialChartProps {
 
 export function FinancialChart({ monthlyData, loading }: FinancialChartProps) {
   const { formatCurrency } = useCurrentWorkspace();
+  const { canViewAllFinancials } = useFinancialPermissions();
+
+  // Se não for admin, não mostra o gráfico
+  if (!canViewAllFinancials) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <Card className="glass-card opacity-60">
+          <CardHeader className="flex flex-row items-center justify-between py-3 px-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <div className="p-1.5 rounded-md bg-muted/50">
+                <Lock className="h-4 w-4 text-muted-foreground" />
+              </div>
+              Evolução Financeira (6 meses)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="h-[200px] flex flex-col items-center justify-center text-center">
+              <Lock className="h-12 w-12 text-muted-foreground/50 mb-3" />
+              <p className="text-sm text-muted-foreground">
+                Apenas administradores têm acesso a dados financeiros
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
