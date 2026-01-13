@@ -93,7 +93,7 @@ export const PLANS: Record<PlanId, PlanInfo> = {
   starter: {
     id: 'starter',
     name: 'Starter',
-    description: 'Para freelancers e pequenas equipas',
+    description: 'Para freelancers e profissionais independentes',
     prices: {
       eur: { monthly: 14, yearly: 134.40 },
       brl: { monthly: 79, yearly: 758.40 },

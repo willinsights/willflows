@@ -153,6 +153,9 @@ const plans = [
       projects: '20 projetos ativos',
     },
     features: [
+      { name: 'Kanban Captação + Edição', included: true },
+      { name: 'CRM básico', included: true },
+      { name: 'Calendário integrado', included: true },
       { name: 'Exportação Excel', included: true },
       { name: 'Relatórios simples', included: true },
       { name: 'Exportação PDF', included: false },
