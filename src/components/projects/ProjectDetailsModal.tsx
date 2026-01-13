@@ -409,19 +409,32 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
     setLoading(true);
     
     try {
-      const { error } = await supabase
-        .from('projects')
-        .update({
-          is_delivered: false,
-          delivered_at: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', project.id);
+      console.warn('[handleReopenProject]', { projectId: project.id });
+      
+      const { data, error } = await supabase.rpc('reopen_project', {
+        p_project_id: project.id
+      });
+      
+      const result = data as { success: boolean; reason?: string; new_column_id?: string; phase?: string } | null;
+      console.warn('[reopen_project RPC result]', { result, error });
       
       if (error) throw error;
       
-      toast({ title: 'Projeto reaberto com sucesso' });
+      if (result && !result.success) {
+        toast({
+          title: 'Erro ao reabrir',
+          description: result.reason || 'Não foi possível reabrir o projeto.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      toast({ 
+        title: 'Projeto reaberto com sucesso',
+        description: 'O projeto foi movido para "Em Revisão".'
+      });
       setShowReopenDialog(false);
+      onOpenChange(false);
       onUpdate();
     } catch (error: any) {
       toast({ title: 'Erro ao reabrir', description: error.message, variant: 'destructive' });
@@ -1417,7 +1430,8 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
               Reabrir Projeto?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              O projeto será movido de volta para edição ativa. Poderá ser concluído novamente após completar todas as tarefas pendentes.
+              O projeto será movido para a coluna "Em Revisão" e poderá ser editado novamente.
+              Será removido da lista de Finalizados até ser concluído.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

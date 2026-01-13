@@ -1616,6 +1616,7 @@ export type Database = {
         Args: { _user_id: string; _workspace_id: string }
         Returns: boolean
       }
+      reopen_project: { Args: { p_project_id: string }; Returns: Json }
       verify_beta_token: {
         Args: { _token: string }
         Returns: {
