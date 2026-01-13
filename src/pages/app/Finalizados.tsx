@@ -203,9 +203,10 @@ export default function Finalizados() {
         return true;
       })
       .sort((a, b) => {
+        // Ordenar por data de entrega (mais recente primeiro)
         const dateA = a.delivered_at ? new Date(a.delivered_at).getTime() : 0;
         const dateB = b.delivered_at ? new Date(b.delivered_at).getTime() : 0;
-        return dateB - dateA;
+        return dateB - dateA; // Mais recentes primeiro
       });
   }, [projects, searchQuery, filterClient, filterType, filterResponsavel, filterPhase, projectTeams, startDate, endDate]);
 
