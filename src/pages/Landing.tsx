@@ -91,8 +91,8 @@ const steps = [
 
 const faqs = [
   {
-    question: 'Precisa de cartão para testar?',
-    answer: 'Sim, usamos o modelo de trial com cartão. Os 7 dias são completamente grátis e só cobramos após o período de teste. Pode cancelar a qualquer momento.',
+    question: 'Preciso de cartão para testar?',
+    answer: 'Não! O trial de 7 dias é completamente grátis e não precisa de cartão. Só adiciona o cartão quando decidir subscrever.',
   },
   {
     question: 'Posso trocar de EUR para BRL?',
@@ -405,7 +405,7 @@ export default function Landing() {
                 {isBetaMode ? (
                   '🚀 Beta Privado • Acesso por convite'
                 ) : (
-                  '✨ 7 dias grátis com cartão • Cancele quando quiser'
+                  '✨ 7 dias grátis • Sem cartão necessário'
                 )}
               </Badge>
               
