@@ -65,6 +65,11 @@ export function KanbanCard({ project, onClick }: KanbanCardProps) {
   const taskCompleted = project.task_completed || 0;
   const taskProgress = taskCount > 0 ? (taskCompleted / taskCount) * 100 : 0;
 
+  // Checklist progress (filtered by phase in useKanban)
+  const checklistCount = project.checklist_count || 0;
+  const checklistCompleted = project.checklist_completed || 0;
+  const checklistProgress = checklistCount > 0 ? (checklistCompleted / checklistCount) * 100 : 0;
+
   // Get team members (limit display to 3)
   const teamMembers = project.team_members || [];
   const displayedMembers = teamMembers.slice(0, 3);
@@ -129,8 +134,19 @@ export function KanbanCard({ project, onClick }: KanbanCardProps) {
         </div>
       )}
 
-      {/* Task Progress (if exists) */}
-      {taskCount > 0 && (
+      {/* Checklist Progress (if exists) - show checklists instead of tasks */}
+      {checklistCount > 0 ? (
+        <div className="mb-1">
+          <div className="flex items-center justify-between text-[9px] text-muted-foreground mb-0.5">
+            <span className="flex items-center gap-0.5">
+              <CheckSquare className="h-2.5 w-2.5" />
+              Checklist
+            </span>
+            <span>{checklistCompleted}/{checklistCount}</span>
+          </div>
+          <Progress value={checklistProgress} className="h-0.5" />
+        </div>
+      ) : taskCount > 0 ? (
         <div className="mb-1">
           <div className="flex items-center justify-between text-[9px] text-muted-foreground mb-0.5">
             <span className="flex items-center gap-0.5">
@@ -141,7 +157,7 @@ export function KanbanCard({ project, onClick }: KanbanCardProps) {
           </div>
           <Progress value={taskProgress} className="h-0.5" />
         </div>
-      )}
+      ) : null}
 
       {/* Footer with date and team */}
       <div className="flex items-center justify-between mt-1 pt-1 border-t border-border/40">

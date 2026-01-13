@@ -36,6 +36,7 @@ interface ProjectChecklistTabProps {
   projectId: string;
   taskId: string | null;
   workspaceId: string;
+  currentPhase: 'captacao' | 'edicao';
 }
 
 interface SortableChecklistItemProps {
@@ -153,7 +154,8 @@ export function ProjectChecklistTab({
   setChecklists, 
   projectId,
   taskId,
-  workspaceId
+  workspaceId,
+  currentPhase
 }: ProjectChecklistTabProps) {
   const { toast } = useToast();
   const [newItemTitle, setNewItemTitle] = useState('');
@@ -199,14 +201,14 @@ export function ProjectChecklistTab({
     let currentTaskId = taskId;
     
     if (!currentTaskId) {
-      // Create a default task for this project
+      // Create a default task for this project with the correct phase
       const { data: newTask, error: taskError } = await supabase
         .from('tasks')
         .insert({
           project_id: projectId,
           workspace_id: workspaceId,
           title: 'Checklist do Projeto',
-          phase: 'captacao',
+          phase: currentPhase,
           position: 0,
         })
         .select()

@@ -25,6 +25,8 @@ export interface ProjectWithClient extends Project {
   clients?: { name: string } | null;
   task_count?: number;
   task_completed?: number;
+  checklist_count?: number;
+  checklist_completed?: number;
   team_members?: TeamMember[];
 }
 
@@ -72,17 +74,19 @@ export function useKanban(phase: KanbanPhase) {
 
       if (projectsError) throw projectsError;
 
-      // Fetch task counts for projects
+      // Fetch task counts for projects (filtered by current phase)
       const projectIds = projectsData?.map(p => p.id) || [];
       let taskCounts: Record<string, { total: number; completed: number }> = {};
+      let checklistCounts: Record<string, { total: number; completed: number }> = {};
       let teamByProject: Record<string, TeamMember[]> = {};
       
       if (projectIds.length > 0) {
-        // Fetch tasks
+        // Fetch tasks FILTERED BY PHASE
         const { data: tasksData } = await supabase
           .from('tasks')
-          .select('project_id, is_completed')
-          .in('project_id', projectIds);
+          .select('id, project_id, is_completed, phase')
+          .in('project_id', projectIds)
+          .eq('phase', phase);
 
         if (tasksData) {
           tasksData.forEach(task => {
@@ -94,6 +98,33 @@ export function useKanban(phase: KanbanPhase) {
               taskCounts[task.project_id].completed++;
             }
           });
+
+          // Fetch checklists for tasks in this phase
+          const taskIds = tasksData.map(t => t.id);
+          if (taskIds.length > 0) {
+            const { data: checklistsData } = await supabase
+              .from('task_checklists')
+              .select('id, task_id, is_completed')
+              .in('task_id', taskIds);
+
+            if (checklistsData) {
+              // Map task_id to project_id
+              const taskToProject = new Map(tasksData.map(t => [t.id, t.project_id]));
+              
+              checklistsData.forEach(checklist => {
+                const projectId = taskToProject.get(checklist.task_id);
+                if (projectId) {
+                  if (!checklistCounts[projectId]) {
+                    checklistCounts[projectId] = { total: 0, completed: 0 };
+                  }
+                  checklistCounts[projectId].total++;
+                  if (checklist.is_completed) {
+                    checklistCounts[projectId].completed++;
+                  }
+                }
+              });
+            }
+          }
         }
 
         // Fetch team members with profiles
@@ -140,6 +171,8 @@ export function useKanban(phase: KanbanPhase) {
             ...project,
             task_count: taskCounts[project.id]?.total || 0,
             task_completed: taskCounts[project.id]?.completed || 0,
+            checklist_count: checklistCounts[project.id]?.total || 0,
+            checklist_completed: checklistCounts[project.id]?.completed || 0,
             team_members: teamByProject[project.id] || [],
           }))
           .sort((a, b) => {
@@ -211,26 +244,26 @@ export function useKanban(phase: KanbanPhase) {
         );
       
       if (shouldValidate) {
-        // Fetch ALL tasks for this project (not filtered by phase)
-        // The phase filtering is already done in shouldValidate based on item_type
+        // Fetch tasks FILTERED BY CURRENT PHASE for validation
         const { data: tasks } = await supabase
           .from('tasks')
           .select('id, is_completed, phase')
-          .eq('project_id', projectId);
+          .eq('project_id', projectId)
+          .eq('phase', phase);
         
-        const allTaskIds = tasks?.map(t => t.id) || [];
+        const phaseTaskIds = tasks?.map(t => t.id) || [];
         
         let incompleteChecklists = 0;
-        if (allTaskIds.length > 0) {
+        if (phaseTaskIds.length > 0) {
           const { data: checklists } = await supabase
             .from('task_checklists')
             .select('id, is_completed')
-            .in('task_id', allTaskIds);
+            .in('task_id', phaseTaskIds);
           
           incompleteChecklists = checklists?.filter(c => !c.is_completed).length || 0;
         }
         
-        // Count all incomplete tasks for the project
+        // Count incomplete tasks for current phase
         const incompleteTasks = tasks?.filter(t => !t.is_completed).length || 0;
         
         if (incompleteTasks > 0 || incompleteChecklists > 0) {
