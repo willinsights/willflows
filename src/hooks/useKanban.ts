@@ -69,7 +69,7 @@ export function useKanban(phase: KanbanPhase) {
   // Refs to prevent duplicate fetches and track local updates
   const isFetchingRef = useRef(false);
   const lastFetchedKeyRef = useRef<string | null>(null);
-  const lastLocalUpdateRef = useRef<string | null>(null);
+  const localUpdateTimestampRef = useRef<number>(0);
 
   const clearPendingAlert = useCallback(() => {
     setPendingAlert(initialPendingAlert);
@@ -105,15 +105,13 @@ export function useKanban(phase: KanbanPhase) {
     }
   };
 
-  const fetchColumns = useCallback(async () => {
-    if (!currentWorkspace?.id || fetchError) return;
-    if (isFetchingRef.current) return;
+  // Core data fetching logic - shared between fetchColumns and silentRefresh
+  const fetchColumnsData = useCallback(async (): Promise<KanbanColumnWithProjects[] | null> => {
+    if (!currentWorkspace?.id || fetchError) return null;
+    if (isFetchingRef.current) return null;
     
-    const fetchKey = `${currentWorkspace.id}-${phase}`;
-
     try {
       isFetchingRef.current = true;
-      setLoading(true);
       
       // Fetch columns for this phase
       const { data: columnsData, error: columnsError } = await supabase
@@ -256,28 +254,47 @@ export function useKanban(phase: KanbanPhase) {
           }),
       }));
 
-      setColumns(columnsWithProjects);
-      lastFetchedKeyRef.current = fetchKey;
+      return columnsWithProjects;
     } catch (error) {
       toast({
         title: 'Erro ao carregar Kanban',
         description: handleDatabaseError('fetchKanban', error),
         variant: 'destructive',
       });
+      return null;
     } finally {
       isFetchingRef.current = false;
-      setLoading(false);
     }
   }, [currentWorkspace?.id, phase, fetchError, toast]);
 
-  // Debounced fetch for realtime updates
-  const debouncedFetchColumns = useMemo(
+  // Full fetch with loading state - for initial load
+  const fetchColumns = useCallback(async () => {
+    const fetchKey = `${currentWorkspace?.id}-${phase}`;
+    setLoading(true);
+    const data = await fetchColumnsData();
+    if (data) {
+      setColumns(data);
+      lastFetchedKeyRef.current = fetchKey;
+    }
+    setLoading(false);
+  }, [fetchColumnsData, currentWorkspace?.id, phase]);
+
+  // Silent refresh - for updates without loading flash
+  const silentRefresh = useCallback(async () => {
+    const data = await fetchColumnsData();
+    if (data) {
+      setColumns(data);
+    }
+  }, [fetchColumnsData]);
+
+  // Debounced silent refresh for realtime updates
+  const debouncedSilentRefresh = useMemo(
     () => debounce(() => {
       if (!isFetchingRef.current) {
-        fetchColumns();
+        silentRefresh();
       }
     }, 300),
-    [fetchColumns]
+    [silentRefresh]
   );
 
   useEffect(() => {
@@ -288,7 +305,7 @@ export function useKanban(phase: KanbanPhase) {
     } else if (!currentWorkspace) {
       setLoading(false);
     }
-  }, [currentWorkspace?.id, phase, fetchError]);
+  }, [currentWorkspace?.id, phase, fetchError, fetchColumns]);
 
   // Realtime subscription for Kanban updates
   useEffect(() => {
@@ -296,23 +313,30 @@ export function useKanban(phase: KanbanPhase) {
 
     const channelName = `kanban-realtime-${currentWorkspace.id}-${phase}`;
     
+    // Check if this is a local update (within last 2 seconds)
+    const isLocalUpdate = () => {
+      const timeSinceLocal = Date.now() - localUpdateTimestampRef.current;
+      return timeSinceLocal < 2000;
+    };
+    
     const handleProjectChange = (payload: RealtimePostgresChangesPayload<Project>) => {
+      // Ignore local updates to prevent echo
+      if (isLocalUpdate()) return;
+      
       const newData = payload.new as Project | undefined;
       const oldData = payload.old as Partial<Project> | undefined;
-      
-      // Ignore local updates
-      if (newData?.id && lastLocalUpdateRef.current === newData.id) return;
-      if (oldData?.id && lastLocalUpdateRef.current === oldData.id) return;
       
       // Only refresh if the project is in this phase
       const relevantPhase = newData?.current_phase || oldData?.current_phase;
       if (relevantPhase === phase || oldData?.current_phase === phase) {
         console.log('[Kanban Realtime] Project change detected:', payload.eventType);
-        debouncedFetchColumns();
+        debouncedSilentRefresh();
       }
     };
 
     const handleColumnChange = (payload: RealtimePostgresChangesPayload<KanbanColumn>) => {
+      if (isLocalUpdate()) return;
+      
       const newData = payload.new as KanbanColumn | undefined;
       const oldData = payload.old as Partial<KanbanColumn> | undefined;
       
@@ -320,11 +344,13 @@ export function useKanban(phase: KanbanPhase) {
       const relevantPhase = newData?.phase || oldData?.phase;
       if (relevantPhase === phase) {
         console.log('[Kanban Realtime] Column change detected:', payload.eventType);
-        debouncedFetchColumns();
+        debouncedSilentRefresh();
       }
     };
 
     const handleTaskChange = (payload: RealtimePostgresChangesPayload<Task>) => {
+      if (isLocalUpdate()) return;
+      
       const newData = payload.new as Task | undefined;
       const oldData = payload.old as Partial<Task> | undefined;
       
@@ -332,20 +358,22 @@ export function useKanban(phase: KanbanPhase) {
       const relevantPhase = newData?.phase || oldData?.phase;
       if (relevantPhase === phase) {
         console.log('[Kanban Realtime] Task change detected:', payload.eventType);
-        debouncedFetchColumns();
+        debouncedSilentRefresh();
       }
     };
 
     const handleChecklistChange = () => {
+      if (isLocalUpdate()) return;
       // Checklists affect counters, so we refresh
       console.log('[Kanban Realtime] Checklist change detected');
-      debouncedFetchColumns();
+      debouncedSilentRefresh();
     };
 
     const handleTeamChange = () => {
+      if (isLocalUpdate()) return;
       // Team changes affect project cards
       console.log('[Kanban Realtime] Team change detected');
-      debouncedFetchColumns();
+      debouncedSilentRefresh();
     };
 
     const channel = supabase
@@ -405,7 +433,7 @@ export function useKanban(phase: KanbanPhase) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentWorkspace?.id, phase, debouncedFetchColumns]);
+  }, [currentWorkspace?.id, phase, debouncedSilentRefresh]);
 
   const moveProject = async (projectId: string, targetColumnId: string) => {
     if (!currentWorkspace) return;
@@ -529,7 +557,7 @@ export function useKanban(phase: KanbanPhase) {
 
     try {
       // Mark as local update to avoid realtime echo
-      lastLocalUpdateRef.current = projectId;
+      localUpdateTimestampRef.current = Date.now();
       
       const { error } = await supabase
         .from('projects')
@@ -540,15 +568,7 @@ export function useKanban(phase: KanbanPhase) {
         .eq('id', projectId);
 
       if (error) throw error;
-      
-      // Clear local update marker after a delay
-      setTimeout(() => {
-        if (lastLocalUpdateRef.current === projectId) {
-          lastLocalUpdateRef.current = null;
-        }
-      }, 2000);
     } catch (error) {
-      lastLocalUpdateRef.current = null;
       toast({
         title: 'Erro ao mover projeto',
         description: handleDatabaseError('moveProject', error),
@@ -759,6 +779,7 @@ export function useKanban(phase: KanbanPhase) {
     addColumn,
     deleteColumn,
     refresh: fetchColumns,
+    silentRefresh,
     pendingAlert,
     clearPendingAlert,
   };

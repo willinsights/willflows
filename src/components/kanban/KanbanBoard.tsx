@@ -46,7 +46,7 @@ interface PendingAlertData {
 }
 
 export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
-  const { columns, loading, moveProject, updateColumn, addColumn, deleteColumn, refresh, pendingAlert, clearPendingAlert } = useKanban(phase);
+  const { columns, loading, moveProject, updateColumn, addColumn, deleteColumn, refresh, silentRefresh, pendingAlert, clearPendingAlert } = useKanban(phase);
   const { categories } = useCategories();
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<KanbanFilterState>(defaultFilters);
@@ -360,6 +360,7 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
         onOpenChange={(open) => !open && setSelectedProjectId(null)}
         project={selectedProject}
         onUpdate={refresh}
+        onSilentUpdate={silentRefresh}
       />
 
       {/* Checklist Pending Alert - shown when trying to deliver with incomplete items */}
