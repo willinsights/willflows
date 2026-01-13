@@ -1628,6 +1628,19 @@ export type Database = {
           used_by: string
         }[]
       }
+      verify_invitation_token: {
+        Args: { _token: string }
+        Returns: {
+          accepted_at: string
+          email: string
+          expires_at: string
+          id: string
+          is_valid: boolean
+          role: Database["public"]["Enums"]["app_role"]
+          workspace_id: string
+          workspace_name: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "editor" | "captacao" | "freelancer" | "visualizador"
