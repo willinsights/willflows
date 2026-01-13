@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useProjects, ProjectWithClient } from '@/hooks/useProjects';
+import { useFilteredProjects, ProjectWithClient } from '@/hooks/useFilteredProjects';
 import { useCalendarEvents } from '@/hooks/useCalendarEvents';
 import { ProjectDetailsModal } from '@/components/projects/ProjectDetailsModal';
 import { CreateEventModal } from '@/components/calendar/CreateEventModal';
@@ -38,6 +38,7 @@ import { DraggableCalendarItem, CalendarItem, getTypeColor, getTypeLabel } from 
 import { DroppableCalendarSlot } from '@/components/calendar/DroppableCalendarSlot';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 const typeIcons: Record<string, any> = {
   fotografia: Camera,
@@ -46,7 +47,14 @@ const typeIcons: Record<string, any> = {
 };
 
 export default function Calendario() {
-  const { projects, refresh, updateProject } = useProjects();
+  const { projects, refresh } = useFilteredProjects();
+  const updateProject = async (id: string, updates: any) => {
+    const { error } = await supabase
+      .from('projects')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (!error) refresh();
+  };
   const { events, createEvent, refresh: refreshEvents } = useCalendarEvents();
   const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());

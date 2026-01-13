@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Calendar as CalendarIcon, Download, FileText, Camera, Film, Video, Eye, X, Users } from 'lucide-react';
+import { Search, Filter, Calendar as CalendarIcon, Download, FileText, Camera, Film, Video, Eye, X, Users, Lock } from 'lucide-react';
 import { format, isWithinInterval, parseISO } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -26,10 +26,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useProjects } from '@/hooks/useProjects';
+import { useFilteredProjects } from '@/hooks/useFilteredProjects';
 import { useClients } from '@/hooks/useClients';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { ProjectDetailsModal } from '@/components/projects/ProjectDetailsModal';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
@@ -47,10 +48,11 @@ const typeLabels: Record<string, string> = {
 };
 
 export default function Finalizados() {
-  const { projects } = useProjects();
+  const { projects } = useFilteredProjects();
   const { clients } = useClients();
   const { currentWorkspace } = useWorkspace();
   const { members: workspaceMembers } = useWorkspaceMembers();
+  const { canViewAllFinancials } = useFinancialPermissions();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterClient, setFilterClient] = useState<string>('all');
   const [filterType, setFilterType] = useState<string>('all');
@@ -615,28 +617,32 @@ export default function Finalizados() {
         </Card>
       )}
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      {/* Summary Cards - Valores financeiros apenas para admin */}
+      <div className={cn("grid gap-4", canViewAllFinancials ? "grid-cols-2 md:grid-cols-3" : "grid-cols-1")}>
         <Card className="glass-card">
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Projetos Entregues</p>
             <p className="text-2xl font-bold">{completedProjects.length}</p>
           </CardContent>
         </Card>
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Receita Total</p>
-            <p className="text-2xl font-bold text-success">{formatCurrency(totalRevenue)}</p>
-          </CardContent>
-        </Card>
-        <Card className="glass-card hidden md:block">
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Média por Projeto</p>
-            <p className="text-2xl font-bold">
-              {formatCurrency(completedProjects.length > 0 ? totalRevenue / completedProjects.length : 0)}
-            </p>
-          </CardContent>
-        </Card>
+        {canViewAllFinancials && (
+          <>
+            <Card className="glass-card">
+              <CardContent className="p-4">
+                <p className="text-sm text-muted-foreground">Receita Total</p>
+                <p className="text-2xl font-bold text-success">{formatCurrency(totalRevenue)}</p>
+              </CardContent>
+            </Card>
+            <Card className="glass-card hidden md:block">
+              <CardContent className="p-4">
+                <p className="text-sm text-muted-foreground">Média por Projeto</p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(completedProjects.length > 0 ? totalRevenue / completedProjects.length : 0)}
+                </p>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       {/* Project Details Modal */}
