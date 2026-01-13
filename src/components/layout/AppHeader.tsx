@@ -79,19 +79,25 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
     };
   }, [searchFocused, hasQuery, searchQuery]);
 
+  const getProjectRoute = (isDelivered?: boolean, currentPhase?: 'captacao' | 'edicao') => {
+    if (isDelivered) return '/app/finalizados';
+    if (currentPhase === 'edicao') return '/app/edicao';
+    return '/app/captacao';
+  };
+
   const handleResultClick = (result: SearchResult) => {
     setSearchQuery('');
     setSearchFocused(false);
 
     switch (result.type) {
       case 'project':
-        navigate('/app/projetos');
+        navigate(getProjectRoute(result.isDelivered, result.currentPhase));
         break;
       case 'client':
         navigate('/app/clientes');
         break;
       case 'task':
-        navigate('/app/projetos');
+        navigate(getProjectRoute(result.isDelivered, result.currentPhase));
         break;
     }
   };
