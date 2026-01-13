@@ -140,12 +140,11 @@ export function useKanban(phase: KanbanPhase) {
       let teamByProject: Record<string, TeamMember[]> = {};
       
       if (projectIds.length > 0) {
-        // Fetch tasks FILTERED BY PHASE
+        // Fetch ALL tasks for projects (to show total progress on card, regardless of phase)
         const { data: tasksData } = await supabase
           .from('tasks')
           .select('id, project_id, is_completed, phase')
-          .in('project_id', projectIds)
-          .eq('phase', phase);
+          .in('project_id', projectIds);
 
         if (tasksData) {
           tasksData.forEach(task => {
@@ -158,7 +157,7 @@ export function useKanban(phase: KanbanPhase) {
             }
           });
 
-          // Fetch checklists for tasks in this phase
+          // Fetch ALL checklists for all tasks (to show complete project progress)
           const taskIds = tasksData.map(t => t.id);
           if (taskIds.length > 0) {
             const { data: checklistsData } = await supabase
