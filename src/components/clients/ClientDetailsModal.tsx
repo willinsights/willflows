@@ -94,7 +94,7 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
   const [showCommunicationModal, setShowCommunicationModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
   const { currentWorkspace } = useWorkspace();
-  const { canViewAllFinancials } = useFinancialPermissions();
+  const { canViewAllFinancials, canViewClientContacts } = useFinancialPermissions();
   
   const { 
     communications, 
@@ -234,9 +234,9 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
               <ScrollArea className="h-[60vh]">
                 {/* Info Tab */}
                 <TabsContent value="info" className="p-6 pt-4 space-y-6 mt-0">
-                  {/* Quick Actions */}
+                {/* Quick Actions */}
                   <div className="flex flex-wrap gap-2">
-                    {client.email && (
+                    {canViewClientContacts && client.email && (
                       <Button variant="outline" size="sm" asChild>
                         <a href={`mailto:${client.email}`}>
                           <Mail className="h-4 w-4 mr-2" />
@@ -244,7 +244,7 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
                         </a>
                       </Button>
                     )}
-                    {client.phone && (
+                    {canViewClientContacts && client.phone && (
                       <Button variant="outline" size="sm" asChild>
                         <a href={`tel:${client.phone}`}>
                           <Phone className="h-4 w-4 mr-2" />
@@ -281,24 +281,32 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
                         <div className="space-y-3">
                           <div>
                             <p className="text-xs text-muted-foreground">Email</p>
-                            {client.email ? (
-                              <a href={`mailto:${client.email}`} className="text-sm text-primary hover:underline flex items-center gap-1">
-                                <Mail className="h-3 w-3" />
-                                {client.email}
-                              </a>
+                            {canViewClientContacts ? (
+                              client.email ? (
+                                <a href={`mailto:${client.email}`} className="text-sm text-primary hover:underline flex items-center gap-1">
+                                  <Mail className="h-3 w-3" />
+                                  {client.email}
+                                </a>
+                              ) : (
+                                <p className="text-sm text-muted-foreground">—</p>
+                              )
                             ) : (
-                              <p className="text-sm text-muted-foreground">—</p>
+                              <p className="text-sm text-muted-foreground italic">Acesso restrito</p>
                             )}
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground">Telefone</p>
-                            {client.phone ? (
-                              <a href={`tel:${client.phone}`} className="text-sm text-primary hover:underline flex items-center gap-1">
-                                <Phone className="h-3 w-3" />
-                                {client.phone}
-                              </a>
+                            {canViewClientContacts ? (
+                              client.phone ? (
+                                <a href={`tel:${client.phone}`} className="text-sm text-primary hover:underline flex items-center gap-1">
+                                  <Phone className="h-3 w-3" />
+                                  {client.phone}
+                                </a>
+                              ) : (
+                                <p className="text-sm text-muted-foreground">—</p>
+                              )
                             ) : (
-                              <p className="text-sm text-muted-foreground">—</p>
+                              <p className="text-sm text-muted-foreground italic">Acesso restrito</p>
                             )}
                           </div>
                         </div>

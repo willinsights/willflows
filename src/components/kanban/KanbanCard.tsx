@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { ProjectWithClient } from '@/hooks/useKanban';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 
 interface KanbanCardProps {
   project: ProjectWithClient;
@@ -35,6 +36,7 @@ const priorityConfig = {
 };
 
 export function KanbanCard({ project, onClick }: KanbanCardProps) {
+  const { canViewTeamContacts } = useFinancialPermissions();
   const {
     attributes,
     listeners,
@@ -182,7 +184,10 @@ export function KanbanCard({ project, onClick }: KanbanCardProps) {
                       </Avatar>
                     </TooltipTrigger>
                     <TooltipContent side="top" className="text-[10px] px-2 py-1">
-                      <p>{member.profile?.full_name || member.profile?.email}</p>
+                      <p>
+                        {member.profile?.full_name || 
+                          (canViewTeamContacts ? member.profile?.email : 'Membro da equipa')}
+                      </p>
                       <p className="text-muted-foreground capitalize">{member.phase}</p>
                     </TooltipContent>
                   </Tooltip>

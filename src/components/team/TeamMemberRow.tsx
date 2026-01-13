@@ -31,6 +31,7 @@ import { TableCell, TableRow } from '@/components/ui/table';
 import type { WorkspaceMember } from '@/hooks/useWorkspaceMembers';
 import type { Database } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 
 type AppRole = Database['public']['Enums']['app_role'];
 
@@ -60,6 +61,7 @@ export function TeamMemberRow({
   const [editing, setEditing] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { canViewTeamContacts } = useFinancialPermissions();
 
   const roleInfo = roleConfig[member.role as AppRole] || roleConfig.visualizador;
 
@@ -73,6 +75,12 @@ export function TeamMemberRow({
         .slice(0, 2);
     }
     return email.charAt(0).toUpperCase();
+  };
+
+  const censorEmail = (email: string) => {
+    const [local, domain] = email.split('@');
+    if (!domain) return '***@***';
+    return `${local.slice(0, 2)}***@${domain.slice(0, 2)}***`;
   };
 
   const handleRoleChange = async (newRole: string) => {
@@ -117,7 +125,9 @@ export function TeamMemberRow({
                   </Badge>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground truncate">{member.email}</p>
+              <p className="text-sm text-muted-foreground truncate">
+                {canViewTeamContacts || isCurrentUser ? member.email : censorEmail(member.email)}
+              </p>
             </div>
           </div>
         </TableCell>
