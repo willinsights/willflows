@@ -25,7 +25,7 @@ interface TrialExpiredModalProps {
 const plans = [
   {
     id: 'starter',
-    name: 'Essencial',
+    name: 'Starter',
     features: ['1 workspace', '2 utilizadores', '20 projetos'],
   },
   {
