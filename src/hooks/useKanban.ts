@@ -211,28 +211,27 @@ export function useKanban(phase: KanbanPhase) {
         );
       
       if (shouldValidate) {
-        // Fetch tasks for this project
+        // Fetch ALL tasks for this project (not filtered by phase)
+        // The phase filtering is already done in shouldValidate based on item_type
         const { data: tasks } = await supabase
           .from('tasks')
           .select('id, is_completed, phase')
           .eq('project_id', projectId);
         
-        // Filter tasks by current phase before checking checklists
-        const phaseTasks = tasks?.filter(t => t.phase === phase) || [];
-        const taskIds = phaseTasks.map(t => t.id);
+        const allTaskIds = tasks?.map(t => t.id) || [];
         
         let incompleteChecklists = 0;
-        if (taskIds.length > 0) {
+        if (allTaskIds.length > 0) {
           const { data: checklists } = await supabase
             .from('task_checklists')
             .select('id, is_completed')
-            .in('task_id', taskIds);
+            .in('task_id', allTaskIds);
           
           incompleteChecklists = checklists?.filter(c => !c.is_completed).length || 0;
         }
         
-        // Count incomplete tasks for current phase
-        const incompleteTasks = phaseTasks.filter(t => !t.is_completed).length;
+        // Count all incomplete tasks for the project
+        const incompleteTasks = tasks?.filter(t => !t.is_completed).length || 0;
         
         if (incompleteTasks > 0 || incompleteChecklists > 0) {
           const parts = [];
