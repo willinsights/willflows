@@ -4,7 +4,7 @@ import { pt } from 'date-fns/locale';
 import { 
   Edit, Trash2, CheckCircle, Calendar, MapPin, User, Clock, 
   Link as LinkIcon, AlertTriangle, CheckSquare, Save, X,
-  ExternalLink, Video, Camera, Film, DollarSign, Users, Check, FileText, Folder, MessageSquare, Play, Copy
+  ExternalLink, Video, Camera, Film, DollarSign, Users, Check, FileText, Folder, MessageSquare, Play, Copy, RotateCcw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -103,6 +103,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [showReopenDialog, setShowReopenDialog] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [duplicateName, setDuplicateName] = useState('');
   const [duplicating, setDuplicating] = useState(false);
@@ -324,10 +325,51 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
   const checkAndComplete = async () => {
     if (!project) return;
     
-    const pending = checklists.filter(c => !c.is_completed);
+    const itemType = project.item_type || 'projeto_completo';
+    
+    // Reuniões podem ser concluídas sem validação
+    if (itemType === 'reuniao') {
+      await completeProject();
+      return;
+    }
+    
+    // Determinar fase a validar baseado no item_type e current_phase
+    let phaseToValidate: 'captacao' | 'edicao' | null = null;
+    
+    if (itemType === 'projeto_captacao' && project.current_phase === 'captacao') {
+      phaseToValidate = 'captacao';
+    } else if (itemType === 'projeto_edicao' && project.current_phase === 'edicao') {
+      phaseToValidate = 'edicao';
+    } else if (itemType === 'projeto_completo' && project.current_phase === 'edicao') {
+      phaseToValidate = 'edicao';
+    }
+    
+    // Se não há fase para validar, permitir conclusão
+    if (!phaseToValidate) {
+      await completeProject();
+      return;
+    }
+    
+    // Filtrar checklists apenas da fase a validar
+    const tasksInPhase = tasks.filter(t => t.phase === phaseToValidate);
+    const taskIdsInPhase = new Set(tasksInPhase.map(t => t.id));
+    const relevantChecklists = checklists.filter(c => taskIdsInPhase.has(c.task_id));
+    
+    const pending = relevantChecklists.filter(c => !c.is_completed);
     if (pending.length > 0) {
       setPendingChecklistItems(pending);
       setShowCompleteDialog(true);
+      return;
+    }
+    
+    // Verificar se todas as tarefas da fase estão completas
+    const incompleteTasks = tasksInPhase.filter(t => !t.is_completed);
+    if (incompleteTasks.length > 0) {
+      toast({
+        title: 'Tarefas incompletas',
+        description: `Existem ${incompleteTasks.length} tarefa(s) por concluir.`,
+        variant: 'destructive',
+      });
       return;
     }
     
@@ -356,6 +398,32 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
       onUpdate();
     } catch (error: any) {
       toast({ title: 'Erro ao concluir', description: error.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReopenProject = async () => {
+    if (!project) return;
+    setLoading(true);
+    
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({
+          is_delivered: false,
+          delivered_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', project.id);
+      
+      if (error) throw error;
+      
+      toast({ title: 'Projeto reaberto com sucesso' });
+      setShowReopenDialog(false);
+      onUpdate();
+    } catch (error: any) {
+      toast({ title: 'Erro ao reabrir', description: error.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -1142,6 +1210,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
                   projectId={project.id}
                   taskId={firstTaskId}
                   workspaceId={project.workspace_id}
+                  currentPhase={project.current_phase}
                 />
               </TabsContent>
 
@@ -1234,7 +1303,17 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
                     <Edit className="h-4 w-4 mr-2" />
                     Editar
                   </Button>
-                  {!project.is_delivered && (
+                  {project.is_delivered ? (
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="border-warning text-warning hover:bg-warning/10"
+                      onClick={() => setShowReopenDialog(true)}
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Reabrir
+                    </Button>
+                  ) : (
                     <Button size="sm" className="gradient-primary" onClick={checkAndComplete}>
                       <CheckCircle className="h-4 w-4 mr-2" />
                       Concluir
@@ -1323,6 +1402,27 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
             <AlertDialogCancel disabled={duplicating}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDuplicate} disabled={duplicating || !duplicateName.trim()}>
               {duplicating ? 'A duplicar...' : 'Duplicar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reopen Project Dialog */}
+      <AlertDialog open={showReopenDialog} onOpenChange={setShowReopenDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-warning">
+              <RotateCcw className="h-5 w-5" />
+              Reabrir Projeto?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              O projeto será movido de volta para edição ativa. Poderá ser concluído novamente após completar todas as tarefas pendentes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleReopenProject} disabled={loading}>
+              {loading ? 'A reabrir...' : 'Reabrir Projeto'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
