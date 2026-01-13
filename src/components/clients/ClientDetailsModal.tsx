@@ -28,6 +28,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useClientCommunications } from '@/hooks/useClientCommunications';
 import { useClientNotes } from '@/hooks/useClientNotes';
 import { CreateCommunicationModal } from './CreateCommunicationModal';
@@ -93,6 +94,7 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
   const [showCommunicationModal, setShowCommunicationModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
   const { currentWorkspace } = useWorkspace();
+  const { canViewAllFinancials } = useFinancialPermissions();
   
   const { 
     communications, 
@@ -196,10 +198,12 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
                       {client.company}
                     </Badge>
                   )}
-                  <Badge variant="outline" className="gap-1 bg-success/10 text-success border-success/20">
-                    <Euro className="h-3 w-3" />
-                    {formatCurrency(stats.totalRevenue)} receita
-                  </Badge>
+                  {canViewAllFinancials && (
+                    <Badge variant="outline" className="gap-1 bg-success/10 text-success border-success/20">
+                      <Euro className="h-3 w-3" />
+                      {formatCurrency(stats.totalRevenue)} receita
+                    </Badge>
+                  )}
                   <Badge variant="outline" className="gap-1 bg-primary/10 text-primary border-primary/20">
                     <Video className="h-3 w-3" />
                     {stats.totalProjects} projetos
@@ -460,7 +464,7 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
                 {/* Projects Tab */}
                 <TabsContent value="projects" className="p-6 pt-4 space-y-6 mt-0">
                   {/* Summary Stats - Compact */}
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className={cn("grid gap-3", canViewAllFinancials ? "grid-cols-4" : "grid-cols-2")}>
                     <div className="text-center p-3 rounded-lg bg-muted/50">
                       <p className="text-xl font-bold">{stats.totalProjects}</p>
                       <p className="text-xs text-muted-foreground">Total</p>
@@ -469,14 +473,18 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
                       <p className="text-xl font-bold text-primary">{stats.activeProjects}</p>
                       <p className="text-xs text-muted-foreground">Ativos</p>
                     </div>
-                    <div className="text-center p-3 rounded-lg bg-success/10">
-                      <p className="text-xl font-bold text-success">{formatCurrency(stats.totalRevenue)}</p>
-                      <p className="text-xs text-muted-foreground">Receita</p>
-                    </div>
-                    <div className="text-center p-3 rounded-lg bg-muted/50">
-                      <p className="text-xl font-bold">{stats.marginPercent.toFixed(0)}%</p>
-                      <p className="text-xs text-muted-foreground">Margem</p>
-                    </div>
+                    {canViewAllFinancials && (
+                      <>
+                        <div className="text-center p-3 rounded-lg bg-success/10">
+                          <p className="text-xl font-bold text-success">{formatCurrency(stats.totalRevenue)}</p>
+                          <p className="text-xs text-muted-foreground">Receita</p>
+                        </div>
+                        <div className="text-center p-3 rounded-lg bg-muted/50">
+                          <p className="text-xl font-bold">{stats.marginPercent.toFixed(0)}%</p>
+                          <p className="text-xs text-muted-foreground">Margem</p>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Projects Table */}
@@ -493,8 +501,12 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
                             <th className="text-left p-3 font-medium">Projeto</th>
                             <th className="text-left p-3 font-medium">Fase</th>
                             <th className="text-left p-3 font-medium">Status</th>
-                            <th className="text-right p-3 font-medium">Valor</th>
-                            <th className="text-right p-3 font-medium">Margem</th>
+                            {canViewAllFinancials && (
+                              <>
+                                <th className="text-right p-3 font-medium">Valor</th>
+                                <th className="text-right p-3 font-medium">Margem</th>
+                              </>
+                            )}
                             <th className="text-center p-3 font-medium">Pagamento</th>
                           </tr>
                         </thead>
@@ -538,12 +550,16 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
                                     {project.is_delivered ? 'Entregue' : phaseLabels[project.current_phase] || 'Em progresso'}
                                   </Badge>
                                 </td>
-                                <td className="p-3 text-right font-medium text-success">
-                                  {formatCurrency(project.agreed_value || 0)}
-                                </td>
-                                <td className="p-3 text-right font-medium">
-                                  {formatCurrency(margin)}
-                                </td>
+                                {canViewAllFinancials && (
+                                  <>
+                                    <td className="p-3 text-right font-medium text-success">
+                                      {formatCurrency(project.agreed_value || 0)}
+                                    </td>
+                                    <td className="p-3 text-right font-medium">
+                                      {formatCurrency(margin)}
+                                    </td>
+                                  </>
+                                )}
                                 <td className="p-3 text-center">
                                   <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-500 border-amber-500/20">
                                     Pendente
@@ -554,7 +570,7 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
                           })}
                           {projects.length === 0 && (
                             <tr>
-                              <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                              <td colSpan={canViewAllFinancials ? 7 : 5} className="p-8 text-center text-muted-foreground">
                                 Nenhum projeto encontrado
                               </td>
                             </tr>
@@ -564,8 +580,8 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
                     </div>
                   </div>
 
-                  {/* Monthly Evolution */}
-                  {monthlyData.length > 0 && (
+                  {/* Monthly Evolution - only for admin */}
+                  {canViewAllFinancials && monthlyData.length > 0 && (
                     <div>
                       <h4 className="font-semibold mb-3">Evolução Mensal</h4>
                       <div className="space-y-2">

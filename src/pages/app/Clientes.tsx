@@ -12,7 +12,8 @@ import {
   ArrowUpDown, 
   MoreVertical,
   Eye,
-  Trash2
+  Trash2,
+  Lock
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -38,6 +39,7 @@ import {
 import { useClients } from '@/hooks/useClients';
 import { useProjects } from '@/hooks/useProjects';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { CreateClientModal } from '@/components/clients/CreateClientModal';
 import { ClientDetailsModal } from '@/components/clients/ClientDetailsModal';
 import { cn } from '@/lib/utils';
@@ -46,6 +48,7 @@ export default function Clientes() {
   const { clients, loading, deleteClient } = useClients();
   const { projects } = useProjects();
   const { currentWorkspace } = useWorkspace();
+  const { canViewAllFinancials } = useFinancialPermissions();
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
@@ -278,24 +281,34 @@ export default function Clientes() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-muted-foreground">Receita Total</p>
-              <Euro className="h-5 w-5 text-success" />
+              {canViewAllFinancials ? (
+                <Euro className="h-5 w-5 text-success" />
+              ) : (
+                <Lock className="h-5 w-5 text-muted-foreground" />
+              )}
             </div>
-            <p className="text-2xl font-bold text-success">{formatCurrency(globalStats.totalRevenue)}</p>
-            {globalStats.revenueChange !== null ? (
-              <p className={cn(
-                "text-xs mt-1 flex items-center gap-1",
-                globalStats.revenueChange >= 0 ? "text-success" : "text-destructive"
-              )}>
-                {globalStats.revenueChange >= 0 ? (
-                  <TrendingUp className="h-3 w-3" />
-                ) : (
-                  <TrendingDown className="h-3 w-3" />
-                )}
-                {globalStats.revenueChange >= 0 ? '+' : ''}{globalStats.revenueChange}% vs mês anterior
-              </p>
-            ) : globalStats.totalRevenue > 0 ? (
-              <p className="text-xs text-muted-foreground mt-1">Sem dados do mês anterior</p>
-            ) : null}
+            {canViewAllFinancials ? (
+              <>
+                <p className="text-2xl font-bold text-success">{formatCurrency(globalStats.totalRevenue)}</p>
+                {globalStats.revenueChange !== null ? (
+                  <p className={cn(
+                    "text-xs mt-1 flex items-center gap-1",
+                    globalStats.revenueChange >= 0 ? "text-success" : "text-destructive"
+                  )}>
+                    {globalStats.revenueChange >= 0 ? (
+                      <TrendingUp className="h-3 w-3" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3" />
+                    )}
+                    {globalStats.revenueChange >= 0 ? '+' : ''}{globalStats.revenueChange}% vs mês anterior
+                  </p>
+                ) : globalStats.totalRevenue > 0 ? (
+                  <p className="text-xs text-muted-foreground mt-1">Sem dados do mês anterior</p>
+                ) : null}
+              </>
+            ) : (
+              <p className="text-2xl font-bold text-muted-foreground">---</p>
+            )}
           </CardContent>
         </Card>
 
@@ -303,24 +316,34 @@ export default function Clientes() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-muted-foreground">Valor Médio/Projeto</p>
-              <TrendingUp className="h-5 w-5 text-primary" />
+              {canViewAllFinancials ? (
+                <TrendingUp className="h-5 w-5 text-primary" />
+              ) : (
+                <Lock className="h-5 w-5 text-muted-foreground" />
+              )}
             </div>
-            <p className="text-2xl font-bold">{formatCurrency(globalStats.avgProjectValue)}</p>
-            {globalStats.avgValueChange !== null ? (
-              <p className={cn(
-                "text-xs mt-1 flex items-center gap-1",
-                globalStats.avgValueChange >= 0 ? "text-success" : "text-destructive"
-              )}>
-                {globalStats.avgValueChange >= 0 ? (
-                  <TrendingUp className="h-3 w-3" />
-                ) : (
-                  <TrendingDown className="h-3 w-3" />
-                )}
-                {globalStats.avgValueChange >= 0 ? '+' : ''}{globalStats.avgValueChange}% vs mês anterior
-              </p>
-            ) : globalStats.avgProjectValue > 0 ? (
-              <p className="text-xs text-muted-foreground mt-1">Sem dados do mês anterior</p>
-            ) : null}
+            {canViewAllFinancials ? (
+              <>
+                <p className="text-2xl font-bold">{formatCurrency(globalStats.avgProjectValue)}</p>
+                {globalStats.avgValueChange !== null ? (
+                  <p className={cn(
+                    "text-xs mt-1 flex items-center gap-1",
+                    globalStats.avgValueChange >= 0 ? "text-success" : "text-destructive"
+                  )}>
+                    {globalStats.avgValueChange >= 0 ? (
+                      <TrendingUp className="h-3 w-3" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3" />
+                    )}
+                    {globalStats.avgValueChange >= 0 ? '+' : ''}{globalStats.avgValueChange}% vs mês anterior
+                  </p>
+                ) : globalStats.avgProjectValue > 0 ? (
+                  <p className="text-xs text-muted-foreground mt-1">Sem dados do mês anterior</p>
+                ) : null}
+              </>
+            ) : (
+              <p className="text-2xl font-bold text-muted-foreground">---</p>
+            )}
           </CardContent>
         </Card>
 
@@ -400,11 +423,13 @@ export default function Clientes() {
                           </div>
                           
                           <div className="flex items-center gap-4">
-                            {/* Revenue */}
-                            <div className="text-right">
-                              <p className="text-xs text-muted-foreground">Receita</p>
-                              <p className="font-semibold text-success">{formatCurrency(stats.totalRevenue)}</p>
-                            </div>
+                            {/* Revenue - only visible to admin */}
+                            {canViewAllFinancials && (
+                              <div className="text-right">
+                                <p className="text-xs text-muted-foreground">Receita</p>
+                                <p className="font-semibold text-success">{formatCurrency(stats.totalRevenue)}</p>
+                              </div>
+                            )}
                             
                             {/* Projects Count */}
                             <div className="text-right">
