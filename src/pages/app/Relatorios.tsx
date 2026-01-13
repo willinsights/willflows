@@ -65,7 +65,7 @@ export default function Relatorios() {
     }).format(value);
   };
 
-  // Calculate monthly revenue data
+  // Calculate monthly revenue data - USAR delivered_at para projetos entregues
   const monthlyData = useMemo(() => {
     const months = [];
     const periodMonths = parseInt(period);
@@ -75,14 +75,17 @@ export default function Relatorios() {
       const start = startOfMonth(date);
       const end = endOfMonth(date);
       
+      // Filtrar apenas projetos ENTREGUES no período (usar delivered_at)
       const monthProjects = projects.filter(p => {
-        if (!p.created_at) return false;
-        const created = new Date(p.created_at);
-        return isWithinInterval(created, { start, end });
+        if (!p.is_delivered || !p.delivered_at) return false;
+        const delivered = new Date(p.delivered_at);
+        return isWithinInterval(delivered, { start, end });
       });
       
       const revenue = monthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
-      const costs = monthProjects.reduce((sum, p) => sum + (p.custo_captacao || 0) + (p.custo_edicao || 0), 0);
+      // Incluir TODOS os custos: captação + edição + extras
+      const costs = monthProjects.reduce((sum, p) => 
+        sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
       
       months.push({
         month: format(date, 'MMM', { locale: pt }),
@@ -146,11 +149,14 @@ export default function Relatorios() {
     return Object.entries(priorities).map(([name, value]) => ({ name, value }));
   }, [projects]);
 
-  // Summary metrics
+  // Summary metrics - Apenas projetos ENTREGUES para métricas financeiras
   const summaryMetrics = useMemo(() => {
-    const totalRevenue = projects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
-    const totalCosts = projects.reduce((sum, p) => sum + (p.custo_captacao || 0) + (p.custo_edicao || 0), 0);
-    const avgProjectValue = projects.length > 0 ? totalRevenue / projects.length : 0;
+    const deliveredProjects = projects.filter(p => p.is_delivered);
+    const totalRevenue = deliveredProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
+    // Incluir TODOS os custos: captação + edição + extras
+    const totalCosts = deliveredProjects.reduce((sum, p) => 
+      sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
+    const avgProjectValue = deliveredProjects.length > 0 ? totalRevenue / deliveredProjects.length : 0;
     
     return {
       totalRevenue,
@@ -159,6 +165,7 @@ export default function Relatorios() {
       margin: totalRevenue > 0 ? ((totalRevenue - totalCosts) / totalRevenue * 100) : 0,
       avgProjectValue,
       totalProjects: projects.length,
+      deliveredProjects: deliveredProjects.length,
       activeClients: clients.filter(c => c.is_active).length,
     };
   }, [projects, clients]);
