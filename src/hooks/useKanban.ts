@@ -34,15 +34,65 @@ export interface KanbanColumnWithProjects extends KanbanColumn {
   projects: ProjectWithClient[];
 }
 
+export interface PendingAlertState {
+  open: boolean;
+  items: Array<{ id: string; title: string }>;
+  tasks: number;
+  checklists: number;
+  message?: string;
+}
+
+const initialPendingAlert: PendingAlertState = {
+  open: false,
+  items: [],
+  tasks: 0,
+  checklists: 0,
+};
+
 export function useKanban(phase: KanbanPhase) {
   const { currentWorkspace, fetchError } = useWorkspace();
   const { toast } = useToast();
   const [columns, setColumns] = useState<KanbanColumnWithProjects[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingAlert, setPendingAlert] = useState<PendingAlertState>(initialPendingAlert);
   
   // Refs to prevent duplicate fetches
   const isFetchingRef = useRef(false);
   const lastFetchedKeyRef = useRef<string | null>(null);
+
+  const clearPendingAlert = useCallback(() => {
+    setPendingAlert(initialPendingAlert);
+  }, []);
+
+  // Helper to fetch pending checklist items for a project
+  const fetchPendingChecklistItems = async (projectId: string, projectPhase: KanbanPhase): Promise<Array<{ id: string; title: string }>> => {
+    try {
+      // First get all tasks for this project in the current phase
+      const { data: tasks, error: tasksError } = await supabase
+        .from('tasks')
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('phase', projectPhase);
+      
+      if (tasksError || !tasks?.length) return [];
+      
+      const taskIds = tasks.map(t => t.id);
+      
+      // Then get incomplete checklist items for those tasks
+      const { data: checklists, error: checklistsError } = await supabase
+        .from('task_checklists')
+        .select('id, title')
+        .in('task_id', taskIds)
+        .eq('is_completed', false)
+        .order('position', { ascending: true });
+      
+      if (checklistsError) return [];
+      
+      return checklists?.map(c => ({ id: c.id, title: c.title })) || [];
+    } catch {
+      return [];
+    }
+  };
 
   const fetchColumns = useCallback(async () => {
     if (!currentWorkspace?.id || fetchError) return;
@@ -281,25 +331,36 @@ export function useKanban(phase: KanbanPhase) {
       console.warn('[deliver_project RPC result]', { data, error });
       
       if (error) {
-        // Capture trigger error
-        const errorMessage = error.message.includes('CHECKLIST_INCOMPLETE')
-          ? error.message.replace('CHECKLIST_INCOMPLETE: ', '')
-          : handleDatabaseError('moveProject', error);
-        
-        toast({
-          title: 'Não é possível entregar',
-          description: errorMessage,
-          variant: 'destructive',
-        });
+        // Capture trigger error - fetch pending items for rich alert
+        if (error.message.includes('CHECKLIST_INCOMPLETE')) {
+          const pendingItems = await fetchPendingChecklistItems(projectId, phase);
+          setPendingAlert({
+            open: true,
+            items: pendingItems,
+            tasks: 0,
+            checklists: pendingItems.length,
+            message: error.message.replace('CHECKLIST_INCOMPLETE: ', ''),
+          });
+        } else {
+          toast({
+            title: 'Não é possível entregar',
+            description: handleDatabaseError('moveProject', error),
+            variant: 'destructive',
+          });
+        }
         return;
       }
       
       const result = data as { can_deliver: boolean; reason: string | null; pending_tasks: number; pending_checklists: number } | null;
       if (result && !result.can_deliver) {
-        toast({
-          title: 'Checklist incompleta',
-          description: result.reason || 'Existem itens pendentes.',
-          variant: 'destructive',
+        // Fetch pending items for rich alert
+        const pendingItems = await fetchPendingChecklistItems(projectId, phase);
+        setPendingAlert({
+          open: true,
+          items: pendingItems,
+          tasks: result.pending_tasks,
+          checklists: result.pending_checklists,
+          message: result.reason || undefined,
         });
         return;
       }
@@ -549,5 +610,7 @@ export function useKanban(phase: KanbanPhase) {
     addColumn,
     deleteColumn,
     refresh: fetchColumns,
+    pendingAlert,
+    clearPendingAlert,
   };
 }

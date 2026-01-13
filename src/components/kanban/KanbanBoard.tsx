@@ -20,6 +20,7 @@ import { KanbanCard } from './KanbanCard';
 import { KanbanFilters, KanbanFilterState } from './KanbanFilters';
 import { CreateProjectModal } from '@/components/projects/CreateProjectModal';
 import { ProjectDetailsModal } from '@/components/projects/ProjectDetailsModal';
+import { ChecklistPendingAlert } from '@/components/projects/ChecklistPendingAlert';
 import { useKanban, KanbanPhase, ProjectWithClient } from '@/hooks/useKanban';
 import { useCategories } from '@/hooks/useCategories';
 
@@ -37,8 +38,15 @@ const defaultFilters: KanbanFilterState = {
   categoryId: null,
 };
 
+interface PendingAlertData {
+  items: Array<{ id: string; title: string }>;
+  tasks: number;
+  checklists: number;
+  message?: string;
+}
+
 export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
-  const { columns, loading, moveProject, updateColumn, addColumn, deleteColumn, refresh } = useKanban(phase);
+  const { columns, loading, moveProject, updateColumn, addColumn, deleteColumn, refresh, pendingAlert, clearPendingAlert } = useKanban(phase);
   const { categories } = useCategories();
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<KanbanFilterState>(defaultFilters);
@@ -352,6 +360,16 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
         onOpenChange={(open) => !open && setSelectedProjectId(null)}
         project={selectedProject}
         onUpdate={refresh}
+      />
+
+      {/* Checklist Pending Alert - shown when trying to deliver with incomplete items */}
+      <ChecklistPendingAlert
+        open={pendingAlert.open}
+        onOpenChange={(open) => !open && clearPendingAlert()}
+        pendingItems={pendingAlert.items}
+        pendingTasksCount={pendingAlert.tasks}
+        pendingChecklistsCount={pendingAlert.checklists}
+        message={pendingAlert.message}
       />
     </div>
   );
