@@ -212,7 +212,7 @@ export default function Pricing() {
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-success/10 border border-success/20 text-success mb-6">
               <CreditCard className="h-4 w-4" />
               <span className="text-sm font-medium">
-                ✅ 7 dias grátis com cartão (cobrança só após o trial)
+                ✅ 7 dias grátis • Sem cartão necessário
               </span>
             </div>
 
