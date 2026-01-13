@@ -2,6 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { FullPageLoader } from '@/components/layout/FullPageLoader';
+import { useState, useEffect } from 'react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -17,6 +18,20 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading: authLoading, subscription } = useAuth();
   const { allWorkspaces, loading: workspaceLoading, currentWorkspace, fetchError } = useWorkspace();
   const location = useLocation();
+  
+  // State to ensure initial data load is complete before any navigation decisions
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
+
+  // Only mark initial check as done when ALL loading is complete
+  useEffect(() => {
+    if (!authLoading && !workspaceLoading && !subscription.loading) {
+      // Small delay to ensure state is fully propagated
+      const timer = setTimeout(() => {
+        setInitialCheckDone(true);
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [authLoading, workspaceLoading, subscription.loading]);
 
   // Show branded loading while checking auth
   if (authLoading) {
@@ -28,14 +43,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // IMPORTANT: Wait for workspace data to fully load before making any navigation decisions
+  // IMPORTANT: Wait for ALL data to fully load before making any navigation decisions
   // This prevents the flash of onboarding page when user has workspaces
-  if (workspaceLoading) {
-    return <FullPageLoader />;
-  }
-
-  // Wait for subscription data to load
-  if (subscription.loading) {
+  if (workspaceLoading || subscription.loading || !initialCheckDone) {
     return <FullPageLoader />;
   }
 

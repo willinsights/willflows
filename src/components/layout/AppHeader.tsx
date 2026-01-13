@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Menu, Search, Plus, FolderOpen, User2, CheckSquare, X } from 'lucide-react';
@@ -41,10 +41,32 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const [selectedProject, setSelectedProject] = useState<ProjectWithClient | null>(null);
   const [projectModalOpen, setProjectModalOpen] = useState(false);
   const [loadingProject, setLoadingProject] = useState(false);
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { results, loading, hasQuery } = useGlobalSearch(searchQuery);
+
+  // Fetch user avatar from profiles table, fallback to Google avatar
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchAvatar = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', user.id)
+        .single();
+      
+      if (data?.avatar_url) {
+        setUserAvatarUrl(data.avatar_url);
+      } else if (user.user_metadata?.avatar_url || user.user_metadata?.picture) {
+        setUserAvatarUrl(user.user_metadata?.avatar_url || user.user_metadata?.picture);
+      }
+    };
+    
+    fetchAvatar();
+  }, [user]);
 
   // Close search results when clicking outside
   useEffect(() => {
@@ -286,8 +308,8 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
               setAccountModalOpen(true);
             }}
           >
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={user?.user_metadata?.avatar_url} />
+          <Avatar className="h-8 w-8">
+              <AvatarImage src={userAvatarUrl || undefined} />
               <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
                 {getInitials(userName)}
               </AvatarFallback>

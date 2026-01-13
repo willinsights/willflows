@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Settings, User, Users, Shield, Palette, Loader2, Database as DatabaseIcon, Clock, Trash2, RefreshCw, X, Calendar, Video, AlertTriangle, LogOut } from 'lucide-react';
+import { Settings, User, Users, Shield, Palette, Loader2, Database as DatabaseIcon, Clock, Trash2, RefreshCw, X, Calendar, Video, AlertTriangle, LogOut, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -65,6 +65,8 @@ export default function Configuracoes() {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   
   // Team invite state
   const [inviteEmail, setInviteEmail] = useState('');
@@ -110,13 +112,91 @@ export default function Configuracoes() {
     }
   }, [currentWorkspace]);
 
-  // Sync profile state with user data
+  // Sync profile state with user data and fetch avatar from profiles table
   useEffect(() => {
     if (user) {
       setFullName(user.user_metadata?.full_name || '');
       setPhone(user.user_metadata?.phone || '');
+      
+      // Fetch avatar from profiles table
+      const fetchProfile = async () => {
+        const { data } = await supabase
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', user.id)
+          .single();
+        
+        if (data?.avatar_url) {
+          setAvatarUrl(data.avatar_url);
+        } else if (user.user_metadata?.avatar_url || user.user_metadata?.picture) {
+          // Fallback to Google avatar if no custom avatar
+          setAvatarUrl(user.user_metadata?.avatar_url || user.user_metadata?.picture);
+        }
+      };
+      fetchProfile();
     }
   }, [user]);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Ficheiro inválido',
+        description: 'Por favor, selecione uma imagem.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: 'Ficheiro muito grande',
+        description: 'A imagem deve ter no máximo 2MB.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setUploadingAvatar(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${user.id}/avatar.${fileExt}`;
+      
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+      
+      if (uploadError) throw uploadError;
+      
+      // Get public URL
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      const publicUrl = `${data.publicUrl}?t=${Date.now()}`; // Cache bust
+      
+      // Update profiles table
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+      
+      if (updateError) throw updateError;
+      
+      setAvatarUrl(publicUrl);
+      toast({ title: 'Foto de perfil atualizada!' });
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao fazer upload',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const handleSaveGeneral = async () => {
     if (!currentWorkspace) return;
@@ -531,14 +611,34 @@ export default function Configuracoes() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-primary">
-                      {user?.email?.charAt(0).toUpperCase()}
-                    </span>
+                  <div className="relative group">
+                    <Avatar className="w-20 h-20">
+                      <AvatarImage src={avatarUrl || undefined} />
+                      <AvatarFallback className="text-2xl bg-primary/10 text-primary">
+                        {user?.email?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                      {uploadingAvatar ? (
+                        <Loader2 className="h-6 w-6 text-white animate-spin" />
+                      ) : (
+                        <Camera className="h-6 w-6 text-white" />
+                      )}
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={handleAvatarUpload}
+                        disabled={uploadingAvatar}
+                      />
+                    </label>
                   </div>
                   <div>
                     <p className="font-medium">{user?.user_metadata?.full_name || 'Utilizador'}</p>
                     <p className="text-sm text-muted-foreground">{user?.email}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Clique na foto para alterar
+                    </p>
                   </div>
                 </div>
 

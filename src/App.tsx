@@ -21,6 +21,8 @@ const Security = lazy(() => import("./pages/Security"));
 const Help = lazy(() => import("./pages/Help"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Blog = lazy(() => import("./pages/Blog"));
+const BlogPost = lazy(() => import("./pages/BlogPost"));
 
 // Lazy loaded protected pages
 const Onboarding = lazy(() => import("./pages/Onboarding"));
@@ -72,6 +74,8 @@ const App = () => (
                   <Route path="/integracoes" element={<Integrations />} />
                   <Route path="/seguranca" element={<Security />} />
                   <Route path="/ajuda" element={<Help />} />
+                  <Route path="/blog" element={<Blog />} />
+                  <Route path="/blog/:slug" element={<BlogPost />} />
                   <Route path="/convite" element={<AcceptInvite />} />
                   
                   {/* Protected Routes */}
