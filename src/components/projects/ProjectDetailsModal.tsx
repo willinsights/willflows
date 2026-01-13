@@ -45,6 +45,7 @@ import { ProjectChecklistTab } from './ProjectChecklistTab';
 import { ProjectCommentsTab } from './ProjectCommentsTab';
 import { ProjectMediaTab } from './ProjectMediaTab';
 import { ProjectFinancialTab } from './ProjectFinancialTab';
+import { ChecklistPendingAlert } from './ChecklistPendingAlert';
 
 type Task = Tables<'tasks'>;
 type TaskChecklist = Tables<'task_checklists'>;
@@ -1359,35 +1360,12 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
       </AlertDialog>
 
       {/* Complete with Pending Checklist Dialog */}
-      <AlertDialog open={showCompleteDialog} onOpenChange={setShowCompleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-yellow-500">
-              <AlertTriangle className="h-5 w-5" />
-              Checklist Incompleta
-            </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <p>Existem {pendingChecklistItems.length} itens pendentes na checklist:</p>
-              <ul className="list-disc pl-5 space-y-1">
-                {pendingChecklistItems.slice(0, 5).map((item) => (
-                  <li key={item.id}>{item.title}</li>
-                ))}
-                {pendingChecklistItems.length > 5 && (
-                  <li>... e mais {pendingChecklistItems.length - 5} itens</li>
-                )}
-              </ul>
-              <p className="font-medium text-foreground">
-                Complete todos os itens antes de concluir o projeto.
-              </p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setShowCompleteDialog(false)}>
-              Entendido
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ChecklistPendingAlert
+        open={showCompleteDialog}
+        onOpenChange={setShowCompleteDialog}
+        pendingItems={pendingChecklistItems.map(item => ({ id: item.id, title: item.title }))}
+        pendingChecklistsCount={pendingChecklistItems.length}
+      />
 
       {/* Duplicate Project Dialog */}
       <AlertDialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
