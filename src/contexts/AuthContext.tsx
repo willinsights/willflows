@@ -34,8 +34,8 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Get subscription data from the dedicated hook
-  const { subscription: userSubscription, loading: subscriptionLoading } = useUserSubscription();
+  // Get subscription data from the dedicated hook - pass user/session directly to avoid circular dependency
+  const { subscription: userSubscription, loading: subscriptionLoading } = useUserSubscription({ user, session });
 
   useEffect(() => {
     // Set up auth state listener FIRST

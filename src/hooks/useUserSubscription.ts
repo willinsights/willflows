@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { PLAN_LIMITS, getPlanLimits, PLAN_DB_MAPPING, type PlanId } from '@/lib/plans';
+import { User, Session } from '@supabase/supabase-js';
+import { getPlanLimits } from '@/lib/plans';
 import { logger } from '@/lib/logger';
 
 // Database subscription plan type
@@ -36,11 +36,22 @@ export interface UserSubscriptionState {
   error: string | null;
 }
 
+// Props for when user/session are passed directly (used by AuthContext)
+interface UseUserSubscriptionProps {
+  user?: User | null;
+  session?: Session | null;
+}
+
 // Use centralized plan limits
 const DEFAULT_LIMITS = getPlanLimits('starter');
 
-export function useUserSubscription() {
-  const { user, session } = useAuth();
+export function useUserSubscription(props?: UseUserSubscriptionProps) {
+  // Get user/session from props (for AuthContext) or we'll fetch directly
+  const [authState, setAuthState] = useState<{ user: User | null; session: Session | null }>({
+    user: props?.user ?? null,
+    session: props?.session ?? null,
+  });
+  
   const [state, setState] = useState<UserSubscriptionState>({
     subscription: null,
     limits: DEFAULT_LIMITS,
@@ -53,6 +64,29 @@ export function useUserSubscription() {
   const isFetchingRef = useRef(false);
   const lastFetchRef = useRef<number>(0);
   const FETCH_COOLDOWN_MS = 5000;
+
+  // If props are provided, use them directly, otherwise fetch auth state
+  useEffect(() => {
+    if (props?.user !== undefined) {
+      setAuthState({ user: props.user, session: props.session ?? null });
+      return;
+    }
+
+    // No props provided, fetch auth state directly from supabase
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setAuthState({ user: session?.user ?? null, session });
+    });
+
+    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setAuthState({ user: session?.user ?? null, session });
+      }
+    );
+
+    return () => authSubscription.unsubscribe();
+  }, [props?.user, props?.session]);
+
+  const { user, session } = authState;
 
   const fetchSubscription = useCallback(async () => {
     if (!user?.id || !session) {
