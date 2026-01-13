@@ -213,8 +213,9 @@ export function useKanban(phase: KanbanPhase) {
           .select('id, is_completed, phase')
           .eq('project_id', projectId);
         
-        // Get task IDs to fetch checklists
-        const taskIds = tasks?.map(t => t.id) || [];
+        // Filter tasks by current phase before checking checklists
+        const phaseTasks = tasks?.filter(t => t.phase === phase) || [];
+        const taskIds = phaseTasks.map(t => t.id);
         
         let incompleteChecklists = 0;
         if (taskIds.length > 0) {
@@ -227,7 +228,7 @@ export function useKanban(phase: KanbanPhase) {
         }
         
         // Count incomplete tasks for current phase
-        const incompleteTasks = tasks?.filter(t => !t.is_completed && t.phase === phase).length || 0;
+        const incompleteTasks = phaseTasks.filter(t => !t.is_completed).length;
         
         if (incompleteTasks > 0 || incompleteChecklists > 0) {
           const parts = [];
