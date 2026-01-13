@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useProjects } from '@/hooks/useProjects';
+import { useFilteredProjects } from '@/hooks/useFilteredProjects';
 import { useClients } from '@/hooks/useClients';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -84,7 +84,7 @@ const getMediaBgColor = (type: string) => {
 };
 
 export default function Media() {
-  const { projects } = useProjects();
+  const { projects } = useFilteredProjects();
   const { clients } = useClients();
   const { currentWorkspace } = useWorkspace();
   const [searchQuery, setSearchQuery] = useState('');

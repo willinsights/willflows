@@ -36,6 +36,7 @@ import { useClients } from '@/hooks/useClients';
 import { useCategories } from '@/hooks/useCategories';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { cn } from '@/lib/utils';
 import type { ProjectWithClient } from '@/hooks/useKanban';
 import type { Tables } from '@/integrations/supabase/types';
@@ -96,6 +97,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
   const { categories } = useCategories();
   const { members: workspaceMembers } = useWorkspaceMembers();
   const { isAdmin } = useWorkspace();
+  const { canViewOwnFinancials } = useFinancialPermissions();
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
@@ -384,12 +386,12 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
           </DialogHeader>
 
           <Tabs defaultValue="details" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 mb-4">
+            <TabsList className={cn("grid w-full mb-4", canViewOwnFinancials ? "grid-cols-5" : "grid-cols-4")}>
               <TabsTrigger value="details">Detalhes</TabsTrigger>
               <TabsTrigger value="checklist">Checklist</TabsTrigger>
               <TabsTrigger value="comments">Comentários</TabsTrigger>
               <TabsTrigger value="media">Media</TabsTrigger>
-              <TabsTrigger value="financial">Financeiro</TabsTrigger>
+              {canViewOwnFinancials && <TabsTrigger value="financial">Financeiro</TabsTrigger>}
             </TabsList>
 
             <ScrollArea className="h-[calc(90vh-280px)]">

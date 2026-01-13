@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { DollarSign, User, Camera, Film, CreditCard, Calendar, Package, Lock } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -70,7 +70,7 @@ export function ProjectFinancialTab({
   const [clientPayment, setClientPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Se não pode ver valores financeiros, mostra mensagem
+  // Se não pode ver valores financeiros (visualizador), mostra mensagem
   if (!canViewOwnFinancials) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -85,6 +85,22 @@ export function ProjectFinancialTab({
   // Separate team members by phase
   const captacaoTeam = projectTeam.filter(t => t.phase === 'captacao');
   const edicaoTeam = projectTeam.filter(t => t.phase === 'edicao');
+  
+  // Filtrar membros da equipa para mostrar apenas o próprio utilizador se não for admin
+  const visibleCaptacaoTeam = useMemo(() => {
+    if (canViewAllFinancials) return captacaoTeam;
+    return captacaoTeam.filter(t => t.user_id === userId);
+  }, [captacaoTeam, canViewAllFinancials, userId]);
+  
+  const visibleEdicaoTeam = useMemo(() => {
+    if (canViewAllFinancials) return edicaoTeam;
+    return edicaoTeam.filter(t => t.user_id === userId);
+  }, [edicaoTeam, canViewAllFinancials, userId]);
+  
+  // Verificar se o utilizador está na equipa deste projeto
+  const isUserInProjectTeam = useMemo(() => {
+    return projectTeam.some(t => t.user_id === userId);
+  }, [projectTeam, userId]);
 
   // Calculate profit
   const agreedValue = isEditing ? editForm.agreed_value : (project.agreed_value || 0);
@@ -349,186 +365,210 @@ export function ProjectFinancialTab({
     );
   };
 
+  // Se não for admin e não estiver na equipa, mostra apenas mensagem
+  if (!canViewAllFinancials && !isUserInProjectTeam) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <Lock className="h-12 w-12 text-muted-foreground/50 mb-3" />
+        <p className="text-muted-foreground">
+          Não está atribuído a este projeto.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Financial Summary */}
-      {isEditing ? (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label>Preço Cliente (€)</Label>
-              <Input 
-                type="number" 
-                value={editForm.agreed_value}
-                onChange={(e) => setEditForm((prev: any) => ({ ...prev, agreed_value: Number(e.target.value) }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Custo Captação (€)</Label>
-              <Input 
-                type="number" 
-                value={editForm.custo_captacao}
-                onChange={(e) => setEditForm((prev: any) => ({ ...prev, custo_captacao: Number(e.target.value) }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Custo Edição (€)</Label>
-              <Input 
-                type="number" 
-                value={editForm.custo_edicao}
-                onChange={(e) => setEditForm((prev: any) => ({ ...prev, custo_edicao: Number(e.target.value) }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Custos Extras (€)</Label>
-              <Input 
-                type="number" 
-                value={editForm.custos_extras}
-                onChange={(e) => setEditForm((prev: any) => ({ ...prev, custos_extras: Number(e.target.value) }))}
-                placeholder="Equipamento, deslocação..."
-              />
-            </div>
-          </div>
+      {/* Financial Summary - Apenas para admins */}
+      {canViewAllFinancials && (
+        <>
+          {isEditing ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label>Preço Cliente (€)</Label>
+                  <Input 
+                    type="number" 
+                    value={editForm.agreed_value}
+                    onChange={(e) => setEditForm((prev: any) => ({ ...prev, agreed_value: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Custo Captação (€)</Label>
+                  <Input 
+                    type="number" 
+                    value={editForm.custo_captacao}
+                    onChange={(e) => setEditForm((prev: any) => ({ ...prev, custo_captacao: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Custo Edição (€)</Label>
+                  <Input 
+                    type="number" 
+                    value={editForm.custo_edicao}
+                    onChange={(e) => setEditForm((prev: any) => ({ ...prev, custo_edicao: Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Custos Extras (€)</Label>
+                  <Input 
+                    type="number" 
+                    value={editForm.custos_extras}
+                    onChange={(e) => setEditForm((prev: any) => ({ ...prev, custos_extras: Number(e.target.value) }))}
+                    placeholder="Equipamento, deslocação..."
+                  />
+                </div>
+              </div>
 
-          <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Lucro Estimado</span>
-              <span className={cn("text-xl font-bold", profit >= 0 ? "text-success" : "text-destructive")}>
-                €{profit.toFixed(2)}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              (Preço Cliente - Captação - Edição - Extras)
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {/* Linha 1: Receita e Custos operacionais */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <DollarSign className="h-3 w-3" /> Preço Cliente
-              </span>
-              <p className="text-xl font-bold text-success mt-1">
-                €{agreedValue.toFixed(2)}
-              </p>
-            </div>
-            <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Camera className="h-3 w-3" /> Custo Captação
-              </span>
-              <p className="text-xl font-bold text-destructive mt-1">
-                €{custoCaptacao.toFixed(2)}
-              </p>
-            </div>
-            <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Film className="h-3 w-3" /> Custo Edição
-              </span>
-              <p className="text-xl font-bold text-destructive mt-1">
-                €{custoEdicao.toFixed(2)}
-              </p>
-            </div>
-          </div>
-
-          {/* Linha 2: Extras e Lucro */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Package className="h-3 w-3" /> Custos Extras
-              </span>
-              <p className="text-xl font-bold text-destructive mt-1">
-                €{custosExtras.toFixed(2)}
-              </p>
-            </div>
-            <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-              <span className="text-xs text-muted-foreground">Lucro</span>
-              <p className={cn("text-xl font-bold mt-1", profit >= 0 ? "text-primary" : "text-destructive")}>
-                €{profit.toFixed(2)}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <Separator />
-
-      {/* Client Payment Status */}
-      <div className="p-4 bg-muted/30 rounded-lg border border-border/50 space-y-3">
-        <div className="flex items-center gap-2 text-foreground">
-          <CreditCard className="h-4 w-4" />
-          <span className="font-medium">Pagamento do Cliente</span>
-        </div>
-
-        {clientPayment ? (
-          <div className="flex items-center justify-between p-3 bg-background/50 rounded-lg border border-border/30">
-            <div className="space-y-1">
-              <p className="text-sm font-medium">€{clientPayment.amount.toFixed(2)}</p>
-              {clientPayment.due_date && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  Vencimento: {format(new Date(clientPayment.due_date), 'dd/MM/yyyy', { locale: pt })}
+              <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Lucro Estimado</span>
+                  <span className={cn("text-xl font-bold", profit >= 0 ? "text-success" : "text-destructive")}>
+                    €{profit.toFixed(2)}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  (Preço Cliente - Captação - Edição - Extras)
                 </p>
-              )}
+              </div>
             </div>
-            
-            <Select
-              value={clientPayment.status}
-              onValueChange={(value: PaymentStatus) => handleClientPaymentStatusChange(value)}
-              disabled={loading}
-            >
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {paymentStatusOptions.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    <span className={cn("px-2 py-0.5 rounded text-xs", opt.color)}>
-                      {opt.label}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : (
-          <div className="p-3 bg-background/50 rounded-lg border border-border/30 text-center">
-            <p className="text-sm text-muted-foreground">
-              {project.client_id 
-                ? 'Nenhum pagamento registado para este projeto'
-                : 'Sem cliente associado'
-              }
-            </p>
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Linha 1: Receita e Custos operacionais */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <DollarSign className="h-3 w-3" /> Preço Cliente
+                  </span>
+                  <p className="text-xl font-bold text-success mt-1">
+                    €{agreedValue.toFixed(2)}
+                  </p>
+                </div>
+                <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Camera className="h-3 w-3" /> Custo Captação
+                  </span>
+                  <p className="text-xl font-bold text-destructive mt-1">
+                    €{custoCaptacao.toFixed(2)}
+                  </p>
+                </div>
+                <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Film className="h-3 w-3" /> Custo Edição
+                  </span>
+                  <p className="text-xl font-bold text-destructive mt-1">
+                    €{custoEdicao.toFixed(2)}
+                  </p>
+                </div>
+              </div>
 
-      {/* Custos Extras Payment Status */}
-      {custosExtras > 0 && (
-        <CustosExtrasPaymentSection
-          projectId={projectId}
-          custosExtras={custosExtras}
-          currentStatus={(project.custos_extras_payment_status as PaymentStatus) || 'pendente'}
-          loading={loading}
-          setLoading={setLoading}
-        />
+              {/* Linha 2: Extras e Lucro */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Package className="h-3 w-3" /> Custos Extras
+                  </span>
+                  <p className="text-xl font-bold text-destructive mt-1">
+                    €{custosExtras.toFixed(2)}
+                  </p>
+                </div>
+                <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+                  <span className="text-xs text-muted-foreground">Lucro</span>
+                  <p className={cn("text-xl font-bold mt-1", profit >= 0 ? "text-primary" : "text-destructive")}>
+                    €{profit.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <Separator />
+
+          {/* Client Payment Status - Apenas para admins */}
+          <div className="p-4 bg-muted/30 rounded-lg border border-border/50 space-y-3">
+            <div className="flex items-center gap-2 text-foreground">
+              <CreditCard className="h-4 w-4" />
+              <span className="font-medium">Pagamento do Cliente</span>
+            </div>
+
+            {clientPayment ? (
+              <div className="flex items-center justify-between p-3 bg-background/50 rounded-lg border border-border/30">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">€{clientPayment.amount.toFixed(2)}</p>
+                  {clientPayment.due_date && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      Vencimento: {format(new Date(clientPayment.due_date), 'dd/MM/yyyy', { locale: pt })}
+                    </p>
+                  )}
+                </div>
+                
+                <Select
+                  value={clientPayment.status}
+                  onValueChange={(value: PaymentStatus) => handleClientPaymentStatusChange(value)}
+                  disabled={loading}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {paymentStatusOptions.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        <span className={cn("px-2 py-0.5 rounded text-xs", opt.color)}>
+                          {opt.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="p-3 bg-background/50 rounded-lg border border-border/30 text-center">
+                <p className="text-sm text-muted-foreground">
+                  {project.client_id 
+                    ? 'Nenhum pagamento registado para este projeto'
+                    : 'Sem cliente associado'
+                  }
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Custos Extras Payment Status - Apenas para admins */}
+          {custosExtras > 0 && (
+            <CustosExtrasPaymentSection
+              projectId={projectId}
+              custosExtras={custosExtras}
+              currentStatus={(project.custos_extras_payment_status as PaymentStatus) || 'pendente'}
+              loading={loading}
+              setLoading={setLoading}
+            />
+          )}
+        </>
       )}
 
-      {/* Team Payments - Captação */}
-      {renderTeamPaymentSection(
-        'Pagamento Captação',
+      {/* Team Payments - Filtrado por permissões */}
+      {visibleCaptacaoTeam.length > 0 && renderTeamPaymentSection(
+        canViewAllFinancials ? 'Pagamento Captação' : 'O Seu Pagamento (Captação)',
         <Camera className="h-4 w-4" />,
-        captacaoTeam,
+        visibleCaptacaoTeam,
         'captacao'
       )}
 
-      {/* Team Payments - Edição */}
-      {renderTeamPaymentSection(
-        'Pagamento Edição',
+      {visibleEdicaoTeam.length > 0 && renderTeamPaymentSection(
+        canViewAllFinancials ? 'Pagamento Edição' : 'O Seu Pagamento (Edição)',
         <Film className="h-4 w-4" />,
-        edicaoTeam,
+        visibleEdicaoTeam,
         'edicao'
+      )}
+      
+      {/* Mensagem se não houver pagamentos visíveis para não-admin */}
+      {!canViewAllFinancials && visibleCaptacaoTeam.length === 0 && visibleEdicaoTeam.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <p className="text-muted-foreground text-sm">
+            Não tem pagamentos registados neste projeto.
+          </p>
+        </div>
       )}
     </div>
   );
