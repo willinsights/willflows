@@ -454,9 +454,41 @@ export function useKanban(phase: KanbanPhase) {
     if (targetColumn?.is_final && project) {
       const itemType = (project as any).item_type || 'projeto_completo';
       
-      // projeto_completo in captacao: move to edicao (don't deliver)
+      // projeto_completo in captacao: validate first, then move to edicao (don't deliver)
       if (phase === 'captacao' && itemType === 'projeto_completo') {
-        // Move to first column of edicao phase
+        // VALIDATE: Check if captação phase can be completed
+        const { data: validationResult, error: validationError } = await supabase.rpc('can_deliver_project', {
+          p_project_id: projectId,
+          p_phase: 'captacao'
+        });
+        
+        console.warn('[can_deliver_project validation for captacao->edicao]', { validationResult, validationError });
+        
+        if (validationError) {
+          toast({
+            title: 'Erro ao validar',
+            description: handleDatabaseError('validateTransfer', validationError),
+            variant: 'destructive',
+          });
+          return;
+        }
+        
+        const validation = validationResult as { can_deliver: boolean; reason: string | null; pending_tasks: number; pending_checklists: number } | null;
+        
+        // If cannot deliver, show alert with pending items
+        if (validation && !validation.can_deliver) {
+          const pendingItems = await fetchPendingChecklistItems(projectId, 'captacao');
+          setPendingAlert({
+            open: true,
+            items: pendingItems,
+            tasks: validation.pending_tasks,
+            checklists: validation.pending_checklists,
+            message: validation.reason || 'Ainda existem itens por concluir na Captação.',
+          });
+          return;
+        }
+        
+        // Validation passed - Move to first column of edicao phase
         const { data: edicaoColumns } = await supabase
           .from('kanban_columns')
           .select('id')
@@ -466,6 +498,9 @@ export function useKanban(phase: KanbanPhase) {
           .limit(1);
 
         if (edicaoColumns && edicaoColumns.length > 0) {
+          // Mark as local update to avoid realtime echo
+          localUpdateTimestampRef.current = Date.now();
+          
           await supabase
             .from('projects')
             .update({
