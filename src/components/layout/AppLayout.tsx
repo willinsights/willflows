@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { TrialExpiredModal } from '@/components/subscription/TrialExpiredModal';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { useTrialWarning } from '@/hooks/useTrialWarning';
 
 const RETRY_COOLDOWN_MS = 5000; // 5 seconds cooldown between retries
 
@@ -32,6 +33,9 @@ export function AppLayout() {
   const isMobile = useIsMobile();
   const { fetchError, refreshWorkspaces } = useWorkspace();
   const { subscription } = useAuth();
+
+  // Hook to show trial warning notification when 2 days or less remain
+  useTrialWarning();
 
   const lastRetryTimeRef = useRef(0);
 
