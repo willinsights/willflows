@@ -174,19 +174,32 @@ serve(async (req) => {
             ? new Date(subscription.current_period_end * 1000).toISOString()
             : null;
 
+          // Calculate trial_ends_at for trialing subscriptions
+          let trialEndsAt: string | null = null;
+          if (subscription.status === 'trialing' && subscription.trial_end) {
+            trialEndsAt = new Date(subscription.trial_end * 1000).toISOString();
+          } else if (subscription.status === 'trialing') {
+            // Fallback: set trial to 7 days from now
+            const trialEnd = new Date();
+            trialEnd.setDate(trialEnd.getDate() + 7);
+            trialEndsAt = trialEnd.toISOString();
+          }
+
           logStep("Updating user subscription after checkout", { 
             userId: targetUserId, 
             customerId: session.customer, 
             subscriptionId: session.subscription,
-            plan
+            plan,
+            status: subscription.status,
+            trialEndsAt
           });
 
           await updateUserSubscription(targetUserId, {
             subscription_plan: plan,
-            subscription_status: "active",
+            subscription_status: subscription.status === 'trialing' ? 'trialing' : 'active',
             stripe_customer_id: session.customer as string,
             stripe_subscription_id: session.subscription as string,
-            trial_ends_at: null,
+            trial_ends_at: trialEndsAt,
             current_period_end: currentPeriodEnd,
           });
 
@@ -199,13 +212,13 @@ serve(async (req) => {
                 stripe_customer_id: session.customer as string,
                 stripe_subscription_id: session.subscription as string,
                 subscription_plan: plan,
-                subscription_status: "active",
-                trial_ends_at: null,
+                subscription_status: subscription.status === 'trialing' ? 'trialing' : 'active',
+                trial_ends_at: trialEndsAt,
               })
               .eq("id", workspaceId);
           }
           
-          logStep("User subscription updated successfully", { userId: targetUserId, plan });
+          logStep("User subscription updated successfully", { userId: targetUserId, plan, trialEndsAt });
         }
         break;
       }
@@ -226,6 +239,12 @@ serve(async (req) => {
         const currentPeriodEnd = subscription.current_period_end 
           ? new Date(subscription.current_period_end * 1000).toISOString()
           : null;
+
+        // Calculate trial_ends_at for trialing subscriptions
+        let trialEndsAt: string | null = null;
+        if (subscription.status === 'trialing' && subscription.trial_end) {
+          trialEndsAt = new Date(subscription.trial_end * 1000).toISOString();
+        }
 
         // Map Stripe status to our status
         let subscriptionStatus: string;
@@ -260,8 +279,9 @@ serve(async (req) => {
             subscription_status: subscriptionStatus,
             stripe_subscription_id: subscription.id,
             current_period_end: currentPeriodEnd,
+            trial_ends_at: trialEndsAt,
           });
-          logStep("User subscription updated", { userId: userSub.user_id, plan, status: subscriptionStatus });
+          logStep("User subscription updated", { userId: userSub.user_id, plan, status: subscriptionStatus, trialEndsAt });
         }
 
         // Also update workspace for backward compatibility
@@ -271,6 +291,7 @@ serve(async (req) => {
             subscription_plan: plan,
             subscription_status: subscriptionStatus,
             stripe_subscription_id: subscription.id,
+            trial_ends_at: trialEndsAt,
           })
           .eq("stripe_customer_id", customerId);
         
