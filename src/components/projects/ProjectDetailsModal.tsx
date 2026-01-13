@@ -57,6 +57,7 @@ interface ProjectDetailsModalProps {
   onOpenChange: (open: boolean) => void;
   project: ProjectWithClient | null;
   onUpdate: () => void;
+  onSilentUpdate?: () => void;
 }
 
 const priorityOptions = [
@@ -93,7 +94,7 @@ const itemTypeOptions = [
   { value: 'reuniao', label: 'Reunião/Compromisso' },
 ];
 
-export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: ProjectDetailsModalProps) {
+export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onSilentUpdate }: ProjectDetailsModalProps) {
   const { toast } = useToast();
   const { duplicateProject } = useProjects();
   const { clients } = useClients();
@@ -292,7 +293,12 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
       
       toast({ title: 'Projeto atualizado com sucesso' });
       setIsEditing(false);
-      onUpdate();
+      // Use silent update for in-place refresh without loading flash
+      if (onSilentUpdate) {
+        onSilentUpdate();
+      } else {
+        onUpdate();
+      }
     } catch (error: any) {
       toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
     } finally {
