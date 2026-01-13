@@ -26,11 +26,9 @@ export function useBetaInvite(token: string | null) {
       }
 
       try {
+        // Use secure RPC function instead of direct table access
         const { data, error: queryError } = await supabase
-          .from('beta_invite_tokens')
-          .select('*')
-          .eq('token', token)
-          .maybeSingle();
+          .rpc('verify_beta_token', { _token: token });
 
         if (queryError) {
           logger.error('Error verifying beta token:', queryError);
@@ -40,7 +38,10 @@ export function useBetaInvite(token: string | null) {
           return;
         }
 
-        if (!data) {
+        // RPC returns an array, get first result
+        const tokenData = data?.[0];
+
+        if (!tokenData) {
           setError('Convite inválido ou não encontrado');
           setIsValid(false);
           setIsLoading(false);
@@ -48,22 +49,29 @@ export function useBetaInvite(token: string | null) {
         }
 
         // Check if already used
-        if (data.used_by) {
+        if (tokenData.used_by) {
           setError('Este convite já foi utilizado');
           setIsValid(false);
           setIsLoading(false);
           return;
         }
 
-        // Check if expired
-        if (data.expires_at && new Date(data.expires_at) < new Date()) {
+        // Check if expired (already validated by RPC but double-check)
+        if (!tokenData.is_valid) {
           setError('Este convite expirou');
           setIsValid(false);
           setIsLoading(false);
           return;
         }
 
-        setInvite(data as BetaInvite);
+        setInvite({
+          id: tokenData.id,
+          token: token,
+          email: tokenData.email,
+          used_by: tokenData.used_by,
+          used_at: tokenData.used_at,
+          expires_at: tokenData.expires_at,
+        });
         setIsValid(true);
         setIsLoading(false);
       } catch (err) {
