@@ -19,6 +19,8 @@ interface LogoProps {
   className?: string;
   /** Alt text for accessibility */
   alt?: string;
+  /** Show only the icon (crop logo to show only the W symbol) */
+  iconOnly?: boolean;
 }
 
 const logoMap = {
@@ -27,7 +29,7 @@ const logoMap = {
   purple: logoPurple,
 } as const;
 
-export function Logo({ variant = 'auto', className, alt = 'WillFlow' }: LogoProps) {
+export function Logo({ variant = 'auto', className, alt = 'WillFlow', iconOnly = false }: LogoProps) {
   const { theme } = useTheme();
   
   const getLogo = () => {
@@ -36,6 +38,30 @@ export function Logo({ variant = 'auto', className, alt = 'WillFlow' }: LogoProp
     }
     return logoMap[variant];
   };
+
+  // When iconOnly is true, we crop the logo to show only the icon part
+  if (iconOnly) {
+    return (
+      <div 
+        className={cn('overflow-hidden', className)}
+        style={{ width: '32px', height: '32px' }}
+      >
+        <img 
+          src={getLogo()} 
+          alt={alt} 
+          className="h-8 w-auto max-w-none"
+          style={{ 
+            // Crop to show only the left part (the W icon)
+            // Adjust the negative margin to position the icon correctly
+            marginLeft: '0px',
+            clipPath: 'inset(0 75% 0 0)', // Crop 75% from the right
+            transform: 'scale(1.2)', // Slightly enlarge
+            transformOrigin: 'left center'
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <img 

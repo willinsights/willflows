@@ -133,10 +133,13 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
           )}
           aria-label="Ir para o Dashboard"
         >
-          <Logo className={cn(
-            'cursor-pointer',
-            collapsed && !isMobile ? 'h-8' : 'h-10'
-          )} />
+          <Logo 
+            iconOnly={collapsed && !isMobile}
+            className={cn(
+              'cursor-pointer',
+              collapsed && !isMobile ? 'h-8' : 'h-10'
+            )} 
+          />
         </button>
         
         {isMobile ? (
