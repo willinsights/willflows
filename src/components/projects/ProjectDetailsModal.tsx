@@ -322,82 +322,83 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
     }
   };
 
-  const checkAndComplete = async () => {
-    if (!project) return;
-    
-    const itemType = project.item_type || 'projeto_completo';
-    
-    // Reuniões podem ser concluídas sem validação
-    if (itemType === 'reuniao') {
-      await completeProject();
-      return;
-    }
-    
-    // Determinar fase a validar baseado no item_type e current_phase
-    let phaseToValidate: 'captacao' | 'edicao' | null = null;
-    
-    if (itemType === 'projeto_captacao' && project.current_phase === 'captacao') {
-      phaseToValidate = 'captacao';
-    } else if (itemType === 'projeto_edicao' && project.current_phase === 'edicao') {
-      phaseToValidate = 'edicao';
-    } else if (itemType === 'projeto_completo' && project.current_phase === 'edicao') {
-      phaseToValidate = 'edicao';
-    }
-    
-    // Se não há fase para validar, permitir conclusão
-    if (!phaseToValidate) {
-      await completeProject();
-      return;
-    }
-    
-    // Filtrar checklists apenas da fase a validar
-    const tasksInPhase = tasks.filter(t => t.phase === phaseToValidate);
-    const taskIdsInPhase = new Set(tasksInPhase.map(t => t.id));
-    const relevantChecklists = checklists.filter(c => taskIdsInPhase.has(c.task_id));
-    
-    const pending = relevantChecklists.filter(c => !c.is_completed);
-    if (pending.length > 0) {
-      setPendingChecklistItems(pending);
-      setShowCompleteDialog(true);
-      return;
-    }
-    
-    // Verificar se todas as tarefas da fase estão completas
-    const incompleteTasks = tasksInPhase.filter(t => !t.is_completed);
-    if (incompleteTasks.length > 0) {
-      toast({
-        title: 'Tarefas incompletas',
-        description: `Existem ${incompleteTasks.length} tarefa(s) por concluir.`,
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    await completeProject();
-  };
-
-  const completeProject = async () => {
+  const handleDeliver = async () => {
     if (!project) return;
     setLoading(true);
     
+    // DEBUG LOG
+    console.warn('[handleDeliver]', {
+      projectId: project.id,
+      item_type: project.item_type,
+      current_phase: project.current_phase
+    });
+    
     try {
-      const { error } = await supabase
-        .from('projects')
-        .update({
-          is_delivered: true,
-          delivered_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', project.id);
+      // Buscar coluna final da fase atual
+      const { data: finalColumn } = await supabase
+        .from('kanban_columns')
+        .select('id')
+        .eq('workspace_id', project.workspace_id)
+        .eq('phase', project.current_phase)
+        .eq('is_final', true)
+        .single();
       
-      if (error) throw error;
+      if (!finalColumn) {
+        toast({
+          title: 'Erro',
+          description: 'Coluna final não encontrada.',
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+      }
+      
+      // Chamar RPC deliver_project (backend validation)
+      const { data, error } = await supabase.rpc('deliver_project', {
+        p_project_id: project.id,
+        p_phase: project.current_phase,
+        p_target_column_id: finalColumn.id
+      });
+      
+      console.warn('[deliver_project RPC result]', { data, error });
+      
+      if (error) {
+        const errorMessage = error.message.includes('CHECKLIST_INCOMPLETE')
+          ? error.message.replace('CHECKLIST_INCOMPLETE: ', '')
+          : error.message;
+        
+        toast({
+          title: 'Não é possível concluir',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+      }
+      
+      const result = data as { can_deliver: boolean; reason: string | null; pending_tasks: number; pending_checklists: number } | null;
+      if (result && !result.can_deliver) {
+        // Mostrar diálogo com itens pendentes
+        const tasksInPhase = tasks.filter(t => t.phase === project.current_phase);
+        const taskIdsInPhase = new Set(tasksInPhase.map(t => t.id));
+        const pending = checklists.filter(c => taskIdsInPhase.has(c.task_id) && !c.is_completed);
+        
+        setPendingChecklistItems(pending);
+        setShowCompleteDialog(true);
+        setLoading(false);
+        return;
+      }
       
       toast({ title: 'Projeto concluído com sucesso!' });
       setShowCompleteDialog(false);
       onOpenChange(false);
       onUpdate();
     } catch (error: any) {
-      toast({ title: 'Erro ao concluir', description: error.message, variant: 'destructive' });
+      toast({
+        title: 'Erro ao concluir',
+        description: error.message,
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -1314,7 +1315,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate }: P
                       Reabrir
                     </Button>
                   ) : (
-                    <Button size="sm" className="gradient-primary" onClick={checkAndComplete}>
+                    <Button size="sm" className="gradient-primary" onClick={handleDeliver}>
                       <CheckCircle className="h-4 w-4 mr-2" />
                       Concluir
                     </Button>

@@ -1541,6 +1541,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_deliver_project: {
+        Args: { p_phase: string; p_project_id: string }
+        Returns: Json
+      }
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
       count_admin_workspaces: { Args: { p_user_id: string }; Returns: number }
       count_total_invited_users: {
@@ -1558,6 +1562,14 @@ export type Database = {
           p_timezone: string
         }
         Returns: string
+      }
+      deliver_project: {
+        Args: {
+          p_phase: string
+          p_project_id: string
+          p_target_column_id: string
+        }
+        Returns: Json
       }
       get_invitation_by_token: {
         Args: { _token: string }

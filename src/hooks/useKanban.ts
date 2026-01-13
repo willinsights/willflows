@@ -226,61 +226,20 @@ export function useKanban(phase: KanbanPhase) {
     const targetColumn = columns.find(c => c.id === targetColumnId);
     const project = columns.flatMap(c => c.projects).find(p => p.id === projectId);
     
-    // Check if moving to final column - validate checklists
+    // DEBUG LOG
+    console.warn('[moveProject]', {
+      projectId,
+      targetColumnId,
+      phase,
+      item_type: (project as any)?.item_type,
+      is_final: targetColumn?.is_final
+    });
+    
+    // Check if moving to final column - use backend RPC for validation
     if (targetColumn?.is_final && project) {
       const itemType = (project as any).item_type || 'projeto_completo';
       
-      // Reuniões/Compromissos podem ser concluídos em qualquer fase sem validação
-      // Determine if we should validate checklists based on item_type and phase:
-      // - projeto_captacao: validate only in captacao final column
-      // - projeto_edicao: validate only in edicao final column  
-      // - projeto_completo: validate ONLY in edicao final column (not captacao)
-      // - reuniao: no validation (can be completed freely)
-      const shouldValidate = 
-        itemType !== 'reuniao' && (
-          (itemType === 'projeto_captacao' && phase === 'captacao') ||
-          (itemType === 'projeto_edicao' && phase === 'edicao') ||
-          (itemType === 'projeto_completo' && phase === 'edicao')
-        );
-      
-      if (shouldValidate) {
-        // Fetch tasks FILTERED BY CURRENT PHASE for validation
-        const { data: tasks } = await supabase
-          .from('tasks')
-          .select('id, is_completed, phase')
-          .eq('project_id', projectId)
-          .eq('phase', phase);
-        
-        const phaseTaskIds = tasks?.map(t => t.id) || [];
-        
-        let incompleteChecklists = 0;
-        if (phaseTaskIds.length > 0) {
-          const { data: checklists } = await supabase
-            .from('task_checklists')
-            .select('id, is_completed')
-            .in('task_id', phaseTaskIds);
-          
-          incompleteChecklists = checklists?.filter(c => !c.is_completed).length || 0;
-        }
-        
-        // Count incomplete tasks for current phase
-        const incompleteTasks = tasks?.filter(t => !t.is_completed).length || 0;
-        
-        if (incompleteTasks > 0 || incompleteChecklists > 0) {
-          const parts = [];
-          if (incompleteTasks > 0) parts.push(`${incompleteTasks} tarefa${incompleteTasks > 1 ? 's' : ''}`);
-          if (incompleteChecklists > 0) parts.push(`${incompleteChecklists} item${incompleteChecklists > 1 ? 'ns' : ''} de checklist`);
-          
-          toast({
-            title: 'Checklist incompleta',
-            description: `Existem ${parts.join(' e ')} por concluir antes de finalizar.`,
-            variant: 'destructive',
-          });
-          return; // Prevent the move
-        }
-      }
-      
-      // Check if project is captacao+edicao type and we're in captacao phase
+      // projeto_completo in captacao: move to edicao (don't deliver)
       if (phase === 'captacao' && itemType === 'projeto_completo') {
         // Move to first column of edicao phase
         const { data: edicaoColumns } = await supabase
@@ -292,7 +251,6 @@ export function useKanban(phase: KanbanPhase) {
           .limit(1);
 
         if (edicaoColumns && edicaoColumns.length > 0) {
-          // Update project to edicao phase
           await supabase
             .from('projects')
             .update({
@@ -312,9 +270,47 @@ export function useKanban(phase: KanbanPhase) {
           return;
         }
       }
+      
+      // Call RPC deliver_project for backend validation
+      const { data, error } = await supabase.rpc('deliver_project', {
+        p_project_id: projectId,
+        p_phase: phase,
+        p_target_column_id: targetColumnId
+      });
+      
+      console.warn('[deliver_project RPC result]', { data, error });
+      
+      if (error) {
+        // Capture trigger error
+        const errorMessage = error.message.includes('CHECKLIST_INCOMPLETE')
+          ? error.message.replace('CHECKLIST_INCOMPLETE: ', '')
+          : handleDatabaseError('moveProject', error);
+        
+        toast({
+          title: 'Não é possível entregar',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      const result = data as { can_deliver: boolean; reason: string | null; pending_tasks: number; pending_checklists: number } | null;
+      if (result && !result.can_deliver) {
+        toast({
+          title: 'Checklist incompleta',
+          description: result.reason || 'Existem itens pendentes.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      // Success - update UI
+      toast({ title: 'Projeto entregue com sucesso!' });
+      fetchColumns();
+      return;
     }
     
-    // Optimistic update for normal moves
+    // Optimistic update for normal moves (non-final columns)
     setColumns(prev => {
       const newColumns = prev.map(col => ({
         ...col,
@@ -333,20 +329,12 @@ export function useKanban(phase: KanbanPhase) {
     });
 
     try {
-      const updateData: any = { 
-        [columnField]: targetColumnId, 
-        updated_at: new Date().toISOString() 
-      };
-
-      // If moving to final column, mark as delivered
-      if (targetColumn?.is_final && phase === 'edicao') {
-        updateData.is_delivered = true;
-        updateData.delivered_at = new Date().toISOString();
-      }
-
       const { error } = await supabase
         .from('projects')
-        .update(updateData)
+        .update({ 
+          [columnField]: targetColumnId, 
+          updated_at: new Date().toISOString() 
+        })
         .eq('id', projectId);
 
       if (error) throw error;
