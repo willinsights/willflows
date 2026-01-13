@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Users,
   Package,
+  Lock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +26,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { useClients } from '@/hooks/useClients';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { ClientPaymentsControl } from '@/components/payments/ClientPaymentsControl';
@@ -55,6 +57,7 @@ export default function Pagamentos() {
   const { clients } = useClients();
   const { currentWorkspace } = useWorkspace();
   const { members } = useWorkspaceMembers();
+  const { canViewAllFinancials, canViewOwnFinancials, userId, userRole } = useFinancialPermissions();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('previsao');
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -108,16 +111,26 @@ export default function Pagamentos() {
   }, [currentWorkspace?.id]);
 
   // Filter payments for the current month view
+  // Non-admins only see their own payments (where collaborator_id matches userId)
   const monthPayments = useMemo(() => {
     const start = startOfMonth(currentMonth);
     const end = endOfMonth(currentMonth);
     
-    return payments.filter(payment => {
+    let filteredPayments = payments.filter(payment => {
       if (!payment.due_date) return false;
       const dueDate = new Date(payment.due_date);
       return isWithinInterval(dueDate, { start, end });
     });
-  }, [payments, currentMonth]);
+
+    // Non-admins only see their own receivable payments
+    if (!canViewAllFinancials && userId) {
+      filteredPayments = filteredPayments.filter(p => 
+        p.is_receivable && p.collaborator_id === userId
+      );
+    }
+
+    return filteredPayments;
+  }, [payments, currentMonth, canViewAllFinancials, userId]);
 
   // Cast teamPayments to the correct type
   const typedTeamPayments = teamPayments as ProjectTeamPayment[];
@@ -276,71 +289,98 @@ export default function Pagamentos() {
     );
   }
 
+  // Visualizador não pode ver pagamentos
+  if (!canViewOwnFinancials) {
+    return (
+      <div className="p-6">
+        <div className="flex flex-col items-center justify-center h-[60vh] text-center">
+          <Lock className="h-16 w-16 text-muted-foreground/50 mb-4" />
+          <h2 className="text-xl font-bold mb-2">Acesso Restrito</h2>
+          <p className="text-muted-foreground max-w-md">
+            Não tem permissão para aceder a informação de pagamentos.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Pagamentos</h1>
-          <p className="text-muted-foreground">Controle de receitas e despesas</p>
+          <p className="text-muted-foreground">
+            {canViewAllFinancials 
+              ? 'Controle de receitas e despesas' 
+              : 'Os seus pagamentos e receitas'}
+          </p>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <TrendingUp className="h-5 w-5 text-success" />
-              <span className="text-2xl font-bold text-success">{formatCurrency(summaries.totalReceivable)}</span>
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">A Receber</p>
-            <p className="text-xs text-muted-foreground/70">Total pendente</p>
-          </CardContent>
-        </Card>
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <TrendingDown className="h-5 w-5 text-destructive" />
-              <span className="text-2xl font-bold text-destructive">{formatCurrency(totalPayableWithExtras)}</span>
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">A Pagar</p>
-            <p className="text-xs text-muted-foreground/70">Colaboradores + Custos</p>
-          </CardContent>
-        </Card>
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <CheckCircle2 className="h-5 w-5 text-success" />
-              <span className="text-2xl font-bold">{formatCurrency(summaries.totalReceived)}</span>
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">Recebido</p>
-            <p className="text-xs text-muted-foreground/70">Total recebido</p>
-          </CardContent>
-        </Card>
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <AlertCircle className="h-5 w-5 text-warning" />
-              <span className="text-2xl font-bold">{summaries.overdue}</span>
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">Vencidos</p>
-            <p className="text-xs text-muted-foreground/70">Pagamentos atrasados</p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Summary Cards - Only for admins */}
+      {canViewAllFinancials && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="glass-card">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <TrendingUp className="h-5 w-5 text-success" />
+                <span className="text-2xl font-bold text-success">{formatCurrency(summaries.totalReceivable)}</span>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">A Receber</p>
+              <p className="text-xs text-muted-foreground/70">Total pendente</p>
+            </CardContent>
+          </Card>
+          <Card className="glass-card">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <TrendingDown className="h-5 w-5 text-destructive" />
+                <span className="text-2xl font-bold text-destructive">{formatCurrency(totalPayableWithExtras)}</span>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">A Pagar</p>
+              <p className="text-xs text-muted-foreground/70">Colaboradores + Custos</p>
+            </CardContent>
+          </Card>
+          <Card className="glass-card">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <CheckCircle2 className="h-5 w-5 text-success" />
+                <span className="text-2xl font-bold">{formatCurrency(summaries.totalReceived)}</span>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">Recebido</p>
+              <p className="text-xs text-muted-foreground/70">Total recebido</p>
+            </CardContent>
+          </Card>
+          <Card className="glass-card">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <AlertCircle className="h-5 w-5 text-warning" />
+                <span className="text-2xl font-bold">{summaries.overdue}</span>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">Vencidos</p>
+              <p className="text-xs text-muted-foreground/70">Pagamentos atrasados</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-      {/* Tabs */}
+      {/* Tabs - Limit tabs for non-admins */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="previsao">Previsão</TabsTrigger>
-          <TabsTrigger value="clientes">Pag. Clientes</TabsTrigger>
-          <TabsTrigger value="colaboradores">Pag. Colaboradores</TabsTrigger>
-          <TabsTrigger value="custos-extras">Custos Extras</TabsTrigger>
-          <TabsTrigger value="faturas" disabled className="opacity-50">
-            Emitir Fatura
-            <span className="ml-1 text-[10px] text-muted-foreground">(brevemente)</span>
+          <TabsTrigger value="previsao">
+            {canViewAllFinancials ? 'Previsão' : 'Meus Pagamentos'}
           </TabsTrigger>
+          {canViewAllFinancials && (
+            <>
+              <TabsTrigger value="clientes">Pag. Clientes</TabsTrigger>
+              <TabsTrigger value="colaboradores">Pag. Colaboradores</TabsTrigger>
+              <TabsTrigger value="custos-extras">Custos Extras</TabsTrigger>
+              <TabsTrigger value="faturas" disabled className="opacity-50">
+                Emitir Fatura
+                <span className="ml-1 text-[10px] text-muted-foreground">(brevemente)</span>
+              </TabsTrigger>
+            </>
+          )}
         </TabsList>
 
         {/* Previsão Tab */}

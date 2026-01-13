@@ -11,6 +11,7 @@ import {
   Award,
   FileSpreadsheet,
   FileText,
+  Lock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,6 +42,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { useClients } from '@/hooks/useClients';
 import { usePayments } from '@/hooks/usePayments';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--info))', 'hsl(var(--destructive))'];
 
@@ -49,6 +51,7 @@ export default function Relatorios() {
   const { clients } = useClients();
   const { payments } = usePayments();
   const { currentWorkspace } = useWorkspace();
+  const { canViewReports } = useFinancialPermissions();
   const [period, setPeriod] = useState('6');
 
   const currency = currentWorkspace?.currency || 'EUR';
@@ -264,6 +267,21 @@ export default function Relatorios() {
       printWindow.print();
     }
   };
+
+  // Apenas admins têm acesso a relatórios financeiros
+  if (!canViewReports) {
+    return (
+      <div className="p-6">
+        <div className="flex flex-col items-center justify-center h-[60vh] text-center">
+          <Lock className="h-16 w-16 text-muted-foreground/50 mb-4" />
+          <h2 className="text-xl font-bold mb-2">Acesso Restrito</h2>
+          <p className="text-muted-foreground max-w-md">
+            Relatórios financeiros estão disponíveis apenas para administradores.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
