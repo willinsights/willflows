@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Settings, User, Users, Shield, Palette, Loader2, Database as DatabaseIcon, Clock, Trash2, RefreshCw, X, Calendar, Video } from 'lucide-react';
+import { Settings, User, Users, Shield, Palette, Loader2, Database as DatabaseIcon, Clock, Trash2, RefreshCw, X, Calendar, Video, AlertTriangle, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -30,13 +31,16 @@ import { useWorkspaceInvitations } from '@/hooks/useWorkspaceInvitations';
 import { EmailPreferencesCard } from '@/components/settings/EmailPreferencesCard';
 import { NotificationPreferencesCard } from '@/components/settings/NotificationPreferencesCard';
 import { PermissionsMatrix } from '@/components/settings/PermissionsMatrix';
+import { DeleteWorkspaceModal } from '@/components/workspace/DeleteWorkspaceModal';
+import { LeaveWorkspaceModal } from '@/components/workspace/LeaveWorkspaceModal';
 import type { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
 
 export default function Configuracoes() {
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const { currentWorkspace, refreshWorkspaces, isAdmin } = useWorkspace();
+  const { currentWorkspace, allWorkspaces, refreshWorkspaces, isAdmin } = useWorkspace();
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   
@@ -66,6 +70,35 @@ export default function Configuracoes() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<AppRole>('editor');
   const [inviting, setInviting] = useState(false);
+
+  // Workspace management modals
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+
+  // Check if user is admin or guest in current workspace
+  const isGuestMember = currentWorkspace && !isAdmin;
+  const adminWorkspaces = allWorkspaces.filter(w => w.role === 'admin');
+  const isLastAdminWorkspace = adminWorkspaces.length <= 1;
+
+  const handleDeleteSuccess = async () => {
+    setDeleteModalOpen(false);
+    // Clear cache and redirect
+    localStorage.removeItem('willflow_workspace_cache');
+    localStorage.removeItem('willflow_last_workspace_id');
+    await refreshWorkspaces();
+    // Redirect to app or onboarding
+    window.location.href = '/app';
+  };
+
+  const handleLeaveSuccess = async () => {
+    setLeaveModalOpen(false);
+    // Clear cache and redirect
+    localStorage.removeItem('willflow_workspace_cache');
+    localStorage.removeItem('willflow_last_workspace_id');
+    await refreshWorkspaces();
+    // Redirect to app or onboarding
+    window.location.href = '/app';
+  };
 
   // Sync form with current workspace
   useEffect(() => {
@@ -426,6 +459,62 @@ export default function Configuracoes() {
                     onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
                   />
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Danger Zone */}
+            <Card className="glass-card border-destructive/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-destructive">
+                  <AlertTriangle className="h-5 w-5" />
+                  Zona de Perigo
+                </CardTitle>
+                <CardDescription>
+                  Ações irreversíveis que afetam o workspace
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {isAdmin && (
+                  <div className="flex items-center justify-between p-4 rounded-lg border border-destructive/20 bg-destructive/5">
+                    <div>
+                      <p className="font-medium text-destructive">Eliminar Workspace</p>
+                      <p className="text-sm text-muted-foreground">
+                        Eliminar permanentemente este workspace e todos os dados associados
+                      </p>
+                    </div>
+                    <Button 
+                      variant="destructive" 
+                      onClick={() => setDeleteModalOpen(true)}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Eliminar
+                    </Button>
+                  </div>
+                )}
+
+                {isGuestMember && (
+                  <div className="flex items-center justify-between p-4 rounded-lg border border-warning/20 bg-warning/5">
+                    <div>
+                      <p className="font-medium">Sair do Workspace</p>
+                      <p className="text-sm text-muted-foreground">
+                        Deixar de ter acesso a este workspace
+                      </p>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setLeaveModalOpen(true)}
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Sair
+                    </Button>
+                  </div>
+                )}
+
+                {!isAdmin && !isGuestMember && (
+                  <p className="text-sm text-muted-foreground">
+                    Não tem permissões para modificar este workspace.
+                  </p>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -802,6 +891,27 @@ export default function Configuracoes() {
           </TabsContent>
         )}
       </Tabs>
+
+      {/* Workspace Management Modals */}
+      {currentWorkspace && (
+        <>
+          <DeleteWorkspaceModal
+            isOpen={deleteModalOpen}
+            onClose={() => setDeleteModalOpen(false)}
+            workspaceId={currentWorkspace.id}
+            workspaceName={currentWorkspace.name}
+            onSuccess={handleDeleteSuccess}
+            isLastWorkspace={isLastAdminWorkspace}
+          />
+          <LeaveWorkspaceModal
+            isOpen={leaveModalOpen}
+            onClose={() => setLeaveModalOpen(false)}
+            workspaceId={currentWorkspace.id}
+            workspaceName={currentWorkspace.name}
+            onSuccess={handleLeaveSuccess}
+          />
+        </>
+      )}
     </div>
   );
 }
