@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Check, ChevronDown, Plus, Crown, Users, Loader2, Lock } from 'lucide-react';
+import { Building2, Check, ChevronDown, Plus, Crown, Users, Loader2, Lock, LogOut } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
+import { LeaveWorkspaceModal } from '@/components/workspace/LeaveWorkspaceModal';
 
 const planLabels: Record<string, string> = {
   essencial: 'Starter',
@@ -34,9 +35,11 @@ const roleLabels: Record<string, string> = {
 
 export function WorkspaceSelector() {
   const navigate = useNavigate();
-  const { currentWorkspace, allWorkspaces, setCurrentWorkspace, loading } = useWorkspace();
+  const { currentWorkspace, allWorkspaces, setCurrentWorkspace, loading, refreshWorkspace } = useWorkspace();
   const { toast } = useToast();
   const [switching, setSwitching] = useState(false);
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  const [workspaceToLeave, setWorkspaceToLeave] = useState<{ id: string; name: string } | null>(null);
   
   const { 
     currentPlan, 
@@ -79,6 +82,23 @@ export function WorkspaceSelector() {
     }
 
     navigate('/onboarding?new=true');
+  };
+
+  const handleLeaveWorkspace = (e: React.MouseEvent, workspace: { id: string; name: string }) => {
+    e.stopPropagation();
+    setWorkspaceToLeave(workspace);
+    setLeaveModalOpen(true);
+  };
+
+  const handleLeaveSuccess = async () => {
+    setLeaveModalOpen(false);
+    setWorkspaceToLeave(null);
+    // Clear cache and refresh
+    localStorage.removeItem('willflow_workspace_cache');
+    localStorage.removeItem('willflow_last_workspace_id');
+    await refreshWorkspace();
+    // Redirect to app
+    window.location.href = '/app';
   };
 
   const canCreateWorkspace = usage.workspaces < limits.workspaces;
@@ -180,7 +200,7 @@ export function WorkspaceSelector() {
                 <DropdownMenuItem
                   key={workspace.id}
                   onClick={() => handleSelectWorkspace(workspace.id)}
-                  className="flex items-center gap-3 py-2.5 cursor-pointer"
+                  className="flex items-center gap-3 py-2.5 cursor-pointer group"
                   disabled={switching}
                 >
                   <div className="flex items-center justify-center w-8 h-8 rounded bg-muted text-muted-foreground text-sm font-bold flex-shrink-0">
@@ -205,9 +225,18 @@ export function WorkspaceSelector() {
                       </Badge>
                     </div>
                   </div>
-                  {currentWorkspace?.id === workspace.id && (
-                    <Check className="h-4 w-4 text-primary flex-shrink-0" />
-                  )}
+                  <div className="flex items-center gap-1">
+                    {currentWorkspace?.id === workspace.id && (
+                      <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                    )}
+                    <button
+                      onClick={(e) => handleLeaveWorkspace(e, { id: workspace.id, name: workspace.name })}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                      title="Sair do workspace"
+                    >
+                      <LogOut className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </DropdownMenuItem>
               ))}
             </>
@@ -253,6 +282,20 @@ export function WorkspaceSelector() {
         currentUsage={usage.workspaces}
         limit={limits.workspaces}
       />
+
+      {/* Leave Workspace Modal */}
+      {workspaceToLeave && (
+        <LeaveWorkspaceModal
+          isOpen={leaveModalOpen}
+          onClose={() => {
+            setLeaveModalOpen(false);
+            setWorkspaceToLeave(null);
+          }}
+          workspaceId={workspaceToLeave.id}
+          workspaceName={workspaceToLeave.name}
+          onSuccess={handleLeaveSuccess}
+        />
+      )}
     </>
   );
 }
