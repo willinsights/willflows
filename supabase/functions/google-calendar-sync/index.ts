@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -222,7 +222,7 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    if (!authHeader?.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'No authorization header' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -231,22 +231,38 @@ serve(async (req) => {
 
     const { action, workspaceId } = await req.json();
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    
+
+    // Validate JWT using signing-keys compatible method
+    const supabaseAuthed = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: {
+        headers: {
+          Authorization: authHeader,
+        },
+      },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    });
+
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
-    
-    if (userError || !user) {
+    const { data, error: claimsError } = await supabaseAuthed.auth.getClaims(token);
+
+    if (claimsError || !data?.claims?.sub) {
       return new Response(JSON.stringify({ error: 'Invalid token' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    const userId = data.claims.sub as string;
+
     // Get connection
     const { data: connection, error: connError } = await supabaseAdmin
       .from('google_calendar_connections')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('workspace_id', workspaceId)
       .single();
 
@@ -498,7 +514,7 @@ serve(async (req) => {
             location: gEvent.location || null,
             event_type: 'event', // Default type for imported events
             google_event_id: gEvent.id,
-            created_by: user.id,
+            created_by: userId,
           };
 
           if (existingGoogleIds.has(gEvent.id)) {
