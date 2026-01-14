@@ -612,9 +612,9 @@ export default function Landing() {
               viewport={{ once: true }}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-success/10 border border-success/20 text-success mb-6 backdrop-blur-sm"
             >
-              <CreditCard className="h-4 w-4" />
+              <Check className="h-4 w-4" />
               <span className="text-sm font-medium">
-                ✅ 7 dias grátis com cartão (cobrança só após o trial)
+                ✅ 7 dias grátis, sem cartão
               </span>
             </motion.div>
 
@@ -736,7 +736,7 @@ export default function Landing() {
                     className={`w-full glow-ring ${plan.popular ? 'gradient-primary' : ''}`}
                     variant={plan.popular ? 'default' : 'outline'}
                   >
-                    Começar 7 dias grátis
+                    Testar grátis 7 dias
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
@@ -814,7 +814,7 @@ export default function Landing() {
               Pronto para transformar a sua gestão?
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              7 dias grátis com cartão. Cancele a qualquer momento.
+              7 dias grátis, sem cartão. Cancele a qualquer momento.
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary text-lg px-8 glow-ring lens-flare">

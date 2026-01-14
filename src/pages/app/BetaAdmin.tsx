@@ -94,6 +94,7 @@ export default function BetaAdmin() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
+  const [approvingAll, setApprovingAll] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [newInviteEmail, setNewInviteEmail] = useState('');
   const [newInviteNotes, setNewInviteNotes] = useState('');
@@ -344,6 +345,33 @@ export default function BetaAdmin() {
         variant: 'destructive',
       });
     }
+  };
+
+  const approveAllWaitlist = async () => {
+    if (pendingWaitlist.length === 0) return;
+    
+    setApprovingAll(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const entry of pendingWaitlist) {
+      try {
+        await inviteFromWaitlist(entry, true);
+        successCount++;
+      } catch (error) {
+        errorCount++;
+        console.error(`Failed to invite ${entry.email}:`, error);
+      }
+    }
+
+    setApprovingAll(false);
+    
+    toast({
+      title: 'Convites enviados!',
+      description: `${successCount} emails enviados${errorCount > 0 ? `, ${errorCount} falharam` : ''}.`,
+    });
+
+    await fetchData();
   };
 
   const copyInviteLink = (token: string) => {
@@ -683,11 +711,32 @@ export default function BetaAdmin() {
 
           <TabsContent value="waitlist">
             <Card>
-              <CardHeader>
-                <CardTitle>Lista de Espera</CardTitle>
-                <CardDescription>
-                  Pessoas que se registaram para receber acesso ao beta.
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Lista de Espera</CardTitle>
+                  <CardDescription>
+                    Pessoas que se registaram para receber acesso.
+                  </CardDescription>
+                </div>
+                {pendingWaitlist.length > 0 && (
+                  <Button 
+                    onClick={approveAllWaitlist} 
+                    disabled={approvingAll}
+                    className="gradient-primary"
+                  >
+                    {approvingAll ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        A enviar...
+                      </>
+                    ) : (
+                      <>
+                        <MailCheck className="h-4 w-4 mr-2" />
+                        Aprovar Todos ({pendingWaitlist.length})
+                      </>
+                    )}
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
                 {loading ? (
