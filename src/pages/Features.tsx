@@ -153,7 +153,7 @@ export default function Features() {
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">
-                Começar teste grátis (7 dias)
+                Começar teste grátis (30 dias)
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
@@ -210,7 +210,7 @@ export default function Features() {
               Pronto para transformar a sua gestão?
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              7 dias grátis, sem cartão. Cancele a qualquer momento.
+              🎉 30 dias grátis como bónus de lançamento! Sem cartão necessário.
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">

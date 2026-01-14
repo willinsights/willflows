@@ -36,7 +36,7 @@ import {
 const faqs = [
   {
     question: 'Como funciona o período de teste?',
-    answer: 'Ao criar conta, tem automaticamente 7 dias grátis para experimentar todas as funcionalidades sem precisar de cartão. Após o trial, escolhe o plano que melhor se adequa.',
+    answer: 'Ao criar conta, tem automaticamente 30 dias grátis como bónus de lançamento para experimentar todas as funcionalidades sem precisar de cartão. Após o trial, escolhe o plano que melhor se adequa.',
   },
   {
     question: 'Posso mudar de plano a qualquer momento?',
@@ -138,7 +138,7 @@ export default function Pricing() {
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-success/10 border border-success/20 text-success mb-6">
               <Check className="h-4 w-4" />
               <span className="text-sm font-medium">
-                ✅ 7 dias grátis • Sem cartão necessário
+                🎉 30 dias grátis • Bónus de lançamento!
               </span>
             </div>
 
@@ -147,7 +147,7 @@ export default function Pricing() {
               <span className="gradient-text">negócio</span>
             </h1>
             <p className="text-xl text-muted-foreground mb-8">
-              Comece com 7 dias grátis e faça upgrade conforme cresce. Cancele a qualquer momento.
+              Comece com 30 dias grátis e faça upgrade conforme cresce. Cancele a qualquer momento.
             </p>
 
             {/* Toggles Container */}
@@ -268,7 +268,7 @@ export default function Pricing() {
                     {loadingPlan === planId ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     ) : null}
-                    Começar 7 dias grátis
+                    Começar 30 dias grátis
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </motion.div>
@@ -379,7 +379,7 @@ export default function Pricing() {
             Pronto para começar?
           </h2>
           <p className="text-xl text-muted-foreground mb-8">
-            Teste grátis durante 7 dias e veja como o WillFlow pode transformar o seu negócio.
+            🎉 30 dias grátis como bónus de lançamento! Veja como o WillFlow pode transformar o seu negócio.
           </p>
           <Button 
             size="lg" 
