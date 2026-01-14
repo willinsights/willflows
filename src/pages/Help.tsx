@@ -203,12 +203,12 @@ export default function Help() {
                 <div className="p-3 rounded-xl bg-primary/10">
                   <MessageCircle className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="font-bold">Chat</h3>
+                <h3 className="font-bold">Feedback</h3>
               </div>
               <p className="text-muted-foreground text-sm mb-4">
-                Disponível para clientes com plano Studio. Resposta em tempo real.
+                Use o botão de Feedback dentro da app para enviar sugestões ou reportar problemas.
               </p>
-              <span className="text-muted-foreground text-sm">Disponível no app</span>
+              <span className="text-muted-foreground text-sm">Disponível para todos os planos</span>
             </motion.div>
           </div>
         </div>
