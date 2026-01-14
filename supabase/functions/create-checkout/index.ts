@@ -80,7 +80,6 @@ serve(async (req) => {
         },
       ],
       mode: "subscription",
-      allow_promotion_codes: true, // Enable promotion code field in Stripe checkout
       success_url: `${requestOrigin}/checkout-success`,
       cancel_url: `${requestOrigin}/planos?checkout=cancelled`,
       metadata: {
