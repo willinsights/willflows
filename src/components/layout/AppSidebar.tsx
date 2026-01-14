@@ -89,8 +89,7 @@ const navSections: NavSection[] = [
     title: 'SISTEMA',
     items: [
       { icon: Settings, label: 'Configurações', path: '/app/configuracoes' },
-      { icon: Crown, label: 'Planos', path: '/app/planos' },
-      { icon: CreditCard, label: 'Faturação', path: '/app/conta' },
+{ icon: Crown, label: 'Planos', path: '/app/planos' },
     ],
   },
 ];
