@@ -46,7 +46,7 @@ interface CurrentWorkspaceData {
   
   // Actions
   refresh: () => Promise<void>;
-  switchWorkspace: (workspaceId: string) => Promise<void>;
+  switchWorkspace: (workspaceId: string) => Promise<boolean>;
 }
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
