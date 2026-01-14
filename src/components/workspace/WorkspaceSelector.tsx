@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Building2, Check, ChevronDown, Plus, Crown, Users, Loader2, Lock, LogOut } from 'lucide-react';
 import {
   DropdownMenu,
@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 import { LeaveWorkspaceModal } from '@/components/workspace/LeaveWorkspaceModal';
+import { queryClient } from '@/lib/query-client';
 
 const planLabels: Record<string, string> = {
   essencial: 'Starter',
@@ -35,6 +36,7 @@ const roleLabels: Record<string, string> = {
 
 export function WorkspaceSelector() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentWorkspace, allWorkspaces, setCurrentWorkspace, loading, refreshWorkspace } = useWorkspace();
   const { toast } = useToast();
   const [switching, setSwitching] = useState(false);
@@ -62,15 +64,32 @@ export function WorkspaceSelector() {
       const success = await setCurrentWorkspace(workspaceId);
       
       if (success) {
-        // Reload para aplicar o novo workspace (localStorage já foi atualizado)
-        window.location.href = '/app';
+        // Invalidar todo o cache do React Query para forçar refetch com novo workspace
+        queryClient.clear();
+        
+        // Navegar para /app usando React Router (mais suave que reload)
+        // Se já estiver em /app, navegar para forçar remount dos componentes
+        if (location.pathname === '/app' || location.pathname === '/app/') {
+          // Forçar navegação mesmo na mesma rota
+          navigate('/app', { replace: true });
+          // Pequeno delay para permitir que o contexto atualize
+          setTimeout(() => {
+            navigate(0); // Força refresh da rota atual
+          }, 50);
+        } else {
+          navigate('/app', { replace: true });
+        }
+        
+        toast({
+          title: 'Workspace alterado',
+          description: `Mudou para ${allWorkspaces.find(w => w.id === workspaceId)?.name}`,
+        });
       } else {
         toast({
           title: 'Erro ao trocar workspace',
           description: 'Não foi possível carregar o workspace selecionado.',
           variant: 'destructive',
         });
-        setSwitching(false);
       }
     } catch (error) {
       console.error('Error switching workspace:', error);
@@ -79,6 +98,7 @@ export function WorkspaceSelector() {
         description: 'Tente novamente mais tarde.',
         variant: 'destructive',
       });
+    } finally {
       setSwitching(false);
     }
   };
@@ -104,9 +124,10 @@ export function WorkspaceSelector() {
     // Clear cache and refresh
     localStorage.removeItem('willflow_workspace_cache');
     localStorage.removeItem('willflow_last_workspace_id');
+    queryClient.clear();
     await refreshWorkspace();
-    // Redirect to app
-    window.location.href = '/app';
+    // Navigate usando React Router
+    navigate('/app', { replace: true });
   };
 
   const canCreateWorkspace = usage.workspaces < limits.workspaces;
