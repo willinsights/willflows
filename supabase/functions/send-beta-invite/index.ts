@@ -120,7 +120,10 @@ const handler = async (req: Request): Promise<Response> => {
                         
                         <div style="background: linear-gradient(135deg, #f0e7ff 0%, #e9d5ff 100%); border-radius: 12px; padding: 20px; margin: 24px 0;">
                           <p style="margin: 0; color: #7c3aed; font-size: 14px; font-weight: 600;">
-                            ✨ Como beta tester, vais poder:
+                            🎉 Bónus de Lançamento: 30 dias grátis!
+                          </p>
+                          <p style="margin: 12px 0 0; color: #52525b; font-size: 14px;">
+                            Como beta tester, vais poder:
                           </p>
                           <ul style="margin: 12px 0 0; padding-left: 20px; color: #52525b; font-size: 14px; line-height: 1.8;">
                             <li>Experimentar todas as funcionalidades em primeira mão</li>
@@ -151,7 +154,7 @@ const handler = async (req: Request): Promise<Response> => {
                         <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 32px 0;">
                         
                         <p style="margin: 0; color: #a1a1aa; font-size: 12px; text-align: center;">
-                          Este convite é pessoal e expira em 7 dias. Se não solicitaste este convite, podes ignorar este email.
+                          Este convite é pessoal e expira em 30 dias. Se não solicitaste este convite, podes ignorar este email.
                         </p>
                       </td>
                     </tr>

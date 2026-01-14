@@ -25,6 +25,7 @@ import {
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
 import { WaitlistForm } from '@/components/marketing/WaitlistForm';
+import { LaunchBanner } from '@/components/marketing/LaunchBanner';
 
 // Dark mode screenshots for the new hero
 import screenshotDashboard from '@/assets/screenshot-dark-dashboard.png';
@@ -761,6 +762,9 @@ export default function Landing() {
       </section>
 
       <PublicFooter />
+      
+      {/* Launch promotion banner */}
+      {!isBetaMode && <LaunchBanner />}
     </div>
   );
 }
