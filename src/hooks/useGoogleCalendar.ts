@@ -44,14 +44,7 @@ export function useGoogleCalendar() {
         return;
       }
 
-      const response = await supabase.functions.invoke('google-calendar-auth', {
-        body: { workspaceId: currentWorkspace.id },
-        headers: { Authorization: `Bearer ${session.access_token}` },
-        method: 'POST',
-      });
-
-      // Add action parameter via URL workaround
-      const { data, error } = await fetch(
+      const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-calendar-auth?action=status`,
         {
           method: 'POST',
@@ -62,7 +55,9 @@ export function useGoogleCalendar() {
           },
           body: JSON.stringify({ workspaceId: currentWorkspace.id }),
         }
-      ).then(r => r.json());
+      );
+
+      const data = await response.json();
 
       if (data?.connection) {
         setConnection(data.connection);
