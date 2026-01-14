@@ -92,7 +92,7 @@ const steps = [
 const faqs = [
   {
     question: 'Preciso de cartão para testar?',
-    answer: 'Não! O trial de 7 dias é completamente grátis e não precisa de cartão. Só adiciona o cartão quando decidir subscrever.',
+    answer: 'Não! O trial de 30 dias é completamente grátis e não precisa de cartão. É o nosso bónus de lançamento para si! Só adiciona o cartão quando decidir subscrever.',
   },
   {
     question: 'Posso trocar de EUR para BRL?',
@@ -100,7 +100,7 @@ const faqs = [
   },
   {
     question: 'Posso cancelar antes do trial acabar?',
-    answer: 'Sim! Pode cancelar a qualquer momento durante o trial de 7 dias e não será cobrado absolutamente nada.',
+    answer: 'Sim! Pode cancelar a qualquer momento durante o trial de 30 dias e não será cobrado absolutamente nada.',
   },
   {
     question: 'Dá para ter freelancers?',
@@ -346,7 +346,7 @@ export default function Landing() {
                 {isBetaMode ? (
                   '🚀 Beta Privado • Acesso por convite'
                 ) : (
-                  '✨ 7 dias grátis • Sem cartão necessário'
+                  '🎉 30 dias grátis • Bónus de lançamento!'
                 )}
               </Badge>
               
@@ -363,7 +363,7 @@ export default function Landing() {
               
               <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground mb-10">
                 <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border/50">
-                  <Check className="h-4 w-4 text-success" /> 7 dias grátis
+                  <Check className="h-4 w-4 text-success" /> 30 dias grátis
                 </span>
                 <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border/50">
                   <Check className="h-4 w-4 text-success" /> EUR ou BRL
@@ -555,7 +555,7 @@ export default function Landing() {
             >
               <Check className="h-4 w-4" />
               <span className="text-sm font-medium">
-                ✅ 7 dias grátis, sem cartão
+                🎉 30 dias grátis • Bónus de lançamento!
               </span>
             </motion.div>
 
@@ -669,7 +669,7 @@ export default function Landing() {
                       className={`w-full glow-ring ${plan.popular ? 'gradient-primary' : ''}`}
                       variant={plan.popular ? 'default' : 'outline'}
                     >
-                      Testar grátis 7 dias
+                      Testar grátis 30 dias
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
@@ -748,7 +748,7 @@ export default function Landing() {
               Pronto para transformar a sua gestão?
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              7 dias grátis, sem cartão. Cancele a qualquer momento.
+              🎉 30 dias grátis como bónus de lançamento! Sem cartão necessário.
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary text-lg px-8 glow-ring lens-flare">
