@@ -780,7 +780,7 @@ export default function Auth() {
                       <div className="relative">
                         <Input
                           id="promoCode"
-                          placeholder="Ex: FLOW30"
+                          placeholder="Insira o seu código"
                           {...signupForm.register('promoCode')}
                           onChange={(e) => {
                             signupForm.setValue('promoCode', e.target.value);
