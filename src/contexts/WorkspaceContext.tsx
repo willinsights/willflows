@@ -1,7 +1,8 @@
-import { createContext, useContext, useEffect, useState, useRef, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
 import { User } from '@supabase/supabase-js';
+import { differenceInDays, parseISO } from 'date-fns';
 
 interface Workspace {
   id: string;
@@ -33,12 +34,39 @@ interface WorkspaceContextType {
   workspace: Workspace | null;
   membership: WorkspaceMember | null;
   allWorkspaces: WorkspaceWithRole[];
+  activeWorkspaces: WorkspaceWithRole[];
   loading: boolean;
   fetchError: boolean;
   refreshWorkspace: () => Promise<void>;
   setCurrentWorkspace: (workspaceId: string) => Promise<boolean>;
   isAdmin: boolean;
   canEdit: boolean;
+}
+
+// Helper to check if a workspace is active (not expired)
+function isWorkspaceActive(workspace: WorkspaceWithRole): boolean {
+  const status = workspace.subscription_status;
+  
+  // Active or trialing with valid trial
+  if (status === 'active') return true;
+  
+  if (status === 'trialing') {
+    if (workspace.trial_ends_at) {
+      try {
+        const daysRemaining = differenceInDays(
+          parseISO(workspace.trial_ends_at),
+          new Date()
+        );
+        return daysRemaining >= 0;
+      } catch {
+        return false;
+      }
+    }
+    // No trial end date means trial is still valid
+    return true;
+  }
+  
+  return false;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
@@ -444,6 +472,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const isAdmin = membership?.role === 'admin';
   const canEdit = ['admin', 'editor', 'captacao'].includes(membership?.role || '');
 
+  // Filter to only active workspaces (not expired)
+  const activeWorkspaces = useMemo(() => 
+    allWorkspaces.filter(isWorkspaceActive),
+    [allWorkspaces]
+  );
+
   // Include authLoading in overall loading state
   const isLoading = authLoading || loading;
 
@@ -453,6 +487,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         workspace,
         membership,
         allWorkspaces,
+        activeWorkspaces,
         loading: isLoading,
         fetchError,
         refreshWorkspace,
@@ -474,6 +509,7 @@ export function useWorkspace() {
       workspace: null,
       membership: null,
       allWorkspaces: [] as WorkspaceWithRole[],
+      activeWorkspaces: [] as WorkspaceWithRole[],
       loading: true,
       fetchError: false,
       refreshWorkspace: async () => {},

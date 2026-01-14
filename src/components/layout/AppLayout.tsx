@@ -9,7 +9,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useWorkspaceSubscription } from '@/hooks/useWorkspaceSubscription';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
-import { TrialExpiredModal } from '@/components/subscription/TrialExpiredModal';
+import { WorkspaceExpiredModal } from '@/components/subscription/WorkspaceExpiredModal';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useTrialWarning } from '@/hooks/useTrialWarning';
 import { FeedbackButton } from '@/components/feedback/FeedbackButton';
@@ -33,10 +33,10 @@ export function AppLayout() {
   const [retryCooldown, setRetryCooldown] = useState(false);
   const isMobile = useIsMobile();
   const { fetchError, refreshWorkspaces } = useWorkspace();
-  const { trialExpired, isOwner } = useWorkspaceSubscription();
+  const { isWorkspaceExpired } = useWorkspaceSubscription();
 
-  // Only show trial expired modal if user is owner of the workspace
-  const showTrialExpiredModal = isOwner && trialExpired;
+  // Show expired modal for ALL users when workspace is expired (not just owners)
+  const showExpiredModal = isWorkspaceExpired;
 
   // Hook to show trial warning notification when 2 days or less remain
   useTrialWarning();
@@ -245,8 +245,8 @@ export function AppLayout() {
         </main>
       </div>
 
-      {/* Trial Expired Modal - Only shows for workspace owners */}
-      <TrialExpiredModal open={showTrialExpiredModal} />
+      {/* Workspace Expired Modal - Shows for ALL users when workspace is expired */}
+      <WorkspaceExpiredModal open={showExpiredModal} />
 
       {/* Feedback Button - Bottom right corner */}
       <FeedbackButton />
