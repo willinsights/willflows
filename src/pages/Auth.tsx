@@ -233,14 +233,8 @@ export default function Auth() {
             .update({ trial_ends_at: trialEndsAt.toISOString() })
             .eq('user_id', userId);
           
-          // Increment promo code used count
+          // Increment promo code used count using database function
           const promoCode = data.promoCode.trim().toUpperCase();
-          await supabase
-            .from('promo_codes')
-            .update({ used_count: supabase.rpc ? undefined : undefined })
-            .eq('code', promoCode);
-          
-          // Use raw SQL update via function
           await supabase.rpc('increment_promo_code_usage' as any, { code_text: promoCode });
         }
       } catch (promoError) {

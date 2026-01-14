@@ -148,6 +148,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
 
     try {
+      // IMPORTANTE: Limpar cache antigo PRIMEIRO para garantir que nenhum dado stale persiste
+      clearCachedWorkspace();
+      
       // Fetch the membership for this workspace
       const { data: membershipData, error } = await supabase
         .from('workspace_members')
@@ -187,6 +190,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       // IMPORTANTE: Guardar no localStorage PRIMEIRO antes de atualizar estado
       setLastWorkspaceId(workspaceId);
       setCachedWorkspace(user.id, ws, mem, allWorkspaces);
+      
+      // Reset hasFetchedRef para forçar refetch após reload
+      hasFetchedRef.current = false;
       
       // Atualizar estado local
       setWorkspace(ws);

@@ -16,7 +16,10 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
-  // Legacy subscription state for backwards compatibility - prefer useUserSubscription hook
+  /**
+   * @deprecated Use the `useUserSubscription` hook instead for subscription data.
+   * This state is maintained for backwards compatibility only.
+   */
   subscription: {
     subscribed: boolean;
     plan: string | null;

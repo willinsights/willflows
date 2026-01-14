@@ -30,7 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
 import { format, differenceInDays, parseISO, isValid } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { PLAN_INFO, getPriceId } from '@/lib/stripe-prices';
+import { PLANS as PLAN_INFO, getPriceId } from '@/lib/plans';
 import { cn } from '@/lib/utils';
 
 interface Invoice {

@@ -40,8 +40,8 @@ export function AppLayout() {
 
   const lastRetryTimeRef = useRef(0);
 
-  // Debug sempre ativo em DEV: ajuda a identificar overlays que bloqueiam cliques.
-  const debugEnabled = import.meta.env.DEV;
+  // Debug opt-in via query param ?debug=1 (apenas em DEV)
+  const debugEnabled = import.meta.env.DEV && new URLSearchParams(window.location.search).get('debug') === '1';
 
   const [clickDebug, setClickDebug] = useState<ClickDebugInfo | null>(null);
   const [debugPanelOpen, setDebugPanelOpen] = useState(true);

@@ -7,7 +7,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { PLAN_INFO, getPriceId } from '@/lib/stripe-prices';
+import { PLANS as PLAN_INFO, getPriceId } from '@/lib/plans';
 import { cn } from '@/lib/utils';
 import { differenceInDays, format, parseISO, isValid } from 'date-fns';
 import { pt } from 'date-fns/locale';
