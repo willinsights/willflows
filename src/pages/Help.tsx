@@ -59,7 +59,7 @@ const faqCategories = [
       },
       {
         question: 'Os freelancers são cobrados?',
-        answer: 'Sim, cada utilizador conta para o limite do seu plano. Freelancers e outros roles são contados igualmente.',
+        answer: 'Não! Freelancers e colaboradores não precisam de subscrição própria. Acedem ao workspace do owner e contam apenas para o limite de utilizadores do plano (ex: Pro permite até 10 utilizadores).',
       },
     ],
   },
