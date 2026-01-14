@@ -14,11 +14,14 @@ export interface CalendarEventWithProject extends CalendarEvent {
   projects: { name: string; client_id: string | null } | null;
 }
 
+export type CalendarSourceFilter = 'all' | 'willflow' | 'google';
+
 export function useCalendarEvents() {
   const { currentWorkspace, fetchError } = useWorkspace();
   const { toast } = useToast();
   const [events, setEvents] = useState<CalendarEventWithProject[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sourceFilter, setSourceFilter] = useState<CalendarSourceFilter>('all');
   
   // Refs to prevent duplicate fetches
   const isFetchingRef = useRef(false);
@@ -49,14 +52,79 @@ export function useCalendarEvents() {
     }
   }, [currentWorkspace?.id, fetchError]);
 
+  // Initial fetch when workspace changes
   useEffect(() => {
-    // Only fetch if workspace ID changed
     if (currentWorkspace?.id && currentWorkspace.id !== lastFetchedWorkspaceIdRef.current && !fetchError) {
       fetchEvents();
     } else if (!currentWorkspace) {
       setLoading(false);
     }
   }, [currentWorkspace?.id, fetchError]);
+
+  // Realtime subscription for auto-refresh
+  useEffect(() => {
+    if (!currentWorkspace?.id) return;
+
+    const channel = supabase
+      .channel('calendar-events-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'calendar_events',
+          filter: `workspace_id=eq.${currentWorkspace.id}`,
+        },
+        (payload) => {
+          logger.info('Calendar realtime update:', payload.eventType);
+          
+          if (payload.eventType === 'INSERT') {
+            // Fetch the full event with project relation
+            supabase
+              .from('calendar_events')
+              .select('*, projects(name, client_id)')
+              .eq('id', payload.new.id)
+              .single()
+              .then(({ data }) => {
+                if (data) {
+                  setEvents(prev => [...prev, data].sort((a, b) => 
+                    new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
+                  ));
+                }
+              });
+          } else if (payload.eventType === 'UPDATE') {
+            supabase
+              .from('calendar_events')
+              .select('*, projects(name, client_id)')
+              .eq('id', payload.new.id)
+              .single()
+              .then(({ data }) => {
+                if (data) {
+                  setEvents(prev => 
+                    prev.map(e => e.id === data.id ? data : e)
+                      .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime())
+                  );
+                }
+              });
+          } else if (payload.eventType === 'DELETE') {
+            setEvents(prev => prev.filter(e => e.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentWorkspace?.id]);
+
+  // Filter events based on source
+  const filteredEvents = events.filter(event => {
+    if (sourceFilter === 'all') return true;
+    if (sourceFilter === 'google') return !!event.google_event_id;
+    if (sourceFilter === 'willflow') return !event.google_event_id;
+    return true;
+  });
 
   const createEvent = async (event: Omit<CalendarEventInsert, 'workspace_id'>) => {
     if (!currentWorkspace) return null;
@@ -100,7 +168,7 @@ export function useCalendarEvents() {
       if (error) throw error;
 
       toast({ title: 'Evento criado com sucesso' });
-      setEvents(prev => [...prev, data]);
+      // Don't update state here - realtime will handle it
       return data;
     } catch (error) {
       toast({
@@ -133,10 +201,7 @@ export function useCalendarEvents() {
 
       if (error) throw error;
 
-      setEvents(prev =>
-        prev.map(e => (e.id === eventId ? { ...e, ...updates } : e))
-      );
-
+      // Don't update state here - realtime will handle it
       toast({ title: 'Evento atualizado' });
     } catch (error) {
       toast({
@@ -156,7 +221,7 @@ export function useCalendarEvents() {
 
       if (error) throw error;
 
-      setEvents(prev => prev.filter(e => e.id !== eventId));
+      // Don't update state here - realtime will handle it
       toast({ title: 'Evento removido' });
     } catch (error) {
       toast({
@@ -168,8 +233,11 @@ export function useCalendarEvents() {
   };
 
   return {
-    events,
+    events: filteredEvents,
+    allEvents: events,
     loading,
+    sourceFilter,
+    setSourceFilter,
     createEvent,
     updateEvent,
     deleteEvent,
