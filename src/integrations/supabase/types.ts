@@ -1680,6 +1680,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_workspace_invitation: { Args: { p_token: string }; Returns: Json }
       can_deliver_project: {
         Args: { p_phase: string; p_project_id: string }
         Returns: Json

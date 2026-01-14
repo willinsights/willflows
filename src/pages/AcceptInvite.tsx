@@ -137,30 +137,24 @@ export default function AcceptInvite() {
   }, [invitation, user, authLoading]);
 
   const handleAcceptInvite = async () => {
-    if (!invitation || !user) return;
+    if (!invitation || !user || !token) return;
 
     setViewState('accepting');
 
     try {
-      // Create workspace member
-      const { error: memberError } = await supabase
-        .from('workspace_members')
-        .insert({
-          workspace_id: invitation.workspace_id,
-          user_id: user.id,
-          role: invitation.role as any,
-          joined_at: new Date().toISOString(),
-        });
+      // Use secure RPC function to accept the invitation
+      // This validates the invitation token and email match before creating the member
+      const { data, error } = await supabase
+        .rpc('accept_workspace_invitation', { p_token: token });
 
-      if (memberError) throw memberError;
+      if (error) throw error;
 
-      // Mark invitation as accepted
-      const { error: updateError } = await supabase
-        .from('workspace_invitations')
-        .update({ accepted_at: new Date().toISOString() })
-        .eq('id', invitation.id);
-
-      if (updateError) throw updateError;
+      // Check the result from the RPC function
+      const result = data as { success: boolean; error?: string; workspace_id?: string; role?: string };
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to accept invitation');
+      }
 
       setViewState('success');
 
