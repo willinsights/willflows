@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef, ReactNode, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { User } from '@supabase/supabase-js';
 
 interface Workspace {
@@ -224,10 +225,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setWorkspace(ws);
       setMembership(mem);
       
-      console.log('[setCurrentWorkspace] Successfully switched to:', workspaceId);
+      logger.debug('[setCurrentWorkspace] Successfully switched to:', workspaceId);
       return true;
     } catch (error) {
-      console.error('[setCurrentWorkspace] Exception:', error);
+      logger.error('[setCurrentWorkspace] Exception:', error);
       return false;
     }
   }, [user, allWorkspaces]);

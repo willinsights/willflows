@@ -4,6 +4,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { handleDatabaseError } from '@/lib/error-handler';
 import { kanbanColumnSchema, kanbanColumnUpdateSchema, validateWithSchema } from '@/lib/validation-schemas';
+import { logger } from '@/lib/logger';
 import type { Tables } from '@/integrations/supabase/types';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
@@ -328,7 +329,7 @@ export function useKanban(phase: KanbanPhase) {
       // Only refresh if the project is in this phase
       const relevantPhase = newData?.current_phase || oldData?.current_phase;
       if (relevantPhase === phase || oldData?.current_phase === phase) {
-        console.log('[Kanban Realtime] Project change detected:', payload.eventType);
+        logger.debug('[Kanban Realtime] Project change detected:', payload.eventType);
         debouncedSilentRefresh();
       }
     };
@@ -342,7 +343,7 @@ export function useKanban(phase: KanbanPhase) {
       // Only refresh if the column is in this phase
       const relevantPhase = newData?.phase || oldData?.phase;
       if (relevantPhase === phase) {
-        console.log('[Kanban Realtime] Column change detected:', payload.eventType);
+        logger.debug('[Kanban Realtime] Column change detected:', payload.eventType);
         debouncedSilentRefresh();
       }
     };
@@ -356,7 +357,7 @@ export function useKanban(phase: KanbanPhase) {
       // Only refresh if the task is in this phase
       const relevantPhase = newData?.phase || oldData?.phase;
       if (relevantPhase === phase) {
-        console.log('[Kanban Realtime] Task change detected:', payload.eventType);
+        logger.debug('[Kanban Realtime] Task change detected:', payload.eventType);
         debouncedSilentRefresh();
       }
     };
@@ -364,14 +365,14 @@ export function useKanban(phase: KanbanPhase) {
     const handleChecklistChange = () => {
       if (isLocalUpdate()) return;
       // Checklists affect counters, so we refresh
-      console.log('[Kanban Realtime] Checklist change detected');
+      logger.debug('[Kanban Realtime] Checklist change detected');
       debouncedSilentRefresh();
     };
 
     const handleTeamChange = () => {
       if (isLocalUpdate()) return;
       // Team changes affect project cards
-      console.log('[Kanban Realtime] Team change detected');
+      logger.debug('[Kanban Realtime] Team change detected');
       debouncedSilentRefresh();
     };
 
@@ -441,8 +442,7 @@ export function useKanban(phase: KanbanPhase) {
     const targetColumn = columns.find(c => c.id === targetColumnId);
     const project = columns.flatMap(c => c.projects).find(p => p.id === projectId);
     
-    // DEBUG LOG
-    console.warn('[moveProject]', {
+    logger.debug('[moveProject]', {
       projectId,
       targetColumnId,
       phase,
@@ -462,7 +462,7 @@ export function useKanban(phase: KanbanPhase) {
           p_phase: 'captacao'
         });
         
-        console.warn('[can_deliver_project validation for captacao->edicao]', { validationResult, validationError });
+        logger.debug('[can_deliver_project validation for captacao->edicao]', { validationResult, validationError });
         
         if (validationError) {
           toast({
