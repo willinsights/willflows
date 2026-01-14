@@ -35,7 +35,7 @@ interface WorkspaceContextType {
   loading: boolean;
   fetchError: boolean;
   refreshWorkspace: () => Promise<void>;
-  setCurrentWorkspace: (workspaceId: string) => Promise<void>;
+  setCurrentWorkspace: (workspaceId: string) => Promise<boolean>;
   isAdmin: boolean;
   canEdit: boolean;
 }
@@ -134,56 +134,70 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return () => authSubscription.unsubscribe();
   }, []);
 
-  const setCurrentWorkspace = useCallback(async (workspaceId: string): Promise<void> => {
-    if (!user) return;
+  const setCurrentWorkspace = useCallback(async (workspaceId: string): Promise<boolean> => {
+    if (!user) {
+      console.error('[setCurrentWorkspace] No user');
+      return false;
+    }
     
     // Find the workspace in our list
     const targetWorkspace = allWorkspaces.find(w => w.id === workspaceId);
     if (!targetWorkspace) {
-      console.error('Workspace not found:', workspaceId);
-      return;
+      console.error('[setCurrentWorkspace] Workspace not found:', workspaceId);
+      return false;
     }
 
-    // Fetch the membership for this workspace
-    const { data: membershipData, error } = await supabase
-      .from('workspace_members')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('workspace_id', workspaceId)
-      .eq('is_active', true)
-      .single();
+    try {
+      // Fetch the membership for this workspace
+      const { data: membershipData, error } = await supabase
+        .from('workspace_members')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('workspace_id', workspaceId)
+        .eq('is_active', true)
+        .single();
 
-    if (error || !membershipData) {
-      console.error('Error fetching membership:', error);
-      return;
+      if (error || !membershipData) {
+        console.error('[setCurrentWorkspace] Error fetching membership:', error);
+        return false;
+      }
+
+      const ws: Workspace = {
+        id: targetWorkspace.id,
+        name: targetWorkspace.name,
+        slug: targetWorkspace.slug,
+        country: targetWorkspace.country,
+        currency: targetWorkspace.currency,
+        timezone: targetWorkspace.timezone,
+        locale: targetWorkspace.locale,
+        logo_url: targetWorkspace.logo_url,
+        subscription_plan: targetWorkspace.subscription_plan,
+        subscription_status: targetWorkspace.subscription_status,
+        trial_ends_at: targetWorkspace.trial_ends_at,
+      };
+
+      const mem: WorkspaceMember = {
+        id: membershipData.id,
+        workspace_id: membershipData.workspace_id,
+        user_id: membershipData.user_id,
+        role: membershipData.role,
+        is_active: membershipData.is_active,
+      };
+
+      // IMPORTANTE: Guardar no localStorage PRIMEIRO antes de atualizar estado
+      setLastWorkspaceId(workspaceId);
+      setCachedWorkspace(user.id, ws, mem, allWorkspaces);
+      
+      // Atualizar estado local
+      setWorkspace(ws);
+      setMembership(mem);
+      
+      console.log('[setCurrentWorkspace] Successfully switched to:', workspaceId);
+      return true;
+    } catch (error) {
+      console.error('[setCurrentWorkspace] Exception:', error);
+      return false;
     }
-
-    const ws: Workspace = {
-      id: targetWorkspace.id,
-      name: targetWorkspace.name,
-      slug: targetWorkspace.slug,
-      country: targetWorkspace.country,
-      currency: targetWorkspace.currency,
-      timezone: targetWorkspace.timezone,
-      locale: targetWorkspace.locale,
-      logo_url: targetWorkspace.logo_url,
-      subscription_plan: targetWorkspace.subscription_plan,
-      subscription_status: targetWorkspace.subscription_status,
-      trial_ends_at: targetWorkspace.trial_ends_at,
-    };
-
-    const mem: WorkspaceMember = {
-      id: membershipData.id,
-      workspace_id: membershipData.workspace_id,
-      user_id: membershipData.user_id,
-      role: membershipData.role,
-      is_active: membershipData.is_active,
-    };
-
-    setWorkspace(ws);
-    setMembership(mem);
-    setLastWorkspaceId(workspaceId);
-    setCachedWorkspace(user.id, ws, mem, allWorkspaces);
   }, [user, allWorkspaces]);
 
   const refreshWorkspace = useCallback(async (): Promise<void> => {
@@ -412,7 +426,7 @@ export function useWorkspace() {
       loading: true,
       fetchError: false,
       refreshWorkspace: async () => {},
-      setCurrentWorkspace: async () => {},
+      setCurrentWorkspace: async () => false,
       isAdmin: false,
       canEdit: false,
       currentWorkspace: null,

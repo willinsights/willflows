@@ -59,11 +59,19 @@ export function WorkspaceSelector() {
     
     setSwitching(true);
     try {
-      await setCurrentWorkspace(workspaceId);
-      // Small delay to ensure state is saved before reload
-      setTimeout(() => {
+      const success = await setCurrentWorkspace(workspaceId);
+      
+      if (success) {
+        // Reload para aplicar o novo workspace (localStorage já foi atualizado)
         window.location.href = '/app';
-      }, 100);
+      } else {
+        toast({
+          title: 'Erro ao trocar workspace',
+          description: 'Não foi possível carregar o workspace selecionado.',
+          variant: 'destructive',
+        });
+        setSwitching(false);
+      }
     } catch (error) {
       console.error('Error switching workspace:', error);
       toast({
