@@ -14,8 +14,11 @@ const PRODUCT_TO_PLAN: Record<string, string> = {
   'prod_Tl6rxTvnCICjTL': 'studio',
 };
 
-// Helper logging function for debugging
+// Helper logging function for debugging - only logs when DEBUG=true
+const DEBUG = Deno.env.get("DEBUG") === "true";
+
 const logStep = (step: string, details?: any) => {
+  if (!DEBUG) return;
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[STRIPE-WEBHOOK] ${step}${detailsStr}`);
 };

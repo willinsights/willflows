@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { getPriceId, PLAN_INFO } from '@/lib/stripe-prices';
+import { getPriceId, PLANS as PLAN_INFO } from '@/lib/plans';
 import type { SubscriptionPlan } from '@/hooks/useUserSubscription';
 import type { FeatureInfo } from '@/hooks/usePlanFeatures';
 

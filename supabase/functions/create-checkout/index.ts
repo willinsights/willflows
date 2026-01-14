@@ -14,7 +14,11 @@ const getCorsHeaders = (origin: string | null) => ({
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 });
 
+// Helper logging function for debugging - only logs when DEBUG=true
+const DEBUG = Deno.env.get("DEBUG") === "true";
+
 const logStep = (step: string, details?: any) => {
+  if (!DEBUG) return;
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CREATE-CHECKOUT] ${step}${detailsStr}`);
 };

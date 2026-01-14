@@ -63,8 +63,10 @@ export function WorkspaceSelector() {
       const success = await setCurrentWorkspace(workspaceId);
       
       if (success) {
+        // Pequeno delay para garantir que localStorage é persistido antes do reload
+        await new Promise(resolve => setTimeout(resolve, 50));
         // Reload completo - garante reset total de todo o estado React
-        // O localStorage já foi atualizado pelo setCurrentWorkspace
+        // O localStorage já foi atualizado e hasFetchedRef foi resetado pelo setCurrentWorkspace
         window.location.href = '/app';
         return; // Não continuar após reload
       } else {
