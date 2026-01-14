@@ -237,9 +237,9 @@ export function GoogleCalendarSettings() {
       
       {connection.sync_error && (
         <CardContent className="pt-0">
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm max-h-40 overflow-y-auto">
             <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <p>{connection.sync_error}</p>
+            <pre className="whitespace-pre-wrap font-sans text-sm flex-1">{connection.sync_error}</pre>
           </div>
         </CardContent>
       )}
