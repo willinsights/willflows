@@ -12,6 +12,7 @@ import { toast } from '@/hooks/use-toast';
 import { TrialExpiredModal } from '@/components/subscription/TrialExpiredModal';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useTrialWarning } from '@/hooks/useTrialWarning';
+import { FeedbackButton } from '@/components/feedback/FeedbackButton';
 
 const RETRY_COOLDOWN_MS = 5000; // 5 seconds cooldown between retries
 
@@ -243,6 +244,9 @@ export function AppLayout() {
 
       {/* Trial Expired Modal */}
       <TrialExpiredModal open={subscription.trialExpired} />
+
+      {/* Feedback Button - Bottom right corner */}
+      <FeedbackButton />
     </div>
   );
 }
