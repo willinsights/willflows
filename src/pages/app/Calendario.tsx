@@ -56,7 +56,7 @@ export default function Calendario() {
       .eq('id', id);
     if (!error) refresh();
   };
-  const { events, createEvent, refresh: refreshEvents } = useCalendarEvents();
+  const { events, createEvent, refresh: refreshEvents, sourceFilter, setSourceFilter } = useCalendarEvents();
   const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
@@ -133,6 +133,7 @@ export default function Calendario() {
         date: parseISO(event.start_at),
         type: event.event_type === 'meeting' ? 'meeting' : 'event',
         meetUrl: event.video_call_url || undefined,
+        isGoogleImport: !!event.google_event_id,
       });
     });
 
@@ -320,14 +321,36 @@ export default function Calendario() {
         </div>
       </div>
 
-      {/* View Mode Tabs */}
-      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)}>
-        <TabsList>
-          <TabsTrigger value="month">Mês</TabsTrigger>
-          <TabsTrigger value="week">Semana</TabsTrigger>
-          <TabsTrigger value="day">Dia</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      {/* View Mode and Source Filter */}
+      <div className="flex flex-wrap items-center gap-4">
+        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)}>
+          <TabsList>
+            <TabsTrigger value="month">Mês</TabsTrigger>
+            <TabsTrigger value="week">Semana</TabsTrigger>
+            <TabsTrigger value="day">Dia</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        
+        {/* Source Filter */}
+        <Tabs value={sourceFilter} onValueChange={(v) => setSourceFilter(v as any)}>
+          <TabsList>
+            <TabsTrigger value="all" className="gap-1.5">
+              <CalendarIcon className="h-3.5 w-3.5" />
+              Todos
+            </TabsTrigger>
+            <TabsTrigger value="willflow" className="gap-1.5">
+              <Camera className="h-3.5 w-3.5" />
+              WillFlow
+            </TabsTrigger>
+            <TabsTrigger value="google" className="gap-1.5">
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c5.51 0 10-4.48 10-10S17.51 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              </svg>
+              Pessoal
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
       {/* Google Calendar Integration */}
       <GoogleCalendarSettings />
@@ -349,6 +372,10 @@ export default function Calendario() {
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-warning" />
           <span>Evento</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-muted border-2 border-dashed border-muted-foreground/50" />
+          <span className="text-muted-foreground">Importado</span>
         </div>
         <div className="flex items-center gap-2 ml-auto text-muted-foreground">
           <GripVertical className="h-4 w-4" />

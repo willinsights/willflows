@@ -20,6 +20,7 @@ export interface CalendarItem {
   time?: string;
   endTime?: string;
   meetUrl?: string;
+  isGoogleImport?: boolean;
 }
 
 interface DraggableCalendarItemProps {
@@ -78,6 +79,7 @@ export function DraggableCalendarItem({
         className={cn(
           'text-xs px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-1',
           getTypeColor(item.type),
+          item.isGoogleImport && 'border border-dashed border-current/50 bg-opacity-60',
           isDragging && 'opacity-50 shadow-lg ring-2 ring-primary'
         )}
         onClick={(e) => onClick(item, e)}
@@ -91,6 +93,11 @@ export function DraggableCalendarItem({
           >
             <GripVertical className="h-3 w-3 opacity-60" />
           </span>
+        )}
+        {item.isGoogleImport && (
+          <svg className="h-3 w-3 flex-shrink-0 opacity-70" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c5.51 0 10-4.48 10-10S17.51 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
         )}
         <span className="truncate">
           {item.time && <span className="font-medium">{item.time} </span>}
@@ -107,6 +114,7 @@ export function DraggableCalendarItem({
       className={cn(
         'flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:opacity-90 transition-opacity',
         getTypeColor(item.type),
+        item.isGoogleImport && 'border border-dashed border-current/50 bg-opacity-60',
         isDragging && 'opacity-50 shadow-lg ring-2 ring-primary'
       )}
       onClick={(e) => onClick(item, e)}
@@ -121,11 +129,20 @@ export function DraggableCalendarItem({
           <GripVertical className="h-5 w-5 opacity-60" />
         </span>
       )}
-      {TypeIcon && <TypeIcon className="h-5 w-5 flex-shrink-0" />}
+      {item.isGoogleImport ? (
+        <svg className="h-5 w-5 flex-shrink-0 opacity-70" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c5.51 0 10-4.48 10-10S17.51 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+        </svg>
+      ) : (
+        TypeIcon && <TypeIcon className="h-5 w-5 flex-shrink-0" />
+      )}
       <div className="flex-1 min-w-0">
         <div className="font-medium truncate">{item.title}</div>
         {item.clientName && (
           <div className="text-sm opacity-80 truncate">{item.clientName}</div>
+        )}
+        {item.isGoogleImport && (
+          <div className="text-xs opacity-60">Importado do Google Calendar</div>
         )}
       </div>
       <div className="text-sm opacity-80 flex-shrink-0">
