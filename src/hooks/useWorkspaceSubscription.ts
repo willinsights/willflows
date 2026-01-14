@@ -26,6 +26,9 @@ export interface WorkspaceSubscriptionState {
   isTrial: boolean;
   trialExpired: boolean;
   
+  // Workspace expiration - blocks ALL users (not just owners)
+  isWorkspaceExpired: boolean;
+  
   // User's role and permissions in this workspace
   isOwner: boolean; // true if role === 'admin'
   isAdmin: boolean; // same as isOwner (alias)
@@ -72,6 +75,7 @@ export function useWorkspaceSubscription(): WorkspaceSubscriptionState {
         trialDaysRemaining: null,
         isTrial: false,
         trialExpired: false,
+        isWorkspaceExpired: false,
         isOwner: false,
         isAdmin: false,
         canEdit: false,
@@ -114,6 +118,17 @@ export function useWorkspaceSubscription(): WorkspaceSubscriptionState {
       trialEndsAt,
     };
 
+    // Workspace is expired if:
+    // 1. status is 'expired' OR 'canceled' OR 'past_due' OR 'unpaid'
+    // 2. OR status is 'trialing' AND trial has expired
+    const isTrialExpired = isTrial && trialExpired;
+    const isWorkspaceExpired = 
+      status === 'expired' || 
+      status === 'canceled' || 
+      status === 'past_due' || 
+      status === 'unpaid' ||
+      isTrialExpired;
+
     return {
       subscription,
       plan,
@@ -122,7 +137,8 @@ export function useWorkspaceSubscription(): WorkspaceSubscriptionState {
       trialEndsAt,
       trialDaysRemaining,
       isTrial,
-      trialExpired: isTrial && trialExpired,
+      trialExpired: isTrialExpired,
+      isWorkspaceExpired,
       isOwner: isUserOwner,
       isAdmin: isUserOwner,
       canEdit,
