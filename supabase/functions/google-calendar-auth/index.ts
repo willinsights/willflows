@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,29 +12,34 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-// Helper function to get user from auth header
+// Helper function to validate the JWT and fetch the user.
+// Note: In edge runtime, prefer passing through the raw Authorization header.
 async function getUserFromToken(authHeader: string | null) {
   if (!authHeader) return null;
-  
-  const token = authHeader.replace('Bearer ', '');
-  
-  // Create a client with the user's token to validate it
-  const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+
+  // Create a client that forwards the caller's JWT to the Auth API
+  const supabaseAuthed = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: {
+      // Use lowercase header key for maximum compatibility
       headers: {
-        Authorization: `Bearer ${token}`,
+        authorization: authHeader,
       },
     },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
   });
-  
-  const { data: { user }, error } = await supabaseClient.auth.getUser();
-  
+
+  const { data, error } = await supabaseAuthed.auth.getUser();
+
   if (error) {
-    console.error('Auth error:', error.message);
+    console.error('Auth error (getUser):', { message: error.message, status: (error as any).status, name: (error as any).name });
     return null;
   }
-  
-  return user;
+
+  return data.user;
 }
 
 serve(async (req) => {
