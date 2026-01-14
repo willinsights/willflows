@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { isTrialExpired, hasPaidSubscription } from '@/lib/subscription-utils';
+import { queryClient } from '@/App';
 
 // Simplified subscription state - detailed subscription info comes from useUserSubscription hook
 interface AuthContextType {
@@ -95,7 +96,19 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    // Clear React Query cache to prevent stale data
+    queryClient.clear();
+    
+    // Clear all workspace-related localStorage items
+    localStorage.removeItem('willflow_workspace_cache');
+    localStorage.removeItem('willflow_last_workspace_id');
+    
+    // Sign out globally (invalidates all sessions across tabs)
+    await supabase.auth.signOut({ scope: 'global' });
+    
+    // Force local state to null immediately
+    setUser(null);
+    setSession(null);
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {

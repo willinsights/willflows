@@ -66,7 +66,11 @@ export function TrialExpiredModal({ open }: TrialExpiredModalProps) {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/');
+    
+    // Small delay to ensure state is fully cleared before navigation
+    setTimeout(() => {
+      navigate('/');
+    }, 100);
   };
 
   const currencyKey: Currency = (currentWorkspace?.currency?.toLowerCase() === 'brl' ? 'brl' : 'eur');
