@@ -12,17 +12,18 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-// Helper function to validate the JWT and fetch the user.
-// Note: In edge runtime, prefer passing through the raw Authorization header.
-async function getUserFromToken(authHeader: string | null) {
-  if (!authHeader) return null;
+// Helper to validate the caller JWT using signing keys and extract claims.
+// IMPORTANT: With signing-keys, we must validate in code via getClaims().
+async function getClaimsFromRequest(req: Request) {
+  const authHeader = req.headers.get('Authorization');
 
-  // Create a client that forwards the caller's JWT to the Auth API
+  if (!authHeader?.startsWith('Bearer ')) return null;
+
   const supabaseAuthed = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: {
-      // Use lowercase header key for maximum compatibility
+      // Forward the raw Authorization header.
       headers: {
-        authorization: authHeader,
+        Authorization: authHeader,
       },
     },
     auth: {
@@ -32,14 +33,18 @@ async function getUserFromToken(authHeader: string | null) {
     },
   });
 
-  const { data, error } = await supabaseAuthed.auth.getUser();
+  const token = authHeader.replace('Bearer ', '');
+  const { data, error } = await supabaseAuthed.auth.getClaims(token);
 
-  if (error) {
-    console.error('Auth error (getUser):', { message: error.message, status: (error as any).status, name: (error as any).name });
+  if (error || !data?.claims) {
+    console.error('Auth error (getClaims):', {
+      message: error?.message,
+      status: (error as any)?.status,
+    });
     return null;
   }
 
-  return data.user;
+  return data.claims;
 }
 
 serve(async (req) => {
@@ -143,15 +148,17 @@ serve(async (req) => {
     }
 
     // All other actions require authentication
-    const user = await getUserFromToken(authHeader);
-    
-    if (!user) {
+    const claims = await getClaimsFromRequest(req);
+
+    if (!claims) {
       console.log('No valid user found for action:', action);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    const userId = claims.sub as string;
 
     // Action: Get OAuth URL
     if (action === 'authorize') {
@@ -165,11 +172,11 @@ serve(async (req) => {
       }
 
       // Build state with user info
-      const state = btoa(JSON.stringify({
-        userId: user.id,
-        workspaceId,
-        redirectUri,
-      }));
+       const state = btoa(JSON.stringify({
+         userId,
+         workspaceId,
+         redirectUri,
+       }));
 
       const scopes = [
         'https://www.googleapis.com/auth/calendar',
@@ -198,7 +205,7 @@ serve(async (req) => {
       const { data: connection } = await supabaseAdmin
         .from('google_calendar_connections')
         .select('access_token')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('workspace_id', workspaceId)
         .single();
 
@@ -213,7 +220,7 @@ serve(async (req) => {
       const { error: deleteError } = await supabaseAdmin
         .from('google_calendar_connections')
         .delete()
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('workspace_id', workspaceId);
 
       if (deleteError) {
@@ -232,12 +239,12 @@ serve(async (req) => {
     if (action === 'status') {
       const { workspaceId } = await req.json();
 
-      const { data: connection } = await supabaseAdmin
-        .from('google_calendar_connections')
-        .select('id, is_connected, sync_shoots, sync_deliveries, sync_meetings, sync_events, import_from_google, last_sync_at, sync_error')
-        .eq('user_id', user.id)
-        .eq('workspace_id', workspaceId)
-        .single();
+       const { data: connection } = await supabaseAdmin
+         .from('google_calendar_connections')
+         .select('id, is_connected, sync_shoots, sync_deliveries, sync_meetings, sync_events, import_from_google, last_sync_at, sync_error')
+         .eq('user_id', userId)
+         .eq('workspace_id', workspaceId)
+         .single();
 
       return new Response(JSON.stringify({ connection }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -248,18 +255,18 @@ serve(async (req) => {
     if (action === 'update-preferences') {
       const { workspaceId, preferences } = await req.json();
 
-      const { error: updateError } = await supabaseAdmin
-        .from('google_calendar_connections')
-        .update({
-          sync_shoots: preferences.sync_shoots,
-          sync_deliveries: preferences.sync_deliveries,
-          sync_meetings: preferences.sync_meetings,
-          sync_events: preferences.sync_events,
-          import_from_google: preferences.import_from_google,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', user.id)
-        .eq('workspace_id', workspaceId);
+       const { error: updateError } = await supabaseAdmin
+         .from('google_calendar_connections')
+         .update({
+           sync_shoots: preferences.sync_shoots,
+           sync_deliveries: preferences.sync_deliveries,
+           sync_meetings: preferences.sync_meetings,
+           sync_events: preferences.sync_events,
+           import_from_google: preferences.import_from_google,
+           updated_at: new Date().toISOString(),
+         })
+         .eq('user_id', userId)
+         .eq('workspace_id', workspaceId);
 
       if (updateError) {
         return new Response(JSON.stringify({ error: updateError.message }), {
