@@ -448,7 +448,7 @@ serve(async (req) => {
       });
     }
 
-    // Action: Import from Google
+    // Action: Import from Google (fetch and insert external events)
     if (action === 'import') {
       if (!connection.import_from_google) {
         return new Response(JSON.stringify({ error: 'Import from Google is disabled' }), {
@@ -469,15 +469,77 @@ serve(async (req) => {
         !e.description?.includes('Gerido por WillFlow')
       );
 
+      // Get existing imported events to avoid duplicates
+      const { data: existingImported } = await supabaseAdmin
+        .from('calendar_events')
+        .select('google_event_id')
+        .eq('workspace_id', workspaceId)
+        .not('google_event_id', 'is', null);
+
+      const existingGoogleIds = new Set(existingImported?.map(e => e.google_event_id) || []);
+
+      let imported = 0;
+      let updated = 0;
+      const importErrors: string[] = [];
+
+      for (const gEvent of externalEvents) {
+        try {
+          const isAllDay = !!gEvent.start?.date;
+          const startAt = gEvent.start?.dateTime || `${gEvent.start?.date}T00:00:00`;
+          const endAt = gEvent.end?.dateTime || (gEvent.end?.date ? `${gEvent.end.date}T23:59:59` : startAt);
+
+          const eventData = {
+            workspace_id: workspaceId,
+            title: gEvent.summary || 'Evento do Google',
+            description: gEvent.description || null,
+            start_at: startAt,
+            end_at: endAt,
+            all_day: isAllDay,
+            location: gEvent.location || null,
+            event_type: 'event', // Default type for imported events
+            google_event_id: gEvent.id,
+            created_by: user.id,
+          };
+
+          if (existingGoogleIds.has(gEvent.id)) {
+            // Update existing event
+            const { error } = await supabaseAdmin
+              .from('calendar_events')
+              .update({
+                title: eventData.title,
+                description: eventData.description,
+                start_at: eventData.start_at,
+                end_at: eventData.end_at,
+                all_day: eventData.all_day,
+                location: eventData.location,
+              })
+              .eq('google_event_id', gEvent.id)
+              .eq('workspace_id', workspaceId);
+
+            if (error) throw error;
+            updated++;
+          } else {
+            // Insert new event
+            const { error } = await supabaseAdmin
+              .from('calendar_events')
+              .insert(eventData);
+
+            if (error) throw error;
+            imported++;
+          }
+        } catch (e: any) {
+          console.error(`Error importing event "${gEvent.summary}":`, e.message);
+          importErrors.push(`"${gEvent.summary}": ${e.message}`);
+        }
+      }
+
+      console.log(`Import completed: ${imported} imported, ${updated} updated, ${importErrors.length} errors`);
+
       return new Response(JSON.stringify({ 
-        events: externalEvents.map(e => ({
-          id: e.id,
-          title: e.summary,
-          start: e.start?.dateTime || e.start?.date,
-          end: e.end?.dateTime || e.end?.date,
-          allDay: !!e.start?.date,
-          location: e.location,
-        }))
+        imported,
+        updated,
+        total: externalEvents.length,
+        errors: importErrors,
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
