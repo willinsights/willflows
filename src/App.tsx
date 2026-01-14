@@ -2,7 +2,7 @@ import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
@@ -10,6 +10,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { FullPageLoader } from "@/components/layout/FullPageLoader";
+import { queryClient } from "@/lib/query-client";
 
 // Lazy loaded public pages
 const Landing = lazy(() => import("./pages/Landing"));
@@ -44,18 +45,6 @@ const Faturacao = lazy(() => import("./pages/app/Faturacao"));
 const Planos = lazy(() => import("./pages/app/Planos"));
 const BetaAdmin = lazy(() => import("./pages/app/BetaAdmin"));
 const FeedbackAdmin = lazy(() => import("./pages/app/FeedbackAdmin"));
-
-// Export queryClient so it can be cleared on logout
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 30, // 30 minutes (previously cacheTime)
-      refetchOnWindowFocus: false,
-      retry: 1,
-    },
-  },
-});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

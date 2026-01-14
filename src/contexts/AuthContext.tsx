@@ -3,7 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { isTrialExpired, hasPaidSubscription } from '@/lib/subscription-utils';
-import { queryClient } from '@/App';
+import { queryClient } from '@/lib/query-client';
 
 // Simplified subscription state - detailed subscription info comes from useUserSubscription hook
 interface AuthContextType {
