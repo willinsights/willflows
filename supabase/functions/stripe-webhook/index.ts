@@ -182,9 +182,9 @@ serve(async (req) => {
           if (subscription.status === 'trialing' && subscription.trial_end) {
             trialEndsAt = new Date(subscription.trial_end * 1000).toISOString();
           } else if (subscription.status === 'trialing') {
-            // Fallback: set trial to 7 days from now
+            // Fallback: set trial to 30 days from now (BÓNUS DE LANÇAMENTO)
             const trialEnd = new Date();
-            trialEnd.setDate(trialEnd.getDate() + 7);
+            trialEnd.setDate(trialEnd.getDate() + 30);
             trialEndsAt = trialEnd.toISOString();
           }
 

@@ -165,7 +165,7 @@ export default function BetaAdmin() {
     setCreating(true);
     try {
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
+      expiresAt.setDate(expiresAt.getDate() + 30); // 30 days from now - BÓNUS DE LANÇAMENTO
 
       const { data, error } = await supabase
         .from('beta_invite_tokens')
@@ -268,7 +268,7 @@ export default function BetaAdmin() {
   const inviteFromWaitlist = async (entry: WaitlistEntry, sendEmail: boolean = true) => {
     try {
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7);
+      expiresAt.setDate(expiresAt.getDate() + 30); // 30 days from now - BÓNUS DE LANÇAMENTO
 
       // Create invite token
       const { data: invite, error: inviteError } = await supabase

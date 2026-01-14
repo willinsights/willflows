@@ -1833,12 +1833,12 @@ export type Database = {
       count_total_projects: { Args: { p_user_id: string }; Returns: number }
       create_workspace_with_admin: {
         Args: {
-          p_country: Database["public"]["Enums"]["country_region"]
-          p_currency: string
-          p_locale: string
+          p_country?: Database["public"]["Enums"]["country_region"]
+          p_currency?: string
+          p_locale?: string
           p_name: string
           p_slug: string
-          p_timezone: string
+          p_timezone?: string
         }
         Returns: string
       }

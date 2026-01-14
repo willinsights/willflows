@@ -104,14 +104,15 @@ export function useWorkspaceSubscription(): WorkspaceSubscriptionState {
           trialDaysRemaining = differenceInDays(endDate, new Date());
           trialExpired = trialDaysRemaining < 0;
         } catch {
-          // Fallback: assume trial is valid with default days
-          trialDaysRemaining = 7;
+          // Fallback: assume trial is valid with default days (30 days - launch bonus)
+          trialDaysRemaining = 30;
           trialExpired = false;
         }
       } else {
         // Trial without end date: assume valid trial with default days
         // This handles legacy workspaces or workspaces created without trial_ends_at
-        trialDaysRemaining = 7;
+        // 30 DIAS - BÓNUS DE LANÇAMENTO
+        trialDaysRemaining = 30;
         trialExpired = false;
       }
     }

@@ -14,8 +14,8 @@ interface TourStep {
 const tourSteps: TourStep[] = [
   {
     id: 'welcome',
-    title: 'Bem-vindo ao WillFlow!',
-    description: 'Vamos fazer um tour rápido pelas principais funcionalidades para que possa começar a usar o sistema de forma eficaz.',
+    title: 'Bem-vindo ao WillFlow! 🎉',
+    description: 'Está a usar o WillFlow com 30 dias grátis como bónus de lançamento! Vamos fazer um tour rápido. E não se esqueça: temos uma aba de Feedback — adoramos receber as suas sugestões!',
     icon: Sparkles,
   },
   {
