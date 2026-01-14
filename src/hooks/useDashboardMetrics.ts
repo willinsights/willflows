@@ -174,21 +174,24 @@ export function useDashboardMetrics() {
         entreguesChange,
       });
 
-      // Calculate monthly data for chart (last 6 months)
+      // Calculate monthly data for chart (last 6 months) - USE delivered_at for accurate financial reporting
       const monthlyStats: MonthlyData[] = [];
       
       for (let i = 5; i >= 0; i--) {
         const monthDate = subMonths(now, i);
         const monthStart = startOfMonth(monthDate);
-        const monthEnd = startOfMonth(subMonths(now, i - 1));
+        const monthEnd = endOfMonth(monthDate);
         
+        // Filter only DELIVERED projects in this month (using delivered_at)
         const monthProjects = projectsData?.filter(p => {
-          const createdAt = new Date(p.created_at);
-          return createdAt >= monthStart && createdAt < monthEnd;
+          if (!p.is_delivered || !p.delivered_at) return false;
+          const deliveredAt = new Date(p.delivered_at);
+          return deliveredAt >= monthStart && deliveredAt <= monthEnd;
         }) || [];
         
         const monthReceita = monthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
-        const monthCustos = monthProjects.reduce((sum, p) => sum + (p.custo_captacao || 0) + (p.custo_edicao || 0), 0);
+        const monthCustos = monthProjects.reduce((sum, p) => 
+          sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
         
         monthlyStats.push({
           month: format(monthDate, 'MMM', { locale: pt }),
