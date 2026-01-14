@@ -110,7 +110,7 @@ const plans = [
 const faqs = [
   {
     question: 'Como funciona o período de teste?',
-    answer: 'Ao iniciar a subscrição, tem 7 dias grátis para experimentar todas as funcionalidades. A cobrança só é efetuada após o término do trial.',
+    answer: 'Ao criar conta, tem automaticamente 7 dias grátis para experimentar todas as funcionalidades sem precisar de cartão. Após o trial, escolhe o plano que melhor se adequa.',
   },
   {
     question: 'Posso mudar de plano a qualquer momento?',

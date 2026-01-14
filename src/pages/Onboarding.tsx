@@ -301,7 +301,7 @@ export default function Onboarding() {
               <div className="text-center mb-6">
                 <h1 className="text-2xl font-bold mb-2">Escolha o seu plano</h1>
                 <p className="text-muted-foreground mb-4">
-                  7 dias grátis com cartão • Cancele quando quiser
+                  Subscreva quando o trial terminar • Cancele quando quiser
                 </p>
 
                 {/* Billing Toggle */}
@@ -427,8 +427,8 @@ export default function Onboarding() {
                     </>
                   ) : (
                     <>
-                      <CreditCard className="mr-2 h-4 w-4" />
-                      Começar 7 dias grátis
+                      <ArrowRight className="mr-2 h-4 w-4" />
+                      Subscrever agora
                     </>
                   )}
                 </Button>

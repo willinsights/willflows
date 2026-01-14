@@ -210,7 +210,7 @@ export default function Features() {
               Pronto para transformar a sua gestão?
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              7 dias grátis com cartão. Cancele a qualquer momento.
+              7 dias grátis, sem cartão. Cancele a qualquer momento.
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">
