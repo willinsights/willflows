@@ -81,50 +81,56 @@ export default function Calendario() {
   const calendarItems = useMemo(() => {
     const items: CalendarItem[] = [];
 
-    // Add project shoot dates
-    projects.forEach(project => {
-      if (project.shoot_date) {
-        items.push({
-          id: `shoot-${project.id}`,
-          projectId: project.id,
-          title: project.name,
-          date: parseISO(project.shoot_date),
-          type: 'shoot',
-          projectType: project.type,
-          clientName: project.clients?.name,
-          time: project.shoot_start_time || undefined,
-          endTime: project.shoot_end_time || undefined,
-        });
-      }
+    // Only add WillFlow project items if filter allows
+    if (sourceFilter === 'all' || sourceFilter === 'willflow') {
+      // Add project shoot dates
+      projects.forEach(project => {
+        if (project.shoot_date) {
+          items.push({
+            id: `shoot-${project.id}`,
+            projectId: project.id,
+            title: project.name,
+            date: parseISO(project.shoot_date),
+            type: 'shoot',
+            projectType: project.type,
+            clientName: project.clients?.name,
+            time: project.shoot_start_time || undefined,
+            endTime: project.shoot_end_time || undefined,
+            isGoogleImport: false,
+          });
+        }
 
-      if (project.delivery_date) {
-        items.push({
-          id: `delivery-${project.id}`,
-          projectId: project.id,
-          title: project.name,
-          date: parseISO(project.delivery_date),
-          type: 'delivery',
-          projectType: project.type,
-          clientName: project.clients?.name,
-        });
-      }
+        if (project.delivery_date) {
+          items.push({
+            id: `delivery-${project.id}`,
+            projectId: project.id,
+            title: project.name,
+            date: parseISO(project.delivery_date),
+            type: 'delivery',
+            projectType: project.type,
+            clientName: project.clients?.name,
+            isGoogleImport: false,
+          });
+        }
 
-      // Add meetings with google_meet_url
-      if (project.google_meet_url && project.item_type === 'reuniao') {
-        items.push({
-          id: `meeting-${project.id}`,
-          projectId: project.id,
-          title: project.name,
-          date: project.shoot_date ? parseISO(project.shoot_date) : new Date(),
-          type: 'meeting',
-          clientName: project.clients?.name,
-          time: project.shoot_start_time || undefined,
-          meetUrl: project.google_meet_url,
-        });
-      }
-    });
+        // Add meetings with google_meet_url
+        if (project.google_meet_url && project.item_type === 'reuniao') {
+          items.push({
+            id: `meeting-${project.id}`,
+            projectId: project.id,
+            title: project.name,
+            date: project.shoot_date ? parseISO(project.shoot_date) : new Date(),
+            type: 'meeting',
+            clientName: project.clients?.name,
+            time: project.shoot_start_time || undefined,
+            meetUrl: project.google_meet_url,
+            isGoogleImport: false,
+          });
+        }
+      });
+    }
 
-    // Add calendar events
+    // Add calendar events (already filtered by sourceFilter in hook)
     events.forEach(event => {
       items.push({
         id: `event-${event.id}`,
@@ -138,7 +144,7 @@ export default function Calendario() {
     });
 
     return items;
-  }, [projects, events]);
+  }, [projects, events, sourceFilter]);
 
   // Get items for a specific date
   const getItemsForDate = (date: Date) => {
