@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
+
+const AUTO_SYNC_INTERVAL_MS = 60000; // 1 minute
 
 export interface GoogleCalendarConnection {
   id: string;
@@ -29,6 +31,8 @@ export function useGoogleCalendar() {
   const [connection, setConnection] = useState<GoogleCalendarConnection | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const autoSyncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isAutoSyncingRef = useRef(false);
 
   // Fetch connection status
   const fetchStatus = useCallback(async () => {
@@ -229,7 +233,99 @@ export function useGoogleCalendar() {
     }
   }, [currentWorkspace?.id, connection, toast]);
 
-  // Trigger sync (bidirectional)
+  // Silent sync for auto-sync (no toasts)
+  const silentSync = useCallback(async () => {
+    if (!currentWorkspace?.id || !connection?.is_connected) return;
+    if (isAutoSyncingRef.current) return; // Prevent overlapping syncs
+
+    isAutoSyncingRef.current = true;
+    console.log('[Auto-sync] Starting periodic sync...');
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        isAutoSyncingRef.current = false;
+        return;
+      }
+
+      // Export WillFlow → Google Calendar
+      await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-calendar-sync`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({
+            action: 'sync',
+            workspaceId: currentWorkspace.id,
+          }),
+        }
+      );
+
+      // Import Google Calendar → WillFlow (if enabled)
+      if (connection.import_from_google) {
+        await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-calendar-sync`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            },
+            body: JSON.stringify({
+              action: 'import',
+              workspaceId: currentWorkspace.id,
+            }),
+          }
+        );
+      }
+
+      console.log('[Auto-sync] Completed successfully');
+      
+      // Update last_sync_at silently
+      fetchStatus();
+    } catch (error) {
+      console.error('[Auto-sync] Failed:', error);
+    } finally {
+      isAutoSyncingRef.current = false;
+    }
+  }, [currentWorkspace?.id, connection?.is_connected, connection?.import_from_google, fetchStatus]);
+
+  // Auto-sync interval - runs every minute when connected
+  useEffect(() => {
+    // Clear any existing interval
+    if (autoSyncIntervalRef.current) {
+      clearInterval(autoSyncIntervalRef.current);
+      autoSyncIntervalRef.current = null;
+    }
+
+    // Only start auto-sync if connected
+    if (connection?.is_connected) {
+      console.log('[Auto-sync] Starting interval (every 1 minute)');
+      
+      // Run immediately on mount/connection
+      silentSync();
+      
+      // Then run every minute
+      autoSyncIntervalRef.current = setInterval(() => {
+        silentSync();
+      }, AUTO_SYNC_INTERVAL_MS);
+    }
+
+    return () => {
+      if (autoSyncIntervalRef.current) {
+        console.log('[Auto-sync] Stopping interval');
+        clearInterval(autoSyncIntervalRef.current);
+        autoSyncIntervalRef.current = null;
+      }
+    };
+  }, [connection?.is_connected, silentSync]);
+
+  // Trigger sync (bidirectional) - manual with toasts
   const sync = useCallback(async () => {
     if (!currentWorkspace?.id || !connection?.is_connected) return;
 
