@@ -22,11 +22,11 @@ const faqCategories = [
     faqs: [
       {
         question: 'Preciso de cartão para testar?',
-        answer: 'Sim, pedimos cartão para iniciar o trial de 7 dias. Mas só cobramos após o período de teste terminar. Pode cancelar a qualquer momento antes e não será cobrado.',
+        answer: 'Não! Como bónus de lançamento, oferecemos 30 dias grátis sem precisar de cartão. Só adiciona o cartão quando decidir subscrever.',
       },
       {
         question: 'Posso cancelar antes do trial acabar?',
-        answer: 'Sim! Pode cancelar a qualquer momento durante o trial. Se cancelar antes dos 7 dias, não será cobrado nada.',
+        answer: 'Sim! Pode cancelar a qualquer momento durante o trial de 30 dias e não será cobrado nada.',
       },
       {
         question: 'Como funciona a cobrança?',
@@ -227,7 +227,7 @@ export default function Help() {
               Pronto para começar?
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              7 dias grátis com cartão. Cancele a qualquer momento.
+              🎉 30 dias grátis como bónus de lançamento! Sem cartão necessário.
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">

@@ -129,6 +129,15 @@ const handler = async (req: Request): Promise<Response> => {
                         Bem-vindo ao <strong style="color: #7c3aed;">WillFlow</strong>! Estamos muito felizes por tê-lo connosco.
                       </p>
                       
+                      <div style="background: linear-gradient(135deg, #f0e7ff 0%, #e9d5ff 100%); border-radius: 12px; padding: 16px; margin: 0 0 20px 0;">
+                        <p style="margin: 0; color: #7c3aed; font-size: 14px; font-weight: 600;">
+                          🎉 Bónus de Lançamento: 30 dias grátis!
+                        </p>
+                        <p style="margin: 8px 0 0; color: #52525b; font-size: 14px;">
+                          Aproveite para experimentar todas as funcionalidades sem compromisso.
+                        </p>
+                      </div>
+                      
                       <p style="margin: 0 0 30px; color: #52525b; font-size: 16px; line-height: 1.6;">
                         O WillFlow foi criado para fotógrafos e filmmakers que querem organizar o seu trabalho de forma profissional, desde a captação até a entrega final.
                       </p>
@@ -201,7 +210,10 @@ const handler = async (req: Request): Promise<Response> => {
                   <tr>
                     <td style="padding: 30px 40px; background-color: #f4f4f5; text-align: center;">
                       <p style="margin: 0 0 10px; color: #71717a; font-size: 14px;">
-                        Precisa de ajuda? Responda a este email ou visite o nosso centro de ajuda.
+                        Precisa de ajuda? Responda a este email ou use a aba de Feedback dentro da app.
+                      </p>
+                      <p style="margin: 0 0 10px; color: #52525b; font-size: 13px; font-weight: 500;">
+                        💬 Adoramos receber feedback - ajude-nos a melhorar!
                       </p>
                       <p style="margin: 0; color: #a1a1aa; font-size: 12px;">
                         © 2025 WillFlow. Todos os direitos reservados.

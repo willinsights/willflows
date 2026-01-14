@@ -117,6 +117,15 @@ const handler = async (req: Request): Promise<Response> => {
                   <strong>${inviterName || "Um utilizador"}</strong> convidou-te para te juntares ao workspace <strong>"${workspaceName}"</strong> como <strong>${getRoleLabel(role)}</strong>.
                 </p>
                 
+                <div style="background: linear-gradient(135deg, #f0e7ff 0%, #e9d5ff 100%); border-radius: 12px; padding: 16px; margin: 0 0 24px 0;">
+                  <p style="margin: 0; color: #7c3aed; font-size: 14px; font-weight: 600;">
+                    🎉 Bónus de Lançamento
+                  </p>
+                  <p style="margin: 8px 0 0; color: #52525b; font-size: 14px;">
+                    30 dias grátis para experimentar todas as funcionalidades!
+                  </p>
+                </div>
+                
                 <p style="color: #52525b; margin: 0 0 24px 0; font-size: 16px; line-height: 1.6;">
                   Clica no botão abaixo para aceitar o convite e começar a colaborar:
                 </p>
@@ -138,7 +147,7 @@ const handler = async (req: Request): Promise<Response> => {
                 <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 32px 0;">
                 
                 <p style="color: #a1a1aa; margin: 0; font-size: 12px; text-align: center;">
-                  Este convite expira em 7 dias. Se não solicitaste este convite, podes ignorar este email.
+                  Este convite expira em 30 dias. Se não solicitaste este convite, podes ignorar este email.
                 </p>
               </div>
             </div>
