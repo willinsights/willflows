@@ -130,7 +130,7 @@ const handler = async (req: Request): Promise<Response> => {
                       </p>
                       
                       <p style="margin: 0 0 30px; color: #52525b; font-size: 16px; line-height: 1.6;">
-                        O WillFlow foi criado para fotógrafos e videomakers que querem organizar o seu trabalho de forma profissional, desde a captação até a entrega final.
+                        O WillFlow foi criado para fotógrafos e filmmakers que querem organizar o seu trabalho de forma profissional, desde a captação até a entrega final.
                       </p>
                       
                       <!-- Features list -->
