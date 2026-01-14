@@ -70,7 +70,7 @@ export function UpgradeAlert({
 
   const handleViewPlans = () => {
     onClose();
-    navigate('/app/conta');
+    navigate('/app/planos');
   };
 
   const handleUpgrade = async () => {

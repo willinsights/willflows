@@ -17,8 +17,6 @@ import { useGlobalSearch, SearchResult } from '@/hooks/useGlobalSearch';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'sonner';
-import { getPriceId } from '@/lib/stripe-prices';
 import type { ProjectWithClient } from '@/hooks/useProjects';
 
 interface AppHeaderProps {
@@ -46,42 +44,13 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const [projectModalOpen, setProjectModalOpen] = useState(false);
   const [loadingProject, setLoadingProject] = useState(false);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
-  const [upgradeLoading, setUpgradeLoading] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Handle upgrade click - open checkout directly
-  const handleUpgradeClick = useCallback(async () => {
-    try {
-      setUpgradeLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error('Sessão expirada. Faça login novamente.');
-        navigate('/auth');
-        return;
-      }
-
-      // Default to Pro plan
-      const planId = 'pro' as const;
-      const currencyKey = (currentWorkspace?.currency?.toLowerCase() === 'brl' ? 'brl' : 'eur') as 'eur' | 'brl';
-      const priceId = getPriceId(planId, currencyKey, 'monthly');
-
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-        body: { priceId, workspaceId: currentWorkspace?.id },
-      });
-
-      if (error) throw error;
-      if (data?.url) {
-        window.open(data.url, '_blank');
-      }
-    } catch (error: any) {
-      console.error('Error opening checkout:', error);
-      toast.error('Erro ao abrir checkout. Tente novamente.');
-    } finally {
-      setUpgradeLoading(false);
-    }
-  }, [currentWorkspace, navigate]);
+  // Handle upgrade click - navigate to plans page
+  const handleUpgradeClick = useCallback(() => {
+    navigate('/app/planos');
+  }, [navigate]);
 
   const { results, loading, hasQuery } = useGlobalSearch(searchQuery);
 
