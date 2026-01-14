@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 
 const AUTO_SYNC_INTERVAL_MS = 60000; // 1 minute
 
@@ -239,7 +240,7 @@ export function useGoogleCalendar() {
     if (isAutoSyncingRef.current) return; // Prevent overlapping syncs
 
     isAutoSyncingRef.current = true;
-    console.log('[Auto-sync] Starting periodic sync...');
+    logger.debug('[Auto-sync] Starting periodic sync...');
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -284,12 +285,12 @@ export function useGoogleCalendar() {
         );
       }
 
-      console.log('[Auto-sync] Completed successfully');
+      logger.debug('[Auto-sync] Completed successfully');
       
       // Update last_sync_at silently
       fetchStatus();
     } catch (error) {
-      console.error('[Auto-sync] Failed:', error);
+      logger.error('[Auto-sync] Failed:', error);
     } finally {
       isAutoSyncingRef.current = false;
     }
@@ -305,7 +306,7 @@ export function useGoogleCalendar() {
 
     // Only start auto-sync if connected
     if (connection?.is_connected) {
-      console.log('[Auto-sync] Starting interval (every 1 minute)');
+      logger.debug('[Auto-sync] Starting interval (every 1 minute)');
       
       // Run immediately on mount/connection
       silentSync();
@@ -318,7 +319,7 @@ export function useGoogleCalendar() {
 
     return () => {
       if (autoSyncIntervalRef.current) {
-        console.log('[Auto-sync] Stopping interval');
+        logger.debug('[Auto-sync] Stopping interval');
         clearInterval(autoSyncIntervalRef.current);
         autoSyncIntervalRef.current = null;
       }
