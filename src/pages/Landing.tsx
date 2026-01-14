@@ -139,75 +139,14 @@ const showcaseFeatures = [
   },
 ];
 
-// Plan definitions matching Pricing page
-const plans = [
-  {
-    id: 'starter',
-    name: 'Starter',
-    description: 'Para freelancers e profissionais independentes',
-    priceEUR: { monthly: 14, annual: 11 },
-    priceBRL: { monthly: 79, annual: 63 },
-    limits: {
-      workspaces: '1 workspace',
-      users: 'Até 2 utilizadores',
-      projects: '20 projetos ativos',
-    },
-    features: [
-      { name: 'Kanban Captação + Edição', included: true },
-      { name: 'CRM básico', included: true },
-      { name: 'Calendário integrado', included: true },
-      { name: 'Exportação Excel', included: true },
-      { name: 'Relatórios simples', included: true },
-      { name: 'Exportação PDF', included: false },
-      { name: 'Google Calendar', included: false },
-      { name: 'Meet integrado', included: false },
-      { name: 'Frame.io', included: false },
-    ],
-    popular: false,
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    description: 'Para equipas em crescimento',
-    priceEUR: { monthly: 24, annual: 19 },
-    priceBRL: { monthly: 149, annual: 119 },
-    limits: {
-      workspaces: 'Até 3 workspaces',
-      users: 'Até 10 utilizadores',
-      projects: 'Projetos ilimitados',
-    },
-    features: [
-      { name: 'Exportação Excel + PDF', included: true },
-      { name: 'Relatórios avançados', included: true },
-      { name: 'Google Calendar', included: true },
-      { name: 'Meet integrado', included: true },
-      { name: 'Templates de projeto', included: true },
-      { name: 'Frame.io', included: false },
-    ],
-    popular: true,
-  },
-  {
-    id: 'studio',
-    name: 'Studio',
-    description: 'Para agências e produtoras',
-    priceEUR: { monthly: 32, annual: 26 },
-    priceBRL: { monthly: 197, annual: 158 },
-    limits: {
-      workspaces: 'Até 10 workspaces',
-      users: 'Utilizadores ilimitados',
-      projects: 'Projetos ilimitados',
-    },
-    features: [
-      { name: 'Exportação Excel + PDF', included: true },
-      { name: 'Relatórios avançados', included: true },
-      { name: 'Google Calendar', included: true },
-      { name: 'Meet integrado', included: true },
-      { name: 'Frame.io integrado', included: true },
-      { name: 'Automações avançadas', included: true },
-    ],
-    popular: false,
-  },
-];
+import { 
+  PLANS, 
+  PLAN_ORDER, 
+  getDisplayPrice, 
+  getCurrencySymbol,
+  type PlanId,
+  type Currency,
+} from '@/lib/plans';
 
 // Floating screenshot component for the hero
 interface FloatingScreenshotProps {
@@ -262,9 +201,11 @@ export default function Landing() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const isBetaMode = isBetaModeEnabled();
 
-  const getPrice = (plan: typeof plans[0]) => {
-    const prices = showBRL ? plan.priceBRL : plan.priceEUR;
-    return isAnnual ? prices.annual : prices.monthly;
+  const currency: Currency = showBRL ? 'brl' : 'eur';
+  const currencySymbol = getCurrencySymbol(currency);
+
+  const getPrice = (planId: PlanId) => {
+    return getDisplayPrice(planId, currency, isAnnual ? 'yearly' : 'monthly');
   };
 
   const heroScreenshots = [
@@ -670,78 +611,71 @@ export default function Landing() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto focal-container">
-            {plans.map((plan, index) => (
-              <motion.div
-                key={plan.id}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                viewport={{ once: true }}
-                className={`focal-card relative flex flex-col rounded-2xl border p-6 ${
-                  plan.popular 
-                    ? 'border-primary bg-primary/5 shadow-xl shadow-primary/10 md:scale-105 z-10' 
-                    : 'border-border/50 bg-background/50'
-                }`}
-              >
-                {plan.popular && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 gradient-primary px-4">
-                    Mais vendido
-                  </Badge>
-                )}
-                
-                <div className="text-center mb-6">
-                  <h3 className="font-bold text-xl mb-1">{plan.name}</h3>
-                  <p className="text-sm text-muted-foreground mb-4">{plan.description}</p>
-                  
-                  {/* Price */}
-                  <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-4xl font-bold">
-                      {showBRL ? 'R$' : '€'}{getPrice(plan)}
-                    </span>
-                    <span className="text-muted-foreground">/mês</span>
-                  </div>
-                  
-                  {isAnnual && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Faturado anualmente ({showBRL ? 'R$' : '€'}{getPrice(plan) * 12}/ano)
-                    </p>
+            {PLAN_ORDER.map((planId, index) => {
+              const plan = PLANS[planId];
+              const displayFeatures = plan.features.filter(f => f.category !== 'limit' && f.included);
+              
+              return (
+                <motion.div
+                  key={planId}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                  viewport={{ once: true }}
+                  className={`focal-card relative flex flex-col rounded-2xl border p-6 ${
+                    plan.popular 
+                      ? 'border-primary bg-primary/5 shadow-xl shadow-primary/10 md:scale-105 z-10' 
+                      : 'border-border/50 bg-background/50'
+                  }`}
+                >
+                  {plan.popular && (
+                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 gradient-primary px-4">
+                      Mais vendido
+                    </Badge>
                   )}
-                </div>
-
-                {/* Limits */}
-                <div className="space-y-2 mb-6 pb-6 border-b border-border/50">
-                  <p className="text-sm font-medium">{plan.limits.workspaces}</p>
-                  <p className="text-sm font-medium">{plan.limits.users}</p>
-                  <p className="text-sm font-medium">{plan.limits.projects}</p>
-                </div>
-
-                {/* Features */}
-                <ul className="space-y-3 mb-6 flex-1">
-                  {plan.features.map((feature) => (
-                    <li key={feature.name} className="flex items-center gap-2 text-sm">
-                      {feature.included ? (
-                        <Check className="h-4 w-4 text-success flex-shrink-0" />
-                      ) : (
-                        <X className="h-4 w-4 text-muted-foreground/40 flex-shrink-0" />
-                      )}
-                      <span className={!feature.included ? 'text-muted-foreground/60' : ''}>
-                        {feature.name}
+                  
+                  <div className="text-center mb-6">
+                    <h3 className="font-bold text-xl mb-1">{plan.name}</h3>
+                    <p className="text-sm text-muted-foreground mb-4">{plan.description}</p>
+                    
+                    {/* Price */}
+                    <div className="flex items-baseline justify-center gap-1">
+                      <span className="text-4xl font-bold">
+                        {currencySymbol}{getPrice(planId)}
                       </span>
-                    </li>
-                  ))}
-                </ul>
+                      <span className="text-muted-foreground">/mês</span>
+                    </div>
+                  </div>
 
-                <Link to="/auth?trial=true">
-                  <Button
-                    className={`w-full glow-ring ${plan.popular ? 'gradient-primary' : ''}`}
-                    variant={plan.popular ? 'default' : 'outline'}
-                  >
-                    Testar grátis 7 dias
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-              </motion.div>
-            ))}
+                  {/* Limits */}
+                  <div className="space-y-2 mb-6 pb-6 border-b border-border/50">
+                    <p className="text-sm font-medium">{plan.limitsDisplay.workspaces}</p>
+                    <p className="text-sm font-medium">{plan.limitsDisplay.users}</p>
+                    <p className="text-sm font-medium">{plan.limitsDisplay.projects}</p>
+                  </div>
+
+                  {/* Features */}
+                  <ul className="space-y-3 mb-6 flex-1">
+                    {displayFeatures.slice(0, 6).map((feature) => (
+                      <li key={feature.key} className="flex items-center gap-2 text-sm">
+                        <Check className="h-4 w-4 text-success flex-shrink-0" />
+                        <span>{feature.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Link to="/auth?trial=true">
+                    <Button
+                      className={`w-full glow-ring ${plan.popular ? 'gradient-primary' : ''}`}
+                      variant={plan.popular ? 'default' : 'outline'}
+                    >
+                      Testar grátis 7 dias
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                </motion.div>
+              );
+            })}
           </div>
 
           <div className="text-center mt-8">

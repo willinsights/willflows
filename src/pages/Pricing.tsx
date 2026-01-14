@@ -6,12 +6,10 @@ import {
   X,
   ArrowRight,
   Loader2,
-  CreditCard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,88 +22,16 @@ import {
 } from '@/components/ui/accordion';
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
-import { STRIPE_PRICES } from '@/lib/stripe-prices';
-
-// Plan definitions with pricing
-const plans = [
-  {
-    id: 'starter',
-    name: 'Starter',
-    description: 'Para freelancers e profissionais independentes',
-    priceEUR: { monthly: 14, annual: 11 },
-    priceBRL: { monthly: 79, annual: 63 },
-    limits: {
-      workspaces: '1 workspace',
-      users: 'Até 2 utilizadores',
-      projects: '20 projetos ativos',
-    },
-    features: [
-      { name: 'Kanban Captação + Edição', included: true },
-      { name: 'CRM básico', included: true },
-      { name: 'Calendário integrado', included: true },
-      { name: 'Exportação Excel', included: true },
-      { name: 'Relatórios simples', included: true },
-      { name: 'Exportação PDF', included: false },
-      { name: 'Google Calendar', included: false },
-      { name: 'Meet integrado', included: false },
-      { name: 'Frame.io', included: false },
-      { name: 'Automações', included: false },
-    ],
-    popular: false,
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    description: 'Para equipas em crescimento',
-    priceEUR: { monthly: 24, annual: 19 },
-    priceBRL: { monthly: 149, annual: 119 },
-    limits: {
-      workspaces: 'Até 3 workspaces',
-      users: 'Até 10 utilizadores',
-      projects: 'Projetos ilimitados',
-    },
-    features: [
-      { name: 'Kanban Captação + Edição', included: true },
-      { name: 'CRM completo', included: true },
-      { name: 'Calendário integrado', included: true },
-      { name: 'Exportação Excel + PDF', included: true },
-      { name: 'Relatórios avançados', included: true },
-      { name: 'Google Calendar', included: true },
-      { name: 'Meet integrado', included: true },
-      { name: 'Templates de projeto', included: true },
-      { name: 'Frame.io', included: false },
-      { name: 'Automações avançadas', included: false },
-    ],
-    popular: true,
-  },
-  {
-    id: 'studio',
-    name: 'Studio',
-    description: 'Para agências e produtoras',
-    priceEUR: { monthly: 32, annual: 26 },
-    priceBRL: { monthly: 197, annual: 158 },
-    limits: {
-      workspaces: 'Até 10 workspaces',
-      users: 'Utilizadores ilimitados',
-      projects: 'Projetos ilimitados',
-    },
-    features: [
-      { name: 'Kanban Captação + Edição', included: true },
-      { name: 'CRM completo', included: true },
-      { name: 'Calendário integrado', included: true },
-      { name: 'Exportação Excel + PDF', included: true },
-      { name: 'Relatórios avançados', included: true },
-      { name: 'Google Calendar', included: true },
-      { name: 'Meet integrado', included: true },
-      { name: 'Templates de projeto', included: true },
-      { name: 'Frame.io integrado', included: true },
-      { name: 'Automações avançadas', included: true },
-      { name: 'Permissões avançadas', included: true },
-      { name: 'API e Webhooks', included: true },
-    ],
-    popular: false,
-  },
-];
+import { 
+  PLANS, 
+  PLAN_ORDER, 
+  getDisplayPrice, 
+  getYearlyTotal,
+  getCurrencySymbol,
+  getPriceId,
+  type PlanId,
+  type Currency,
+} from '@/lib/plans';
 
 const faqs = [
   {
@@ -144,15 +70,15 @@ export default function Pricing() {
   const [isAnnual, setIsAnnual] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
-  const currency = showBRL ? 'brl' : 'eur';
-  const interval = isAnnual ? 'annual' : 'monthly';
+  const currency: Currency = showBRL ? 'brl' : 'eur';
+  const interval = isAnnual ? 'yearly' : 'monthly';
+  const currencySymbol = getCurrencySymbol(currency);
 
-  const getPrice = (plan: typeof plans[0]) => {
-    const prices = showBRL ? plan.priceBRL : plan.priceEUR;
-    return isAnnual ? prices.annual : prices.monthly;
+  const getPrice = (planId: PlanId) => {
+    return getDisplayPrice(planId, currency, interval);
   };
 
-  const handleSelectPlan = async (planId: string) => {
+  const handleSelectPlan = async (planId: PlanId) => {
     // If not authenticated, redirect to auth with plan param
     if (!user) {
       navigate(`/auth?plan=${planId}&currency=${currency}&interval=${interval}`);
@@ -168,7 +94,7 @@ export default function Pricing() {
     // If authenticated with workspace, start checkout
     setLoadingPlan(planId);
     try {
-      const priceId = STRIPE_PRICES[planId as keyof typeof STRIPE_PRICES]?.[currency]?.[interval];
+      const priceId = getPriceId(planId, currency, interval);
       
       if (!priceId) {
         throw new Error('Preço não encontrado');
@@ -269,80 +195,85 @@ export default function Pricing() {
       <section className="pb-20 px-4">
         <div className="container mx-auto">
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {plans.map((plan, index) => (
-              <motion.div
-                key={plan.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className={`relative flex flex-col rounded-2xl border backdrop-blur-xl p-6 ${
-                  plan.popular 
-                    ? 'border-primary bg-primary/5 shadow-xl shadow-primary/10 scale-105 z-10' 
-                    : 'border-border/50 bg-background/50'
-                }`}
-              >
-                {plan.popular && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 gradient-primary px-4">
-                    Mais vendido
-                  </Badge>
-                )}
-                
-                <div className="text-center mb-6">
-                  <h3 className="font-bold text-xl mb-1">{plan.name}</h3>
-                  <p className="text-sm text-muted-foreground mb-4">{plan.description}</p>
-                  
-                  {/* Price */}
-                  <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-4xl font-bold">
-                      {showBRL ? 'R$' : '€'}{getPrice(plan)}
-                    </span>
-                    <span className="text-muted-foreground">/mês</span>
-                  </div>
-                  
-                  {isAnnual && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Faturado anualmente ({showBRL ? 'R$' : '€'}{getPrice(plan) * 12}/ano)
-                    </p>
-                  )}
-                </div>
-
-                {/* Limits */}
-                <div className="space-y-2 mb-6 pb-6 border-b border-border/50">
-                  <p className="text-sm font-medium">{plan.limits.workspaces}</p>
-                  <p className="text-sm font-medium">{plan.limits.users}</p>
-                  <p className="text-sm font-medium">{plan.limits.projects}</p>
-                </div>
-
-                {/* Features */}
-                <ul className="space-y-3 mb-6 flex-1">
-                  {plan.features.map((feature) => (
-                    <li key={feature.name} className="flex items-center gap-2 text-sm">
-                      {feature.included ? (
-                        <Check className="h-4 w-4 text-success flex-shrink-0" />
-                      ) : (
-                        <X className="h-4 w-4 text-muted-foreground/40 flex-shrink-0" />
-                      )}
-                      <span className={!feature.included ? 'text-muted-foreground/60' : ''}>
-                        {feature.name}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Button
-                  className={`w-full ${plan.popular ? 'gradient-primary' : ''}`}
-                  variant={plan.popular ? 'default' : 'outline'}
-                  onClick={() => handleSelectPlan(plan.id)}
-                  disabled={loadingPlan === plan.id}
+            {PLAN_ORDER.map((planId, index) => {
+              const plan = PLANS[planId];
+              const displayFeatures = plan.features.filter(f => f.category !== 'limit');
+              
+              return (
+                <motion.div
+                  key={planId}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className={`relative flex flex-col rounded-2xl border backdrop-blur-xl p-6 ${
+                    plan.popular 
+                      ? 'border-primary bg-primary/5 shadow-xl shadow-primary/10 scale-105 z-10' 
+                      : 'border-border/50 bg-background/50'
+                  }`}
                 >
-                  {loadingPlan === plan.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : null}
-                  Começar 7 dias grátis
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </motion.div>
-            ))}
+                  {plan.popular && (
+                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 gradient-primary px-4">
+                      Mais vendido
+                    </Badge>
+                  )}
+                  
+                  <div className="text-center mb-6">
+                    <h3 className="font-bold text-xl mb-1">{plan.name}</h3>
+                    <p className="text-sm text-muted-foreground mb-4">{plan.description}</p>
+                    
+                    {/* Price */}
+                    <div className="flex items-baseline justify-center gap-1">
+                      <span className="text-4xl font-bold">
+                        {currencySymbol}{getPrice(planId)}
+                      </span>
+                      <span className="text-muted-foreground">/mês</span>
+                    </div>
+                    
+                    {isAnnual && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Faturado anualmente ({currencySymbol}{getYearlyTotal(planId, currency)}/ano)
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Limits */}
+                  <div className="space-y-2 mb-6 pb-6 border-b border-border/50">
+                    <p className="text-sm font-medium">{plan.limitsDisplay.workspaces}</p>
+                    <p className="text-sm font-medium">{plan.limitsDisplay.users}</p>
+                    <p className="text-sm font-medium">{plan.limitsDisplay.projects}</p>
+                  </div>
+
+                  {/* Features */}
+                  <ul className="space-y-3 mb-6 flex-1">
+                    {displayFeatures.map((feature) => (
+                      <li key={feature.key} className="flex items-center gap-2 text-sm">
+                        {feature.included ? (
+                          <Check className="h-4 w-4 text-success flex-shrink-0" />
+                        ) : (
+                          <X className="h-4 w-4 text-muted-foreground/40 flex-shrink-0" />
+                        )}
+                        <span className={!feature.included ? 'text-muted-foreground/60' : ''}>
+                          {feature.name}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Button
+                    className={`w-full ${plan.popular ? 'gradient-primary' : ''}`}
+                    variant={plan.popular ? 'default' : 'outline'}
+                    onClick={() => handleSelectPlan(planId)}
+                    disabled={loadingPlan === planId}
+                  >
+                    {loadingPlan === planId ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : null}
+                    Começar 7 dias grátis
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -359,11 +290,14 @@ export default function Pricing() {
               <thead>
                 <tr className="border-b border-border">
                   <th className="text-left py-4 px-4 font-semibold">Funcionalidade</th>
-                  {plans.map((plan) => (
-                    <th key={plan.id} className="text-center py-4 px-4 font-semibold">
-                      <span className={plan.popular ? 'gradient-text' : ''}>{plan.name}</span>
-                    </th>
-                  ))}
+                  {PLAN_ORDER.map((planId) => {
+                    const plan = PLANS[planId];
+                    return (
+                      <th key={planId} className="text-center py-4 px-4 font-semibold">
+                        <span className={plan.popular ? 'gradient-text' : ''}>{plan.name}</span>
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
@@ -386,15 +320,16 @@ export default function Pricing() {
                   <td className="text-center py-4 px-4 text-sm font-medium text-primary">Ilimitados</td>
                   <td className="text-center py-4 px-4 text-sm">Ilimitados</td>
                 </tr>
-                {/* Feature rows */}
-                {plans[2].features.map((feature, index) => (
-                  <tr key={feature.name} className={`border-b border-border/50 ${index % 2 === 0 ? '' : 'bg-muted/20'}`}>
+                {/* Feature rows - use Studio as reference since it has all features */}
+                {PLANS.studio.features.filter(f => f.category !== 'limit').map((feature, index) => (
+                  <tr key={feature.key} className={`border-b border-border/50 ${index % 2 === 0 ? '' : 'bg-muted/20'}`}>
                     <td className="py-4 px-4 text-sm">{feature.name}</td>
-                    {plans.map((plan) => {
-                      const planFeature = plan.features.find(f => f.name === feature.name);
+                    {PLAN_ORDER.map((planId) => {
+                      const plan = PLANS[planId];
+                      const planFeature = plan.features.find(f => f.key === feature.key);
                       const included = planFeature?.included ?? false;
                       return (
-                        <td key={plan.id} className="text-center py-4 px-4">
+                        <td key={planId} className="text-center py-4 px-4">
                           {included ? (
                             <Check className="h-5 w-5 text-success mx-auto" />
                           ) : (
@@ -438,29 +373,22 @@ export default function Pricing() {
       </section>
 
       {/* CTA */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            className="rounded-2xl border border-primary/20 bg-primary/5 backdrop-blur-xl p-12 text-center max-w-3xl mx-auto"
+      <section className="py-20 px-4 bg-gradient-to-b from-muted/30 to-background">
+        <div className="container mx-auto max-w-3xl text-center">
+          <h2 className="text-3xl font-bold mb-4">
+            Pronto para começar?
+          </h2>
+          <p className="text-xl text-muted-foreground mb-8">
+            Teste grátis durante 7 dias e veja como o WillFlow pode transformar o seu negócio.
+          </p>
+          <Button 
+            size="lg" 
+            className="gradient-primary"
+            onClick={() => handleSelectPlan('pro')}
           >
-            <h2 className="text-3xl font-bold mb-4">
-              Pronto para transformar o seu workflow?
-            </h2>
-            <p className="text-lg text-muted-foreground mb-8">
-              Experimente gratuitamente durante 7 dias. Sem compromisso, cancele quando quiser.
-            </p>
-            <Button
-              size="lg"
-              className="gradient-primary text-lg px-8"
-              onClick={() => handleSelectPlan('pro')}
-            >
-              Começar teste grátis
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-          </motion.div>
+            <ArrowRight className="mr-2 h-5 w-5" />
+            Começar teste grátis
+          </Button>
         </div>
       </section>
 

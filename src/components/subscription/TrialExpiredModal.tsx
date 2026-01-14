@@ -15,38 +15,26 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { STRIPE_PRICES, PLAN_INFO, getPriceId } from '@/lib/stripe-prices';
+import { 
+  PLANS, 
+  PLAN_ORDER, 
+  getPriceId,
+  getCurrencySymbol,
+  type PlanId,
+  type Currency,
+} from '@/lib/plans';
 import { cn } from '@/lib/utils';
 
 interface TrialExpiredModalProps {
   open: boolean;
 }
 
-const plans = [
-  {
-    id: 'starter',
-    name: 'Starter',
-    features: ['1 workspace', '2 utilizadores', '20 projetos'],
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    features: ['3 workspaces', '10 utilizadores', 'Projetos ilimitados'],
-    popular: true,
-  },
-  {
-    id: 'studio',
-    name: 'Studio',
-    features: ['10 workspaces', 'Utilizadores ilimitados', 'API & Automações'],
-  },
-];
-
 export function TrialExpiredModal({ open }: TrialExpiredModalProps) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const { toast } = useToast();
-  const [selectedPlan, setSelectedPlan] = useState('pro');
+  const [selectedPlan, setSelectedPlan] = useState<PlanId>('pro');
   const [loading, setLoading] = useState(false);
 
   const handleUpgrade = async () => {
@@ -54,8 +42,8 @@ export function TrialExpiredModal({ open }: TrialExpiredModalProps) {
 
     setLoading(true);
     try {
-      const currencyKey = (currentWorkspace.currency?.toLowerCase() === 'brl' ? 'brl' : 'eur') as 'eur' | 'brl';
-      const priceId = getPriceId(selectedPlan as 'starter' | 'pro' | 'studio', currencyKey, 'monthly');
+      const currencyKey: Currency = (currentWorkspace.currency?.toLowerCase() === 'brl' ? 'brl' : 'eur');
+      const priceId = getPriceId(selectedPlan, currencyKey, 'monthly');
 
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: { priceId, workspaceId: currentWorkspace.id },
@@ -81,8 +69,8 @@ export function TrialExpiredModal({ open }: TrialExpiredModalProps) {
     navigate('/');
   };
 
-  const currencyKey = (currentWorkspace?.currency?.toLowerCase() === 'brl' ? 'brl' : 'eur') as 'eur' | 'brl';
-  const currencySymbol = currencyKey === 'eur' ? '€' : 'R$';
+  const currencyKey: Currency = (currentWorkspace?.currency?.toLowerCase() === 'brl' ? 'brl' : 'eur');
+  const currencySymbol = getCurrencySymbol(currencyKey);
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
@@ -112,19 +100,19 @@ export function TrialExpiredModal({ open }: TrialExpiredModalProps) {
         </div>
 
         <div className="grid grid-cols-3 gap-3 my-6">
-          {plans.map((plan) => {
-            const planInfo = PLAN_INFO[plan.id as keyof typeof PLAN_INFO];
-            const price = planInfo?.prices[currencyKey]?.monthly || 0;
+          {PLAN_ORDER.map((planId) => {
+            const plan = PLANS[planId];
+            const price = plan.prices[currencyKey].monthly;
 
             return (
               <motion.div
-                key={plan.id}
+                key={planId}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => setSelectedPlan(plan.id)}
+                onClick={() => setSelectedPlan(planId)}
                 className={cn(
                   'relative flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-all',
-                  selectedPlan === plan.id
+                  selectedPlan === planId
                     ? 'border-primary bg-primary/5 shadow-lg'
                     : 'border-border hover:border-primary/50'
                 )}
@@ -146,15 +134,21 @@ export function TrialExpiredModal({ open }: TrialExpiredModalProps) {
                 </div>
 
                 <ul className="space-y-1.5 flex-1">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-1.5 text-xs">
-                      <Check className="h-3 w-3 text-success flex-shrink-0" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
+                  <li className="flex items-center gap-1.5 text-xs">
+                    <Check className="h-3 w-3 text-success flex-shrink-0" />
+                    <span>{plan.limitsDisplay.workspaces}</span>
+                  </li>
+                  <li className="flex items-center gap-1.5 text-xs">
+                    <Check className="h-3 w-3 text-success flex-shrink-0" />
+                    <span>{plan.limitsDisplay.users}</span>
+                  </li>
+                  <li className="flex items-center gap-1.5 text-xs">
+                    <Check className="h-3 w-3 text-success flex-shrink-0" />
+                    <span>{plan.limitsDisplay.projects}</span>
+                  </li>
                 </ul>
 
-                {selectedPlan === plan.id && (
+                {selectedPlan === planId && (
                   <div className="absolute top-2 right-2">
                     <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
                       <Check className="h-3 w-3 text-primary-foreground" />
@@ -181,7 +175,7 @@ export function TrialExpiredModal({ open }: TrialExpiredModalProps) {
             ) : (
               <>
                 <Sparkles className="mr-2 h-4 w-4" />
-                Subscrever {plans.find(p => p.id === selectedPlan)?.name}
+                Subscrever {PLANS[selectedPlan].name}
               </>
             )}
           </Button>

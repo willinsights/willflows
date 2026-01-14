@@ -2,15 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  MapPin, 
   Check,
   Loader2,
   RefreshCw,
   AlertCircle,
   ArrowRight,
   ArrowLeft,
-  CreditCard,
-  X,
 } from 'lucide-react';
 import logoWillflow from '@/assets/logo-willflow-sistema.png';
 import { Button } from '@/components/ui/button';
@@ -23,39 +20,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { STRIPE_PRICES } from '@/lib/stripe-prices';
-
-// Plan definitions
-const plans = [
-  {
-    id: 'starter',
-    name: 'Starter',
-    description: 'Para freelancers',
-    priceEUR: { monthly: 14, annual: 11 },
-    priceBRL: { monthly: 79, annual: 63 },
-    limits: '1 workspace • 2 utilizadores • 20 projetos',
-    features: ['Kanban', 'CRM básico', 'Excel export'],
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    description: 'Para equipas',
-    priceEUR: { monthly: 24, annual: 19 },
-    priceBRL: { monthly: 149, annual: 119 },
-    limits: '3 workspaces • 10 utilizadores • Ilimitados',
-    features: ['Tudo do Starter', 'Google Calendar', 'Meet', 'PDF'],
-    popular: true,
-  },
-  {
-    id: 'studio',
-    name: 'Studio',
-    description: 'Para agências',
-    priceEUR: { monthly: 32, annual: 26 },
-    priceBRL: { monthly: 197, annual: 158 },
-    limits: '10 workspaces • Ilimitados • Ilimitados',
-    features: ['Tudo do Pro', 'Frame.io', 'Automações', 'API'],
-  },
-];
+import { 
+  PLANS, 
+  PLAN_ORDER, 
+  getDisplayPrice, 
+  getCurrencySymbol,
+  getCompactFeatures,
+  getPriceId,
+  type PlanId,
+  type Currency,
+} from '@/lib/plans';
 
 type Step = 'region' | 'plan' | 'success';
 
@@ -68,19 +42,20 @@ export default function Onboarding() {
 
   // Get URL params
   const urlPlan = searchParams.get('plan') || 'pro';
-  const urlCurrency = searchParams.get('currency') as 'eur' | 'brl' | null;
-  const urlInterval = searchParams.get('interval') as 'monthly' | 'annual' | null;
+  const urlCurrency = searchParams.get('currency') as Currency | null;
+  const urlInterval = searchParams.get('interval') as 'monthly' | 'yearly' | null;
   const isCreatingNew = searchParams.get('new') === 'true';
 
   // State
   const [step, setStep] = useState<Step>('region');
   const [country, setCountry] = useState<'PT' | 'BR'>(urlCurrency === 'brl' ? 'BR' : 'PT');
-  const [selectedPlan, setSelectedPlan] = useState(urlPlan);
-  const [isAnnual, setIsAnnual] = useState(urlInterval === 'annual');
+  const [selectedPlan, setSelectedPlan] = useState<PlanId>(urlPlan as PlanId);
+  const [isAnnual, setIsAnnual] = useState(urlInterval === 'yearly');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const showBRL = country === 'BR';
+  const currency: Currency = country === 'BR' ? 'brl' : 'eur';
+  const currencySymbol = getCurrencySymbol(currency);
 
   // If user already has workspace and is NOT creating a new one, redirect to app
   useEffect(() => {
@@ -113,9 +88,8 @@ export default function Onboarding() {
       .slice(0, 50) + '-' + Date.now().toString(36);
   };
 
-  const getPrice = (plan: typeof plans[0]) => {
-    const prices = showBRL ? plan.priceBRL : plan.priceEUR;
-    return isAnnual ? prices.annual : prices.monthly;
+  const getPrice = (planId: PlanId) => {
+    return getDisplayPrice(planId, currency, isAnnual ? 'yearly' : 'monthly');
   };
 
   const handleCreateWorkspaceAndCheckout = async () => {
@@ -142,9 +116,8 @@ export default function Onboarding() {
       await refreshWorkspaces();
 
       // Get Stripe price ID
-      const currency = showBRL ? 'brl' : 'eur';
-      const interval = isAnnual ? 'annual' : 'monthly';
-      const priceId = STRIPE_PRICES[selectedPlan as keyof typeof STRIPE_PRICES]?.[currency]?.[interval];
+      const interval = isAnnual ? 'yearly' : 'monthly';
+      const priceId = getPriceId(selectedPlan, currency, interval);
 
       if (!priceId) {
         throw new Error('Preço não encontrado');
@@ -327,58 +300,63 @@ export default function Onboarding() {
 
               {/* Plan Cards */}
               <div className="grid md:grid-cols-3 gap-4">
-                {plans.map((plan) => (
-                  <div
-                    key={plan.id}
-                    onClick={() => setSelectedPlan(plan.id)}
-                    className={cn(
-                      "relative flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-all",
-                      selectedPlan === plan.id
-                        ? 'border-primary bg-primary/5 shadow-lg'
-                        : 'border-border hover:border-primary/50',
-                      plan.popular && selectedPlan === plan.id && 'ring-2 ring-primary/20'
-                    )}
-                  >
-                    {plan.popular && (
-                      <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 gradient-primary text-xs">
-                        Popular
-                      </Badge>
-                    )}
+                {PLAN_ORDER.map((planId) => {
+                  const plan = PLANS[planId];
+                  const compactFeatures = getCompactFeatures(planId);
+                  
+                  return (
+                    <div
+                      key={planId}
+                      onClick={() => setSelectedPlan(planId)}
+                      className={cn(
+                        "relative flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-all",
+                        selectedPlan === planId
+                          ? 'border-primary bg-primary/5 shadow-lg'
+                          : 'border-border hover:border-primary/50',
+                        plan.popular && selectedPlan === planId && 'ring-2 ring-primary/20'
+                      )}
+                    >
+                      {plan.popular && (
+                        <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 gradient-primary text-xs">
+                          Popular
+                        </Badge>
+                      )}
 
-                    <div className="text-center mb-3 pt-2">
-                      <h3 className="font-bold text-lg">{plan.name}</h3>
-                      <p className="text-xs text-muted-foreground">{plan.description}</p>
-                    </div>
-
-                    <div className="text-center mb-3">
-                      <span className="text-2xl font-bold">
-                        {showBRL ? 'R$' : '€'}{getPrice(plan)}
-                      </span>
-                      <span className="text-muted-foreground text-sm">/mês</span>
-                    </div>
-
-                    <p className="text-xs text-center text-muted-foreground mb-3">
-                      {plan.limits}
-                    </p>
-
-                    <ul className="space-y-1.5 flex-1">
-                      {plan.features.map((feature) => (
-                        <li key={feature} className="flex items-center gap-1.5 text-xs">
-                          <Check className="h-3 w-3 text-success flex-shrink-0" />
-                          <span>{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-
-                    {selectedPlan === plan.id && (
-                      <div className="absolute top-2 right-2">
-                        <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                          <Check className="h-3 w-3 text-primary-foreground" />
-                        </div>
+                      <div className="text-center mb-3 pt-2">
+                        <h3 className="font-bold text-lg">{plan.name}</h3>
+                        <p className="text-xs text-muted-foreground">{plan.description}</p>
                       </div>
-                    )}
-                  </div>
-                ))}
+
+                      <div className="text-center mb-3">
+                        <span className="text-2xl font-bold">
+                          {currencySymbol}{getPrice(planId)}
+                        </span>
+                        <span className="text-muted-foreground text-sm">/mês</span>
+                      </div>
+
+                      <p className="text-xs text-center text-muted-foreground mb-3">
+                        {plan.limitsDisplay.workspaces} • {plan.limitsDisplay.users}
+                      </p>
+
+                      <ul className="space-y-1.5 flex-1">
+                        {compactFeatures.map((feature) => (
+                          <li key={feature} className="flex items-center gap-1.5 text-xs">
+                            <Check className="h-3 w-3 text-success flex-shrink-0" />
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+
+                      {selectedPlan === planId && (
+                        <div className="absolute top-2 right-2">
+                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                            <Check className="h-3 w-3 text-primary-foreground" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Error State */}
