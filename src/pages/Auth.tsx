@@ -942,25 +942,25 @@ export default function Auth() {
               Gerencie os seus projetos como um profissional
             </h2>
             <p className="text-lg opacity-90 mb-8">
-              O WillFlow foi criado para fotógrafos e videomakers que querem organizar 
+              O WillFlow foi criado para fotógrafos e filmmakers que querem organizar 
               o seu trabalho, desde a captação até a entrega final.
             </p>
             <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="glass-card p-4 text-left">
-                <div className="font-semibold mb-1">Kanban Visual</div>
-                <div className="opacity-80">Acompanhe cada projeto no fluxo perfeito</div>
+              <div className="p-4 text-left bg-white/15 backdrop-blur-md rounded-xl border border-white/20">
+                <div className="font-semibold mb-1 text-white">Kanban Visual</div>
+                <div className="text-white/70">Acompanhe cada projeto no fluxo perfeito</div>
               </div>
-              <div className="glass-card p-4 text-left">
-                <div className="font-semibold mb-1">CRM Integrado</div>
-                <div className="opacity-80">Todos os seus clientes num só lugar</div>
+              <div className="p-4 text-left bg-white/15 backdrop-blur-md rounded-xl border border-white/20">
+                <div className="font-semibold mb-1 text-white">CRM Integrado</div>
+                <div className="text-white/70">Todos os seus clientes num só lugar</div>
               </div>
-              <div className="glass-card p-4 text-left">
-                <div className="font-semibold mb-1">Finanças</div>
-                <div className="opacity-80">Controle receitas e pagamentos</div>
+              <div className="p-4 text-left bg-white/15 backdrop-blur-md rounded-xl border border-white/20">
+                <div className="font-semibold mb-1 text-white">Finanças</div>
+                <div className="text-white/70">Controle receitas e pagamentos</div>
               </div>
-              <div className="glass-card p-4 text-left">
-                <div className="font-semibold mb-1">Colaboração</div>
-                <div className="opacity-80">Trabalhe em equipa sem complicações</div>
+              <div className="p-4 text-left bg-white/15 backdrop-blur-md rounded-xl border border-white/20">
+                <div className="font-semibold mb-1 text-white">Colaboração</div>
+                <div className="text-white/70">Trabalhe em equipa sem complicações</div>
               </div>
             </div>
           </motion.div>
