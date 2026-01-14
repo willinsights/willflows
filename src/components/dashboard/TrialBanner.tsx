@@ -1,38 +1,31 @@
-import { useMemo } from "react";
-import { differenceInDays, parseISO } from "date-fns";
 import { Sparkles, ArrowRight, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useUserSubscription } from "@/hooks/useUserSubscription";
+import { useWorkspaceSubscription } from "@/hooks/useWorkspaceSubscription";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 export function TrialBanner() {
-  const { subscription, loading } = useUserSubscription();
+  const { 
+    isTrial, 
+    trialDaysRemaining, 
+    shouldShowTrialUI, 
+    loading 
+  } = useWorkspaceSubscription();
   const navigate = useNavigate();
-
-  const daysRemaining = useMemo(() => {
-    if (!subscription?.trialEndsAt) return null;
-    try {
-      return differenceInDays(parseISO(subscription.trialEndsAt), new Date());
-    } catch {
-      return null;
-    }
-  }, [subscription?.trialEndsAt]);
 
   // Don't show if:
   // - Loading
-  // - No subscription data
-  // - Subscription is active (not trialing)
-  // - No trial end date
-  // - More than 7 days remaining (trial is 7 days max)
+  // - User is not owner of the workspace (shouldShowTrialUI handles this)
+  // - Not in trial
+  // - More than 7 days remaining
   // - Trial already expired (handled by modal)
   if (loading) return null;
-  if (!subscription) return null;
-  if (subscription.status === 'active') return null;
-  if (daysRemaining === null) return null;
-  if (daysRemaining > 7 || daysRemaining < 0) return null;
+  if (!shouldShowTrialUI) return null;
+  if (!isTrial) return null;
+  if (trialDaysRemaining === null) return null;
+  if (trialDaysRemaining > 7 || trialDaysRemaining < 0) return null;
 
-  const isUrgent = daysRemaining <= 2;
+  const isUrgent = trialDaysRemaining <= 2;
 
   return (
     <div
@@ -58,13 +51,13 @@ export function TrialBanner() {
         </div>
         <div>
           <p className="font-medium">
-            {daysRemaining === 0 ? (
+            {trialDaysRemaining === 0 ? (
               "O seu trial termina hoje!"
-            ) : daysRemaining === 1 ? (
+            ) : trialDaysRemaining === 1 ? (
               "Falta 1 dia para o fim do trial"
             ) : (
               <>
-                Faltam <span className="font-bold">{daysRemaining} dias</span>{" "}
+                Faltam <span className="font-bold">{trialDaysRemaining} dias</span>{" "}
                 para o fim do trial
               </>
             )}

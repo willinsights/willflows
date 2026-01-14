@@ -1,7 +1,5 @@
-import { useMemo } from "react";
-import { differenceInDays, parseISO } from "date-fns";
 import { Sparkles, Clock, AlertTriangle } from "lucide-react";
-import { useUserSubscription } from "@/hooks/useUserSubscription";
+import { useWorkspaceSubscription } from "@/hooks/useWorkspaceSubscription";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,31 +15,26 @@ interface TrialBadgeProps {
 }
 
 export function TrialBadge({ variant = "full", className, onUpgradeClick }: TrialBadgeProps) {
-  const { subscription, loading } = useUserSubscription();
-
-  const daysRemaining = useMemo(() => {
-    if (!subscription?.trialEndsAt) return null;
-    try {
-      return differenceInDays(parseISO(subscription.trialEndsAt), new Date());
-    } catch {
-      return null;
-    }
-  }, [subscription?.trialEndsAt]);
+  const { 
+    isTrial, 
+    trialDaysRemaining, 
+    shouldShowTrialUI, 
+    loading 
+  } = useWorkspaceSubscription();
 
   // Don't show if:
   // - Loading
-  // - No subscription data
-  // - Subscription is active (not trialing)
-  // - No trial end date
+  // - User is not owner of the workspace (shouldShowTrialUI handles this)
+  // - Not in trial
   // - Trial already expired (handled by modal)
   if (loading) return null;
-  if (!subscription) return null;
-  if (subscription.status === 'active') return null;
-  if (daysRemaining === null) return null;
-  if (daysRemaining < 0) return null; // Trial expired, modal handles this
+  if (!shouldShowTrialUI) return null;
+  if (!isTrial) return null;
+  if (trialDaysRemaining === null) return null;
+  if (trialDaysRemaining < 0) return null; // Trial expired, modal handles this
 
-  const isUrgent = daysRemaining <= 2;
-  const isWarning = daysRemaining <= 5 && daysRemaining > 2;
+  const isUrgent = trialDaysRemaining <= 2;
+  const isWarning = trialDaysRemaining <= 5 && trialDaysRemaining > 2;
 
   const handleClick = () => {
     onUpgradeClick?.();
@@ -73,11 +66,11 @@ export function TrialBadge({ variant = "full", className, onUpgradeClick }: Tria
           <Sparkles className="h-3.5 w-3.5" />
         )}
         <span className="flex items-center gap-1.5">
-          <span className="font-bold">{daysRemaining}</span>
+          <span className="font-bold">{trialDaysRemaining}</span>
           <span>
-            {daysRemaining === 0
+            {trialDaysRemaining === 0
               ? "dias - Trial termina hoje!"
-              : daysRemaining === 1
+              : trialDaysRemaining === 1
               ? "dia restante"
               : "dias restantes"}
           </span>
@@ -109,16 +102,16 @@ export function TrialBadge({ variant = "full", className, onUpgradeClick }: Tria
             ) : (
               <Sparkles className="h-4 w-4" />
             )}
-            <span>{daysRemaining}d</span>
+            <span>{trialDaysRemaining}d</span>
           </Button>
         </TooltipTrigger>
         <TooltipContent side="right">
           <p>
-            {daysRemaining === 0
+            {trialDaysRemaining === 0
               ? "O trial termina hoje!"
-              : daysRemaining === 1
+              : trialDaysRemaining === 1
               ? "Falta 1 dia de trial"
-              : `Faltam ${daysRemaining} dias de trial`}
+              : `Faltam ${trialDaysRemaining} dias de trial`}
           </p>
         </TooltipContent>
       </Tooltip>
@@ -145,11 +138,11 @@ export function TrialBadge({ variant = "full", className, onUpgradeClick }: Tria
         <Sparkles className="h-3.5 w-3.5" />
       )}
       <span>
-        {daysRemaining === 0
+        {trialDaysRemaining === 0
           ? "Trial termina hoje"
-          : daysRemaining === 1
+          : trialDaysRemaining === 1
           ? "1 dia de trial"
-          : `${daysRemaining} dias de trial`}
+          : `${trialDaysRemaining} dias de trial`}
       </span>
     </Button>
   );

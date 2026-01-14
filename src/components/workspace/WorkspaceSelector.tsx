@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Check, ChevronDown, Plus, Crown, Users, Loader2, Lock, LogOut } from 'lucide-react';
+import { Building2, Check, ChevronDown, Plus, Crown, Users, Loader2, Lock, LogOut, Clock } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 import { LeaveWorkspaceModal } from '@/components/workspace/LeaveWorkspaceModal';
+import { differenceInDays, parseISO } from 'date-fns';
 
 
 const planLabels: Record<string, string> = {
@@ -33,6 +34,16 @@ const roleLabels: Record<string, string> = {
   freelancer: 'Freelancer',
   visualizador: 'Visualizador',
 };
+
+// Helper to calculate trial days remaining
+function getTrialDays(trialEndsAt: string | null | undefined): number | null {
+  if (!trialEndsAt) return null;
+  try {
+    return differenceInDays(parseISO(trialEndsAt), new Date());
+  } catch {
+    return null;
+  }
+}
 
 export function WorkspaceSelector() {
   const navigate = useNavigate();
@@ -171,40 +182,54 @@ export function WorkspaceSelector() {
                   {usage.workspaces}/{limits.workspaces}
                 </Badge>
               </DropdownMenuLabel>
-              {adminWorkspaces.map((workspace) => (
-                <DropdownMenuItem
-                  key={workspace.id}
-                  onClick={() => handleSelectWorkspace(workspace.id)}
-                  className="flex items-center gap-3 py-2.5 cursor-pointer"
-                  disabled={switching}
-                >
-                  <div className="flex items-center justify-center w-8 h-8 rounded bg-primary/10 text-primary text-sm font-bold flex-shrink-0">
-                    {workspace.logo_url ? (
-                      <img
-                        src={workspace.logo_url}
-                        alt={workspace.name}
-                        className="w-full h-full object-cover rounded"
-                      />
-                    ) : (
-                      workspace.name.charAt(0).toUpperCase()
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{workspace.name}</p>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-[10px] h-4 px-1.5">
-                        {planLabels[currentPlan] || 'Starter'}
-                      </Badge>
-                      <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-primary/10 text-primary">
-                        Admin
-                      </Badge>
-                    </div>
-                  </div>
-                  {currentWorkspace?.id === workspace.id && (
-                    <Check className="h-4 w-4 text-primary flex-shrink-0" />
-                  )}
-                </DropdownMenuItem>
-              ))}
+                {adminWorkspaces.map((workspace) => {
+                  // Get trial info for each workspace
+                  const isTrial = workspace.subscription_status === 'trialing';
+                  const trialDays = getTrialDays(workspace.trial_ends_at);
+                  const planLabel = planLabels[workspace.subscription_plan] || 'Starter';
+                  
+                  return (
+                    <DropdownMenuItem
+                      key={workspace.id}
+                      onClick={() => handleSelectWorkspace(workspace.id)}
+                      className="flex items-center gap-3 py-2.5 cursor-pointer"
+                      disabled={switching}
+                    >
+                      <div className="flex items-center justify-center w-8 h-8 rounded bg-primary/10 text-primary text-sm font-bold flex-shrink-0">
+                        {workspace.logo_url ? (
+                          <img
+                            src={workspace.logo_url}
+                            alt={workspace.name}
+                            className="w-full h-full object-cover rounded"
+                          />
+                        ) : (
+                          workspace.name.charAt(0).toUpperCase()
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{workspace.name}</p>
+                        <div className="flex items-center gap-2">
+                          {isTrial && trialDays !== null && trialDays >= 0 ? (
+                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 gap-1 text-orange-600 border-orange-300">
+                              <Clock className="h-2.5 w-2.5" />
+                              Trial ({trialDays}d)
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] h-4 px-1.5">
+                              {planLabel}
+                            </Badge>
+                          )}
+                          <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-primary/10 text-primary">
+                            Owner
+                          </Badge>
+                        </div>
+                      </div>
+                      {currentWorkspace?.id === workspace.id && (
+                        <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                      )}
+                    </DropdownMenuItem>
+                  );
+                })}
             </>
           )}
 

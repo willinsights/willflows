@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { useUserSubscription } from '@/hooks/useUserSubscription';
+import { useWorkspaceSubscription } from '@/hooks/useWorkspaceSubscription';
 import { useToast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
 import { format, differenceInDays, parseISO, isValid } from 'date-fns';
@@ -88,8 +88,17 @@ function formatDatePt(date: Date, fmt: string) {
 }
 
 export default function Planos() {
-  const { isAdmin, currentWorkspace } = useWorkspace();
-  const { subscription: userSubscription, loading: userSubLoading } = useUserSubscription();
+  const { currentWorkspace } = useWorkspace();
+  const { 
+    subscription, 
+    plan: currentPlan,
+    isTrial,
+    trialExpired,
+    trialEndsAt,
+    trialDaysRemaining,
+    canManageSubscription,
+    loading: userSubLoading 
+  } = useWorkspaceSubscription();
   const { toast } = useToast();
   
   const [activeTab, setActiveTab] = useState('planos');
@@ -104,32 +113,8 @@ export default function Planos() {
   const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null);
   const [billingLoading, setBillingLoading] = useState(true);
 
-  // Check if user can manage subscription (admin of current workspace)
-  const canManageSubscription = isAdmin;
-
-  // Use user subscription data
-  const currentPlan = userSubscription?.plan || 'essencial';
-  const isSubscribed = userSubscription?.status === 'active';
-  const isTrial = userSubscription?.status === 'trialing';
-
-  const trialEndsDate = useMemo(() => {
-    if (!userSubscription?.trialEndsAt) return null;
-    try {
-      const d = parseISO(userSubscription.trialEndsAt);
-      return isValid(d) ? d : null;
-    } catch {
-      return null;
-    }
-  }, [userSubscription?.trialEndsAt]);
-
-  const trialDaysRemaining = useMemo(() => {
-    if (!trialEndsDate) return null;
-    return differenceInDays(trialEndsDate, new Date());
-  }, [trialEndsDate]);
-
-  const trialExpired = isTrial && typeof trialDaysRemaining === 'number'
-    ? trialDaysRemaining < 0
-    : false;
+  // Use workspace subscription data
+  const isSubscribed = subscription?.status === 'active';
 
   // Fetch billing info only for admins
   useEffect(() => {

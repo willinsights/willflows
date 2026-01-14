@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useWorkspaceSubscription } from '@/hooks/useWorkspaceSubscription';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -33,12 +34,19 @@ export function TrialExpiredModal({ open }: TrialExpiredModalProps) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { currentWorkspace } = useWorkspace();
+  const { isOwner, canManageSubscription } = useWorkspaceSubscription();
   const { toast } = useToast();
   const [selectedPlan, setSelectedPlan] = useState<PlanId>('pro');
   const [loading, setLoading] = useState(false);
 
+  // Only show the modal if user is the owner - members of expired workspaces
+  // should not be blocked (they can switch to another workspace)
+  if (!isOwner) {
+    return null;
+  }
+
   const handleUpgrade = async () => {
-    if (!currentWorkspace) return;
+    if (!currentWorkspace || !canManageSubscription) return;
 
     setLoading(true);
     try {
