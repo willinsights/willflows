@@ -18,7 +18,7 @@ import {
 } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { ChevronLeft, ChevronRight, Camera, Film, Video, Calendar as CalendarIcon, Clock, ExternalLink, Plus, GripVertical } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Camera, Film, Video, Calendar as CalendarIcon, Clock, ExternalLink, Plus, GripVertical, Lock, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -39,12 +39,59 @@ import { DroppableCalendarSlot } from '@/components/calendar/DroppableCalendarSl
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { usePlanFeatures } from '@/hooks/usePlanFeatures';
+import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 
 const typeIcons: Record<string, any> = {
   fotografia: Camera,
   video: Film,
   foto_video: Video,
 };
+
+// Google Calendar Sync Button Component
+function GoogleCalendarButton() {
+  const { canUseFeature, checkFeature, upgradeAlert, closeUpgradeAlert, currentPlan } = usePlanFeatures();
+  const hasAccess = canUseFeature('googleCalendar');
+
+  const handleClick = () => {
+    if (!hasAccess) {
+      checkFeature('googleCalendar');
+    } else {
+      // TODO: Implement Google Calendar connection
+    }
+  };
+
+  return (
+    <>
+      <Button 
+        variant="outline" 
+        className="gap-2"
+        onClick={handleClick}
+      >
+        {!hasAccess ? (
+          <>
+            <Crown className="h-4 w-4" />
+            Upgrade
+          </>
+        ) : (
+          <>
+            <Lock className="h-4 w-4" />
+            Em breve
+          </>
+        )}
+      </Button>
+      
+      <UpgradeAlert
+        isOpen={upgradeAlert.isOpen}
+        onClose={closeUpgradeAlert}
+        feature={upgradeAlert.feature}
+        requiredPlan={upgradeAlert.requiredPlan}
+        currentPlan={currentPlan}
+        isLimitReached={upgradeAlert.isLimitReached}
+      />
+    </>
+  );
+}
 
 export default function Calendario() {
   const { projects, refresh } = useFilteredProjects();
@@ -327,6 +374,27 @@ export default function Calendario() {
           <TabsTrigger value="day">Dia</TabsTrigger>
         </TabsList>
       </Tabs>
+
+      {/* Google Calendar Sync Banner */}
+      <Card className="border-dashed border-primary/30 bg-primary/5">
+        <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <CalendarIcon className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="font-medium flex items-center gap-2">
+                Sincronizar com Google Calendar
+                <Badge variant="secondary" className="text-xs">Em breve</Badge>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Veja eventos do Google Calendar diretamente aqui
+              </p>
+            </div>
+          </div>
+          <GoogleCalendarButton />
+        </CardContent>
+      </Card>
 
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-4 text-sm">

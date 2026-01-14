@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Calendar, Video, Cloud, ExternalLink, Lock } from 'lucide-react';
+import { Calendar, Video, Cloud, ExternalLink, Lock, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -8,6 +8,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { usePlanFeatures, type FeatureKey } from '@/hooks/usePlanFeatures';
+import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 
 interface AccountIntegrationsTabProps {
   planName: string;
@@ -19,11 +21,19 @@ interface Integration {
   description: string;
   icon: React.ReactNode;
   connected: boolean;
-  requiredPlan?: string;
+  featureKey?: FeatureKey;
   comingSoon?: boolean;
 }
 
+// Mapeamento de integração para feature key
+const integrationToFeature: Record<string, FeatureKey> = {
+  'google-calendar': 'googleCalendar',
+  'frameio': 'frameio',
+};
+
 export function AccountIntegrationsTab({ planName }: AccountIntegrationsTabProps) {
+  const { canUseFeature, checkFeature, upgradeAlert, closeUpgradeAlert, currentPlan, getRequiredPlan } = usePlanFeatures();
+
   const integrations: Integration[] = [
     {
       id: 'google-calendar',
@@ -31,6 +41,7 @@ export function AccountIntegrationsTab({ planName }: AccountIntegrationsTabProps
       description: 'Sincronize eventos e datas de shoot',
       icon: <Calendar className="h-5 w-5" />,
       connected: false,
+      featureKey: 'googleCalendar',
       comingSoon: true,
     },
     {
@@ -39,7 +50,7 @@ export function AccountIntegrationsTab({ planName }: AccountIntegrationsTabProps
       description: 'Revisão de vídeos com clientes',
       icon: <Video className="h-5 w-5" />,
       connected: false,
-      requiredPlan: 'studio',
+      featureKey: 'frameio',
       comingSoon: true,
     },
     {
@@ -53,9 +64,24 @@ export function AccountIntegrationsTab({ planName }: AccountIntegrationsTabProps
   ];
 
   const canUseIntegration = (integration: Integration) => {
-    if (!integration.requiredPlan) return true;
-    const planOrder = ['essencial', 'pro', 'studio'];
-    return planOrder.indexOf(planName) >= planOrder.indexOf(integration.requiredPlan);
+    const featureKey = integrationToFeature[integration.id];
+    if (!featureKey) return true;
+    return canUseFeature(featureKey);
+  };
+
+  const handleUpgradeClick = (integration: Integration) => {
+    const featureKey = integrationToFeature[integration.id];
+    if (featureKey) {
+      checkFeature(featureKey);
+    }
+  };
+
+  const getRequiredPlanForIntegration = (integration: Integration): string | undefined => {
+    const featureKey = integrationToFeature[integration.id];
+    if (featureKey) {
+      return getRequiredPlan(featureKey);
+    }
+    return undefined;
   };
 
   return (
@@ -67,6 +93,7 @@ export function AccountIntegrationsTab({ planName }: AccountIntegrationsTabProps
       <div className="space-y-2">
         {integrations.map((integration, index) => {
           const hasAccess = canUseIntegration(integration);
+          const requiredPlan = getRequiredPlanForIntegration(integration);
           
           return (
             <motion.div
@@ -91,13 +118,13 @@ export function AccountIntegrationsTab({ planName }: AccountIntegrationsTabProps
                 <div>
                   <p className="font-medium flex items-center gap-2">
                     {integration.name}
-                    {!hasAccess && (
+                    {!hasAccess && requiredPlan && (
                       <Tooltip>
                         <TooltipTrigger>
                           <Lock className="h-3 w-3 text-muted-foreground" />
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Requer plano {integration.requiredPlan?.charAt(0).toUpperCase()}{integration.requiredPlan?.slice(1)}</p>
+                          <p>Requer plano {requiredPlan.charAt(0).toUpperCase()}{requiredPlan.slice(1)}</p>
                         </TooltipContent>
                       </Tooltip>
                     )}
@@ -120,8 +147,13 @@ export function AccountIntegrationsTab({ planName }: AccountIntegrationsTabProps
                   Conectar
                 </Button>
               ) : (
-                <Button size="sm" variant="outline" disabled className="gap-1">
-                  <Lock className="h-3 w-3" />
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="gap-1"
+                  onClick={() => handleUpgradeClick(integration)}
+                >
+                  <Crown className="h-3 w-3" />
                   Upgrade
                 </Button>
               )}
@@ -129,6 +161,16 @@ export function AccountIntegrationsTab({ planName }: AccountIntegrationsTabProps
           );
         })}
       </div>
+
+      {/* UpgradeAlert Modal */}
+      <UpgradeAlert
+        isOpen={upgradeAlert.isOpen}
+        onClose={closeUpgradeAlert}
+        feature={upgradeAlert.feature}
+        requiredPlan={upgradeAlert.requiredPlan}
+        currentPlan={currentPlan}
+        isLimitReached={upgradeAlert.isLimitReached}
+      />
     </div>
   );
 }
