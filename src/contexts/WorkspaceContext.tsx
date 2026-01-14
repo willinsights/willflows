@@ -47,7 +47,14 @@ const LAST_WORKSPACE_KEY = 'willflow_last_workspace_id';
 const FETCH_COOLDOWN_MS = 30000;
 const MAX_RETRIES = 3;
 
-function getCachedWorkspace(): { workspace: Workspace; membership: WorkspaceMember; allWorkspaces: WorkspaceWithRole[] } | null {
+interface CachedWorkspaceData {
+  userId: string;
+  workspace: Workspace;
+  membership: WorkspaceMember;
+  allWorkspaces: WorkspaceWithRole[];
+}
+
+function getCachedWorkspace(): CachedWorkspaceData | null {
   try {
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
@@ -59,9 +66,9 @@ function getCachedWorkspace(): { workspace: Workspace; membership: WorkspaceMemb
   return null;
 }
 
-function setCachedWorkspace(workspace: Workspace, membership: WorkspaceMember, allWorkspaces: WorkspaceWithRole[]) {
+function setCachedWorkspace(userId: string, workspace: Workspace, membership: WorkspaceMember, allWorkspaces: WorkspaceWithRole[]) {
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ workspace, membership, allWorkspaces }));
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ userId, workspace, membership, allWorkspaces }));
   } catch {
     // Ignore cache errors
   }
@@ -176,7 +183,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setWorkspace(ws);
     setMembership(mem);
     setLastWorkspaceId(workspaceId);
-    setCachedWorkspace(ws, mem, allWorkspaces);
+    setCachedWorkspace(user.id, ws, mem, allWorkspaces);
   }, [user, allWorkspaces]);
 
   const refreshWorkspace = useCallback(async (): Promise<void> => {
@@ -285,7 +292,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setWorkspace(ws);
         setMembership(mem);
         setLastWorkspaceId(ws.id);
-        setCachedWorkspace(ws, mem, workspacesWithRoles);
+        setCachedWorkspace(user.id, ws, mem, workspacesWithRoles);
         setFetchError(false);
         hasFetchedRef.current = true;
         retryCountRef.current = 0;
@@ -341,11 +348,17 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (user) {
       // Try to use cache first for faster initial load
       const cached = getCachedWorkspace();
-      if (cached && !hasFetchedRef.current) {
+      
+      // Only use cache if it belongs to the current user
+      if (cached && cached.userId === user.id && !hasFetchedRef.current) {
         setWorkspace(cached.workspace);
         setMembership(cached.membership);
         setAllWorkspaces(cached.allWorkspaces || []);
         setLoading(false);
+      } else if (cached && cached.userId !== user.id) {
+        // Different user - clear the stale cache
+        clearCachedWorkspace();
+        localStorage.removeItem(LAST_WORKSPACE_KEY);
       }
       
       // Only fetch if we haven't fetched yet for this user
@@ -353,11 +366,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         refreshWorkspace();
       }
     } else {
+      // No user - clear everything
       setWorkspace(null);
       setMembership(null);
       setAllWorkspaces([]);
       setLoading(false);
       clearCachedWorkspace();
+      localStorage.removeItem(LAST_WORKSPACE_KEY);
     }
   }, [user, refreshWorkspace]);
 

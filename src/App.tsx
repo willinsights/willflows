@@ -45,7 +45,8 @@ const Conta = lazy(() => import("./pages/app/Conta"));
 const BetaAdmin = lazy(() => import("./pages/app/BetaAdmin"));
 const FeedbackAdmin = lazy(() => import("./pages/app/FeedbackAdmin"));
 
-const queryClient = new QueryClient({
+// Export queryClient so it can be cleared on logout
+export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes

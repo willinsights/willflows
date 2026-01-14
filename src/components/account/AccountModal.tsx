@@ -64,7 +64,11 @@ export function AccountModal({ open, onOpenChange, initialTab = 'equipa' }: Acco
   const handleSignOut = async () => {
     onOpenChange(false);
     await signOut();
-    navigate('/');
+    
+    // Small delay to ensure state is fully cleared before navigation
+    setTimeout(() => {
+      navigate('/');
+    }, 100);
   };
 
   const userEmail = user?.email || '';
