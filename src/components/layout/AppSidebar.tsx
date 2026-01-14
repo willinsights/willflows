@@ -22,6 +22,7 @@ import {
   Receipt,
   Shield,
   MessageSquarePlus,
+  Crown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -88,7 +89,8 @@ const navSections: NavSection[] = [
     title: 'SISTEMA',
     items: [
       { icon: Settings, label: 'Configurações', path: '/app/configuracoes' },
-      { icon: CreditCard, label: 'Conta', path: '/app/conta' },
+      { icon: Crown, label: 'Planos', path: '/app/planos' },
+      { icon: CreditCard, label: 'Faturação', path: '/app/conta' },
     ],
   },
 ];

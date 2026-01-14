@@ -42,6 +42,7 @@ const Configuracoes = lazy(() => import("./pages/app/Configuracoes"));
 const Equipa = lazy(() => import("./pages/app/Equipa"));
 const Faturacao = lazy(() => import("./pages/app/Faturacao"));
 const Conta = lazy(() => import("./pages/app/Conta"));
+const Planos = lazy(() => import("./pages/app/Planos"));
 const BetaAdmin = lazy(() => import("./pages/app/BetaAdmin"));
 const FeedbackAdmin = lazy(() => import("./pages/app/FeedbackAdmin"));
 
@@ -120,6 +121,7 @@ const App = () => (
                     <Route path="equipa" element={<Equipa />} />
                     <Route path="faturacao" element={<Faturacao />} />
                     <Route path="conta" element={<Conta />} />
+                    <Route path="planos" element={<Planos />} />
                     <Route path="beta-admin" element={<BetaAdmin />} />
                     <Route path="feedback" element={<FeedbackAdmin />} />
                   </Route>

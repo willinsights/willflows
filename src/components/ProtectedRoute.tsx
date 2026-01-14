@@ -11,6 +11,7 @@ interface ProtectedRouteProps {
 // Routes that are always accessible even with expired trial
 const ALWAYS_ACCESSIBLE_ROUTES = [
   '/app/conta',
+  '/app/planos',
   '/app/configuracoes',
 ];
 

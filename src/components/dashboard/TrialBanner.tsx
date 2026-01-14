@@ -77,7 +77,7 @@ export function TrialBanner() {
         </div>
       </div>
       <Button
-        onClick={() => navigate("/app/conta")}
+        onClick={() => navigate("/app/planos")}
         className={cn(
           "shrink-0 gap-2",
           isUrgent && "bg-destructive hover:bg-destructive/90"
