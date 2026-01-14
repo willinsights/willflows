@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { MessageSquarePlus, Bug, Lightbulb, Send, X } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { MessageSquarePlus, Bug, Lightbulb, Send, X, ImagePlus, Trash2, Loader2 } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -7,24 +7,113 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useFeedback, FeedbackType } from '@/hooks/useFeedback';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export function FeedbackButton() {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<FeedbackType>('improvement');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [screenshot, setScreenshot] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { submitFeedback, submitting } = useFeedback();
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const handleScreenshotSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Tipo de ficheiro inválido',
+        description: 'Por favor seleciona uma imagem (PNG, JPG, etc.)',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: 'Ficheiro muito grande',
+        description: 'O tamanho máximo é 5MB.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setScreenshot(file);
+    setScreenshotPreview(URL.createObjectURL(file));
+  };
+
+  const removeScreenshot = () => {
+    setScreenshot(null);
+    if (screenshotPreview) {
+      URL.revokeObjectURL(screenshotPreview);
+    }
+    setScreenshotPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const uploadScreenshot = async (): Promise<string | null> => {
+    if (!screenshot || !user) return null;
+    
+    setUploadingScreenshot(true);
+    try {
+      const fileExt = screenshot.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      
+      const { error } = await supabase.storage
+        .from('feedback-screenshots')
+        .upload(fileName, screenshot);
+        
+      if (error) throw error;
+      
+      const { data } = supabase.storage
+        .from('feedback-screenshots')
+        .getPublicUrl(fileName);
+        
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading screenshot:', error);
+      toast({
+        title: 'Erro ao carregar imagem',
+        description: 'Não foi possível carregar o screenshot.',
+        variant: 'destructive',
+      });
+      return null;
+    } finally {
+      setUploadingScreenshot(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!title.trim() || !description.trim()) return;
     
+    // Upload screenshot first if exists
+    let screenshotUrl: string | null = null;
+    if (screenshot) {
+      screenshotUrl = await uploadScreenshot();
+    }
+    
     const success = await submitFeedback({
       type,
       title: title.trim(),
       description: description.trim(),
+      screenshotUrl,
     });
 
     if (success) {
@@ -32,11 +121,13 @@ export function FeedbackButton() {
       setType('improvement');
       setTitle('');
       setDescription('');
+      removeScreenshot();
       setOpen(false);
     }
   };
 
   const isValid = title.trim().length > 0 && description.trim().length > 0;
+  const isSubmitting = submitting || uploadingScreenshot;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -117,9 +208,61 @@ export function FeedbackButton() {
             </p>
           </div>
 
-          <Button type="submit" className="w-full gap-2" disabled={!isValid || submitting}>
-            <Send className="h-4 w-4" />
-            {submitting ? 'A enviar...' : 'Enviar Feedback'}
+          {/* Screenshot Upload */}
+          <div className="space-y-2">
+            <Label className="text-sm text-muted-foreground">Screenshot (opcional)</Label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleScreenshotSelect}
+              className="hidden"
+              id="feedback-screenshot"
+            />
+            
+            {screenshotPreview ? (
+              <div className="relative rounded-lg overflow-hidden border">
+                <img 
+                  src={screenshotPreview} 
+                  alt="Preview do screenshot" 
+                  className="w-full h-24 object-cover"
+                />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-2 right-2 h-6 w-6"
+                  onClick={removeScreenshot}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full gap-2"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <ImagePlus className="h-4 w-4" />
+                Anexar Screenshot
+              </Button>
+            )}
+            <p className="text-xs text-muted-foreground">PNG, JPG - máx. 5MB</p>
+          </div>
+
+          <Button type="submit" className="w-full gap-2" disabled={!isValid || isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                A enviar...
+              </>
+            ) : (
+              <>
+                <Send className="h-4 w-4" />
+                Enviar Feedback
+              </>
+            )}
           </Button>
         </form>
       </PopoverContent>

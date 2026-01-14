@@ -21,6 +21,7 @@ import {
   UserCog,
   Receipt,
   Shield,
+  MessageSquarePlus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -97,6 +98,7 @@ const betaSection: NavSection = {
   title: 'ADMIN',
   items: [
     { icon: Shield, label: 'Gestão Beta', path: '/app/beta-admin' },
+    { icon: MessageSquarePlus, label: 'Feedback', path: '/app/feedback' },
   ],
 };
 
