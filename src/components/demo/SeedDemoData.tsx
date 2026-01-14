@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Loader2, Database, Trash2 } from 'lucide-react';
 import { logger } from '@/lib/logger';
+import { subMonths, addMonths, addDays, startOfMonth, endOfMonth } from 'date-fns';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,7 +40,8 @@ const projectNames = [
   'Fotos Gastronómicas', 'Vídeo Experiência', 'Retrato Corporativo',
   'Timelapse', 'Vídeo Testemunho', 'Sessão Noturna', 'Conteúdo Instagram',
   'Vídeo de Lançamento', 'Fotos Arquitetura', 'Evento Corporativo',
-  'Aniversário de Empresa', 'Workshop Fotográfico'
+  'Aniversário de Empresa', 'Workshop Fotográfico', 'Campanha Publicitária',
+  'Cobertura Conferência', 'Vídeo Formação', 'Sessão Moda', 'Vídeo Recap'
 ];
 
 const projectTypes = ['fotografia', 'video', 'foto_video'] as const;
@@ -86,6 +88,11 @@ const checklistItems = [
 
 const mediaLinkTypes = ['youtube', 'vimeo', 'drive', 'frameio', 'nas', 'outro'] as const;
 
+const freelancerNames = [
+  'Miguel Fotógrafo', 'Sara Editor', 'João Drone', 'Ana Produção',
+  'Carlos Colorista', 'Marta Motion', 'Rui Sound', 'Inês Assistente'
+];
+
 function randomDate(start: Date, end: Date) {
   return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
 }
@@ -102,6 +109,11 @@ function randomTime() {
   const hours = 8 + Math.floor(Math.random() * 10);
   const minutes = Math.random() > 0.5 ? '00' : '30';
   return `${hours.toString().padStart(2, '0')}:${minutes}:00`;
+}
+
+// Generate random value within range
+function randomValue(min: number, max: number, step: number = 50) {
+  return Math.round((min + Math.random() * (max - min)) / step) * step;
 }
 
 export function SeedDemoData() {
@@ -181,18 +193,87 @@ export function SeedDemoData() {
 
       const captacaoColumns = columns?.filter(c => c.phase === 'captacao') || [];
       const edicaoColumns = columns?.filter(c => c.phase === 'edicao') || [];
+      
+      // Get final columns
+      const finalCaptacaoColumn = captacaoColumns.find(c => c.is_final) || captacaoColumns[captacaoColumns.length - 1];
+      const finalEdicaoColumn = edicaoColumns.find(c => c.is_final) || edicaoColumns[edicaoColumns.length - 1];
 
       logger.log('Columns found:', captacaoColumns.length, 'captacao,', edicaoColumns.length, 'edicao');
 
-      // 3. Create 25 projects with varied data using 2026 dates
+      // 3. Create projects - Historical (delivered) + Active
       const projects = [];
-      // Use 2026 dates for demo data
-      const today = new Date('2026-01-08');
-      const pastMonth = new Date('2025-12-01');
-      const nextTwoMonths = new Date('2026-03-15');
+      const today = new Date();
+      const sixMonthsAgo = subMonths(today, 6);
+      const nextMonth = addMonths(today, 1);
 
-      for (let i = 0; i < 25; i++) {
-        const client = createdClients![i % createdClients!.length];
+      let projectCounter = 0;
+
+      // ========== HISTORICAL PROJECTS (delivered in last 6 months) ==========
+      // Create 6-8 delivered projects per month for the last 6 months
+      for (let monthOffset = 6; monthOffset >= 1; monthOffset--) {
+        const monthStart = startOfMonth(subMonths(today, monthOffset));
+        const monthEnd = endOfMonth(subMonths(today, monthOffset));
+        const projectsThisMonth = 5 + Math.floor(Math.random() * 4); // 5-8 projects per month
+
+        for (let i = 0; i < projectsThisMonth; i++) {
+          projectCounter++;
+          const client = createdClients![projectCounter % createdClients!.length];
+          const itemType = itemTypes[Math.floor(Math.random() * 3)]; // Exclude 'reuniao' for delivered
+          
+          // Delivered projects are in 'edicao' phase at final column
+          const phase: 'captacao' | 'edicao' = 'edicao';
+          
+          // Shoot date is 10-30 days before delivery
+          const deliveredAt = randomDate(monthStart, monthEnd);
+          const shootDate = addDays(deliveredAt, -(10 + Math.floor(Math.random() * 20)));
+          const deliveryDate = deliveredAt;
+          
+          // Values for delivered projects (higher average)
+          const agreedValue = randomValue(800, 5500, 100);
+          const custoCaptacao = randomValue(50, 400, 25);
+          const custoEdicao = randomValue(100, 600, 25);
+          const custosExtras = Math.random() > 0.7 ? randomValue(50, 300, 25) : 0;
+
+          const yearMonth = deliveredAt.getFullYear().toString().slice(2) + String(deliveredAt.getMonth() + 1).padStart(2, '0');
+
+          projects.push({
+            name: `${projectNames[projectCounter % projectNames.length]} - ${client.name.split(' ')[0]}`,
+            project_code: `WF-${yearMonth}-${String(projectCounter).padStart(3, '0')}`,
+            workspace_id: currentWorkspace.id,
+            client_id: client.id,
+            created_by: user.id,
+            type: projectTypes[Math.floor(Math.random() * projectTypes.length)],
+            category: projectCategories[Math.floor(Math.random() * projectCategories.length)],
+            priority: priorities[Math.floor(Math.random() * priorities.length)],
+            item_type: itemType,
+            current_phase: phase,
+            captacao_column_id: finalCaptacaoColumn?.id,
+            edicao_column_id: finalEdicaoColumn?.id,
+            shoot_date: formatDate(shootDate),
+            shoot_start_time: randomTime(),
+            shoot_end_time: randomTime(),
+            delivery_date: formatDate(deliveryDate),
+            city: client.city,
+            agreed_value: agreedValue,
+            custo_captacao: custoCaptacao,
+            custo_edicao: custoEdicao,
+            custos_extras: custosExtras,
+            notes: `Projeto de demonstração para ${client.name}. Tipo: ${itemType}`,
+            is_delivered: true,
+            delivered_at: formatDateTime(deliveredAt),
+          });
+        }
+      }
+
+      logger.log('Created historical projects:', projects.length);
+
+      // ========== ACTIVE PROJECTS (current + future) ==========
+      // Create 12-15 active projects in various stages
+      const activeProjectCount = 12 + Math.floor(Math.random() * 4);
+      
+      for (let i = 0; i < activeProjectCount; i++) {
+        projectCounter++;
+        const client = createdClients![projectCounter % createdClients!.length];
         const itemType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
         
         // Determine phase based on item type
@@ -204,21 +285,21 @@ export function SeedDemoData() {
         }
 
         const columns_ = phase === 'captacao' ? captacaoColumns : edicaoColumns;
-        const columnIndex = Math.floor(Math.random() * columns_.length);
+        const columnIndex = Math.floor(Math.random() * (columns_.length - 1)); // Avoid final column
         const column = columns_[columnIndex];
         
-        const shootDate = randomDate(pastMonth, nextTwoMonths);
-        const deliveryDate = new Date(shootDate.getTime() + (7 + Math.random() * 21) * 24 * 60 * 60 * 1000);
+        const shootDate = randomDate(subMonths(today, 1), nextMonth);
+        const deliveryDate = addDays(shootDate, 7 + Math.floor(Math.random() * 21));
         
-        const agreedValue = Math.round((500 + Math.random() * 4500) / 50) * 50;
-        const custoCaptacao = Math.round((50 + Math.random() * 300) / 10) * 10;
-        const custoEdicao = Math.round((100 + Math.random() * 500) / 10) * 10;
+        const agreedValue = randomValue(500, 4500, 50);
+        const custoCaptacao = randomValue(50, 300, 10);
+        const custoEdicao = randomValue(100, 500, 10);
 
-        const isDelivered = column?.is_final && Math.random() > 0.3;
+        const yearMonth = today.getFullYear().toString().slice(2) + String(today.getMonth() + 1).padStart(2, '0');
 
         projects.push({
-          name: `${projectNames[i]} - ${client.name.split(' ')[0]}`,
-          project_code: `WF-2026-${String(i + 1).padStart(3, '0')}`,
+          name: `${projectNames[projectCounter % projectNames.length]} - ${client.name.split(' ')[0]}`,
+          project_code: `WF-${yearMonth}-${String(projectCounter).padStart(3, '0')}`,
           workspace_id: currentWorkspace.id,
           client_id: client.id,
           created_by: user.id,
@@ -227,7 +308,7 @@ export function SeedDemoData() {
           priority: priorities[Math.floor(Math.random() * priorities.length)],
           item_type: itemType,
           current_phase: phase,
-          captacao_column_id: phase === 'captacao' ? column?.id : captacaoColumns[captacaoColumns.length - 1]?.id,
+          captacao_column_id: phase === 'captacao' ? column?.id : finalCaptacaoColumn?.id,
           edicao_column_id: phase === 'edicao' ? column?.id : null,
           shoot_date: formatDate(shootDate),
           shoot_start_time: randomTime(),
@@ -238,11 +319,13 @@ export function SeedDemoData() {
           custo_captacao: custoCaptacao,
           custo_edicao: custoEdicao,
           notes: `Projeto de demonstração para ${client.name}. Tipo: ${itemType}`,
-          is_delivered: isDelivered,
-          delivered_at: isDelivered ? formatDateTime(deliveryDate) : null,
-          google_meet_url: itemType === 'reuniao' ? `https://meet.google.com/abc-defg-${i}` : null,
+          is_delivered: false,
+          delivered_at: null,
+          google_meet_url: itemType === 'reuniao' ? `https://meet.google.com/abc-defg-${projectCounter}` : null,
         });
       }
+
+      logger.log('Total projects to create:', projects.length);
 
       const { data: createdProjects, error: projectsError } = await supabase
         .from('projects')
@@ -261,8 +344,12 @@ export function SeedDemoData() {
         const numTasks = 3 + Math.floor(Math.random() * 5);
         
         for (let i = 0; i < numTasks; i++) {
-          const dueDate = randomDate(new Date(project.shoot_date!), new Date(project.delivery_date!));
-          const isCompleted = Math.random() > 0.4;
+          const dueDate = project.shoot_date && project.delivery_date 
+            ? randomDate(new Date(project.shoot_date), new Date(project.delivery_date))
+            : new Date();
+          
+          // Completed for delivered projects, random for active
+          const isCompleted = project.is_delivered ? true : Math.random() > 0.4;
           
           allTasks.push({
             title: templates[i % templates.length],
@@ -359,39 +446,95 @@ export function SeedDemoData() {
         logger.log('Created media links:', allMediaLinks.length);
       }
 
-      // 7. Create payments
+      // 7. Create payments - CRITICAL FOR REPORTS
       const allPayments: any[] = [];
+      let invoiceCounter = 0;
       
       for (const project of createdProjects!) {
+        const deliveredAt = project.delivered_at ? new Date(project.delivered_at) : null;
+        
         // Client payment (receivable)
-        const isPaid = project.is_delivered && Math.random() > 0.3;
-        allPayments.push({
-          workspace_id: currentWorkspace.id,
-          project_id: project.id,
-          client_id: project.client_id,
-          is_receivable: true,
-          amount: project.agreed_value || 0,
-          status: isPaid ? 'pago' : (Math.random() > 0.7 ? 'vencido' : 'pendente'),
-          due_date: project.delivery_date,
-          paid_at: isPaid ? formatDateTime(new Date(project.delivery_date!)) : null,
-          description: `Pagamento do projeto: ${project.name}`,
-          invoice_number: isPaid ? `FAT-2026-${String(allPayments.length + 1).padStart(4, '0')}` : null,
-        });
-
-        // Freelancer costs (payable) - for some projects
-        if (Math.random() > 0.5) {
-          const freelancerPaid = Math.random() > 0.4;
+        if (project.is_delivered) {
+          // Delivered projects: payment is paid
+          invoiceCounter++;
+          const paidAt = deliveredAt ? addDays(deliveredAt, Math.floor(Math.random() * 15)) : new Date();
+          const yearMonth = paidAt.getFullYear().toString() + String(paidAt.getMonth() + 1).padStart(2, '0');
+          
           allPayments.push({
             workspace_id: currentWorkspace.id,
             project_id: project.id,
-            is_receivable: false,
-            amount: (project.custo_captacao || 0) + (project.custo_edicao || 0),
-            status: freelancerPaid ? 'pago' : 'pendente',
+            client_id: project.client_id,
+            is_receivable: true,
+            amount: project.agreed_value || 0,
+            status: 'pago',
             due_date: project.delivery_date,
-            paid_at: freelancerPaid ? formatDateTime(new Date()) : null,
-            description: `Custos de produção: ${project.name}`,
-            freelancer_name: ['Miguel Fotógrafo', 'Sara Editor', 'João Drone', 'Ana Produção'][Math.floor(Math.random() * 4)],
+            paid_at: formatDateTime(paidAt),
+            description: `Pagamento do projeto: ${project.name}`,
+            invoice_number: `FAT-${yearMonth}-${String(invoiceCounter).padStart(4, '0')}`,
           });
+
+          // Freelancer costs (payable) for delivered projects
+          if (Math.random() > 0.3) {
+            const freelancerAmount = (project.custo_captacao || 0) + (project.custo_edicao || 0);
+            if (freelancerAmount > 0) {
+              allPayments.push({
+                workspace_id: currentWorkspace.id,
+                project_id: project.id,
+                is_receivable: false,
+                amount: freelancerAmount,
+                status: 'pago',
+                due_date: project.delivery_date,
+                paid_at: formatDateTime(addDays(paidAt, Math.floor(Math.random() * 7))),
+                description: `Custos de produção: ${project.name}`,
+                freelancer_name: freelancerNames[Math.floor(Math.random() * freelancerNames.length)],
+              });
+            }
+          }
+
+          // Extra costs for some delivered projects
+          if (project.custos_extras && project.custos_extras > 0) {
+            allPayments.push({
+              workspace_id: currentWorkspace.id,
+              project_id: project.id,
+              is_receivable: false,
+              amount: project.custos_extras,
+              status: 'pago',
+              due_date: project.delivery_date,
+              paid_at: formatDateTime(addDays(paidAt, Math.floor(Math.random() * 5))),
+              description: `Custos extras: ${project.name}`,
+              freelancer_name: null,
+            });
+          }
+        } else {
+          // Active projects: mix of pending/overdue
+          const isPastDue = project.delivery_date && new Date(project.delivery_date) < today;
+          allPayments.push({
+            workspace_id: currentWorkspace.id,
+            project_id: project.id,
+            client_id: project.client_id,
+            is_receivable: true,
+            amount: project.agreed_value || 0,
+            status: isPastDue && Math.random() > 0.5 ? 'vencido' : 'pendente',
+            due_date: project.delivery_date,
+            paid_at: null,
+            description: `Pagamento do projeto: ${project.name}`,
+            invoice_number: null,
+          });
+
+          // Some pending freelancer costs
+          if (Math.random() > 0.6) {
+            allPayments.push({
+              workspace_id: currentWorkspace.id,
+              project_id: project.id,
+              is_receivable: false,
+              amount: (project.custo_captacao || 0) + (project.custo_edicao || 0),
+              status: 'pendente',
+              due_date: project.delivery_date,
+              paid_at: null,
+              description: `Custos de produção: ${project.name}`,
+              freelancer_name: freelancerNames[Math.floor(Math.random() * freelancerNames.length)],
+            });
+          }
         }
       }
 
@@ -443,8 +586,8 @@ export function SeedDemoData() {
         }
 
         // Meeting for reuniao type
-        if (project.item_type === 'reuniao') {
-          const meetingDate = randomDate(today, nextTwoMonths);
+        if (project.item_type === 'reuniao' && !project.is_delivered) {
+          const meetingDate = randomDate(today, nextMonth);
           meetingDate.setHours(10 + Math.floor(Math.random() * 6));
 
           allEvents.push({
@@ -462,7 +605,7 @@ export function SeedDemoData() {
 
       // Add some standalone meetings
       for (let i = 0; i < 5; i++) {
-        const meetingDate = randomDate(today, nextTwoMonths);
+        const meetingDate = randomDate(today, nextMonth);
         meetingDate.setHours(9 + Math.floor(Math.random() * 8));
 
         allEvents.push({
@@ -483,9 +626,13 @@ export function SeedDemoData() {
       if (eventsError) throw eventsError;
       logger.log('Created calendar events:', allEvents.length);
 
+      // Count delivered vs active
+      const deliveredCount = createdProjects!.filter(p => p.is_delivered).length;
+      const activeCount = createdProjects!.filter(p => !p.is_delivered).length;
+
       toast({
         title: 'Dados de demonstração criados com sucesso!',
-        description: `${createdClients?.length} clientes, ${createdProjects?.length} projetos, ${createdTasks?.length} tarefas, ${allChecklists.length} checklists, ${allMediaLinks.length} links, ${allPayments.length} pagamentos e ${allEvents.length} eventos.`,
+        description: `${createdClients?.length} clientes, ${createdProjects?.length} projetos (${deliveredCount} entregues, ${activeCount} ativos), ${createdTasks?.length} tarefas, ${allPayments.length} pagamentos.`,
       });
     } catch (error: any) {
       logger.error('Error seeding data:', error);
