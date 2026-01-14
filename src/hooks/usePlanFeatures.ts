@@ -1,17 +1,35 @@
 import { useMemo, useCallback, useState } from 'react';
 import { useUserSubscription, SubscriptionPlan } from './useUserSubscription';
+import { 
+  PLANS, 
+  PLAN_DB_MAPPING, 
+  isPlanAtLeast as isPlanAtLeastFromPlans,
+  type PlanId,
+} from '@/lib/plans';
 
+// Re-export SubscriptionPlan for backwards compatibility
+export type { SubscriptionPlan };
+
+// Feature keys derived from plans.ts - includes all possible feature keys
 export type FeatureKey =
   | 'workspaces'
   | 'users'
   | 'projects'
+  | 'kanban'
+  | 'crmBasic'
+  | 'crmComplete'
+  | 'calendar'
+  | 'exportExcel'
   | 'exportPdf'
+  | 'reportsBasic'
+  | 'reportsAdvanced'
   | 'googleCalendar'
   | 'googleMeet'
-  | 'advancedReports'
+  | 'templates'
   | 'frameio'
   | 'automations'
-  | 'crmComplete';
+  | 'permissions'
+  | 'api';
 
 export interface FeatureInfo {
   key: FeatureKey;
@@ -20,76 +38,78 @@ export interface FeatureInfo {
   minimumPlan: SubscriptionPlan;
 }
 
-// Features and their minimum plan requirements
-const FEATURES: Record<FeatureKey, FeatureInfo> = {
-  workspaces: {
-    key: 'workspaces',
-    name: 'Workspaces',
-    description: 'Criar múltiplos workspaces',
-    minimumPlan: 'essencial',
-  },
-  users: {
-    key: 'users',
-    name: 'Utilizadores',
-    description: 'Convidar membros para a equipa',
-    minimumPlan: 'essencial',
-  },
-  projects: {
-    key: 'projects',
-    name: 'Projetos',
-    description: 'Criar projetos',
-    minimumPlan: 'essencial',
-  },
-  exportPdf: {
-    key: 'exportPdf',
-    name: 'Export PDF',
-    description: 'Exportar relatórios e documentos em PDF',
-    minimumPlan: 'pro',
-  },
-  googleCalendar: {
-    key: 'googleCalendar',
-    name: 'Google Calendar',
-    description: 'Integração com Google Calendar',
-    minimumPlan: 'pro',
-  },
-  googleMeet: {
-    key: 'googleMeet',
-    name: 'Google Meet',
-    description: 'Criar reuniões automaticamente',
-    minimumPlan: 'pro',
-  },
-  advancedReports: {
-    key: 'advancedReports',
-    name: 'Relatórios Avançados',
-    description: 'Análises detalhadas e dashboards personalizados',
-    minimumPlan: 'pro',
-  },
-  frameio: {
-    key: 'frameio',
-    name: 'Frame.io',
-    description: 'Integração com Frame.io para revisão de vídeos',
-    minimumPlan: 'studio',
-  },
-  automations: {
-    key: 'automations',
-    name: 'Automações',
-    description: 'Fluxos de trabalho automatizados',
-    minimumPlan: 'studio',
-  },
-  crmComplete: {
-    key: 'crmComplete',
-    name: 'CRM Completo',
-    description: 'Funcionalidades avançadas de CRM',
-    minimumPlan: 'pro',
-  },
-};
+// Build features from plans.ts - determines minimum plan for each feature
+function buildFeatureInfo(): Record<FeatureKey, FeatureInfo> {
+  const featureDescriptions: Record<string, string> = {
+    workspaces: 'Criar múltiplos workspaces',
+    users: 'Convidar membros para a equipa',
+    projects: 'Criar projetos',
+    kanban: 'Gestão de projetos em Kanban',
+    crmBasic: 'Gestão básica de clientes',
+    crmComplete: 'Funcionalidades avançadas de CRM',
+    calendar: 'Calendário integrado com projetos',
+    exportExcel: 'Exportar dados para Excel/CSV',
+    exportPdf: 'Exportar relatórios e documentos em PDF',
+    reportsBasic: 'Relatórios e métricas simples',
+    reportsAdvanced: 'Análises detalhadas e dashboards personalizados',
+    googleCalendar: 'Sincronização com Google Calendar',
+    googleMeet: 'Criar reuniões automaticamente',
+    templates: 'Templates de projeto personalizados',
+    frameio: 'Integração com Frame.io para revisão de vídeos',
+    automations: 'Fluxos de trabalho automatizados',
+    permissions: 'Permissões avançadas por cargo',
+    api: 'Acesso à API e Webhooks',
+  };
 
-const PLAN_ORDER: SubscriptionPlan[] = ['essencial', 'pro', 'studio'];
+  const features: Partial<Record<FeatureKey, FeatureInfo>> = {};
+  
+  // Determine minimum plan for each feature by checking when it first becomes available
+  const planOrder: PlanId[] = ['starter', 'pro', 'studio'];
+  
+  planOrder.forEach(planId => {
+    const plan = PLANS[planId];
+    const dbPlan = planId === 'starter' ? 'essencial' : planId;
+    
+    plan.features.forEach(feature => {
+      const featureKey = feature.key as FeatureKey;
+      
+      // Only set if not already set AND feature is included in this plan
+      if (!features[featureKey] && feature.included) {
+        features[featureKey] = {
+          key: featureKey,
+          name: feature.name,
+          description: featureDescriptions[featureKey] || feature.name,
+          minimumPlan: dbPlan as SubscriptionPlan,
+        };
+      }
+    });
+  });
+
+  // Add any features that are never included (use studio as default)
+  Object.keys(featureDescriptions).forEach(key => {
+    if (!features[key as FeatureKey]) {
+      features[key as FeatureKey] = {
+        key: key as FeatureKey,
+        name: key,
+        description: featureDescriptions[key],
+        minimumPlan: 'studio',
+      };
+    }
+  });
+
+  return features as Record<FeatureKey, FeatureInfo>;
+}
+
+const FEATURES = buildFeatureInfo();
+
+// DB uses 'essencial', UI sometimes uses 'starter' - normalize for comparison
+function normalizePlan(plan: string): PlanId {
+  return PLAN_DB_MAPPING[plan] || 'starter';
+}
 
 function isPlanAtLeast(userPlan: SubscriptionPlan, requiredPlan: SubscriptionPlan): boolean {
-  const userIndex = PLAN_ORDER.indexOf(userPlan);
-  const requiredIndex = PLAN_ORDER.indexOf(requiredPlan);
-  return userIndex >= requiredIndex;
+  const requiredPlanId = normalizePlan(requiredPlan);
+  return isPlanAtLeastFromPlans(userPlan, requiredPlanId);
 }
 
 export interface UpgradeAlertState {
@@ -145,8 +165,10 @@ export function usePlanFeatures() {
   // Get upgrade plan recommendation
   const getUpgradePlan = useCallback((feature: FeatureKey): SubscriptionPlan => {
     const requiredPlan = getRequiredPlan(feature);
-    const requiredIndex = PLAN_ORDER.indexOf(requiredPlan);
-    const userIndex = PLAN_ORDER.indexOf(currentPlan);
+    
+    const planOrderDb: SubscriptionPlan[] = ['essencial', 'pro', 'studio'];
+    const requiredIndex = planOrderDb.indexOf(requiredPlan);
+    const userIndex = planOrderDb.indexOf(currentPlan);
     
     // If user's plan is below required, suggest the required plan
     if (userIndex < requiredIndex) {
@@ -154,8 +176,8 @@ export function usePlanFeatures() {
     }
     
     // If it's a limit issue, suggest the next plan up
-    const nextPlanIndex = Math.min(userIndex + 1, PLAN_ORDER.length - 1);
-    return PLAN_ORDER[nextPlanIndex];
+    const nextPlanIndex = Math.min(userIndex + 1, planOrderDb.length - 1);
+    return planOrderDb[nextPlanIndex];
   }, [currentPlan, getRequiredPlan]);
 
   // Check feature and show upgrade alert if not available

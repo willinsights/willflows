@@ -77,13 +77,15 @@ describe("usePlanFeatures", () => {
       wrapper: createWrapper(),
     });
 
-    // Pro plan should have access to exportPdf
+    // Pro plan should have access to exportPdf (Pro feature)
     expect(result.current.canUseFeature("exportPdf")).toBe(true);
     expect(result.current.canUseFeature("googleCalendar")).toBe(true);
+    expect(result.current.canUseFeature("reportsAdvanced")).toBe(true);
     
     // Pro plan should NOT have access to studio features
     expect(result.current.canUseFeature("frameio")).toBe(false);
     expect(result.current.canUseFeature("automations")).toBe(false);
+    expect(result.current.canUseFeature("api")).toBe(false);
   });
 
   it("should check feature access ignoring limits", () => {
@@ -101,9 +103,19 @@ describe("usePlanFeatures", () => {
       wrapper: createWrapper(),
     });
 
+    // Features that require pro plan
     expect(result.current.getRequiredPlan("exportPdf")).toBe("pro");
+    expect(result.current.getRequiredPlan("googleCalendar")).toBe("pro");
+    
+    // Features that require studio plan
     expect(result.current.getRequiredPlan("frameio")).toBe("studio");
+    expect(result.current.getRequiredPlan("automations")).toBe("studio");
+    expect(result.current.getRequiredPlan("api")).toBe("studio");
+    
+    // Features available from starter (essencial in DB)
     expect(result.current.getRequiredPlan("workspaces")).toBe("essencial");
+    expect(result.current.getRequiredPlan("kanban")).toBe("essencial");
+    expect(result.current.getRequiredPlan("exportExcel")).toBe("essencial");
   });
 
   it("should calculate remaining quota for limit-based features", () => {
@@ -161,7 +173,7 @@ describe("usePlanFeatures", () => {
 
     const featureInfo = result.current.getFeatureInfo("exportPdf");
     expect(featureInfo.key).toBe("exportPdf");
-    expect(featureInfo.name).toBe("Export PDF");
+    expect(featureInfo.name).toBe("Exportação PDF");
     expect(featureInfo.minimumPlan).toBe("pro");
   });
 
@@ -170,9 +182,11 @@ describe("usePlanFeatures", () => {
       wrapper: createWrapper(),
     });
 
+    // Pro features should be available
     expect(result.current.features.exportPdf.available).toBe(true);
     expect(result.current.features.exportPdf.hasAccess).toBe(true);
     
+    // Studio features should not be available for Pro plan
     expect(result.current.features.frameio.available).toBe(false);
     expect(result.current.features.frameio.hasAccess).toBe(false);
   });
@@ -186,5 +200,23 @@ describe("usePlanFeatures", () => {
     expect(result.current.canUseFeature("workspaces")).toBe(true);
     expect(result.current.canUseFeature("users")).toBe(true);
     expect(result.current.canUseFeature("projects")).toBe(true);
+  });
+
+  it("should have new feature keys available", () => {
+    const { result } = renderHook(() => usePlanFeatures(), {
+      wrapper: createWrapper(),
+    });
+
+    // Check new feature keys are defined
+    expect(result.current.features.kanban).toBeDefined();
+    expect(result.current.features.crmBasic).toBeDefined();
+    expect(result.current.features.crmComplete).toBeDefined();
+    expect(result.current.features.calendar).toBeDefined();
+    expect(result.current.features.exportExcel).toBeDefined();
+    expect(result.current.features.reportsBasic).toBeDefined();
+    expect(result.current.features.reportsAdvanced).toBeDefined();
+    expect(result.current.features.templates).toBeDefined();
+    expect(result.current.features.permissions).toBeDefined();
+    expect(result.current.features.api).toBeDefined();
   });
 });

@@ -12,6 +12,7 @@ import {
   FileSpreadsheet,
   FileText,
   Lock,
+  Crown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,7 +31,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
   LineChart,
   Line,
@@ -43,6 +44,8 @@ import { useClients } from '@/hooks/useClients';
 import { usePayments } from '@/hooks/usePayments';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
+import { useFeatureGate } from '@/components/subscription/FeatureGate';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--info))', 'hsl(var(--destructive))'];
 
@@ -52,6 +55,7 @@ export default function Relatorios() {
   const { payments } = usePayments();
   const { currentWorkspace } = useWorkspace();
   const { canViewReports } = useFinancialPermissions();
+  const { hasAccess: canExportPdf, requireFeature: requirePdfExport, UpgradeAlertComponent } = useFeatureGate('exportPdf');
   const [period, setPeriod] = useState('6');
 
   const currency = currentWorkspace?.currency || 'EUR';
@@ -314,10 +318,32 @@ export default function Relatorios() {
             <FileSpreadsheet className="h-4 w-4 mr-2" />
             Excel
           </Button>
-          <Button variant="outline" onClick={handleExportPDF}>
-            <FileText className="h-4 w-4 mr-2" />
-            PDF
-          </Button>
+          {canExportPdf ? (
+            <Button variant="outline" onClick={handleExportPDF}>
+              <FileText className="h-4 w-4 mr-2" />
+              PDF
+            </Button>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => requirePdfExport(handleExportPDF)}
+                    className="gap-2"
+                  >
+                    <Lock className="h-4 w-4" />
+                    <Crown className="h-3 w-3 text-primary" />
+                    PDF
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Disponível no plano Pro</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          <UpgradeAlertComponent />
         </div>
       </div>
 
@@ -385,7 +411,7 @@ export default function Relatorios() {
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
                     <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => formatCurrency(v)} />
-                    <Tooltip
+                    <RechartsTooltip
                       contentStyle={{
                         backgroundColor: 'hsl(var(--card))',
                         border: '1px solid hsl(var(--border))',
@@ -413,7 +439,7 @@ export default function Relatorios() {
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
                     <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => formatCurrency(v)} />
-                    <Tooltip
+                    <RechartsTooltip
                       contentStyle={{
                         backgroundColor: 'hsl(var(--card))',
                         border: '1px solid hsl(var(--border))',
@@ -519,7 +545,7 @@ export default function Relatorios() {
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis type="number" stroke="hsl(var(--muted-foreground))" />
                       <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" />
-                      <Tooltip
+                      <RechartsTooltip
                         contentStyle={{
                           backgroundColor: 'hsl(var(--card))',
                           border: '1px solid hsl(var(--border))',
