@@ -69,20 +69,43 @@ serve(async (req) => {
 
     const requestOrigin = req.headers.get("origin") || "https://willflow.app";
 
-    // Create a subscription checkout session (no trial - trial is managed locally)
+    // Create a subscription checkout session with full EU VAT compliance
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
+      
+      // Allow updating customer address/name for existing customers
+      customer_update: customerId ? {
+        address: 'auto',
+        name: 'auto',
+      } : undefined,
+      
       line_items: [
         {
           price: priceId,
           quantity: 1,
         },
       ],
+      
       mode: "subscription",
-      allow_promotion_codes: true, // Enable promo codes field in checkout
+      allow_promotion_codes: true,
+      
+      // EU VAT Compliance: Enable automatic tax calculation
+      automatic_tax: {
+        enabled: true,
+      },
+      
+      // EU VAT Compliance: Require full billing address for tax determination
+      billing_address_collection: 'required',
+      
+      // EU VAT Compliance: Allow B2B customers to enter VAT ID for reverse charge
+      tax_id_collection: {
+        enabled: true,
+      },
+      
       success_url: `${requestOrigin}/checkout-success`,
       cancel_url: `${requestOrigin}/planos?checkout=cancelled`,
+      
       metadata: {
         user_id: user.id,
         workspace_id: workspaceId || "",

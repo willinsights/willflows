@@ -338,18 +338,101 @@ serve(async (req) => {
           subscriptionId: invoice.subscription
         });
 
+        const customerId = invoice.customer as string;
+
+        // Find user by Stripe customer ID
+        const { data: userSubForInvoice } = await supabaseClient
+          .from('user_subscriptions')
+          .select('user_id')
+          .eq('stripe_customer_id', customerId)
+          .single();
+
+        // ========== EU VAT COMPLIANCE: Store fiscal evidence ==========
+        try {
+          // Extract customer country from billing address or tax IDs
+          const customerCountry = invoice.customer_address?.country || 
+                                  (invoice.customer_tax_ids && invoice.customer_tax_ids.length > 0 
+                                    ? invoice.customer_tax_ids[0].value?.substring(0, 2) 
+                                    : null);
+          
+          // Extract tax information
+          const taxData = invoice.total_tax_amounts && invoice.total_tax_amounts.length > 0 
+            ? invoice.total_tax_amounts[0] 
+            : null;
+          
+          let taxRatePercent: number | null = null;
+          let taxType: string | null = null;
+          
+          if (taxData?.tax_rate && typeof taxData.tax_rate === 'string') {
+            const taxRateDetails = await stripe.taxRates.retrieve(taxData.tax_rate);
+            taxRatePercent = taxRateDetails.percentage;
+            taxType = taxRateDetails.tax_type || null;
+          }
+          
+          // Extract customer VAT ID if provided
+          const customerTaxId = invoice.customer_tax_ids && invoice.customer_tax_ids.length > 0 
+            ? invoice.customer_tax_ids[0] 
+            : null;
+
+          // Find workspace from subscription metadata or user workspaces
+          let workspaceIdForInvoice: string | null = null;
+          if (userSubForInvoice?.user_id) {
+            const { data: membership } = await supabaseClient
+              .from('workspace_members')
+              .select('workspace_id')
+              .eq('user_id', userSubForInvoice.user_id)
+              .eq('role', 'admin')
+              .single();
+            workspaceIdForInvoice = membership?.workspace_id || null;
+          }
+
+          const invoiceData = {
+            user_id: userSubForInvoice?.user_id || null,
+            workspace_id: workspaceIdForInvoice,
+            stripe_invoice_id: invoice.id,
+            stripe_customer_id: customerId,
+            stripe_subscription_id: invoice.subscription as string || null,
+            stripe_charge_id: invoice.charge as string || null,
+            amount_total: invoice.total,
+            amount_subtotal: invoice.subtotal,
+            amount_tax: invoice.tax || 0,
+            currency: invoice.currency,
+            customer_country: customerCountry,
+            tax_rate_percent: taxRatePercent,
+            tax_type: taxType,
+            customer_tax_id: customerTaxId?.value || null,
+            customer_tax_id_valid: customerTaxId?.verification?.status === 'verified',
+            status: 'paid',
+            paid_at: new Date().toISOString(),
+            invoice_pdf_url: invoice.invoice_pdf || null,
+            hosted_invoice_url: invoice.hosted_invoice_url || null,
+            billing_reason: invoice.billing_reason || null,
+          };
+
+          const { error: invoiceInsertError } = await supabaseClient
+            .from('subscription_invoices')
+            .upsert(invoiceData, { onConflict: 'stripe_invoice_id' });
+
+          if (invoiceInsertError) {
+            logStep("WARNING: Failed to store invoice fiscal data", { error: invoiceInsertError.message });
+          } else {
+            logStep("Invoice fiscal evidence stored", { 
+              invoiceId: invoice.id, 
+              country: customerCountry, 
+              taxRate: taxRatePercent,
+              vatId: customerTaxId?.value 
+            });
+          }
+        } catch (fiscalError) {
+          const fiscalErrorMsg = fiscalError instanceof Error ? fiscalError.message : String(fiscalError);
+          logStep("WARNING: Error processing fiscal data", { error: fiscalErrorMsg });
+          // Don't throw - we still want to update the subscription status
+        }
+        // ========== END EU VAT COMPLIANCE ==========
+
         if (invoice.subscription) {
-          const customerId = invoice.customer as string;
-
-          // Update user subscription
-          const { data: userSub } = await supabaseClient
-            .from('user_subscriptions')
-            .select('user_id')
-            .eq('stripe_customer_id', customerId)
-            .single();
-
-          if (userSub?.user_id) {
-            await updateUserSubscription(userSub.user_id, {
+          if (userSubForInvoice?.user_id) {
+            await updateUserSubscription(userSubForInvoice.user_id, {
               subscription_status: "active",
             });
           }
