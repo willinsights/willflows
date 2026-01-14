@@ -10,7 +10,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null; data?: { user: User | null } }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
@@ -91,7 +91,7 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
       }
     }
     
-    return { error: error as Error | null };
+    return { error: error as Error | null, data: data ? { user: data.user } : undefined };
   }, []);
 
   const signOut = useCallback(async () => {

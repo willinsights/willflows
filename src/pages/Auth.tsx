@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, ArrowLeft, Loader2, CheckCircle2, Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Loader2, CheckCircle2, Mail, Lock, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,6 +24,7 @@ const loginSchema = z.object({
 const signupSchema = loginSchema.extend({
   fullName: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres'),
   confirmPassword: z.string(),
+  promoCode: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'As passwords não coincidem',
   path: ['confirmPassword'],
@@ -67,6 +68,9 @@ export default function Auth() {
     return 'login';
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [showPromoCode, setShowPromoCode] = useState(false);
+  const [validatingPromo, setValidatingPromo] = useState(false);
+  const [promoValidation, setPromoValidation] = useState<{ valid: boolean; trialDays?: number; message?: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [passwordUpdated, setPasswordUpdated] = useState(false);
@@ -104,8 +108,47 @@ export default function Auth() {
 
   const signupForm = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { email: '', password: '', confirmPassword: '', fullName: '' },
+    defaultValues: { email: '', password: '', confirmPassword: '', fullName: '', promoCode: '' },
   });
+
+  // Validate promo code
+  const validatePromoCode = async (code: string) => {
+    if (!code.trim()) {
+      setPromoValidation(null);
+      return;
+    }
+    
+    setValidatingPromo(true);
+    try {
+      const { data, error } = await supabase
+        .from('promo_codes')
+        .select('*')
+        .eq('code', code.trim().toUpperCase())
+        .eq('is_active', true)
+        .maybeSingle();
+      
+      if (error) throw error;
+      
+      if (!data) {
+        setPromoValidation({ valid: false, message: 'Código inválido' });
+      } else if (data.max_uses && data.used_count >= data.max_uses) {
+        setPromoValidation({ valid: false, message: 'Código esgotado' });
+      } else if (data.expires_at && new Date(data.expires_at) < new Date()) {
+        setPromoValidation({ valid: false, message: 'Código expirado' });
+      } else {
+        setPromoValidation({ 
+          valid: true, 
+          trialDays: data.trial_days,
+          message: `${data.trial_days} dias grátis!`
+        });
+      }
+    } catch (error) {
+      console.error('Error validating promo code:', error);
+      setPromoValidation({ valid: false, message: 'Erro ao validar código' });
+    } finally {
+      setValidatingPromo(false);
+    }
+  };
 
   const forgotPasswordForm = useForm<ForgotPasswordFormData>({
     resolver: zodResolver(forgotPasswordSchema),
@@ -160,12 +203,12 @@ export default function Auth() {
     }
 
     setLoading(true);
-    const { error } = await signUp(data.email, data.password, data.fullName);
-    setLoading(false);
-
-    if (error) {
-      let errorMessage = error.message;
-      if (error.message.includes('already registered')) {
+    const result = await signUp(data.email, data.password, data.fullName);
+    
+    if (result.error) {
+      setLoading(false);
+      let errorMessage = result.error.message;
+      if (result.error.message.includes('already registered')) {
         errorMessage = 'Este email já está registado. Tente iniciar sessão.';
       }
       toast({
@@ -173,20 +216,54 @@ export default function Auth() {
         description: errorMessage,
         variant: 'destructive',
       });
-    } else {
-      // Mark invite as used if in beta mode
-      if (isBetaMode && inviteToken) {
-        await markAsUsed('');
-        // Send beta welcome email
-        sendBetaWelcomeEmail(data.email, data.fullName);
-      }
-      
-      toast({
-        title: 'Conta criada com sucesso!',
-        description: 'Bem-vindo ao WillFlow.',
-      });
-      navigate('/onboarding');
+      return;
     }
+
+    // If promo code is valid, update the user's trial period
+    if (promoValidation?.valid && promoValidation.trialDays && data.promoCode) {
+      try {
+        const userId = result.data?.user?.id;
+        if (userId) {
+          // Update subscription with extended trial
+          const trialEndsAt = new Date();
+          trialEndsAt.setDate(trialEndsAt.getDate() + promoValidation.trialDays);
+          
+          await supabase
+            .from('user_subscriptions')
+            .update({ trial_ends_at: trialEndsAt.toISOString() })
+            .eq('user_id', userId);
+          
+          // Increment promo code used count
+          const promoCode = data.promoCode.trim().toUpperCase();
+          await supabase
+            .from('promo_codes')
+            .update({ used_count: supabase.rpc ? undefined : undefined })
+            .eq('code', promoCode);
+          
+          // Use raw SQL update via function
+          await supabase.rpc('increment_promo_code_usage' as any, { code_text: promoCode });
+        }
+      } catch (promoError) {
+        console.error('Error applying promo code:', promoError);
+        // Don't fail signup if promo application fails
+      }
+    }
+
+    // Mark invite as used if in beta mode
+    if (isBetaMode && inviteToken) {
+      await markAsUsed('');
+      // Send beta welcome email
+      sendBetaWelcomeEmail(data.email, data.fullName);
+    }
+    
+    setLoading(false);
+    toast({
+      title: 'Conta criada com sucesso!',
+      description: promoValidation?.valid 
+        ? `Bem-vindo ao WillFlow! Tem ${promoValidation.trialDays} dias grátis.`
+        : 'Bem-vindo ao WillFlow.',
+    });
+    navigate('/onboarding');
   };
 
   const handleForgotPassword = async (data: ForgotPasswordFormData) => {
@@ -681,6 +758,56 @@ export default function Auth() {
                         : resetPasswordForm.formState.errors.confirmPassword
                       )?.message}
                     </p>
+                  )}
+                </div>
+              )}
+
+              {/* Promo Code Field - Signup only */}
+              {mode === 'signup' && (
+                <div className="space-y-2">
+                  {!showPromoCode ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowPromoCode(true)}
+                      className="text-sm text-primary hover:underline flex items-center gap-1"
+                    >
+                      <Gift className="h-4 w-4" />
+                      Tem um código promocional?
+                    </button>
+                  ) : (
+                    <>
+                      <Label htmlFor="promoCode">Código promocional</Label>
+                      <div className="relative">
+                        <Input
+                          id="promoCode"
+                          placeholder="Ex: FLOW30"
+                          {...signupForm.register('promoCode')}
+                          onChange={(e) => {
+                            signupForm.setValue('promoCode', e.target.value);
+                            validatePromoCode(e.target.value);
+                          }}
+                          className={cn(
+                            'pr-10',
+                            promoValidation?.valid === false && 'border-destructive',
+                            promoValidation?.valid === true && 'border-success'
+                          )}
+                        />
+                        {validatingPromo && (
+                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                        )}
+                        {!validatingPromo && promoValidation?.valid === true && (
+                          <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-success" />
+                        )}
+                      </div>
+                      {promoValidation && (
+                        <p className={cn(
+                          'text-sm',
+                          promoValidation.valid ? 'text-success' : 'text-destructive'
+                        )}>
+                          {promoValidation.message}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               )}

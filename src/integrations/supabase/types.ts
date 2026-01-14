@@ -1632,6 +1632,10 @@ export type Database = {
         Args: { _user_id: string; _workspace_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      increment_promo_code_usage: {
+        Args: { code_text: string }
+        Returns: undefined
+      }
       initialize_workspace_permissions: {
         Args: { _workspace_id: string }
         Returns: undefined
