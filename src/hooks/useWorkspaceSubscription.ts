@@ -91,21 +91,30 @@ export function useWorkspaceSubscription(): WorkspaceSubscriptionState {
     const status = workspace.subscription_status || 'trialing';
     const trialEndsAt = workspace.trial_ends_at || null;
     
+    const isTrial = status === 'trialing';
+    
     // Calculate trial days remaining
     let trialDaysRemaining: number | null = null;
     let trialExpired = false;
     
-    if (trialEndsAt) {
-      try {
-        const endDate = parseISO(trialEndsAt);
-        trialDaysRemaining = differenceInDays(endDate, new Date());
-        trialExpired = trialDaysRemaining < 0;
-      } catch {
-        trialDaysRemaining = null;
+    if (isTrial) {
+      if (trialEndsAt) {
+        try {
+          const endDate = parseISO(trialEndsAt);
+          trialDaysRemaining = differenceInDays(endDate, new Date());
+          trialExpired = trialDaysRemaining < 0;
+        } catch {
+          // Fallback: assume trial is valid with default days
+          trialDaysRemaining = 7;
+          trialExpired = false;
+        }
+      } else {
+        // Trial without end date: assume valid trial with default days
+        // This handles legacy workspaces or workspaces created without trial_ends_at
+        trialDaysRemaining = 7;
+        trialExpired = false;
       }
     }
-    
-    const isTrial = status === 'trialing';
     const isUserOwner = isAdmin; // In our system, 'admin' role = owner
     
     // Get plan limits based on the workspace's plan

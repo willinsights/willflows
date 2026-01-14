@@ -269,7 +269,30 @@ export function useDashboardMetrics() {
   }, [currentWorkspace?.id, fetchError]);
 
   useEffect(() => {
-    // Only fetch if workspace ID changed and we have a valid workspace
+    // CRITICAL: If workspace changed, reset data IMMEDIATELY to prevent data leakage
+    if (currentWorkspace?.id !== lastFetchedWorkspaceIdRef.current) {
+      // Reset to initial values immediately
+      setMetrics({
+        captacao: 0,
+        edicao: 0,
+        entregues: 0,
+        receita: 0,
+        custos: 0,
+        lucro: 0,
+        pendingPayments: 0,
+        pendingPaymentsCount: 0,
+        receitaChange: null,
+        custosChange: null,
+        lucroChange: null,
+        entreguesChange: null,
+      });
+      setUrgentProjects([]);
+      setRecentActivity([]);
+      setMonthlyData([]);
+      setLoading(true);
+    }
+    
+    // Fetch if workspace ID changed and we have a valid workspace
     if (currentWorkspace?.id && currentWorkspace.id !== lastFetchedWorkspaceIdRef.current && !fetchError) {
       fetchMetrics();
     } else if (!currentWorkspace) {
