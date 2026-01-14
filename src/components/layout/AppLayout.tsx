@@ -6,7 +6,7 @@ import { AppSidebar } from './AppSidebar';
 import { AppHeader } from './AppHeader';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspaceSubscription } from '@/hooks/useWorkspaceSubscription';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { TrialExpiredModal } from '@/components/subscription/TrialExpiredModal';
@@ -33,7 +33,10 @@ export function AppLayout() {
   const [retryCooldown, setRetryCooldown] = useState(false);
   const isMobile = useIsMobile();
   const { fetchError, refreshWorkspaces } = useWorkspace();
-  const { subscription } = useAuth();
+  const { trialExpired, isOwner } = useWorkspaceSubscription();
+
+  // Only show trial expired modal if user is owner of the workspace
+  const showTrialExpiredModal = isOwner && trialExpired;
 
   // Hook to show trial warning notification when 2 days or less remain
   useTrialWarning();
@@ -242,8 +245,8 @@ export function AppLayout() {
         </main>
       </div>
 
-      {/* Trial Expired Modal */}
-      <TrialExpiredModal open={subscription.trialExpired} />
+      {/* Trial Expired Modal - Only shows for workspace owners */}
+      <TrialExpiredModal open={showTrialExpiredModal} />
 
       {/* Feedback Button - Bottom right corner */}
       <FeedbackButton />

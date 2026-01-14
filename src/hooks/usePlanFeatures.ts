@@ -1,5 +1,8 @@
 import { useMemo, useCallback, useState } from 'react';
-import { useUserSubscription, SubscriptionPlan } from './useUserSubscription';
+import { useWorkspaceSubscription, type SubscriptionPlan } from './useWorkspaceSubscription';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 import { 
   PLANS, 
   PLAN_DB_MAPPING, 
@@ -9,6 +12,7 @@ import {
 
 // Re-export SubscriptionPlan for backwards compatibility
 export type { SubscriptionPlan };
+
 
 // Feature keys derived from plans.ts - includes all possible feature keys
 export type FeatureKey =
@@ -120,7 +124,50 @@ export interface UpgradeAlertState {
 }
 
 export function usePlanFeatures() {
-  const { subscription, limits, usage, loading, refresh } = useUserSubscription();
+  const { subscription, limits, loading, isOwner, canManageSubscription } = useWorkspaceSubscription();
+  const { workspace } = useWorkspace();
+  
+  // Fetch workspace usage counts
+  const { data: usage = { workspaces: 0, users: 0, projects: 0 } } = useQuery({
+    queryKey: ['workspace-usage', workspace?.id],
+    queryFn: async () => {
+      if (!workspace?.id) return { workspaces: 0, users: 0, projects: 0 };
+      
+      // Count members in this workspace
+      const { count: membersCount } = await supabase
+        .from('workspace_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('workspace_id', workspace.id)
+        .eq('is_active', true);
+      
+      // Count projects in this workspace
+      const { count: projectsCount } = await supabase
+        .from('projects')
+        .select('*', { count: 'exact', head: true })
+        .eq('workspace_id', workspace.id);
+      
+      // For workspaces count, we count how many workspaces the admin owns
+      // This is only relevant if user is admin
+      let workspacesCount = 1;
+      if (isOwner) {
+        const { data: memberships } = await supabase
+          .from('workspace_members')
+          .select('workspace_id')
+          .eq('role', 'admin')
+          .eq('is_active', true);
+        workspacesCount = memberships?.length ?? 1;
+      }
+      
+      return {
+        workspaces: workspacesCount,
+        users: membersCount ?? 0,
+        projects: projectsCount ?? 0,
+      };
+    },
+    enabled: !!workspace?.id,
+    staleTime: 30000, // 30 seconds
+  });
+  
   const [upgradeAlert, setUpgradeAlert] = useState<UpgradeAlertState>({
     isOpen: false,
     feature: null,
@@ -243,7 +290,10 @@ export function usePlanFeatures() {
     limits,
     usage,
     loading,
-    refresh,
+    
+    // Workspace-based flags
+    isOwner,
+    canManageSubscription,
     
     // Feature checks
     features,
