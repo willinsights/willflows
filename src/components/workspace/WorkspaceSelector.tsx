@@ -63,10 +63,19 @@ export function WorkspaceSelector() {
       const success = await setCurrentWorkspace(workspaceId);
       
       if (success) {
-        // Pequeno delay para garantir que localStorage é persistido antes do reload
+        // CRÍTICO: Usar sessionStorage para handoff determinístico
+        // Isso garante que após o reload, o WorkspaceProvider vai usar este workspace
+        // independentemente de race conditions com localStorage
+        try {
+          sessionStorage.setItem('willflow_workspace_switch_to', workspaceId);
+        } catch {
+          // Fallback: localStorage já foi definido pelo setCurrentWorkspace
+        }
+        
+        // Pequeno delay para garantir que storage é persistido antes do reload
         await new Promise(resolve => setTimeout(resolve, 50));
+        
         // Reload completo - garante reset total de todo o estado React
-        // O localStorage já foi atualizado e hasFetchedRef foi resetado pelo setCurrentWorkspace
         window.location.href = '/app';
         return; // Não continuar após reload
       } else {

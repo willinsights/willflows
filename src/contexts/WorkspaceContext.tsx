@@ -44,6 +44,7 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefin
 
 const CACHE_KEY = 'willflow_workspace_cache';
 const LAST_WORKSPACE_KEY = 'willflow_last_workspace_id';
+const SWITCH_HANDOFF_KEY = 'willflow_workspace_switch_to';
 const FETCH_COOLDOWN_MS = 30000;
 const MAX_RETRIES = 3;
 
@@ -93,6 +94,31 @@ function getLastWorkspaceId(): string | null {
 function setLastWorkspaceId(workspaceId: string) {
   try {
     localStorage.setItem(LAST_WORKSPACE_KEY, workspaceId);
+  } catch {
+    // Ignore
+  }
+}
+
+// SessionStorage helpers for deterministic workspace switch handoff
+function getWorkspaceSwitchHandoff(): string | null {
+  try {
+    return sessionStorage.getItem(SWITCH_HANDOFF_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function setWorkspaceSwitchHandoff(workspaceId: string) {
+  try {
+    sessionStorage.setItem(SWITCH_HANDOFF_KEY, workspaceId);
+  } catch {
+    // Ignore
+  }
+}
+
+function clearWorkspaceSwitchHandoff() {
+  try {
+    sessionStorage.removeItem(SWITCH_HANDOFF_KEY);
   } catch {
     // Ignore
   }
@@ -279,20 +305,38 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
       setAllWorkspaces(workspacesWithRoles);
 
-      // Determine which workspace to use
+      // Determine which workspace to use - priority order:
+      // 1. sessionStorage handoff (from explicit workspace switch)
+      // 2. localStorage last workspace id
+      // 3. First admin workspace
+      // 4. First workspace in list
+      const handoffWorkspaceId = getWorkspaceSwitchHandoff();
       const lastWorkspaceId = getLastWorkspaceId();
       let selectedMembership = membershipsData[0]; // Default to first
 
-      // Try to use last workspace if available and user still has access
-      if (lastWorkspaceId) {
+      // Priority 1: Check for explicit switch handoff
+      if (handoffWorkspaceId) {
+        const found = membershipsData.find((m: any) => m.workspace_id === handoffWorkspaceId);
+        if (found) {
+          selectedMembership = found;
+          // Apply to localStorage and clear handoff
+          setLastWorkspaceId(handoffWorkspaceId);
+        }
+        // Always clear handoff after reading, even if workspace not found
+        clearWorkspaceSwitchHandoff();
+      }
+      // Priority 2: Try to use last workspace if available and user still has access
+      else if (lastWorkspaceId) {
         const found = membershipsData.find((m: any) => m.workspace_id === lastWorkspaceId);
         if (found) {
           selectedMembership = found;
+        } else {
+          // Last workspace ID is stale - clear it
+          localStorage.removeItem(LAST_WORKSPACE_KEY);
         }
       }
-
-      // If no last workspace, prefer admin workspaces first
-      if (!lastWorkspaceId) {
+      // Priority 3: If no last workspace, prefer admin workspaces first
+      else {
         const adminWorkspace = membershipsData.find((m: any) => m.role === 'admin');
         if (adminWorkspace) {
           selectedMembership = adminWorkspace;
