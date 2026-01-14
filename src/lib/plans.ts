@@ -28,10 +28,14 @@ export interface PlanPrices {
   brl: { monthly: number; yearly: number };
 }
 
+export type FeatureCategory = 'limit' | 'core' | 'export' | 'integration';
+
 export interface PlanFeature {
+  key: string;
   name: string;
   value: string | boolean;
   included: boolean;
+  category: FeatureCategory;
 }
 
 export interface PlanInfo {
@@ -42,6 +46,12 @@ export interface PlanInfo {
   prices: PlanPrices;
   limits: PlanLimits;
   features: PlanFeature[];
+  // Display strings for limits
+  limitsDisplay: {
+    workspaces: string;
+    users: string;
+    projects: string;
+  };
 }
 
 // Plan limits - authoritative source
@@ -88,30 +98,41 @@ export const STRIPE_PRICES = {
   },
 } as const;
 
-// Full plan information
+// Full plan information with CORRECT annual prices
+// Annual = monthly × 12 × 0.8 (20% discount)
+// Annual per month = monthly × 0.8 (for display "X/mês quando pago anualmente")
 export const PLANS: Record<PlanId, PlanInfo> = {
   starter: {
     id: 'starter',
     name: 'Starter',
     description: 'Para freelancers e profissionais independentes',
     prices: {
-      eur: { monthly: 14, yearly: 134.40 },
-      brl: { monthly: 79, yearly: 758.40 },
+      eur: { monthly: 14, yearly: 134 }, // 14 × 12 × 0.8 = 134.4 ≈ 134
+      brl: { monthly: 79, yearly: 758 }, // 79 × 12 × 0.8 = 758.4 ≈ 758
     },
     limits: PLAN_LIMITS.starter,
+    limitsDisplay: {
+      workspaces: '1 workspace',
+      users: 'Até 2 utilizadores',
+      projects: '20 projetos ativos',
+    },
     features: [
-      { name: 'Workspaces', value: '1', included: true },
-      { name: 'Utilizadores', value: '2', included: true },
-      { name: 'Projetos ativos', value: '20', included: true },
-      { name: 'Kanban Captação + Edição', value: true, included: true },
-      { name: 'CRM básico', value: true, included: true },
-      { name: 'Export Excel', value: true, included: true },
-      { name: 'Export PDF', value: false, included: false },
-      { name: 'Google Calendar', value: false, included: false },
-      { name: 'Google Meet', value: false, included: false },
-      { name: 'Relatórios avançados', value: false, included: false },
-      { name: 'Frame.io', value: false, included: false },
-      { name: 'Automações', value: false, included: false },
+      { key: 'workspaces', name: 'Workspaces', value: '1', included: true, category: 'limit' },
+      { key: 'users', name: 'Utilizadores', value: '2', included: true, category: 'limit' },
+      { key: 'projects', name: 'Projetos ativos', value: '20', included: true, category: 'limit' },
+      { key: 'kanban', name: 'Kanban Captação + Edição', value: true, included: true, category: 'core' },
+      { key: 'crmBasic', name: 'CRM básico', value: true, included: true, category: 'core' },
+      { key: 'calendar', name: 'Calendário integrado', value: true, included: true, category: 'core' },
+      { key: 'exportExcel', name: 'Exportação Excel', value: true, included: true, category: 'export' },
+      { key: 'reportsBasic', name: 'Relatórios simples', value: true, included: true, category: 'core' },
+      { key: 'exportPdf', name: 'Exportação PDF', value: false, included: false, category: 'export' },
+      { key: 'googleCalendar', name: 'Google Calendar', value: false, included: false, category: 'integration' },
+      { key: 'googleMeet', name: 'Meet integrado', value: false, included: false, category: 'integration' },
+      { key: 'reportsAdvanced', name: 'Relatórios avançados', value: false, included: false, category: 'core' },
+      { key: 'templates', name: 'Templates de projeto', value: false, included: false, category: 'core' },
+      { key: 'frameio', name: 'Frame.io', value: false, included: false, category: 'integration' },
+      { key: 'automations', name: 'Automações', value: false, included: false, category: 'core' },
+      { key: 'api', name: 'API & Webhooks', value: false, included: false, category: 'integration' },
     ],
   },
   pro: {
@@ -120,23 +141,31 @@ export const PLANS: Record<PlanId, PlanInfo> = {
     description: 'Para equipas em crescimento',
     popular: true,
     prices: {
-      eur: { monthly: 24, yearly: 230.40 },
-      brl: { monthly: 149, yearly: 1430.40 },
+      eur: { monthly: 24, yearly: 230 }, // 24 × 12 × 0.8 = 230.4 ≈ 230
+      brl: { monthly: 149, yearly: 1430 }, // 149 × 12 × 0.8 = 1430.4 ≈ 1430
     },
     limits: PLAN_LIMITS.pro,
+    limitsDisplay: {
+      workspaces: 'Até 3 workspaces',
+      users: 'Até 10 utilizadores',
+      projects: 'Projetos ilimitados',
+    },
     features: [
-      { name: 'Workspaces', value: '3', included: true },
-      { name: 'Utilizadores', value: '10', included: true },
-      { name: 'Projetos ativos', value: 'Ilimitados', included: true },
-      { name: 'Kanban Captação + Edição', value: true, included: true },
-      { name: 'CRM completo', value: true, included: true },
-      { name: 'Export Excel', value: true, included: true },
-      { name: 'Export PDF', value: true, included: true },
-      { name: 'Google Calendar', value: true, included: true },
-      { name: 'Google Meet', value: true, included: true },
-      { name: 'Relatórios avançados', value: true, included: true },
-      { name: 'Frame.io', value: false, included: false },
-      { name: 'Automações', value: false, included: false },
+      { key: 'workspaces', name: 'Workspaces', value: '3', included: true, category: 'limit' },
+      { key: 'users', name: 'Utilizadores', value: '10', included: true, category: 'limit' },
+      { key: 'projects', name: 'Projetos ativos', value: 'Ilimitados', included: true, category: 'limit' },
+      { key: 'kanban', name: 'Kanban Captação + Edição', value: true, included: true, category: 'core' },
+      { key: 'crmComplete', name: 'CRM completo', value: true, included: true, category: 'core' },
+      { key: 'calendar', name: 'Calendário integrado', value: true, included: true, category: 'core' },
+      { key: 'exportExcel', name: 'Exportação Excel', value: true, included: true, category: 'export' },
+      { key: 'exportPdf', name: 'Exportação PDF', value: true, included: true, category: 'export' },
+      { key: 'reportsAdvanced', name: 'Relatórios avançados', value: true, included: true, category: 'core' },
+      { key: 'googleCalendar', name: 'Google Calendar', value: true, included: true, category: 'integration' },
+      { key: 'googleMeet', name: 'Meet integrado', value: true, included: true, category: 'integration' },
+      { key: 'templates', name: 'Templates de projeto', value: true, included: true, category: 'core' },
+      { key: 'frameio', name: 'Frame.io', value: false, included: false, category: 'integration' },
+      { key: 'automations', name: 'Automações avançadas', value: false, included: false, category: 'core' },
+      { key: 'api', name: 'API & Webhooks', value: false, included: false, category: 'integration' },
     ],
   },
   studio: {
@@ -144,23 +173,32 @@ export const PLANS: Record<PlanId, PlanInfo> = {
     name: 'Studio',
     description: 'Para agências e produtoras',
     prices: {
-      eur: { monthly: 32, yearly: 307.20 },
-      brl: { monthly: 197, yearly: 1891.20 },
+      eur: { monthly: 32, yearly: 307 }, // 32 × 12 × 0.8 = 307.2 ≈ 307
+      brl: { monthly: 197, yearly: 1891 }, // 197 × 12 × 0.8 = 1891.2 ≈ 1891
     },
     limits: PLAN_LIMITS.studio,
+    limitsDisplay: {
+      workspaces: 'Até 10 workspaces',
+      users: 'Utilizadores ilimitados',
+      projects: 'Projetos ilimitados',
+    },
     features: [
-      { name: 'Workspaces', value: '10', included: true },
-      { name: 'Utilizadores', value: 'Ilimitados', included: true },
-      { name: 'Projetos ativos', value: 'Ilimitados', included: true },
-      { name: 'Kanban Captação + Edição', value: true, included: true },
-      { name: 'CRM completo', value: true, included: true },
-      { name: 'Export Excel', value: true, included: true },
-      { name: 'Export PDF', value: true, included: true },
-      { name: 'Google Calendar', value: true, included: true },
-      { name: 'Google Meet', value: true, included: true },
-      { name: 'Relatórios avançados', value: true, included: true },
-      { name: 'Frame.io', value: true, included: true },
-      { name: 'Automações', value: true, included: true },
+      { key: 'workspaces', name: 'Workspaces', value: '10', included: true, category: 'limit' },
+      { key: 'users', name: 'Utilizadores', value: 'Ilimitados', included: true, category: 'limit' },
+      { key: 'projects', name: 'Projetos ativos', value: 'Ilimitados', included: true, category: 'limit' },
+      { key: 'kanban', name: 'Kanban Captação + Edição', value: true, included: true, category: 'core' },
+      { key: 'crmComplete', name: 'CRM completo', value: true, included: true, category: 'core' },
+      { key: 'calendar', name: 'Calendário integrado', value: true, included: true, category: 'core' },
+      { key: 'exportExcel', name: 'Exportação Excel', value: true, included: true, category: 'export' },
+      { key: 'exportPdf', name: 'Exportação PDF', value: true, included: true, category: 'export' },
+      { key: 'reportsAdvanced', name: 'Relatórios avançados', value: true, included: true, category: 'core' },
+      { key: 'googleCalendar', name: 'Google Calendar', value: true, included: true, category: 'integration' },
+      { key: 'googleMeet', name: 'Meet integrado', value: true, included: true, category: 'integration' },
+      { key: 'templates', name: 'Templates de projeto', value: true, included: true, category: 'core' },
+      { key: 'frameio', name: 'Frame.io integrado', value: true, included: true, category: 'integration' },
+      { key: 'automations', name: 'Automações avançadas', value: true, included: true, category: 'core' },
+      { key: 'permissions', name: 'Permissões avançadas', value: true, included: true, category: 'core' },
+      { key: 'api', name: 'API & Webhooks', value: true, included: true, category: 'integration' },
     ],
   },
 };
@@ -200,6 +238,110 @@ export function isPlanAtLeast(userPlan: string, requiredPlan: PlanId): boolean {
   const userIndex = PLAN_ORDER.indexOf(normalizedUserPlan);
   const requiredIndex = PLAN_ORDER.indexOf(requiredPlan);
   return userIndex >= requiredIndex;
+}
+
+// ----- DISPLAY HELPERS -----
+
+/**
+ * Get the monthly price (for display)
+ * If yearly, returns the monthly equivalent with discount applied
+ */
+export function getDisplayPrice(planId: PlanId, currency: Currency, interval: BillingInterval): number {
+  const plan = PLANS[planId];
+  if (interval === 'yearly') {
+    // Monthly price with 20% discount
+    return Math.round(plan.prices[currency].monthly * 0.8);
+  }
+  return plan.prices[currency].monthly;
+}
+
+/**
+ * Get the total yearly price
+ */
+export function getYearlyTotal(planId: PlanId, currency: Currency): number {
+  return PLANS[planId].prices[currency].yearly;
+}
+
+/**
+ * Get currency symbol
+ */
+export function getCurrencySymbol(currency: Currency): string {
+  return currency === 'eur' ? '€' : 'R$';
+}
+
+/**
+ * Get features for display, categorized
+ */
+export function getPlanDisplayFeatures(planId: PlanId): {
+  limits: PlanFeature[];
+  included: PlanFeature[];
+  excluded: PlanFeature[];
+} {
+  const features = PLANS[planId].features;
+  return {
+    limits: features.filter(f => f.category === 'limit'),
+    included: features.filter(f => f.included && f.category !== 'limit'),
+    excluded: features.filter(f => !f.included),
+  };
+}
+
+/**
+ * Get a simplified feature list for compact display
+ * Returns the most important features for the plan
+ */
+export function getCompactFeatures(planId: PlanId): string[] {
+  const plan = PLANS[planId];
+  
+  switch (planId) {
+    case 'starter':
+      return ['Kanban', 'CRM básico', 'Excel export'];
+    case 'pro':
+      return ['Tudo do Starter', 'Google Calendar', 'Meet', 'PDF'];
+    case 'studio':
+      return ['Tudo do Pro', 'Frame.io', 'Automações', 'API'];
+    default:
+      return plan.features.filter(f => f.included).slice(0, 4).map(f => f.name);
+  }
+}
+
+/**
+ * Get display-ready plan for UI cards
+ */
+export interface DisplayPlan {
+  id: PlanId;
+  name: string;
+  description: string;
+  popular: boolean;
+  priceMonthly: number;
+  priceAnnualMonthly: number; // Monthly price when billed annually
+  priceAnnualTotal: number;
+  limits: {
+    workspaces: string;
+    users: string;
+    projects: string;
+  };
+  features: Array<{ name: string; included: boolean }>;
+}
+
+export function getDisplayPlans(currency: Currency): DisplayPlan[] {
+  return PLAN_ORDER.map(planId => {
+    const plan = PLANS[planId];
+    const featuresForDisplay = plan.features
+      .filter(f => f.category !== 'limit')
+      .map(f => ({ name: f.name, included: f.included }));
+
+    return {
+      id: planId,
+      name: plan.name,
+      description: plan.description,
+      popular: plan.popular || false,
+      priceMonthly: plan.prices[currency].monthly,
+      priceAnnualMonthly: Math.round(plan.prices[currency].monthly * 0.8),
+      priceAnnualTotal: plan.prices[currency].yearly,
+      limits: plan.limitsDisplay,
+      features: featuresForDisplay,
+    };
+  });
 }
 
 // For backwards compatibility - re-export as PLAN_INFO
