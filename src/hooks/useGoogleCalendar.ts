@@ -229,7 +229,7 @@ export function useGoogleCalendar() {
     }
   }, [currentWorkspace?.id, connection, toast]);
 
-  // Trigger sync
+  // Trigger sync (bidirectional)
   const sync = useCallback(async () => {
     if (!currentWorkspace?.id || !connection?.is_connected) return;
 
@@ -238,7 +238,8 @@ export function useGoogleCalendar() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const response = await fetch(
+      // Step 1: Export WillFlow → Google Calendar
+      const exportResponse = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-calendar-sync`,
         {
           method: 'POST',
@@ -254,17 +255,55 @@ export function useGoogleCalendar() {
         }
       );
 
-      const data = await response.json();
+      const exportData = await exportResponse.json();
+      let exportedCount = exportData.synced || 0;
+      let exportErrors = exportData.errors?.length || 0;
 
-      if (data.synced !== undefined) {
-        toast({
-          title: 'Sincronização concluída',
-          description: `${data.synced} eventos sincronizados${data.errors?.length ? ` (${data.errors.length} erros)` : ''}`,
-        });
-        fetchStatus();
-      } else {
-        throw new Error(data.error || 'Sync failed');
+      // Step 2: Import Google Calendar → WillFlow (if enabled)
+      let importedCount = 0;
+      let updatedCount = 0;
+      let importErrors = 0;
+
+      if (connection.import_from_google) {
+        const importResponse = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-calendar-sync`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            },
+            body: JSON.stringify({
+              action: 'import',
+              workspaceId: currentWorkspace.id,
+            }),
+          }
+        );
+
+        const importData = await importResponse.json();
+        importedCount = importData.imported || 0;
+        updatedCount = importData.updated || 0;
+        importErrors = importData.errors?.length || 0;
       }
+
+      // Build summary message
+      const parts: string[] = [];
+      if (exportedCount > 0) parts.push(`${exportedCount} exportados`);
+      if (importedCount > 0) parts.push(`${importedCount} importados`);
+      if (updatedCount > 0) parts.push(`${updatedCount} atualizados`);
+      
+      const totalErrors = exportErrors + importErrors;
+      if (totalErrors > 0) parts.push(`${totalErrors} erros`);
+      
+      const description = parts.length > 0 ? parts.join(', ') : 'Nenhum evento para sincronizar';
+
+      toast({
+        title: 'Sincronização concluída',
+        description,
+      });
+      
+      fetchStatus();
     } catch (error: any) {
       toast({
         title: 'Erro ao sincronizar',
@@ -274,7 +313,7 @@ export function useGoogleCalendar() {
     } finally {
       setSyncing(false);
     }
-  }, [currentWorkspace?.id, connection?.is_connected, toast, fetchStatus]);
+  }, [currentWorkspace?.id, connection?.is_connected, connection?.import_from_google, toast, fetchStatus]);
 
   return {
     connection,
