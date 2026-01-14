@@ -9,7 +9,33 @@ const corsHeaders = {
 const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID')!;
 const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+// Helper function to get user from auth header
+async function getUserFromToken(authHeader: string | null) {
+  if (!authHeader) return null;
+  
+  const token = authHeader.replace('Bearer ', '');
+  
+  // Create a client with the user's token to validate it
+  const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  });
+  
+  const { data: { user }, error } = await supabaseClient.auth.getUser();
+  
+  if (error) {
+    console.error('Auth error:', error.message);
+    return null;
+  }
+  
+  return user;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -19,67 +45,12 @@ serve(async (req) => {
   try {
     const url = new URL(req.url);
     const action = url.searchParams.get('action');
-
-    // Get user from auth header
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader && action !== 'callback') {
-      return new Response(JSON.stringify({ error: 'No authorization header' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
 
+    // Create admin client for database operations
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Action: Get OAuth URL
-    if (action === 'authorize') {
-      const { workspaceId, redirectUri } = await req.json();
-      
-      if (!workspaceId || !redirectUri) {
-        return new Response(JSON.stringify({ error: 'Missing workspaceId or redirectUri' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      // Get user ID from token
-      const token = authHeader!.replace('Bearer ', '');
-      const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
-      
-      if (userError || !user) {
-        return new Response(JSON.stringify({ error: 'Invalid token' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      // Build state with user info
-      const state = btoa(JSON.stringify({
-        userId: user.id,
-        workspaceId,
-        redirectUri,
-      }));
-
-      const scopes = [
-        'https://www.googleapis.com/auth/calendar',
-        'https://www.googleapis.com/auth/calendar.events',
-      ].join(' ');
-
-      const oauthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-      oauthUrl.searchParams.set('client_id', GOOGLE_CLIENT_ID);
-      oauthUrl.searchParams.set('redirect_uri', `${SUPABASE_URL}/functions/v1/google-calendar-auth?action=callback`);
-      oauthUrl.searchParams.set('response_type', 'code');
-      oauthUrl.searchParams.set('scope', scopes);
-      oauthUrl.searchParams.set('access_type', 'offline');
-      oauthUrl.searchParams.set('prompt', 'consent');
-      oauthUrl.searchParams.set('state', state);
-
-      return new Response(JSON.stringify({ url: oauthUrl.toString() }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Action: Handle OAuth callback
+    // Action: Handle OAuth callback (no auth required)
     if (action === 'callback') {
       const code = url.searchParams.get('code');
       const state = url.searchParams.get('state');
@@ -166,18 +137,57 @@ serve(async (req) => {
       });
     }
 
-    // Action: Disconnect
-    if (action === 'disconnect') {
-      const { workspaceId } = await req.json();
-      const token = authHeader!.replace('Bearer ', '');
-      const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+    // All other actions require authentication
+    const user = await getUserFromToken(authHeader);
+    
+    if (!user) {
+      console.log('No valid user found for action:', action);
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-      if (!user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401,
+    // Action: Get OAuth URL
+    if (action === 'authorize') {
+      const { workspaceId, redirectUri } = await req.json();
+      
+      if (!workspaceId || !redirectUri) {
+        return new Response(JSON.stringify({ error: 'Missing workspaceId or redirectUri' }), {
+          status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+
+      // Build state with user info
+      const state = btoa(JSON.stringify({
+        userId: user.id,
+        workspaceId,
+        redirectUri,
+      }));
+
+      const scopes = [
+        'https://www.googleapis.com/auth/calendar',
+        'https://www.googleapis.com/auth/calendar.events',
+      ].join(' ');
+
+      const oauthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+      oauthUrl.searchParams.set('client_id', GOOGLE_CLIENT_ID);
+      oauthUrl.searchParams.set('redirect_uri', `${SUPABASE_URL}/functions/v1/google-calendar-auth?action=callback`);
+      oauthUrl.searchParams.set('response_type', 'code');
+      oauthUrl.searchParams.set('scope', scopes);
+      oauthUrl.searchParams.set('access_type', 'offline');
+      oauthUrl.searchParams.set('prompt', 'consent');
+      oauthUrl.searchParams.set('state', state);
+
+      return new Response(JSON.stringify({ url: oauthUrl.toString() }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Action: Disconnect
+    if (action === 'disconnect') {
+      const { workspaceId } = await req.json();
 
       // Get connection to revoke token
       const { data: connection } = await supabaseAdmin
@@ -216,15 +226,6 @@ serve(async (req) => {
     // Action: Get connection status
     if (action === 'status') {
       const { workspaceId } = await req.json();
-      const token = authHeader!.replace('Bearer ', '');
-      const { data: { user } } = await supabaseAdmin.auth.getUser(token);
-
-      if (!user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
 
       const { data: connection } = await supabaseAdmin
         .from('google_calendar_connections')
@@ -241,15 +242,6 @@ serve(async (req) => {
     // Action: Update preferences
     if (action === 'update-preferences') {
       const { workspaceId, preferences } = await req.json();
-      const token = authHeader!.replace('Bearer ', '');
-      const { data: { user } } = await supabaseAdmin.auth.getUser(token);
-
-      if (!user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
 
       const { error: updateError } = await supabaseAdmin
         .from('google_calendar_connections')
