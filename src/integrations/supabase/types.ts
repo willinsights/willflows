@@ -1211,6 +1211,92 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_invoices: {
+        Row: {
+          amount_subtotal: number
+          amount_tax: number | null
+          amount_total: number
+          billing_reason: string | null
+          created_at: string | null
+          currency: string
+          customer_country: string | null
+          customer_tax_id: string | null
+          customer_tax_id_valid: boolean | null
+          hosted_invoice_url: string | null
+          id: string
+          invoice_pdf_url: string | null
+          paid_at: string | null
+          status: string
+          stripe_charge_id: string | null
+          stripe_customer_id: string
+          stripe_invoice_id: string
+          stripe_subscription_id: string | null
+          tax_rate_percent: number | null
+          tax_type: string | null
+          updated_at: string | null
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          amount_subtotal: number
+          amount_tax?: number | null
+          amount_total: number
+          billing_reason?: string | null
+          created_at?: string | null
+          currency?: string
+          customer_country?: string | null
+          customer_tax_id?: string | null
+          customer_tax_id_valid?: boolean | null
+          hosted_invoice_url?: string | null
+          id?: string
+          invoice_pdf_url?: string | null
+          paid_at?: string | null
+          status?: string
+          stripe_charge_id?: string | null
+          stripe_customer_id: string
+          stripe_invoice_id: string
+          stripe_subscription_id?: string | null
+          tax_rate_percent?: number | null
+          tax_type?: string | null
+          updated_at?: string | null
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          amount_subtotal?: number
+          amount_tax?: number | null
+          amount_total?: number
+          billing_reason?: string | null
+          created_at?: string | null
+          currency?: string
+          customer_country?: string | null
+          customer_tax_id?: string | null
+          customer_tax_id_valid?: boolean | null
+          hosted_invoice_url?: string | null
+          id?: string
+          invoice_pdf_url?: string | null
+          paid_at?: string | null
+          status?: string
+          stripe_charge_id?: string | null
+          stripe_customer_id?: string
+          stripe_invoice_id?: string
+          stripe_subscription_id?: string | null
+          tax_rate_percent?: number | null
+          tax_type?: string | null
+          updated_at?: string | null
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_invoices_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_assignees: {
         Row: {
           assigned_at: string
