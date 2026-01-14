@@ -14,9 +14,9 @@ export function useProductTour() {
       return;
     }
 
-    // Não abrir automaticamente: o tour deve ser acionado pelo utilizador (ex.: em Configurações)
+    // Abrir automaticamente no primeiro acesso
     setTourCompleted(false);
-    setShowTour(false);
+    setShowTour(true);
   }, []);
 
   const completeTour = () => {
