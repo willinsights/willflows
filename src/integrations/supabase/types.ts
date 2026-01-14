@@ -481,6 +481,112 @@ export type Database = {
           },
         ]
       }
+      google_calendar_connections: {
+        Row: {
+          access_token: string | null
+          calendar_id: string | null
+          created_at: string
+          id: string
+          import_from_google: boolean | null
+          is_connected: boolean | null
+          last_sync_at: string | null
+          refresh_token: string | null
+          sync_deliveries: boolean | null
+          sync_error: string | null
+          sync_events: boolean | null
+          sync_meetings: boolean | null
+          sync_shoots: boolean | null
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          calendar_id?: string | null
+          created_at?: string
+          id?: string
+          import_from_google?: boolean | null
+          is_connected?: boolean | null
+          last_sync_at?: string | null
+          refresh_token?: string | null
+          sync_deliveries?: boolean | null
+          sync_error?: string | null
+          sync_events?: boolean | null
+          sync_meetings?: boolean | null
+          sync_shoots?: boolean | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          access_token?: string | null
+          calendar_id?: string | null
+          created_at?: string
+          id?: string
+          import_from_google?: boolean | null
+          is_connected?: boolean | null
+          last_sync_at?: string | null
+          refresh_token?: string | null
+          sync_deliveries?: boolean | null
+          sync_error?: string | null
+          sync_events?: boolean | null
+          sync_meetings?: boolean | null
+          sync_shoots?: boolean | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_calendar_connections_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      google_calendar_sync_log: {
+        Row: {
+          connection_id: string
+          entity_id: string
+          entity_type: string
+          google_event_id: string
+          id: string
+          last_synced_at: string
+          sync_direction: string
+        }
+        Insert: {
+          connection_id: string
+          entity_id: string
+          entity_type: string
+          google_event_id: string
+          id?: string
+          last_synced_at?: string
+          sync_direction?: string
+        }
+        Update: {
+          connection_id?: string
+          entity_id?: string
+          entity_type?: string
+          google_event_id?: string
+          id?: string
+          last_synced_at?: string
+          sync_direction?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_calendar_sync_log_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "google_calendar_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kanban_columns: {
         Row: {
           color: string
