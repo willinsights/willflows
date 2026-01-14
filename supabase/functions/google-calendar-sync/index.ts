@@ -11,6 +11,64 @@ const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
+/**
+ * Normalize time string to HH:mm:ss format
+ * Handles: HH:mm, HH:mm:ss, or invalid/empty values
+ */
+function normalizeTimeToHHMMSS(time?: string | null, fallback = '09:00:00'): string {
+  if (!time || typeof time !== 'string') {
+    return fallback;
+  }
+  
+  const trimmed = time.trim();
+  
+  // Already HH:mm:ss format
+  if (/^\d{2}:\d{2}:\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+  
+  // HH:mm format - add :00
+  if (/^\d{2}:\d{2}$/.test(trimmed)) {
+    return `${trimmed}:00`;
+  }
+  
+  // Invalid format - return fallback
+  console.warn(`Invalid time format: "${time}", using fallback: ${fallback}`);
+  return fallback;
+}
+
+/**
+ * Get the next day in YYYY-MM-DD format (for Google Calendar all-day event end dates)
+ */
+function getNextDay(dateStr: string): string {
+  const date = new Date(dateStr + 'T00:00:00Z');
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().split('T')[0];
+}
+
+/**
+ * Ensure end time is after start time, return adjusted end time if needed
+ */
+function ensureValidEndTime(startTime: string, endTime: string): string {
+  const [sh, sm] = startTime.split(':').map(Number);
+  const [eh, em] = endTime.split(':').map(Number);
+  
+  const startMinutes = sh * 60 + sm;
+  const endMinutes = eh * 60 + em;
+  
+  // If end is before or equal to start, add 1 hour to start
+  if (endMinutes <= startMinutes) {
+    const newEndMinutes = startMinutes + 60;
+    const newHours = Math.floor(newEndMinutes / 60) % 24;
+    const newMins = newEndMinutes % 60;
+    const adjusted = `${String(newHours).padStart(2, '0')}:${String(newMins).padStart(2, '0')}:00`;
+    console.warn(`End time ${endTime} is before start time ${startTime}, adjusted to ${adjusted}`);
+    return adjusted;
+  }
+  
+  return endTime;
+}
+
 // Refresh access token if expired
 async function refreshTokenIfNeeded(connection: any, supabaseAdmin: any): Promise<string> {
   const now = new Date();
@@ -71,6 +129,8 @@ async function upsertGoogleEvent(
     ? `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${existingEventId}`
     : `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
 
+  console.log(`Upserting event to Google Calendar:`, JSON.stringify(event, null, 2));
+
   const response = await fetch(url, {
     method: existingEventId ? 'PUT' : 'POST',
     headers: {
@@ -81,8 +141,18 @@ async function upsertGoogleEvent(
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Google Calendar API error: ${error.error?.message || 'Unknown error'}`);
+    const errorBody = await response.text();
+    console.error(`Google Calendar API error (${response.status}):`, errorBody);
+    
+    let errorMessage = 'Unknown error';
+    try {
+      const errorJson = JSON.parse(errorBody);
+      errorMessage = errorJson.error?.message || errorJson.error || errorMessage;
+    } catch {
+      errorMessage = errorBody.substring(0, 200);
+    }
+    
+    throw new Error(`Google Calendar API error: ${errorMessage}`);
   }
 
   return await response.json();
@@ -126,6 +196,23 @@ async function fetchGoogleEvents(
 
   const data = await response.json();
   return data.items || [];
+}
+
+/**
+ * Format errors for storage (limit count and use newlines for readability)
+ */
+function formatSyncErrors(errors: string[], maxErrors = 10): string | null {
+  if (errors.length === 0) return null;
+  
+  const displayed = errors.slice(0, maxErrors);
+  const remaining = errors.length - maxErrors;
+  
+  let result = displayed.join('\n');
+  if (remaining > 0) {
+    result += `\n\n(+${remaining} erros adicionais)`;
+  }
+  
+  return result;
 }
 
 serve(async (req) => {
@@ -204,18 +291,23 @@ serve(async (req) => {
         if (connection.sync_shoots && project.shoot_date) {
           try {
             const startDate = project.shoot_date;
-            const startTime = project.shoot_start_time || '09:00';
-            const endTime = project.shoot_end_time || '18:00';
+            // Normalize times to HH:mm:ss format
+            const rawStartTime = normalizeTimeToHHMMSS(project.shoot_start_time, '09:00:00');
+            const rawEndTime = normalizeTimeToHHMMSS(project.shoot_end_time, '18:00:00');
+            // Ensure end time is after start time
+            const endTime = ensureValidEndTime(rawStartTime, rawEndTime);
+            
+            console.log(`Shoot ${project.name}: date=${startDate}, startTime=${rawStartTime}, endTime=${endTime}`);
             
             const event = {
               summary: `📸 ${project.name}`,
               description: `Captação para ${clientName || 'Cliente'}\n\nGerido por WillFlow`,
               start: {
-                dateTime: `${startDate}T${startTime}:00`,
+                dateTime: `${startDate}T${rawStartTime}`,
                 timeZone: 'Europe/Lisbon',
               },
               end: {
-                dateTime: `${startDate}T${endTime}:00`,
+                dateTime: `${startDate}T${endTime}`,
                 timeZone: 'Europe/Lisbon',
               },
             };
@@ -238,21 +330,28 @@ serve(async (req) => {
 
             results.synced++;
           } catch (e: any) {
-            results.errors.push(`Shoot ${project.name}: ${e.message}`);
+            console.error(`Error syncing shoot for ${project.name}:`, e.message);
+            results.errors.push(`Shoot "${project.name}": ${e.message}`);
           }
         }
 
-        // Sync delivery dates
+        // Sync delivery dates (all-day events)
         if (connection.sync_deliveries && project.delivery_date) {
           try {
+            // For all-day events, Google Calendar requires end.date to be the day AFTER
+            const startDate = project.delivery_date;
+            const endDate = getNextDay(project.delivery_date);
+            
+            console.log(`Delivery ${project.name}: start=${startDate}, end=${endDate} (all-day)`);
+            
             const event = {
               summary: `🎬 Entrega: ${project.name}`,
               description: `Entrega para ${clientName || 'Cliente'}\n\nGerido por WillFlow`,
               start: {
-                date: project.delivery_date,
+                date: startDate,
               },
               end: {
-                date: project.delivery_date,
+                date: endDate,
               },
             };
 
@@ -273,7 +372,8 @@ serve(async (req) => {
 
             results.synced++;
           } catch (e: any) {
-            results.errors.push(`Delivery ${project.name}: ${e.message}`);
+            console.error(`Error syncing delivery for ${project.name}:`, e.message);
+            results.errors.push(`Entrega "${project.name}": ${e.message}`);
           }
         }
       }
@@ -297,8 +397,9 @@ serve(async (req) => {
 
             if (calEvent.all_day) {
               const dateStr = calEvent.start_at.split('T')[0];
+              const endDateStr = getNextDay(dateStr);
               event.start = { date: dateStr };
-              event.end = { date: dateStr };
+              event.end = { date: endDateStr };
             } else {
               event.start = { dateTime: calEvent.start_at, timeZone: 'Europe/Lisbon' };
               event.end = { dateTime: calEvent.end_at || calEvent.start_at, timeZone: 'Europe/Lisbon' };
@@ -325,19 +426,22 @@ serve(async (req) => {
 
             results.synced++;
           } catch (e: any) {
-            results.errors.push(`Event ${calEvent.title}: ${e.message}`);
+            console.error(`Error syncing event ${calEvent.title}:`, e.message);
+            results.errors.push(`Evento "${calEvent.title}": ${e.message}`);
           }
         }
       }
 
-      // Update last sync time
+      // Update last sync time with formatted errors
       await supabaseAdmin
         .from('google_calendar_connections')
         .update({
           last_sync_at: new Date().toISOString(),
-          sync_error: results.errors.length > 0 ? results.errors.join('; ') : null,
+          sync_error: formatSyncErrors(results.errors),
         })
         .eq('id', connection.id);
+
+      console.log(`Sync completed: ${results.synced} synced, ${results.errors.length} errors`);
 
       return new Response(JSON.stringify(results), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
