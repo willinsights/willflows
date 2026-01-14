@@ -69,7 +69,7 @@ serve(async (req) => {
 
     const requestOrigin = req.headers.get("origin") || "https://willflow.app";
 
-    // Create a subscription checkout session with 7-day trial
+    // Create a subscription checkout session (no trial - trial is managed locally)
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
@@ -83,11 +83,10 @@ serve(async (req) => {
       success_url: `${requestOrigin}/checkout-success`,
       cancel_url: `${requestOrigin}/planos?checkout=cancelled`,
       metadata: {
-        user_id: user.id,  // Store user_id for webhook to update user_subscriptions
-        workspace_id: workspaceId || "",  // Keep for backward compatibility
+        user_id: user.id,
+        workspace_id: workspaceId || "",
       },
       subscription_data: {
-        trial_period_days: 7,
         metadata: {
           user_id: user.id,
           workspace_id: workspaceId || "",
@@ -95,7 +94,7 @@ serve(async (req) => {
       },
     });
 
-    logStep("Checkout session created with 7-day trial", { sessionId: session.id, url: session.url });
+    logStep("Checkout session created", { sessionId: session.id, url: session.url });
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -1,7 +1,7 @@
 import { createContext, useContext, ReactNode } from 'react';
 
-// Feature flag for beta mode - set to true for invite-only access
-const BETA_MODE = import.meta.env.VITE_BETA_MODE === 'true';
+// Feature flag for beta mode - set to false for public access with free trial
+const BETA_MODE = false;
 
 interface BetaContextType {
   isBetaMode: boolean;
