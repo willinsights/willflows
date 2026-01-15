@@ -66,7 +66,9 @@ export function Logo({ variant = 'auto', className, alt = 'WillFlow', iconOnly =
   return (
     <img 
       src={getLogo()} 
-      alt={alt} 
+      alt={alt}
+      width={225}
+      height={40}
       className={cn('h-8 w-auto', className)} 
     />
   );
