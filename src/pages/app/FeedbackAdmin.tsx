@@ -134,6 +134,7 @@ export default function FeedbackAdmin() {
                 className="pl-10"
                 value={filters.search || ''}
                 onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                aria-label="Pesquisar feedback por título ou descrição"
               />
             </div>
             <Select 

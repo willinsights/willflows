@@ -275,6 +275,7 @@ export default function Media() {
               className="pl-9 w-full sm:w-[300px]"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Pesquisar media por título, projeto ou cliente"
             />
           </div>
 

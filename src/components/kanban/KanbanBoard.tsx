@@ -267,6 +267,7 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
               className="pl-7 h-7 text-[11px] w-full sm:w-[160px]"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Pesquisar projetos por nome, cliente ou código"
             />
           </div>
           <KanbanFilters

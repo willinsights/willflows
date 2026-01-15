@@ -239,6 +239,7 @@ export default function Equipa() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 w-full sm:w-[200px]"
+                  aria-label="Pesquisar membro por nome ou email"
                 />
               </div>
               <Select value={roleFilter} onValueChange={setRoleFilter}>

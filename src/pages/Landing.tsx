@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, memo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { isBetaModeEnabled } from '@/contexts/BetaContext';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   Calendar,
   CreditCard,
@@ -25,7 +25,8 @@ import {
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
 import { WaitlistForm } from '@/components/marketing/WaitlistForm';
-import { LaunchBanner } from '@/components/marketing/LaunchBanner';
+import { LaunchBannerOptimized } from '@/components/marketing/LaunchBannerOptimized';
+import { FloatingScreenshot } from '@/components/marketing/FloatingScreenshot';
 
 // Dark mode screenshots for the new hero
 import screenshotDashboard from '@/assets/screenshot-dark-dashboard.png';
@@ -149,61 +150,40 @@ import {
   type Currency,
 } from '@/lib/plans';
 
-// Floating screenshot component for the hero
-interface FloatingScreenshotProps {
-  src: string;
-  alt: string;
-  className?: string;
-  delay?: number;
-  onClick?: () => void;
-  /** Display width in pixels for responsive sizing hints */
-  displayWidth?: number;
-}
-
-function FloatingScreenshot({ src, alt, className = '', delay = 0, onClick, displayWidth = 420 }: FloatingScreenshotProps) {
-  // Calculate display height based on original aspect ratio (1920x1246 = ~1.54:1)
-  const displayHeight = Math.round(displayWidth / 1.54);
-  
+// Memoized mobile screenshot card for performance
+const MobileScreenshotCard = memo(function MobileScreenshotCard({ 
+  src, 
+  alt, 
+  index,
+  onClick 
+}: { 
+  src: string; 
+  alt: string; 
+  index: number;
+  onClick: () => void;
+}) {
   return (
-    <motion.div
-      className={`absolute cursor-pointer ${className}`}
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ 
-        opacity: 1, 
-        y: [0, -15, 0],
-      }}
-      transition={{
-        opacity: { duration: 0.8, delay },
-        y: { 
-          duration: 5 + delay, 
-          repeat: Infinity, 
-          ease: "easeInOut",
-          delay,
-        },
-      }}
-      whileHover={{ 
-        scale: 1.05, 
-        y: -20,
-        transition: { duration: 0.3 }
-      }}
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Ver ${alt} em detalhe`}
+      className="flex-shrink-0 snap-center first:ml-4 last:mr-4 cursor-pointer animate-in fade-in slide-in-from-right-4"
+      style={{ animationDelay: `${0.3 + index * 0.1}s` }}
       onClick={onClick}
+      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onClick()}
     >
-      <div className="relative rounded-xl overflow-hidden shadow-2xl shadow-black/50 border border-white/10 backdrop-blur-sm">
+      <div className="w-64 sm:w-72 rounded-xl overflow-hidden shadow-xl shadow-black/30 border border-white/10">
         <img 
-          src={src}
+          src={src} 
           alt={alt}
-          width={displayWidth}
-          height={displayHeight}
           loading="lazy"
           decoding="async"
-          className="w-full h-full object-cover object-top"
+          className="w-full h-auto"
         />
-        {/* Hover glow overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300" />
       </div>
-    </motion.div>
+    </div>
   );
-}
+});
 
 export default function Landing() {
   const [showBRL, setShowBRL] = useState(false);
@@ -292,27 +272,28 @@ export default function Landing() {
           {/* Left side - Dashboard (partially visible) */}
           <FloatingScreenshot
             src={screenshotDashboard}
-            alt="Dashboard"
+            alt="Dashboard WillFlow mostrando métricas e gráficos financeiros"
             className="left-[-8%] top-[20%] w-[380px] rotate-[-6deg]"
             delay={0}
             displayWidth={380}
             onClick={() => setSelectedImage(screenshotDashboard)}
           />
           
-          {/* Right side - Kanban (larger, more visible) */}
+          {/* Right side - Kanban (larger, more visible) - Priority for LCP */}
           <FloatingScreenshot
             src={screenshotKanban}
-            alt="Kanban"
+            alt="Quadro Kanban WillFlow com projetos organizados por fase"
             className="right-[-5%] top-[18%] w-[420px] rotate-[4deg]"
             delay={0.3}
             displayWidth={420}
+            priority
             onClick={() => setSelectedImage(screenshotKanban)}
           />
           
           {/* Bottom left - Calendar */}
           <FloatingScreenshot
             src={screenshotCalendar}
-            alt="Calendário"
+            alt="Calendário WillFlow com sessões e entregas agendadas"
             className="left-[2%] bottom-[5%] w-[320px] rotate-[-3deg]"
             delay={0.6}
             displayWidth={320}
@@ -322,7 +303,7 @@ export default function Landing() {
           {/* Bottom right - Payments */}
           <FloatingScreenshot
             src={screenshotPayments}
-            alt="Pagamentos"
+            alt="Controlo de pagamentos WillFlow com valores a receber"
             className="right-[3%] bottom-[8%] w-[340px] rotate-[5deg]"
             delay={0.9}
             displayWidth={340}
@@ -334,7 +315,7 @@ export default function Landing() {
         <div className="hidden md:block lg:hidden">
           <FloatingScreenshot
             src={screenshotDashboard}
-            alt="Dashboard"
+            alt="Dashboard WillFlow mostrando métricas e gráficos financeiros"
             className="left-[-15%] top-[25%] w-[280px] rotate-[-6deg] opacity-70"
             delay={0}
             displayWidth={280}
@@ -342,7 +323,7 @@ export default function Landing() {
           />
           <FloatingScreenshot
             src={screenshotKanban}
-            alt="Kanban"
+            alt="Quadro Kanban WillFlow com projetos organizados por fase"
             className="right-[-12%] top-[22%] w-[300px] rotate-[4deg] opacity-70"
             delay={0.3}
             displayWidth={300}
@@ -425,22 +406,13 @@ export default function Landing() {
         <div className="lg:hidden mt-12 px-4">
           <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide">
             {heroScreenshots.map((screenshot, index) => (
-              <motion.div
+              <MobileScreenshotCard
                 key={screenshot.alt}
-                initial={{ opacity: 0, x: 30 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 + index * 0.1 }}
-                className="flex-shrink-0 snap-center first:ml-4 last:mr-4"
+                src={screenshot.src}
+                alt={screenshot.alt}
+                index={index}
                 onClick={() => setSelectedImage(screenshot.src)}
-              >
-                <div className="w-64 sm:w-72 rounded-xl overflow-hidden shadow-xl shadow-black/30 border border-white/10">
-                  <img 
-                    src={screenshot.src} 
-                    alt={screenshot.alt}
-                    className="w-full h-auto"
-                  />
-                </div>
-              </motion.div>
+              />
             ))}
           </div>
         </div>
@@ -467,12 +439,13 @@ export default function Landing() {
               <button
                 onClick={() => setSelectedImage(null)}
                 className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+                aria-label="Fechar imagem ampliada"
               >
                 <X className="h-5 w-5" />
               </button>
               <img 
                 src={selectedImage} 
-                alt="Screenshot ampliado"
+                alt="Screenshot ampliado do WillFlow"
                 className="w-full h-auto"
               />
             </motion.div>
@@ -598,6 +571,7 @@ export default function Landing() {
                   checked={showBRL}
                   onCheckedChange={setShowBRL}
                   className="data-[state=checked]:bg-primary"
+                  aria-label="Alternar moeda entre Euro e Real Brasileiro"
                 />
                 <span className={`text-sm font-medium transition-colors ${showBRL ? 'text-foreground' : 'text-muted-foreground'}`}>
                   🇧🇷 BRL
@@ -613,6 +587,7 @@ export default function Landing() {
                   checked={isAnnual}
                   onCheckedChange={setIsAnnual}
                   className="data-[state=checked]:bg-primary"
+                  aria-label="Alternar entre pagamento mensal e anual"
                 />
                 <span className={`text-sm font-medium transition-colors ${isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>
                   Anual
@@ -778,8 +753,8 @@ export default function Landing() {
 
       <PublicFooter />
       
-      {/* Launch promotion banner */}
-      {!isBetaMode && <LaunchBanner />}
+      {/* Launch promotion banner - optimized */}
+      {!isBetaMode && <LaunchBannerOptimized />}
     </div>
   );
 }
