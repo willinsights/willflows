@@ -17,7 +17,8 @@ import {
   Shield,
   Link as LinkIcon,
   List,
-  MailCheck
+  MailCheck,
+  FlaskConical
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,6 +64,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { isBetaModeEnabled } from '@/contexts/BetaContext';
+import { TestAccountsTab } from '@/components/admin/TestAccountsTab';
 
 interface BetaInviteToken {
   id: string;
@@ -563,6 +565,10 @@ export default function BetaAdmin() {
               <List className="h-4 w-4" />
               Lista de Espera ({waitlist.length})
             </TabsTrigger>
+            <TabsTrigger value="test-accounts" className="flex items-center gap-2">
+              <FlaskConical className="h-4 w-4" />
+              Contas de Teste
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="invites">
@@ -831,6 +837,10 @@ export default function BetaAdmin() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="test-accounts">
+            <TestAccountsTab />
           </TabsContent>
         </Tabs>
       </motion.div>
