@@ -31,6 +31,7 @@ import { Logo } from '@/components/ui/logo';
 import { TrialBadge } from '@/components/dashboard/TrialBadge';
 import { isBetaModeEnabled } from '@/contexts/BetaContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 const SUPER_ADMIN_EMAIL = 'willdesign7@gmail.com';
 
@@ -40,13 +41,16 @@ interface AppSidebarProps {
   isMobile?: boolean;
 }
 
+interface NavItem {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  path: string;
+  adminOnly?: boolean;
+}
+
 interface NavSection {
   title: string;
-  items: {
-    icon: React.ComponentType<{ className?: string }>;
-    label: string;
-    path: string;
-  }[];
+  items: NavItem[];
 }
 
 const navSections: NavSection[] = [
@@ -89,7 +93,7 @@ const navSections: NavSection[] = [
     title: 'SISTEMA',
     items: [
       { icon: Settings, label: 'Configurações', path: '/app/configuracoes' },
-{ icon: Crown, label: 'Planos', path: '/app/planos' },
+      { icon: Crown, label: 'Planos', path: '/app/planos', adminOnly: true },
     ],
   },
 ];
@@ -107,11 +111,18 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isAdmin } = useWorkspace();
   const isBetaMode = isBetaModeEnabled();
   const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
 
   // Add beta section only if in beta mode AND user is super admin
-  const sections = (isBetaMode && isSuperAdmin) ? [...navSections, betaSection] : navSections;
+  const baseSections = (isBetaMode && isSuperAdmin) ? [...navSections, betaSection] : navSections;
+  
+  // Filter out admin-only items for non-admins
+  const sections = baseSections.map(section => ({
+    ...section,
+    items: section.items.filter(item => !item.adminOnly || isAdmin)
+  }));
 
   const isActive = (path: string) => {
     if (path === '/app') {

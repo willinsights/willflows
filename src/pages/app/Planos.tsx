@@ -389,37 +389,39 @@ export default function Planos() {
                 </Card>
               )}
 
-              {/* Currency & Billing Toggle */}
-              <div className="flex flex-wrap items-center justify-center gap-4">
-                <ToggleGroup 
-                  type="single" 
-                  value={currency} 
-                  onValueChange={(v) => v && setCurrency(v as 'eur' | 'brl')}
-                  className="border rounded-lg p-1"
-                >
-                  <ToggleGroupItem value="eur" className="px-3 text-sm">
-                    EUR €
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="brl" className="px-3 text-sm">
-                    BRL R$
-                  </ToggleGroupItem>
-                </ToggleGroup>
+              {/* Currency & Billing Toggle - Only for admins */}
+              {canManageSubscription && (
+                <div className="flex flex-wrap items-center justify-center gap-4">
+                  <ToggleGroup 
+                    type="single" 
+                    value={currency} 
+                    onValueChange={(v) => v && setCurrency(v as 'eur' | 'brl')}
+                    className="border rounded-lg p-1"
+                  >
+                    <ToggleGroupItem value="eur" className="px-3 text-sm">
+                      EUR €
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="brl" className="px-3 text-sm">
+                      BRL R$
+                    </ToggleGroupItem>
+                  </ToggleGroup>
 
-                <ToggleGroup 
-                  type="single" 
-                  value={billingInterval} 
-                  onValueChange={(v) => v && setBillingInterval(v as 'monthly' | 'yearly')}
-                  className="border rounded-lg p-1"
-                >
-                  <ToggleGroupItem value="monthly" className="px-3 text-sm">
-                    Mensal
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="yearly" className="px-3 text-sm">
-                    Anual
-                    <Badge variant="secondary" className="ml-2 text-[10px]">-20%</Badge>
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </div>
+                  <ToggleGroup 
+                    type="single" 
+                    value={billingInterval} 
+                    onValueChange={(v) => v && setBillingInterval(v as 'monthly' | 'yearly')}
+                    className="border rounded-lg p-1"
+                  >
+                    <ToggleGroupItem value="monthly" className="px-3 text-sm">
+                      Mensal
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="yearly" className="px-3 text-sm">
+                      Anual
+                      <Badge variant="secondary" className="ml-2 text-[10px]">-20%</Badge>
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
+              )}
 
               {/* Plans Grid */}
               <div className="grid gap-6 md:grid-cols-3 max-w-5xl mx-auto">
