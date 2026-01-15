@@ -7,31 +7,19 @@ import {
   RefreshCw,
   AlertCircle,
   ArrowRight,
-  ArrowLeft,
+  Sparkles,
 } from 'lucide-react';
 import logoWillflow from '@/assets/logo-willflow-sistema.png';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { 
-  PLANS, 
-  PLAN_ORDER, 
-  getDisplayPrice, 
-  getCurrencySymbol,
-  getCompactFeatures,
-  getPriceId,
-  type PlanId,
-  type Currency,
-} from '@/lib/plans';
 
-type Step = 'region' | 'plan' | 'success';
+type Step = 'region' | 'success';
 
 export default function Onboarding() {
   const [searchParams] = useSearchParams();
@@ -40,22 +28,13 @@ export default function Onboarding() {
   const { refreshWorkspaces, currentWorkspace } = useWorkspace();
   const { toast } = useToast();
 
-  // Get URL params
-  const urlPlan = searchParams.get('plan') || 'pro';
-  const urlCurrency = searchParams.get('currency') as Currency | null;
-  const urlInterval = searchParams.get('interval') as 'monthly' | 'yearly' | null;
   const isCreatingNew = searchParams.get('new') === 'true';
 
   // State
   const [step, setStep] = useState<Step>('region');
-  const [country, setCountry] = useState<'PT' | 'BR'>(urlCurrency === 'brl' ? 'BR' : 'PT');
-  const [selectedPlan, setSelectedPlan] = useState<PlanId>(urlPlan as PlanId);
-  const [isAnnual, setIsAnnual] = useState(urlInterval === 'yearly');
+  const [country, setCountry] = useState<'PT' | 'BR'>('PT');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const currency: Currency = country === 'BR' ? 'brl' : 'eur';
-  const currencySymbol = getCurrencySymbol(currency);
 
   // If user already has workspace and is NOT creating a new one, redirect to app
   useEffect(() => {
@@ -88,11 +67,7 @@ export default function Onboarding() {
       .slice(0, 50) + '-' + Date.now().toString(36);
   };
 
-  const getPrice = (planId: PlanId) => {
-    return getDisplayPrice(planId, currency, isAnnual ? 'yearly' : 'monthly');
-  };
-
-  const handleCreateWorkspaceAndCheckout = async () => {
+  const handleCreateTrialWorkspace = async () => {
     if (!user) return;
 
     const workspaceName = getWorkspaceName();
@@ -100,7 +75,7 @@ export default function Onboarding() {
     setError(null);
 
     try {
-      // Create workspace
+      // Create workspace (comes with trial from backend - essencial plan, trialing status)
       const { data: workspaceId, error: rpcError } = await supabase.rpc('create_workspace_with_admin', {
         p_name: workspaceName,
         p_slug: createSlug(workspaceName),
@@ -112,42 +87,22 @@ export default function Onboarding() {
 
       if (rpcError) throw rpcError;
 
-      // Refresh workspaces
+      // Refresh workspaces to get the new one
       await refreshWorkspaces();
-
-      // Get Stripe price ID
-      const interval = isAnnual ? 'yearly' : 'monthly';
-      const priceId = getPriceId(selectedPlan, currency, interval);
-
-      if (!priceId) {
-        throw new Error('Preço não encontrado');
-      }
-
-      // Create checkout session
-      const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke('create-checkout', {
-        body: {
-          priceId,
-          workspaceId,
-        },
-      });
-
-      if (checkoutError) throw checkoutError;
 
       setStep('success');
       
       toast({
-        title: 'Workspace criado com sucesso!',
-        description: 'A redirecionar para o checkout...',
+        title: '🎉 Bem-vindo ao WillFlow!',
+        description: 'O seu trial de 30 dias começou. Explore à vontade!',
       });
 
-      // Redirect to checkout
-      if (checkoutData?.url) {
-        setTimeout(() => {
-          window.location.href = checkoutData.url;
-        }, 1500);
-      }
+      // Redirect directly to app (no Stripe checkout)
+      setTimeout(() => {
+        navigate('/app');
+      }, 1500);
     } catch (err: any) {
-      console.error('Error:', err);
+      console.error('Error creating workspace:', err);
       const errorMessage = err.message?.includes('Failed to fetch') 
         ? 'Erro de ligação. Verifique a sua internet e tente novamente.'
         : err.message || 'Ocorreu um erro. Tente novamente.';
@@ -164,7 +119,7 @@ export default function Onboarding() {
 
   const handleRetry = () => {
     setError(null);
-    handleCreateWorkspaceAndCheckout();
+    handleCreateTrialWorkspace();
   };
 
   return (
@@ -178,11 +133,7 @@ export default function Onboarding() {
       <div className="flex items-center gap-2 mb-8">
         <div className={cn(
           "w-8 h-1 rounded-full transition-colors",
-          step === 'region' || step === 'plan' || step === 'success' ? 'bg-primary' : 'bg-muted'
-        )} />
-        <div className={cn(
-          "w-8 h-1 rounded-full transition-colors",
-          step === 'plan' || step === 'success' ? 'bg-primary' : 'bg-muted'
+          step === 'region' || step === 'success' ? 'bg-primary' : 'bg-muted'
         )} />
         <div className={cn(
           "w-8 h-1 rounded-full transition-colors",
@@ -191,7 +142,7 @@ export default function Onboarding() {
       </div>
 
       {/* Step Content */}
-      <div className="w-full max-w-2xl">
+      <div className="w-full max-w-md">
         <AnimatePresence mode="wait">
           {/* Step 1: Region */}
           {step === 'region' && (
@@ -209,6 +160,19 @@ export default function Onboarding() {
                 <p className="text-muted-foreground">
                   Selecione a sua região para configurar moeda e fuso horário
                 </p>
+              </div>
+
+              {/* Trial info banner */}
+              <div className="flex items-center gap-3 p-4 rounded-lg bg-primary/10 border border-primary/20">
+                <div className="p-2 rounded-full bg-primary/20">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">30 dias grátis</p>
+                  <p className="text-xs text-muted-foreground">
+                    Acesso completo • Sem cartão de crédito
+                  </p>
+                </div>
               </div>
 
               <RadioGroup
@@ -251,114 +215,6 @@ export default function Onboarding() {
                 </Label>
               </RadioGroup>
 
-              <Button 
-                onClick={() => setStep('plan')} 
-                className="w-full gradient-primary"
-                size="lg"
-              >
-                Continuar
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </motion.div>
-          )}
-
-          {/* Step 2: Plan Selection */}
-          {step === 'plan' && (
-            <motion.div
-              key="plan-step"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              <div className="text-center mb-6">
-                <h1 className="text-2xl font-bold mb-2">Escolha o seu plano</h1>
-                <p className="text-muted-foreground mb-4">
-                  Subscreva quando o trial terminar • Cancele quando quiser
-                </p>
-
-                {/* Billing Toggle */}
-                <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-muted/50">
-                  <span className={cn("text-sm font-medium", !isAnnual ? 'text-foreground' : 'text-muted-foreground')}>
-                    Mensal
-                  </span>
-                  <Switch
-                    checked={isAnnual}
-                    onCheckedChange={setIsAnnual}
-                    className="data-[state=checked]:bg-primary"
-                  />
-                  <span className={cn("text-sm font-medium", isAnnual ? 'text-foreground' : 'text-muted-foreground')}>
-                    Anual
-                  </span>
-                  {isAnnual && (
-                    <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
-                      −20%
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
-              {/* Plan Cards */}
-              <div className="grid md:grid-cols-3 gap-4">
-                {PLAN_ORDER.map((planId) => {
-                  const plan = PLANS[planId];
-                  const compactFeatures = getCompactFeatures(planId);
-                  
-                  return (
-                    <div
-                      key={planId}
-                      onClick={() => setSelectedPlan(planId)}
-                      className={cn(
-                        "relative flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-all",
-                        selectedPlan === planId
-                          ? 'border-primary bg-primary/5 shadow-lg'
-                          : 'border-border hover:border-primary/50',
-                        plan.popular && selectedPlan === planId && 'ring-2 ring-primary/20'
-                      )}
-                    >
-                      {plan.popular && (
-                        <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 gradient-primary text-xs">
-                          Popular
-                        </Badge>
-                      )}
-
-                      <div className="text-center mb-3 pt-2">
-                        <h3 className="font-bold text-lg">{plan.name}</h3>
-                        <p className="text-xs text-muted-foreground">{plan.description}</p>
-                      </div>
-
-                      <div className="text-center mb-3">
-                        <span className="text-2xl font-bold">
-                          {currencySymbol}{getPrice(planId)}
-                        </span>
-                        <span className="text-muted-foreground text-sm">/mês</span>
-                      </div>
-
-                      <p className="text-xs text-center text-muted-foreground mb-3">
-                        {plan.limitsDisplay.workspaces} • {plan.limitsDisplay.users}
-                      </p>
-
-                      <ul className="space-y-1.5 flex-1">
-                        {compactFeatures.map((feature) => (
-                          <li key={feature} className="flex items-center gap-1.5 text-xs">
-                            <Check className="h-3 w-3 text-success flex-shrink-0" />
-                            <span>{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-
-                      {selectedPlan === planId && (
-                        <div className="absolute top-2 right-2">
-                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                            <Check className="h-3 w-3 text-primary-foreground" />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
               {/* Error State */}
               {error && (
                 <motion.div
@@ -381,44 +237,34 @@ export default function Onboarding() {
                 </motion.div>
               )}
 
-              {/* Actions */}
-              <div className="flex gap-3">
-                <Button 
-                  variant="outline"
-                  onClick={() => setStep('region')} 
-                  disabled={loading}
-                  className="flex-shrink-0"
-                >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Voltar
-                </Button>
-                <Button 
-                  onClick={handleCreateWorkspaceAndCheckout} 
-                  disabled={loading} 
-                  className="flex-1 gradient-primary"
-                  size="lg"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      A criar...
-                    </>
-                  ) : (
-                    <>
-                      <ArrowRight className="mr-2 h-4 w-4" />
-                      Subscrever agora
-                    </>
-                  )}
-                </Button>
-              </div>
+              <Button 
+                onClick={handleCreateTrialWorkspace} 
+                className="w-full gradient-primary"
+                size="lg"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    A criar...
+                  </>
+                ) : (
+                  <>
+                    Começar trial grátis
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </>
+                )}
+              </Button>
 
               <p className="text-xs text-center text-muted-foreground">
                 Ao continuar, concorda com os nossos Termos de Serviço e Política de Privacidade.
+                <br />
+                <span className="text-primary/80">Pode fazer upgrade a qualquer momento.</span>
               </p>
             </motion.div>
           )}
 
-          {/* Step 3: Success */}
+          {/* Step 2: Success */}
           {step === 'success' && (
             <motion.div
               key="success-step"
@@ -430,14 +276,19 @@ export default function Onboarding() {
                 <Check className="h-10 w-10 text-success" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold mb-2">Workspace criado!</h1>
+                <h1 className="text-2xl font-bold mb-2">Tudo pronto! 🎉</h1>
                 <p className="text-muted-foreground">
-                  A redirecionar para o checkout do Stripe...
+                  O seu workspace foi criado com sucesso.
+                  <br />
+                  <span className="text-primary">30 dias de trial ativados!</span>
                 </p>
               </div>
               <div className="flex justify-center">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
               </div>
+              <p className="text-sm text-muted-foreground">
+                A redirecionar para a aplicação...
+              </p>
             </motion.div>
           )}
         </AnimatePresence>
