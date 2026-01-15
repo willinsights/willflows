@@ -458,64 +458,66 @@ export default function Configuracoes() {
                   )}
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label>País</Label>
-                    <Select value={country} onValueChange={setCountry} disabled={!isAdmin}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o país" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="PT">🇵🇹 Portugal</SelectItem>
-                        <SelectItem value="BR">🇧🇷 Brasil</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label>Moeda</Label>
-                    <Select value={currency} onValueChange={setCurrency} disabled={!isAdmin}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione a moeda" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="EUR">Euro (€)</SelectItem>
-                        <SelectItem value="BRL">Real (R$)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label>Fuso Horário</Label>
-                  <Select value={timezone} onValueChange={setTimezone} disabled={!isAdmin}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o fuso horário" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Europe/Lisbon">Lisboa (GMT+0)</SelectItem>
-                      <SelectItem value="Europe/Madrid">Madrid (GMT+1)</SelectItem>
-                      <SelectItem value="America/Sao_Paulo">São Paulo (GMT-3)</SelectItem>
-                      <SelectItem value="America/Fortaleza">Fortaleza (GMT-3)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 {isAdmin && (
-                  <Button 
-                    className="gradient-primary" 
-                    onClick={handleSaveGeneral}
-                    disabled={saving}
-                  >
-                    {saving ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        A salvar...
-                      </>
-                    ) : (
-                      'Salvar Alterações'
-                    )}
-                  </Button>
+                  <>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label>País</Label>
+                        <Select value={country} onValueChange={setCountry}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o país" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PT">🇵🇹 Portugal</SelectItem>
+                            <SelectItem value="BR">🇧🇷 Brasil</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label>Moeda</Label>
+                        <Select value={currency} onValueChange={setCurrency}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a moeda" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="EUR">Euro (€)</SelectItem>
+                            <SelectItem value="BRL">Real (R$)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label>Fuso Horário</Label>
+                      <Select value={timezone} onValueChange={setTimezone}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o fuso horário" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Europe/Lisbon">Lisboa (GMT+0)</SelectItem>
+                          <SelectItem value="Europe/Madrid">Madrid (GMT+1)</SelectItem>
+                          <SelectItem value="America/Sao_Paulo">São Paulo (GMT-3)</SelectItem>
+                          <SelectItem value="America/Fortaleza">Fortaleza (GMT-3)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <Button 
+                      className="gradient-primary" 
+                      onClick={handleSaveGeneral}
+                      disabled={saving}
+                    >
+                      {saving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          A salvar...
+                        </>
+                      ) : (
+                        'Salvar Alterações'
+                      )}
+                    </Button>
+                  </>
                 )}
               </CardContent>
             </Card>
