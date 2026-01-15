@@ -826,6 +826,7 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          is_internal_test: boolean
           phone: string | null
           updated_at: string
         }
@@ -835,6 +836,7 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          is_internal_test?: boolean
           phone?: string | null
           updated_at?: string
         }
@@ -844,6 +846,7 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          is_internal_test?: boolean
           phone?: string | null
           updated_at?: string
         }
@@ -1296,6 +1299,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      system_admins: {
+        Row: {
+          created_at: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       task_assignees: {
         Row: {
@@ -1886,7 +1907,12 @@ export type Database = {
         Args: { _workspace_id: string }
         Returns: undefined
       }
+      is_internal_test_account: {
+        Args: { check_user_id: string }
+        Returns: boolean
+      }
       is_service_role: { Args: never; Returns: boolean }
+      is_system_admin: { Args: { check_user_id?: string }; Returns: boolean }
       is_valid_invitation_token: {
         Args: { _token: string; _workspace_id: string }
         Returns: boolean

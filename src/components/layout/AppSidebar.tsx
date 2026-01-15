@@ -32,8 +32,7 @@ import { TrialBadge } from '@/components/dashboard/TrialBadge';
 import { isBetaModeEnabled } from '@/contexts/BetaContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-
-const SUPER_ADMIN_EMAIL = 'willdesign7@gmail.com';
+import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -113,7 +112,7 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
   const { user } = useAuth();
   const { isAdmin } = useWorkspace();
   const isBetaMode = isBetaModeEnabled();
-  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
+  const { isSuperAdmin } = useSuperAdmin();
 
   // Add beta section only if in beta mode AND user is super admin
   const baseSections = (isBetaMode && isSuperAdmin) ? [...navSections, betaSection] : navSections;
