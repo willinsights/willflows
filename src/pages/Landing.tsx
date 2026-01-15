@@ -156,9 +156,14 @@ interface FloatingScreenshotProps {
   className?: string;
   delay?: number;
   onClick?: () => void;
+  /** Display width in pixels for responsive sizing hints */
+  displayWidth?: number;
 }
 
-function FloatingScreenshot({ src, alt, className = '', delay = 0, onClick }: FloatingScreenshotProps) {
+function FloatingScreenshot({ src, alt, className = '', delay = 0, onClick, displayWidth = 420 }: FloatingScreenshotProps) {
+  // Calculate display height based on original aspect ratio (1920x1246 = ~1.54:1)
+  const displayHeight = Math.round(displayWidth / 1.54);
+  
   return (
     <motion.div
       className={`absolute cursor-pointer ${className}`}
@@ -187,6 +192,10 @@ function FloatingScreenshot({ src, alt, className = '', delay = 0, onClick }: Fl
         <img 
           src={src}
           alt={alt}
+          width={displayWidth}
+          height={displayHeight}
+          loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover object-top"
         />
         {/* Hover glow overlay */}
@@ -286,6 +295,7 @@ export default function Landing() {
             alt="Dashboard"
             className="left-[-8%] top-[20%] w-[380px] rotate-[-6deg]"
             delay={0}
+            displayWidth={380}
             onClick={() => setSelectedImage(screenshotDashboard)}
           />
           
@@ -295,6 +305,7 @@ export default function Landing() {
             alt="Kanban"
             className="right-[-5%] top-[18%] w-[420px] rotate-[4deg]"
             delay={0.3}
+            displayWidth={420}
             onClick={() => setSelectedImage(screenshotKanban)}
           />
           
@@ -304,6 +315,7 @@ export default function Landing() {
             alt="Calendário"
             className="left-[2%] bottom-[5%] w-[320px] rotate-[-3deg]"
             delay={0.6}
+            displayWidth={320}
             onClick={() => setSelectedImage(screenshotCalendar)}
           />
           
@@ -313,6 +325,7 @@ export default function Landing() {
             alt="Pagamentos"
             className="right-[3%] bottom-[8%] w-[340px] rotate-[5deg]"
             delay={0.9}
+            displayWidth={340}
             onClick={() => setSelectedImage(screenshotPayments)}
           />
         </div>
@@ -324,6 +337,7 @@ export default function Landing() {
             alt="Dashboard"
             className="left-[-15%] top-[25%] w-[280px] rotate-[-6deg] opacity-70"
             delay={0}
+            displayWidth={280}
             onClick={() => setSelectedImage(screenshotDashboard)}
           />
           <FloatingScreenshot
@@ -331,6 +345,7 @@ export default function Landing() {
             alt="Kanban"
             className="right-[-12%] top-[22%] w-[300px] rotate-[4deg] opacity-70"
             delay={0.3}
+            displayWidth={300}
             onClick={() => setSelectedImage(screenshotKanban)}
           />
         </div>
