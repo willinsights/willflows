@@ -15,6 +15,30 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Separate heavy libraries into their own chunks
+          'framer': ['framer-motion'],
+          'recharts': ['recharts'],
+          'radix-ui': [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-accordion',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-popover',
+            '@radix-ui/react-select',
+            '@radix-ui/react-tabs',
+            '@radix-ui/react-tooltip',
+          ],
+          'dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+          'date': ['date-fns'],
+        },
+      },
+    },
+    // Increase chunk size warning limit slightly since we're intentionally chunking
+    chunkSizeWarningLimit: 600,
+  },
   test: {
     globals: true,
     environment: "jsdom",

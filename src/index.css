@@ -794,3 +794,32 @@
       0 20px 40px -20px hsl(var(--primary) / 0.3);
   }
 }
+
+/* Performance-optimized animations */
+@keyframes float-in {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+.animate-float-in {
+  animation: 
+    float-in 0.8s ease-out forwards,
+    float-bounce 5s ease-in-out 0.8s infinite;
+  animation-delay: var(--float-delay, 0s);
+  opacity: 0;
+}

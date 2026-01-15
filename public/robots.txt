@@ -1,3 +1,6 @@
+# https://www.robotstxt.org/robotstxt.html
+# WillFlow - Gestão de Projetos para Fotógrafos e Filmmakers
+
 User-agent: Googlebot
 Allow: /
 
@@ -12,3 +15,11 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+# Block app routes (require authentication)
+Disallow: /app/
+Disallow: /onboarding
+Disallow: /aceitar-convite
+
+# Sitemap
+Sitemap: https://willflow.app/sitemap.xml
