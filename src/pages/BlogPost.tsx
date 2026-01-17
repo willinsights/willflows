@@ -98,6 +98,24 @@ export default function BlogPost() {
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+              
+              {/* Image Credits */}
+              {post.cover_image_credit && (
+                <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                  {post.cover_image_source ? (
+                    <a 
+                      href={post.cover_image_source} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="hover:underline"
+                    >
+                      {post.cover_image_credit}
+                    </a>
+                  ) : (
+                    <span>{post.cover_image_credit}</span>
+                  )}
+                </div>
+              )}
             </div>
           </motion.div>
         )}
