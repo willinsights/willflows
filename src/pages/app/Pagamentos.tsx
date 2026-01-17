@@ -27,12 +27,14 @@ import { useClients } from '@/hooks/useClients';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
+import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { ClientPaymentsControl } from '@/components/payments/ClientPaymentsControl';
 import { FreelancerPaymentsControl, type ProjectTeamPayment } from '@/components/payments/FreelancerPaymentsControl';
 import { PaymentExportButtons } from '@/components/payments/PaymentExportButtons';
 import { ExtraCostsPaymentsControl, type ProjectCustoExtra } from '@/components/payments/ExtraCostsPaymentsControl';
+import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 import { useQueryClient } from '@tanstack/react-query';
 
 const statusLabels: Record<string, string> = {
@@ -58,10 +60,13 @@ export default function Pagamentos() {
   const { currentWorkspace } = useWorkspace();
   const { members } = useWorkspaceMembers();
   const { canViewAllFinancials, canViewOwnFinancials, userId, userRole } = useFinancialPermissions();
+  const { hasFeatureAccess, checkFeature, upgradeAlert, closeUpgradeAlert, getFeatureInfo, getUpgradePlan } = usePlanFeatures();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('previsao');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  
+  const canExportPdf = hasFeatureAccess('exportPdf');
   
   // Data for extra costs
   const [projectCosts, setProjectCosts] = useState<ProjectCustoExtra[]>([]);
@@ -403,6 +408,8 @@ export default function Pagamentos() {
               filename={`previsao-${format(currentMonth, 'yyyy-MM')}`}
               type="previsao"
               forecastSummary={forecastSummary}
+              canExportPdf={canExportPdf}
+              onPdfBlocked={() => checkFeature('exportPdf')}
             />
           </div>
 
@@ -660,6 +667,13 @@ export default function Pagamentos() {
           )}
         </TabsContent>
       </Tabs>
+      
+      <UpgradeAlert
+        isOpen={upgradeAlert.isOpen}
+        onClose={closeUpgradeAlert}
+        feature={upgradeAlert.feature}
+        requiredPlan={upgradeAlert.requiredPlan}
+      />
     </div>
   );
 }
