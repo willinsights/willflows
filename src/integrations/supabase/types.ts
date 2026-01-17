@@ -1995,7 +1995,7 @@ export type Database = {
         Returns: boolean
       }
       is_service_role: { Args: never; Returns: boolean }
-      is_system_admin: { Args: { check_user_id?: string }; Returns: boolean }
+      is_system_admin: { Args: never; Returns: boolean }
       is_valid_invitation_token: {
         Args: { _token: string; _workspace_id: string }
         Returns: boolean
