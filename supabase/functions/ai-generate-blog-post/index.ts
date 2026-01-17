@@ -328,6 +328,111 @@ EXEMPLO DE INTEGRAÇÃO NO TEXTO:
   };
 }
 
+// Promotional banners configuration - mapped by theme
+interface BannerConfig {
+  url: string;
+  alt: string;
+  theme: string[];
+}
+
+const promotionalBanners: BannerConfig[] = [
+  {
+    url: 'https://willflows.lovable.app/banners/banner-proximo-projeto.png',
+    alt: 'Seu próximo projeto começa aqui - Experimente WillFlow',
+    theme: ['organizacao', 'projetos', 'workflow', 'gestao']
+  },
+  {
+    url: 'https://willflows.lovable.app/banners/banner-perder-dinheiro.png',
+    alt: 'Pare de perder dinheiro nos teus jobs - WillFlow',
+    theme: ['financeiro', 'custos', 'preco', 'lucro', 'margem']
+  },
+  {
+    url: 'https://willflows.lovable.app/banners/banner-excel.png',
+    alt: 'WillFlow porque Excel é para quem não quer ganhar dinheiro',
+    theme: ['software', 'ferramentas', 'produtividade', 'alternativa']
+  },
+  {
+    url: 'https://willflows.lovable.app/banners/banner-escravo-negocio.png',
+    alt: 'Pare de ser escravo do seu próprio negócio - WillFlow',
+    theme: ['tempo', 'liberdade', 'gestao', 'burnout', 'stress']
+  },
+  {
+    url: 'https://willflows.lovable.app/banners/banner-moedas-financeiro.png',
+    alt: 'Controle financeiro para criativos - WillFlow',
+    theme: ['financeiro', 'dinheiro', 'custos', 'receita']
+  },
+  {
+    url: 'https://willflows.lovable.app/banners/banner-criativo-admin.png',
+    alt: 'Você é criativo demais para perder tempo com admin',
+    theme: ['criativo', 'fotografo', 'filmmaker', 'admin', 'burocracia']
+  },
+  {
+    url: 'https://willflows.lovable.app/banners/banner-dinheiro-claro.png',
+    alt: 'Dinheiro claro muda tudo - WillFlow',
+    theme: ['financeiro', 'transparencia', 'controlo', 'relatorios']
+  },
+  {
+    url: 'https://willflows.lovable.app/banners/banner-testemunho.png',
+    alt: 'Testemunho de utilizador WillFlow',
+    theme: ['prova', 'testemunho', 'review', 'qualidade']
+  },
+  {
+    url: 'https://willflows.lovable.app/banners/banner-chaos-apps.png',
+    alt: 'Dinheiro que some, projetos que vazam - Organize com WillFlow',
+    theme: ['caos', 'desorganizacao', 'perda', 'confusao', 'problemas']
+  }
+];
+
+// Select relevant banners based on article content
+function selectRelevantBanners(title: string, summary: string): BannerConfig[] {
+  const content = `${title} ${summary}`.toLowerCase();
+  const selectedBanners: BannerConfig[] = [];
+  
+  // Score each banner based on theme matches
+  const bannerScores = promotionalBanners.map(banner => {
+    const score = banner.theme.reduce((acc, theme) => {
+      return acc + (content.includes(theme) ? 1 : 0);
+    }, 0);
+    return { banner, score };
+  });
+  
+  // Sort by score descending
+  bannerScores.sort((a, b) => b.score - a.score);
+  
+  // Select top 2 banners with score > 0, or random if no matches
+  const topBanners = bannerScores.filter(b => b.score > 0).slice(0, 2);
+  
+  if (topBanners.length >= 2) {
+    selectedBanners.push(topBanners[0].banner, topBanners[1].banner);
+  } else if (topBanners.length === 1) {
+    selectedBanners.push(topBanners[0].banner);
+    // Add a random different banner
+    const remaining = promotionalBanners.filter(b => b !== topBanners[0].banner);
+    selectedBanners.push(remaining[Math.floor(Math.random() * remaining.length)]);
+  } else {
+    // No matches, pick 2 random banners
+    const shuffled = [...promotionalBanners].sort(() => Math.random() - 0.5);
+    selectedBanners.push(shuffled[0], shuffled[1]);
+  }
+  
+  return selectedBanners;
+}
+
+// Generate banner HTML
+function generateBannerHtml(banner: BannerConfig): string {
+  return `
+<div class="willflow-banner my-12 -mx-4 md:-mx-8">
+  <a href="https://willflow.app/auth?trial=true" target="_blank" rel="noopener noreferrer" class="block">
+    <img 
+      src="${banner.url}" 
+      alt="${banner.alt}"
+      class="w-full rounded-xl shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-[1.02]"
+      loading="lazy"
+    />
+  </a>
+</div>`;
+}
+
 // Helper function to generate WillFlow feature briefing based on article theme
 function generateWillFlowBriefing(title: string, summary: string): string {
   const content = `${title} ${summary}`.toLowerCase();
@@ -1037,6 +1142,42 @@ Responde APENAS em JSON válido:
       .replace(/"/g, '"')
       .replace(/'/g, "'")
       .replace(/'/g, "'");
+    
+    // Step 3.5: Insert promotional banners into content
+    console.log("[AI Blog] Inserting promotional banners...");
+    
+    const selectedBanners = selectRelevantBanners(article.title, article.excerpt || selectedNews.summary);
+    console.log(`[AI Blog] Selected ${selectedBanners.length} banners for article`);
+    
+    // Find insertion points - after ~40% and ~75% of content
+    const contentParagraphs = processedContent.split('</p>');
+    const totalParagraphs = contentParagraphs.length;
+    
+    if (totalParagraphs > 6 && selectedBanners.length >= 2) {
+      // Insert first banner after ~40% of paragraphs
+      const firstInsertPoint = Math.floor(totalParagraphs * 0.4);
+      // Insert second banner after ~75% of paragraphs (before conclusion)
+      const secondInsertPoint = Math.floor(totalParagraphs * 0.75);
+      
+      // Insert banners from end to start to preserve indices
+      if (secondInsertPoint < contentParagraphs.length - 1) {
+        contentParagraphs[secondInsertPoint] = contentParagraphs[secondInsertPoint] + '</p>' + generateBannerHtml(selectedBanners[1]);
+      }
+      
+      if (firstInsertPoint < secondInsertPoint) {
+        contentParagraphs[firstInsertPoint] = contentParagraphs[firstInsertPoint] + '</p>' + generateBannerHtml(selectedBanners[0]);
+      }
+      
+      // Rejoin content (removing extra </p> we added)
+      processedContent = contentParagraphs.join('</p>').replace(/<\/p><\/p>/g, '</p>');
+      console.log("[AI Blog] Promotional banners inserted at positions", firstInsertPoint, "and", secondInsertPoint);
+    } else if (totalParagraphs > 3 && selectedBanners.length >= 1) {
+      // Shorter article - just insert one banner in the middle
+      const insertPoint = Math.floor(totalParagraphs * 0.5);
+      contentParagraphs[insertPoint] = contentParagraphs[insertPoint] + '</p>' + generateBannerHtml(selectedBanners[0]);
+      processedContent = contentParagraphs.join('</p>').replace(/<\/p><\/p>/g, '</p>');
+      console.log("[AI Blog] Single promotional banner inserted at position", insertPoint);
+    }
     
     // Step 4: Generate inline images and replace placeholders
     console.log("[AI Blog] Gerando imagens inline...");
