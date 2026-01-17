@@ -37,6 +37,7 @@ export function useBlogAdmin() {
   const queryClient = useQueryClient();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRegeneratingImage, setIsRegeneratingImage] = useState(false);
+  const [generatingImageId, setGeneratingImageId] = useState<string | null>(null);
 
   // Fetch all posts (including drafts)
   const { data: posts = [], isLoading: loading, error } = useQuery({
@@ -97,6 +98,7 @@ export function useBlogAdmin() {
   // Regenerate image for a post
   const regenerateImage = useCallback(async (postId: string, title: string): Promise<{ success: boolean; imageUrl?: string; error?: string }> => {
     setIsRegeneratingImage(true);
+    setGeneratingImageId(postId);
     
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -133,6 +135,7 @@ export function useBlogAdmin() {
       return { success: false, error: message };
     } finally {
       setIsRegeneratingImage(false);
+      setGeneratingImageId(null);
     }
   }, [toastSuccess, toastError, queryClient]);
 
@@ -224,6 +227,7 @@ export function useBlogAdmin() {
     error: error?.message || null,
     isGenerating,
     isRegeneratingImage,
+    generatingImageId,
     generatePost,
     regenerateImage,
     publishPost: publishMutation.mutate,

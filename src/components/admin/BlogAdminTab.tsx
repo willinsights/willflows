@@ -38,6 +38,7 @@ export function BlogAdminTab() {
     error, 
     isGenerating,
     isRegeneratingImage,
+    generatingImageId,
     regenerateImage,
     generatePost,
     publishPost,
@@ -170,6 +171,9 @@ export function BlogAdminTab() {
             onDelete={handleDeleteClick}
             onEdit={handleEditClick}
             onPreview={handlePreviewClick}
+            onGenerateImage={regenerateImage}
+            isGeneratingImage={isRegeneratingImage}
+            generatingImageId={generatingImageId}
           />
         </TabsContent>
 
@@ -182,6 +186,9 @@ export function BlogAdminTab() {
             onDelete={handleDeleteClick}
             onEdit={handleEditClick}
             onPreview={handlePreviewClick}
+            onGenerateImage={regenerateImage}
+            isGeneratingImage={isRegeneratingImage}
+            generatingImageId={generatingImageId}
           />
         </TabsContent>
 
@@ -194,6 +201,9 @@ export function BlogAdminTab() {
             onDelete={handleDeleteClick}
             onEdit={handleEditClick}
             onPreview={handlePreviewClick}
+            onGenerateImage={regenerateImage}
+            isGeneratingImage={isRegeneratingImage}
+            generatingImageId={generatingImageId}
           />
         </TabsContent>
       </Tabs>
@@ -276,9 +286,23 @@ interface PostsGridProps {
   onDelete: (id: string) => void;
   onEdit: (post: BlogPost) => void;
   onPreview: (post: BlogPost) => void;
+  onGenerateImage: (postId: string, title: string) => Promise<{ success: boolean; imageUrl?: string; error?: string }>;
+  isGeneratingImage: boolean;
+  generatingImageId: string | null;
 }
 
-function PostsGrid({ posts, loading, onPublish, onUnpublish, onDelete, onEdit, onPreview }: PostsGridProps) {
+function PostsGrid({ 
+  posts, 
+  loading, 
+  onPublish, 
+  onUnpublish, 
+  onDelete, 
+  onEdit, 
+  onPreview,
+  onGenerateImage,
+  isGeneratingImage,
+  generatingImageId
+}: PostsGridProps) {
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -321,6 +345,9 @@ function PostsGrid({ posts, loading, onPublish, onUnpublish, onDelete, onEdit, o
           onDelete={onDelete}
           onEdit={() => onEdit(post)}
           onPreview={() => onPreview(post)}
+          onGenerateImage={onGenerateImage}
+          isGeneratingImage={isGeneratingImage}
+          generatingImageId={generatingImageId || undefined}
         />
       ))}
     </div>
