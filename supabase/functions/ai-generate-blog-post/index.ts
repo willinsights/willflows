@@ -16,6 +16,7 @@ interface PerplexityResult {
   title: string;
   summary: string;
   relevance: string;
+  imageHint?: string;
 }
 
 // Helper function to generate inline image
@@ -127,7 +128,7 @@ serve(async (req) => {
     const { topics = [], autoPublish = false, category } = body;
 
     console.log(`[AI Blog] Gerando artigo para utilizador ${user.id}`);
-    console.log(`[AI Blog] Tópicos: ${topics.join(", ") || "default"}`);
+    console.log(`[AI Blog] Tópicos fornecidos: ${topics.join(", ") || "auto-discover"}`);
 
     // Get API keys
     const perplexityApiKey = Deno.env.get("PERPLEXITY_API_KEY");
@@ -149,12 +150,56 @@ serve(async (req) => {
       });
     }
 
-    // Step 1: Search for news with Perplexity
-    console.log("[AI Blog] Pesquisando notícias com Perplexity...");
+    // Step 0: Get recent article titles to avoid repetition
+    const { data: recentPosts } = await supabase
+      .from("blog_posts")
+      .select("title")
+      .order("created_at", { ascending: false })
+      .limit(15);
     
-    const topicQuery = topics.length > 0 
-      ? topics.join(", ")
-      : "software gestão fotógrafos, tendências produção vídeo, ferramentas estúdios fotografia, CRM criativos";
+    const recentTitles = recentPosts?.map(p => p.title.toLowerCase()) || [];
+    console.log(`[AI Blog] Found ${recentTitles.length} recent articles to avoid repetition`);
+
+    // Step 1: Discover TRENDING topics from current news with Perplexity
+    console.log("[AI Blog] Discovering trending topics from current news...");
+    
+    const trendingDiscoveryQuery = `Pesquisa as NOTÍCIAS MAIS FALADAS DAS ÚLTIMAS 24-48 HORAS no mundo da fotografia e produção de vídeo profissional.
+
+FONTES A VERIFICAR:
+- Petapixel, DPReview, Fstoppers (notícias fotografia)
+- No Film School, Filmmaker Magazine (cinema/video)
+- Tecnologia em geral que afete criativos
+- Lançamentos de produtos (Sony, Canon, Nikon, DJI, Blackmagic, Apple)
+- Eventos ou acontecimentos relevantes (festivais, premiações, exposições)
+- Redes sociais: trends virais relacionados com fotografia/video
+
+TIPOS DE NOTÍCIAS A PRIORIZAR:
+1. 🔥 LANÇAMENTOS - Novas câmaras, lentes, drones, software
+2. 📰 POLÉMICAS - Controvérsias, escândalos, debates no setor
+3. 🏆 EVENTOS - Óscares, festivais de cinema, exposições de fotografia
+4. 💡 TENDÊNCIAS - IA em fotografia, novas técnicas, mudanças no mercado
+5. 💰 NEGÓCIOS - Aquisições, encerramentos, novos serviços
+
+NÃO SUGERIR temas semelhantes a estes artigos recentes:
+${recentTitles.slice(0, 5).map(t => `- ${t}`).join("\n")}
+
+Retorna APENAS JSON válido com as 5 tendências mais quentes:
+{
+  "trends": [
+    {
+      "topic": "Nome curto do tema/notícia",
+      "headline": "O que aconteceu (2-3 frases com factos concretos)",
+      "why_hot": "Porque é trending agora (o que gerou buzz)",
+      "angle": "Ângulo interessante para artigo (como conectar com fotógrafos/filmmakers PT/BR)",
+      "urgency": "high|medium|low",
+      "keywords": ["palavra1", "palavra2", "palavra3"],
+      "image_hint": "Sugestão de imagem para o artigo (ex: foto do produto, still do filme, etc.)"
+    }
+  ]
+}`;
+
+    let selectedNews: PerplexityResult & { imageHint?: string };
+    let citations: string[] = [];
 
     const perplexityResponse = await fetch("https://api.perplexity.ai/chat/completions", {
       method: "POST",
@@ -167,32 +212,16 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: "És um pesquisador especializado em tecnologia para fotógrafos e filmmakers. Responde sempre em português europeu (pt-PT).",
+            content: "És um analista de tendências especializado em fotografia e produção de vídeo profissional. Identificas as notícias mais quentes do momento e sabes como as conectar com o dia-a-dia de fotógrafos e filmmakers. Respondes sempre em português europeu (pt-PT) e em JSON válido.",
           },
           {
             role: "user",
-            content: `Pesquisa notícias recentes (últimos 7 dias) sobre: ${topicQuery}
-
-Foca em:
-- Software de gestão para fotógrafos e filmmakers
-- Tendências em produção audiovisual e vídeo
-- Ferramentas e apps para estúdios de fotografia
-- CRM e gestão de projetos para criativos
-- Comparações entre ferramentas do mercado
-
-Retorna as 3 notícias mais relevantes em formato JSON:
-{
-  "news": [
-    {
-      "title": "Título da notícia",
-      "summary": "Resumo em 2-3 frases",
-      "relevance": "Porque é relevante para fotógrafos/filmmakers"
-    }
-  ]
-}`,
+            content: topics.length > 0 
+              ? `Pesquisa notícias trending sobre estes tópicos específicos: ${topics.join(", ")}\n\n${trendingDiscoveryQuery}`
+              : trendingDiscoveryQuery,
           },
         ],
-        search_recency_filter: "week",
+        search_recency_filter: "day", // Only last 24 hours for maximum freshness
       }),
     });
 
@@ -215,34 +244,52 @@ Retorna as 3 notícias mais relevantes em formato JSON:
 
     const perplexityData = await perplexityResponse.json();
     const newsContent = perplexityData.choices?.[0]?.message?.content || "";
-    const citations = perplexityData.citations || [];
+    citations = perplexityData.citations || [];
     
-    console.log("[AI Blog] Notícias encontradas:", newsContent.substring(0, 200));
+    console.log("[AI Blog] Trending topics response received");
 
-    // Parse news from Perplexity response
-    let selectedNews: PerplexityResult;
+    // Parse trending topics and select the best one
     try {
-      const jsonMatch = newsContent.match(/\{[\s\S]*"news"[\s\S]*\}/);
+      const jsonMatch = newsContent.match(/\{[\s\S]*"trends"[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
-        selectedNews = parsed.news?.[0] || { 
-          title: "Tendências de Gestão para Criativos", 
-          summary: newsContent.substring(0, 500),
-          relevance: "Relevante para fotógrafos e filmmakers"
-        };
+        const trends = parsed.trends || [];
+        
+        // Filter out topics similar to recent articles
+        const freshTrends = trends.filter((trend: any) => 
+          !recentTitles.some(title => 
+            trend.keywords?.some((kw: string) => title.includes(kw.toLowerCase())) ||
+            title.includes(trend.topic.toLowerCase().slice(0, 15))
+          )
+        );
+        
+        console.log(`[AI Blog] Found ${trends.length} trends, ${freshTrends.length} are fresh (not recently covered)`);
+        
+        // Select the most urgent fresh topic
+        const highUrgency = freshTrends.find((t: any) => t.urgency === "high");
+        const mediumUrgency = freshTrends.find((t: any) => t.urgency === "medium");
+        const selected = highUrgency || mediumUrgency || freshTrends[0] || trends[0];
+        
+        if (selected) {
+          selectedNews = {
+            title: selected.topic,
+            summary: `${selected.headline}\n\n${selected.why_hot}`,
+            relevance: selected.angle,
+            imageHint: selected.image_hint,
+          };
+          console.log(`[AI Blog] Selected trending topic: "${selected.topic}" (urgency: ${selected.urgency})`);
+        } else {
+          throw new Error("No valid trends found");
+        }
       } else {
-        selectedNews = { 
-          title: "Novidades no Mercado Audiovisual", 
-          summary: newsContent.substring(0, 500),
-          relevance: "Tendências atuais do setor"
-        };
+        throw new Error("No JSON found in response");
       }
     } catch (e) {
-      console.warn("[AI Blog] Erro ao parsear notícias, usando fallback");
+      console.warn("[AI Blog] Error parsing trending topics, using raw content as fallback");
       selectedNews = { 
-        title: "Inovações para Fotógrafos e Filmmakers", 
-        summary: newsContent.substring(0, 500),
-        relevance: "Conteúdo relevante para profissionais criativos"
+        title: "Novidades no Mundo da Fotografia e Vídeo", 
+        summary: newsContent.substring(0, 600),
+        relevance: "Tendências atuais relevantes para profissionais criativos"
       };
     }
 
