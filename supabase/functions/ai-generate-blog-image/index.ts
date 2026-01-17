@@ -20,6 +20,25 @@ interface ImageSearchResult {
   sourceName: string;
 }
 
+// Function to clean and fix image URLs
+function cleanImageUrl(url: string): string {
+  // Remove .jpg/.png/.webp if it appears after query params (common AI mistake)
+  let cleaned = url.replace(/(\?[^"]*)\.(jpg|jpeg|png|webp)$/i, '$1');
+  
+  // Fix double extensions like .png.jpg
+  cleaned = cleaned.replace(/\.(jpg|jpeg|png|webp)\.(jpg|jpeg|png|webp)/gi, '.$2');
+  
+  // For Unsplash, ensure we have a valid format
+  if (cleaned.includes('images.unsplash.com')) {
+    // Make sure format is specified in query params
+    if (!cleaned.includes('fm=')) {
+      cleaned += (cleaned.includes('?') ? '&' : '?') + 'fm=jpg&q=80';
+    }
+  }
+  
+  return cleaned;
+}
+
 // Function to search for images with Perplexity
 async function searchImageWithPerplexity(
   perplexityApiKey: string,
@@ -57,9 +76,13 @@ async function searchImageWithPerplexity(
       const jsonMatch = content.match(/\{[\s\S]*"imageUrl"[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
-        if (parsed.imageUrl && parsed.imageUrl.match(/\.(jpg|jpeg|png|webp)(\?|$)/i)) {
+        if (parsed.imageUrl && parsed.imageUrl.startsWith("http")) {
+          // Clean the URL to fix common issues
+          const cleanedUrl = cleanImageUrl(parsed.imageUrl);
+          console.log("[AI Blog Image] Cleaned URL:", cleanedUrl);
+          
           return {
-            imageUrl: parsed.imageUrl,
+            imageUrl: cleanedUrl,
             credit: parsed.credit || "Autor desconhecido",
             sourceUrl: parsed.sourceUrl || "",
             sourceName: parsed.sourceName || "Web",
@@ -71,6 +94,77 @@ async function searchImageWithPerplexity(
     }
   } catch (error) {
     console.error("[AI Blog Image] Erro Perplexity:", error);
+  }
+  return null;
+}
+
+// Function to generate image with AI as fallback
+async function generateAIImage(
+  lovableApiKey: string,
+  supabase: any,
+  title: string,
+  slug: string
+): Promise<string | null> {
+  try {
+    console.log("[AI Blog Image] Gerando imagem com AI como fallback...");
+    
+    const imagePrompt = `Create a professional PHOTOGRAPH for a blog article header.
+
+ARTICLE TITLE: ${title}
+
+CRITICAL STYLE REQUIREMENTS:
+- Professional PHOTOGRAPHY style, NOT illustration
+- Real-world scenes: cameras, studios, editing rooms, creative professionals at work
+- Natural lighting, high-quality DSLR aesthetic with depth of field
+- Clean, modern composition
+- Subtle purple/violet color grading (#7C3AED tones)
+- 16:9 landscape aspect ratio
+- Editorial quality like Getty Images or Unsplash
+- NO text, NO logos, NO watermarks`;
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-image-preview",
+        messages: [{ role: "user", content: imagePrompt }],
+        modalities: ["image", "text"],
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const imageBase64 = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+
+      if (imageBase64 && imageBase64.startsWith("data:image")) {
+        const base64Data = imageBase64.split(",")[1];
+        const imageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+
+        const filename = `${slug}-ai-${Date.now()}.png`;
+        const filePath = `covers/${filename}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("blog-images")
+          .upload(filePath, imageBytes, {
+            contentType: "image/png",
+            upsert: true,
+          });
+
+        if (!uploadError) {
+          const { data: publicUrl } = supabase.storage
+            .from("blog-images")
+            .getPublicUrl(filePath);
+
+          console.log("[AI Blog Image] AI fallback image uploaded:", publicUrl.publicUrl);
+          return publicUrl.publicUrl;
+        }
+      }
+    }
+  } catch (error) {
+    console.error("[AI Blog Image] AI fallback error:", error);
   }
   return null;
 }
@@ -303,11 +397,51 @@ Return ONLY a valid JSON object:
       });
     }
 
-    // No image could be found - return error (no AI fallback)
-    console.log("[AI Blog Image] Não foi possível encontrar imagem real na web");
+    // If no real image found, try AI fallback
+    if (!finalImageUrl) {
+      console.log("[AI Blog Image] Imagem real não encontrada, tentando AI fallback...");
+      
+      const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+      if (lovableApiKey) {
+        finalImageUrl = await generateAIImage(lovableApiKey, supabase, title, post.slug || postId);
+        
+        if (finalImageUrl) {
+          imageCredit = "Imagem gerada por AI";
+          imageSource = null;
+          
+          // Update post with AI image
+          const { error: updateError } = await supabase
+            .from("blog_posts")
+            .update({ 
+              cover_image: finalImageUrl,
+              cover_image_credit: imageCredit,
+              cover_image_source: imageSource,
+            })
+            .eq("id", postId);
+
+          if (!updateError) {
+            console.log(`[AI Blog Image] Sucesso! Imagem AI adicionada ao artigo ${postId}`);
+
+            return new Response(JSON.stringify({
+              success: true,
+              imageUrl: finalImageUrl,
+              credit: imageCredit,
+              postId,
+              isRealImage: false,
+            }), {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        }
+      }
+    }
+
+    // No image could be found
+    console.log("[AI Blog Image] Não foi possível encontrar ou gerar imagem");
     return new Response(JSON.stringify({ 
       success: false, 
-      error: "Não foi possível encontrar uma imagem real na web. Tente regenerar." 
+      error: "Não foi possível encontrar ou gerar uma imagem. Tente novamente." 
     }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
