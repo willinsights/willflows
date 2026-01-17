@@ -171,7 +171,7 @@ Estes Termos de Uso são regidos pela lei portuguesa.
 Qualquer litígio emergente destes Termos será submetido à jurisdição exclusiva dos tribunais portugueses, com foro na comarca de Lisboa.
 
 **Resolução de Litígios:**
-Antes de recorrer aos tribunais, encorajamos a resolução amigável de qualquer disputa. Pode contactar-nos através de suporte@willflow.app.`,
+Antes de recorrer aos tribunais, encorajamos a resolução amigável de qualquer disputa. Pode contactar-nos através de geral@willflow.app.`,
   },
 ];
 
