@@ -21,7 +21,6 @@ import {
   UserCog,
   Receipt,
   Shield,
-  MessageSquarePlus,
   Crown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -29,7 +28,6 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Logo } from '@/components/ui/logo';
 import { TrialBadge } from '@/components/dashboard/TrialBadge';
-import { isBetaModeEnabled } from '@/contexts/BetaContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
@@ -97,12 +95,11 @@ const navSections: NavSection[] = [
   },
 ];
 
-// Beta admin section - only shown when beta mode is enabled
-const betaSection: NavSection = {
+// Super Admin section - only shown for super admins
+const superAdminSection: NavSection = {
   title: 'ADMIN',
   items: [
-    { icon: Shield, label: 'Gestão Beta', path: '/app/beta-admin' },
-    { icon: MessageSquarePlus, label: 'Feedback', path: '/app/feedback' },
+    { icon: Shield, label: 'Super Admin', path: '/app/admin' },
   ],
 };
 
@@ -111,11 +108,10 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { isAdmin } = useWorkspace();
-  const isBetaMode = isBetaModeEnabled();
   const { isSuperAdmin } = useSuperAdmin();
 
-  // Add beta section only if in beta mode AND user is super admin
-  const baseSections = (isBetaMode && isSuperAdmin) ? [...navSections, betaSection] : navSections;
+  // Add super admin section only if user is super admin
+  const baseSections = isSuperAdmin ? [...navSections, superAdminSection] : navSections;
   
   // Filter out admin-only items for non-admins
   const sections = baseSections.map(section => ({

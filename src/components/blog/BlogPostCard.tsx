@@ -18,7 +18,8 @@ import {
   Trash2, 
   ExternalLink,
   Calendar,
-  FileText
+  FileText,
+  ImageIcon
 } from 'lucide-react';
 import type { BlogPost } from '@/hooks/useBlogAdmin';
 
@@ -67,37 +68,54 @@ export function BlogPostCard({
     : format(new Date(post.created_at), "d MMM yyyy", { locale: pt });
 
   return (
-    <Card className="flex flex-col h-full">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <Badge 
-                variant="outline" 
-                className={getCategoryColor(post.category)}
-              >
-                {getCategoryLabel(post.category)}
-              </Badge>
-              {post.is_published ? (
-                <Badge variant="default" className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
-                  <Eye className="h-3 w-3 mr-1" />
-                  Publicado
-                </Badge>
-              ) : (
-                <Badge variant="secondary">
-                  <FileText className="h-3 w-3 mr-1" />
-                  Rascunho
-                </Badge>
-              )}
-            </div>
-            <h3 className="font-semibold text-base leading-tight line-clamp-2">
-              {post.title}
-            </h3>
+    <Card className="flex flex-col h-full overflow-hidden">
+      {/* Cover Image */}
+      <div className="relative aspect-video bg-muted">
+        {post.cover_image ? (
+          <img 
+            src={post.cover_image} 
+            alt={post.title}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+            <ImageIcon className="h-8 w-8 mb-1" />
+            <span className="text-xs">Sem imagem</span>
           </div>
+        )}
+        {/* Status badges overlay */}
+        <div className="absolute top-2 left-2 flex items-center gap-1.5">
+          <Badge 
+            variant="outline" 
+            className={`${getCategoryColor(post.category)} bg-background/80 backdrop-blur-sm`}
+          >
+            {getCategoryLabel(post.category)}
+          </Badge>
+        </div>
+        <div className="absolute top-2 right-2">
+          {post.is_published ? (
+            <Badge variant="default" className="bg-green-500 text-white border-0">
+              <Eye className="h-3 w-3 mr-1" />
+              Publicado
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="bg-background/80 backdrop-blur-sm">
+              <FileText className="h-3 w-3 mr-1" />
+              Rascunho
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      <CardHeader className="pb-2 pt-3">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-semibold text-base leading-tight line-clamp-2 flex-1">
+            {post.title}
+          </h3>
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+              <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0 -mt-1 -mr-2">
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -144,21 +162,21 @@ export function BlogPostCard({
         </div>
       </CardHeader>
       
-      <CardContent className="flex-1 pb-3">
+      <CardContent className="flex-1 pb-2">
         {post.excerpt && (
-          <p className="text-sm text-muted-foreground line-clamp-3">
+          <p className="text-sm text-muted-foreground line-clamp-2">
             {post.excerpt}
           </p>
         )}
       </CardContent>
       
-      <CardFooter className="pt-0 text-xs text-muted-foreground">
+      <CardFooter className="pt-0 pb-3 text-xs text-muted-foreground">
         <div className="flex items-center gap-1">
           <Calendar className="h-3 w-3" />
           {formattedDate}
         </div>
         <span className="mx-2">•</span>
-        <span>{post.author_name}</span>
+        <span className="truncate">{post.author_name}</span>
       </CardFooter>
     </Card>
   );

@@ -46,6 +46,7 @@ const Planos = lazy(() => import("./pages/app/Planos"));
 const BetaAdmin = lazy(() => import("./pages/app/BetaAdmin"));
 const FeedbackAdmin = lazy(() => import("./pages/app/FeedbackAdmin"));
 const BlogAdmin = lazy(() => import("./pages/app/BlogAdmin"));
+const SuperAdmin = lazy(() => import("./pages/app/SuperAdmin"));
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -115,6 +116,7 @@ const App = () => (
                     <Route path="beta-admin" element={<BetaAdmin />} />
                     <Route path="feedback" element={<FeedbackAdmin />} />
                     <Route path="blog-admin" element={<BlogAdmin />} />
+                    <Route path="admin" element={<SuperAdmin />} />
                   </Route>
 
                   {/* Catch-all */}
