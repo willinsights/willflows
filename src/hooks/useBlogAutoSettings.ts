@@ -16,6 +16,18 @@ export interface BlogAutoSettings {
   updated_at: string;
 }
 
+// Default values to handle nulls from database
+const DEFAULT_SETTINGS: Omit<BlogAutoSettings, 'id' | 'created_at' | 'updated_at'> = {
+  is_enabled: false,
+  articles_per_day: 1,
+  auto_publish: false,
+  preferred_topics: [],
+  preferred_categories: [],
+  schedule_hour: 9,
+  last_run_at: null,
+  next_run_at: null,
+};
+
 export function useBlogAutoSettings() {
   const { success: toastSuccess, error: toastError } = useAppToast();
   const queryClient = useQueryClient();
@@ -29,7 +41,18 @@ export function useBlogAutoSettings() {
         .single();
 
       if (error) throw error;
-      return data as BlogAutoSettings;
+      
+      // Merge with defaults to handle null values from DB
+      return {
+        ...DEFAULT_SETTINGS,
+        ...data,
+        is_enabled: data.is_enabled ?? DEFAULT_SETTINGS.is_enabled,
+        articles_per_day: data.articles_per_day ?? DEFAULT_SETTINGS.articles_per_day,
+        auto_publish: data.auto_publish ?? DEFAULT_SETTINGS.auto_publish,
+        preferred_topics: data.preferred_topics ?? DEFAULT_SETTINGS.preferred_topics,
+        preferred_categories: data.preferred_categories ?? DEFAULT_SETTINGS.preferred_categories,
+        schedule_hour: data.schedule_hour ?? DEFAULT_SETTINGS.schedule_hour,
+      } as BlogAutoSettings;
     },
   });
 
