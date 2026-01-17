@@ -19,48 +19,367 @@ interface PerplexityResult {
   imageHint?: string;
 }
 
-// Helper function to select relevant screenshots based on article topic
-function selectRelevantScreenshots(title: string, summary: string): string[] {
+// Helper function to extract intelligent search terms for hero image
+function extractImageSearchTerms(title: string, summary: string, imageHint?: string): string {
+  const content = `${title} ${summary} ${imageHint || ''}`.toLowerCase();
+  const terms: string[] = [];
+  
+  // Brands and products to detect
+  const brandMappings: Record<string, string[]> = {
+    'apple': ['apple logo', 'macbook creative', 'iphone photography'],
+    'adobe': ['adobe creative cloud', 'lightroom interface', 'photoshop editing'],
+    'sony': ['sony camera', 'sony alpha', 'sony a7'],
+    'canon': ['canon camera', 'canon eos', 'canon r5'],
+    'nikon': ['nikon camera', 'nikon z', 'nikon dslr'],
+    'dji': ['dji drone', 'dji mavic', 'drone aerial'],
+    'blackmagic': ['blackmagic camera', 'davinci resolve', 'cinema camera'],
+    'fujifilm': ['fujifilm camera', 'fujifilm x', 'fuji mirrorless'],
+    'leica': ['leica camera', 'leica m', 'leica photography'],
+  };
+  
+  // Check for brand mentions and add relevant terms
+  for (const [brand, searchTerms] of Object.entries(brandMappings)) {
+    if (content.includes(brand)) {
+      terms.push(...searchTerms.slice(0, 2));
+    }
+  }
+  
+  // Topic-based terms
+  if (content.match(/oscar|academy|cinema|film|movie/)) {
+    terms.push('cinema production', 'film set', 'movie camera');
+  }
+  if (content.match(/wedding|casamento|noiva/)) {
+    terms.push('wedding photography', 'wedding photographer');
+  }
+  if (content.match(/drone|aerial|aéreo/)) {
+    terms.push('drone photography', 'aerial cinematography');
+  }
+  if (content.match(/portrait|retrato|studio/)) {
+    terms.push('portrait photography studio', 'professional photographer');
+  }
+  if (content.match(/custo|preço|budget|money|lucro|margem/)) {
+    terms.push('business finances', 'calculator money', 'financial planning');
+  }
+  if (content.match(/equipa|team|colaborador|freelancer/)) {
+    terms.push('creative team meeting', 'photography team');
+  }
+  
+  // If Apple vs Adobe specifically
+  if (content.includes('apple') && content.includes('adobe')) {
+    return 'apple vs adobe creative software logos macbook photoshop';
+  }
+  
+  // Use image hint if available
+  if (imageHint && imageHint.length > 10) {
+    terms.push(imageHint);
+  }
+  
+  // Return combined terms or fallback
+  if (terms.length > 0) {
+    return terms.slice(0, 4).join(' ');
+  }
+  
+  return 'professional photography studio creative filmmaker';
+}
+
+// Helper function to select relevant screenshots and generate instructions
+interface ScreenshotSelection {
+  screenshots: string[];
+  context: string;
+  instruction: string;
+}
+
+function selectRelevantScreenshots(title: string, summary: string): ScreenshotSelection {
   const content = `${title} ${summary}`.toLowerCase();
-  const selected: string[] = [];
   
-  // Finanças, dinheiro, receitas, custos, lucro
-  if (content.match(/finan|dinheiro|receita|custo|lucro|margem|fatur|pagamento|orçamento|preço|budget|money|revenue/)) {
-    selected.push('[SCREENSHOT_PAYMENTS]', '[SCREENSHOT_RELATORIOS]', '[SCREENSHOT_PAGAMENTOS_ESTUDIO]');
+  // FINANÇAS: custos, preços, lucro, margem, orçamento, subscricões
+  if (content.match(/custo|preço|lucro|margem|orçamento|subscri|pagamento|fatura|dinheiro|money|revenue|budget|adobe.*custo|software.*preço/)) {
+    return {
+      screenshots: ['[SCREENSHOT_PAYMENTS]', '[SCREENSHOT_RELATORIOS]'],
+      context: 'TEMA FINANCEIRO detectado',
+      instruction: `
+SCREENSHOTS OBRIGATÓRIOS para este artigo sobre FINANÇAS:
+1. [SCREENSHOT_PAYMENTS] - Mostra esta imagem quando falares de controlo de custos, subscricões ou pagamentos
+   → Legenda sugerida: "Painel de pagamentos do WillFlow: controla todas as tuas despesas e receitas"
+   
+2. [SCREENSHOT_RELATORIOS] - Mostra esta imagem quando falares de lucro, margem ou análise financeira
+   → Legenda sugerida: "Relatórios financeiros: vê a margem real de cada projeto"
+
+FUNCIONALIDADES WILLFLOW A DESTACAR:
+- Registo de custos por projeto (incluindo subscricões de software)
+- Cálculo automático de margem de lucro
+- Dashboard com receitas vs custos mensais
+- Alertas de pagamentos pendentes
+
+EXEMPLO DE INTEGRAÇÃO NO TEXTO:
+"Com ferramentas como o WillFlow, podes registar cada custo, incluindo subscricões de software como Adobe ou Final Cut, diretamente em cada projeto. O painel de relatórios mostra-te instantaneamente se a margem compensa o investimento."
+`
+    };
   }
   
-  // Organização, projetos, gestão, kanban
-  if (content.match(/organiz|projeto|gestão|kanban|tarefa|prazo|entrega|cliente|workflow|deadline|project/)) {
-    selected.push('[SCREENSHOT_KANBAN]', '[SCREENSHOT_KANBAN_FULL]', '[SCREENSHOT_PROJETO_MODAL]');
+  // ORGANIZAÇÃO: projetos, workflow, entregas, prazos, gestão
+  if (content.match(/organiz|workflow|prazo|entrega|gestão|kanban|produtividade|tempo|deadline|project management/)) {
+    return {
+      screenshots: ['[SCREENSHOT_KANBAN]', '[SCREENSHOT_PROJETO_MODAL]'],
+      context: 'TEMA ORGANIZAÇÃO detectado',
+      instruction: `
+SCREENSHOTS OBRIGATÓRIOS para este artigo sobre ORGANIZAÇÃO:
+1. [SCREENSHOT_KANBAN] - Mostra esta imagem quando falares de visão geral de projetos ou workflow
+   → Legenda sugerida: "Quadro Kanban do WillFlow: todos os projetos num só lugar"
+   
+2. [SCREENSHOT_PROJETO_MODAL] - Mostra esta imagem quando falares de detalhes de projeto
+   → Legenda sugerida: "Detalhes de projeto: toda a informação organizada"
+
+FUNCIONALIDADES WILLFLOW A DESTACAR:
+- Quadro Kanban com colunas personalizáveis (Captação, Edição, Revisão, Entrega)
+- Drag-and-drop para mover projetos entre fases
+- Checklists para não esquecer etapas importantes
+- Prazos e alertas automáticos
+
+EXEMPLO DE INTEGRAÇÃO NO TEXTO:
+"No WillFlow, cada projeto passa visualmente por colunas, desde a captação até à entrega. Num instante, vês o que está parado e porquê, eliminando aqueles emails de acompanhamento."
+`
+    };
   }
   
-  // Agenda, calendário, sessão, marcação
-  if (content.match(/calendário|agenda|sessão|marcação|data|horário|tempo|schedule|booking|appointment/)) {
-    selected.push('[SCREENSHOT_CALENDAR]');
+  // CALENDÁRIO: agenda, sessões, marcações
+  if (content.match(/calendário|agenda|sessão|marcação|booking|schedule|appointment|horário/)) {
+    return {
+      screenshots: ['[SCREENSHOT_CALENDAR]', '[SCREENSHOT_KANBAN]'],
+      context: 'TEMA AGENDA/CALENDÁRIO detectado',
+      instruction: `
+SCREENSHOTS OBRIGATÓRIOS para este artigo sobre AGENDA:
+1. [SCREENSHOT_CALENDAR] - Mostra esta imagem quando falares de agendamento ou calendário
+   → Legenda sugerida: "Calendário integrado: sessões, entregas e reuniões num só lugar"
+   
+2. [SCREENSHOT_KANBAN] - Mostra como complemento visual
+   → Legenda sugerida: "Visão geral de todos os projetos ativos"
+
+FUNCIONALIDADES WILLFLOW A DESTACAR:
+- Calendário integrado com sessões fotográficas e entregas
+- Sincronização com Google Calendar
+- Cores por tipo de evento (sessão, entrega, reunião)
+- Vista mensal e semanal
+
+EXEMPLO DE INTEGRAÇÃO NO TEXTO:
+"O WillFlow centraliza todas as tuas datas importantes: sessões marcadas, prazos de entrega e reuniões com clientes. Acabam-se os conflitos de agenda."
+`
+    };
   }
   
-  // Equipa, colaboradores, permissões
-  if (content.match(/equipa|colaborador|permiss|staff|freelancer|team|hire|contrat/)) {
-    selected.push('[SCREENSHOT_PERMISSOES]');
+  // EQUIPA: colaboradores, freelancers, permissões
+  if (content.match(/equipa|colaborador|freelancer|team|contrat|staff|permiss|hire/)) {
+    return {
+      screenshots: ['[SCREENSHOT_PERMISSOES]', '[SCREENSHOT_DASHBOARD_ESTUDIO]'],
+      context: 'TEMA EQUIPA detectado',
+      instruction: `
+SCREENSHOTS OBRIGATÓRIOS para este artigo sobre EQUIPA:
+1. [SCREENSHOT_PERMISSOES] - Mostra esta imagem quando falares de gestão de equipa ou permissões
+   → Legenda sugerida: "Gestão de permissões: controla quem vê o quê"
+   
+2. [SCREENSHOT_DASHBOARD_ESTUDIO] - Mostra visão geral do estúdio
+   → Legenda sugerida: "Dashboard de estúdio: métricas da equipa toda"
+
+FUNCIONALIDADES WILLFLOW A DESTACAR:
+- Diferentes níveis de permissão (admin, editor, visualizador)
+- Atribuição de projetos a membros específicos
+- Controlo de acesso a informação financeira
+- Gestão de freelancers externos
+
+EXEMPLO DE INTEGRAÇÃO NO TEXTO:
+"Com o WillFlow, defines quem da equipa pode ver valores financeiros, quem edita projetos e quem apenas visualiza. Perfeito para estúdios com freelancers."
+`
+    };
   }
   
-  // Dashboard, métricas, KPIs, visão geral
-  if (content.match(/dashboard|métrica|kpi|visão|overview|resumo|performance|analytics/)) {
-    selected.push('[SCREENSHOT_DASHBOARD]', '[SCREENSHOT_DASHBOARD_ESTUDIO]');
+  // CAPTAÇÃO: sessões fotográficas, filmagens, produção
+  if (content.match(/captação|sessão fotográfica|filmagem|set|produção|shoot|behind.?scene/)) {
+    return {
+      screenshots: ['[SCREENSHOT_CAPTACAO_ESTUDIO]', '[SCREENSHOT_CALENDAR]'],
+      context: 'TEMA CAPTAÇÃO/PRODUÇÃO detectado',
+      instruction: `
+SCREENSHOTS OBRIGATÓRIOS para este artigo sobre CAPTAÇÃO:
+1. [SCREENSHOT_CAPTACAO_ESTUDIO] - Mostra esta imagem quando falares de sessões ou produção
+   → Legenda sugerida: "Gestão de captação: organiza cada sessão ao detalhe"
+   
+2. [SCREENSHOT_CALENDAR] - Mostra o calendário com sessões
+   → Legenda sugerida: "Calendário de sessões: nunca mais duplas marcações"
+
+FUNCIONALIDADES WILLFLOW A DESTACAR:
+- Registo de data, hora e local da sessão
+- Notas técnicas (equipamento, equipa necessária)
+- Checklist pré-produção
+- Histórico de cada captação
+
+EXEMPLO DE INTEGRAÇÃO NO TEXTO:
+"O WillFlow ajuda-te a planear cada detalhe da sessão: desde o equipamento necessário até às notas para o cliente, tudo fica registado."
+`
+    };
   }
   
-  // Captação, sessões fotográficas
-  if (content.match(/captação|sessão|fotografia|filmagem|set|produção|shoot|production/)) {
-    selected.push('[SCREENSHOT_CAPTACAO_ESTUDIO]');
+  // MÉTRICAS: dashboard, KPIs, analytics
+  if (content.match(/métrica|kpi|dashboard|analytics|performance|resultado|growth/)) {
+    return {
+      screenshots: ['[SCREENSHOT_DASHBOARD]', '[SCREENSHOT_RELATORIOS]'],
+      context: 'TEMA MÉTRICAS/ANALYTICS detectado',
+      instruction: `
+SCREENSHOTS OBRIGATÓRIOS para este artigo sobre MÉTRICAS:
+1. [SCREENSHOT_DASHBOARD] - Mostra esta imagem quando falares de visão geral ou KPIs
+   → Legenda sugerida: "Dashboard WillFlow: todas as métricas importantes à vista"
+   
+2. [SCREENSHOT_RELATORIOS] - Mostra os relatórios detalhados
+   → Legenda sugerida: "Relatórios: analisa tendências e crescimento"
+
+FUNCIONALIDADES WILLFLOW A DESTACAR:
+- Dashboard com KPIs em tempo real
+- Gráficos de evolução mensal
+- Comparativo com períodos anteriores
+- Projetos por estado e valor
+
+EXEMPLO DE INTEGRAÇÃO NO TEXTO:
+"O dashboard do WillFlow mostra-te num instante: quantos projetos tens ativos, valor total em carteira, e a evolução comparada ao mês anterior."
+`
+    };
   }
   
-  // Se não encontrou nada específico, usar os mais genéricos
-  if (selected.length === 0) {
-    selected.push('[SCREENSHOT_DASHBOARD]', '[SCREENSHOT_KANBAN]');
+  // DEFAULT: genérico
+  return {
+    screenshots: ['[SCREENSHOT_DASHBOARD]', '[SCREENSHOT_KANBAN]'],
+    context: 'TEMA GERAL detectado',
+    instruction: `
+SCREENSHOTS SUGERIDOS para este artigo:
+1. [SCREENSHOT_DASHBOARD] - Usa para mostrar visão geral do WillFlow
+   → Legenda sugerida: "Dashboard WillFlow: gestão simplificada para criativos"
+   
+2. [SCREENSHOT_KANBAN] - Usa para mostrar organização de projetos
+   → Legenda sugerida: "Quadro Kanban: visualiza todos os projetos"
+
+FUNCIONALIDADES WILLFLOW A DESTACAR:
+- Gestão visual de projetos
+- Controlo financeiro integrado
+- Calendário e prazos
+- Interface intuitiva para criativos
+
+EXEMPLO DE INTEGRAÇÃO NO TEXTO:
+"O WillFlow foi criado especificamente para fotógrafos e filmmakers que querem menos tempo em gestão e mais tempo a criar."
+`
+  };
+}
+
+// Helper function to generate WillFlow feature briefing based on article theme
+function generateWillFlowBriefing(title: string, summary: string): string {
+  const content = `${title} ${summary}`.toLowerCase();
+  
+  if (content.match(/custo|preço|subscri|adobe|apple.*soft|software.*preço|licença|license/)) {
+    return `
+═══════════════════════════════════════════════════════════════
+BRIEFING WILLFLOW - FOCO: CONTROLO DE CUSTOS E SOFTWARE
+═══════════════════════════════════════════════════════════════
+
+O artigo toca em CUSTOS DE SOFTWARE. Deves explicar como o WillFlow ajuda a:
+
+1. REGISTAR CUSTOS POR PROJETO:
+   - Cada subscricao (Adobe, Final Cut, etc) pode ser alocada aos projetos
+   - Vês quanto gastas em software vs quanto recebes
+   - Identificas se um projeto foi rentável após todos os custos
+
+2. CALCULAR MARGEM REAL:
+   - Dashboard mostra receitas menos custos
+   - Relatórios por período (mensal, trimestral)
+   - Comparativo: este mês vs mês passado
+
+3. TOMAR DECISÕES INFORMADAS:
+   - "Será que vale a pena pagar o Lightroom e o Capture One?"
+   - "Quanto do meu lucro vai para subscricões?"
+   - O WillFlow responde estas perguntas
+
+FRASES NATURAIS PARA USAR:
+- "Com o painel de pagamentos do WillFlow, registas cada custo incluindo subscricões mensais"
+- "Os relatórios mostram-te a margem REAL depois de descontar todos os custos"
+- "Finalmente, sabes se aquela subscricao cara compensa"
+`;
   }
   
-  // Remover duplicados e limitar a 3 screenshots
-  return [...new Set(selected)].slice(0, 3);
+  if (content.match(/organiz|tempo|produtividade|workflow|caos|desorganiz/)) {
+    return `
+═══════════════════════════════════════════════════════════════
+BRIEFING WILLFLOW - FOCO: ORGANIZAÇÃO E PRODUTIVIDADE
+═══════════════════════════════════════════════════════════════
+
+O artigo toca em ORGANIZAÇÃO. Deves explicar como o WillFlow ajuda a:
+
+1. VISUALIZAR TUDO NUM SÓ LUGAR:
+   - Quadro Kanban com todos os projetos
+   - Colunas: Captação → Edição → Revisão → Entrega
+   - Drag-and-drop para mover projetos
+
+2. NUNCA ESQUECER NADA:
+   - Checklists personalizáveis por projeto
+   - Alertas de prazos próximos
+   - Notas e comentários em cada projeto
+
+3. POUPAR TEMPO:
+   - Menos emails de acompanhamento
+   - Informação centralizada
+   - Templates de projeto reutilizáveis
+
+FRASES NATURAIS PARA USAR:
+- "No WillFlow, vês num instante o que está parado e porquê"
+- "O quadro Kanban elimina aquela sensação de caos"
+- "Com checklists automáticas, nunca mais esqueces uma etapa"
+`;
+  }
+  
+  if (content.match(/equipa|freelancer|colabor|contrat|team|escala/)) {
+    return `
+═══════════════════════════════════════════════════════════════
+BRIEFING WILLFLOW - FOCO: GESTÃO DE EQUIPA
+═══════════════════════════════════════════════════════════════
+
+O artigo toca em EQUIPA. Deves explicar como o WillFlow ajuda a:
+
+1. CONTROLAR PERMISSÕES:
+   - Quem vê valores financeiros
+   - Quem pode editar projetos
+   - Quem apenas visualiza
+
+2. ATRIBUIR PROJETOS:
+   - Cada projeto tem responsável
+   - Freelancers vêem só os seus projetos
+   - Admin vê tudo
+
+3. MANTER HISTÓRICO:
+   - Quem fez o quê e quando
+   - Comunicação registada
+   - Sem perder contexto
+
+FRASES NATURAIS PARA USAR:
+- "Com o WillFlow, cada membro da equipa sabe exatamente o que lhe compete"
+- "Define quem vê informação financeira, ideal para freelancers"
+- "Histórico completo de cada projeto, mesmo quando a equipa muda"
+`;
+  }
+  
+  // Default briefing
+  return `
+═══════════════════════════════════════════════════════════════
+BRIEFING WILLFLOW - GERAL
+═══════════════════════════════════════════════════════════════
+
+FUNCIONALIDADES PRINCIPAIS A MENCIONAR:
+1. Gestão visual de projetos (Kanban)
+2. Controlo financeiro (receitas, custos, margens)
+3. Calendário integrado
+4. Gestão de clientes
+
+OBJETIVO: Mostrar que o WillFlow foi criado especificamente para fotógrafos 
+e filmmakers, entendendo os desafios únicos da profissão.
+
+FRASES NATURAIS PARA USAR:
+- "O WillFlow foi pensado para criativos, não para contabilistas"
+- "Menos tempo em gestão, mais tempo a criar"
+- "Finalmente, um software que fala a tua língua"
+`;
 }
 
 // Helper function to generate inline image
@@ -337,7 +656,16 @@ Retorna APENAS JSON válido com as 5 tendências mais quentes:
       };
     }
 
-    // Step 2: Generate article with Lovable AI - WILLFLOW FOCUSED
+    // Step 2: Pre-analyze content and prepare contextual information
+    console.log("[AI Blog] Analyzing content for contextual screenshots and briefing...");
+    
+    const screenshotSelection = selectRelevantScreenshots(selectedNews.title, selectedNews.summary);
+    const willflowBriefing = generateWillFlowBriefing(selectedNews.title, selectedNews.summary);
+    
+    console.log(`[AI Blog] Screenshot context: ${screenshotSelection.context}`);
+    console.log(`[AI Blog] Selected screenshots: ${screenshotSelection.screenshots.join(', ')}`);
+
+    // Step 3: Generate article with Lovable AI - WILLFLOW FOCUSED
     console.log("[AI Blog] Gerando artigo com Lovable AI...");
 
     const categoryHint = category || "novidades";
@@ -399,6 +727,10 @@ REGRAS DE ESCRITA OBRIGATÓRIAS:
 
 ${citations.length > 0 ? `**Fontes:** ${citations.slice(0, 3).join(", ")}` : ""}
 
+═══════════════════════════════════════════════════════════════
+${willflowBriefing}
+═══════════════════════════════════════════════════════════════
+
 **Requisitos do Artigo:**
 
 1. **Título:** Cria um título atrativo e SEO-friendly (máximo 70 caracteres)
@@ -417,9 +749,11 @@ ${citations.length > 0 ? `**Fontes:** ${citations.slice(0, 3).join(", ")}` : ""}
    - 2-3 parágrafos explorando o impacto negativo do problema
    - Dados ou exemplos concretos quando possível
    
-   C) **SCREENSHOTS DO WILLFLOW (OBRIGATÓRIO - incluir 2-3):**
-   Inclui screenshots REAIS do WillFlow para mostrar a interface. Usa estas imagens:
+   C) **SCREENSHOTS DO WILLFLOW (OBRIGATÓRIO):**
    
+${screenshotSelection.instruction}
+   
+   USA ESTE FORMATO PARA OS SCREENSHOTS:
    <figure class="my-8 rounded-xl overflow-hidden shadow-lg border">
      <img src="[SCREENSHOT_PLACEHOLDER]" alt="Descrição da imagem" class="w-full" />
      <figcaption class="text-sm text-muted-foreground text-center py-3 px-4 bg-muted/30">
@@ -427,42 +761,21 @@ ${citations.length > 0 ? `**Fontes:** ${citations.slice(0, 3).join(", ")}` : ""}
      </figcaption>
    </figure>
    
-   **PLACEHOLDERS DISPONÍVEIS (escolhe 2-3 mais relevantes para o tema):**
+   **PLACEHOLDERS QUE DEVES USAR NESTE ARTIGO:**
+   ${screenshotSelection.screenshots.map(s => `- ${s}`).join('\n   ')}
    
-   DASHBOARDS E VISÃO GERAL:
+   OUTROS PLACEHOLDERS DISPONÍVEIS (usar apenas se fizer sentido):
    - [SCREENSHOT_DASHBOARD] - Dashboard dark mode com KPIs e métricas
-   - [SCREENSHOT_DASHBOARD_LIGHT] - Dashboard modo claro
-   - [SCREENSHOT_DASHBOARD_ESTUDIO] - Dashboard completo de estúdio
-   
-   GESTÃO DE PROJETOS:
    - [SCREENSHOT_KANBAN] - Quadro Kanban visual para gestão de projetos
-   - [SCREENSHOT_KANBAN_FULL] - Vista completa do Kanban com todos os projetos
-   - [SCREENSHOT_PROJETO_MODAL] - Modal de detalhes de um projeto
-   
-   CALENDÁRIO E AGENDA:
    - [SCREENSHOT_CALENDAR] - Calendário completo com sessões e entregas
-   
-   FINANÇAS E PAGAMENTOS:
    - [SCREENSHOT_PAYMENTS] - Controlo de pagamentos e faturação
-   - [SCREENSHOT_PAGAMENTOS_ESTUDIO] - Vista completa de pagamentos de estúdio
    - [SCREENSHOT_RELATORIOS] - Relatórios financeiros e análises
-   
-   CAPTAÇÃO:
-   - [SCREENSHOT_CAPTACAO_ESTUDIO] - Gestão de captação e sessões fotográficas
-   
-   EQUIPA E CONFIGURAÇÕES:
    - [SCREENSHOT_PERMISSOES] - Gestão de permissões da equipa
-   - [SCREENSHOT_CONTA] - Página de planos e subscrição
-   
-   ONBOARDING:
-   - [SCREENSHOT_ONBOARDING] - Processo de setup inicial
    
    **REGRAS PARA SCREENSHOTS:**
-   - Escolhe 2-3 screenshots mais relevantes para o PROBLEMA discutido no artigo
-   - Se o artigo fala de organização, usa Kanban ou Dashboard
-   - Se fala de dinheiro/finanças, usa Payments ou Relatórios
-   - Se fala de equipa, usa Permissões
+   - USA OS SCREENSHOTS PRÉ-SELECIONADOS ACIMA (são os mais relevantes para este tema)
    - Distribui os screenshots ao longo do artigo, não todos juntos
+   - Cada screenshot deve ter uma legenda contextualizada
    
    D) **IMAGENS INLINE GERADAS (opcional 1-2):**
    Podes incluir placeholders para imagens geradas por AI:
@@ -477,7 +790,7 @@ ${citations.length > 0 ? `**Fontes:** ${citations.slice(0, 3).join(", ")}` : ""}
    E) **SOLUÇÕES E WILLFLOW:**
    - Apresenta soluções práticas para o problema
    - Menciona o WillFlow como exemplo concreto de solução
-   - Mostra benefícios específicos (ex: "Com o WillFlow, encontras qualquer projeto em segundos")
+   - USA AS FRASES E EXEMPLOS DO BRIEFING ACIMA
    
    F) **CTA FINAL (OBRIGATÓRIO):**
    
@@ -690,25 +1003,34 @@ Responde APENAS em JSON válido:
     let coverImageSource: string | null = null;
 
     try {
+      // Generate intelligent search terms based on article content
+      const smartSearchTerms = extractImageSearchTerms(article.title, article.excerpt || selectedNews.summary, selectedNews.imageHint);
+      console.log(`[AI Blog] Smart image search terms: "${smartSearchTerms}"`);
+
       // Use Perplexity to find a real image related to the article
       const imageSearchQuery = `Find a high-quality FREE stock photo for this blog article:
 
 ARTICLE TITLE: "${article.title}"
+SEARCH KEYWORDS: ${smartSearchTerms}
 ${selectedNews.imageHint ? `CONTEXT/HINT: ${selectedNews.imageHint}` : ""}
 
-SEARCH PRIORITY:
-1. If the article mentions a FILM or MOVIE → find a promotional still or behind-the-scenes photo from that film
-2. If the article mentions a PRODUCT (camera, lens, drone) → find an official product image
-3. If the article mentions a PERSON/CELEBRITY → find a professional photo of that person
-4. If the article mentions an EVENT (Oscar, festival) → find a photo from that event
-5. Otherwise → find a professional photography/video production scene
+SEARCH PRIORITY (in order):
+1. If keywords mention APPLE + ADOBE → find image showing both logos, or creative professional using MacBook with Adobe apps
+2. If keywords mention a specific CAMERA/PRODUCT (Sony A7, Canon R5) → find that exact product image
+3. If keywords mention a FILM/MOVIE title → find promotional still or behind-the-scenes from that production
+4. If keywords mention a PERSON (photographer, filmmaker name) → find professional photo of that person
+5. If keywords mention an EVENT (Oscar, Cannes, PhotoPlus) → find photo from that specific event
+6. For business/finance topics → find professional workspace, calculator, business meeting
+7. For team/collaboration → find creative team working together
+8. DEFAULT → find professional photographer or filmmaker at work with camera equipment
 
-REQUIREMENTS:
-- Must be from Pexels, Unsplash, or Pixabay (FREE to use)
-- Must be a DIRECT image URL ending in .jpg, .png, or .webp
-- Must be high resolution (at least 1200px wide)
+CRITICAL REQUIREMENTS:
+- MUST be from Pexels, Unsplash, or Pixabay (FREE to use commercially)
+- MUST be a DIRECT image URL (not a page URL)
+- URL should be the actual image file, not an HTML page
+- High resolution (at least 1200px wide)
+- Landscape orientation preferred (16:9)
 - Include photographer credit if available
-- Prefer landscape orientation (16:9)
 
 Return ONLY valid JSON:
 {
