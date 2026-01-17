@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { trackWaitlistSignup } from '@/lib/google-ads';
 
 interface WaitlistFormProps {
   className?: string;
@@ -53,6 +54,10 @@ export function WaitlistForm({ className = '', variant = 'default' }: WaitlistFo
       }
 
       setSuccess(true);
+      
+      // Track waitlist signup conversion
+      trackWaitlistSignup();
+      
       toast({
         title: 'Registado com sucesso! 🎉',
         description: 'Entraremos em contacto quando houver vagas.',
