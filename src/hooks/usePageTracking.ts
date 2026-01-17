@@ -50,6 +50,11 @@ export const usePageTracking = () => {
 
 // Track blog post views
 export const trackBlogView = async (postId: string) => {
+  if (!postId) {
+    console.error('[BlogTracking] No postId provided');
+    return;
+  }
+
   try {
     const sessionId = getSessionId();
     
@@ -58,20 +63,27 @@ export const trackBlogView = async (postId: string) => {
     const viewedSet = new Set(viewedPosts ? JSON.parse(viewedPosts) : []);
     
     if (viewedSet.has(postId)) {
-      return; // Already tracked
+      console.debug('[BlogTracking] Already tracked post:', postId);
+      return;
     }
     
-    await supabase.from('blog_views').insert({
+    const { error } = await supabase.from('blog_views').insert({
       post_id: postId,
       referrer: document.referrer || null,
       user_agent: navigator.userAgent,
       session_id: sessionId,
     });
 
+    if (error) {
+      console.error('[BlogTracking] Failed to insert view:', error.message, error.details);
+      return;
+    }
+
     // Mark as tracked
     viewedSet.add(postId);
     sessionStorage.setItem('wf_viewed_posts', JSON.stringify([...viewedSet]));
+    console.debug('[BlogTracking] View recorded for post:', postId);
   } catch (error) {
-    console.debug('Blog view tracking error:', error);
+    console.error('[BlogTracking] Unexpected error:', error);
   }
 };
