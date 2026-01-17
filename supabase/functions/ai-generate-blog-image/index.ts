@@ -20,6 +20,61 @@ interface ImageSearchResult {
   sourceName: string;
 }
 
+// Function to search for images with Perplexity
+async function searchImageWithPerplexity(
+  perplexityApiKey: string,
+  searchQuery: string
+): Promise<ImageSearchResult | null> {
+  try {
+    const perplexityResponse = await fetch("https://api.perplexity.ai/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${perplexityApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "sonar",
+        messages: [
+          {
+            role: "system",
+            content: "You are an image search assistant. You find relevant free stock photos and return structured JSON data. Always respond with valid JSON only, no markdown formatting.",
+          },
+          {
+            role: "user",
+            content: searchQuery,
+          },
+        ],
+      }),
+    });
+
+    if (perplexityResponse.ok) {
+      const perplexityData = await perplexityResponse.json();
+      const content = perplexityData.choices?.[0]?.message?.content || "";
+      
+      console.log("[AI Blog Image] Perplexity response:", content.substring(0, 500));
+
+      // Try to parse JSON from response
+      const jsonMatch = content.match(/\{[\s\S]*"imageUrl"[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.imageUrl && parsed.imageUrl.match(/\.(jpg|jpeg|png|webp)(\?|$)/i)) {
+          return {
+            imageUrl: parsed.imageUrl,
+            credit: parsed.credit || "Autor desconhecido",
+            sourceUrl: parsed.sourceUrl || "",
+            sourceName: parsed.sourceName || "Web",
+          };
+        }
+      }
+    } else {
+      console.log("[AI Blog Image] Perplexity error:", perplexityResponse.status);
+    }
+  } catch (error) {
+    console.error("[AI Blog Image] Erro Perplexity:", error);
+  }
+  return null;
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -63,7 +118,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`[AI Blog Image] Buscando imagem para artigo ${postId}`);
+    console.log(`[AI Blog Image] Buscando imagem REAL da web para artigo: "${title}"`);
 
     // Check if post exists
     const { data: post, error: postError } = await supabase
@@ -91,9 +146,8 @@ serve(async (req) => {
       });
     }
 
-    // Get API keys
+    // Get API key
     const perplexityApiKey = Deno.env.get("PERPLEXITY_API_KEY");
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
 
     if (!perplexityApiKey) {
       console.error("[AI Blog Image] PERPLEXITY_API_KEY não configurada");
@@ -103,101 +157,69 @@ serve(async (req) => {
       });
     }
 
-    // Step 1: Use Perplexity to find relevant image from free stock sites
-    console.log("[AI Blog Image] Buscando imagem na web com Perplexity...");
-
-    const searchQuery = `Find a high-quality FREE stock photo that matches this blog article title: "${title}"
+    // Build search queries with different strategies
+    const primarySearchQuery = `Find a high-quality FREE stock photo for this blog article: "${title}"
 ${context ? `Additional context: ${context}` : ""}
 
-SEARCH REQUIREMENTS:
-1. The photo must be from a FREE source: Pexels, Unsplash, or Pixabay
-2. Must be relevant to photography, video production, filmmaking, or creative work
-3. Must be a DIRECT link to the image file (ending in .jpg, .jpeg, .png, or .webp)
-4. Must include proper photographer credit
+SEARCH PRIORITY:
+1. If the article mentions a specific FILM or MOVIE → find a promotional still or scene from that film
+2. If the article mentions a CAMERA, LENS, or EQUIPMENT → find an image of that specific product
+3. If the article is about a PHOTOGRAPHY/VIDEO TECHNIQUE → find a visual example of that technique
+4. Otherwise → find a professional photography/video production scene
 
-IMPORTANT: Return ONLY a valid JSON object with these exact fields:
+REQUIREMENTS:
+- MUST be from FREE sources: Pexels, Unsplash, or Pixabay
+- MUST be a DIRECT link to the image file (URL ending in .jpg, .jpeg, .png, or .webp)
+- The image should be HORIZONTAL (landscape orientation)
+- High resolution, professional quality
+- Include photographer credit
+
+Return ONLY a valid JSON object:
 {
   "imageUrl": "direct URL to the image file",
   "credit": "photographer name",
-  "sourceUrl": "URL to the photographer's profile page",
+  "sourceUrl": "URL to photographer's profile",
   "sourceName": "Pexels, Unsplash, or Pixabay"
-}
-
-If you cannot find a suitable free image, return:
-{
-  "imageUrl": "",
-  "credit": "",
-  "sourceUrl": "",
-  "sourceName": ""
 }`;
+
+    // Fallback search queries if primary fails
+    const fallbackQueries = [
+      `Find a FREE stock photo from Pexels or Unsplash showing "professional video production studio" or "filmmaker working with camera". Return JSON with imageUrl, credit, sourceUrl, sourceName.`,
+      `Find a FREE stock photo from Pixabay or Pexels of "photography studio equipment" or "creative professional editing video". Return JSON with imageUrl, credit, sourceUrl, sourceName.`,
+      `Find a FREE stock photo from Unsplash of "cinema camera filming" or "photographer with DSLR camera". Return JSON with imageUrl, credit, sourceUrl, sourceName.`,
+    ];
 
     let imageResult: ImageSearchResult | null = null;
 
-    try {
-      const perplexityResponse = await fetch("https://api.perplexity.ai/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${perplexityApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "sonar",
-          messages: [
-            {
-              role: "system",
-              content: "You are an image search assistant. You find relevant free stock photos and return structured JSON data. Always respond with valid JSON only.",
-            },
-            {
-              role: "user",
-              content: searchQuery,
-            },
-          ],
-        }),
-      });
+    // Try primary search
+    console.log("[AI Blog Image] Tentativa 1: Busca específica para o título...");
+    imageResult = await searchImageWithPerplexity(perplexityApiKey, primarySearchQuery);
 
-      if (perplexityResponse.ok) {
-        const perplexityData = await perplexityResponse.json();
-        const content = perplexityData.choices?.[0]?.message?.content || "";
-        
-        console.log("[AI Blog Image] Perplexity response:", content.substring(0, 300));
-
-        // Try to parse JSON from response
-        try {
-          const jsonMatch = content.match(/\{[\s\S]*"imageUrl"[\s\S]*\}/);
-          if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            if (parsed.imageUrl && parsed.imageUrl.match(/\.(jpg|jpeg|png|webp)$/i)) {
-              imageResult = {
-                imageUrl: parsed.imageUrl,
-                credit: parsed.credit || "Autor desconhecido",
-                sourceUrl: parsed.sourceUrl || "",
-                sourceName: parsed.sourceName || "Web",
-              };
-              console.log("[AI Blog Image] Imagem encontrada:", imageResult.imageUrl);
-            }
-          }
-        } catch (parseError) {
-          console.log("[AI Blog Image] Não foi possível extrair imagem do resultado");
+    // Try fallback searches if primary fails
+    if (!imageResult) {
+      for (let i = 0; i < fallbackQueries.length; i++) {
+        console.log(`[AI Blog Image] Tentativa ${i + 2}: Busca alternativa...`);
+        imageResult = await searchImageWithPerplexity(perplexityApiKey, fallbackQueries[i]);
+        if (imageResult) {
+          console.log("[AI Blog Image] Imagem encontrada na tentativa", i + 2);
+          break;
         }
-      } else {
-        console.log("[AI Blog Image] Perplexity error:", perplexityResponse.status);
       }
-    } catch (perplexityError) {
-      console.error("[AI Blog Image] Erro Perplexity:", perplexityError);
     }
 
-    // Step 2: If found image, download and upload to storage
+    // Download and upload image if found
     let finalImageUrl: string | null = null;
     let imageCredit: string | null = null;
     let imageSource: string | null = null;
 
     if (imageResult && imageResult.imageUrl) {
-      console.log("[AI Blog Image] Descarregando imagem...");
+      console.log("[AI Blog Image] Descarregando imagem:", imageResult.imageUrl);
       
       try {
         const imageResponse = await fetch(imageResult.imageUrl, {
           headers: {
-            "User-Agent": "Mozilla/5.0 (compatible; WillFlow/1.0; +https://willflows.lovable.app)",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
           },
         });
 
@@ -205,34 +227,39 @@ If you cannot find a suitable free image, return:
           const contentType = imageResponse.headers.get("content-type") || "image/jpeg";
           const imageBytes = new Uint8Array(await imageResponse.arrayBuffer());
           
-          // Determine file extension
-          let extension = "jpg";
-          if (contentType.includes("png")) extension = "png";
-          else if (contentType.includes("webp")) extension = "webp";
-
-          const filename = `${post.slug || postId}-${Date.now()}.${extension}`;
-          const filePath = `covers/${filename}`;
-
-          // Upload to storage
-          const { error: uploadError } = await supabase.storage
-            .from("blog-images")
-            .upload(filePath, imageBytes, {
-              contentType,
-              upsert: true,
-            });
-
-          if (!uploadError) {
-            const { data: publicUrl } = supabase.storage
-              .from("blog-images")
-              .getPublicUrl(filePath);
-
-            finalImageUrl = publicUrl.publicUrl;
-            imageCredit = `Foto de ${imageResult.credit}`;
-            imageSource = imageResult.sourceUrl || null;
-            
-            console.log("[AI Blog Image] Imagem guardada:", finalImageUrl);
+          // Validate it's actually an image
+          if (imageBytes.length < 1000) {
+            console.log("[AI Blog Image] Imagem muito pequena, pode ser inválida");
           } else {
-            console.error("[AI Blog Image] Erro upload:", uploadError);
+            // Determine file extension
+            let extension = "jpg";
+            if (contentType.includes("png")) extension = "png";
+            else if (contentType.includes("webp")) extension = "webp";
+
+            const filename = `${post.slug || postId}-${Date.now()}.${extension}`;
+            const filePath = `covers/${filename}`;
+
+            // Upload to storage
+            const { error: uploadError } = await supabase.storage
+              .from("blog-images")
+              .upload(filePath, imageBytes, {
+                contentType,
+                upsert: true,
+              });
+
+            if (!uploadError) {
+              const { data: publicUrl } = supabase.storage
+                .from("blog-images")
+                .getPublicUrl(filePath);
+
+              finalImageUrl = publicUrl.publicUrl;
+              imageCredit = `Foto de ${imageResult.credit} no ${imageResult.sourceName}`;
+              imageSource = imageResult.sourceUrl || null;
+              
+              console.log("[AI Blog Image] Imagem REAL guardada:", finalImageUrl);
+            } else {
+              console.error("[AI Blog Image] Erro upload:", uploadError);
+            }
           }
         } else {
           console.log("[AI Blog Image] Falha ao descarregar imagem:", imageResponse.status);
@@ -242,123 +269,7 @@ If you cannot find a suitable free image, return:
       }
     }
 
-    // Step 3: Fallback to AI-generated image if no web image found
-    if (!finalImageUrl && lovableApiKey) {
-      console.log("[AI Blog Image] Fallback: Gerando imagem com AI...");
-
-      try {
-        const imagePrompt = `Create a professional PHOTOGRAPH for a blog article about the photography and video production industry.
-
-ARTICLE TITLE: "${title}"
-${context ? `CONTEXT: ${context}` : ""}
-
-CRITICAL STYLE REQUIREMENTS - MUST FOLLOW:
-- Professional PHOTOGRAPHY style, NOT illustration, NOT abstract art
-- Real-world scenes that a professional photographer would capture
-- REALISTIC subjects: cameras, lenses, studio equipment, editing workstations, creative professionals at work, studio environments, film sets
-- Natural lighting with professional quality - think Getty Images or Unsplash editorial
-- High-quality DSLR aesthetic with depth of field and bokeh effects
-- Clean, modern composition with rule of thirds
-- Authentic, documentary-style feel
-
-TECHNICAL SPECIFICATIONS:
-- 16:9 landscape aspect ratio
-- Editorial quality photography
-- Subtle purple/violet color grading matching brand (#7C3AED tones in highlights or accents)
-- Professional color correction
-- Sharp focus on main subject
-
-ABSOLUTELY NO:
-- Text, logos, watermarks, or words
-- Cartoon or illustration style
-- Abstract shapes or patterns
-- AI-looking generated faces
-- Overly stylized or unrealistic colors
-
-Think: A professional stock photo that would appear in Adobe Creative Cloud marketing or a photography magazine cover.`;
-
-        const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${lovableApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash-image-preview",
-            messages: [
-              {
-                role: "user",
-                content: imagePrompt,
-              },
-            ],
-            modalities: ["image", "text"],
-          }),
-        });
-
-        if (imageResponse.ok) {
-          const imageData = await imageResponse.json();
-          const generatedImageUrl = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-
-          if (generatedImageUrl && generatedImageUrl.startsWith("data:image")) {
-            // Extract base64 data and decode
-            const base64Match = generatedImageUrl.match(/^data:image\/(\w+);base64,(.+)$/);
-            if (base64Match) {
-              const imageFormat = base64Match[1];
-              const base64Data = base64Match[2];
-              
-              // Decode base64 using Deno's standard library approach
-              const binaryString = atob(base64Data);
-              const imageBytes = new Uint8Array(binaryString.length);
-              for (let i = 0; i < binaryString.length; i++) {
-                imageBytes[i] = binaryString.charCodeAt(i);
-              }
-
-              const filename = `${post.slug || postId}-${Date.now()}.${imageFormat}`;
-              const filePath = `covers/${filename}`;
-
-              const { error: uploadError } = await supabase.storage
-                .from("blog-images")
-                .upload(filePath, imageBytes, {
-                  contentType: `image/${imageFormat}`,
-                  upsert: true,
-                });
-
-              if (!uploadError) {
-                const { data: publicUrl } = supabase.storage
-                  .from("blog-images")
-                  .getPublicUrl(filePath);
-
-                finalImageUrl = publicUrl.publicUrl;
-                imageCredit = "Gerada por WillFlow AI";
-                imageSource = null;
-                
-                console.log("[AI Blog Image] Imagem AI guardada:", finalImageUrl);
-              }
-            }
-          }
-        } else {
-          const errorStatus = imageResponse.status;
-          console.log("[AI Blog Image] Erro Lovable AI:", errorStatus);
-          
-          if (errorStatus === 429) {
-            return new Response(JSON.stringify({ error: "Limite de pedidos AI excedido" }), {
-              status: 429,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-          if (errorStatus === 402) {
-            return new Response(JSON.stringify({ error: "Créditos Lovable AI esgotados" }), {
-              status: 402,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-        }
-      } catch (aiError) {
-        console.error("[AI Blog Image] Erro AI:", aiError);
-      }
-    }
-
-    // Step 4: Update blog post with image and credits
+    // Update blog post with image and credits
     if (finalImageUrl) {
       const { error: updateError } = await supabase
         .from("blog_posts")
@@ -377,7 +288,7 @@ Think: A professional stock photo that would appear in Adobe Creative Cloud mark
         });
       }
 
-      console.log(`[AI Blog Image] Sucesso! Imagem adicionada ao artigo ${postId}`);
+      console.log(`[AI Blog Image] Sucesso! Imagem REAL adicionada ao artigo ${postId}`);
 
       return new Response(JSON.stringify({
         success: true,
@@ -385,16 +296,18 @@ Think: A professional stock photo that would appear in Adobe Creative Cloud mark
         credit: imageCredit,
         source: imageSource,
         postId,
+        isRealImage: true,
       }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // No image could be generated
+    // No image could be found - return error (no AI fallback)
+    console.log("[AI Blog Image] Não foi possível encontrar imagem real na web");
     return new Response(JSON.stringify({ 
       success: false, 
-      error: "Não foi possível encontrar ou gerar uma imagem" 
+      error: "Não foi possível encontrar uma imagem real na web. Tente regenerar." 
     }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
