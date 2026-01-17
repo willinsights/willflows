@@ -15,27 +15,18 @@ export function ShareButtons({ url, title }: ShareButtonsProps) {
   const encodedTitle = encodeURIComponent(title);
 
   const shareTwitter = () => {
-    window.open(
-      `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}`,
-      '_blank',
-      'noopener,noreferrer'
-    );
+    const shareUrl = `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}`;
+    window.open(shareUrl, '_blank', 'width=600,height=400,noopener,noreferrer');
   };
 
   const shareLinkedIn = () => {
-    window.open(
-      `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
-      '_blank',
-      'noopener,noreferrer'
-    );
+    const shareUrl = `https://www.linkedin.com/shareArticle?mini=true&url=${encodedUrl}&title=${encodedTitle}`;
+    window.open(shareUrl, '_blank', 'width=600,height=600,noopener,noreferrer');
   };
 
   const shareFacebook = () => {
-    window.open(
-      `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
-      '_blank',
-      'noopener,noreferrer'
-    );
+    const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedTitle}`;
+    window.open(shareUrl, '_blank', 'width=600,height=400,noopener,noreferrer');
   };
 
   const copyLink = async () => {

@@ -28,9 +28,13 @@ export default function SuperAdmin() {
     setSearchParams({ tab: value });
   };
 
+  // Only fetch stats once when component mounts, not on every render
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchStats = async () => {
-      setLoadingStats(true);
+      if (!isSuperAdmin) return;
+      
       try {
         const [waitlistRes, invitesRes, articlesRes, feedbackRes] = await Promise.all([
           supabase.from('beta_waitlist').select('id', { count: 'exact', head: true }),
@@ -39,22 +43,28 @@ export default function SuperAdmin() {
           supabase.from('feedback').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         ]);
 
-        setStats({
-          waitlist: waitlistRes.count || 0,
-          invites: invitesRes.count || 0,
-          articles: articlesRes.count || 0,
-          feedback: feedbackRes.count || 0,
-        });
+        if (isMounted) {
+          setStats({
+            waitlist: waitlistRes.count || 0,
+            invites: invitesRes.count || 0,
+            articles: articlesRes.count || 0,
+            feedback: feedbackRes.count || 0,
+          });
+          setLoadingStats(false);
+        }
       } catch (error) {
         console.error('Error fetching admin stats:', error);
-      } finally {
-        setLoadingStats(false);
+        if (isMounted) {
+          setLoadingStats(false);
+        }
       }
     };
 
-    if (isSuperAdmin) {
-      fetchStats();
-    }
+    fetchStats();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [isSuperAdmin]);
 
   if (authLoading) {

@@ -278,7 +278,13 @@ REGRAS DE CONTEÚDO:
 2. Desenvolve o problema mostrando o impacto negativo
 3. Apresenta soluções naturais, com WillFlow como exemplo concreto
 4. Menciona WillFlow pelo menos 2-3x de forma NATURAL (não promocional)
-5. Termina sempre com um CTA para experimentar o WillFlow`,
+5. Termina sempre com um CTA para experimentar o WillFlow
+
+REGRAS DE ESCRITA OBRIGATÓRIAS:
+- NUNCA uses travessões longos (— ou –), usa vírgulas ou pontos
+- NUNCA uses aspas especiais (" "), usa aspas normais (" ")
+- Escreve frases diretas e concisas
+- Evita construções com travessões como "gestão — algo complexo —"`,
           },
           {
             role: "user",
@@ -308,25 +314,47 @@ ${citations.length > 0 ? `**Fontes:** ${citations.slice(0, 3).join(", ")}` : ""}
    - 2-3 parágrafos explorando o impacto negativo do problema
    - Dados ou exemplos concretos quando possível
    
-   C) **IMAGENS INLINE (2-3 placeholders):**
-   Inclui exatamente 2-3 placeholders para imagens no meio do artigo:
+   C) **SCREENSHOTS DO WILLFLOW (OBRIGATÓRIO - incluir 1-2):**
+   Inclui screenshots REAIS do WillFlow para mostrar a interface. Usa estas imagens:
    
    <figure class="my-8 rounded-xl overflow-hidden shadow-lg border">
-     <img src="[INLINE_IMAGE_1]" alt="Descrição detalhada da imagem - o que deve mostrar" class="w-full" />
+     <img src="[SCREENSHOT_DASHBOARD]" alt="Dashboard do WillFlow com visão geral de projetos e KPIs" class="w-full" />
      <figcaption class="text-sm text-muted-foreground text-center py-3 px-4 bg-muted/30">
-       Legenda descritiva da imagem
+       Dashboard do WillFlow: visão completa dos teus projetos e métricas
      </figcaption>
    </figure>
    
-   Usa [INLINE_IMAGE_1], [INLINE_IMAGE_2], [INLINE_IMAGE_3] como src.
-   O alt text DEVE descrever o que a imagem deve mostrar (ex: "Fotógrafo a trabalhar num estúdio moderno com equipamento profissional")
+   <figure class="my-8 rounded-xl overflow-hidden shadow-lg border">
+     <img src="[SCREENSHOT_KANBAN]" alt="Quadro Kanban do WillFlow para gestão visual de projetos" class="w-full" />
+     <figcaption class="text-sm text-muted-foreground text-center py-3 px-4 bg-muted/30">
+       Gestão visual com Kanban: arrasta e organiza os teus projetos
+     </figcaption>
+   </figure>
    
-   D) **SOLUÇÕES E WILLFLOW:**
+   Placeholders disponíveis:
+   - [SCREENSHOT_DASHBOARD] - Dashboard com KPIs e visão geral
+   - [SCREENSHOT_KANBAN] - Quadro Kanban de projetos
+   - [SCREENSHOT_CALENDAR] - Calendário de sessões e entregas
+   - [SCREENSHOT_PAYMENTS] - Controlo de pagamentos e finanças
+   
+   Escolhe 1-2 screenshots mais relevantes para o tema do artigo.
+   
+   D) **IMAGENS INLINE GERADAS (opcional 1-2):**
+   Podes incluir placeholders para imagens geradas por AI:
+   
+   <figure class="my-8 rounded-xl overflow-hidden shadow-lg border">
+     <img src="[INLINE_IMAGE_1]" alt="Descrição detalhada da imagem" class="w-full" />
+     <figcaption class="text-sm text-muted-foreground text-center py-3 px-4 bg-muted/30">
+       Legenda descritiva
+     </figcaption>
+   </figure>
+   
+   E) **SOLUÇÕES E WILLFLOW:**
    - Apresenta soluções práticas para o problema
    - Menciona o WillFlow como exemplo concreto de solução
    - Mostra benefícios específicos (ex: "Com o WillFlow, encontras qualquer projeto em segundos")
    
-   E) **CTA FINAL (OBRIGATÓRIO):**
+   F) **CTA FINAL (OBRIGATÓRIO):**
    
    <div class="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-6 my-8">
      <div class="flex items-start gap-4">
@@ -443,10 +471,36 @@ Responde APENAS em JSON válido:
     const timestamp = Date.now().toString(36);
     const slug = `${baseSlug}-${timestamp}`;
 
-    // Step 3: Generate inline images and replace placeholders
-    console.log("[AI Blog] Gerando imagens inline...");
+    // Step 3: Replace screenshot placeholders with real WillFlow screenshots
+    console.log("[AI Blog] Replacing screenshot placeholders...");
     
     let processedContent = article.content;
+    
+    // Real WillFlow screenshot URLs from the published app
+    const screenshotUrls: Record<string, string> = {
+      '[SCREENSHOT_DASHBOARD]': 'https://willflows.lovable.app/assets/screenshot-dark-dashboard.png',
+      '[SCREENSHOT_KANBAN]': 'https://willflows.lovable.app/assets/screenshot-dark-kanban.png',
+      '[SCREENSHOT_CALENDAR]': 'https://willflows.lovable.app/assets/screenshot-dark-calendar.png',
+      '[SCREENSHOT_PAYMENTS]': 'https://willflows.lovable.app/assets/screenshot-dark-payments.png',
+    };
+    
+    // Replace all screenshot placeholders with real URLs
+    for (const [placeholder, url] of Object.entries(screenshotUrls)) {
+      const escapedPlaceholder = placeholder.replace(/[[\]]/g, '\\$&');
+      processedContent = processedContent.replace(new RegExp(escapedPlaceholder, 'g'), url);
+    }
+    
+    // Clean up any remaining dashes from AI generation
+    processedContent = processedContent
+      .replace(/—/g, ',')
+      .replace(/–/g, '-')
+      .replace(/"/g, '"')
+      .replace(/"/g, '"')
+      .replace(/'/g, "'")
+      .replace(/'/g, "'");
+    
+    // Step 4: Generate inline images and replace placeholders
+    console.log("[AI Blog] Gerando imagens inline...");
     
     // Extract image placeholders from content
     const imagePlaceholders = processedContent.match(/\[INLINE_IMAGE_\d+\]/g) || [];
