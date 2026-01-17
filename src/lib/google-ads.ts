@@ -23,12 +23,19 @@ export const CONVERSION_IDS = {
   WAITLIST: `${GOOGLE_ADS_ID}/4K9lCJrR8OYbEOu02MUo`,
 } as const;
 
-// Plan values for conversion tracking (in EUR)
-export const PLAN_VALUES: Record<string, number> = {
-  essencial: 19,
-  pro: 39,
-  studio: 79,
+// Plan values for conversion tracking
+export const PLAN_VALUES: Record<string, { EUR: number; BRL: number }> = {
+  essencial: { EUR: 19, BRL: 95 },
+  pro: { EUR: 39, BRL: 195 },
+  studio: { EUR: 79, BRL: 395 },
 };
+
+/**
+ * Get currency based on country/region
+ */
+export function getCurrencyByCountry(country?: string): 'EUR' | 'BRL' {
+  return country === 'BR' ? 'BRL' : 'EUR';
+}
 
 /**
  * Track a conversion event in Google Ads
@@ -63,30 +70,41 @@ export function trackConversion(
  * Track a checkout success conversion
  * 
  * @param plan - The subscription plan (essencial, pro, studio)
- * @param currency - The currency code
+ * @param country - The country code (PT or BR)
  */
-export function trackCheckoutSuccess(plan: string, currency: string = 'EUR'): void {
-  const value = PLAN_VALUES[plan] || PLAN_VALUES.essencial;
+export function trackCheckoutSuccess(plan: string, country?: string): void {
+  const currency = getCurrencyByCountry(country);
+  const planValues = PLAN_VALUES[plan] || PLAN_VALUES.essencial;
+  const value = planValues[currency];
   trackConversion(CONVERSION_IDS.CHECKOUT_SUCCESS, value, currency);
 }
 
 /**
  * Track a trial started conversion
+ * @param country - The country code (PT or BR)
  */
-export function trackTrialStarted(): void {
-  trackConversion(CONVERSION_IDS.TRIAL_STARTED, 1.0, 'EUR');
+export function trackTrialStarted(country?: string): void {
+  const currency = getCurrencyByCountry(country);
+  const value = currency === 'BRL' ? 5.0 : 1.0;
+  trackConversion(CONVERSION_IDS.TRIAL_STARTED, value, currency);
 }
 
 /**
  * Track a signup conversion
+ * @param country - The country code (PT or BR)
  */
-export function trackSignup(): void {
-  trackConversion(CONVERSION_IDS.SIGNUP, 0.5, 'EUR');
+export function trackSignup(country?: string): void {
+  const currency = getCurrencyByCountry(country);
+  const value = currency === 'BRL' ? 2.5 : 0.5;
+  trackConversion(CONVERSION_IDS.SIGNUP, value, currency);
 }
 
 /**
  * Track a waitlist signup conversion
+ * @param country - The country code (PT or BR)
  */
-export function trackWaitlistSignup(): void {
-  trackConversion(CONVERSION_IDS.WAITLIST, 0.1, 'EUR');
+export function trackWaitlistSignup(country?: string): void {
+  const currency = getCurrencyByCountry(country);
+  const value = currency === 'BRL' ? 0.5 : 0.1;
+  trackConversion(CONVERSION_IDS.WAITLIST, value, currency);
 }
