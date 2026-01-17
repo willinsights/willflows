@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -52,6 +52,14 @@ export function EditArticleModal({
   const [content, setContent] = useState(post.content);
   const [isSaving, setIsSaving] = useState(false);
   const [contentView, setContentView] = useState<'html' | 'preview'>('html');
+
+  // Reset form when post changes
+  React.useEffect(() => {
+    setTitle(post.title);
+    setExcerpt(post.excerpt || '');
+    setCategory(post.category || 'novidades');
+    setContent(post.content);
+  }, [post]);
 
   const handleSave = async () => {
     setIsSaving(true);
