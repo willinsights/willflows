@@ -314,30 +314,45 @@ ${citations.length > 0 ? `**Fontes:** ${citations.slice(0, 3).join(", ")}` : ""}
    - 2-3 parágrafos explorando o impacto negativo do problema
    - Dados ou exemplos concretos quando possível
    
-   C) **SCREENSHOTS DO WILLFLOW (OBRIGATÓRIO - incluir 1-2):**
+   C) **SCREENSHOTS DO WILLFLOW (OBRIGATÓRIO - incluir 2-3):**
    Inclui screenshots REAIS do WillFlow para mostrar a interface. Usa estas imagens:
    
    <figure class="my-8 rounded-xl overflow-hidden shadow-lg border">
-     <img src="[SCREENSHOT_DASHBOARD]" alt="Dashboard do WillFlow com visão geral de projetos e KPIs" class="w-full" />
+     <img src="[SCREENSHOT_PLACEHOLDER]" alt="Descrição da imagem" class="w-full" />
      <figcaption class="text-sm text-muted-foreground text-center py-3 px-4 bg-muted/30">
-       Dashboard do WillFlow: visão completa dos teus projetos e métricas
+       Legenda descritiva
      </figcaption>
    </figure>
    
-   <figure class="my-8 rounded-xl overflow-hidden shadow-lg border">
-     <img src="[SCREENSHOT_KANBAN]" alt="Quadro Kanban do WillFlow para gestão visual de projetos" class="w-full" />
-     <figcaption class="text-sm text-muted-foreground text-center py-3 px-4 bg-muted/30">
-       Gestão visual com Kanban: arrasta e organiza os teus projetos
-     </figcaption>
-   </figure>
+   **PLACEHOLDERS DISPONÍVEIS (escolhe 2-3 mais relevantes para o tema):**
    
-   Placeholders disponíveis:
-   - [SCREENSHOT_DASHBOARD] - Dashboard com KPIs e visão geral
-   - [SCREENSHOT_KANBAN] - Quadro Kanban de projetos
-   - [SCREENSHOT_CALENDAR] - Calendário de sessões e entregas
-   - [SCREENSHOT_PAYMENTS] - Controlo de pagamentos e finanças
+   DASHBOARDS E VISÃO GERAL:
+   - [SCREENSHOT_DASHBOARD] - Dashboard dark mode com KPIs e métricas
+   - [SCREENSHOT_DASHBOARD_LIGHT] - Dashboard modo claro
    
-   Escolhe 1-2 screenshots mais relevantes para o tema do artigo.
+   GESTÃO DE PROJETOS:
+   - [SCREENSHOT_KANBAN] - Quadro Kanban visual para gestão de projetos
+   
+   CALENDÁRIO E AGENDA:
+   - [SCREENSHOT_CALENDAR] - Calendário completo com sessões e entregas
+   
+   FINANÇAS E PAGAMENTOS:
+   - [SCREENSHOT_PAYMENTS] - Controlo de pagamentos e faturação
+   - [SCREENSHOT_RELATORIOS] - Relatórios financeiros e análises
+   
+   EQUIPA E CONFIGURAÇÕES:
+   - [SCREENSHOT_PERMISSOES] - Gestão de permissões da equipa
+   - [SCREENSHOT_CONTA] - Página de planos e subscrição
+   
+   ONBOARDING:
+   - [SCREENSHOT_ONBOARDING] - Processo de setup inicial
+   
+   **REGRAS PARA SCREENSHOTS:**
+   - Escolhe 2-3 screenshots mais relevantes para o PROBLEMA discutido no artigo
+   - Se o artigo fala de organização, usa Kanban ou Dashboard
+   - Se fala de dinheiro/finanças, usa Payments ou Relatórios
+   - Se fala de equipa, usa Permissões
+   - Distribui os screenshots ao longo do artigo, não todos juntos
    
    D) **IMAGENS INLINE GERADAS (opcional 1-2):**
    Podes incluir placeholders para imagens geradas por AI:
@@ -476,12 +491,28 @@ Responde APENAS em JSON válido:
     
     let processedContent = article.content;
     
-    // Real WillFlow screenshot URLs from the published app
+    // Real WillFlow screenshot URLs from the published app - expanded library
     const screenshotUrls: Record<string, string> = {
-      '[SCREENSHOT_DASHBOARD]': 'https://willflows.lovable.app/assets/screenshot-dark-dashboard.png',
+      // Dashboards
+      '[SCREENSHOT_DASHBOARD]': 'https://willflows.lovable.app/screenshots/screenshot-dashboard-dark-full.png',
+      '[SCREENSHOT_DASHBOARD_LIGHT]': 'https://willflows.lovable.app/screenshots/screenshot-dashboard-light-full.png',
+      
+      // Gestão de Projetos
       '[SCREENSHOT_KANBAN]': 'https://willflows.lovable.app/assets/screenshot-dark-kanban.png',
-      '[SCREENSHOT_CALENDAR]': 'https://willflows.lovable.app/assets/screenshot-dark-calendar.png',
-      '[SCREENSHOT_PAYMENTS]': 'https://willflows.lovable.app/assets/screenshot-dark-payments.png',
+      
+      // Calendário
+      '[SCREENSHOT_CALENDAR]': 'https://willflows.lovable.app/screenshots/screenshot-calendario-full.png',
+      
+      // Finanças
+      '[SCREENSHOT_PAYMENTS]': 'https://willflows.lovable.app/screenshots/screenshot-pagamentos.png',
+      '[SCREENSHOT_RELATORIOS]': 'https://willflows.lovable.app/screenshots/screenshot-relatorios-6m.png',
+      
+      // Equipa e Configurações  
+      '[SCREENSHOT_PERMISSOES]': 'https://willflows.lovable.app/screenshots/screenshot-permissoes.png',
+      '[SCREENSHOT_CONTA]': 'https://willflows.lovable.app/screenshots/screenshot-conta-planos.png',
+      
+      // Onboarding
+      '[SCREENSHOT_ONBOARDING]': 'https://willflows.lovable.app/screenshots/screenshot-onboarding-regiao.png',
     };
     
     // Replace all screenshot placeholders with real URLs
