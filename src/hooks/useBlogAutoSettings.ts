@@ -10,6 +10,7 @@ export interface BlogAutoSettings {
   preferred_topics: string[];
   preferred_categories: string[];
   schedule_hour: number;
+  schedule_minute: number;
   last_run_at: string | null;
   next_run_at: string | null;
   created_at: string;
@@ -24,6 +25,7 @@ const DEFAULT_SETTINGS: Omit<BlogAutoSettings, 'id' | 'created_at' | 'updated_at
   preferred_topics: [],
   preferred_categories: [],
   schedule_hour: 9,
+  schedule_minute: 0,
   last_run_at: null,
   next_run_at: null,
 };
@@ -52,6 +54,7 @@ export function useBlogAutoSettings() {
         preferred_topics: data.preferred_topics ?? DEFAULT_SETTINGS.preferred_topics,
         preferred_categories: data.preferred_categories ?? DEFAULT_SETTINGS.preferred_categories,
         schedule_hour: data.schedule_hour ?? DEFAULT_SETTINGS.schedule_hour,
+        schedule_minute: data.schedule_minute ?? DEFAULT_SETTINGS.schedule_minute,
       } as BlogAutoSettings;
     },
   });
