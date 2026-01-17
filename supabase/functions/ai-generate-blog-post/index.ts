@@ -360,23 +360,32 @@ Style requirements:
           const base64Data = imageBase64.split(",")[1];
           const imageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
 
-          // Upload to storage
+          // Upload to storage with retry logic
           const imageTimestamp = Date.now();
           const imageFilename = `${baseSlug}-${imageTimestamp}.png`;
 
-          const { error: uploadError } = await supabase.storage
-            .from("blog-images")
-            .upload(imageFilename, imageBytes, {
-              contentType: "image/png",
-              upsert: true,
-            });
+          let uploadSuccess = false;
+          for (let attempt = 0; attempt < 3 && !uploadSuccess; attempt++) {
+            if (attempt > 0) {
+              console.log(`[AI Blog] Retry upload attempt ${attempt + 1}...`);
+              await new Promise((r) => setTimeout(r, 1000 * attempt));
+            }
 
-          if (!uploadError) {
-            const { data: urlData } = supabase.storage.from("blog-images").getPublicUrl(imageFilename);
-            coverImageUrl = urlData.publicUrl;
-            console.log("[AI Blog] Imagem uploaded:", coverImageUrl);
-          } else {
-            console.error("[AI Blog] Erro upload imagem:", uploadError);
+            const { error: uploadError } = await supabase.storage
+              .from("blog-images")
+              .upload(imageFilename, imageBytes, {
+                contentType: "image/png",
+                upsert: true,
+              });
+
+            if (!uploadError) {
+              const { data: urlData } = supabase.storage.from("blog-images").getPublicUrl(imageFilename);
+              coverImageUrl = urlData.publicUrl;
+              console.log("[AI Blog] Imagem uploaded:", coverImageUrl);
+              uploadSuccess = true;
+            } else {
+              console.error(`[AI Blog] Erro upload (attempt ${attempt + 1}):`, uploadError.message);
+            }
           }
         }
       } else {

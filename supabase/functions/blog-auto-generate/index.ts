@@ -276,7 +276,7 @@ Style requirements:
           const base64Data = imageBase64.split(",")[1];
           const imageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
 
-          // Upload to storage
+          // Upload to storage with retry logic
           const timestamp = Date.now();
           const slug = article.title
             .toLowerCase()
@@ -284,19 +284,28 @@ Style requirements:
             .slice(0, 50);
           const filename = `${slug}-${timestamp}.png`;
 
-          const { error: uploadError } = await supabase.storage
-            .from("blog-images")
-            .upload(filename, imageBytes, {
-              contentType: "image/png",
-              upsert: true,
-            });
+          let uploadSuccess = false;
+          for (let attempt = 0; attempt < 3 && !uploadSuccess; attempt++) {
+            if (attempt > 0) {
+              console.log(`[BLOG-AUTO] Retry upload attempt ${attempt + 1}...`);
+              await new Promise((r) => setTimeout(r, 1000 * attempt));
+            }
 
-          if (!uploadError) {
-            const { data: urlData } = supabase.storage.from("blog-images").getPublicUrl(filename);
-            coverImageUrl = urlData.publicUrl;
-            console.log("[BLOG-AUTO] Image uploaded:", coverImageUrl);
-          } else {
-            console.error("[BLOG-AUTO] Upload error:", uploadError);
+            const { error: uploadError } = await supabase.storage
+              .from("blog-images")
+              .upload(filename, imageBytes, {
+                contentType: "image/png",
+                upsert: true,
+              });
+
+            if (!uploadError) {
+              const { data: urlData } = supabase.storage.from("blog-images").getPublicUrl(filename);
+              coverImageUrl = urlData.publicUrl;
+              console.log("[BLOG-AUTO] Image uploaded:", coverImageUrl);
+              uploadSuccess = true;
+            } else {
+              console.error(`[BLOG-AUTO] Upload error (attempt ${attempt + 1}):`, uploadError.message);
+            }
           }
         }
       } else {
