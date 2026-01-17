@@ -11,6 +11,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { FullPageLoader } from "@/components/layout/FullPageLoader";
+import { PageTrackingProvider } from "@/components/PageTrackingProvider";
 import { queryClient } from "@/lib/query-client";
 
 // Lazy loaded public pages
@@ -59,8 +60,9 @@ const App = () => (
               <Toaster />
               <Sonner />
               <BrowserRouter>
-                <Suspense fallback={<FullPageLoader />}>
-                  <Routes>
+                <PageTrackingProvider>
+                  <Suspense fallback={<FullPageLoader />}>
+                    <Routes>
                     {/* Public Routes */}
                     <Route path="/" element={<Landing />} />
                     <Route path="/auth" element={<Auth />} />
@@ -121,10 +123,11 @@ const App = () => (
                       <Route path="admin" element={<SuperAdmin />} />
                     </Route>
 
-                    {/* Catch-all */}
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </Suspense>
+                      {/* Catch-all */}
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </Suspense>
+                </PageTrackingProvider>
               </BrowserRouter>
             </TooltipProvider>
           </WorkspaceProvider>

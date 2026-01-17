@@ -260,6 +260,41 @@ export type Database = {
           },
         ]
       }
+      blog_views: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          referrer: string | null
+          session_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          referrer?: string | null
+          session_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          referrer?: string | null
+          session_id?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_views_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "blog_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_events: {
         Row: {
           all_day: boolean
@@ -814,6 +849,39 @@ export type Database = {
           },
         ]
       }
+      page_views: {
+        Row: {
+          created_at: string
+          id: string
+          page_path: string
+          page_title: string | null
+          referrer: string | null
+          session_id: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          page_path: string
+          page_title?: string | null
+          referrer?: string | null
+          session_id: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          page_path?: string
+          page_title?: string | null
+          referrer?: string | null
+          session_id?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
@@ -910,6 +978,7 @@ export type Database = {
           full_name: string | null
           id: string
           is_internal_test: boolean
+          last_login_at: string | null
           phone: string | null
           updated_at: string
         }
@@ -920,6 +989,7 @@ export type Database = {
           full_name?: string | null
           id: string
           is_internal_test?: boolean
+          last_login_at?: string | null
           phone?: string | null
           updated_at?: string
         }
@@ -930,6 +1000,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_internal_test?: boolean
+          last_login_at?: string | null
           phone?: string | null
           updated_at?: string
         }

@@ -1,71 +1,28 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Shield, Users, FileText, MessageSquarePlus, FlaskConical, Loader2 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Shield, Users, FileText, MessageSquarePlus, FlaskConical, Loader2, LayoutDashboard, Globe, BookOpen } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { BetaAdminTab } from '@/components/admin/BetaAdminTab';
 import { BlogAdminTab } from '@/components/admin/BlogAdminTab';
 import { FeedbackAdminTab } from '@/components/admin/FeedbackAdminTab';
 import { TestAccountsTab } from '@/components/admin/TestAccountsTab';
-import { supabase } from '@/integrations/supabase/client';
+import { SystemOverviewTab } from '@/components/admin/SystemOverviewTab';
+import { AccountsReportTab } from '@/components/admin/AccountsReportTab';
+import { SiteAnalyticsTab } from '@/components/admin/SiteAnalyticsTab';
+import { BlogAnalyticsTab } from '@/components/admin/BlogAnalyticsTab';
 
 export default function SuperAdmin() {
   const { isSuperAdmin, loading: authLoading } = useSuperAdmin();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [stats, setStats] = useState({
-    waitlist: 0,
-    invites: 0,
-    articles: 0,
-    feedback: 0,
-  });
-  const [loadingStats, setLoadingStats] = useState(true);
 
-  const currentTab = searchParams.get('tab') || 'beta';
+  const currentTab = searchParams.get('tab') || 'overview';
 
   const handleTabChange = (value: string) => {
     setSearchParams({ tab: value });
   };
-
-  // Only fetch stats once when component mounts, not on every render
-  useEffect(() => {
-    let isMounted = true;
-    
-    const fetchStats = async () => {
-      if (!isSuperAdmin) return;
-      
-      try {
-        const [waitlistRes, invitesRes, articlesRes, feedbackRes] = await Promise.all([
-          supabase.from('beta_waitlist').select('id', { count: 'exact', head: true }),
-          supabase.from('beta_invite_tokens').select('id', { count: 'exact', head: true }),
-          supabase.from('blog_posts').select('id', { count: 'exact', head: true }),
-          supabase.from('feedback').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-        ]);
-
-        if (isMounted) {
-          setStats({
-            waitlist: waitlistRes.count || 0,
-            invites: invitesRes.count || 0,
-            articles: articlesRes.count || 0,
-            feedback: feedbackRes.count || 0,
-          });
-          setLoadingStats(false);
-        }
-      } catch (error) {
-        console.error('Error fetching admin stats:', error);
-        if (isMounted) {
-          setLoadingStats(false);
-        }
-      }
-    };
-
-    fetchStats();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [isSuperAdmin]);
 
   if (authLoading) {
     return (
@@ -104,83 +61,35 @@ export default function SuperAdmin() {
         </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Waitlist
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loadingStats ? (
-              <div className="h-8 w-12 bg-muted animate-pulse rounded" />
-            ) : (
-              <p className="text-2xl font-bold">{stats.waitlist}</p>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Convites Beta
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loadingStats ? (
-              <div className="h-8 w-12 bg-muted animate-pulse rounded" />
-            ) : (
-              <p className="text-2xl font-bold">{stats.invites}</p>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Artigos
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loadingStats ? (
-              <div className="h-8 w-12 bg-muted animate-pulse rounded" />
-            ) : (
-              <p className="text-2xl font-bold">{stats.articles}</p>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <MessageSquarePlus className="h-4 w-4" />
-              Feedback Pendente
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loadingStats ? (
-              <div className="h-8 w-12 bg-muted animate-pulse rounded" />
-            ) : (
-              <p className="text-2xl font-bold text-amber-600">{stats.feedback}</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Main Tabs */}
       <Card>
         <CardContent className="p-0">
           <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-            <div className="border-b px-6 pt-4">
-              <TabsList className="grid w-full grid-cols-4">
+            <div className="border-b px-6 pt-4 overflow-x-auto">
+              <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-8">
+                <TabsTrigger value="overview" className="gap-2">
+                  <LayoutDashboard className="h-4 w-4" />
+                  <span className="hidden sm:inline">Overview</span>
+                </TabsTrigger>
+                <TabsTrigger value="accounts" className="gap-2">
+                  <Users className="h-4 w-4" />
+                  <span className="hidden sm:inline">Contas</span>
+                </TabsTrigger>
+                <TabsTrigger value="site-analytics" className="gap-2">
+                  <Globe className="h-4 w-4" />
+                  <span className="hidden sm:inline">Site</span>
+                </TabsTrigger>
+                <TabsTrigger value="blog-analytics" className="gap-2">
+                  <BookOpen className="h-4 w-4" />
+                  <span className="hidden sm:inline">Blog</span>
+                </TabsTrigger>
                 <TabsTrigger value="beta" className="gap-2">
                   <Users className="h-4 w-4" />
                   <span className="hidden sm:inline">Beta</span>
                 </TabsTrigger>
                 <TabsTrigger value="blog" className="gap-2">
                   <FileText className="h-4 w-4" />
-                  <span className="hidden sm:inline">Blog</span>
+                  <span className="hidden sm:inline">Artigos</span>
                 </TabsTrigger>
                 <TabsTrigger value="feedback" className="gap-2">
                   <MessageSquarePlus className="h-4 w-4" />
@@ -194,6 +103,18 @@ export default function SuperAdmin() {
             </div>
 
             <div className="p-6">
+              <TabsContent value="overview" className="mt-0">
+                <SystemOverviewTab />
+              </TabsContent>
+              <TabsContent value="accounts" className="mt-0">
+                <AccountsReportTab />
+              </TabsContent>
+              <TabsContent value="site-analytics" className="mt-0">
+                <SiteAnalyticsTab />
+              </TabsContent>
+              <TabsContent value="blog-analytics" className="mt-0">
+                <BlogAnalyticsTab />
+              </TabsContent>
               <TabsContent value="beta" className="mt-0">
                 <BetaAdminTab />
               </TabsContent>
