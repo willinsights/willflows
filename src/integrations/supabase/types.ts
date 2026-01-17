@@ -219,6 +219,41 @@ export type Database = {
         }
         Relationships: []
       }
+      blog_share_analytics: {
+        Row: {
+          id: string
+          platform: string
+          post_id: string
+          referrer: string | null
+          shared_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          id?: string
+          platform: string
+          post_id: string
+          referrer?: string | null
+          shared_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          id?: string
+          platform?: string
+          post_id?: string
+          referrer?: string | null
+          shared_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_share_analytics_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "blog_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_events: {
         Row: {
           all_day: boolean
