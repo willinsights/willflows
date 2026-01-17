@@ -180,6 +180,8 @@ export type Database = {
           category: string | null
           content: string
           cover_image: string | null
+          cover_image_credit: string | null
+          cover_image_source: string | null
           created_at: string | null
           excerpt: string | null
           id: string
@@ -194,6 +196,8 @@ export type Database = {
           category?: string | null
           content: string
           cover_image?: string | null
+          cover_image_credit?: string | null
+          cover_image_source?: string | null
           created_at?: string | null
           excerpt?: string | null
           id?: string
@@ -208,6 +212,8 @@ export type Database = {
           category?: string | null
           content?: string
           cover_image?: string | null
+          cover_image_credit?: string | null
+          cover_image_source?: string | null
           created_at?: string | null
           excerpt?: string | null
           id?: string

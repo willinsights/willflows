@@ -8,6 +8,8 @@ export interface BlogPost {
   excerpt: string | null;
   content: string;
   cover_image: string | null;
+  cover_image_credit: string | null;
+  cover_image_source: string | null;
   author_name: string;
   category: string | null;
   published_at: string | null;

@@ -329,16 +329,23 @@ ${citations.length > 0 ? `**Fontes:** ${citations.slice(0, 3).join(", ")}` : ""}
    DASHBOARDS E VISÃO GERAL:
    - [SCREENSHOT_DASHBOARD] - Dashboard dark mode com KPIs e métricas
    - [SCREENSHOT_DASHBOARD_LIGHT] - Dashboard modo claro
+   - [SCREENSHOT_DASHBOARD_ESTUDIO] - Dashboard completo de estúdio
    
    GESTÃO DE PROJETOS:
    - [SCREENSHOT_KANBAN] - Quadro Kanban visual para gestão de projetos
+   - [SCREENSHOT_KANBAN_FULL] - Vista completa do Kanban com todos os projetos
+   - [SCREENSHOT_PROJETO_MODAL] - Modal de detalhes de um projeto
    
    CALENDÁRIO E AGENDA:
    - [SCREENSHOT_CALENDAR] - Calendário completo com sessões e entregas
    
    FINANÇAS E PAGAMENTOS:
    - [SCREENSHOT_PAYMENTS] - Controlo de pagamentos e faturação
+   - [SCREENSHOT_PAGAMENTOS_ESTUDIO] - Vista completa de pagamentos de estúdio
    - [SCREENSHOT_RELATORIOS] - Relatórios financeiros e análises
+   
+   CAPTAÇÃO:
+   - [SCREENSHOT_CAPTACAO_ESTUDIO] - Gestão de captação e sessões fotográficas
    
    EQUIPA E CONFIGURAÇÕES:
    - [SCREENSHOT_PERMISSOES] - Gestão de permissões da equipa
@@ -491,21 +498,28 @@ Responde APENAS em JSON válido:
     
     let processedContent = article.content;
     
-    // Real WillFlow screenshot URLs from the published app - expanded library
+    // Real WillFlow screenshot URLs from the published app - expanded library (15 total)
     const screenshotUrls: Record<string, string> = {
       // Dashboards
       '[SCREENSHOT_DASHBOARD]': 'https://willflows.lovable.app/screenshots/screenshot-dashboard-dark-full.png',
       '[SCREENSHOT_DASHBOARD_LIGHT]': 'https://willflows.lovable.app/screenshots/screenshot-dashboard-light-full.png',
+      '[SCREENSHOT_DASHBOARD_ESTUDIO]': 'https://willflows.lovable.app/screenshots/screenshot-dashboard-estudio.png',
       
       // Gestão de Projetos
       '[SCREENSHOT_KANBAN]': 'https://willflows.lovable.app/assets/screenshot-dark-kanban.png',
+      '[SCREENSHOT_KANBAN_FULL]': 'https://willflows.lovable.app/screenshots/screenshot-kanban-full.png',
+      '[SCREENSHOT_PROJETO_MODAL]': 'https://willflows.lovable.app/screenshots/screenshot-projeto-modal.png',
       
       // Calendário
       '[SCREENSHOT_CALENDAR]': 'https://willflows.lovable.app/screenshots/screenshot-calendario-full.png',
       
       // Finanças
       '[SCREENSHOT_PAYMENTS]': 'https://willflows.lovable.app/screenshots/screenshot-pagamentos.png',
+      '[SCREENSHOT_PAGAMENTOS_ESTUDIO]': 'https://willflows.lovable.app/screenshots/screenshot-pagamentos-estudio.png',
       '[SCREENSHOT_RELATORIOS]': 'https://willflows.lovable.app/screenshots/screenshot-relatorios-6m.png',
+      
+      // Captação
+      '[SCREENSHOT_CAPTACAO_ESTUDIO]': 'https://willflows.lovable.app/screenshots/screenshot-captacao-estudio.png',
       
       // Equipa e Configurações  
       '[SCREENSHOT_PERMISSOES]': 'https://willflows.lovable.app/screenshots/screenshot-permissoes.png',
