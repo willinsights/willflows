@@ -23,7 +23,7 @@ const sections = [
     icon: Users,
     content: `O responsável pelo tratamento dos seus dados pessoais é a WillFlow, com sede em Portugal.
 
-Para questões relacionadas com a proteção de dados, pode contactar-nos através do email: privacidade@willflow.app`,
+Para questões relacionadas com a proteção de dados, pode contactar-nos através do email: geral@willflow.app`,
   },
   {
     id: 'dados-recolhidos',
@@ -98,7 +98,7 @@ Pode solicitar a eliminação antecipada dos seus dados, exceto quando legalment
 • **Direito de Limitação:** Limitar o tratamento dos seus dados
 • **Direito de Retirar Consentimento:** Retirar o consentimento a qualquer momento
 
-Para exercer os seus direitos, contacte-nos através de: privacidade@willflow.app`,
+Para exercer os seus direitos, contacte-nos através de: geral@willflow.app`,
   },
   {
     id: 'subprocessadores',
@@ -273,10 +273,10 @@ export default function Privacy() {
               Contacte a nossa equipa de privacidade para esclarecer qualquer dúvida.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a href="mailto:privacidade@willflow.app">
+              <a href="mailto:geral@willflow.app">
                 <Button variant="outline">
                   <Mail className="mr-2 h-4 w-4" />
-                  privacidade@willflow.app
+                  geral@willflow.app
                 </Button>
               </a>
               <Link to="/seguranca">

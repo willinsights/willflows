@@ -187,8 +187,8 @@ export default function Help() {
               <p className="text-muted-foreground text-sm mb-4">
                 Envie-nos um email e responderemos em até 24 horas úteis.
               </p>
-              <a href="mailto:suporte@willflow.app" className="text-primary hover:underline">
-                suporte@willflow.app
+              <a href="mailto:geral@willflow.app" className="text-primary hover:underline">
+                geral@willflow.app
               </a>
             </motion.div>
             
