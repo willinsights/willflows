@@ -10,8 +10,8 @@ import { isBetaModeEnabled } from '@/contexts/BetaContext';
 const navLinks = [
   { label: 'Funcionalidades', href: '/funcionalidades' },
   { label: 'Planos', href: '/planos' },
+  { label: 'Blog', href: '/blog' },
   { label: 'Integrações', href: '/integracoes' },
-  { label: 'Segurança', href: '/seguranca' },
   { label: 'Ajuda', href: '/ajuda' },
 ];
 
