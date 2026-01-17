@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Calendar, ArrowLeft, Loader2, User, Clock } from 'lucide-react';
@@ -10,6 +11,7 @@ import { PublicFooter } from '@/components/marketing/PublicFooter';
 import { ShareButtons } from '@/components/blog/ShareButtons';
 import { TableOfContents } from '@/components/blog/TableOfContents';
 import { useBlogPost } from '@/hooks/useBlogPosts';
+import { trackBlogView } from '@/hooks/usePageTracking';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
@@ -23,6 +25,13 @@ function calculateReadingTime(content: string): number {
 export default function BlogPost() {
   const { slug } = useParams<{ slug: string }>();
   const { post, loading, error } = useBlogPost(slug);
+
+  // Track blog view when post loads
+  useEffect(() => {
+    if (post?.id) {
+      trackBlogView(post.id);
+    }
+  }, [post?.id]);
 
   const getCategoryColor = (category: string | null) => {
     switch (category) {

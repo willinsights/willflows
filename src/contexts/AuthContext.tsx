@@ -62,10 +62,23 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error, data } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    
+    // Update last_login_at on successful login
+    if (!error && data.user) {
+      try {
+        await supabase
+          .from('profiles')
+          .update({ last_login_at: new Date().toISOString() })
+          .eq('id', data.user.id);
+      } catch (e) {
+        console.debug('Failed to update last_login_at:', e);
+      }
+    }
+    
     return { error: error as Error | null };
   }, []);
 
