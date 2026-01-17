@@ -12,6 +12,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { FullPageLoader } from "@/components/layout/FullPageLoader";
 import { PageTrackingProvider } from "@/components/PageTrackingProvider";
+import { CookieConsentBanner } from "@/components/cookies/CookieConsentBanner";
 import { queryClient } from "@/lib/query-client";
 
 // Lazy loaded public pages
@@ -133,6 +134,7 @@ const App = () => (
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Suspense>
+                  <CookieConsentBanner />
                 </PageTrackingProvider>
               </BrowserRouter>
             </TooltipProvider>
