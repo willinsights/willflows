@@ -97,19 +97,58 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY not configured");
     }
 
-    // Select random topic from preferences
-    const topics = settings.preferred_topics || ["fotografia", "video", "produção audiovisual"];
-    const randomTopic = topics[Math.floor(Math.random() * topics.length)];
-
-    console.log(`[BLOG-AUTO] Selected topic: ${randomTopic}`);
-
-    // Step 1: Search for news with Perplexity (if available)
+    // Step 1: Discover trending topics from current news using Perplexity
+    console.log("[BLOG-AUTO] Discovering trending topics from current news...");
+    
+    let selectedTopic = "";
     let newsContext = "";
+    let topicUrgency = "medium";
+    
+    // Get recent article titles to avoid repetition
+    const { data: recentPosts } = await supabase
+      .from("blog_posts")
+      .select("title")
+      .order("created_at", { ascending: false })
+      .limit(15);
+    
+    const recentTitles = recentPosts?.map(p => p.title.toLowerCase()) || [];
+    console.log(`[BLOG-AUTO] Found ${recentTitles.length} recent articles to avoid repetition`);
+
     if (perplexityApiKey) {
       try {
-        const searchQuery = `últimas tendências e novidades em ${randomTopic} para profissionais de fotografia e video em Portugal e Brasil 2026`;
+        // Trending topics discovery query
+        const trendingQuery = `Quais são as 5 notícias/tendências mais faladas HOJE no mundo da:
+- Fotografia e vídeo profissional
+- Tecnologia para criativos (câmaras, lentes, drones, gimbals)
+- Produção audiovisual e cinema
+- Software para fotógrafos e filmmakers
+- Redes sociais e marketing visual
+- Equipamentos novos (Sony, Canon, Nikon, DJI, Blackmagic)
+
+FOCA EM:
+1. Lançamentos de produtos nas últimas 24-48 horas
+2. Notícias virais ou controversas do setor
+3. Eventos importantes (festivais, premiações, exposições)
+4. Tendências emergentes em IA para criativos
+5. Mudanças no mercado (preços, aquisições, encerramentos)
+
+NÃO INCLUIR estes temas que já foram abordados recentemente:
+${recentTitles.slice(0, 5).join("\n")}
+
+Retorna APENAS JSON válido:
+{
+  "trends": [
+    {
+      "topic": "Tema/notícia principal",
+      "headline": "O que aconteceu (2-3 frases)",
+      "angle": "Ângulo interessante para um artigo (como relacionar com o dia-a-dia de fotógrafos)",
+      "urgency": "high|medium|low",
+      "keywords": ["palavra1", "palavra2"]
+    }
+  ]
+}`;
         
-        const perplexityResponse = await fetch("https://api.perplexity.ai/chat/completions", {
+        const trendingResponse = await fetch("https://api.perplexity.ai/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${perplexityApiKey}`,
@@ -119,41 +158,85 @@ serve(async (req) => {
             model: "sonar",
             messages: [
               {
-                role: "user",
-                content: `Pesquisa as últimas notícias sobre: ${searchQuery}. 
-                Retorna um resumo das 3 notícias mais relevantes e recentes.
-                Formato: título, resumo de 2-3 frases, e porque é relevante para profissionais.`,
+                role: "system",
+                content: "És um analista de tendências especializado em fotografia e produção de vídeo profissional. Respondes sempre em português europeu (pt-PT) e em JSON válido.",
               },
+              { role: "user", content: trendingQuery },
             ],
+            search_recency_filter: "day", // Only last 24 hours
           }),
         });
 
-        if (perplexityResponse.ok) {
-          const perplexityData = await perplexityResponse.json();
-          newsContext = perplexityData.choices?.[0]?.message?.content || "";
-          console.log("[BLOG-AUTO] Got news context from Perplexity");
+        if (trendingResponse.ok) {
+          const trendingData = await trendingResponse.json();
+          const trendingContent = trendingData.choices?.[0]?.message?.content || "";
+          console.log("[BLOG-AUTO] Trending topics response received");
+          
+          // Parse trending topics
+          try {
+            const jsonMatch = trendingContent.match(/\{[\s\S]*"trends"[\s\S]*\}/);
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0]);
+              const trends = parsed.trends || [];
+              
+              // Filter out topics similar to recent articles
+              const freshTrends = trends.filter((trend: any) => 
+                !recentTitles.some(title => 
+                  trend.keywords?.some((kw: string) => title.includes(kw.toLowerCase())) ||
+                  title.includes(trend.topic.toLowerCase().slice(0, 15))
+                )
+              );
+              
+              // Select the most urgent fresh topic, or fallback to any fresh topic
+              const highUrgency = freshTrends.find((t: any) => t.urgency === "high");
+              const mediumUrgency = freshTrends.find((t: any) => t.urgency === "medium");
+              const selected = highUrgency || mediumUrgency || freshTrends[0] || trends[0];
+              
+              if (selected) {
+                selectedTopic = selected.topic;
+                topicUrgency = selected.urgency || "medium";
+                newsContext = `NOTÍCIA/TENDÊNCIA ATUAL:\n**${selected.topic}**\n${selected.headline}\n\nÂngulo sugerido: ${selected.angle}`;
+                console.log(`[BLOG-AUTO] Selected trending topic: "${selectedTopic}" (urgency: ${topicUrgency})`);
+              }
+            }
+          } catch (parseError) {
+            console.log("[BLOG-AUTO] Could not parse trending topics JSON, using raw content");
+            newsContext = trendingContent;
+          }
         }
       } catch (e) {
-        console.log("[BLOG-AUTO] Perplexity search failed, continuing without news:", e);
+        console.log("[BLOG-AUTO] Trending topics discovery failed:", e);
       }
     }
+    
+    // Fallback to random topic if no trending topic found
+    if (!selectedTopic) {
+      const fallbackTopics = settings.preferred_topics || ["fotografia", "video", "produção audiovisual", "gestão de projetos criativos"];
+      selectedTopic = fallbackTopics[Math.floor(Math.random() * fallbackTopics.length)];
+      console.log(`[BLOG-AUTO] Using fallback topic: ${selectedTopic}`);
+    }
 
-    // Step 2: Generate article with Lovable AI
-    const articlePrompt = `Escreve um artigo de blog profissional sobre ${randomTopic} para fotógrafos e videógrafos.
+    // Step 2: Generate article with Lovable AI based on trending topic
+    const articlePrompt = `Escreve um artigo de blog profissional BASEADO NESTA NOTÍCIA/TENDÊNCIA ATUAL:
 
-${newsContext ? `CONTEXTO DE NOTÍCIAS RECENTES:\n${newsContext}\n\n` : ""}
+**TEMA PRINCIPAL:** ${selectedTopic}
+
+${newsContext ? `${newsContext}\n\n` : ""}
 
 REQUISITOS OBRIGATÓRIOS:
 
-1. TÍTULO: Atrativo e SEO-friendly (max 70 caracteres)
+1. TÍTULO: Atrativo e SEO-friendly (max 70 caracteres) - DEVE refletir a notícia atual
 
 2. EXCERPT: Resumo cativante que capture a essência (max 160 caracteres)
 
 3. CONTEÚDO (1000-1500 palavras):
    - HTML semântico bem estruturado
+   - CONECTAR a notícia/tendência com a realidade dos fotógrafos portugueses e brasileiros
+   - Mostrar como o WillFlow pode ajudar neste contexto
    
    ESTRUTURA OBRIGATÓRIA:
-   - Introdução envolvente (2-3 parágrafos com gancho emocional)
+   - Introdução envolvente que explica a notícia/tendência
+   - Análise do impacto para profissionais de fotografia/vídeo
    - 3-5 secções principais com <h2> claros e descritivos
    - Subsecções com <h3> quando apropriado
    - Cada secção: 2-4 parágrafos bem desenvolvidos
@@ -178,12 +261,12 @@ REQUISITOS OBRIGATÓRIOS:
    <em class="italic">Texto em itálico</em>
 
    TOM:
+   - Atual e relevante (falar sobre o que está a acontecer AGORA)
    - Profissional mas conversacional
    - Prático e orientado a ação
    - Empático com os desafios do sector
-   - Evitar jargão excessivo
 
-4. CATEGORIA: Uma de [novidades, tutorial, comparacao, dicas]
+4. CATEGORIA: Uma de [novidades, tutorial, comparacao, dicas] - escolhe a mais apropriada para o tema
 
 Responde APENAS com JSON válido neste formato:
 {
