@@ -2,34 +2,55 @@ import { Button } from '@/components/ui/button';
 import { Twitter, Linkedin, Facebook, Link2, Check } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ShareButtonsProps {
   url: string;
   title: string;
+  postId?: string;
 }
 
-export function ShareButtons({ url, title }: ShareButtonsProps) {
+export function ShareButtons({ url, title, postId }: ShareButtonsProps) {
   const [copied, setCopied] = useState(false);
 
   const encodedUrl = encodeURIComponent(url);
   const encodedTitle = encodeURIComponent(title);
 
+  const trackShare = async (platform: 'twitter' | 'linkedin' | 'facebook' | 'copy_link') => {
+    if (!postId) return;
+    
+    try {
+      await supabase.from('blog_share_analytics').insert({
+        post_id: postId,
+        platform,
+        user_agent: navigator.userAgent,
+        referrer: document.referrer || null
+      });
+    } catch (error) {
+      console.error('Failed to track share:', error);
+    }
+  };
+
   const shareTwitter = () => {
-    const shareUrl = `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}`;
-    window.open(shareUrl, '_blank', 'width=600,height=400,noopener,noreferrer');
+    trackShare('twitter');
+    const shareUrl = `https://twitter.com/intent/tweet?text=${encodedTitle}&url=${encodedUrl}`;
+    window.open(shareUrl, '_blank', 'noopener,noreferrer,width=600,height=400');
   };
 
   const shareLinkedIn = () => {
-    const shareUrl = `https://www.linkedin.com/shareArticle?mini=true&url=${encodedUrl}&title=${encodedTitle}`;
-    window.open(shareUrl, '_blank', 'width=600,height=600,noopener,noreferrer');
+    trackShare('linkedin');
+    const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`;
+    window.open(shareUrl, '_blank', 'noopener,noreferrer,width=600,height=600');
   };
 
   const shareFacebook = () => {
-    const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedTitle}`;
-    window.open(shareUrl, '_blank', 'width=600,height=400,noopener,noreferrer');
+    trackShare('facebook');
+    const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
+    window.open(shareUrl, '_blank', 'noopener,noreferrer,width=600,height=400');
   };
 
   const copyLink = async () => {
+    trackShare('copy_link');
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);

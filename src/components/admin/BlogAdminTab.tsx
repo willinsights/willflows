@@ -27,6 +27,7 @@ import { BlogPostCard } from '@/components/blog/BlogPostCard';
 import { EditArticleModal } from '@/components/blog/EditArticleModal';
 import { PreviewArticleModal } from '@/components/blog/PreviewArticleModal';
 import { BlogAutoSettings } from '@/components/blog/BlogAutoSettings';
+import { BlogShareAnalytics } from '@/components/blog/BlogShareAnalytics';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -207,6 +208,9 @@ export function BlogAdminTab() {
           />
         </TabsContent>
       </Tabs>
+
+      {/* Share Analytics */}
+      <BlogShareAnalytics />
 
       {/* Preview Modal */}
       <PreviewArticleModal

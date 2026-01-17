@@ -148,7 +148,7 @@ export default function BlogPost() {
                     </div>
                     
                     {/* Share Buttons */}
-                    <ShareButtons url={currentUrl} title={post.title} />
+                    <ShareButtons url={currentUrl} title={post.title} postId={post.id} />
                   </div>
                 </motion.header>
 
@@ -170,7 +170,7 @@ export default function BlogPost() {
                 >
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <p className="text-muted-foreground">Gostou deste artigo? Partilhe!</p>
-                    <ShareButtons url={currentUrl} title={post.title} />
+                    <ShareButtons url={currentUrl} title={post.title} postId={post.id} />
                   </div>
                 </motion.div>
               </div>
