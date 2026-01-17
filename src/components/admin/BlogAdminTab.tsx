@@ -25,6 +25,8 @@ import { useBlogAdmin, BlogPost } from '@/hooks/useBlogAdmin';
 import { GenerateArticleModal } from '@/components/blog/GenerateArticleModal';
 import { BlogPostCard } from '@/components/blog/BlogPostCard';
 import { EditArticleModal } from '@/components/blog/EditArticleModal';
+import { PreviewArticleModal } from '@/components/blog/PreviewArticleModal';
+import { BlogAutoSettings } from '@/components/blog/BlogAutoSettings';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -48,6 +50,7 @@ export function BlogAdminTab() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState<string | null>(null);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
+  const [previewPost, setPreviewPost] = useState<BlogPost | null>(null);
 
   const publishedPosts = posts.filter(p => p.is_published);
   const draftPosts = posts.filter(p => !p.is_published);
@@ -69,12 +72,16 @@ export function BlogAdminTab() {
     setEditingPost(post);
   };
 
+  const handlePreviewClick = (post: BlogPost) => {
+    setPreviewPost(post);
+  };
+
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ['blog-admin-posts'] });
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -100,33 +107,36 @@ export function BlogAdminTab() {
         </div>
       </div>
 
+      {/* Auto Settings */}
+      <BlogAutoSettings />
+
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-6">
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+          <CardContent className="pt-6 pb-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-2">
               <FileText className="h-4 w-4" />
               Total
             </div>
-            <p className="text-2xl font-bold">{posts.length}</p>
+            <p className="text-3xl font-bold">{posts.length}</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+          <CardContent className="pt-6 pb-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-2">
               <Eye className="h-4 w-4" />
               Publicados
             </div>
-            <p className="text-2xl font-bold text-green-600">{publishedPosts.length}</p>
+            <p className="text-3xl font-bold text-green-600">{publishedPosts.length}</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+          <CardContent className="pt-6 pb-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-2">
               <FileText className="h-4 w-4" />
               Rascunhos
             </div>
-            <p className="text-2xl font-bold text-muted-foreground">{draftPosts.length}</p>
+            <p className="text-3xl font-bold text-muted-foreground">{draftPosts.length}</p>
           </CardContent>
         </Card>
       </div>
@@ -151,7 +161,7 @@ export function BlogAdminTab() {
           <TabsTrigger value="drafts">Rascunhos ({draftPosts.length})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="all" className="mt-4">
+        <TabsContent value="all" className="mt-6">
           <PostsGrid 
             posts={posts} 
             loading={loading}
@@ -159,10 +169,11 @@ export function BlogAdminTab() {
             onUnpublish={unpublishPost}
             onDelete={handleDeleteClick}
             onEdit={handleEditClick}
+            onPreview={handlePreviewClick}
           />
         </TabsContent>
 
-        <TabsContent value="published" className="mt-4">
+        <TabsContent value="published" className="mt-6">
           <PostsGrid 
             posts={publishedPosts} 
             loading={loading}
@@ -170,10 +181,11 @@ export function BlogAdminTab() {
             onUnpublish={unpublishPost}
             onDelete={handleDeleteClick}
             onEdit={handleEditClick}
+            onPreview={handlePreviewClick}
           />
         </TabsContent>
 
-        <TabsContent value="drafts" className="mt-4">
+        <TabsContent value="drafts" className="mt-6">
           <PostsGrid 
             posts={draftPosts} 
             loading={loading}
@@ -181,9 +193,29 @@ export function BlogAdminTab() {
             onUnpublish={unpublishPost}
             onDelete={handleDeleteClick}
             onEdit={handleEditClick}
+            onPreview={handlePreviewClick}
           />
         </TabsContent>
       </Tabs>
+
+      {/* Preview Modal */}
+      <PreviewArticleModal
+        open={!!previewPost}
+        onOpenChange={(open) => !open && setPreviewPost(null)}
+        post={previewPost}
+        onEdit={() => {
+          if (previewPost) {
+            setEditingPost(previewPost);
+            setPreviewPost(null);
+          }
+        }}
+        onPublish={() => {
+          if (previewPost) {
+            publishPost(previewPost.id);
+            setPreviewPost(null);
+          }
+        }}
+      />
 
       {/* Generate Modal */}
       <GenerateArticleModal
@@ -243,9 +275,10 @@ interface PostsGridProps {
   onUnpublish: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit: (post: BlogPost) => void;
+  onPreview: (post: BlogPost) => void;
 }
 
-function PostsGrid({ posts, loading, onPublish, onUnpublish, onDelete, onEdit }: PostsGridProps) {
+function PostsGrid({ posts, loading, onPublish, onUnpublish, onDelete, onEdit, onPreview }: PostsGridProps) {
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -278,7 +311,7 @@ function PostsGrid({ posts, loading, onPublish, onUnpublish, onDelete, onEdit }:
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {posts.map((post) => (
         <BlogPostCard
           key={post.id}
@@ -287,6 +320,7 @@ function PostsGrid({ posts, loading, onPublish, onUnpublish, onDelete, onEdit }:
           onUnpublish={onUnpublish}
           onDelete={onDelete}
           onEdit={() => onEdit(post)}
+          onPreview={() => onPreview(post)}
         />
       ))}
     </div>

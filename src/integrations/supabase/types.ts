@@ -132,6 +132,48 @@ export type Database = {
           },
         ]
       }
+      blog_auto_settings: {
+        Row: {
+          articles_per_day: number | null
+          auto_publish: boolean | null
+          created_at: string | null
+          id: string
+          is_enabled: boolean | null
+          last_run_at: string | null
+          next_run_at: string | null
+          preferred_categories: string[] | null
+          preferred_topics: string[] | null
+          schedule_hour: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          articles_per_day?: number | null
+          auto_publish?: boolean | null
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          last_run_at?: string | null
+          next_run_at?: string | null
+          preferred_categories?: string[] | null
+          preferred_topics?: string[] | null
+          schedule_hour?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          articles_per_day?: number | null
+          auto_publish?: boolean | null
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          last_run_at?: string | null
+          next_run_at?: string | null
+          preferred_categories?: string[] | null
+          preferred_topics?: string[] | null
+          schedule_hour?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       blog_posts: {
         Row: {
           author_name: string
