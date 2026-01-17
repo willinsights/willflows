@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/ui/logo';
 import { useTheme } from '@/contexts/ThemeContext';
 import { isBetaModeEnabled } from '@/contexts/BetaContext';
+import { trackCtaClick } from '@/lib/google-ads';
 
 const navLinks = [
   { label: 'Funcionalidades', href: '/funcionalidades' },
@@ -58,7 +59,7 @@ export function PublicHeader() {
           
           {/* Only show signup CTA if NOT in beta mode */}
           {!isBetaMode && (
-            <Link to="/auth?trial=true" className="hidden sm:block">
+            <Link to="/auth?trial=true" className="hidden sm:block" onClick={() => trackCtaClick('header')}>
               <Button className="gradient-primary">
                 Começar teste grátis
               </Button>

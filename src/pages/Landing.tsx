@@ -1,5 +1,6 @@
 import { useState, memo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { trackCtaClick } from '@/lib/google-ads';
 import { isBetaModeEnabled } from '@/contexts/BetaContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -385,7 +386,7 @@ export default function Landing() {
                 </div>
               ) : (
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                  <Link to="/auth?trial=true">
+                  <Link to="/auth?trial=true" onClick={() => trackCtaClick('hero')}>
                     <Button size="lg" className="gradient-primary text-lg px-8 h-14 glow-ring lens-flare">
                       Começar teste grátis
                       <ArrowRight className="ml-2 h-5 w-5" />
@@ -741,7 +742,7 @@ export default function Landing() {
             <p className="text-lg text-muted-foreground mb-8">
               🎉 30 dias grátis como bónus de lançamento! Sem cartão necessário.
             </p>
-            <Link to="/auth?trial=true">
+            <Link to="/auth?trial=true" onClick={() => trackCtaClick('footer-cta')}>
               <Button size="lg" className="gradient-primary text-lg px-8 glow-ring lens-flare">
                 Começar teste grátis
                 <ArrowRight className="ml-2 h-5 w-5" />
