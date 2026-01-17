@@ -20,7 +20,9 @@ import {
   Calendar,
   FileText,
   ImageIcon,
-  Search
+  Search,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import type { BlogPost } from '@/hooks/useBlogAdmin';
 
@@ -31,6 +33,9 @@ interface BlogPostCardProps {
   onDelete: (id: string) => void;
   onEdit?: (post: BlogPost) => void;
   onPreview?: (post: BlogPost) => void;
+  onGenerateImage?: (postId: string, title: string) => Promise<{ success: boolean; imageUrl?: string; error?: string } | void>;
+  isGeneratingImage?: boolean;
+  generatingImageId?: string;
 }
 
 const getCategoryColor = (category: string | null) => {
@@ -64,11 +69,22 @@ export function BlogPostCard({
   onUnpublish, 
   onDelete,
   onEdit,
-  onPreview
+  onPreview,
+  onGenerateImage,
+  isGeneratingImage,
+  generatingImageId
 }: BlogPostCardProps) {
   const formattedDate = post.published_at
     ? format(new Date(post.published_at), "d MMM yyyy", { locale: pt })
     : format(new Date(post.created_at), "d MMM yyyy", { locale: pt });
+
+  const isThisGenerating = isGeneratingImage && generatingImageId === post.id;
+
+  const handleGenerateImage = async () => {
+    if (onGenerateImage) {
+      await onGenerateImage(post.id, post.title);
+    }
+  };
 
   return (
     <Card className="flex flex-col h-full overflow-hidden">
@@ -81,9 +97,30 @@ export function BlogPostCard({
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-            <ImageIcon className="h-8 w-8 mb-1" />
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
+            <ImageIcon className="h-8 w-8" />
             <span className="text-xs">Sem imagem</span>
+            {onGenerateImage && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGenerateImage}
+                disabled={isThisGenerating}
+                className="mt-2 gap-1.5"
+              >
+                {isThisGenerating ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    A gerar...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Gerar Imagem AI
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         )}
         {/* Status badges overlay */}
@@ -139,6 +176,22 @@ export function BlogPostCard({
                 <DropdownMenuItem onClick={() => onEdit(post)}>
                   <Pencil className="h-4 w-4 mr-2" />
                   Editar
+                </DropdownMenuItem>
+              )}
+
+              {onGenerateImage && (
+                <DropdownMenuItem onClick={handleGenerateImage} disabled={isThisGenerating}>
+                  {isThisGenerating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      A gerar imagem...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      {post.cover_image ? 'Regenerar Imagem' : 'Gerar Imagem AI'}
+                    </>
+                  )}
                 </DropdownMenuItem>
               )}
               

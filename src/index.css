@@ -823,3 +823,113 @@
   animation-delay: var(--float-delay, 0s);
   opacity: 0;
 }
+
+/* ==========================================
+   BLOG CONTENT STYLES
+   ========================================== */
+
+.blog-content {
+  @apply text-foreground;
+}
+
+/* Links in blog content - primary color with underline */
+.blog-content a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  transition: opacity 0.2s ease;
+}
+
+.blog-content a:hover {
+  opacity: 0.8;
+}
+
+/* Paragraphs with better spacing */
+.blog-content p {
+  line-height: 1.8;
+  margin-bottom: 1.5rem;
+}
+
+/* Headings with scroll margin for anchor navigation */
+.blog-content h2 {
+  scroll-margin-top: 100px;
+  font-weight: 700;
+  font-size: 1.5rem;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  color: hsl(var(--foreground));
+}
+
+.blog-content h3 {
+  scroll-margin-top: 100px;
+  font-weight: 600;
+  font-size: 1.25rem;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  color: hsl(var(--foreground));
+}
+
+/* Lists */
+.blog-content ul,
+.blog-content ol {
+  margin-bottom: 1.5rem;
+  padding-left: 1.5rem;
+}
+
+.blog-content li {
+  margin-bottom: 0.5rem;
+  line-height: 1.7;
+}
+
+.blog-content ul li {
+  list-style-type: disc;
+}
+
+.blog-content ol li {
+  list-style-type: decimal;
+}
+
+/* Blockquotes */
+.blog-content blockquote {
+  border-left: 4px solid hsl(var(--primary));
+  padding-left: 1.25rem;
+  margin: 1.5rem 0;
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted) / 0.3);
+  padding: 1rem 1.25rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+/* Strong text */
+.blog-content strong {
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+/* Images */
+.blog-content img {
+  border-radius: 0.75rem;
+  margin: 1.5rem 0;
+}
+
+/* Code blocks */
+.blog-content pre {
+  background: hsl(var(--muted));
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+}
+
+.blog-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.blog-content :not(pre) > code {
+  background: hsl(var(--muted));
+  padding: 0.2em 0.4em;
+  border-radius: 0.25rem;
+}

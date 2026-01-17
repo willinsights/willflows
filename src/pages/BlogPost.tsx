@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
+import { ShareButtons } from '@/components/blog/ShareButtons';
+import { TableOfContents } from '@/components/blog/TableOfContents';
 import { useBlogPost } from '@/hooks/useBlogPosts';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -33,6 +35,8 @@ export default function BlogPost() {
       default: return category || 'Geral';
     }
   };
+
+  const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
 
   if (loading) {
     return (
@@ -71,7 +75,7 @@ export default function BlogPost() {
       
       <main className="flex-1">
         {/* Back Button */}
-        <div className="container mx-auto max-w-4xl px-4 pt-8">
+        <div className="container mx-auto max-w-6xl px-4 pt-8">
           <Button asChild variant="ghost" size="sm">
             <Link to="/blog">
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -80,85 +84,118 @@ export default function BlogPost() {
           </Button>
         </div>
 
-        {/* Article Header */}
-        <article className="py-8 px-4">
-          <div className="container mx-auto max-w-4xl">
-            <motion.header
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-8"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <Badge variant="secondary" className={getCategoryColor(post.category)}>
-                  {getCategoryLabel(post.category)}
-                </Badge>
-                {post.published_at && (
-                  <span className="text-sm text-muted-foreground flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    {format(new Date(post.published_at), "dd 'de' MMMM 'de' yyyy", { locale: pt })}
-                  </span>
-                )}
-              </div>
-              
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 leading-tight">
-                {post.title}
-              </h1>
-              
-              {post.excerpt && (
-                <p className="text-lg text-muted-foreground">
-                  {post.excerpt}
-                </p>
-              )}
-              
-              <div className="flex items-center gap-2 mt-6 pt-6 border-t">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="font-medium">{post.author_name}</p>
-                  <p className="text-sm text-muted-foreground">Autor</p>
-                </div>
-              </div>
-            </motion.header>
+        {/* Hero Cover Image */}
+        {post.cover_image && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="container mx-auto max-w-6xl px-4 mt-6"
+          >
+            <div className="relative aspect-[21/9] rounded-2xl overflow-hidden shadow-2xl">
+              <img
+                src={post.cover_image}
+                alt={post.title}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+            </div>
+          </motion.div>
+        )}
 
-            {/* Cover Image */}
-            {post.cover_image && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="mb-8 rounded-xl overflow-hidden"
-              >
-                <img
-                  src={post.cover_image}
-                  alt={post.title}
-                  className="w-full h-auto object-cover"
+        {/* Article Content with Sidebar */}
+        <article className="py-12 px-4">
+          <div className="container mx-auto max-w-6xl">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr,280px] gap-12">
+              {/* Main Content */}
+              <div>
+                <motion.header
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-10"
+                >
+                  {/* Category Badge */}
+                  <Badge variant="secondary" className={`${getCategoryColor(post.category)} mb-4`}>
+                    {getCategoryLabel(post.category)}
+                  </Badge>
+                  
+                  {/* Title */}
+                  <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 leading-tight tracking-tight">
+                    {post.title}
+                  </h1>
+                  
+                  {/* Excerpt */}
+                  {post.excerpt && (
+                    <p className="text-xl text-muted-foreground leading-relaxed mb-8">
+                      {post.excerpt}
+                    </p>
+                  )}
+                  
+                  {/* Author & Meta Row */}
+                  <div className="flex flex-wrap items-center justify-between gap-4 pt-6 border-t">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg">
+                        <User className="h-6 w-6 text-primary-foreground" />
+                      </div>
+                      <div>
+                        <p className="font-semibold">{post.author_name}</p>
+                        {post.published_at && (
+                          <p className="text-sm text-muted-foreground flex items-center gap-1">
+                            <Calendar className="h-3.5 w-3.5" />
+                            {format(new Date(post.published_at), "dd 'de' MMMM 'de' yyyy", { locale: pt })}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Share Buttons */}
+                    <ShareButtons url={currentUrl} title={post.title} />
+                  </div>
+                </motion.header>
+
+                {/* Article Content */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="blog-content prose prose-lg dark:prose-invert max-w-none"
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }}
                 />
-              </motion.div>
-            )}
 
-            {/* Content */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="prose prose-lg dark:prose-invert max-w-none"
-              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }}
-            />
+                {/* Bottom Share */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="mt-12 pt-8 border-t"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <p className="text-muted-foreground">Gostou deste artigo? Partilhe!</p>
+                    <ShareButtons url={currentUrl} title={post.title} />
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* Sidebar - Table of Contents */}
+              <aside className="hidden lg:block">
+                <div className="sticky top-24">
+                  <TableOfContents content={post.content} />
+                </div>
+              </aside>
+            </div>
           </div>
         </article>
 
         {/* CTA Section */}
-        <section className="py-16 px-4 bg-primary/5 mt-16">
+        <section className="py-20 px-4 bg-gradient-to-br from-primary/5 via-background to-primary/10">
           <div className="container mx-auto max-w-4xl text-center">
             <h2 className="text-2xl md:text-3xl font-bold mb-4">
               Gostou deste artigo?
             </h2>
-            <p className="text-muted-foreground mb-6">
-              Experimente o WillFlow e veja como pode transformar a gestão do seu estúdio.
+            <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
+              Experimente o WillFlow e veja como pode transformar a gestão do seu estúdio de audiovisual.
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
-              <Button asChild size="lg" className="gradient-primary">
+              <Button asChild size="lg" className="gradient-primary shadow-lg">
                 <Link to="/auth">Começar Gratuitamente</Link>
               </Button>
               <Button asChild size="lg" variant="outline">
