@@ -233,6 +233,8 @@ export function useBlogAdmin() {
     publishPost: publishMutation.mutate,
     unpublishPost: unpublishMutation.mutate,
     deletePost: deleteMutation.mutate,
-    updatePost: (id: string, data: Partial<BlogPost>) => updateMutation.mutate({ id, data }),
+    updatePost: async (id: string, data: Partial<BlogPost>) => {
+      await updateMutation.mutateAsync({ id, data });
+    },
   };
 }

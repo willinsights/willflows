@@ -73,7 +73,7 @@ export function EditArticleModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ImageIcon className="h-5 w-5" />
@@ -84,7 +84,7 @@ export function EditArticleModal({
         <ScrollArea className="flex-1 pr-4">
           <div className="space-y-6 py-4">
             {/* Cover Image */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label>Imagem de Capa</Label>
               <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
                 {post.cover_image ? (
@@ -99,22 +99,20 @@ export function EditArticleModal({
                     <p className="text-sm">Sem imagem de capa</p>
                   </div>
                 )}
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleRegenerateImage}
-                  disabled={isRegeneratingImage}
-                >
-                  {isRegeneratingImage ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-4 w-4 mr-2" />
-                  )}
-                  {post.cover_image ? 'Regenerar Imagem com AI' : 'Gerar Imagem com AI'}
-                </Button>
               </div>
-            </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRegenerateImage}
+                disabled={isRegeneratingImage}
+              >
+                {isRegeneratingImage ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4 mr-2" />
+                )}
+                {post.cover_image ? 'Regenerar Imagem com AI' : 'Gerar Imagem com AI'}
+              </Button>
             </div>
 
             {/* Title */}

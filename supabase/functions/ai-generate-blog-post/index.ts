@@ -18,6 +18,78 @@ interface PerplexityResult {
   relevance: string;
 }
 
+// Helper function to generate inline image
+async function generateInlineImage(
+  supabase: any,
+  lovableApiKey: string,
+  imageDescription: string,
+  baseSlug: string
+): Promise<string | null> {
+  try {
+    const imagePrompt = `Create a professional PHOTOGRAPH for a blog article.
+
+IMAGE DESCRIPTION: "${imageDescription}"
+
+STYLE REQUIREMENTS:
+- Professional photography style, REALISTIC
+- Real-world scenes from photography/video production industry
+- Natural lighting, high-quality DSLR aesthetic
+- Clean composition, editorial quality
+- Subtle purple/violet color grading (#7C3AED accents)
+- 16:9 landscape aspect ratio
+- NO text, NO logos, NO watermarks
+- Think: Getty Images, Unsplash professional stock photography`;
+
+    const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-image-preview",
+        messages: [{ role: "user", content: imagePrompt }],
+        modalities: ["image", "text"],
+      }),
+    });
+
+    if (!imageResponse.ok) {
+      console.log("[AI Blog] Inline image generation failed:", imageResponse.status);
+      return null;
+    }
+
+    const imageData = await imageResponse.json();
+    const imageBase64 = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+
+    if (!imageBase64 || !imageBase64.startsWith("data:image")) {
+      return null;
+    }
+
+    // Extract and upload
+    const base64Data = imageBase64.split(",")[1];
+    const imageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+    const imageFilename = `inline/${baseSlug}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}.png`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("blog-images")
+      .upload(imageFilename, imageBytes, {
+        contentType: "image/png",
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error("[AI Blog] Inline image upload error:", uploadError.message);
+      return null;
+    }
+
+    const { data: urlData } = supabase.storage.from("blog-images").getPublicUrl(imageFilename);
+    return urlData.publicUrl;
+  } catch (error) {
+    console.error("[AI Blog] Inline image error:", error);
+    return null;
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -174,7 +246,7 @@ Retorna as 3 notícias mais relevantes em formato JSON:
       };
     }
 
-    // Step 2: Generate article with Lovable AI
+    // Step 2: Generate article with Lovable AI - WILLFLOW FOCUSED
     console.log("[AI Blog] Gerando artigo com Lovable AI...");
 
     const categoryHint = category || "novidades";
@@ -190,9 +262,23 @@ Retorna as 3 notícias mais relevantes em formato JSON:
         messages: [
           {
             role: "system",
-            content: `És um escritor especializado em conteúdo para fotógrafos e filmmakers portugueses. 
-Escreves artigos de blog profissionais, informativos e envolventes em português europeu (pt-PT).
-O teu objetivo é criar conteúdo que ajude profissionais criativos a melhorar o seu trabalho e negócio.`,
+            content: `És um escritor especializado em conteúdo para fotógrafos e filmmakers portugueses.
+O teu objetivo é criar artigos que IDENTIFICAM PROBLEMAS REAIS do setor e apresentam soluções, posicionando o WillFlow como a ferramenta que resolve esses problemas.
+
+WillFlow é um software de gestão de projetos para fotógrafos e filmmakers que oferece:
+- Gestão de projetos com Kanban visual
+- Controlo financeiro (receitas, custos, margens)
+- Gestão de clientes e CRM
+- Calendário integrado
+- Dashboard com KPIs
+- Gestão de equipa e colaboradores
+
+REGRAS DE CONTEÚDO:
+1. Começa sempre com uma FRUSTRAÇÃO/PROBLEMA real do setor
+2. Desenvolve o problema mostrando o impacto negativo
+3. Apresenta soluções naturais, com WillFlow como exemplo concreto
+4. Menciona WillFlow pelo menos 2-3x de forma NATURAL (não promocional)
+5. Termina sempre com um CTA para experimentar o WillFlow`,
           },
           {
             role: "user",
@@ -210,17 +296,59 @@ ${citations.length > 0 ? `**Fontes:** ${citations.slice(0, 3).join(", ")}` : ""}
 
 2. **Excerpt:** Resumo cativante para preview (máximo 160 caracteres)
 
-3. **Conteúdo (1000-1500 palavras):**
-   - HTML semântico bem estruturado
+3. **Conteúdo (1200-1800 palavras):**
    
    ESTRUTURA OBRIGATÓRIA:
-   - Introdução envolvente (2-3 parágrafos com gancho emocional)
-   - 3-5 secções principais com <h2> claros e descritivos
-   - Subsecções com <h3> quando apropriado
-   - Cada secção: 2-4 parágrafos bem desenvolvidos
-   - Mínimo 2 listas (<ul> ou <ol>) com 4-6 items práticos
-   - Pelo menos 1 <blockquote> com insight ou citação relevante
-   - Conclusão com call-to-action sutil para WillFlow
+   
+   A) **GANCHO INICIAL (problema):**
+   - Começa com uma pergunta ou situação frustrante que os fotógrafos/filmmakers conhecem bem
+   - Ex: "Já te aconteceu perder horas à procura de faturas antigas?" ou "Quantas vezes perdeste um cliente por não responder a tempo?"
+   
+   B) **DESENVOLVIMENTO DO PROBLEMA:**
+   - 2-3 parágrafos explorando o impacto negativo do problema
+   - Dados ou exemplos concretos quando possível
+   
+   C) **IMAGENS INLINE (2-3 placeholders):**
+   Inclui exatamente 2-3 placeholders para imagens no meio do artigo:
+   
+   <figure class="my-8 rounded-xl overflow-hidden shadow-lg border">
+     <img src="[INLINE_IMAGE_1]" alt="Descrição detalhada da imagem - o que deve mostrar" class="w-full" />
+     <figcaption class="text-sm text-muted-foreground text-center py-3 px-4 bg-muted/30">
+       Legenda descritiva da imagem
+     </figcaption>
+   </figure>
+   
+   Usa [INLINE_IMAGE_1], [INLINE_IMAGE_2], [INLINE_IMAGE_3] como src.
+   O alt text DEVE descrever o que a imagem deve mostrar (ex: "Fotógrafo a trabalhar num estúdio moderno com equipamento profissional")
+   
+   D) **SOLUÇÕES E WILLFLOW:**
+   - Apresenta soluções práticas para o problema
+   - Menciona o WillFlow como exemplo concreto de solução
+   - Mostra benefícios específicos (ex: "Com o WillFlow, encontras qualquer projeto em segundos")
+   
+   E) **CTA FINAL (OBRIGATÓRIO):**
+   
+   <div class="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-6 my-8">
+     <div class="flex items-start gap-4">
+       <div class="p-3 rounded-lg bg-primary/20">
+         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+         </svg>
+       </div>
+       <div class="flex-1">
+         <h3 class="text-xl font-semibold mb-2">🚀 Experimenta o WillFlow Gratuitamente</h3>
+         <p class="text-muted-foreground mb-4">
+           Descobre como o WillFlow pode transformar a gestão do teu estúdio. Organiza projetos, controla finanças e foca-te no que realmente importa: criar.
+         </p>
+         <a href="/auth?trial=true" class="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:opacity-90 transition-opacity shadow-lg">
+           Começar Teste Grátis
+           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+           </svg>
+         </a>
+       </div>
+     </div>
+   </div>
    
    FORMATAÇÃO HTML OBRIGATÓRIA:
    <h2 class="text-2xl font-bold mt-10 mb-4 text-foreground">Título da Secção</h2>
@@ -229,28 +357,23 @@ ${citations.length > 0 ? `**Fontes:** ${citations.slice(0, 3).join(", ")}` : ""}
    <ul class="list-disc pl-6 mb-6 space-y-2">
      <li class="text-muted-foreground">Item da lista</li>
    </ul>
-   <ol class="list-decimal pl-6 mb-6 space-y-2">
-     <li class="text-muted-foreground">Item numerado</li>
-   </ol>
    <blockquote class="border-l-4 border-primary pl-6 py-2 my-8 bg-muted/30 rounded-r-lg">
      <p class="italic text-foreground">"Citação impactante..."</p>
    </blockquote>
    <strong class="font-semibold text-foreground">Texto destacado</strong>
-   
-   TOM:
-   - Profissional mas conversacional
-   - Prático e orientado a ação
-   - Empático com os desafios do sector
-   - Menciona WillFlow de forma natural e não promocional
 
 4. **Categoria:** Uma de: novidades, tutorial, comparacao, dicas (preferência: ${categoryHint})
 
-Responde em JSON:
+Responde APENAS em JSON válido:
 {
   "title": "Título do artigo (max 70 chars)",
   "excerpt": "Excerpt para preview (max 160 chars)",
   "content": "<article>HTML do conteúdo completo</article>",
-  "category": "novidades|tutorial|comparacao|dicas"
+  "category": "novidades|tutorial|comparacao|dicas",
+  "inlineImages": [
+    {"placeholder": "[INLINE_IMAGE_1]", "description": "Descrição do que a imagem deve mostrar"},
+    {"placeholder": "[INLINE_IMAGE_2]", "description": "Descrição do que a imagem deve mostrar"}
+  ]
 }`,
           },
         ],
@@ -286,7 +409,13 @@ Responde em JSON:
     console.log("[AI Blog] Artigo gerado, processando...");
 
     // Parse article from Lovable AI response
-    let article: { title: string; excerpt: string; content: string; category: string };
+    let article: { 
+      title: string; 
+      excerpt: string; 
+      content: string; 
+      category: string;
+      inlineImages?: Array<{ placeholder: string; description: string }>;
+    };
     try {
       const jsonMatch = articleContent.match(/\{[\s\S]*"title"[\s\S]*"content"[\s\S]*\}/);
       if (jsonMatch) {
@@ -314,29 +443,62 @@ Responde em JSON:
     const timestamp = Date.now().toString(36);
     const slug = `${baseSlug}-${timestamp}`;
 
-    // Save to database
-    console.log("[AI Blog] Guardando artigo na base de dados...");
+    // Step 3: Generate inline images and replace placeholders
+    console.log("[AI Blog] Gerando imagens inline...");
     
-    // Step 3: Generate cover image with Lovable AI
+    let processedContent = article.content;
+    
+    // Extract image placeholders from content
+    const imagePlaceholders = processedContent.match(/\[INLINE_IMAGE_\d+\]/g) || [];
+    
+    for (const placeholder of imagePlaceholders) {
+      // Try to get description from the article's inlineImages array or from alt text
+      let imageDescription = "";
+      
+      // First check if we have it in the inlineImages array
+      const inlineImageInfo = article.inlineImages?.find(img => img.placeholder === placeholder);
+      if (inlineImageInfo) {
+        imageDescription = inlineImageInfo.description;
+      } else {
+        // Try to extract from alt text in the content
+        const altMatch = processedContent.match(new RegExp(`<img[^>]*src="${placeholder.replace(/[[\]]/g, '\\$&')}"[^>]*alt="([^"]+)"`));
+        imageDescription = altMatch?.[1] || article.title;
+      }
+      
+      console.log(`[AI Blog] Generating inline image: ${placeholder} - ${imageDescription.substring(0, 50)}...`);
+      
+      const inlineImageUrl = await generateInlineImage(supabase, lovableApiKey, imageDescription, baseSlug);
+      
+      if (inlineImageUrl) {
+        processedContent = processedContent.replace(placeholder, inlineImageUrl);
+        console.log(`[AI Blog] Inline image generated: ${placeholder}`);
+      } else {
+        // Remove the figure element if image generation failed
+        const figureRegex = new RegExp(`<figure[^>]*>[\\s\\S]*?${placeholder.replace(/[[\]]/g, '\\$&')}[\\s\\S]*?</figure>`, 'g');
+        processedContent = processedContent.replace(figureRegex, '');
+        console.log(`[AI Blog] Inline image failed, removed placeholder: ${placeholder}`);
+      }
+    }
+
+    // Step 4: Generate cover image
     console.log("[AI Blog] Gerando imagem de capa...");
 
     let coverImageUrl: string | null = null;
 
     try {
-      const imagePrompt = `Create a professional, modern blog header image.
+      const imagePrompt = `Create a professional PHOTOGRAPH for a blog article header.
 
-Theme: ${article.title}
-Context: Photography and video production industry
+ARTICLE TITLE: ${article.title}
 
-Style requirements:
-- Clean, minimalist design
-- Gradient background with purple/violet (#7C3AED) and dark tones
-- Abstract geometric shapes or subtle patterns
-- Professional and sophisticated look
-- NO text, NO letters, NO words
+CRITICAL STYLE REQUIREMENTS:
+- Professional PHOTOGRAPHY style, NOT illustration
+- Real-world scenes: cameras, studios, editing rooms, creative professionals at work
+- Natural lighting, high-quality DSLR aesthetic with depth of field
+- Clean, modern composition
+- Subtle purple/violet color grading (#7C3AED tones)
 - 16:9 landscape aspect ratio
-- Modern, tech-forward aesthetic
-- Suitable for a professional SaaS blog`;
+- Editorial quality like Getty Images or Unsplash
+- NO text, NO logos, NO watermarks`;
 
       const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -362,7 +524,7 @@ Style requirements:
 
           // Upload to storage with retry logic
           const imageTimestamp = Date.now();
-          const imageFilename = `${baseSlug}-${imageTimestamp}.png`;
+          const imageFilename = `covers/${baseSlug}-${imageTimestamp}.png`;
 
           let uploadSuccess = false;
           for (let attempt = 0; attempt < 3 && !uploadSuccess; attempt++) {
@@ -405,7 +567,7 @@ Style requirements:
         title: article.title.substring(0, 200),
         slug,
         excerpt: article.excerpt?.substring(0, 300) || null,
-        content: article.content,
+        content: processedContent,
         cover_image: coverImageUrl,
         author_name: "WillFlow Team",
         category: article.category || categoryHint,
@@ -431,6 +593,7 @@ Style requirements:
       title: post.title,
       slug: post.slug,
       hasImage: !!coverImageUrl,
+      hasInlineImages: imagePlaceholders.length > 0,
       isPublished: autoPublish,
     }), {
       status: 200,
