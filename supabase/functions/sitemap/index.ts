@@ -41,6 +41,9 @@ Deno.serve(async (req) => {
       { loc: '/integracoes', priority: '0.7', changefreq: 'monthly' },
       { loc: '/blog', priority: '0.8', changefreq: 'daily' },
       { loc: '/auth', priority: '0.5', changefreq: 'monthly' },
+      { loc: '/privacidade', priority: '0.5', changefreq: 'yearly' },
+      { loc: '/termos', priority: '0.5', changefreq: 'yearly' },
+      { loc: '/cookies', priority: '0.5', changefreq: 'yearly' },
     ];
 
     // Generate XML
