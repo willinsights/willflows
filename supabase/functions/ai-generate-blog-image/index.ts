@@ -11,6 +11,7 @@ interface GenerateImageRequest {
   postId: string;
   title: string;
   forceRegenerate?: boolean;
+  context?: string; // Additional context for inline images
 }
 
 serve(async (req) => {
@@ -47,7 +48,7 @@ serve(async (req) => {
 
     // Parse request body
     const body: GenerateImageRequest = await req.json();
-    const { postId, title, forceRegenerate = false } = body;
+    const { postId, title, forceRegenerate = false, context } = body;
 
     if (!postId || !title) {
       return new Response(JSON.stringify({ error: "postId e title são obrigatórios" }), {
@@ -93,21 +94,38 @@ serve(async (req) => {
       });
     }
 
-    // Generate image with Lovable AI
-    console.log("[AI Blog Image] Chamando Lovable AI para gerar imagem...");
+    // Generate image with Lovable AI - REALISTIC PHOTOGRAPHY STYLE
+    console.log("[AI Blog Image] Chamando Lovable AI para gerar imagem realista...");
     
-    const imagePrompt = `Create a professional, modern blog header image for an article titled: "${title}"
+    const imagePrompt = `Create a professional PHOTOGRAPH for a blog article about the photography and video production industry.
 
-Style requirements:
-- Clean, minimalist design with subtle gradients
-- Purple/violet color scheme (#7C3AED as primary) with complementary colors
-- No text overlays on the image
-- Theme: technology, photography, video production, creative tools
-- Professional and polished aesthetic
-- Landscape orientation 16:9 aspect ratio
-- High quality, web-optimized
-- Abstract or conceptual visualization of the article topic
-- Soft lighting with modern gradient effects`;
+ARTICLE TITLE: "${title}"
+${context ? `CONTEXT: ${context}` : ""}
+
+CRITICAL STYLE REQUIREMENTS - MUST FOLLOW:
+- Professional PHOTOGRAPHY style, NOT illustration, NOT abstract art
+- Real-world scenes that a professional photographer would capture
+- REALISTIC subjects: cameras, lenses, studio equipment, editing workstations, creative professionals at work, studio environments, film sets
+- Natural lighting with professional quality - think Getty Images or Unsplash editorial
+- High-quality DSLR aesthetic with depth of field and bokeh effects
+- Clean, modern composition with rule of thirds
+- Authentic, documentary-style feel
+
+TECHNICAL SPECIFICATIONS:
+- 16:9 landscape aspect ratio
+- Editorial quality photography
+- Subtle purple/violet color grading matching brand (#7C3AED tones in highlights or accents)
+- Professional color correction
+- Sharp focus on main subject
+
+ABSOLUTELY NO:
+- Text, logos, watermarks, or words
+- Cartoon or illustration style
+- Abstract shapes or patterns
+- AI-looking generated faces
+- Overly stylized or unrealistic colors
+
+Think: A professional stock photo that would appear in Adobe Creative Cloud marketing or a photography magazine cover.`;
 
     const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

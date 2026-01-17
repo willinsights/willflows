@@ -75,7 +75,7 @@ export default function BlogPost() {
       
       <main className="flex-1">
         {/* Back Button */}
-        <div className="container mx-auto max-w-6xl px-4 pt-8">
+        <div className="container mx-auto max-w-6xl px-4 pt-24">
           <Button asChild variant="ghost" size="sm">
             <Link to="/blog">
               <ArrowLeft className="mr-2 h-4 w-4" />

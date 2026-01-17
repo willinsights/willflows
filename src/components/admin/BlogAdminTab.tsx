@@ -244,7 +244,7 @@ export function BlogAdminTab() {
           onOpenChange={(open) => !open && setEditingPost(null)}
           post={editingPost}
           onSave={async (updates) => {
-            updatePost(editingPost.id, updates);
+            await updatePost(editingPost.id, updates);
             setEditingPost(null);
           }}
           onRegenerateImage={async () => {
