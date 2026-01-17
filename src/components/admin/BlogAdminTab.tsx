@@ -35,12 +35,13 @@ export function BlogAdminTab() {
     loading, 
     error, 
     isGenerating,
+    isRegeneratingImage,
+    regenerateImage,
     generatePost,
     publishPost,
     unpublishPost,
     deletePost,
     updatePost,
-    regenerateImage
   } = useBlogAdmin();
 
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
@@ -201,14 +202,13 @@ export function BlogAdminTab() {
           onOpenChange={(open) => !open && setEditingPost(null)}
           post={editingPost}
           onSave={async (updates) => {
-            await updatePost({ id: editingPost.id, ...updates });
+            updatePost(editingPost.id, updates);
             setEditingPost(null);
           }}
           onRegenerateImage={async () => {
-            if (regenerateImage) {
-              await regenerateImage(editingPost.id, editingPost.title);
-            }
+            await regenerateImage(editingPost.id, editingPost.title);
           }}
+          isRegeneratingImage={isRegeneratingImage}
         />
       )}
 

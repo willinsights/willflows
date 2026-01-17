@@ -28,6 +28,7 @@ interface EditArticleModalProps {
   post: BlogPost;
   onSave: (updates: Partial<BlogPost>) => Promise<void>;
   onRegenerateImage: () => Promise<void>;
+  isRegeneratingImage?: boolean;
 }
 
 const categories = [
@@ -42,14 +43,14 @@ export function EditArticleModal({
   onOpenChange, 
   post, 
   onSave,
-  onRegenerateImage 
+  onRegenerateImage,
+  isRegeneratingImage = false
 }: EditArticleModalProps) {
   const [title, setTitle] = useState(post.title);
   const [excerpt, setExcerpt] = useState(post.excerpt || '');
   const [category, setCategory] = useState(post.category || 'novidades');
   const [content, setContent] = useState(post.content);
   const [isSaving, setIsSaving] = useState(false);
-  const [isRegenerating, setIsRegenerating] = useState(false);
   const [contentView, setContentView] = useState<'html' | 'preview'>('html');
 
   const handleSave = async () => {
@@ -67,12 +68,7 @@ export function EditArticleModal({
   };
 
   const handleRegenerateImage = async () => {
-    setIsRegenerating(true);
-    try {
-      await onRegenerateImage();
-    } finally {
-      setIsRegenerating(false);
-    }
+    await onRegenerateImage();
   };
 
   return (
@@ -103,15 +99,14 @@ export function EditArticleModal({
                     <p className="text-sm">Sem imagem de capa</p>
                   </div>
                 )}
-              </div>
               <div className="flex gap-2">
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={handleRegenerateImage}
-                  disabled={isRegenerating}
+                  disabled={isRegeneratingImage}
                 >
-                  {isRegenerating ? (
+                  {isRegeneratingImage ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
                     <Sparkles className="h-4 w-4 mr-2" />
@@ -119,6 +114,7 @@ export function EditArticleModal({
                   {post.cover_image ? 'Regenerar Imagem com AI' : 'Gerar Imagem com AI'}
                 </Button>
               </div>
+            </div>
             </div>
 
             {/* Title */}

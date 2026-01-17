@@ -36,6 +36,7 @@ export function useBlogAdmin() {
   const { success: toastSuccess, error: toastError } = useAppToast();
   const queryClient = useQueryClient();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isRegeneratingImage, setIsRegeneratingImage] = useState(false);
 
   // Fetch all posts (including drafts)
   const { data: posts = [], isLoading: loading, error } = useQuery({
@@ -90,6 +91,48 @@ export function useBlogAdmin() {
       return { success: false, error: message };
     } finally {
       setIsGenerating(false);
+    }
+  }, [toastSuccess, toastError, queryClient]);
+
+  // Regenerate image for a post
+  const regenerateImage = useCallback(async (postId: string, title: string): Promise<{ success: boolean; imageUrl?: string; error?: string }> => {
+    setIsRegeneratingImage(true);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('Sessão expirada. Faz login novamente.');
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-generate-blog-image`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ postId, title, forceRegenerate: true }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Erro ao gerar imagem');
+      }
+
+      toastSuccess('Imagem gerada com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['blog-admin-posts'] });
+      
+      return result;
+    } catch (err: any) {
+      const message = err.message || 'Erro ao gerar imagem';
+      toastError(message);
+      return { success: false, error: message };
+    } finally {
+      setIsRegeneratingImage(false);
     }
   }, [toastSuccess, toastError, queryClient]);
 
@@ -180,7 +223,9 @@ export function useBlogAdmin() {
     loading,
     error: error?.message || null,
     isGenerating,
+    isRegeneratingImage,
     generatePost,
+    regenerateImage,
     publishPost: publishMutation.mutate,
     unpublishPost: unpublishMutation.mutate,
     deletePost: deleteMutation.mutate,
