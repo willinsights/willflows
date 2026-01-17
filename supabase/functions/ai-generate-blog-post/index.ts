@@ -19,6 +19,50 @@ interface PerplexityResult {
   imageHint?: string;
 }
 
+// Helper function to select relevant screenshots based on article topic
+function selectRelevantScreenshots(title: string, summary: string): string[] {
+  const content = `${title} ${summary}`.toLowerCase();
+  const selected: string[] = [];
+  
+  // Finanças, dinheiro, receitas, custos, lucro
+  if (content.match(/finan|dinheiro|receita|custo|lucro|margem|fatur|pagamento|orçamento|preço|budget|money|revenue/)) {
+    selected.push('[SCREENSHOT_PAYMENTS]', '[SCREENSHOT_RELATORIOS]', '[SCREENSHOT_PAGAMENTOS_ESTUDIO]');
+  }
+  
+  // Organização, projetos, gestão, kanban
+  if (content.match(/organiz|projeto|gestão|kanban|tarefa|prazo|entrega|cliente|workflow|deadline|project/)) {
+    selected.push('[SCREENSHOT_KANBAN]', '[SCREENSHOT_KANBAN_FULL]', '[SCREENSHOT_PROJETO_MODAL]');
+  }
+  
+  // Agenda, calendário, sessão, marcação
+  if (content.match(/calendário|agenda|sessão|marcação|data|horário|tempo|schedule|booking|appointment/)) {
+    selected.push('[SCREENSHOT_CALENDAR]');
+  }
+  
+  // Equipa, colaboradores, permissões
+  if (content.match(/equipa|colaborador|permiss|staff|freelancer|team|hire|contrat/)) {
+    selected.push('[SCREENSHOT_PERMISSOES]');
+  }
+  
+  // Dashboard, métricas, KPIs, visão geral
+  if (content.match(/dashboard|métrica|kpi|visão|overview|resumo|performance|analytics/)) {
+    selected.push('[SCREENSHOT_DASHBOARD]', '[SCREENSHOT_DASHBOARD_ESTUDIO]');
+  }
+  
+  // Captação, sessões fotográficas
+  if (content.match(/captação|sessão|fotografia|filmagem|set|produção|shoot|production/)) {
+    selected.push('[SCREENSHOT_CAPTACAO_ESTUDIO]');
+  }
+  
+  // Se não encontrou nada específico, usar os mais genéricos
+  if (selected.length === 0) {
+    selected.push('[SCREENSHOT_DASHBOARD]', '[SCREENSHOT_KANBAN]');
+  }
+  
+  // Remover duplicados e limitar a 3 screenshots
+  return [...new Set(selected)].slice(0, 3);
+}
+
 // Helper function to generate inline image
 async function generateInlineImage(
   supabase: any,
@@ -309,8 +353,19 @@ Retorna APENAS JSON válido com as 5 tendências mais quentes:
         messages: [
           {
             role: "system",
-            content: `És um escritor especializado em conteúdo para fotógrafos e filmmakers portugueses.
-O teu objetivo é criar artigos que IDENTIFICAM PROBLEMAS REAIS do setor e apresentam soluções, posicionando o WillFlow como a ferramenta que resolve esses problemas.
+            content: `És um MESTRE em content marketing que transforma QUALQUER notícia viral em conteúdo irresistível para fotógrafos e filmmakers portugueses.
+
+REGRA DE OURO: Não importa o tema trending (futebol, celebridades, tecnologia, filmes, política), tu SEMPRE encontras um ângulo criativo para conectar com:
+1. Os desafios diários de fotógrafos/filmmakers
+2. Como o WillFlow resolve esses desafios
+
+EXEMPLOS DE CONEXÕES CRIATIVAS:
+- Notícia: "Vini Jr ganha Bola de Ouro" → Artigo: "O Que a Vitória de Vini Jr Ensina Sobre Gestão de Imagem para Fotógrafos" (fala sobre branding, consistência, ter um sistema)
+- Notícia: "Virginia atinge 50M seguidores" → Artigo: "Como Virginia Construiu um Império Visual (E O Que Podes Aprender)" (produção consistente, gestão de equipa)
+- Notícia: "iPhone 16 com novas câmaras" → Artigo: "iPhone 16: Ameaça ou Oportunidade para Fotógrafos?" (diferencial é o serviço, não a câmara)
+- Notícia: "Filme X ganha Oscar de Fotografia" → Artigo: "5 Lições de Cinematografia do Oscar que Podes Aplicar Hoje"
+
+O objetivo é ATRAIR leitores com temas que já estão a pesquisar, depois CONVERTER mostrando como o WillFlow ajuda.
 
 WillFlow é um software de gestão de projetos para fotógrafos e filmmakers que oferece:
 - Gestão de projetos com Kanban visual
@@ -321,17 +376,18 @@ WillFlow é um software de gestão de projetos para fotógrafos e filmmakers que
 - Gestão de equipa e colaboradores
 
 REGRAS DE CONTEÚDO:
-1. Começa sempre com uma FRUSTRAÇÃO/PROBLEMA real do setor
-2. Desenvolve o problema mostrando o impacto negativo
+1. Começa SEMPRE conectando a notícia viral com uma FRUSTRAÇÃO real do setor
+2. Desenvolve mostrando paralelos entre o tema trending e o dia-a-dia de fotógrafos
 3. Apresenta soluções naturais, com WillFlow como exemplo concreto
-4. Menciona WillFlow pelo menos 2-3x de forma NATURAL (não promocional)
-5. Termina sempre com um CTA para experimentar o WillFlow
+4. Menciona WillFlow 2-3x de forma NATURAL (nunca forçada ou promocional)
+5. Termina com CTA para experimentar o WillFlow
+
+IMPORTANTE: O artigo NUNCA deve parecer uma venda forçada. O WillFlow aparece naturalmente como exemplo/solução.
 
 REGRAS DE ESCRITA OBRIGATÓRIAS:
 - NUNCA uses travessões longos (— ou –), usa vírgulas ou pontos
 - NUNCA uses aspas especiais (" "), usa aspas normais (" ")
-- Escreve frases diretas e concisas
-- Evita construções com travessões como "gestão — algo complexo —"`,
+- Escreve frases diretas e concisas`,
           },
           {
             role: "user",
@@ -626,13 +682,133 @@ Responde APENAS em JSON válido:
       }
     }
 
-    // Step 4: Generate cover image
-    console.log("[AI Blog] Gerando imagem de capa...");
+    // Step 4: Search for REAL cover image with Perplexity
+    console.log("[AI Blog] Buscando imagem REAL da web via Perplexity...");
 
     let coverImageUrl: string | null = null;
+    let coverImageCredit: string | null = null;
+    let coverImageSource: string | null = null;
 
     try {
-      const imagePrompt = `Create a professional PHOTOGRAPH for a blog article header.
+      // Use Perplexity to find a real image related to the article
+      const imageSearchQuery = `Find a high-quality FREE stock photo for this blog article:
+
+ARTICLE TITLE: "${article.title}"
+${selectedNews.imageHint ? `CONTEXT/HINT: ${selectedNews.imageHint}` : ""}
+
+SEARCH PRIORITY:
+1. If the article mentions a FILM or MOVIE → find a promotional still or behind-the-scenes photo from that film
+2. If the article mentions a PRODUCT (camera, lens, drone) → find an official product image
+3. If the article mentions a PERSON/CELEBRITY → find a professional photo of that person
+4. If the article mentions an EVENT (Oscar, festival) → find a photo from that event
+5. Otherwise → find a professional photography/video production scene
+
+REQUIREMENTS:
+- Must be from Pexels, Unsplash, or Pixabay (FREE to use)
+- Must be a DIRECT image URL ending in .jpg, .png, or .webp
+- Must be high resolution (at least 1200px wide)
+- Include photographer credit if available
+- Prefer landscape orientation (16:9)
+
+Return ONLY valid JSON:
+{
+  "imageUrl": "https://direct-url-to-image.jpg",
+  "credit": "Photographer Name",
+  "sourceUrl": "https://original-page-url",
+  "sourceName": "Pexels|Unsplash|Pixabay"
+}`;
+
+      const perplexityImageResponse = await fetch("https://api.perplexity.ai/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${perplexityApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "sonar",
+          messages: [
+            { role: "system", content: "You are an image search assistant. Find real, free-to-use stock photos. Return only valid JSON with direct image URLs." },
+            { role: "user", content: imageSearchQuery }
+          ],
+        }),
+      });
+
+      if (perplexityImageResponse.ok) {
+        const imageSearchData = await perplexityImageResponse.json();
+        const imageSearchContent = imageSearchData.choices?.[0]?.message?.content || "";
+        
+        console.log("[AI Blog] Perplexity image search response received");
+        
+        // Parse JSON response
+        const jsonMatch = imageSearchContent.match(/\{[\s\S]*"imageUrl"[\s\S]*\}/);
+        if (jsonMatch) {
+          const imageInfo = JSON.parse(jsonMatch[0]);
+          
+          if (imageInfo.imageUrl && imageInfo.imageUrl.startsWith("http")) {
+            console.log(`[AI Blog] Found real image: ${imageInfo.imageUrl}`);
+            
+            // Download the image
+            const imageDownloadResponse = await fetch(imageInfo.imageUrl, {
+              headers: {
+                "User-Agent": "Mozilla/5.0 (compatible; WillFlow Blog/1.0)",
+              },
+            });
+            
+            if (imageDownloadResponse.ok) {
+              const imageBuffer = await imageDownloadResponse.arrayBuffer();
+              const imageBytes = new Uint8Array(imageBuffer);
+              
+              // Determine content type
+              const contentType = imageDownloadResponse.headers.get("content-type") || "image/jpeg";
+              const extension = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
+              
+              // Upload to Supabase Storage
+              const imageTimestamp = Date.now();
+              const imageFilename = `covers/${baseSlug}-${imageTimestamp}.${extension}`;
+              
+              let uploadSuccess = false;
+              for (let attempt = 0; attempt < 3 && !uploadSuccess; attempt++) {
+                if (attempt > 0) {
+                  console.log(`[AI Blog] Retry upload attempt ${attempt + 1}...`);
+                  await new Promise((r) => setTimeout(r, 1000 * attempt));
+                }
+                
+                const { error: uploadError } = await supabase.storage
+                  .from("blog-images")
+                  .upload(imageFilename, imageBytes, {
+                    contentType,
+                    upsert: true,
+                  });
+                
+                if (!uploadError) {
+                  const { data: urlData } = supabase.storage.from("blog-images").getPublicUrl(imageFilename);
+                  coverImageUrl = urlData.publicUrl;
+                  coverImageCredit = imageInfo.credit || null;
+                  coverImageSource = imageInfo.sourceName || null;
+                  console.log("[AI Blog] Real image uploaded:", coverImageUrl);
+                  uploadSuccess = true;
+                } else {
+                  console.error(`[AI Blog] Upload error (attempt ${attempt + 1}):`, uploadError.message);
+                }
+              }
+            } else {
+              console.log("[AI Blog] Failed to download image:", imageDownloadResponse.status);
+            }
+          }
+        }
+      } else {
+        console.log("[AI Blog] Perplexity image search failed:", perplexityImageResponse.status);
+      }
+    } catch (imgError) {
+      console.error("[AI Blog] Error searching for real image:", imgError);
+    }
+
+    // Fallback: Generate image with AI if no real image found
+    if (!coverImageUrl) {
+      console.log("[AI Blog] No real image found, generating with AI as fallback...");
+      
+      try {
+        const imagePrompt = `Create a professional PHOTOGRAPH for a blog article header.
 
 ARTICLE TITLE: ${article.title}
 
@@ -646,38 +822,29 @@ CRITICAL STYLE REQUIREMENTS:
 - Editorial quality like Getty Images or Unsplash
 - NO text, NO logos, NO watermarks`;
 
-      const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${lovableApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-image-preview",
-          messages: [{ role: "user", content: imagePrompt }],
-          modalities: ["image", "text"],
-        }),
-      });
+        const aiImageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${lovableApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-image-preview",
+            messages: [{ role: "user", content: imagePrompt }],
+            modalities: ["image", "text"],
+          }),
+        });
 
-      if (imageResponse.ok) {
-        const imageData = await imageResponse.json();
-        const imageBase64 = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+        if (aiImageResponse.ok) {
+          const imageData = await aiImageResponse.json();
+          const imageBase64 = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
 
-        if (imageBase64 && imageBase64.startsWith("data:image")) {
-          // Extract base64 data
-          const base64Data = imageBase64.split(",")[1];
-          const imageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+          if (imageBase64 && imageBase64.startsWith("data:image")) {
+            const base64Data = imageBase64.split(",")[1];
+            const imageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
 
-          // Upload to storage with retry logic
-          const imageTimestamp = Date.now();
-          const imageFilename = `covers/${baseSlug}-${imageTimestamp}.png`;
-
-          let uploadSuccess = false;
-          for (let attempt = 0; attempt < 3 && !uploadSuccess; attempt++) {
-            if (attempt > 0) {
-              console.log(`[AI Blog] Retry upload attempt ${attempt + 1}...`);
-              await new Promise((r) => setTimeout(r, 1000 * attempt));
-            }
+            const imageTimestamp = Date.now();
+            const imageFilename = `covers/${baseSlug}-${imageTimestamp}.png`;
 
             const { error: uploadError } = await supabase.storage
               .from("blog-images")
@@ -689,19 +856,13 @@ CRITICAL STYLE REQUIREMENTS:
             if (!uploadError) {
               const { data: urlData } = supabase.storage.from("blog-images").getPublicUrl(imageFilename);
               coverImageUrl = urlData.publicUrl;
-              console.log("[AI Blog] Imagem uploaded:", coverImageUrl);
-              uploadSuccess = true;
-            } else {
-              console.error(`[AI Blog] Erro upload (attempt ${attempt + 1}):`, uploadError.message);
+              console.log("[AI Blog] AI fallback image uploaded:", coverImageUrl);
             }
           }
         }
-      } else {
-        console.log("[AI Blog] Imagem não gerada:", await imageResponse.text());
+      } catch (fallbackError) {
+        console.error("[AI Blog] AI fallback image error:", fallbackError);
       }
-    } catch (imgError) {
-      console.error("[AI Blog] Erro ao gerar imagem:", imgError);
-      // Continue without image
     }
 
     // Save to database
@@ -715,6 +876,8 @@ CRITICAL STYLE REQUIREMENTS:
         excerpt: article.excerpt?.substring(0, 300) || null,
         content: processedContent,
         cover_image: coverImageUrl,
+        cover_image_credit: coverImageCredit,
+        cover_image_source: coverImageSource,
         author_name: "WillFlow Team",
         category: article.category || categoryHint,
         is_published: autoPublish,

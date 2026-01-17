@@ -53,6 +53,8 @@ export function useBlogAdmin() {
       if (error) throw error;
       return data as BlogPost[];
     },
+    staleTime: 1000 * 60 * 5, // 5 minutos antes de considerar stale
+    refetchOnWindowFocus: false, // Não refetch ao voltar à janela
   });
 
   // Generate new post with AI
