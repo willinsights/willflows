@@ -45,3 +45,6 @@ verify_jwt = false
 
 [functions.create-test-accounts]
 verify_jwt = false
+
+[functions.ai-generate-blog-post]
+verify_jwt = false

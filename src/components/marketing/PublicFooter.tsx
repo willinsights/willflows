@@ -8,6 +8,7 @@ const footerLinks = {
     { label: 'Integrações', href: '/integracoes' },
   ],
   recursos: [
+    { label: 'Blog', href: '/blog' },
     { label: 'Ajuda & FAQ', href: '/ajuda' },
     { label: 'Segurança', href: '/seguranca' },
   ],
