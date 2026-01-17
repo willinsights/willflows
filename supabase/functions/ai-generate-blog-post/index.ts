@@ -549,12 +549,168 @@ FRASES NATURAIS PARA USAR:
 `;
 }
 
+// Helper function to determine next article type based on rotation
+function getNextArticleType(lastCategory: string | null): { type: string; category: string } {
+  const categoryRotation = [
+    { type: 'trending', category: 'novidades' },
+    { type: 'tutorial', category: 'tutorial' },
+    { type: 'comparison', category: 'comparacao' },
+    { type: 'tips', category: 'dicas' },
+  ];
+  
+  if (!lastCategory) {
+    // Random start if no previous articles
+    const randomIndex = Math.floor(Math.random() * categoryRotation.length);
+    return categoryRotation[randomIndex];
+  }
+  
+  const lastIndex = categoryRotation.findIndex(c => c.category === lastCategory);
+  const nextIndex = (lastIndex + 1) % categoryRotation.length;
+  return categoryRotation[nextIndex];
+}
+
+// Helper function to get discovery prompt based on article type
+function getDiscoveryPrompt(articleType: string, recentTitles: string[]): string {
+  const recentTitlesStr = recentTitles.slice(0, 5).map(t => `- ${t}`).join("\n");
+  
+  switch (articleType) {
+    case 'tutorial':
+      return `Pesquisa os TEMAS MAIS PROCURADOS NO GOOGLE sobre fotografia e vídeo profissional que precisam de um TUTORIAL ou GUIA PRÁTICO.
+
+FOCO EM:
+- Como configurar câmaras, software de edição, lighting setups
+- Workflows de edição (Lightroom, Premiere, DaVinci Resolve)
+- Como criar portfolios, sites, presença online
+- Como gerir projetos, contratos, orçamentos
+- Técnicas de fotografia/vídeo (poses, composição, iluminação)
+- Automatização e produtividade para criativos
+
+FORMATO ESPERADO: Temas que precisam de "Guia Completo", "Passo-a-Passo", "Como Fazer"
+
+NÃO SUGERIR temas semelhantes a estes artigos recentes:
+${recentTitlesStr}
+
+Retorna APENAS JSON válido:
+{
+  "trends": [
+    {
+      "topic": "Nome do tutorial/guia",
+      "headline": "Descrição do que o tutorial ensina (2-3 frases)",
+      "why_hot": "Porque este tema é procurado agora",
+      "angle": "Ângulo prático para fotógrafos/filmmakers PT/BR",
+      "urgency": "high|medium|low",
+      "keywords": ["palavra1", "palavra2", "palavra3"],
+      "image_hint": "Sugestão de imagem para o artigo"
+    }
+  ]
+}`;
+
+    case 'comparison':
+      return `Pesquisa as COMPARAÇÕES MAIS POPULARES de software, equipamentos e serviços para fotografia e vídeo profissional.
+
+FOCO EM:
+- Software: Lightroom vs Capture One, Premiere vs DaVinci, Affinity vs Photoshop
+- Câmaras: Sony vs Canon vs Nikon, comparações de modelos específicos
+- Equipamento: Lentes, tripés, microfones, iluminação
+- Serviços: Plataformas de portfolio, cloud storage, gestão de projetos
+- Formatos: RAW vs JPEG, ProRes vs H.265, etc.
+
+FORMATO ESPERADO: Temas "X vs Y", "Qual escolher entre", "Melhor alternativa a"
+
+NÃO SUGERIR temas semelhantes a estes artigos recentes:
+${recentTitlesStr}
+
+Retorna APENAS JSON válido:
+{
+  "trends": [
+    {
+      "topic": "Nome da comparação (ex: X vs Y)",
+      "headline": "O que está a ser comparado e porquê é relevante",
+      "why_hot": "Porque esta comparação é popular agora",
+      "angle": "Como ajudar fotógrafos/filmmakers a decidir",
+      "urgency": "high|medium|low",
+      "keywords": ["palavra1", "palavra2", "palavra3"],
+      "image_hint": "Sugestão de imagem para o artigo"
+    }
+  ]
+}`;
+
+    case 'tips':
+      return `Pesquisa os ERROS MAIS COMUNS, DESAFIOS e BOAS PRÁTICAS para fotógrafos e filmmakers profissionais.
+
+FOCO EM:
+- Erros de principiantes e como evitá-los
+- Problemas com clientes (comunicação, pagamentos, expectativas)
+- Gestão de tempo e produtividade
+- Finanças (orçamentos, preços, lucro)
+- Marketing e captação de clientes
+- Burnout e equilíbrio vida-trabalho
+
+FORMATO ESPERADO: Temas "X erros que...", "Como evitar...", "Dicas para...", "Estratégias de..."
+
+NÃO SUGERIR temas semelhantes a estes artigos recentes:
+${recentTitlesStr}
+
+Retorna APENAS JSON válido:
+{
+  "trends": [
+    {
+      "topic": "Nome da lista de dicas/erros",
+      "headline": "Descrição do problema ou desafio abordado",
+      "why_hot": "Porque este tema é relevante para criativos",
+      "angle": "Como ajudar fotógrafos/filmmakers a melhorar",
+      "urgency": "high|medium|low",
+      "keywords": ["palavra1", "palavra2", "palavra3"],
+      "image_hint": "Sugestão de imagem para o artigo"
+    }
+  ]
+}`;
+
+    default: // trending/novidades
+      return `Pesquisa as NOTÍCIAS MAIS FALADAS DAS ÚLTIMAS 24-48 HORAS no mundo da fotografia e produção de vídeo profissional.
+
+FONTES A VERIFICAR:
+- Petapixel, DPReview, Fstoppers (notícias fotografia)
+- No Film School, Filmmaker Magazine (cinema/video)
+- Tecnologia em geral que afete criativos
+- Lançamentos de produtos (Sony, Canon, Nikon, DJI, Blackmagic, Apple)
+- Eventos ou acontecimentos relevantes (festivais, premiações, exposições)
+- Redes sociais: trends virais relacionados com fotografia/video
+
+TIPOS DE NOTÍCIAS A PRIORIZAR:
+1. 🔥 LANÇAMENTOS - Novas câmaras, lentes, drones, software
+2. 📰 POLÉMICAS - Controvérsias, escândalos, debates no setor
+3. 🏆 EVENTOS - Óscares, festivais de cinema, exposições de fotografia
+4. 💡 TENDÊNCIAS - IA em fotografia, novas técnicas, mudanças no mercado
+5. 💰 NEGÓCIOS - Aquisições, encerramentos, novos serviços
+
+NÃO SUGERIR temas semelhantes a estes artigos recentes:
+${recentTitlesStr}
+
+Retorna APENAS JSON válido com as 5 tendências mais quentes:
+{
+  "trends": [
+    {
+      "topic": "Nome curto do tema/notícia",
+      "headline": "O que aconteceu (2-3 frases com factos concretos)",
+      "why_hot": "Porque é trending agora (o que gerou buzz)",
+      "angle": "Ângulo interessante para artigo (como conectar com fotógrafos/filmmakers PT/BR)",
+      "urgency": "high|medium|low",
+      "keywords": ["palavra1", "palavra2", "palavra3"],
+      "image_hint": "Sugestão de imagem para o artigo (ex: foto do produto, still do filme, etc.)"
+    }
+  ]
+}`;
+  }
+}
+
 // Helper function to generate inline image
 async function generateInlineImage(
   supabase: any,
   lovableApiKey: string,
   imageDescription: string,
-  baseSlug: string
+  baseSlug: string,
+  perplexityApiKey?: string
 ): Promise<string | null> {
   try {
     const imagePrompt = `Create a professional PHOTOGRAPH for a blog article.
@@ -571,6 +727,8 @@ STYLE REQUIREMENTS:
 - NO text, NO logos, NO watermarks
 - Think: Getty Images, Unsplash professional stock photography`;
 
+    console.log("[AI Blog] Generating inline image with model google/gemini-3-pro-image-preview");
+    
     const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -578,21 +736,31 @@ STYLE REQUIREMENTS:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image-preview",
+        model: "google/gemini-3-pro-image-preview",
         messages: [{ role: "user", content: imagePrompt }],
         modalities: ["image", "text"],
       }),
     });
 
     if (!imageResponse.ok) {
-      console.log("[AI Blog] Inline image generation failed:", imageResponse.status);
+      const errorText = await imageResponse.text();
+      console.error("[AI Blog] Inline image generation failed:", imageResponse.status, errorText);
       return null;
     }
 
     const imageData = await imageResponse.json();
+    console.log("[AI Blog] Image API response structure:", JSON.stringify({
+      hasChoices: !!imageData.choices,
+      choicesLength: imageData.choices?.length,
+      hasMessage: !!imageData.choices?.[0]?.message,
+      hasImages: !!imageData.choices?.[0]?.message?.images,
+      imagesLength: imageData.choices?.[0]?.message?.images?.length,
+    }));
+    
     const imageBase64 = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
 
     if (!imageBase64 || !imageBase64.startsWith("data:image")) {
+      console.warn("[AI Blog] No valid base64 image returned from AI");
       return null;
     }
 
@@ -614,6 +782,7 @@ STYLE REQUIREMENTS:
     }
 
     const { data: urlData } = supabase.storage.from("blog-images").getPublicUrl(imageFilename);
+    console.log("[AI Blog] Inline image uploaded successfully:", imageFilename);
     return urlData.publicUrl;
   } catch (error) {
     console.error("[AI Blog] Inline image error:", error);
@@ -691,56 +860,40 @@ serve(async (req) => {
       });
     }
 
-    // Step 0: Get recent article titles to avoid repetition
+    // Step 0: Get recent articles to avoid repetition AND determine next category
     const { data: recentPosts } = await supabase
       .from("blog_posts")
-      .select("title")
+      .select("title, category")
       .order("created_at", { ascending: false })
       .limit(15);
     
     const recentTitles = recentPosts?.map(p => p.title.toLowerCase()) || [];
-    console.log(`[AI Blog] Found ${recentTitles.length} recent articles to avoid repetition`);
-
-    // Step 1: Discover TRENDING topics from current news with Perplexity
-    console.log("[AI Blog] Discovering trending topics from current news...");
+    const lastCategory = recentPosts?.[0]?.category || null;
     
-    const trendingDiscoveryQuery = `Pesquisa as NOTÍCIAS MAIS FALADAS DAS ÚLTIMAS 24-48 HORAS no mundo da fotografia e produção de vídeo profissional.
+    console.log(`[AI Blog] Found ${recentTitles.length} recent articles to avoid repetition`);
+    console.log(`[AI Blog] Last article category: ${lastCategory || 'none'}`);
 
-FONTES A VERIFICAR:
-- Petapixel, DPReview, Fstoppers (notícias fotografia)
-- No Film School, Filmmaker Magazine (cinema/video)
-- Tecnologia em geral que afete criativos
-- Lançamentos de produtos (Sony, Canon, Nikon, DJI, Blackmagic, Apple)
-- Eventos ou acontecimentos relevantes (festivais, premiações, exposições)
-- Redes sociais: trends virais relacionados com fotografia/video
+    // Step 1: Determine article type based on rotation (unless category is specified)
+    const nextArticleType = category 
+      ? { type: category === 'novidades' ? 'trending' : category === 'comparacao' ? 'comparison' : category === 'dicas' ? 'tips' : category, category }
+      : getNextArticleType(lastCategory);
+    
+    console.log(`[AI Blog] Next article type: ${nextArticleType.type} (category: ${nextArticleType.category})`);
 
-TIPOS DE NOTÍCIAS A PRIORIZAR:
-1. 🔥 LANÇAMENTOS - Novas câmaras, lentes, drones, software
-2. 📰 POLÉMICAS - Controvérsias, escândalos, debates no setor
-3. 🏆 EVENTOS - Óscares, festivais de cinema, exposições de fotografia
-4. 💡 TENDÊNCIAS - IA em fotografia, novas técnicas, mudanças no mercado
-5. 💰 NEGÓCIOS - Aquisições, encerramentos, novos serviços
-
-NÃO SUGERIR temas semelhantes a estes artigos recentes:
-${recentTitles.slice(0, 5).map(t => `- ${t}`).join("\n")}
-
-Retorna APENAS JSON válido com as 5 tendências mais quentes:
-{
-  "trends": [
-    {
-      "topic": "Nome curto do tema/notícia",
-      "headline": "O que aconteceu (2-3 frases com factos concretos)",
-      "why_hot": "Porque é trending agora (o que gerou buzz)",
-      "angle": "Ângulo interessante para artigo (como conectar com fotógrafos/filmmakers PT/BR)",
-      "urgency": "high|medium|low",
-      "keywords": ["palavra1", "palavra2", "palavra3"],
-      "image_hint": "Sugestão de imagem para o artigo (ex: foto do produto, still do filme, etc.)"
-    }
-  ]
-}`;
+    // Step 2: Get discovery prompt based on article type
+    const discoveryQuery = getDiscoveryPrompt(nextArticleType.type, recentTitles);
+    console.log("[AI Blog] Discovering topics with Perplexity...");
 
     let selectedNews: PerplexityResult & { imageHint?: string };
     let citations: string[] = [];
+
+    // Determine system prompt based on article type
+    const systemPromptByType: Record<string, string> = {
+      trending: "És um analista de tendências especializado em fotografia e produção de vídeo profissional. Identificas as notícias mais quentes do momento e sabes como as conectar com o dia-a-dia de fotógrafos e filmmakers. Respondes sempre em português europeu (pt-PT) e em JSON válido.",
+      tutorial: "És um especialista em ensinar fotógrafos e filmmakers. Identificas os temas mais procurados que precisam de tutoriais práticos e guias passo-a-passo. Respondes sempre em português europeu (pt-PT) e em JSON válido.",
+      comparison: "És um especialista em equipamentos e software para fotografia e vídeo. Identificas as comparações mais relevantes que ajudam profissionais a fazer melhores escolhas. Respondes sempre em português europeu (pt-PT) e em JSON válido.",
+      tips: "És um consultor de carreira para fotógrafos e filmmakers. Identificas os problemas mais comuns, erros frequentes e boas práticas que ajudam profissionais a evoluir. Respondes sempre em português europeu (pt-PT) e em JSON válido.",
+    };
 
     const perplexityResponse = await fetch("https://api.perplexity.ai/chat/completions", {
       method: "POST",
@@ -753,16 +906,16 @@ Retorna APENAS JSON válido com as 5 tendências mais quentes:
         messages: [
           {
             role: "system",
-            content: "És um analista de tendências especializado em fotografia e produção de vídeo profissional. Identificas as notícias mais quentes do momento e sabes como as conectar com o dia-a-dia de fotógrafos e filmmakers. Respondes sempre em português europeu (pt-PT) e em JSON válido.",
+            content: systemPromptByType[nextArticleType.type] || systemPromptByType.trending,
           },
           {
             role: "user",
             content: topics.length > 0 
-              ? `Pesquisa notícias trending sobre estes tópicos específicos: ${topics.join(", ")}\n\n${trendingDiscoveryQuery}`
-              : trendingDiscoveryQuery,
+              ? `Pesquisa sobre estes tópicos específicos: ${topics.join(", ")}\n\n${discoveryQuery}`
+              : discoveryQuery,
           },
         ],
-        search_recency_filter: "day", // Only last 24 hours for maximum freshness
+        search_recency_filter: nextArticleType.type === 'trending' ? "day" : "week", // News need freshness, tutorials/tips can be broader
       }),
     });
 
@@ -846,8 +999,10 @@ Retorna APENAS JSON válido com as 5 tendências mais quentes:
     // Step 3: Generate article with Lovable AI - WILLFLOW FOCUSED
     console.log("[AI Blog] Gerando artigo com Lovable AI...");
 
-    // Selecionar categoria baseada no conteúdo do artigo
-    const categoryHint = category || selectCategoryFromContent(selectedNews.title, selectedNews.summary);
+    // Use rotated category from step 1 (or override with content analysis if needed)
+    const categoryHint = category || nextArticleType.category;
+    console.log(`[AI Blog] Using category: ${categoryHint} (from rotation: ${nextArticleType.category})`);
+    
     
     const lovableResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
