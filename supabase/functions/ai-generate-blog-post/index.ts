@@ -116,27 +116,32 @@ function extractImageSearchTerms(title: string, summary: string, imageHint?: str
   return `${cleanTitle} photography professional`;
 }
 
-// Helper function to select category based on content
+// Helper function to select category based on content - IMPROVED VERSION
 function selectCategoryFromContent(title: string, summary: string): string {
   const content = `${title} ${summary}`.toLowerCase();
   
-  // Tutorial: guias passo-a-passo, como fazer
-  if (content.match(/como fazer|passo.?a.?passo|guia completo|tutorial|aprende a|configurar|setup|começar a|primeiros passos/)) {
+  // Tutorial: guias passo-a-passo, como fazer, configurar
+  if (content.match(/como fazer|passo.?a.?passo|guia completo|guia prático|tutorial|aprende a|configurar|setup|começar a|primeiros passos|instalar|criar o teu|monta o teu|definir|explicamos como/)) {
     return 'tutorial';
   }
   
-  // Comparação: vs, melhor, diferenças
-  if (content.match(/vs\.?|versus|comparação|melhor entre|diferença entre|alternativa|escolher entre|comparamos|frente a frente/)) {
+  // Comparação: vs, melhor, diferenças, alternativas
+  if (content.match(/\bvs\.?\b|versus|compar|melhor entre|diferença entre|alternativa|escolher entre|comparamos|frente a frente|\bou\b.*\?|x\s+vs|qual o melhor|qual escolher/)) {
     return 'comparacao';
   }
   
-  // Dicas: estratégias, truques, erros, segredos
-  if (content.match(/\d+\s*dicas?|\d+\s*estratégia|\d+\s*truque|\d+\s*erro|\d+\s*segredo|conselho|melhora|optimiz|evita|não faças/)) {
+  // Dicas: estratégias, truques, erros, segredos, listas numeradas
+  if (content.match(/\d+\s*(dicas?|truques?|erros?|segredos?|estratégia|maneiras?|formas?|razões|motivos)|conselho|melhora|optimiz|evita|não faças|como evitar|deixa de|para de|boas práticas/)) {
     return 'dicas';
   }
   
-  // Novidades: lançamentos, notícias, atualizações, tendências
-  return 'novidades';
+  // Novidades: lançamentos apenas quando há menção explícita
+  if (content.match(/lança|anuncia|novidade|nova versão|update|atualiza|chega ao mercado|disponível|acabou de sair|release/)) {
+    return 'novidades';
+  }
+  
+  // Default: se não encaixa em nada específico, usar dicas (mais útil que novidades)
+  return 'dicas';
 }
 
 // Helper function to select relevant screenshots and generate instructions
@@ -739,36 +744,46 @@ Retorna APENAS JSON válido com as 5 tendências mais quentes:
         messages: [
           {
             role: "system",
-            content: `És um MESTRE em content marketing que transforma QUALQUER notícia viral em conteúdo irresistível para fotógrafos e filmmakers portugueses.
+            content: `TU ÉS O GERADOR OFICIAL DE ARTIGOS DO BLOG DO WILLFLOW.
 
-REGRA DE OURO: Não importa o tema trending (futebol, celebridades, tecnologia, filmes, política), tu SEMPRE encontras um ângulo criativo para conectar com:
-1. Os desafios diários de fotógrafos/filmmakers
-2. Como o WillFlow resolve esses desafios
+CONTEXTO DO BLOG:
+- Produto: WillFlow (SaaS para fotógrafos e filmmakers) para gerir projetos, Kanban, calendário, tarefas, finanças, pagamentos, relatórios, permissões de equipa e planos.
+- Objetivo: captar tráfego orgânico com temas atuais + converter leitores para testar o WillFlow (trial).
+- Tom: moderno, direto, prático, com exemplos reais. Português neutro (PT-PT e BR-BR). Sem venda forçada.
 
-EXEMPLOS DE CONEXÕES CRIATIVAS:
-- Notícia: "Vini Jr ganha Bola de Ouro" → Artigo: "O Que a Vitória de Vini Jr Ensina Sobre Gestão de Imagem para Fotógrafos" (fala sobre branding, consistência, ter um sistema)
-- Notícia: "Virginia atinge 50M seguidores" → Artigo: "Como Virginia Construiu um Império Visual (E O Que Podes Aprender)" (produção consistente, gestão de equipa)
-- Notícia: "iPhone 16 com novas câmaras" → Artigo: "iPhone 16: Ameaça ou Oportunidade para Fotógrafos?" (diferencial é o serviço, não a câmara)
-- Notícia: "Filme X ganha Oscar de Fotografia" → Artigo: "5 Lições de Cinematografia do Oscar que Podes Aplicar Hoje"
+REGRA #1 — ATUALIDADE (notícias)
+Antes de escrever, considera tendências das últimas 24-72h em: fotografia e vídeo profissional, IA para edição/apps criativas, lançamentos (Apple/Adobe/Sony/Canon/DJI/Blackmagic), gestão/finanças/produtividade para criativos.
 
-O objetivo é ATRAIR leitores com temas que já estão a pesquisar, depois CONVERTER mostrando como o WillFlow ajuda.
+REGRA #2 — CATEGORIA (NÃO pode ser sempre "novidades")
+Define UMA categoria correta entre:
+- "novidades" (lançamento, update, anúncio, tendência)
+- "comparacao" (X vs Y, alternativas, melhor escolha)
+- "tutorial" (passo-a-passo, como fazer/configurar)
+- "dicas" (boas práticas, erros comuns, estratégias)
+A categoria TEM de ser coerente com o conteúdo.
 
-WillFlow é um software de gestão de projetos para fotógrafos e filmmakers que oferece:
-- Gestão de projetos com Kanban visual
-- Controlo financeiro (receitas, custos, margens)
+REGRA #3 — ESTRUTURA DO ARTIGO
+A escrita deve:
+- Começar com hook forte (dor/curiosidade/atualidade)
+- Explicar a notícia/tendência sem enrolar
+- Ligar naturalmente aos problemas reais do freelancer (prazo, cliente, custo, lucro, caos)
+- Mostrar "o que fazer agora" (passos práticos)
+- Mencionar WillFlow de forma natural (ex: "um sistema como o WillFlow ajuda a...")
+- Mencionar WillFlow 2-3x de forma NATURAL (nunca forçada ou promocional)
+
+WillFlow oferece:
+- Gestão de projetos com Kanban visual (colunas: Captação, Edição, Revisão, Entrega)
+- Controlo financeiro (receitas, custos, margens, alertas de pagamentos)
 - Gestão de clientes e CRM
-- Calendário integrado
-- Dashboard com KPIs
-- Gestão de equipa e colaboradores
+- Calendário integrado com Google Calendar
+- Dashboard com KPIs em tempo real
+- Gestão de equipa e permissões (admin, editor, visualizador)
 
-REGRAS DE CONTEÚDO:
-1. Começa SEMPRE conectando a notícia viral com uma FRUSTRAÇÃO real do setor
-2. Desenvolve mostrando paralelos entre o tema trending e o dia-a-dia de fotógrafos
-3. Apresenta soluções naturais, com WillFlow como exemplo concreto
-4. Menciona WillFlow 2-3x de forma NATURAL (nunca forçada ou promocional)
-5. Termina com CTA para experimentar o WillFlow
-
-IMPORTANTE: O artigo NUNCA deve parecer uma venda forçada. O WillFlow aparece naturalmente como exemplo/solução.
+PROIBIDO:
+- Prints aleatórios sem ligação ao texto
+- Categoria sempre "novidades"
+- CTA invisível/sem contraste
+- Venda agressiva (parecer anúncio)
 
 REGRAS DE ESCRITA OBRIGATÓRIAS:
 - NUNCA uses travessões longos (— ou –), usa vírgulas ou pontos
@@ -1065,17 +1080,13 @@ Responde APENAS em JSON válido:
     let coverImageCredit: string | null = null;
     let coverImageSource: string | null = null;
 
-    try {
-      // Generate intelligent search terms based on article content
-      const smartSearchTerms = extractImageSearchTerms(article.title, article.excerpt || selectedNews.summary, selectedNews.imageHint);
-      console.log(`[AI Blog] Smart image search terms: "${smartSearchTerms}"`);
-
-      // Use Perplexity to find a real image related to the article
+    // Helper function to search for image with Perplexity
+    async function searchImageWithPerplexity(searchTerms: string, articleTitle: string, imageHint?: string): Promise<{imageUrl: string; credit: string | null; sourceName: string | null} | null> {
       const imageSearchQuery = `Find a high-quality FREE stock photo for this blog article:
 
-ARTICLE TITLE: "${article.title}"
-SEARCH KEYWORDS: ${smartSearchTerms}
-${selectedNews.imageHint ? `CONTEXT/HINT: ${selectedNews.imageHint}` : ""}
+ARTICLE TITLE: "${articleTitle}"
+SEARCH KEYWORDS: ${searchTerms}
+${imageHint ? `CONTEXT/HINT: ${imageHint}` : ""}
 
 SEARCH PRIORITY (in order):
 1. If keywords mention APPLE + ADOBE → find image showing both logos, or creative professional using MacBook with Adobe apps
@@ -1103,86 +1114,124 @@ Return ONLY valid JSON:
   "sourceName": "Pexels|Unsplash|Pixabay"
 }`;
 
-      const perplexityImageResponse = await fetch("https://api.perplexity.ai/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${perplexityApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "sonar",
-          messages: [
-            { role: "system", content: "You are an image search assistant. Find real, free-to-use stock photos. Return only valid JSON with direct image URLs." },
-            { role: "user", content: imageSearchQuery }
-          ],
-        }),
-      });
+      try {
+        const perplexityImageResponse = await fetch("https://api.perplexity.ai/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${perplexityApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "sonar",
+            messages: [
+              { role: "system", content: "You are an image search assistant. Find real, free-to-use stock photos. Return only valid JSON with direct image URLs." },
+              { role: "user", content: imageSearchQuery }
+            ],
+          }),
+        });
 
-      if (perplexityImageResponse.ok) {
+        if (!perplexityImageResponse.ok) {
+          console.log(`[AI Blog] Perplexity search failed for "${searchTerms}":`, perplexityImageResponse.status);
+          return null;
+        }
+
         const imageSearchData = await perplexityImageResponse.json();
         const imageSearchContent = imageSearchData.choices?.[0]?.message?.content || "";
         
-        console.log("[AI Blog] Perplexity image search response received");
-        
-        // Parse JSON response
         const jsonMatch = imageSearchContent.match(/\{[\s\S]*"imageUrl"[\s\S]*\}/);
-        if (jsonMatch) {
-          const imageInfo = JSON.parse(jsonMatch[0]);
+        if (!jsonMatch) return null;
+        
+        const imageInfo = JSON.parse(jsonMatch[0]);
+        if (!imageInfo.imageUrl || !imageInfo.imageUrl.startsWith("http")) return null;
+        
+        return {
+          imageUrl: imageInfo.imageUrl,
+          credit: imageInfo.credit || null,
+          sourceName: imageInfo.sourceName || null
+        };
+      } catch (e) {
+        console.error(`[AI Blog] Error in image search for "${searchTerms}":`, e);
+        return null;
+      }
+    }
+
+    try {
+      // Generate intelligent search terms based on article content
+      const smartSearchTerms = extractImageSearchTerms(article.title, article.excerpt || selectedNews.summary, selectedNews.imageHint);
+      console.log(`[AI Blog] Smart image search terms: "${smartSearchTerms}"`);
+
+      // REGRA #3 - 3 tentativas com termos alternativos
+      const searchAttempts = [
+        smartSearchTerms,
+        `${article.title} photography professional high quality`,
+        `creative professional ${selectedNews.imageHint || 'photographer'} studio camera`
+      ];
+
+      let imageInfo: {imageUrl: string; credit: string | null; sourceName: string | null} | null = null;
+
+      for (let attemptNum = 0; attemptNum < searchAttempts.length && !imageInfo; attemptNum++) {
+        const currentTerms = searchAttempts[attemptNum];
+        console.log(`[AI Blog] Image search attempt ${attemptNum + 1}/3: "${currentTerms}"`);
+        
+        imageInfo = await searchImageWithPerplexity(currentTerms, article.title, selectedNews.imageHint);
+        
+        if (imageInfo) {
+          console.log(`[AI Blog] Found image on attempt ${attemptNum + 1}`);
+        }
+      }
+
+      if (imageInfo) {
+        console.log(`[AI Blog] Downloading real image: ${imageInfo.imageUrl}`);
+        
+        // Download the image
+        const imageDownloadResponse = await fetch(imageInfo.imageUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; WillFlow Blog/1.0)",
+          },
+        });
+        
+        if (imageDownloadResponse.ok) {
+          const imageBuffer = await imageDownloadResponse.arrayBuffer();
+          const imageBytes = new Uint8Array(imageBuffer);
           
-          if (imageInfo.imageUrl && imageInfo.imageUrl.startsWith("http")) {
-            console.log(`[AI Blog] Found real image: ${imageInfo.imageUrl}`);
+          // Determine content type
+          const contentType = imageDownloadResponse.headers.get("content-type") || "image/jpeg";
+          const extension = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
+          
+          // Upload to Supabase Storage
+          const imageTimestamp = Date.now();
+          const imageFilename = `covers/${baseSlug}-${imageTimestamp}.${extension}`;
+          
+          let uploadSuccess = false;
+          for (let attempt = 0; attempt < 3 && !uploadSuccess; attempt++) {
+            if (attempt > 0) {
+              console.log(`[AI Blog] Retry upload attempt ${attempt + 1}...`);
+              await new Promise((r) => setTimeout(r, 1000 * attempt));
+            }
             
-            // Download the image
-            const imageDownloadResponse = await fetch(imageInfo.imageUrl, {
-              headers: {
-                "User-Agent": "Mozilla/5.0 (compatible; WillFlow Blog/1.0)",
-              },
-            });
+            const { error: uploadError } = await supabase.storage
+              .from("blog-images")
+              .upload(imageFilename, imageBytes, {
+                contentType,
+                upsert: true,
+              });
             
-            if (imageDownloadResponse.ok) {
-              const imageBuffer = await imageDownloadResponse.arrayBuffer();
-              const imageBytes = new Uint8Array(imageBuffer);
-              
-              // Determine content type
-              const contentType = imageDownloadResponse.headers.get("content-type") || "image/jpeg";
-              const extension = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
-              
-              // Upload to Supabase Storage
-              const imageTimestamp = Date.now();
-              const imageFilename = `covers/${baseSlug}-${imageTimestamp}.${extension}`;
-              
-              let uploadSuccess = false;
-              for (let attempt = 0; attempt < 3 && !uploadSuccess; attempt++) {
-                if (attempt > 0) {
-                  console.log(`[AI Blog] Retry upload attempt ${attempt + 1}...`);
-                  await new Promise((r) => setTimeout(r, 1000 * attempt));
-                }
-                
-                const { error: uploadError } = await supabase.storage
-                  .from("blog-images")
-                  .upload(imageFilename, imageBytes, {
-                    contentType,
-                    upsert: true,
-                  });
-                
-                if (!uploadError) {
-                  const { data: urlData } = supabase.storage.from("blog-images").getPublicUrl(imageFilename);
-                  coverImageUrl = urlData.publicUrl;
-                  coverImageCredit = imageInfo.credit || null;
-                  coverImageSource = imageInfo.sourceName || null;
-                  console.log("[AI Blog] Real image uploaded:", coverImageUrl);
-                  uploadSuccess = true;
-                } else {
-                  console.error(`[AI Blog] Upload error (attempt ${attempt + 1}):`, uploadError.message);
-                }
-              }
+            if (!uploadError) {
+              const { data: urlData } = supabase.storage.from("blog-images").getPublicUrl(imageFilename);
+              coverImageUrl = urlData.publicUrl;
+              coverImageCredit = imageInfo.credit;
+              coverImageSource = imageInfo.sourceName;
+              console.log("[AI Blog] Real image uploaded:", coverImageUrl);
+              uploadSuccess = true;
             } else {
-              console.log("[AI Blog] Failed to download image:", imageDownloadResponse.status);
+              console.error(`[AI Blog] Upload error (attempt ${attempt + 1}):`, uploadError.message);
             }
           }
+        } else {
+          console.log("[AI Blog] Failed to download image:", imageDownloadResponse.status);
         }
       } else {
-        console.log("[AI Blog] Perplexity image search failed:", perplexityImageResponse.status);
+        console.log("[AI Blog] No real image found after 3 attempts");
       }
     } catch (imgError) {
       console.error("[AI Blog] Error searching for real image:", imgError);
