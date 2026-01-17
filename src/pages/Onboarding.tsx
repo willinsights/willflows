@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { trackTrialStarted } from '@/lib/google-ads';
 
 type Step = 'region' | 'success';
 
@@ -91,6 +92,9 @@ export default function Onboarding() {
       await refreshWorkspaces();
 
       setStep('success');
+      
+      // Track trial started conversion
+      trackTrialStarted();
       
       toast({
         title: '🎉 Bem-vindo ao WillFlow!',

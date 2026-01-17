@@ -15,6 +15,7 @@ import { isBetaModeEnabled } from '@/contexts/BetaContext';
 import { useBetaInvite } from '@/hooks/useBetaInvite';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { trackSignup } from '@/lib/google-ads';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -251,6 +252,10 @@ export default function Auth() {
     }
     
     setLoading(false);
+    
+    // Track signup conversion
+    trackSignup();
+    
     toast({
       title: 'Conta criada com sucesso!',
       description: promoValidation?.valid 

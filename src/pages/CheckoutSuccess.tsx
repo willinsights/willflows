@@ -1,25 +1,37 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CheckCircle, Loader2, ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useUserSubscription } from "@/hooks/useUserSubscription";
+import { trackCheckoutSuccess } from "@/lib/google-ads";
 
 const CheckoutSuccess = () => {
   const navigate = useNavigate();
   const { subscription, refresh, loading: subscriptionLoading } = useUserSubscription();
   const [isLoading, setIsLoading] = useState(true);
   const [countdown, setCountdown] = useState(5);
+  const hasTrackedConversion = useRef(false);
 
   useEffect(() => {
     const verifySubscription = async () => {
       await refresh();
       // Small delay to ensure data is loaded
-      setTimeout(() => setIsLoading(false), 500);
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 500);
     };
     verifySubscription();
   }, [refresh]);
+
+  // Track conversion once subscription is loaded
+  useEffect(() => {
+    if (!isLoading && subscription?.plan && !hasTrackedConversion.current) {
+      trackCheckoutSuccess(subscription.plan);
+      hasTrackedConversion.current = true;
+    }
+  }, [isLoading, subscription?.plan]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -113,7 +125,7 @@ const CheckoutSuccess = () => {
             >
               <div className="flex items-center justify-center gap-2 text-sm">
                 <Sparkles className="h-4 w-4 text-primary" />
-                <span>O seu trial de 7 dias começou</span>
+                <span>O seu trial de 30 dias começou</span>
               </div>
               <p className="text-xs text-muted-foreground">
                 Explore todas as funcionalidades premium. Será cobrado
