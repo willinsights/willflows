@@ -19,7 +19,8 @@ import {
   ExternalLink,
   Calendar,
   FileText,
-  ImageIcon
+  ImageIcon,
+  Search
 } from 'lucide-react';
 import type { BlogPost } from '@/hooks/useBlogAdmin';
 
@@ -29,6 +30,7 @@ interface BlogPostCardProps {
   onUnpublish: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit?: (post: BlogPost) => void;
+  onPreview?: (post: BlogPost) => void;
 }
 
 const getCategoryColor = (category: string | null) => {
@@ -61,7 +63,8 @@ export function BlogPostCard({
   onPublish, 
   onUnpublish, 
   onDelete,
-  onEdit 
+  onEdit,
+  onPreview
 }: BlogPostCardProps) {
   const formattedDate = post.published_at
     ? format(new Date(post.published_at), "d MMM yyyy", { locale: pt })
@@ -124,6 +127,11 @@ export function BlogPostCard({
                 <DropdownMenuItem onClick={() => window.open(`/blog/${post.slug}`, '_blank')}>
                   <ExternalLink className="h-4 w-4 mr-2" />
                   Ver no blog
+                </DropdownMenuItem>
+              ) : onPreview ? (
+                <DropdownMenuItem onClick={() => onPreview(post)}>
+                  <Search className="h-4 w-4 mr-2" />
+                  Preview
                 </DropdownMenuItem>
               ) : null}
               

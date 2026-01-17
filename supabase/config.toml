@@ -51,3 +51,6 @@ verify_jwt = false
 
 [functions.ai-generate-blog-image]
 verify_jwt = false
+
+[functions.blog-auto-generate]
+verify_jwt = false

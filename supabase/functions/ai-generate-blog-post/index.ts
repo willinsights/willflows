@@ -210,15 +210,40 @@ ${citations.length > 0 ? `**Fontes:** ${citations.slice(0, 3).join(", ")}` : ""}
 
 2. **Excerpt:** Resumo cativante para preview (máximo 160 caracteres)
 
-3. **Conteúdo:** 
-   - 800-1200 palavras
-   - HTML válido com tags semânticas (h2, h3, p, ul, ol, strong, em)
-   - Estrutura clara com introdução, desenvolvimento e conclusão
-   - Inclui listas e pontos-chave quando apropriado
-   - Tom profissional mas acessível
-   - Menciona como ferramentas de gestão (como WillFlow) podem ajudar, de forma natural e não promocional
+3. **Conteúdo (1000-1500 palavras):**
+   - HTML semântico bem estruturado
+   
+   ESTRUTURA OBRIGATÓRIA:
+   - Introdução envolvente (2-3 parágrafos com gancho emocional)
+   - 3-5 secções principais com <h2> claros e descritivos
+   - Subsecções com <h3> quando apropriado
+   - Cada secção: 2-4 parágrafos bem desenvolvidos
+   - Mínimo 2 listas (<ul> ou <ol>) com 4-6 items práticos
+   - Pelo menos 1 <blockquote> com insight ou citação relevante
+   - Conclusão com call-to-action sutil para WillFlow
+   
+   FORMATAÇÃO HTML OBRIGATÓRIA:
+   <h2 class="text-2xl font-bold mt-10 mb-4 text-foreground">Título da Secção</h2>
+   <h3 class="text-xl font-semibold mt-8 mb-3 text-foreground">Subtítulo</h3>
+   <p class="mb-4 leading-relaxed text-muted-foreground">Parágrafo...</p>
+   <ul class="list-disc pl-6 mb-6 space-y-2">
+     <li class="text-muted-foreground">Item da lista</li>
+   </ul>
+   <ol class="list-decimal pl-6 mb-6 space-y-2">
+     <li class="text-muted-foreground">Item numerado</li>
+   </ol>
+   <blockquote class="border-l-4 border-primary pl-6 py-2 my-8 bg-muted/30 rounded-r-lg">
+     <p class="italic text-foreground">"Citação impactante..."</p>
+   </blockquote>
+   <strong class="font-semibold text-foreground">Texto destacado</strong>
+   
+   TOM:
+   - Profissional mas conversacional
+   - Prático e orientado a ação
+   - Empático com os desafios do sector
+   - Menciona WillFlow de forma natural e não promocional
 
-4. **Categoria:** Sugere uma categoria entre: novidades, tutorial, comparacao, dicas (preferência: ${categoryHint})
+4. **Categoria:** Uma de: novidades, tutorial, comparacao, dicas (preferência: ${categoryHint})
 
 Responde em JSON:
 {
@@ -292,6 +317,79 @@ Responde em JSON:
     // Save to database
     console.log("[AI Blog] Guardando artigo na base de dados...");
     
+    // Step 3: Generate cover image with Lovable AI
+    console.log("[AI Blog] Gerando imagem de capa...");
+
+    let coverImageUrl: string | null = null;
+
+    try {
+      const imagePrompt = `Create a professional, modern blog header image.
+
+Theme: ${article.title}
+Context: Photography and video production industry
+
+Style requirements:
+- Clean, minimalist design
+- Gradient background with purple/violet (#7C3AED) and dark tones
+- Abstract geometric shapes or subtle patterns
+- Professional and sophisticated look
+- NO text, NO letters, NO words
+- 16:9 landscape aspect ratio
+- Modern, tech-forward aesthetic
+- Suitable for a professional SaaS blog`;
+
+      const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${lovableApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-image-preview",
+          messages: [{ role: "user", content: imagePrompt }],
+          modalities: ["image", "text"],
+        }),
+      });
+
+      if (imageResponse.ok) {
+        const imageData = await imageResponse.json();
+        const imageBase64 = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+
+        if (imageBase64 && imageBase64.startsWith("data:image")) {
+          // Extract base64 data
+          const base64Data = imageBase64.split(",")[1];
+          const imageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+
+          // Upload to storage
+          const imageTimestamp = Date.now();
+          const imageFilename = `${baseSlug}-${imageTimestamp}.png`;
+
+          const { error: uploadError } = await supabase.storage
+            .from("blog-images")
+            .upload(imageFilename, imageBytes, {
+              contentType: "image/png",
+              upsert: true,
+            });
+
+          if (!uploadError) {
+            const { data: urlData } = supabase.storage.from("blog-images").getPublicUrl(imageFilename);
+            coverImageUrl = urlData.publicUrl;
+            console.log("[AI Blog] Imagem uploaded:", coverImageUrl);
+          } else {
+            console.error("[AI Blog] Erro upload imagem:", uploadError);
+          }
+        }
+      } else {
+        console.log("[AI Blog] Imagem não gerada:", await imageResponse.text());
+      }
+    } catch (imgError) {
+      console.error("[AI Blog] Erro ao gerar imagem:", imgError);
+      // Continue without image
+    }
+
+    // Save to database
+    console.log("[AI Blog] Guardando artigo na base de dados...");
+    
     const { data: post, error: insertError } = await supabase
       .from("blog_posts")
       .insert({
@@ -299,6 +397,7 @@ Responde em JSON:
         slug,
         excerpt: article.excerpt?.substring(0, 300) || null,
         content: article.content,
+        cover_image: coverImageUrl,
         author_name: "WillFlow Team",
         category: article.category || categoryHint,
         is_published: autoPublish,
@@ -322,6 +421,7 @@ Responde em JSON:
       postId: post.id,
       title: post.title,
       slug: post.slug,
+      hasImage: !!coverImageUrl,
       isPublished: autoPublish,
     }), {
       status: 200,
