@@ -1,5 +1,6 @@
-import { FileSpreadsheet, FileText } from 'lucide-react';
+import { FileSpreadsheet, FileText, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 
 export interface ExportData {
@@ -29,9 +30,18 @@ interface PaymentExportButtonsProps {
   filename: string;
   type: 'clients' | 'freelancers' | 'invoices' | 'previsao' | 'custos';
   forecastSummary?: ForecastSummary;
+  canExportPdf?: boolean;
+  onPdfBlocked?: () => void;
 }
 
-export function PaymentExportButtons({ data, filename, type, forecastSummary }: PaymentExportButtonsProps) {
+export function PaymentExportButtons({ 
+  data, 
+  filename, 
+  type, 
+  forecastSummary,
+  canExportPdf = true,
+  onPdfBlocked
+}: PaymentExportButtonsProps) {
   const { toast } = useToast();
 
   const exportToCSV = () => {
@@ -432,16 +442,40 @@ export function PaymentExportButtons({ data, filename, type, forecastSummary }: 
     });
   };
 
+  const handlePdfClick = () => {
+    if (!canExportPdf) {
+      onPdfBlocked?.();
+      return;
+    }
+    exportToPDF();
+  };
+
   return (
     <div className="flex gap-2">
       <Button variant="outline" size="sm" onClick={exportToCSV}>
         <FileSpreadsheet className="h-4 w-4 mr-2" />
         CSV
       </Button>
-      <Button variant="outline" size="sm" onClick={exportToPDF}>
-        <FileText className="h-4 w-4 mr-2" />
-        PDF
-      </Button>
+      {canExportPdf ? (
+        <Button variant="outline" size="sm" onClick={handlePdfClick}>
+          <FileText className="h-4 w-4 mr-2" />
+          PDF
+        </Button>
+      ) : (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="sm" className="opacity-60 cursor-not-allowed" onClick={handlePdfClick}>
+                <Lock className="h-4 w-4 mr-2" />
+                PDF
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Disponível nos planos Pro e Studio</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
     </div>
   );
 }
