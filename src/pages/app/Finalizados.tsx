@@ -31,6 +31,8 @@ import { useClients } from '@/hooks/useClients';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
+import { usePlanFeatures } from '@/hooks/usePlanFeatures';
+import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 import { ProjectDetailsModal } from '@/components/projects/ProjectDetailsModal';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
@@ -53,6 +55,8 @@ export default function Finalizados() {
   const { currentWorkspace } = useWorkspace();
   const { members: workspaceMembers } = useWorkspaceMembers();
   const { canViewAllFinancials } = useFinancialPermissions();
+  const { checkFeature, upgradeAlert, closeUpgradeAlert, hasFeatureAccess } = usePlanFeatures();
+  const canExportPdf = hasFeatureAccess('exportPdf');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterClient, setFilterClient] = useState<string>('all');
   const [filterType, setFilterType] = useState<string>('all');
@@ -61,7 +65,7 @@ export default function Finalizados() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [filterResponsavel, setFilterResponsavel] = useState<string>('all');
   const [filterPhase, setFilterPhase] = useState<string>('all');
-  const [projectTeams, setProjectTeams] = useState<Record<string, { captacao: string[]; edicao: string[] }>>({});
+  const [projectTeams, setProjectTeams] = useState<Record<string, { captacao: string[]; edicao: string[] }>>({}); 
 
   const currency = currentWorkspace?.currency || 'EUR';
 
@@ -269,6 +273,7 @@ export default function Finalizados() {
 
   const exportToPDF = () => {
     if (completedProjects.length === 0) return;
+    if (!checkFeature('exportPdf')) return;
     
     // Create printable HTML
     const printContent = `
@@ -350,16 +355,35 @@ export default function Finalizados() {
             <Download className="h-4 w-4" />
             CSV
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="gap-2"
-            onClick={exportToPDF}
-            disabled={completedProjects.length === 0}
-          >
-            <FileText className="h-4 w-4" />
-            PDF
-          </Button>
+          {canExportPdf ? (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2"
+              onClick={exportToPDF}
+              disabled={completedProjects.length === 0}
+            >
+              <FileText className="h-4 w-4" />
+              PDF
+            </Button>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="gap-2 opacity-60"
+                  onClick={() => checkFeature('exportPdf')}
+                >
+                  <Lock className="h-4 w-4" />
+                  PDF
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Disponível nos planos Pro e Studio
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
       </div>
 
@@ -655,6 +679,14 @@ export default function Finalizados() {
           onUpdate={() => {}}
         />
       )}
+
+      {/* Upgrade Alert */}
+      <UpgradeAlert
+        isOpen={upgradeAlert.isOpen}
+        onClose={closeUpgradeAlert}
+        feature={upgradeAlert.feature}
+        requiredPlan={upgradeAlert.requiredPlan}
+      />
     </div>
   );
 }

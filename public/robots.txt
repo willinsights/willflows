@@ -19,7 +19,7 @@ Allow: /
 # Block app routes (require authentication)
 Disallow: /app/
 Disallow: /onboarding
-Disallow: /aceitar-convite
+Disallow: /convite
 
 # Sitemap
 Sitemap: https://willflow.app/sitemap.xml

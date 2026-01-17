@@ -9,8 +9,8 @@ interface TimeLeft {
   minutes: number;
 }
 
-// Launch promotion ends on March 31, 2025
-const PROMO_END_DATE = new Date('2025-03-31T23:59:59');
+// Launch promotion ends on June 30, 2026
+const PROMO_END_DATE = new Date('2026-06-30T23:59:59');
 const BANNER_DISMISSED_KEY = 'launch_banner_dismissed';
 
 function calculateTimeLeft(): TimeLeft {
