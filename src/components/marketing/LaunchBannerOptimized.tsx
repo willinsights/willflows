@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { X, Sparkles, ArrowRight, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { trackCtaClick } from '@/lib/google-ads';
 
 interface TimeLeft {
   days: number;
@@ -124,7 +125,7 @@ export const LaunchBannerOptimized = memo(function LaunchBannerOptimized({ varia
               <Clock className="h-4 w-4" />
               <span>Termina em {timeLeft.days}d {timeLeft.hours}h</span>
             </div>
-            <Link to="/auth?trial=true">
+            <Link to="/auth?trial=true" onClick={() => trackCtaClick('banner-inline')}>
               <Button size="sm" className="gradient-primary">
                 Começar grátis
                 <ArrowRight className="ml-1 h-4 w-4" />
@@ -184,7 +185,7 @@ export const LaunchBannerOptimized = memo(function LaunchBannerOptimized({ varia
           </div>
           
           {/* CTA */}
-          <Link to="/auth?trial=true" className="block">
+          <Link to="/auth?trial=true" className="block" onClick={() => trackCtaClick('banner-floating')}>
             <Button 
               className="w-full bg-white text-primary hover:bg-white/90 font-semibold shadow-lg"
               size="lg"

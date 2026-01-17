@@ -21,6 +21,7 @@ export const CONVERSION_IDS = {
   TRIAL_STARTED: `${GOOGLE_ADS_ID}/4K9lCJrR8OYbEOu02MUo`,
   SIGNUP: `${GOOGLE_ADS_ID}/4K9lCJrR8OYbEOu02MUo`,
   WAITLIST: `${GOOGLE_ADS_ID}/4K9lCJrR8OYbEOu02MUo`,
+  CTA_CLICK: `${GOOGLE_ADS_ID}/4K9lCJrR8OYbEOu02MUo`,
 } as const;
 
 // Plan values for conversion tracking
@@ -107,4 +108,14 @@ export function trackWaitlistSignup(country?: string): void {
   const currency = getCurrencyByCountry(country);
   const value = currency === 'BRL' ? 0.5 : 0.1;
   trackConversion(CONVERSION_IDS.WAITLIST, value, currency);
+}
+
+/**
+ * Track a CTA click conversion (e.g., "Começar Grátis" button)
+ * @param ctaLocation - Where the CTA was clicked (hero, header, banner, footer)
+ */
+export function trackCtaClick(ctaLocation: string = 'unknown'): void {
+  // Track as a micro-conversion with low value
+  trackConversion(CONVERSION_IDS.CTA_CLICK, 0.05, 'EUR');
+  console.log(`[Google Ads] CTA click tracked from: ${ctaLocation}`);
 }
