@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo, forwardRef } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { X, Sparkles, ArrowRight, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -31,21 +31,19 @@ interface LaunchBannerProps {
   variant?: 'floating' | 'inline';
 }
 
-// Memoized TimeBlock with forwardRef to prevent warnings
-const TimeBlock = memo(forwardRef<HTMLDivElement, { value: number; label: string }>(
-  function TimeBlock({ value, label }, ref) {
-    return (
-      <div ref={ref} className="flex flex-col items-center">
-        <span className="text-lg sm:text-xl font-bold text-white tabular-nums">
-          {value.toString().padStart(2, '0')}
-        </span>
-        <span className="text-[10px] sm:text-xs text-white/70 uppercase tracking-wider">
-          {label}
-        </span>
-      </div>
-    );
-  }
-));
+// Memoized TimeBlock for performance
+const TimeBlock = memo(function TimeBlock({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <span className="text-lg sm:text-xl font-bold text-white tabular-nums">
+        {value.toString().padStart(2, '0')}
+      </span>
+      <span className="text-[10px] sm:text-xs text-white/70 uppercase tracking-wider">
+        {label}
+      </span>
+    </div>
+  );
+});
 
 export const LaunchBannerOptimized = memo(function LaunchBannerOptimized({ variant = 'floating' }: LaunchBannerProps) {
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(calculateTimeLeft);
