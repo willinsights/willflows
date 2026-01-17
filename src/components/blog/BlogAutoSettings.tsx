@@ -22,6 +22,7 @@ export function BlogAutoSettings() {
     articles_per_day: 1,
     auto_publish: false,
     schedule_hour: 9,
+    schedule_minute: 0,
     preferred_topics: [] as string[],
   });
 
@@ -34,6 +35,7 @@ export function BlogAutoSettings() {
         articles_per_day: settings.articles_per_day,
         auto_publish: settings.auto_publish,
         schedule_hour: settings.schedule_hour,
+        schedule_minute: settings.schedule_minute,
         preferred_topics: settings.preferred_topics || [],
       });
       setTopicsInput((settings.preferred_topics || []).join(", "));
@@ -152,26 +154,46 @@ export function BlogAutoSettings() {
               </Select>
             </div>
 
-            {/* Schedule Hour */}
+            {/* Schedule Time */}
             <div className="space-y-2">
               <Label>Hora de publicação</Label>
-              <Select
-                value={localSettings.schedule_hour.toString()}
-                onValueChange={(value) =>
-                  setLocalSettings((prev) => ({ ...prev, schedule_hour: parseInt(value) }))
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: 24 }, (_, i) => (
-                    <SelectItem key={i} value={i.toString()}>
-                      {i.toString().padStart(2, "0")}:00
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2 items-center">
+                <Select
+                  value={localSettings.schedule_hour.toString()}
+                  onValueChange={(value) =>
+                    setLocalSettings((prev) => ({ ...prev, schedule_hour: parseInt(value) }))
+                  }
+                >
+                  <SelectTrigger className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 24 }, (_, i) => (
+                      <SelectItem key={i} value={i.toString()}>
+                        {i.toString().padStart(2, "0")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-muted-foreground">:</span>
+                <Select
+                  value={localSettings.schedule_minute.toString()}
+                  onValueChange={(value) =>
+                    setLocalSettings((prev) => ({ ...prev, schedule_minute: parseInt(value) }))
+                  }
+                >
+                  <SelectTrigger className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((min) => (
+                      <SelectItem key={min} value={min.toString()}>
+                        {min.toString().padStart(2, "0")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Auto Publish */}

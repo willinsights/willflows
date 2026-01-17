@@ -144,6 +144,7 @@ export type Database = {
           preferred_categories: string[] | null
           preferred_topics: string[] | null
           schedule_hour: number | null
+          schedule_minute: number | null
           updated_at: string | null
         }
         Insert: {
@@ -157,6 +158,7 @@ export type Database = {
           preferred_categories?: string[] | null
           preferred_topics?: string[] | null
           schedule_hour?: number | null
+          schedule_minute?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -170,6 +172,7 @@ export type Database = {
           preferred_categories?: string[] | null
           preferred_topics?: string[] | null
           schedule_hour?: number | null
+          schedule_minute?: number | null
           updated_at?: string | null
         }
         Relationships: []
