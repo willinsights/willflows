@@ -1,3 +1,4 @@
+import React from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import logoWhite from '@/assets/logo-willflow-white.png';
 import logoBlack from '@/assets/logo-willflow-black.png';
@@ -29,47 +30,51 @@ const logoMap = {
   purple: logoPurple,
 } as const;
 
-export function Logo({ variant = 'auto', className, alt = 'WillFlow', iconOnly = false }: LogoProps) {
-  const { theme } = useTheme();
-  
-  const getLogo = () => {
-    if (variant === 'auto') {
-      return theme === 'dark' ? logoWhite : logoBlack;
-    }
-    return logoMap[variant];
-  };
+export const Logo = React.forwardRef<HTMLImageElement, LogoProps>(
+  function Logo({ variant = 'auto', className, alt = 'WillFlow', iconOnly = false }, ref) {
+    const { theme } = useTheme();
+    
+    const getLogo = () => {
+      if (variant === 'auto') {
+        return theme === 'dark' ? logoWhite : logoBlack;
+      }
+      return logoMap[variant];
+    };
 
-  // When iconOnly is true, we crop the logo to show only the icon part
-  if (iconOnly) {
+    // When iconOnly is true, we crop the logo to show only the icon part
+    if (iconOnly) {
+      return (
+        <div 
+          className={cn('overflow-hidden', className)}
+          style={{ width: '32px', height: '32px' }}
+        >
+          <img 
+            ref={ref}
+            src={getLogo()} 
+            alt={alt} 
+            className="h-8 w-auto max-w-none"
+            style={{ 
+              // Crop to show only the left part (the W icon)
+              // Adjust the negative margin to position the icon correctly
+              marginLeft: '0px',
+              clipPath: 'inset(0 75% 0 0)', // Crop 75% from the right
+              transform: 'scale(1.2)', // Slightly enlarge
+              transformOrigin: 'left center'
+            }}
+          />
+        </div>
+      );
+    }
+
     return (
-      <div 
-        className={cn('overflow-hidden', className)}
-        style={{ width: '32px', height: '32px' }}
-      >
-        <img 
-          src={getLogo()} 
-          alt={alt} 
-          className="h-8 w-auto max-w-none"
-          style={{ 
-            // Crop to show only the left part (the W icon)
-            // Adjust the negative margin to position the icon correctly
-            marginLeft: '0px',
-            clipPath: 'inset(0 75% 0 0)', // Crop 75% from the right
-            transform: 'scale(1.2)', // Slightly enlarge
-            transformOrigin: 'left center'
-          }}
-        />
-      </div>
+      <img 
+        ref={ref}
+        src={getLogo()} 
+        alt={alt}
+        width={225}
+        height={40}
+        className={cn('h-8 w-auto', className)} 
+      />
     );
   }
-
-  return (
-    <img 
-      src={getLogo()} 
-      alt={alt}
-      width={225}
-      height={40}
-      className={cn('h-8 w-auto', className)} 
-    />
-  );
-}
+);

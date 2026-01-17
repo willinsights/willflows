@@ -1,4 +1,5 @@
 import { Suspense, lazy } from "react";
+import { HelmetProvider } from "react-helmet-async";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -49,86 +50,88 @@ const BlogAdmin = lazy(() => import("./pages/app/BlogAdmin"));
 const SuperAdmin = lazy(() => import("./pages/app/SuperAdmin"));
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <AuthProvider>
-        <WorkspaceProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Suspense fallback={<FullPageLoader />}>
-                <Routes>
-                  {/* Public Routes */}
-                  <Route path="/" element={<Landing />} />
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/planos" element={<Pricing />} />
-                  <Route path="/funcionalidades" element={<Features />} />
-                  <Route path="/integracoes" element={<Integrations />} />
-                  <Route path="/seguranca" element={<Security />} />
-                  <Route path="/ajuda" element={<Help />} />
-                  <Route path="/blog" element={<Blog />} />
-                  <Route path="/blog/:slug" element={<BlogPost />} />
-                  <Route path="/convite" element={<AcceptInvite />} />
-                  
-                  {/* Protected Routes */}
-                  <Route
-                    path="/onboarding"
-                    element={
-                      <ProtectedRoute>
-                        <Onboarding />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/checkout-success"
-                    element={
-                      <ProtectedRoute>
-                        <CheckoutSuccess />
-                      </ProtectedRoute>
-                    }
-                  />
-                  
-                  {/* App Routes with Layout */}
-                  <Route
-                    path="/app"
-                    element={
-                      <ProtectedRoute>
-                        <AppLayout />
-                      </ProtectedRoute>
-                    }
-                  >
-                    <Route index element={<Dashboard />} />
-                    <Route path="captacao" element={<Captacao />} />
-                    <Route path="edicao" element={<Edicao />} />
-                    <Route path="finalizados" element={<Finalizados />} />
-                    <Route path="media" element={<Media />} />
-                    <Route path="clientes" element={<Clientes />} />
-                    <Route path="calendario" element={<Calendario />} />
-                    <Route path="pagamentos" element={<Pagamentos />} />
-                    <Route path="relatorios" element={<Relatorios />} />
-                    <Route path="configuracoes" element={<Configuracoes />} />
-                    <Route path="equipa" element={<Equipa />} />
-                    <Route path="faturacao" element={<Faturacao />} />
-                    <Route path="planos" element={<Planos />} />
-                    {/* Redirect conta to planos */}
-                    <Route path="conta" element={<Planos />} />
-                    <Route path="beta-admin" element={<BetaAdmin />} />
-                    <Route path="feedback" element={<FeedbackAdmin />} />
-                    <Route path="blog-admin" element={<BlogAdmin />} />
-                    <Route path="admin" element={<SuperAdmin />} />
-                  </Route>
+  <HelmetProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <AuthProvider>
+          <WorkspaceProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Suspense fallback={<FullPageLoader />}>
+                  <Routes>
+                    {/* Public Routes */}
+                    <Route path="/" element={<Landing />} />
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/planos" element={<Pricing />} />
+                    <Route path="/funcionalidades" element={<Features />} />
+                    <Route path="/integracoes" element={<Integrations />} />
+                    <Route path="/seguranca" element={<Security />} />
+                    <Route path="/ajuda" element={<Help />} />
+                    <Route path="/blog" element={<Blog />} />
+                    <Route path="/blog/:slug" element={<BlogPost />} />
+                    <Route path="/convite" element={<AcceptInvite />} />
+                    
+                    {/* Protected Routes */}
+                    <Route
+                      path="/onboarding"
+                      element={
+                        <ProtectedRoute>
+                          <Onboarding />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/checkout-success"
+                      element={
+                        <ProtectedRoute>
+                          <CheckoutSuccess />
+                        </ProtectedRoute>
+                      }
+                    />
+                    
+                    {/* App Routes with Layout */}
+                    <Route
+                      path="/app"
+                      element={
+                        <ProtectedRoute>
+                          <AppLayout />
+                        </ProtectedRoute>
+                      }
+                    >
+                      <Route index element={<Dashboard />} />
+                      <Route path="captacao" element={<Captacao />} />
+                      <Route path="edicao" element={<Edicao />} />
+                      <Route path="finalizados" element={<Finalizados />} />
+                      <Route path="media" element={<Media />} />
+                      <Route path="clientes" element={<Clientes />} />
+                      <Route path="calendario" element={<Calendario />} />
+                      <Route path="pagamentos" element={<Pagamentos />} />
+                      <Route path="relatorios" element={<Relatorios />} />
+                      <Route path="configuracoes" element={<Configuracoes />} />
+                      <Route path="equipa" element={<Equipa />} />
+                      <Route path="faturacao" element={<Faturacao />} />
+                      <Route path="planos" element={<Planos />} />
+                      {/* Redirect conta to planos */}
+                      <Route path="conta" element={<Planos />} />
+                      <Route path="beta-admin" element={<BetaAdmin />} />
+                      <Route path="feedback" element={<FeedbackAdmin />} />
+                      <Route path="blog-admin" element={<BlogAdmin />} />
+                      <Route path="admin" element={<SuperAdmin />} />
+                    </Route>
 
-                  {/* Catch-all */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
-            </BrowserRouter>
-          </TooltipProvider>
-        </WorkspaceProvider>
-      </AuthProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
+                    {/* Catch-all */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+              </BrowserRouter>
+            </TooltipProvider>
+          </WorkspaceProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  </HelmetProvider>
 );
 
 export default App;

@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Calendar, ArrowLeft, Loader2, User } from 'lucide-react';
+import { Calendar, ArrowLeft, Loader2, User, Clock } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
 import DOMPurify from 'dompurify';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,13 @@ import { TableOfContents } from '@/components/blog/TableOfContents';
 import { useBlogPost } from '@/hooks/useBlogPosts';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
+
+// Calculate reading time based on word count (200 words per minute average)
+function calculateReadingTime(content: string): number {
+  const plainText = content.replace(/<[^>]+>/g, '');
+  const wordCount = plainText.split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(wordCount / 200));
+}
 
 export default function BlogPost() {
   const { slug } = useParams<{ slug: string }>();
@@ -36,7 +44,71 @@ export default function BlogPost() {
     }
   };
 
-  const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const currentUrl = typeof window !== 'undefined' ? `https://willflow.app/blog/${slug}` : '';
+  const readingTime = post ? calculateReadingTime(post.content) : 0;
+
+  // Generate Article Schema JSON-LD
+  const generateArticleSchema = () => {
+    if (!post) return null;
+    
+    return {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": post.title,
+      "description": post.excerpt || post.title,
+      "image": post.cover_image || "https://willflow.app/logo-willflow-purple.png",
+      "author": {
+        "@type": "Person",
+        "name": post.author_name
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "WillFlow",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://willflow.app/logo-willflow-purple.png"
+        }
+      },
+      "datePublished": post.published_at,
+      "dateModified": post.updated_at || post.published_at,
+      "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": currentUrl
+      },
+      "articleSection": getCategoryLabel(post.category),
+      "wordCount": post.content.replace(/<[^>]+>/g, '').split(/\s+/).filter(Boolean).length
+    };
+  };
+
+  // Generate BreadcrumbList Schema
+  const generateBreadcrumbSchema = () => {
+    if (!post) return null;
+
+    return {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://willflow.app"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Blog",
+          "item": "https://willflow.app/blog"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": post.title,
+          "item": currentUrl
+        }
+      ]
+    };
+  };
 
   if (loading) {
     return (
@@ -53,6 +125,10 @@ export default function BlogPost() {
   if (error || !post) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
+        <Helmet>
+          <title>Artigo não encontrado | WillFlow Blog</title>
+          <meta name="robots" content="noindex, nofollow" />
+        </Helmet>
         <PublicHeader />
         <main className="flex-1 flex flex-col items-center justify-center gap-4">
           <h1 className="text-2xl font-bold">Artigo não encontrado</h1>
@@ -71,18 +147,62 @@ export default function BlogPost() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {/* SEO Meta Tags */}
+      <Helmet>
+        <title>{post.title} | WillFlow Blog</title>
+        <meta name="description" content={post.excerpt || `${post.title} - Leia mais no blog do WillFlow.`} />
+        <meta name="robots" content="index, follow, max-image-preview:large" />
+        <link rel="canonical" href={currentUrl} />
+        
+        {/* Open Graph */}
+        <meta property="og:type" content="article" />
+        <meta property="og:title" content={post.title} />
+        <meta property="og:description" content={post.excerpt || post.title} />
+        <meta property="og:url" content={currentUrl} />
+        {post.cover_image && <meta property="og:image" content={post.cover_image} />}
+        <meta property="og:site_name" content="WillFlow" />
+        <meta property="article:published_time" content={post.published_at || ''} />
+        <meta property="article:author" content={post.author_name} />
+        <meta property="article:section" content={getCategoryLabel(post.category)} />
+        
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={post.title} />
+        <meta name="twitter:description" content={post.excerpt || post.title} />
+        {post.cover_image && <meta name="twitter:image" content={post.cover_image} />}
+        
+        {/* Structured Data */}
+        <script type="application/ld+json">
+          {JSON.stringify(generateArticleSchema())}
+        </script>
+        <script type="application/ld+json">
+          {JSON.stringify(generateBreadcrumbSchema())}
+        </script>
+      </Helmet>
+
       <PublicHeader />
       
       <main className="flex-1">
-        {/* Back Button */}
-        <div className="container mx-auto max-w-6xl px-4 pt-24">
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/blog">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Voltar ao Blog
-            </Link>
-          </Button>
-        </div>
+        {/* Breadcrumbs */}
+        <nav className="container mx-auto max-w-6xl px-4 pt-24" aria-label="Breadcrumb">
+          <ol className="flex items-center gap-2 text-sm text-muted-foreground">
+            <li>
+              <Link to="/" className="hover:text-foreground transition-colors">
+                Home
+              </Link>
+            </li>
+            <li>/</li>
+            <li>
+              <Link to="/blog" className="hover:text-foreground transition-colors">
+                Blog
+              </Link>
+            </li>
+            <li>/</li>
+            <li className="text-foreground font-medium truncate max-w-[200px]">
+              {post.title}
+            </li>
+          </ol>
+        </nav>
 
         {/* Hero Cover Image */}
         {post.cover_image && (
@@ -96,6 +216,7 @@ export default function BlogPost() {
                 src={post.cover_image}
                 alt={post.title}
                 className="w-full h-full object-cover"
+                loading="eager"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
               
@@ -131,10 +252,16 @@ export default function BlogPost() {
                   animate={{ opacity: 1, y: 0 }}
                   className="mb-10"
                 >
-                  {/* Category Badge */}
-                  <Badge variant="secondary" className={`${getCategoryColor(post.category)} mb-4`}>
-                    {getCategoryLabel(post.category)}
-                  </Badge>
+                  {/* Category Badge + Reading Time */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <Badge variant="secondary" className={getCategoryColor(post.category)}>
+                      {getCategoryLabel(post.category)}
+                    </Badge>
+                    <span className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      {readingTime} min de leitura
+                    </span>
+                  </div>
                   
                   {/* Title */}
                   <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 leading-tight tracking-tight">
