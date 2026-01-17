@@ -30,7 +30,7 @@ export function GenerateArticleModal({
 }: GenerateArticleModalProps) {
   const [topics, setTopics] = useState('');
   const [autoPublish, setAutoPublish] = useState(false);
-  const [category, setCategory] = useState<string>('');
+  const [category, setCategory] = useState<string>('auto');
 
   const handleGenerate = async () => {
     const options: GenerateOptions = {
@@ -41,7 +41,7 @@ export function GenerateArticleModal({
       options.topics = topics.split(',').map(t => t.trim()).filter(Boolean);
     }
 
-    if (category) {
+    if (category && category !== 'auto') {
       options.category = category;
     }
 
@@ -50,7 +50,7 @@ export function GenerateArticleModal({
     // Reset form on success
     setTopics('');
     setAutoPublish(false);
-    setCategory('');
+    setCategory('auto');
     onOpenChange(false);
   };
 
@@ -91,7 +91,7 @@ export function GenerateArticleModal({
                 <SelectValue placeholder="Deixar AI decidir" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Deixar AI decidir</SelectItem>
+                <SelectItem value="auto">Deixar AI decidir</SelectItem>
                 {CATEGORIES.map((cat) => (
                   <SelectItem key={cat.value} value={cat.value}>
                     {cat.label}
