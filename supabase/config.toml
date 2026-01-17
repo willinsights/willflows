@@ -54,3 +54,9 @@ verify_jwt = false
 
 [functions.blog-auto-generate]
 verify_jwt = false
+
+[functions.create-promo-code]
+verify_jwt = false
+
+[functions.sitemap]
+verify_jwt = false
