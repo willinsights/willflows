@@ -24,62 +24,119 @@ function extractImageSearchTerms(title: string, summary: string, imageHint?: str
   const content = `${title} ${summary} ${imageHint || ''}`.toLowerCase();
   const terms: string[] = [];
   
+  // SOFTWARE/APPS de edição - mapeamentos mais específicos
+  const softwareMappings: Record<string, string> = {
+    'evoto': 'ai photo editing software retouching portrait',
+    'luminar': 'luminar ai photo editing software',
+    'capture one': 'capture one pro software editing',
+    'darktable': 'darktable open source photo editing',
+    'affinity': 'affinity photo editing software',
+    'pixelmator': 'pixelmator pro photo editing mac',
+    'on1': 'on1 photo raw editing software',
+  };
+  
+  for (const [software, searchTerms] of Object.entries(softwareMappings)) {
+    if (content.includes(software)) {
+      return searchTerms;
+    }
+  }
+  
   // Brands and products to detect
   const brandMappings: Record<string, string[]> = {
-    'apple': ['apple logo', 'macbook creative', 'iphone photography'],
-    'adobe': ['adobe creative cloud', 'lightroom interface', 'photoshop editing'],
-    'sony': ['sony camera', 'sony alpha', 'sony a7'],
-    'canon': ['canon camera', 'canon eos', 'canon r5'],
-    'nikon': ['nikon camera', 'nikon z', 'nikon dslr'],
-    'dji': ['dji drone', 'dji mavic', 'drone aerial'],
-    'blackmagic': ['blackmagic camera', 'davinci resolve', 'cinema camera'],
-    'fujifilm': ['fujifilm camera', 'fujifilm x', 'fuji mirrorless'],
-    'leica': ['leica camera', 'leica m', 'leica photography'],
+    'apple': ['apple logo macbook', 'apple creative professional'],
+    'adobe': ['adobe creative cloud', 'adobe lightroom photoshop'],
+    'sony': ['sony camera alpha', 'sony mirrorless camera'],
+    'canon': ['canon eos camera', 'canon professional photography'],
+    'nikon': ['nikon camera dslr', 'nikon z mirrorless'],
+    'dji': ['dji drone mavic', 'dji aerial photography'],
+    'blackmagic': ['blackmagic camera cinema', 'davinci resolve editing'],
+    'fujifilm': ['fujifilm x camera', 'fuji mirrorless professional'],
+    'leica': ['leica camera photography', 'leica m rangefinder'],
+    'panasonic': ['panasonic lumix camera', 'panasonic video'],
+    'red': ['red cinema camera', 'red digital cinema'],
+    'arri': ['arri camera cinema', 'arri alexa professional'],
   };
   
   // Check for brand mentions and add relevant terms
   for (const [brand, searchTerms] of Object.entries(brandMappings)) {
     if (content.includes(brand)) {
-      terms.push(...searchTerms.slice(0, 2));
+      terms.push(...searchTerms);
     }
-  }
-  
-  // Topic-based terms
-  if (content.match(/oscar|academy|cinema|film|movie/)) {
-    terms.push('cinema production', 'film set', 'movie camera');
-  }
-  if (content.match(/wedding|casamento|noiva/)) {
-    terms.push('wedding photography', 'wedding photographer');
-  }
-  if (content.match(/drone|aerial|aéreo/)) {
-    terms.push('drone photography', 'aerial cinematography');
-  }
-  if (content.match(/portrait|retrato|studio/)) {
-    terms.push('portrait photography studio', 'professional photographer');
-  }
-  if (content.match(/custo|preço|budget|money|lucro|margem/)) {
-    terms.push('business finances', 'calculator money', 'financial planning');
-  }
-  if (content.match(/equipa|team|colaborador|freelancer/)) {
-    terms.push('creative team meeting', 'photography team');
   }
   
   // If Apple vs Adobe specifically
   if (content.includes('apple') && content.includes('adobe')) {
-    return 'apple vs adobe creative software logos macbook photoshop';
+    return 'apple macbook adobe creative cloud software professional editing';
   }
   
-  // Use image hint if available
-  if (imageHint && imageHint.length > 10) {
-    terms.push(imageHint);
+  // Topic-based terms - mais específicos
+  if (content.match(/oscar|academy|cinema|hollywood/)) {
+    return 'cinema camera film production hollywood';
+  }
+  if (content.match(/casamento|wedding|noiva|bride/)) {
+    return 'wedding photography photographer bride ceremony';
+  }
+  if (content.match(/drone|aerial|aéreo|mavic/)) {
+    return 'drone aerial photography landscape cinematic';
+  }
+  if (content.match(/portrait|retrato|headshot/)) {
+    return 'portrait photography studio professional lighting';
+  }
+  if (content.match(/custo|preço|budget|money|lucro|margem|financ/)) {
+    return 'business finance calculator laptop professional';
+  }
+  if (content.match(/equipa|team|colaborador|freelancer/)) {
+    return 'creative team meeting photography studio collaboration';
+  }
+  if (content.match(/inteligência artificial|ai|machine learning|automação/)) {
+    return 'artificial intelligence technology creative professional';
+  }
+  if (content.match(/vídeo|video|filmmaker|cinemato/)) {
+    return 'video production filmmaker camera cinematic';
+  }
+  if (content.match(/iphone|smartphone|mobile/)) {
+    return 'smartphone mobile photography professional';
+  }
+  if (content.match(/instagram|social media|redes sociais|tiktok/)) {
+    return 'social media content creator professional';
   }
   
-  // Return combined terms or fallback
+  // Return combined terms or use title as fallback
   if (terms.length > 0) {
-    return terms.slice(0, 4).join(' ');
+    return terms.slice(0, 3).join(' ');
   }
   
-  return 'professional photography studio creative filmmaker';
+  // Fallback: usar o título do artigo de forma mais inteligente
+  const cleanTitle = title
+    .replace(/[?!:.,]/g, '')
+    .replace(/como|para|que|com|uma|um|os|as|do|da|de|e|o|a/gi, '')
+    .trim()
+    .substring(0, 60);
+  
+  return `${cleanTitle} photography professional`;
+}
+
+// Helper function to select category based on content
+function selectCategoryFromContent(title: string, summary: string): string {
+  const content = `${title} ${summary}`.toLowerCase();
+  
+  // Tutorial: guias passo-a-passo, como fazer
+  if (content.match(/como fazer|passo.?a.?passo|guia completo|tutorial|aprende a|configurar|setup|começar a|primeiros passos/)) {
+    return 'tutorial';
+  }
+  
+  // Comparação: vs, melhor, diferenças
+  if (content.match(/vs\.?|versus|comparação|melhor entre|diferença entre|alternativa|escolher entre|comparamos|frente a frente/)) {
+    return 'comparacao';
+  }
+  
+  // Dicas: estratégias, truques, erros, segredos
+  if (content.match(/\d+\s*dicas?|\d+\s*estratégia|\d+\s*truque|\d+\s*erro|\d+\s*segredo|conselho|melhora|optimiz|evita|não faças/)) {
+    return 'dicas';
+  }
+  
+  // Novidades: lançamentos, notícias, atualizações, tendências
+  return 'novidades';
 }
 
 // Helper function to select relevant screenshots and generate instructions
@@ -668,7 +725,8 @@ Retorna APENAS JSON válido com as 5 tendências mais quentes:
     // Step 3: Generate article with Lovable AI - WILLFLOW FOCUSED
     console.log("[AI Blog] Gerando artigo com Lovable AI...");
 
-    const categoryHint = category || "novidades";
+    // Selecionar categoria baseada no conteúdo do artigo
+    const categoryHint = category || selectCategoryFromContent(selectedNews.title, selectedNews.summary);
     
     const lovableResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -806,8 +864,8 @@ ${screenshotSelection.instruction}
          <p class="text-muted-foreground mb-4">
            Descobre como o WillFlow pode transformar a gestão do teu estúdio. Organiza projetos, controla finanças e foca-te no que realmente importa: criar.
          </p>
-         <a href="/auth?trial=true" class="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:opacity-90 transition-opacity shadow-lg">
-           Começar Teste Grátis
+          <a href="/auth?trial=true" class="inline-flex items-center gap-2 bg-primary px-6 py-3 rounded-lg font-medium hover:opacity-90 transition-opacity shadow-lg no-underline" style="color: white !important;">
+            Começar Teste Grátis
            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
            </svg>
@@ -945,11 +1003,16 @@ Responde APENAS em JSON válido:
       '[SCREENSHOT_ONBOARDING]': 'https://willflows.lovable.app/screenshots/screenshot-onboarding-regiao.png',
     };
     
-    // Replace all screenshot placeholders with real URLs
+    // Replace all screenshot placeholders with real URLs (case-insensitive)
     for (const [placeholder, url] of Object.entries(screenshotUrls)) {
       const escapedPlaceholder = placeholder.replace(/[[\]]/g, '\\$&');
-      processedContent = processedContent.replace(new RegExp(escapedPlaceholder, 'g'), url);
+      // Substituição case-insensitive para capturar variações
+      processedContent = processedContent.replace(new RegExp(escapedPlaceholder, 'gi'), url);
     }
+    
+    // Limpar placeholders órfãos que não foram substituídos
+    processedContent = processedContent.replace(/\[SCREENSHOT_[A-Z_]+\]/gi, '');
+    console.log("[AI Blog] Screenshots replaced, orphan placeholders cleaned");
     
     // Clean up any remaining dashes from AI generation
     processedContent = processedContent

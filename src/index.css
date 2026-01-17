@@ -845,6 +845,14 @@
   opacity: 0.8;
 }
 
+/* Exceção para botões CTA dentro do blog - texto branco visível */
+.blog-content a.inline-flex,
+.blog-content a[class*="bg-primary"],
+.blog-content a[style*="color: white"] {
+  color: white !important;
+  text-decoration: none !important;
+}
+
 /* Paragraphs with better spacing */
 .blog-content p {
   line-height: 1.8;
