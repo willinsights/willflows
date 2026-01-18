@@ -19,7 +19,7 @@ import { CreateQuickTaskModal } from './CreateQuickTaskModal';
 import { CreateQuickFollowUpModal } from './CreateQuickFollowUpModal';
 
 interface ChatComposerProps {
-  onSend: (body: string, attachments?: File[]) => Promise<void>;
+  onSend: (body: string, attachments?: File[], mentionedUserIds?: string[]) => Promise<void>;
   placeholder?: string;
   isLoading?: boolean;
   autoFocus?: boolean;
@@ -49,6 +49,7 @@ export function ChatComposer({
   const [mentionFilter, setMentionFilter] = useState('');
   const [mentionSelectedIndex, setMentionSelectedIndex] = useState(0);
   const [mentionStartPos, setMentionStartPos] = useState<number | null>(null);
+  const [mentionedUsers, setMentionedUsers] = useState<MentionMember[]>([]);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   
@@ -78,9 +79,11 @@ export function ChatComposer({
     if ((!trimmedMessage && attachments.length === 0) || isLoading) return;
 
     const filesToSend = [...attachments];
+    const mentionedUserIds = mentionedUsers.map((m) => m.id);
     setMessage('');
     setAttachments([]);
-    await onSend(trimmedMessage, filesToSend.length > 0 ? filesToSend : undefined);
+    setMentionedUsers([]);
+    await onSend(trimmedMessage, filesToSend.length > 0 ? filesToSend : undefined, mentionedUserIds.length > 0 ? mentionedUserIds : undefined);
 
     textareaRef.current?.focus();
   };
@@ -172,6 +175,13 @@ export function ChatComposer({
     
     const newMessage = `${beforeMention}@${name} ${afterMention}`;
     setMessage(newMessage);
+    
+    // Track mentioned user (avoid duplicates)
+    setMentionedUsers((prev) => {
+      if (prev.some((m) => m.id === member.id)) return prev;
+      return [...prev, member];
+    });
+    
     closeMentions();
     
     // Focus and set cursor after mention

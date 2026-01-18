@@ -3,7 +3,8 @@ import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export interface MentionMember {
-  user_id: string;
+  id: string;
+  user_id?: string;
   full_name: string | null;
   avatar_url: string | null;
   email?: string;
@@ -66,7 +67,7 @@ export function MentionPopover({
 
         return (
           <button
-            key={member.user_id}
+            key={member.id || member.user_id}
             onClick={() => onSelect(member)}
             className={cn(
               'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors',
