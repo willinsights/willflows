@@ -19,6 +19,10 @@ export interface Conversation {
   created_at: string;
   updated_at: string;
   project?: { id: string; name: string; current_phase: string } | null;
+  displayName?: string;
+  lastMessage?: { body: string; created_at: string; user_name: string } | null;
+  unread_count?: number;
+  dmParticipant?: { full_name: string | null; avatar_url: string | null } | null;
 }
 
 export function useConversations() {
@@ -49,9 +53,72 @@ export function useConversations() {
       if (convError) throw convError;
       
       // Filter to show member conversations + public channels
-      return (data || []).filter((c: any) => 
+      const filtered = (data || []).filter((c: any) => 
         conversationIds.includes(c.id) || (c.type === 'channel' && !c.is_private)
-      ) as Conversation[];
+      );
+
+      // Fetch last messages for each conversation
+      const convIds = filtered.map(c => c.id);
+      const { data: lastMessages } = await supabase
+        .from('messages')
+        .select(`
+          conversation_id,
+          body,
+          created_at,
+          user:profiles!messages_user_id_fkey(full_name)
+        `)
+        .in('conversation_id', convIds)
+        .is('parent_message_id', null)
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: false });
+
+      // Group last messages by conversation
+      const lastMessageMap: Record<string, any> = {};
+      (lastMessages || []).forEach(msg => {
+        if (!lastMessageMap[msg.conversation_id]) {
+          lastMessageMap[msg.conversation_id] = msg;
+        }
+      });
+
+      // For DMs, fetch the other participant
+      const dmConvs = filtered.filter(c => c.type === 'dm');
+      let dmParticipantsMap: Record<string, any> = {};
+      
+      if (dmConvs.length > 0) {
+        const { data: dmMembers } = await supabase
+          .from('conversation_members')
+          .select(`
+            conversation_id,
+            user_id,
+            profile:profiles!conversation_members_user_id_fkey(full_name, avatar_url)
+          `)
+          .in('conversation_id', dmConvs.map(c => c.id));
+
+        // Find the other participant for each DM
+        (dmMembers || []).forEach(member => {
+          if (member.user_id !== user.id) {
+            dmParticipantsMap[member.conversation_id] = member.profile;
+          }
+        });
+      }
+
+      return filtered.map((c: any) => {
+        const lastMsg = lastMessageMap[c.id];
+        const dmParticipant = c.type === 'dm' ? dmParticipantsMap[c.id] : null;
+        
+        return {
+          ...c,
+          displayName: c.type === 'dm' && dmParticipant 
+            ? dmParticipant.full_name || 'Utilizador' 
+            : c.name,
+          lastMessage: lastMsg ? {
+            body: lastMsg.body,
+            created_at: lastMsg.created_at,
+            user_name: lastMsg.user?.full_name || 'Utilizador',
+          } : null,
+          dmParticipant,
+        } as Conversation;
+      });
     },
     enabled: !!workspace?.id && !!user?.id,
     staleTime: 30000,
@@ -133,7 +200,13 @@ export function useConversation(conversationId: string | undefined) {
     queryKey: ['conversation-members', conversationId],
     queryFn: async () => {
       if (!conversationId) return [];
-      const { data, error } = await supabase.from('conversation_members').select('*').eq('conversation_id', conversationId);
+      const { data, error } = await supabase
+        .from('conversation_members')
+        .select(`
+          *,
+          profile:profiles!conversation_members_user_id_fkey(full_name, avatar_url, email)
+        `)
+        .eq('conversation_id', conversationId);
       if (error) throw error;
       return data || [];
     },
