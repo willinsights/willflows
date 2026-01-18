@@ -109,7 +109,7 @@ export function useMessages(conversationId: string | undefined) {
   });
 
   const sendMessage = useMutation({
-    mutationFn: async ({ body, parentMessageId }: { body: string; parentMessageId?: string }) => {
+    mutationFn: async ({ body, parentMessageId, attachments }: { body: string; parentMessageId?: string; attachments?: File[] }) => {
       if (!conversationId || !user?.id) throw new Error('Conversa ou utilizador não encontrado');
 
       const { data, error } = await supabase
@@ -124,6 +124,31 @@ export function useMessages(conversationId: string | undefined) {
         .single();
 
       if (error) throw error;
+
+      // Upload attachments if any
+      if (attachments && attachments.length > 0) {
+        for (const file of attachments) {
+          const filePath = `${user.id}/${data.id}/${Date.now()}-${file.name}`;
+          const { error: uploadError } = await supabase.storage
+            .from('chat-attachments')
+            .upload(filePath, file);
+
+          if (uploadError) {
+            console.error('Error uploading file:', uploadError);
+            continue;
+          }
+
+          // Save attachment reference
+          await supabase.from('message_attachments').insert({
+            message_id: data.id,
+            file_name: file.name,
+            file_path: filePath,
+            file_size: file.size,
+            mime_type: file.type,
+          });
+        }
+      }
+
       return data;
     },
     onSuccess: () => {

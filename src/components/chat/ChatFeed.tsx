@@ -116,7 +116,7 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
   };
 
   const handleSendMessage = async (body: string, attachments?: File[]) => {
-    await sendMessage.mutateAsync({ body });
+    await sendMessage.mutateAsync({ body, attachments });
   };
 
   const handleOpenThread = (messageId: string) => {
@@ -240,6 +240,14 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
               onSend={handleSendMessage}
               placeholder={`Mensagem para ${conversation?.displayName || conversation?.name || 'conversa'}...`}
               isLoading={sendMessage.isPending}
+              members={members.map((m: any) => ({
+                user_id: m.user_id,
+                full_name: m.profile?.full_name || null,
+                avatar_url: m.profile?.avatar_url || null,
+                email: m.profile?.email,
+              }))}
+              conversationId={conversationId}
+              projectId={conversation?.project_id || undefined}
             />
           </div>
         </div>

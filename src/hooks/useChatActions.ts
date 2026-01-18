@@ -75,6 +75,68 @@ export function useChatActions() {
     onError: (error: Error) => toast.error('Erro ao criar tarefa', { description: error.message }),
   });
 
+  const createQuickTask = useMutation({
+    mutationFn: async ({
+      title, description, phase, projectId, conversationId, assigneeId, dueDate,
+    }: {
+      title: string; description?: string; phase: 'captacao' | 'edicao'; projectId: string; conversationId: string; assigneeId?: string; dueDate?: string;
+    }) => {
+      if (!workspace?.id || !user?.id) throw new Error('Workspace não encontrado');
+
+      const { data: columns } = await supabase
+        .from('kanban_columns')
+        .select('id')
+        .eq('workspace_id', workspace.id)
+        .eq('phase', phase)
+        .order('position', { ascending: true })
+        .limit(1);
+
+      const columnId = columns?.[0]?.id;
+
+      const taskData = {
+        workspace_id: workspace.id,
+        project_id: projectId,
+        title,
+        description: description || null,
+        phase,
+        column_id: columnId,
+        created_by: user.id,
+        conversation_id: conversationId,
+        due_date: dueDate || null,
+        priority: 'media' as const,
+        position: 0,
+      };
+
+      const { data: task, error: taskError } = await supabase
+        .from('tasks')
+        .insert([taskData])
+        .select()
+        .single();
+
+      if (taskError) throw taskError;
+
+      if (assigneeId) {
+        await supabase.from('task_assignees').insert({ task_id: task.id, user_id: assigneeId });
+      }
+
+      await supabase.from('messages').insert({
+        conversation_id: conversationId,
+        user_id: user.id,
+        body: `🔗 Tarefa criada: "${title}"`,
+        type: 'system' as const,
+        metadata: { task_id: task.id, action: 'task_created' },
+      });
+
+      return task;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['messages'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast.success('Tarefa criada');
+    },
+    onError: (error: Error) => toast.error('Erro ao criar tarefa', { description: error.message }),
+  });
+
   const searchMessages = async (query: string, conversationId?: string) => {
     if (!workspace?.id) return [];
 
@@ -93,5 +155,5 @@ export function useChatActions() {
     return data || [];
   };
 
-  return { createTaskFromMessage, searchMessages };
+  return { createTaskFromMessage, createQuickTask, searchMessages };
 }

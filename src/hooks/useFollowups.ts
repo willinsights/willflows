@@ -84,6 +84,53 @@ export function useFollowups() {
     },
   });
 
+  const createQuickFollowup = useMutation({
+    mutationFn: async ({ conversationId, assignedTo, dueAt, note }: { 
+      conversationId: string; assignedTo: string; dueAt?: string; note?: string;
+    }) => {
+      if (!workspace?.id || !user?.id) throw new Error('Workspace ou utilizador não encontrado');
+
+      // Create a system message for the followup since we don't have a message
+      const { data: msgData, error: msgError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          user_id: user.id,
+          body: `📌 Lembrete: ${note || 'Sem nota'}`,
+          type: 'system' as const,
+          metadata: { action: 'followup_created' },
+        })
+        .select()
+        .single();
+
+      if (msgError) throw msgError;
+
+      const { data, error } = await supabase
+        .from('followups')
+        .insert({
+          message_id: msgData.id,
+          workspace_id: workspace.id,
+          created_by: user.id,
+          assigned_to: assignedTo,
+          due_at: dueAt || null,
+          note: note || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['followups'] });
+      queryClient.invalidateQueries({ queryKey: ['messages'] });
+      toast.success('Lembrete criado');
+    },
+    onError: (error: Error) => {
+      toast.error('Erro ao criar lembrete', { description: error.message });
+    },
+  });
+
   const markAsDone = useMutation({
     mutationFn: async (followupId: string) => {
       const { error } = await supabase
@@ -114,6 +161,6 @@ export function useFollowups() {
 
   return {
     followups, openFollowups, doneFollowups, myFollowups,
-    isLoading, error, refetch, createFollowup, markAsDone, markAsOpen,
+    isLoading, error, refetch, createFollowup, createQuickFollowup, markAsDone, markAsOpen,
   };
 }
