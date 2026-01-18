@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { CalendarIcon, Clock, MapPin, Video, FileText } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, Video, FileText, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,6 +41,7 @@ interface CreateEventModalProps {
     location?: string;
     event_type: string;
     video_call_url?: string;
+    is_private?: boolean;
   }) => Promise<any>;
   initialDate?: Date;
   initialHour?: number;
@@ -67,6 +68,7 @@ export function CreateEventModal({
   const [location, setLocation] = useState('');
   const [eventType, setEventType] = useState('meeting');
   const [videoCallUrl, setVideoCallUrl] = useState('');
+  const [isPrivate, setIsPrivate] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +93,7 @@ export function CreateEventModal({
         location: location.trim() || undefined,
         event_type: eventType,
         video_call_url: videoCallUrl.trim() || undefined,
+        is_private: isPrivate,
       });
 
       if (result) {
@@ -104,6 +107,7 @@ export function CreateEventModal({
         setLocation('');
         setEventType('meeting');
         setVideoCallUrl('');
+        setIsPrivate(false);
         onOpenChange(false);
       }
     } finally {
@@ -194,6 +198,24 @@ export function CreateEventModal({
               onCheckedChange={setAllDay}
             />
           </div>
+
+          {/* Private Event Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Lock className="h-4 w-4 text-muted-foreground" />
+              <Label htmlFor="is-private" className="cursor-pointer">Evento Privado</Label>
+            </div>
+            <Switch
+              id="is-private"
+              checked={isPrivate}
+              onCheckedChange={setIsPrivate}
+            />
+          </div>
+          {isPrivate && (
+            <p className="text-xs text-muted-foreground -mt-2">
+              Este evento só será visível para si.
+            </p>
+          )}
 
           {/* Time Selection */}
           {!allDay && (
