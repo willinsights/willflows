@@ -29,21 +29,23 @@ export function useChatActions() {
 
       const columnId = columns?.[0]?.id;
 
+      const taskData = {
+        workspace_id: workspace.id,
+        project_id: projectId,
+        title,
+        phase,
+        column_id: columnId,
+        created_by: user.id,
+        created_from_message_id: message.id,
+        conversation_id: message.conversation_id,
+        due_date: dueDate || null,
+        priority: 'medium' as const,
+        position: 0,
+      };
+
       const { data: task, error: taskError } = await supabase
         .from('tasks')
-        .insert({
-          workspace_id: workspace.id,
-          project_id: projectId,
-          title,
-          phase,
-          column_id: columnId,
-          created_by: user.id,
-          created_from_message_id: message.id,
-          conversation_id: message.conversation_id,
-          due_date: dueDate || null,
-          priority: 'medium',
-          position: 0,
-        })
+        .insert(taskData)
         .select()
         .single();
 
