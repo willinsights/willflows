@@ -33,6 +33,7 @@ import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useClientCommunications } from '@/hooks/useClientCommunications';
 import { useClientNotes } from '@/hooks/useClientNotes';
 import { useConversations } from '@/hooks/useConversations';
+import { useAuth } from '@/contexts/AuthContext';
 import { CreateCommunicationModal } from './CreateCommunicationModal';
 import { CreateNoteModal } from './CreateNoteModal';
 import { cn } from '@/lib/utils';
@@ -96,9 +97,11 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
   const [activeTab, setActiveTab] = useState('info');
   const [showCommunicationModal, setShowCommunicationModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
+  const [openingChat, setOpeningChat] = useState(false);
   const { currentWorkspace } = useWorkspace();
   const { canViewAllFinancials, canViewClientContacts } = useFinancialPermissions();
-  const { projectChats } = useConversations();
+  const { projectChats, createProjectChat } = useConversations();
+  const { user } = useAuth();
   
   const { 
     communications, 
@@ -183,6 +186,37 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
       content,
     });
     return !!result;
+  };
+
+  const handleOpenChat = async () => {
+    if (!user || projects.length === 0) return;
+    setOpeningChat(true);
+    
+    try {
+      // Get the most recent project for this client
+      const recentProject = [...projects].sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )[0];
+      
+      // Check if conversation exists for this project
+      let conversationId = projectChats.find(c => c.project_id === recentProject.id)?.id;
+      
+      if (!conversationId) {
+        // Create new conversation for the project
+        const newConversation = await createProjectChat.mutateAsync({
+          projectId: recentProject.id,
+          projectName: recentProject.name,
+        });
+        conversationId = newConversation.id;
+      }
+      
+      onOpenChange(false);
+      navigate(`/app/chat/${conversationId}`);
+    } catch (error) {
+      console.error('Error opening chat:', error);
+    } finally {
+      setOpeningChat(false);
+    }
   };
 
   if (!client) return null;
@@ -272,30 +306,18 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
                       <Plus className="h-4 w-4 mr-2" />
                       Nota
                     </Button>
-                    {/* Chat button - navigates to most recent project chat */}
-                    {(() => {
-                      // Find the most recent project for this client that has a chat
-                      const clientProjectIds = projects.map(p => p.id);
-                      const projectConversation = projectChats.find(c => 
-                        c.project_id && clientProjectIds.includes(c.project_id)
-                      );
-                      if (projectConversation) {
-                        return (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => {
-                              onOpenChange(false);
-                              navigate(`/app/chat/${projectConversation.id}`);
-                            }}
-                          >
-                            <MessageSquare className="h-4 w-4 mr-2" />
-                            Chat
-                          </Button>
-                        );
-                      }
-                      return null;
-                    })()}
+                    {/* Chat button - always visible if there are projects */}
+                    {projects.length > 0 && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleOpenChat}
+                        disabled={openingChat}
+                      >
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        {openingChat ? 'Abrindo...' : 'Chat'}
+                      </Button>
+                    )}
                   </div>
 
                   {/* Contact & Company Cards */}

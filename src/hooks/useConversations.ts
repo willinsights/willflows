@@ -252,6 +252,44 @@ export function useConversations() {
     },
   });
 
+  const createProjectChat = useMutation({
+    mutationFn: async ({ projectId, projectName }: { projectId: string; projectName: string }) => {
+      if (!workspace?.id || !user?.id) throw new Error('Workspace não encontrado');
+
+      // Check if conversation already exists for this project
+      const existing = projectChats.find(c => c.project_id === projectId);
+      if (existing) return existing;
+
+      // Create new project conversation
+      const { data: conversation, error: convError } = await supabase
+        .from('conversations')
+        .insert({
+          workspace_id: workspace.id,
+          type: 'project' as const,
+          name: projectName,
+          project_id: projectId,
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (convError) throw convError;
+
+      // Add creator as member
+      await supabase.from('conversation_members').insert({
+        conversation_id: conversation.id,
+        user_id: user.id,
+        role: 'admin',
+      });
+
+      return conversation;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations', workspace?.id] });
+    },
+    onError: (error: Error) => toast.error('Erro ao criar chat', { description: error.message }),
+  });
+
   useEffect(() => {
     if (!workspace?.id) return;
 
@@ -268,7 +306,7 @@ export function useConversations() {
     return () => { supabase.removeChannel(channel); };
   }, [workspace?.id, queryClient]);
 
-  return { conversations, projectChats, channels, dms, isLoading, error, refetch, createChannel, joinChannel, createDM };
+  return { conversations, projectChats, channels, dms, isLoading, error, refetch, createChannel, joinChannel, createDM, createProjectChat };
 }
 
 export function useConversation(conversationId: string | undefined) {
