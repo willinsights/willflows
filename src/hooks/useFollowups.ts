@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -158,6 +159,20 @@ export function useFollowups() {
       toast.success('FollowUp reaberto');
     },
   });
+
+  // Realtime subscription for followups
+  useEffect(() => {
+    if (!user?.id || !workspace?.id) return;
+
+    const channel = supabase
+      .channel(`followups:${workspace.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'followups', filter: `workspace_id=eq.${workspace.id}` },
+        () => queryClient.invalidateQueries({ queryKey: ['followups'] })
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id, workspace?.id, queryClient]);
 
   return {
     followups, openFollowups, doneFollowups, myFollowups,

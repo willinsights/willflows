@@ -109,7 +109,7 @@ export function useMessages(conversationId: string | undefined) {
   });
 
   const sendMessage = useMutation({
-    mutationFn: async ({ body, parentMessageId, attachments }: { body: string; parentMessageId?: string; attachments?: File[] }) => {
+    mutationFn: async ({ body, parentMessageId, attachments, mentionedUserIds }: { body: string; parentMessageId?: string; attachments?: File[]; mentionedUserIds?: string[] }) => {
       if (!conversationId || !user?.id) throw new Error('Conversa ou utilizador não encontrado');
 
       const { data, error } = await supabase
@@ -124,6 +124,17 @@ export function useMessages(conversationId: string | undefined) {
         .single();
 
       if (error) throw error;
+
+      // Save mentions (triggers will create notifications)
+      if (mentionedUserIds && mentionedUserIds.length > 0) {
+        const uniqueUserIds = [...new Set(mentionedUserIds)];
+        await supabase.from('message_mentions').insert(
+          uniqueUserIds.map(userId => ({
+            message_id: data.id,
+            mentioned_user_id: userId,
+          }))
+        );
+      }
 
       // Upload attachments if any
       if (attachments && attachments.length > 0) {
@@ -187,6 +198,18 @@ export function useMessages(conversationId: string | undefined) {
       .channel(`messages:${conversationId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
         () => queryClient.invalidateQueries({ queryKey: ['messages', conversationId] })
+      )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
+        () => queryClient.invalidateQueries({ queryKey: ['messages', conversationId] })
+      )
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
+        () => queryClient.invalidateQueries({ queryKey: ['messages', conversationId] })
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'message_reactions' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+          queryClient.invalidateQueries({ queryKey: ['message-reactions', conversationId] });
+        }
       )
       .subscribe();
 

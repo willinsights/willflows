@@ -194,6 +194,9 @@ export function useConversations() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations', filter: `workspace_id=eq.${workspace.id}` },
         () => queryClient.invalidateQueries({ queryKey: ['conversations', workspace.id] })
       )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' },
+        () => queryClient.invalidateQueries({ queryKey: ['conversations', workspace.id] }) // Update last message
+      )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
