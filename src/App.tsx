@@ -53,6 +53,7 @@ const BetaAdmin = lazy(() => import("./pages/app/BetaAdmin"));
 const FeedbackAdmin = lazy(() => import("./pages/app/FeedbackAdmin"));
 const BlogAdmin = lazy(() => import("./pages/app/BlogAdmin"));
 const SuperAdmin = lazy(() => import("./pages/app/SuperAdmin"));
+const Chat = lazy(() => import("./pages/app/Chat"));
 
 const App = () => (
   <HelmetProvider>
@@ -128,6 +129,8 @@ const App = () => (
                       <Route path="feedback" element={<FeedbackAdmin />} />
                       <Route path="blog-admin" element={<BlogAdmin />} />
                       <Route path="admin" element={<SuperAdmin />} />
+                      <Route path="chat" element={<Chat />} />
+                      <Route path="chat/:conversationId" element={<Chat />} />
                     </Route>
 
                       {/* Catch-all */}
