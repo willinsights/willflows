@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Settings, User, Users, Shield, Palette, Loader2, Database as DatabaseIcon, Clock, Trash2, RefreshCw, X, Calendar, Video, AlertTriangle, LogOut, Camera } from 'lucide-react';
+import { Settings, User, Users, Shield, Palette, Loader2, Database as DatabaseIcon, Clock, Trash2, RefreshCw, X, Calendar, Video, AlertTriangle, LogOut, Camera, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
@@ -33,6 +43,7 @@ import { NotificationPreferencesCard } from '@/components/settings/NotificationP
 import { PermissionsMatrix } from '@/components/settings/PermissionsMatrix';
 import { DeleteWorkspaceModal } from '@/components/workspace/DeleteWorkspaceModal';
 import { LeaveWorkspaceModal } from '@/components/workspace/LeaveWorkspaceModal';
+import { useProductTour } from '@/hooks/useProductTour';
 import type { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
@@ -43,6 +54,7 @@ export default function Configuracoes() {
   const { currentWorkspace, allWorkspaces, refreshWorkspaces, isAdmin } = useWorkspace();
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
+  const { restartTour } = useProductTour();
   
   // Workspace members and invitations
   const { members, loading: membersLoading, refresh: refreshMembers } = useWorkspaceMembers();
@@ -76,6 +88,9 @@ export default function Configuracoes() {
   // Workspace management modals
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
+  const [deleteAccountConfirmText, setDeleteAccountConfirmText] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   // Check if user is admin or guest in current workspace
   const isGuestMember = currentWorkspace && !isAdmin;
@@ -100,6 +115,43 @@ export default function Configuracoes() {
     await refreshWorkspaces();
     // Redirect to app or onboarding
     window.location.href = '/app';
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteAccountConfirmText !== 'ELIMINAR') {
+      toast({
+        title: 'Confirmação incorreta',
+        description: 'Por favor, escreva ELIMINAR para confirmar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setDeletingAccount(true);
+    try {
+      const { error } = await supabase.functions.invoke('delete-account');
+      
+      if (error) throw error;
+
+      toast({ title: 'Conta eliminada com sucesso' });
+      
+      // Sign out and redirect
+      await supabase.auth.signOut();
+      window.location.href = '/';
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao eliminar conta',
+        description: error.message || 'Ocorreu um erro. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
+
+  const handleRestartTour = () => {
+    restartTour();
+    toast({ title: 'Tour reiniciado', description: 'Navegue para o Dashboard para ver o tour.' });
   };
 
   // Sync form with current workspace
@@ -272,8 +324,8 @@ export default function Configuracoes() {
     }
   };
 
+  // Roles disponíveis para atribuir - admin removido para convidados
   const roles: { id: AppRole; name: string; description: string }[] = [
-    { id: 'admin', name: 'Admin', description: 'Acesso total ao sistema' },
     { id: 'editor', name: 'Editor', description: 'Edita projetos e tarefas' },
     { id: 'captacao', name: 'Captação', description: 'Apenas fase de captação' },
     { id: 'freelancer', name: 'Freelancer', description: 'Vê tarefas atribuídas e ganhos próprios' },
@@ -378,6 +430,16 @@ export default function Configuracoes() {
       toast({
         title: 'Ação não permitida',
         description: 'Não é possível alterar a sua própria função.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Bloquear promoção a admin (convidados nunca podem ser admin)
+    if (newRole === 'admin') {
+      toast({
+        title: 'Ação não permitida',
+        description: 'Membros convidados não podem ser promovidos a administradores.',
         variant: 'destructive',
       });
       return;
@@ -689,6 +751,47 @@ export default function Configuracoes() {
 
             {/* Notification Preferences */}
             <NotificationPreferencesCard />
+
+            {/* Tour & Conta */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <HelpCircle className="h-5 w-5" />
+                  Ajuda e Conta
+                </CardTitle>
+                <CardDescription>Tour guiado e gestão da conta</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                  <div>
+                    <p className="font-medium">Tour Guiado</p>
+                    <p className="text-sm text-muted-foreground">
+                      Reveja o tour de introdução ao sistema
+                    </p>
+                  </div>
+                  <Button variant="outline" onClick={handleRestartTour}>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Repetir Tour
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between p-4 rounded-lg border border-destructive/20 bg-destructive/5">
+                  <div>
+                    <p className="font-medium text-destructive">Eliminar Conta</p>
+                    <p className="text-sm text-muted-foreground">
+                      Eliminar permanentemente a sua conta e todos os dados
+                    </p>
+                  </div>
+                  <Button 
+                    variant="destructive" 
+                    onClick={() => setDeleteAccountModalOpen(true)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Eliminar Conta
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 
@@ -1014,6 +1117,57 @@ export default function Configuracoes() {
           />
         </>
       )}
+
+      {/* Delete Account Modal */}
+      <AlertDialog open={deleteAccountModalOpen} onOpenChange={setDeleteAccountModalOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">Eliminar Conta Permanentemente</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                Esta ação é <strong>irreversível</strong>. Todos os seus dados, incluindo:
+              </p>
+              <ul className="list-disc list-inside text-sm space-y-1">
+                <li>Perfil e preferências</li>
+                <li>Workspaces onde é o único admin (serão eliminados)</li>
+                <li>Projetos e tarefas associados</li>
+                <li>Histórico de pagamentos</li>
+              </ul>
+              <p className="font-medium pt-2">
+                Para confirmar, escreva <span className="text-destructive">ELIMINAR</span> abaixo:
+              </p>
+              <Input
+                value={deleteAccountConfirmText}
+                onChange={(e) => setDeleteAccountConfirmText(e.target.value.toUpperCase())}
+                placeholder="Escreva ELIMINAR"
+                className="mt-2"
+              />
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteAccountConfirmText('')}>
+              Cancelar
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAccount}
+              disabled={deletingAccount || deleteAccountConfirmText !== 'ELIMINAR'}
+            >
+              {deletingAccount ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  A eliminar...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Eliminar Conta
+                </>
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -22,6 +22,7 @@ import {
   Receipt,
   Shield,
   Crown,
+  ExternalLink,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -222,6 +223,24 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
         ) : (
           <TrialBadge variant="full" className="w-full justify-center" />
         )}
+      </div>
+
+      {/* Ver Site Link */}
+      <div className={cn('px-3 pb-2', collapsed && !isMobile && 'px-2')}>
+        <a
+          href="https://willflows.lovable.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            'flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors',
+            'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent',
+            collapsed && !isMobile && 'justify-center px-2'
+          )}
+          title={collapsed && !isMobile ? 'Ver Site' : undefined}
+        >
+          <ExternalLink className="h-4 w-4 flex-shrink-0" />
+          {(!collapsed || isMobile) && <span>Ver Site</span>}
+        </a>
       </div>
 
       {/* Collapse Button (desktop only) */}

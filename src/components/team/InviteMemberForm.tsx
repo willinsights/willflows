@@ -19,8 +19,8 @@ import type { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
 
+// Nota: Admin removido intencionalmente - convidados não podem ser admin
 const roleOptions: { value: AppRole; label: string }[] = [
-  { value: 'admin', label: 'Admin' },
   { value: 'editor', label: 'Editor' },
   { value: 'captacao', label: 'Captação' },
   { value: 'freelancer', label: 'Freelancer' },

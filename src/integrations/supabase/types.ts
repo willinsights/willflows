@@ -308,6 +308,7 @@ export type Database = {
           event_type: string
           google_event_id: string | null
           id: string
+          is_private: boolean
           location: string | null
           outlook_event_id: string | null
           project_id: string | null
@@ -327,6 +328,7 @@ export type Database = {
           event_type?: string
           google_event_id?: string | null
           id?: string
+          is_private?: boolean
           location?: string | null
           outlook_event_id?: string | null
           project_id?: string | null
@@ -346,6 +348,7 @@ export type Database = {
           event_type?: string
           google_event_id?: string | null
           id?: string
+          is_private?: boolean
           location?: string | null
           outlook_event_id?: string | null
           project_id?: string | null
