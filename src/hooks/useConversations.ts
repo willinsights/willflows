@@ -61,22 +61,35 @@ export function useConversations() {
       const convIds = filtered.map(c => c.id);
       const { data: lastMessages } = await supabase
         .from('messages')
-        .select(`
-          conversation_id,
-          body,
-          created_at,
-          user:profiles!messages_user_id_fkey(full_name)
-        `)
+        .select('conversation_id, body, created_at, user_id')
         .in('conversation_id', convIds)
         .is('parent_message_id', null)
         .eq('is_deleted', false)
         .order('created_at', { ascending: false });
 
+      // Get user IDs from messages to fetch profiles
+      const messageUserIds = [...new Set((lastMessages || []).map(m => m.user_id))];
+      let messageProfilesMap: Record<string, any> = {};
+      
+      if (messageUserIds.length > 0) {
+        const { data: msgProfiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', messageUserIds);
+        
+        (msgProfiles || []).forEach(p => {
+          messageProfilesMap[p.id] = p;
+        });
+      }
+
       // Group last messages by conversation
       const lastMessageMap: Record<string, any> = {};
       (lastMessages || []).forEach(msg => {
         if (!lastMessageMap[msg.conversation_id]) {
-          lastMessageMap[msg.conversation_id] = msg;
+          lastMessageMap[msg.conversation_id] = {
+            ...msg,
+            user_name: messageProfilesMap[msg.user_id]?.full_name || 'Utilizador'
+          };
         }
       });
 
@@ -87,19 +100,30 @@ export function useConversations() {
       if (dmConvs.length > 0) {
         const { data: dmMembers } = await supabase
           .from('conversation_members')
-          .select(`
-            conversation_id,
-            user_id,
-            profile:profiles!conversation_members_user_id_fkey(full_name, avatar_url)
-          `)
+          .select('conversation_id, user_id')
           .in('conversation_id', dmConvs.map(c => c.id));
 
-        // Find the other participant for each DM
-        (dmMembers || []).forEach(member => {
-          if (member.user_id !== user.id) {
-            dmParticipantsMap[member.conversation_id] = member.profile;
-          }
-        });
+        // Get other user IDs (not current user)
+        const otherUserIds = [...new Set((dmMembers || []).filter(m => m.user_id !== user.id).map(m => m.user_id))];
+        
+        if (otherUserIds.length > 0) {
+          const { data: dmProfiles } = await supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url')
+            .in('id', otherUserIds);
+          
+          const dmProfilesMap: Record<string, any> = {};
+          (dmProfiles || []).forEach(p => {
+            dmProfilesMap[p.id] = p;
+          });
+
+          // Find the other participant for each DM
+          (dmMembers || []).forEach(member => {
+            if (member.user_id !== user.id) {
+              dmParticipantsMap[member.conversation_id] = dmProfilesMap[member.user_id];
+            }
+          });
+        }
       }
 
       return filtered.map((c: any) => {
@@ -114,7 +138,7 @@ export function useConversations() {
           lastMessage: lastMsg ? {
             body: lastMsg.body,
             created_at: lastMsg.created_at,
-            user_name: lastMsg.user?.full_name || 'Utilizador',
+            user_name: lastMsg.user_name || 'Utilizador',
           } : null,
           dmParticipant,
         } as Conversation;
@@ -200,15 +224,31 @@ export function useConversation(conversationId: string | undefined) {
     queryKey: ['conversation-members', conversationId],
     queryFn: async () => {
       if (!conversationId) return [];
-      const { data, error } = await supabase
+      
+      const { data: memberData, error } = await supabase
         .from('conversation_members')
-        .select(`
-          *,
-          profile:profiles!conversation_members_user_id_fkey(full_name, avatar_url, email)
-        `)
+        .select('*')
         .eq('conversation_id', conversationId);
+      
       if (error) throw error;
-      return data || [];
+      if (!memberData || memberData.length === 0) return [];
+      
+      // Fetch profiles separately
+      const userIds = memberData.map(m => m.user_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url, email')
+        .in('id', userIds);
+      
+      const profilesMap: Record<string, any> = {};
+      (profiles || []).forEach(p => {
+        profilesMap[p.id] = p;
+      });
+      
+      return memberData.map(m => ({
+        ...m,
+        profile: profilesMap[m.user_id] || null
+      }));
     },
     enabled: !!conversationId,
   });
