@@ -2463,8 +2463,16 @@ export type Database = {
         Args: { _workspace_id: string }
         Returns: undefined
       }
+      is_conversation_member: {
+        Args: { p_conversation_id: string; p_user_id: string }
+        Returns: boolean
+      }
       is_internal_test_account: {
         Args: { check_user_id: string }
+        Returns: boolean
+      }
+      is_public_channel_in_user_workspace: {
+        Args: { p_conversation_id: string; p_user_id: string }
         Returns: boolean
       }
       is_service_role: { Args: never; Returns: boolean }
