@@ -174,6 +174,72 @@ export function useConversations() {
     onError: (error: Error) => toast.error('Erro ao criar canal', { description: error.message }),
   });
 
+  const createDM = useMutation({
+    mutationFn: async (otherUserId: string) => {
+      if (!workspace?.id || !user?.id) throw new Error('Workspace não encontrado');
+
+      // Check if DM already exists between these two users
+      const { data: existingMembers } = await supabase
+        .from('conversation_members')
+        .select('conversation_id')
+        .eq('user_id', user.id);
+
+      const myConvIds = existingMembers?.map(m => m.conversation_id) || [];
+
+      if (myConvIds.length > 0) {
+        // Find conversations where the other user is also a member AND it's a DM
+        const { data: otherMembers } = await supabase
+          .from('conversation_members')
+          .select('conversation_id')
+          .eq('user_id', otherUserId)
+          .in('conversation_id', myConvIds);
+
+        const sharedConvIds = otherMembers?.map(m => m.conversation_id) || [];
+
+        if (sharedConvIds.length > 0) {
+          // Check if any of these is a DM
+          const { data: dmConvs } = await supabase
+            .from('conversations')
+            .select('id')
+            .in('id', sharedConvIds)
+            .eq('type', 'dm')
+            .eq('workspace_id', workspace.id)
+            .limit(1);
+
+          if (dmConvs && dmConvs.length > 0) {
+            return dmConvs[0];
+          }
+        }
+      }
+
+      // Create new DM
+      const { data: conversation, error: convError } = await supabase
+        .from('conversations')
+        .insert({
+          workspace_id: workspace.id,
+          type: 'dm' as const,
+          is_private: true,
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (convError) throw convError;
+
+      // Add both members
+      await supabase.from('conversation_members').insert([
+        { conversation_id: conversation.id, user_id: user.id, role: 'admin' },
+        { conversation_id: conversation.id, user_id: otherUserId, role: 'member' },
+      ]);
+
+      return conversation;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations', workspace?.id] });
+    },
+    onError: (error: Error) => toast.error('Erro ao criar mensagem', { description: error.message }),
+  });
+
   const joinChannel = useMutation({
     mutationFn: async (conversationId: string) => {
       if (!user?.id) throw new Error('Utilizador não encontrado');
@@ -202,7 +268,7 @@ export function useConversations() {
     return () => { supabase.removeChannel(channel); };
   }, [workspace?.id, queryClient]);
 
-  return { conversations, projectChats, channels, dms, isLoading, error, refetch, createChannel, joinChannel };
+  return { conversations, projectChats, channels, dms, isLoading, error, refetch, createChannel, joinChannel, createDM };
 }
 
 export function useConversation(conversationId: string | undefined) {

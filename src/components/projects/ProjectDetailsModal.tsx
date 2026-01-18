@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { 
@@ -46,6 +47,7 @@ import { ProjectCommentsTab } from './ProjectCommentsTab';
 import { ProjectMediaTab } from './ProjectMediaTab';
 import { ProjectFinancialTab } from './ProjectFinancialTab';
 import { ChecklistPendingAlert } from './ChecklistPendingAlert';
+import { useConversations } from '@/hooks/useConversations';
 
 type Task = Tables<'tasks'>;
 type TaskChecklist = Tables<'task_checklists'>;
@@ -95,6 +97,7 @@ const itemTypeOptions = [
 ];
 
 export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onSilentUpdate }: ProjectDetailsModalProps) {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { duplicateProject } = useProjects();
   const { clients } = useClients();
@@ -102,6 +105,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
   const { members: workspaceMembers } = useWorkspaceMembers();
   const { isAdmin } = useWorkspace();
   const { canViewOwnFinancials } = useFinancialPermissions();
+  const { projectChats } = useConversations();
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
@@ -1312,6 +1316,26 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                 <Copy className="h-4 w-4 mr-2" />
                 Duplicar
               </Button>
+              {/* Chat button */}
+              {(() => {
+                const projectConversation = projectChats.find(c => c.project_id === project.id);
+                if (projectConversation) {
+                  return (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        onOpenChange(false);
+                        navigate(`/app/chat/${projectConversation.id}`);
+                      }}
+                    >
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      Chat
+                    </Button>
+                  );
+                }
+                return null;
+              })()}
             </div>
             
             <div className="flex gap-2">
