@@ -573,6 +573,101 @@ export type Database = {
           },
         ]
       }
+      conversation_members: {
+        Row: {
+          conversation_id: string
+          id: string
+          is_muted: boolean | null
+          is_pinned: boolean | null
+          joined_at: string | null
+          last_read_at: string | null
+          role: string | null
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          id?: string
+          is_muted?: boolean | null
+          is_pinned?: boolean | null
+          joined_at?: string | null
+          last_read_at?: string | null
+          role?: string | null
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          id?: string
+          is_muted?: boolean | null
+          is_pinned?: boolean | null
+          joined_at?: string | null
+          last_read_at?: string | null
+          role?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_members_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_archived: boolean | null
+          is_private: boolean | null
+          name: string | null
+          project_id: string | null
+          type: Database["public"]["Enums"]["conversation_type"]
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_archived?: boolean | null
+          is_private?: boolean | null
+          name?: string | null
+          project_id?: string | null
+          type: Database["public"]["Enums"]["conversation_type"]
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_archived?: boolean | null
+          is_private?: boolean | null
+          name?: string | null
+          project_id?: string | null
+          type?: Database["public"]["Enums"]["conversation_type"]
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_attendees: {
         Row: {
           created_at: string
@@ -651,6 +746,60 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "feedback_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      followups: {
+        Row: {
+          assigned_to: string
+          created_at: string | null
+          created_by: string
+          done_at: string | null
+          due_at: string | null
+          id: string
+          message_id: string
+          note: string | null
+          status: Database["public"]["Enums"]["followup_status"] | null
+          workspace_id: string
+        }
+        Insert: {
+          assigned_to: string
+          created_at?: string | null
+          created_by: string
+          done_at?: string | null
+          due_at?: string | null
+          id?: string
+          message_id: string
+          note?: string | null
+          status?: Database["public"]["Enums"]["followup_status"] | null
+          workspace_id: string
+        }
+        Update: {
+          assigned_to?: string
+          created_at?: string | null
+          created_by?: string
+          done_at?: string | null
+          due_at?: string | null
+          id?: string
+          message_id?: string
+          note?: string | null
+          status?: Database["public"]["Enums"]["followup_status"] | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followups_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followups_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -804,6 +953,204 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_attachments: {
+        Row: {
+          created_at: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          message_id: string
+          mime_type: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          message_id: string
+          mime_type?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          message_id?: string
+          mime_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_mentions: {
+        Row: {
+          created_at: string | null
+          id: string
+          mentioned_user_id: string
+          message_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          mentioned_user_id: string
+          message_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          mentioned_user_id?: string
+          message_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_mentions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_reactions: {
+        Row: {
+          created_at: string | null
+          emoji: string
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          emoji: string
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          emoji?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_task_links: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          message_id: string
+          task_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          message_id: string
+          task_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          message_id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_task_links_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_task_links_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          body: string
+          body_tsv: unknown
+          conversation_id: string
+          created_at: string | null
+          id: string
+          is_deleted: boolean | null
+          is_edited: boolean | null
+          metadata: Json | null
+          parent_message_id: string | null
+          type: Database["public"]["Enums"]["message_type"] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          body: string
+          body_tsv?: unknown
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          is_edited?: boolean | null
+          metadata?: Json | null
+          parent_message_id?: string | null
+          type?: Database["public"]["Enums"]["message_type"] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          body?: string
+          body_tsv?: unknown
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          is_edited?: boolean | null
+          metadata?: Json | null
+          parent_message_id?: string | null
+          type?: Database["public"]["Enums"]["message_type"] | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_parent_message_id_fkey"
+            columns: ["parent_message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
             referencedColumns: ["id"]
           },
         ]
@@ -972,6 +1319,35 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_acknowledgments: {
+        Row: {
+          acknowledged_at: string | null
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_acknowledgments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
             referencedColumns: ["id"]
           },
         ]
@@ -1634,8 +2010,10 @@ export type Database = {
         Row: {
           column_id: string | null
           completed_at: string | null
+          conversation_id: string | null
           created_at: string
           created_by: string | null
+          created_from_message_id: string | null
           description: string | null
           due_date: string | null
           due_time: string | null
@@ -1653,8 +2031,10 @@ export type Database = {
         Insert: {
           column_id?: string | null
           completed_at?: string | null
+          conversation_id?: string | null
           created_at?: string
           created_by?: string | null
+          created_from_message_id?: string | null
           description?: string | null
           due_date?: string | null
           due_time?: string | null
@@ -1672,8 +2052,10 @@ export type Database = {
         Update: {
           column_id?: string | null
           completed_at?: string | null
+          conversation_id?: string | null
           created_at?: string
           created_by?: string | null
+          created_from_message_id?: string | null
           description?: string | null
           due_date?: string | null
           due_time?: string | null
@@ -1694,6 +2076,20 @@ export type Database = {
             columns: ["column_id"]
             isOneToOne: false
             referencedRelation: "kanban_columns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_created_from_message_id_fkey"
+            columns: ["created_from_message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
             referencedColumns: ["id"]
           },
           {
@@ -2113,8 +2509,11 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "editor" | "captacao" | "freelancer" | "visualizador"
+      conversation_type: "channel" | "project" | "dm"
       country_region: "PT" | "BR"
+      followup_status: "open" | "done"
       kanban_phase: "captacao" | "edicao"
+      message_type: "text" | "post" | "system"
       payment_status: "pendente" | "pago" | "vencido" | "cancelado"
       priority_level: "baixa" | "media" | "alta" | "urgente"
       project_category: "hotel" | "experiencia" | "evento" | "outro"
@@ -2248,8 +2647,11 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "editor", "captacao", "freelancer", "visualizador"],
+      conversation_type: ["channel", "project", "dm"],
       country_region: ["PT", "BR"],
+      followup_status: ["open", "done"],
       kanban_phase: ["captacao", "edicao"],
+      message_type: ["text", "post", "system"],
       payment_status: ["pendente", "pago", "vencido", "cancelado"],
       priority_level: ["baixa", "media", "alta", "urgente"],
       project_category: ["hotel", "experiencia", "evento", "outro"],
