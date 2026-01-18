@@ -419,6 +419,42 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Trusted By Section */}
+      <section className="py-12 px-4 border-y border-border/30 bg-muted/20">
+        <div className="container mx-auto">
+          <motion.p 
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="text-center text-xs text-muted-foreground mb-8 tracking-[0.2em] uppercase font-medium"
+          >
+            Usado por produtores em Portugal e Brasil
+          </motion.p>
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="flex items-center justify-center gap-10 md:gap-16 flex-wrap"
+          >
+            <img 
+              src="/logos/production-company-white.png"
+              alt="Produtora parceira"
+              className="h-8 md:h-10 opacity-70 hover:opacity-100 transition-all duration-300 brightness-0 invert dark:brightness-100 dark:invert-0"
+            />
+            <img 
+              src="/logos/tempo-vip.png"
+              alt="TEMPO VIP - DMC Portugal, Spain & Morocco"
+              className="h-10 md:h-12 opacity-70 hover:opacity-100 transition-all duration-300"
+            />
+            <img 
+              src="/logos/client-logo.avif"
+              alt="Cliente parceiro"
+              className="h-8 md:h-10 opacity-70 hover:opacity-100 transition-all duration-300"
+            />
+          </motion.div>
+        </div>
+      </section>
+
       {/* Image Modal */}
       <AnimatePresence>
         {selectedImage && (
