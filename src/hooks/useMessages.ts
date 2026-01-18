@@ -38,6 +38,7 @@ export function useMessages(conversationId: string | undefined) {
       const from = pageParam * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
+      // Get messages first
       const { data, error } = await supabase
         .from('messages')
         .select('*')
@@ -48,18 +49,64 @@ export function useMessages(conversationId: string | undefined) {
         .range(from, to);
 
       if (error) throw error;
-      return { messages: data || [], nextCursor: data?.length === PAGE_SIZE ? pageParam + 1 : null };
+      
+      // Fetch profiles for users
+      const userIds = [...new Set((data || []).map(m => m.user_id))];
+      const { data: profiles } = userIds.length > 0 
+        ? await supabase.from('profiles').select('id, full_name, avatar_url, email').in('id', userIds)
+        : { data: [] };
+      
+      const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+      const messagesWithUsers = (data || []).map(m => ({
+        ...m,
+        user: profileMap.get(m.user_id) || null
+      }));
+      
+      return { messages: messagesWithUsers, nextCursor: data?.length === PAGE_SIZE ? pageParam + 1 : null };
     },
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: !!conversationId,
     initialPageParam: 0,
   });
 
-  const messages: Message[] = (data?.pages.flatMap(page => page.messages).reverse() || []).map(m => ({
-    ...m,
-    metadata: m.metadata as Record<string, any> | null,
-    reactions: [],
-  }));
+  // Fetch reactions for all messages
+  const messageIds = data?.pages.flatMap(page => page.messages.map(m => m.id)) || [];
+  
+  const { data: reactionsData } = useQuery({
+    queryKey: ['message-reactions', conversationId, messageIds.length],
+    queryFn: async () => {
+      if (messageIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from('message_reactions')
+        .select('*')
+        .in('message_id', messageIds);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: messageIds.length > 0,
+  });
+
+  const messages: Message[] = (data?.pages.flatMap(page => page.messages).reverse() || []).map(m => {
+    // Group reactions by emoji
+    const msgReactions = (reactionsData || []).filter(r => r.message_id === m.id);
+    const reactionGroups = msgReactions.reduce((acc, r) => {
+      if (!acc[r.emoji]) {
+        acc[r.emoji] = { emoji: r.emoji, count: 0, users: [], reacted_by_me: false };
+      }
+      acc[r.emoji].count++;
+      acc[r.emoji].users.push(r.user_id);
+      if (r.user_id === user?.id) {
+        acc[r.emoji].reacted_by_me = true;
+      }
+      return acc;
+    }, {} as Record<string, { emoji: string; count: number; users: string[]; reacted_by_me: boolean }>);
+
+    return {
+      ...m,
+      metadata: m.metadata as Record<string, any> | null,
+      reactions: Object.values(reactionGroups),
+    };
+  });
 
   const sendMessage = useMutation({
     mutationFn: async ({ body, parentMessageId }: { body: string; parentMessageId?: string }) => {
@@ -105,6 +152,7 @@ export function useMessages(conversationId: string | undefined) {
       await supabase.from('message_reactions').insert({ message_id: messageId, user_id: user.id, emoji });
     }
     queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+    queryClient.invalidateQueries({ queryKey: ['message-reactions', conversationId] });
   }, [user?.id, conversationId, queryClient]);
 
   useEffect(() => {
@@ -136,8 +184,17 @@ export function useThreadMessages(parentMessageId: string | undefined) {
         .eq('parent_message_id', parentMessageId)
         .eq('is_deleted', false)
         .order('created_at', { ascending: true });
+      
       if (error) throw error;
-      return data || [];
+      
+      // Fetch profiles
+      const userIds = [...new Set((data || []).map(m => m.user_id))];
+      const { data: profiles } = userIds.length > 0
+        ? await supabase.from('profiles').select('id, full_name, avatar_url, email').in('id', userIds)
+        : { data: [] };
+      
+      const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+      return (data || []).map(m => ({ ...m, user: profileMap.get(m.user_id) || null }));
     },
     enabled: !!parentMessageId,
   });

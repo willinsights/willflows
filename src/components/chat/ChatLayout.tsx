@@ -6,7 +6,7 @@ import { ChatContextPanel } from './ChatContextPanel';
 import { FollowUpInbox } from './FollowUpInbox';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Info, Inbox } from 'lucide-react';
+import { ArrowLeft, Info, Inbox, MessageCircle, Hash } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 interface ChatLayoutProps {
@@ -37,7 +37,7 @@ export function ChatLayout({ selectedConversationId }: ChatLayoutProps) {
   // Mobile Layout
   if (isMobile) {
     return (
-      <div className="flex flex-col h-[calc(100vh-4rem)]">
+      <div className="flex flex-col h-[calc(100vh-4rem)] bg-background">
         {/* Mobile Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
           {mobileView === 'chat' && activeConversationId ? (
@@ -45,7 +45,7 @@ export function ChatLayout({ selectedConversationId }: ChatLayoutProps) {
               <Button variant="ghost" size="icon" onClick={handleBackToSidebar}>
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <span className="font-medium">Chat</span>
+              <span className="font-semibold">Chat</span>
               <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="ghost" size="icon">
@@ -59,7 +59,10 @@ export function ChatLayout({ selectedConversationId }: ChatLayoutProps) {
             </>
           ) : (
             <>
-              <h1 className="text-lg font-semibold">Chat</h1>
+              <div className="flex items-center gap-2">
+                <MessageCircle className="h-5 w-5 text-primary" />
+                <h1 className="text-lg font-semibold">Chat</h1>
+              </div>
               <Button
                 variant="ghost"
                 size="icon"
@@ -95,18 +98,24 @@ export function ChatLayout({ selectedConversationId }: ChatLayoutProps) {
 
   // Desktop Layout - 3 columns
   return (
-    <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
+    <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-background">
       {/* Left Sidebar - Conversations */}
       <div className="w-72 border-r border-border flex flex-col bg-card">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <h1 className="font-semibold">Chat</h1>
+          <div className="flex items-center gap-2">
+            <MessageCircle className="h-5 w-5 text-primary" />
+            <h1 className="font-semibold">Chat</h1>
+          </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setShowFollowUpInbox(!showFollowUpInbox)}
-            className={cn(showFollowUpInbox && 'bg-primary/10 text-primary')}
+            className={cn(
+              'h-8 w-8 transition-colors',
+              showFollowUpInbox && 'bg-primary/10 text-primary'
+            )}
           >
-            <Inbox className="h-5 w-5" />
+            <Inbox className="h-4 w-4" />
           </Button>
         </div>
         <div className="flex-1 overflow-hidden">
@@ -127,9 +136,14 @@ export function ChatLayout({ selectedConversationId }: ChatLayoutProps) {
           <ChatFeed conversationId={activeConversationId} />
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            <div className="text-center">
-              <p className="text-lg mb-2">Seleciona uma conversa</p>
-              <p className="text-sm">Escolhe um projeto, canal ou mensagem direta</p>
+            <div className="text-center max-w-sm">
+              <div className="h-20 w-20 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-6">
+                <Hash className="h-10 w-10 text-muted-foreground/50" />
+              </div>
+              <h2 className="text-xl font-semibold mb-2">Seleciona uma conversa</h2>
+              <p className="text-sm">
+                Escolhe um projeto, canal ou mensagem direta para começar a conversar
+              </p>
             </div>
           </div>
         )}
@@ -150,7 +164,7 @@ export function ChatLayout({ selectedConversationId }: ChatLayoutProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="absolute right-4 top-20"
+          className="absolute right-4 top-20 h-9 w-9"
           onClick={() => setShowContextPanel(true)}
         >
           <Info className="h-5 w-5" />
