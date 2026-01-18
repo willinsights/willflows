@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { motion } from 'framer-motion';
@@ -31,6 +32,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useClientCommunications } from '@/hooks/useClientCommunications';
 import { useClientNotes } from '@/hooks/useClientNotes';
+import { useConversations } from '@/hooks/useConversations';
 import { CreateCommunicationModal } from './CreateCommunicationModal';
 import { CreateNoteModal } from './CreateNoteModal';
 import { cn } from '@/lib/utils';
@@ -90,11 +92,13 @@ const communicationTypeLabels: Record<string, { label: string; icon: typeof Phon
 };
 
 export function ClientDetailsModal({ open, onOpenChange, client, projects }: ClientDetailsModalProps) {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('info');
   const [showCommunicationModal, setShowCommunicationModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
   const { currentWorkspace } = useWorkspace();
   const { canViewAllFinancials, canViewClientContacts } = useFinancialPermissions();
+  const { projectChats } = useConversations();
   
   const { 
     communications, 
@@ -268,6 +272,30 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
                       <Plus className="h-4 w-4 mr-2" />
                       Nota
                     </Button>
+                    {/* Chat button - navigates to most recent project chat */}
+                    {(() => {
+                      // Find the most recent project for this client that has a chat
+                      const clientProjectIds = projects.map(p => p.id);
+                      const projectConversation = projectChats.find(c => 
+                        c.project_id && clientProjectIds.includes(c.project_id)
+                      );
+                      if (projectConversation) {
+                        return (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              onOpenChange(false);
+                              navigate(`/app/chat/${projectConversation.id}`);
+                            }}
+                          >
+                            <MessageSquare className="h-4 w-4 mr-2" />
+                            Chat
+                          </Button>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
 
                   {/* Contact & Company Cards */}

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useMessages } from '@/hooks/useMessages';
 import { useConversations, useConversation } from '@/hooks/useConversations';
+import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { ChatMessage } from './ChatMessage';
 import { ChatComposer } from './ChatComposer';
 import { ChatThread } from './ChatThread';
@@ -20,7 +21,8 @@ interface ChatFeedProps {
 export function ChatFeed({ conversationId }: ChatFeedProps) {
   const { messages, isLoading, sendMessage, toggleReaction } = useMessages(conversationId);
   const { conversations } = useConversations();
-  const { members } = useConversation(conversationId);
+  const { members: conversationMembers } = useConversation(conversationId);
+  const { members: workspaceMembers } = useWorkspaceMembers();
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -160,10 +162,10 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
             {conversation?.displayName || conversation?.name || 'Conversa'}
           </h2>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {members.length > 0 && (
+            {conversationMembers.length > 0 && (
               <span className="flex items-center gap-1">
                 <Users className="h-3 w-3" />
-                {members.length} {members.length === 1 ? 'membro' : 'membros'}
+                {conversationMembers.length} {conversationMembers.length === 1 ? 'membro' : 'membros'}
               </span>
             )}
             <Badge variant="outline" className="h-5 text-[10px] border-success/30 text-success">
@@ -240,12 +242,12 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
               onSend={handleSendMessage}
               placeholder={`Mensagem para ${conversation?.displayName || conversation?.name || 'conversa'}...`}
               isLoading={sendMessage.isPending}
-              members={members.map((m: any) => ({
+              members={workspaceMembers.map((m) => ({
                 id: m.user_id,
                 user_id: m.user_id,
-                full_name: m.profile?.full_name || null,
-                avatar_url: m.profile?.avatar_url || null,
-                email: m.profile?.email,
+                full_name: m.full_name || null,
+                avatar_url: m.avatar_url || null,
+                email: m.email,
               }))}
               conversationId={conversationId}
               projectId={conversation?.project_id || undefined}
