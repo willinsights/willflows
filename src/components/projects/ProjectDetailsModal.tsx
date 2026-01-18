@@ -48,6 +48,7 @@ import { ProjectMediaTab } from './ProjectMediaTab';
 import { ProjectFinancialTab } from './ProjectFinancialTab';
 import { ChecklistPendingAlert } from './ChecklistPendingAlert';
 import { useConversations } from '@/hooks/useConversations';
+import { useAuth } from '@/contexts/AuthContext';
 
 type Task = Tables<'tasks'>;
 type TaskChecklist = Tables<'task_checklists'>;
@@ -105,7 +106,9 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
   const { members: workspaceMembers } = useWorkspaceMembers();
   const { isAdmin } = useWorkspace();
   const { canViewOwnFinancials } = useFinancialPermissions();
-  const { projectChats } = useConversations();
+  const { projectChats, createProjectChat } = useConversations();
+  const { user } = useAuth();
+  const [openingChat, setOpeningChat] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
@@ -479,6 +482,32 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
     }
     
     setDuplicating(false);
+  };
+
+  const handleOpenChat = async () => {
+    if (!project || !user) return;
+    setOpeningChat(true);
+    
+    try {
+      // Check if conversation exists
+      let conversationId = projectChats.find(c => c.project_id === project.id)?.id;
+      
+      if (!conversationId) {
+        // Create new conversation
+        const newConversation = await createProjectChat.mutateAsync({
+          projectId: project.id,
+          projectName: project.name,
+        });
+        conversationId = newConversation.id;
+      }
+      
+      onOpenChange(false);
+      navigate(`/app/chat/${conversationId}`);
+    } catch (error) {
+      console.error('Error opening chat:', error);
+    } finally {
+      setOpeningChat(false);
+    }
   };
 
   const openDuplicateDialog = () => {
@@ -1316,26 +1345,16 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                 <Copy className="h-4 w-4 mr-2" />
                 Duplicar
               </Button>
-              {/* Chat button */}
-              {(() => {
-                const projectConversation = projectChats.find(c => c.project_id === project.id);
-                if (projectConversation) {
-                  return (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        onOpenChange(false);
-                        navigate(`/app/chat/${projectConversation.id}`);
-                      }}
-                    >
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      Chat
-                    </Button>
-                  );
-                }
-                return null;
-              })()}
+              {/* Chat button - always visible, creates conversation if needed */}
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleOpenChat}
+                disabled={openingChat}
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                {openingChat ? 'Abrindo...' : 'Chat'}
+              </Button>
             </div>
             
             <div className="flex gap-2">
