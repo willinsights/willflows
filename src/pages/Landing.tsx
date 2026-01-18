@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { trackCtaClick } from '@/lib/google-ads';
 import { isBetaModeEnabled } from '@/contexts/BetaContext';
 import { AnimatePresence, motion } from 'framer-motion';
+import Autoplay from 'embla-carousel-autoplay';
 import {
   Calendar,
   CreditCard,
@@ -23,6 +24,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+} from '@/components/ui/carousel';
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
 import { WaitlistForm } from '@/components/marketing/WaitlistForm';
@@ -419,38 +425,66 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Trusted By Section */}
-      <section className="py-12 px-4 border-y border-border/30 bg-muted/20">
+      {/* Trusted By Section - Premium Carousel */}
+      <section className="py-16 px-4 border-y border-border/20 bg-gradient-to-b from-muted/10 to-background">
         <div className="container mx-auto">
           <motion.p 
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
-            className="text-center text-xs text-muted-foreground mb-8 tracking-[0.2em] uppercase font-medium"
+            className="text-center text-xs text-muted-foreground mb-10 tracking-[0.25em] uppercase font-medium"
           >
             Usado por produtores em Portugal e Brasil
           </motion.p>
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="flex items-center justify-center gap-10 md:gap-16 flex-wrap"
+            className="relative max-w-4xl mx-auto"
           >
-            <img 
-              src="/logos/production-company-white.png"
-              alt="Produtora parceira"
-              className="h-8 md:h-10 opacity-70 hover:opacity-100 transition-all duration-300 brightness-0 invert dark:brightness-100 dark:invert-0"
-            />
-            <img 
-              src="/logos/tempo-vip.png"
-              alt="TEMPO VIP - DMC Portugal, Spain & Morocco"
-              className="h-10 md:h-12 opacity-70 hover:opacity-100 transition-all duration-300"
-            />
-            <img 
-              src="/logos/client-logo.avif"
-              alt="Cliente parceiro"
-              className="h-8 md:h-10 opacity-70 hover:opacity-100 transition-all duration-300"
-            />
+            {/* Fade gradient left */}
+            <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
+            
+            <Carousel
+              opts={{
+                align: "center",
+                loop: true,
+              }}
+              plugins={[
+                Autoplay({
+                  delay: 3000,
+                  stopOnInteraction: false,
+                  stopOnMouseEnter: true,
+                }),
+              ]}
+              className="w-full"
+            >
+              <CarouselContent className="-ml-8">
+                {[
+                  { src: "/logos/production-company-white.png", name: "Produtora parceira" },
+                  { src: "/logos/tempo-vip.png", name: "TEMPO VIP" },
+                  { src: "/logos/client-logo.avif", name: "Cliente parceiro" },
+                  { src: "/logos/production-company-white.png", name: "Produtora parceira" },
+                  { src: "/logos/tempo-vip.png", name: "TEMPO VIP" },
+                  { src: "/logos/client-logo.avif", name: "Cliente parceiro" },
+                ].map((logo, index) => (
+                  <CarouselItem key={index} className="pl-8 basis-1/2 md:basis-1/3 lg:basis-1/4">
+                    <div className="flex items-center justify-center h-20 p-4">
+                      <img 
+                        src={logo.src}
+                        alt={logo.name}
+                        className="h-10 w-auto max-w-[140px] object-contain 
+                                   brightness-0 dark:brightness-100 dark:invert
+                                   opacity-50 hover:opacity-100 transition-all duration-500"
+                      />
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+            </Carousel>
+            
+            {/* Fade gradient right */}
+            <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
           </motion.div>
         </div>
       </section>
