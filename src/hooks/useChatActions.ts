@@ -39,13 +39,13 @@ export function useChatActions() {
         created_from_message_id: message.id,
         conversation_id: message.conversation_id,
         due_date: dueDate || null,
-        priority: 'medium' as const,
+        priority: 'media' as const,
         position: 0,
       };
 
       const { data: task, error: taskError } = await supabase
         .from('tasks')
-        .insert(taskData)
+        .insert([taskData])
         .select()
         .single();
 

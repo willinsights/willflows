@@ -23,6 +23,7 @@ import {
   Shield,
   Crown,
   ExternalLink,
+  MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,7 @@ const navSections: NavSection[] = [
     title: 'VISÃO GERAL',
     items: [
       { icon: LayoutDashboard, label: 'Dashboard', path: '/app' },
+      { icon: MessageSquare, label: 'Chat', path: '/app/chat' },
     ],
   },
   {
