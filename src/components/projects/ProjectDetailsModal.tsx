@@ -43,7 +43,6 @@ import { cn } from '@/lib/utils';
 import type { ProjectWithClient } from '@/hooks/useKanban';
 import type { Tables } from '@/integrations/supabase/types';
 import { ProjectChecklistTab } from './ProjectChecklistTab';
-import { ProjectCommentsTab } from './ProjectCommentsTab';
 import { ProjectMediaTab } from './ProjectMediaTab';
 import { ProjectFinancialTab } from './ProjectFinancialTab';
 import { ChecklistPendingAlert } from './ChecklistPendingAlert';
@@ -539,10 +538,9 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
           </DialogHeader>
 
           <Tabs defaultValue="details" className="w-full">
-            <TabsList className={cn("grid w-full mb-4", canViewOwnFinancials ? "grid-cols-5" : "grid-cols-4")}>
+            <TabsList className={cn("grid w-full mb-4", canViewOwnFinancials ? "grid-cols-4" : "grid-cols-3")}>
               <TabsTrigger value="details">Detalhes</TabsTrigger>
               <TabsTrigger value="checklist">Checklist</TabsTrigger>
-              <TabsTrigger value="comments">Comentários</TabsTrigger>
               <TabsTrigger value="media">Media</TabsTrigger>
               {canViewOwnFinancials && <TabsTrigger value="financial">Financeiro</TabsTrigger>}
             </TabsList>
@@ -998,263 +996,193 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                     </div>
                   </>
                 ) : (
-                  /* View Mode - Show ALL fields */
+                  /* View Mode - Redesigned with prominent description */
                   <>
-                    {/* Tipo de Item e ID */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <FileText className="h-3 w-3" /> Tipo de Item
-                        </span>
-                        <p className="font-medium text-sm">
-                          {itemTypeLabels[project.item_type || 'projeto_completo'] || 'Não definido'}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-xs text-muted-foreground">ID do Projeto</span>
-                        <p className={cn("text-sm", project.project_code ? "font-mono text-primary" : "text-muted-foreground italic")}>
-                          {project.project_code || 'Não definido'}
-                        </p>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Cliente e Tipo de Mídia */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <User className="h-3 w-3" /> Cliente
-                        </span>
-                        <p className={cn("font-medium text-sm", !project.clients?.name && "text-muted-foreground italic")}>
-                          {project.clients?.name || 'Não definido'}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-xs text-muted-foreground">Tipo de Mídia</span>
-                        <p className="font-medium text-sm flex items-center gap-1">
-                          {project.type === 'fotografia' && <Camera className="h-3 w-3" />}
-                          {project.type === 'video' && <Film className="h-3 w-3" />}
-                          {project.type === 'foto_video' && <><Camera className="h-3 w-3" /><Film className="h-3 w-3" /></>}
-                          {typeOptions.find(t => t.value === project.type)?.label}
-                        </p>
+                    {/* DESCRIÇÃO DO PROJETO - DESTAQUE PRINCIPAL */}
+                    <div className="bg-muted/50 rounded-lg p-4 border border-border/50">
+                      <div className="flex items-start gap-3">
+                        <FileText className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Descrição do Projeto
+                          </span>
+                          <p className={cn(
+                            "mt-2 text-base leading-relaxed whitespace-pre-wrap",
+                            !project.notes && "text-muted-foreground italic text-sm"
+                          )}>
+                            {project.notes || 'Sem descrição'}
+                          </p>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Categoria e Prioridade */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <span className="text-xs text-muted-foreground">Categoria</span>
-                        <p className="font-medium text-sm">
-                          {categories.find(c => c.id === project.custom_category_id)?.name || categoryOptions.find(c => c.value === project.category)?.label || 'Outro'}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-xs text-muted-foreground">Prioridade</span>
-                        <Badge className={currentPriority?.color}>
-                          {currentPriority?.label}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Datas */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Calendar className="h-3 w-3" /> Data de Captação
-                        </span>
-                        <p className={cn("font-medium", !project.shoot_date && "text-muted-foreground italic text-sm")}>
-                          {project.shoot_date 
-                            ? format(new Date(project.shoot_date), 'dd/MM/yyyy', { locale: pt })
-                            : 'Não definida'}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Clock className="h-3 w-3" /> Data de Entrega
-                        </span>
-                        <p className={cn("font-medium", !project.delivery_date && "text-muted-foreground italic text-sm")}>
-                          {project.delivery_date 
-                            ? format(new Date(project.delivery_date), 'dd/MM/yyyy', { locale: pt })
-                            : 'Não definida'}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Horários */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <span className="text-xs text-muted-foreground">Hora Início</span>
-                        <p className={cn("font-medium text-sm", !project.shoot_start_time && "text-muted-foreground italic")}>
-                          {project.shoot_start_time ? project.shoot_start_time.slice(0, 5) : 'Não definida'}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-xs text-muted-foreground">Hora Fim</span>
-                        <p className={cn("font-medium text-sm", !project.shoot_end_time && "text-muted-foreground italic")}>
-                          {project.shoot_end_time ? project.shoot_end_time.slice(0, 5) : 'Não definida'}
-                        </p>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Localização */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <MapPin className="h-3 w-3" /> Cidade
-                        </span>
-                        <p className={cn("font-medium text-sm", !project.city && "text-muted-foreground italic")}>
-                          {project.city || 'Não definida'}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-xs text-muted-foreground">Morada</span>
-                        <p className={cn("font-medium text-sm", !project.address && "text-muted-foreground italic")}>
-                          {project.address || 'Não definida'}
-                        </p>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Responsáveis */}
-                    <div className="space-y-3">
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Users className="h-3 w-3" /> Responsáveis
+                    {/* METADADOS COMPACTOS */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                        Informações
                       </span>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <span className="text-xs text-muted-foreground">Captação</span>
-                          {responsaveisCaptacao.length > 0 ? (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {responsaveisCaptacao.map(userId => {
-                                const member = workspaceMembers.find(m => m.user_id === userId);
-                                return member ? (
-                                  <div key={userId} className="flex items-center gap-1.5 bg-muted px-2 py-1 rounded-full">
-                                    <Avatar className="h-5 w-5">
-                                      <AvatarImage src={member.avatar_url || undefined} />
-                                      <AvatarFallback className="text-[10px]">
-                                        {(member.full_name || member.email).slice(0, 2).toUpperCase()}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <span className="text-xs font-medium">{member.full_name || member.email}</span>
-                                  </div>
-                                ) : null;
-                              })}
-                            </div>
-                          ) : (
-                            <p className="text-sm text-muted-foreground italic mt-1">Nenhum atribuído</p>
-                          )}
+                      
+                      {/* Grid compacto */}
+                      <div className="grid grid-cols-3 gap-x-4 gap-y-1.5 text-xs">
+                        {/* Cliente */}
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <User className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{project.clients?.name || '—'}</span>
                         </div>
-                        <div>
-                          <span className="text-xs text-muted-foreground">Edição</span>
-                          {responsaveisEdicao.length > 0 ? (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {responsaveisEdicao.map(userId => {
-                                const member = workspaceMembers.find(m => m.user_id === userId);
-                                return member ? (
-                                  <div key={userId} className="flex items-center gap-1.5 bg-muted px-2 py-1 rounded-full">
-                                    <Avatar className="h-5 w-5">
-                                      <AvatarImage src={member.avatar_url || undefined} />
-                                      <AvatarFallback className="text-[10px]">
-                                        {(member.full_name || member.email).slice(0, 2).toUpperCase()}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <span className="text-xs font-medium">{member.full_name || member.email}</span>
-                                  </div>
-                                ) : null;
-                              })}
-                            </div>
-                          ) : (
-                            <p className="text-sm text-muted-foreground italic mt-1">Nenhum atribuído</p>
-                          )}
+                        
+                        {/* Tipo de Mídia */}
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          {project.type === 'fotografia' && <Camera className="h-3 w-3 shrink-0" />}
+                          {project.type === 'video' && <Film className="h-3 w-3 shrink-0" />}
+                          {project.type === 'foto_video' && <Camera className="h-3 w-3 shrink-0" />}
+                          <span className="truncate">{typeOptions.find(t => t.value === project.type)?.label}</span>
+                        </div>
+                        
+                        {/* Categoria */}
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <span className="truncate">
+                            {categories.find(c => c.id === project.custom_category_id)?.name || 
+                             categoryOptions.find(c => c.value === project.category)?.label || 'Outro'}
+                          </span>
+                        </div>
+                        
+                        {/* Data Captação */}
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Calendar className="h-3 w-3 shrink-0" />
+                          <span>{project.shoot_date ? format(new Date(project.shoot_date), 'dd/MM/yy') : '—'}</span>
+                        </div>
+                        
+                        {/* Data Entrega */}
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Clock className="h-3 w-3 shrink-0" />
+                          <span>{project.delivery_date ? format(new Date(project.delivery_date), 'dd/MM/yy') : '—'}</span>
+                        </div>
+                        
+                        {/* Cidade */}
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{project.city || '—'}</span>
                         </div>
                       </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Links e Pastas */}
-                    <div className="space-y-3">
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Folder className="h-3 w-3" /> Links e Pastas
-                      </span>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <span className="text-xs text-muted-foreground">Google Drive</span>
-                          {project.drive_folder_url ? (
-                            <a 
-                              href={project.drive_folder_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline flex items-center gap-1 text-sm mt-1"
-                            >
-                              Abrir pasta
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
-                          ) : (
-                            <p className="text-sm text-muted-foreground italic mt-1">Não definido</p>
-                          )}
+                      
+                      {/* Horários - linha adicional se existirem */}
+                      {(project.shoot_start_time || project.shoot_end_time) && (
+                        <div className="text-[10px] text-muted-foreground ml-4">
+                          Horário: {project.shoot_start_time?.slice(0,5) || '—'} – {project.shoot_end_time?.slice(0,5) || '—'}
                         </div>
-                        <div>
-                          <span className="text-xs text-muted-foreground">Dropbox</span>
-                          {project.dropbox_folder_url ? (
-                            <a 
-                              href={project.dropbox_folder_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline flex items-center gap-1 text-sm mt-1"
-                            >
-                              Abrir pasta
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
-                          ) : (
-                            <p className="text-sm text-muted-foreground italic mt-1">Não definido</p>
-                          )}
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-xs text-muted-foreground">Google Meet</span>
-                        {project.google_meet_url ? (
-                          <a 
-                            href={project.google_meet_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-primary hover:underline flex items-center gap-1 text-sm mt-1"
-                          >
-                            <Video className="h-4 w-4" />
-                            Entrar na Reunião
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        ) : (
-                          <p className="text-sm text-muted-foreground italic mt-1">Não definido</p>
+                      )}
+
+                      {/* Tipo de Item e ID */}
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
+                        <span>{itemTypeLabels[project.item_type || 'projeto_completo'] || 'Não definido'}</span>
+                        {project.project_code && (
+                          <span className="font-mono text-primary">{project.project_code}</span>
                         )}
                       </div>
                     </div>
 
-                    <Separator />
+                    {/* RESPONSÁVEIS - Compacto */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                        Responsáveis
+                      </span>
+                      <div className="flex items-center gap-6 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">Captação:</span>
+                          <div className="flex -space-x-1.5">
+                            {responsaveisCaptacao.length > 0 ? (
+                              responsaveisCaptacao.slice(0, 4).map(userId => {
+                                const member = workspaceMembers.find(m => m.user_id === userId);
+                                return member ? (
+                                  <Avatar key={userId} className="h-6 w-6 border-2 border-background">
+                                    <AvatarImage src={member.avatar_url || undefined} />
+                                    <AvatarFallback className="text-[9px]">
+                                      {(member.full_name || member.email).slice(0, 2).toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                ) : null;
+                              })
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                            {responsaveisCaptacao.length > 4 && (
+                              <span className="text-muted-foreground ml-1">+{responsaveisCaptacao.length - 4}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">Edição:</span>
+                          <div className="flex -space-x-1.5">
+                            {responsaveisEdicao.length > 0 ? (
+                              responsaveisEdicao.slice(0, 4).map(userId => {
+                                const member = workspaceMembers.find(m => m.user_id === userId);
+                                return member ? (
+                                  <Avatar key={userId} className="h-6 w-6 border-2 border-background">
+                                    <AvatarImage src={member.avatar_url || undefined} />
+                                    <AvatarFallback className="text-[9px]">
+                                      {(member.full_name || member.email).slice(0, 2).toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                ) : null;
+                              })
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                            {responsaveisEdicao.length > 4 && (
+                              <span className="text-muted-foreground ml-1">+{responsaveisEdicao.length - 4}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
 
-                    {/* Notas */}
-                    <div className="space-y-3">
-                      <div>
-                        <span className="text-xs text-muted-foreground">Notas do Projeto</span>
-                        <p className={cn("mt-1 text-sm whitespace-pre-wrap", !project.notes && "text-muted-foreground italic")}>
-                          {project.notes || 'Sem notas'}
+                    {/* LINKS - Inline compacto */}
+                    {(project.drive_folder_url || project.dropbox_folder_url || project.google_meet_url) && (
+                      <div className="flex items-center gap-4 text-xs">
+                        {project.drive_folder_url && (
+                          <a 
+                            href={project.drive_folder_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline flex items-center gap-1"
+                          >
+                            <Folder className="h-3 w-3" /> Drive
+                          </a>
+                        )}
+                        {project.dropbox_folder_url && (
+                          <a 
+                            href={project.dropbox_folder_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline flex items-center gap-1"
+                          >
+                            <Folder className="h-3 w-3" /> Dropbox
+                          </a>
+                        )}
+                        {project.google_meet_url && (
+                          <a 
+                            href={project.google_meet_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline flex items-center gap-1"
+                          >
+                            <Video className="h-3 w-3" /> Meet
+                          </a>
+                        )}
+                      </div>
+                    )}
+
+                    {/* NOTAS INTERNAS - Apenas admin, estilo sutil */}
+                    {isAdmin && project.internal_notes && (
+                      <div className="bg-muted/30 rounded-md p-3">
+                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                          Notas Internas
+                        </span>
+                        <p className="mt-1.5 text-xs text-muted-foreground whitespace-pre-wrap">
+                          {project.internal_notes}
                         </p>
                       </div>
-                      {isAdmin && (
-                        <div>
-                          <span className="text-xs text-muted-foreground">Notas Internas</span>
-                          <p className={cn("mt-1 text-sm whitespace-pre-wrap", !project.internal_notes && "text-muted-foreground italic")}>
-                            {project.internal_notes || 'Sem notas internas'}
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </>
                 )}
               </TabsContent>
@@ -1268,14 +1196,6 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                   taskId={firstTaskId}
                   workspaceId={project.workspace_id}
                   currentPhase={project.current_phase}
-                />
-              </TabsContent>
-
-              {/* Comments Tab */}
-              <TabsContent value="comments" className="space-y-4 pr-4">
-                <ProjectCommentsTab
-                  projectId={project.id}
-                  workspaceId={project.workspace_id}
                 />
               </TabsContent>
 
