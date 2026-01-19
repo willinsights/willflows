@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { startOfMonth, endOfMonth, subMonths, subYears, format, differenceInDays, startOfDay } from 'date-fns';
+import { startOfMonth, endOfMonth, subMonths, format, differenceInDays, startOfDay, formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { logger } from '@/lib/logger';
 
@@ -319,8 +319,6 @@ export function useDashboardMetrics() {
       for (let i = 5; i >= 0; i--) {
         const monthDate = subMonths(now, i);
         const monthNumber = monthDate.getMonth();
-        
-        const currentYearMonth = new Date(currentYear, monthNumber, 1);
         const previousYearMonth = new Date(previousYear, monthNumber, 1);
         
         const currentYearStart = startOfMonth(monthDate);
@@ -409,16 +407,7 @@ export function useDashboardMetrics() {
       const activities: RecentActivity[] = [];
       recentProjectsData?.forEach(p => {
         const isNew = new Date(p.created_at).getTime() > Date.now() - 24 * 60 * 60 * 1000;
-        const updatedAt = new Date(p.updated_at);
-        const diff = Date.now() - updatedAt.getTime();
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        
-        let timeStr = 'Agora';
-        if (hours >= 24) {
-          timeStr = `Há ${Math.floor(hours / 24)} dias`;
-        } else if (hours > 0) {
-          timeStr = `Há ${hours} horas`;
-        }
+        const timeStr = formatDistanceToNow(new Date(p.updated_at), { addSuffix: true, locale: pt });
 
         activities.push({
           id: p.id,
