@@ -3,6 +3,8 @@ import { useTheme } from '@/contexts/ThemeContext';
 import logoWhite from '@/assets/logo-willflow-white.png';
 import logoBlack from '@/assets/logo-willflow-black.png';
 import logoPurple from '@/assets/logo-willflow-purple.png';
+import logoIconCyan from '@/assets/logo-willflow-icon-cyan.png';
+import logoIconPurple from '@/assets/logo-willflow-icon-purple.png';
 import { cn } from '@/lib/utils';
 
 export type LogoVariant = 'auto' | 'white' | 'black' | 'purple';
@@ -20,7 +22,7 @@ interface LogoProps {
   className?: string;
   /** Alt text for accessibility */
   alt?: string;
-  /** Show only the icon (crop logo to show only the W symbol) */
+  /** Show only the icon (dedicated icon image based on theme) */
   iconOnly?: boolean;
 }
 
@@ -41,28 +43,16 @@ export const Logo = React.forwardRef<HTMLImageElement, LogoProps>(
       return logoMap[variant];
     };
 
-    // When iconOnly is true, we crop the logo to show only the icon part
+    // When iconOnly is true, show dedicated icon based on theme
     if (iconOnly) {
+      const iconSrc = theme === 'dark' ? logoIconCyan : logoIconPurple;
       return (
-        <div 
-          className={cn('overflow-hidden', className)}
-          style={{ width: '32px', height: '32px' }}
-        >
-          <img 
-            ref={ref}
-            src={getLogo()} 
-            alt={alt} 
-            className="h-8 w-auto max-w-none"
-            style={{ 
-              // Crop to show only the left part (the W icon)
-              // Adjust the negative margin to position the icon correctly
-              marginLeft: '0px',
-              clipPath: 'inset(0 75% 0 0)', // Crop 75% from the right
-              transform: 'scale(1.2)', // Slightly enlarge
-              transformOrigin: 'left center'
-            }}
-          />
-        </div>
+        <img 
+          ref={ref}
+          src={iconSrc}
+          alt={alt}
+          className={cn('h-8 w-8 object-contain', className)}
+        />
       );
     }
 
