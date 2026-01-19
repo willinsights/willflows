@@ -794,10 +794,10 @@ export function CreateProjectModal({
 
               <Separator />
 
-              {/* Media Links */}
+              {/* Links e Pastas */}
               <div className="space-y-4">
                 <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                  Links de Mídia
+                  Links e Pastas
                 </h3>
 
                 {mediaLinks.length > 0 && (
@@ -836,11 +836,21 @@ export function CreateProjectModal({
                     value={newLinkUrl}
                     onChange={(e) => setNewLinkUrl(e.target.value)}
                     className="flex-1"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addMediaLink();
+                      }
+                    }}
                   />
-                  <Button type="button" variant="outline" onClick={addMediaLink}>
-                    <Link2 className="h-4 w-4" />
+                  <Button type="button" variant="outline" onClick={addMediaLink} className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Adicionar
                   </Button>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Adicione quantos links precisar (Google Drive, Dropbox, YouTube, etc.)
+                </p>
               </div>
 
               <Separator />

@@ -932,48 +932,6 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
 
                     <Separator />
 
-                    {/* Links & URLs */}
-                    <div className="space-y-4">
-                      <h4 className="font-medium text-sm">Links e Pastas</h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label className="flex items-center gap-2">
-                            <Folder className="h-4 w-4" />
-                            Google Drive
-                          </Label>
-                          <Input 
-                            value={editForm.drive_folder_url}
-                            onChange={(e) => setEditForm(prev => ({ ...prev, drive_folder_url: e.target.value }))}
-                            placeholder="https://drive.google.com/..."
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="flex items-center gap-2">
-                            <Folder className="h-4 w-4" />
-                            Dropbox
-                          </Label>
-                          <Input 
-                            value={editForm.dropbox_folder_url}
-                            onChange={(e) => setEditForm(prev => ({ ...prev, dropbox_folder_url: e.target.value }))}
-                            placeholder="https://dropbox.com/..."
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="flex items-center gap-2">
-                          <Video className="h-4 w-4" />
-                          Link Google Meet
-                        </Label>
-                        <Input 
-                          value={editForm.google_meet_url}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, google_meet_url: e.target.value }))}
-                          placeholder="https://meet.google.com/..."
-                        />
-                      </div>
-                    </div>
-
-                    <Separator />
-
                     {/* Notes */}
                     <div className="space-y-2">
                       <Label>Descrição projeto</Label>
