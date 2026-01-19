@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMessages } from '@/hooks/useMessages';
 import { useConversations, useConversation } from '@/hooks/useConversations';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
@@ -6,41 +7,71 @@ import { usePresence } from '@/hooks/usePresence';
 import { ChatMessage } from './ChatMessage';
 import { ChatComposer } from './ChatComposer';
 import { ChatThread } from './ChatThread';
+import { DeleteConversationModal } from './DeleteConversationModal';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Hash, FolderKanban, User, Users, MessageCircle, ArrowDown } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Hash, FolderKanban, User, Users, MessageCircle, ArrowDown, MoreHorizontal, Trash2 } from 'lucide-react';
 import { format, isToday, isYesterday, isSameDay, parseISO } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 interface ChatFeedProps {
   conversationId: string;
 }
 
 export function ChatFeed({ conversationId }: ChatFeedProps) {
+  const navigate = useNavigate();
   const { messages, isLoading, sendMessage, toggleReaction } = useMessages(conversationId);
-  const { conversations } = useConversations();
+  const { conversations, leaveConversation } = useConversations();
   const { members: conversationMembers } = useConversation(conversationId);
   const { members: workspaceMembers, loading: membersLoading } = useWorkspaceMembers();
   const { isOnline, onlineCount } = usePresence();
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const conversation = conversations.find((c) => c.id === conversationId);
+  
+  // Only projects and DMs can be deleted/left
+  const canDelete = conversation?.type === 'project' || conversation?.type === 'dm';
 
-  // Map workspace members to mention format
+  // Handle delete conversation
+  const handleDeleteConversation = () => {
+    if (!conversation) return;
+    leaveConversation.mutate(conversation.id, {
+      onSuccess: () => {
+        toast.success('Conversa removida');
+        navigate('/app/chat');
+        setShowDeleteModal(false);
+      },
+      onError: () => {
+        toast.error('Erro ao remover conversa');
+      }
+    });
+  };
+
+  // Map workspace members to mention format - filter out members without user_id
   const mentionMembers = useMemo(() => {
-    return workspaceMembers.map((m) => ({
-      id: m.user_id,
-      user_id: m.user_id,
-      full_name: m.full_name || null,
-      avatar_url: m.avatar_url || null,
-      email: m.email,
-    }));
+    return workspaceMembers
+      .filter((m) => m.user_id) // Filter out members without user_id
+      .map((m) => ({
+        id: m.user_id,
+        user_id: m.user_id,
+        full_name: m.full_name || null,
+        avatar_url: m.avatar_url || null,
+        email: m.email,
+      }));
   }, [workspaceMembers]);
 
   // Auto-scroll to bottom on new messages
@@ -187,7 +218,36 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
             </Badge>
           </div>
         </div>
+        
+        {/* Options Menu */}
+        {canDelete && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => setShowDeleteModal(true)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Remover conversa
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConversationModal
+        open={showDeleteModal}
+        onOpenChange={setShowDeleteModal}
+        onConfirm={handleDeleteConversation}
+        isLoading={leaveConversation.isPending}
+        conversationName={conversation?.displayName || conversation?.name}
+      />
 
       {/* Messages Container with optional Thread */}
       <div className="flex-1 flex overflow-hidden relative">
