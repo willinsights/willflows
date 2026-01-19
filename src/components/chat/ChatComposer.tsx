@@ -17,6 +17,7 @@ import { MentionPopover, MentionMember } from './MentionPopover';
 import { AttachmentPreview } from './AttachmentPreview';
 import { CreateQuickTaskModal } from './CreateQuickTaskModal';
 import { CreateQuickFollowUpModal } from './CreateQuickFollowUpModal';
+import { toast } from 'sonner';
 
 interface ChatComposerProps {
   onSend: (body: string, attachments?: File[], mentionedUserIds?: string[]) => Promise<void>;
@@ -30,7 +31,9 @@ interface ChatComposerProps {
 
 const EMOJI_LIST = ['👍', '❤️', '🔥', '👏', '💯', '😊', '🎉', '✨', '👀', '🙌', '💪', '🚀'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_FILE_TYPES = ['image/*', 'application/pdf', 'video/*', 'audio/*', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'];
+// Audio NOT allowed - users can send external links instead
+const ALLOWED_FILE_TYPES = ['image/*', 'application/pdf', 'video/*', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'];
+const BLOCKED_AUDIO_TYPES = ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp3', 'audio/m4a', 'audio/aac', 'audio/flac'];
 
 export function ChatComposer({
   onSend,
@@ -219,14 +222,31 @@ export function ChatComposer({
   const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     
-    const validFiles = files.filter((file) => {
-      if (file.size > MAX_FILE_SIZE) {
-        return false;
+    const validFiles: File[] = [];
+    
+    files.forEach((file) => {
+      // Check for blocked audio types
+      if (file.type.startsWith('audio/') || BLOCKED_AUDIO_TYPES.includes(file.type)) {
+        toast.error('Áudio não permitido', { 
+          description: 'Envie um link externo para ficheiros de áudio.' 
+        });
+        return;
       }
-      return true;
+      
+      // Check file size
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error('Ficheiro muito grande', { 
+          description: `${file.name} excede o limite de 10MB.` 
+        });
+        return;
+      }
+      
+      validFiles.push(file);
     });
     
-    setAttachments((prev) => [...prev, ...validFiles]);
+    if (validFiles.length > 0) {
+      setAttachments((prev) => [...prev, ...validFiles]);
+    }
     
     // Reset input
     if (fileInputRef.current) {

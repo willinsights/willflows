@@ -177,7 +177,7 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
       </div>
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 py-4 [&>div>div]:!overflow-y-auto [&>div>div::-webkit-scrollbar]:hidden [&>div>div]:scrollbar-none">
+      <ScrollArea hideScrollbar className="flex-1 py-4">
         <nav className="px-3 space-y-6">
           {sections.map((section) => (
             <div key={section.title}>

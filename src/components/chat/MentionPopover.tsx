@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
@@ -18,82 +18,88 @@ interface MentionPopoverProps {
   selectedIndex: number;
 }
 
-export function MentionPopover({
-  members,
-  filter,
-  onSelect,
-  onClose,
-  selectedIndex,
-}: MentionPopoverProps) {
-  const listRef = useRef<HTMLDivElement>(null);
+export const MentionPopover = React.forwardRef<HTMLDivElement, MentionPopoverProps>(
+  ({ members, filter, onSelect, onClose, selectedIndex }, ref) => {
+    const listRef = useRef<HTMLDivElement>(null);
 
-  // Filter members by name or email
-  const filteredMembers = members.filter((m) => {
-    const searchTerm = filter.toLowerCase();
-    const name = m.full_name?.toLowerCase() || '';
-    const email = m.email?.toLowerCase() || '';
-    return name.includes(searchTerm) || email.includes(searchTerm);
-  });
+    // Filter members by name or email
+    const filteredMembers = members.filter((m) => {
+      const searchTerm = filter.toLowerCase();
+      const name = m.full_name?.toLowerCase() || '';
+      const email = m.email?.toLowerCase() || '';
+      return name.includes(searchTerm) || email.includes(searchTerm);
+    });
 
-  // Scroll selected item into view
-  useEffect(() => {
-    if (listRef.current && selectedIndex >= 0) {
-      const selectedItem = listRef.current.children[selectedIndex] as HTMLElement;
-      selectedItem?.scrollIntoView({ block: 'nearest' });
+    // Scroll selected item into view
+    useEffect(() => {
+      if (listRef.current && selectedIndex >= 0) {
+        const selectedItem = listRef.current.children[selectedIndex] as HTMLElement;
+        selectedItem?.scrollIntoView({ block: 'nearest' });
+      }
+    }, [selectedIndex]);
+
+    if (filteredMembers.length === 0) {
+      return (
+        <div ref={ref} className="w-64 p-3 rounded-lg border border-border bg-popover shadow-lg">
+          <p className="text-sm text-muted-foreground">Nenhum membro encontrado</p>
+        </div>
+      );
     }
-  }, [selectedIndex]);
 
-  if (filteredMembers.length === 0) {
     return (
-      <div className="w-64 p-3 rounded-lg border border-border bg-popover shadow-lg">
-        <p className="text-sm text-muted-foreground">Nenhum membro encontrado</p>
+      <div
+        ref={(node) => {
+          // Merge refs
+          listRef.current = node;
+          if (typeof ref === 'function') {
+            ref(node);
+          } else if (ref) {
+            ref.current = node;
+          }
+        }}
+        className="w-64 max-h-48 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg"
+      >
+        {filteredMembers.map((member, index) => {
+          const initials =
+            member.full_name
+              ?.split(' ')
+              .map((n) => n[0])
+              .join('')
+              .toUpperCase()
+              .slice(0, 2) || '??';
+
+          return (
+            <button
+              key={member.id || member.user_id}
+              onClick={() => onSelect(member)}
+              className={cn(
+                'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors',
+                'hover:bg-muted focus:bg-muted focus:outline-none',
+                index === selectedIndex && 'bg-muted'
+              )}
+            >
+              <Avatar className="h-7 w-7">
+                <AvatarImage src={member.avatar_url || undefined} />
+                <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">
+                  {member.full_name || 'Utilizador'}
+                </p>
+                {member.email && (
+                  <p className="text-xs text-muted-foreground truncate">
+                    {member.email}
+                  </p>
+                )}
+              </div>
+            </button>
+          );
+        })}
       </div>
     );
   }
+);
 
-  return (
-    <div
-      ref={listRef}
-      className="w-64 max-h-48 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg"
-    >
-      {filteredMembers.map((member, index) => {
-        const initials =
-          member.full_name
-            ?.split(' ')
-            .map((n) => n[0])
-            .join('')
-            .toUpperCase()
-            .slice(0, 2) || '??';
-
-        return (
-          <button
-            key={member.id || member.user_id}
-            onClick={() => onSelect(member)}
-            className={cn(
-              'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors',
-              'hover:bg-muted focus:bg-muted focus:outline-none',
-              index === selectedIndex && 'bg-muted'
-            )}
-          >
-            <Avatar className="h-7 w-7">
-              <AvatarImage src={member.avatar_url || undefined} />
-              <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">
-                {member.full_name || 'Utilizador'}
-              </p>
-              {member.email && (
-                <p className="text-xs text-muted-foreground truncate">
-                  {member.email}
-                </p>
-              )}
-            </div>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+MentionPopover.displayName = 'MentionPopover';
