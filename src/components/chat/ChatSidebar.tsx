@@ -156,6 +156,8 @@ export function ChatSidebar({
                     conversation={conversation}
                     isActive={activeConversationId === conversation.id}
                     onClick={() => onSelectConversation(conversation.id)}
+                    onDelete={() => setConversationToDelete(conversation)}
+                    showDeleteOption
                   />
                 ))
               )}
