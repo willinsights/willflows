@@ -996,189 +996,208 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                     </div>
                   </>
                 ) : (
-                  /* View Mode - Redesigned with prominent description */
+                  /* View Mode - Estilo Asana */
                   <>
-                    {/* DESCRIÇÃO DO PROJETO - DESTAQUE PRINCIPAL */}
-                    <div className="bg-muted/50 rounded-lg p-4 border border-border/50">
-                      <div className="flex items-start gap-3">
-                        <FileText className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                            Descrição do Projeto
-                          </span>
-                          <p className={cn(
-                            "mt-2 text-base leading-relaxed whitespace-pre-wrap",
-                            !project.notes && "text-muted-foreground italic text-sm"
-                          )}>
-                            {project.notes || 'Sem descrição'}
-                          </p>
-                        </div>
-                      </div>
+                    {/* TÍTULO EM DESTAQUE */}
+                    <div className="space-y-1">
+                      <h1 className="text-2xl font-semibold tracking-tight">
+                        {project.name}
+                      </h1>
+                      <Badge variant="outline" className="text-xs">
+                        {itemTypeLabels[project.item_type || 'projeto_completo']}
+                      </Badge>
                     </div>
 
-                    {/* METADADOS COMPACTOS */}
-                    <div className="space-y-2">
-                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                        Informações
-                      </span>
-                      
-                      {/* Grid compacto */}
-                      <div className="grid grid-cols-3 gap-x-4 gap-y-1.5 text-xs">
-                        {/* Cliente */}
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <User className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{project.clients?.name || '—'}</span>
-                        </div>
-                        
-                        {/* Tipo de Mídia */}
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          {project.type === 'fotografia' && <Camera className="h-3 w-3 shrink-0" />}
-                          {project.type === 'video' && <Film className="h-3 w-3 shrink-0" />}
-                          {project.type === 'foto_video' && <Camera className="h-3 w-3 shrink-0" />}
-                          <span className="truncate">{typeOptions.find(t => t.value === project.type)?.label}</span>
-                        </div>
-                        
-                        {/* Categoria */}
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <span className="truncate">
-                            {categories.find(c => c.id === project.custom_category_id)?.name || 
-                             categoryOptions.find(c => c.value === project.category)?.label || 'Outro'}
-                          </span>
-                        </div>
-                        
-                        {/* Data Captação */}
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Calendar className="h-3 w-3 shrink-0" />
-                          <span>{project.shoot_date ? format(new Date(project.shoot_date), 'dd/MM/yy') : '—'}</span>
-                        </div>
-                        
-                        {/* Data Entrega */}
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Clock className="h-3 w-3 shrink-0" />
-                          <span>{project.delivery_date ? format(new Date(project.delivery_date), 'dd/MM/yy') : '—'}</span>
-                        </div>
-                        
-                        {/* Cidade */}
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <MapPin className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{project.city || '—'}</span>
+                    {/* INFORMAÇÕES EM LINHAS */}
+                    <div className="space-y-0 divide-y divide-border/40">
+                      {/* Cliente */}
+                      <div className="flex items-center py-2.5">
+                        <span className="w-36 text-sm font-medium shrink-0">Cliente</span>
+                        <span className="text-sm text-muted-foreground">{project.clients?.name || '—'}</span>
+                      </div>
+
+                      {/* Tipo */}
+                      <div className="flex items-center py-2.5">
+                        <span className="w-36 text-sm font-medium shrink-0">Tipo</span>
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                          {project.type === 'fotografia' && <Camera className="h-4 w-4" />}
+                          {project.type === 'video' && <Film className="h-4 w-4" />}
+                          {project.type === 'foto_video' && <><Camera className="h-4 w-4" /><Film className="h-4 w-4" /></>}
+                          <span>{typeOptions.find(t => t.value === project.type)?.label}</span>
                         </div>
                       </div>
-                      
-                      {/* Horários - linha adicional se existirem */}
-                      {(project.shoot_start_time || project.shoot_end_time) && (
-                        <div className="text-[10px] text-muted-foreground ml-4">
-                          Horário: {project.shoot_start_time?.slice(0,5) || '—'} – {project.shoot_end_time?.slice(0,5) || '—'}
+
+                      {/* Categoria */}
+                      <div className="flex items-center py-2.5">
+                        <span className="w-36 text-sm font-medium shrink-0">Categoria</span>
+                        <span className="text-sm text-muted-foreground">
+                          {categories.find(c => c.id === project.custom_category_id)?.name || 
+                           categoryOptions.find(c => c.value === project.category)?.label || 'Outro'}
+                        </span>
+                      </div>
+
+                      {/* Data Captação */}
+                      <div className="flex items-center py-2.5">
+                        <span className="w-36 text-sm font-medium shrink-0">Data Captação</span>
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                          <Calendar className="h-4 w-4" />
+                          <span>
+                            {project.shoot_date 
+                              ? format(new Date(project.shoot_date), "d MMM yyyy", { locale: pt })
+                              : '—'}
+                          </span>
+                          {project.shoot_start_time && (
+                            <span className="ml-2 text-xs">
+                              {project.shoot_start_time.slice(0,5)} – {project.shoot_end_time?.slice(0,5) || '—'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Data Entrega */}
+                      <div className="flex items-center py-2.5">
+                        <span className="w-36 text-sm font-medium shrink-0">Data Entrega</span>
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                          <Clock className="h-4 w-4" />
+                          <span>
+                            {project.delivery_date 
+                              ? format(new Date(project.delivery_date), "d MMM yyyy", { locale: pt })
+                              : '—'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Cidade */}
+                      <div className="flex items-center py-2.5">
+                        <span className="w-36 text-sm font-medium shrink-0">Cidade</span>
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                          <MapPin className="h-4 w-4" />
+                          <span>{project.city || '—'}</span>
+                        </div>
+                      </div>
+
+                      {/* Responsáveis Captação */}
+                      <div className="flex items-center py-2.5">
+                        <span className="w-36 text-sm font-medium shrink-0">Resp. Captação</span>
+                        <div className="flex items-center gap-2">
+                          {responsaveisCaptacao.length > 0 ? (
+                            responsaveisCaptacao.slice(0, 3).map(userId => {
+                              const member = workspaceMembers.find(m => m.user_id === userId);
+                              return member ? (
+                                <div key={userId} className="flex items-center gap-1.5">
+                                  <Avatar className="h-6 w-6">
+                                    <AvatarImage src={member.avatar_url || undefined} />
+                                    <AvatarFallback className="text-[10px]">
+                                      {(member.full_name || member.email).slice(0, 2).toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-sm text-muted-foreground">{member.full_name || member.email.split('@')[0]}</span>
+                                </div>
+                              ) : null;
+                            })
+                          ) : (
+                            <span className="text-sm text-muted-foreground">—</span>
+                          )}
+                          {responsaveisCaptacao.length > 3 && (
+                            <span className="text-xs text-muted-foreground">+{responsaveisCaptacao.length - 3}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Responsáveis Edição */}
+                      <div className="flex items-center py-2.5">
+                        <span className="w-36 text-sm font-medium shrink-0">Resp. Edição</span>
+                        <div className="flex items-center gap-2">
+                          {responsaveisEdicao.length > 0 ? (
+                            responsaveisEdicao.slice(0, 3).map(userId => {
+                              const member = workspaceMembers.find(m => m.user_id === userId);
+                              return member ? (
+                                <div key={userId} className="flex items-center gap-1.5">
+                                  <Avatar className="h-6 w-6">
+                                    <AvatarImage src={member.avatar_url || undefined} />
+                                    <AvatarFallback className="text-[10px]">
+                                      {(member.full_name || member.email).slice(0, 2).toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-sm text-muted-foreground">{member.full_name || member.email.split('@')[0]}</span>
+                                </div>
+                              ) : null;
+                            })
+                          ) : (
+                            <span className="text-sm text-muted-foreground">—</span>
+                          )}
+                          {responsaveisEdicao.length > 3 && (
+                            <span className="text-xs text-muted-foreground">+{responsaveisEdicao.length - 3}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Links */}
+                      {(project.drive_folder_url || project.dropbox_folder_url || project.google_meet_url) && (
+                        <div className="flex items-center py-2.5">
+                          <span className="w-36 text-sm font-medium shrink-0">Links</span>
+                          <div className="flex items-center gap-4 text-sm">
+                            {project.drive_folder_url && (
+                              <a 
+                                href={project.drive_folder_url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline flex items-center gap-1"
+                              >
+                                <Folder className="h-4 w-4" /> Drive
+                              </a>
+                            )}
+                            {project.dropbox_folder_url && (
+                              <a 
+                                href={project.dropbox_folder_url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline flex items-center gap-1"
+                              >
+                                <Folder className="h-4 w-4" /> Dropbox
+                              </a>
+                            )}
+                            {project.google_meet_url && (
+                              <a 
+                                href={project.google_meet_url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline flex items-center gap-1"
+                              >
+                                <Video className="h-4 w-4" /> Meet
+                              </a>
+                            )}
+                          </div>
                         </div>
                       )}
 
-                      {/* Tipo de Item e ID */}
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
-                        <span>{itemTypeLabels[project.item_type || 'projeto_completo'] || 'Não definido'}</span>
-                        {project.project_code && (
-                          <span className="font-mono text-primary">{project.project_code}</span>
-                        )}
-                      </div>
+                      {/* ID do Projeto */}
+                      {project.project_code && (
+                        <div className="flex items-center py-2.5">
+                          <span className="w-36 text-sm font-medium shrink-0">ID</span>
+                          <span className="text-sm font-mono text-primary">{project.project_code}</span>
+                        </div>
+                      )}
                     </div>
 
-                    {/* RESPONSÁVEIS - Compacto */}
+                    {/* DESCRIÇÃO - ÁREA SEPARADA */}
+                    <Separator className="my-2" />
+                    
                     <div className="space-y-2">
-                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                        Responsáveis
-                      </span>
-                      <div className="flex items-center gap-6 text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground">Captação:</span>
-                          <div className="flex -space-x-1.5">
-                            {responsaveisCaptacao.length > 0 ? (
-                              responsaveisCaptacao.slice(0, 4).map(userId => {
-                                const member = workspaceMembers.find(m => m.user_id === userId);
-                                return member ? (
-                                  <Avatar key={userId} className="h-6 w-6 border-2 border-background">
-                                    <AvatarImage src={member.avatar_url || undefined} />
-                                    <AvatarFallback className="text-[9px]">
-                                      {(member.full_name || member.email).slice(0, 2).toUpperCase()}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                ) : null;
-                              })
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                            {responsaveisCaptacao.length > 4 && (
-                              <span className="text-muted-foreground ml-1">+{responsaveisCaptacao.length - 4}</span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground">Edição:</span>
-                          <div className="flex -space-x-1.5">
-                            {responsaveisEdicao.length > 0 ? (
-                              responsaveisEdicao.slice(0, 4).map(userId => {
-                                const member = workspaceMembers.find(m => m.user_id === userId);
-                                return member ? (
-                                  <Avatar key={userId} className="h-6 w-6 border-2 border-background">
-                                    <AvatarImage src={member.avatar_url || undefined} />
-                                    <AvatarFallback className="text-[9px]">
-                                      {(member.full_name || member.email).slice(0, 2).toUpperCase()}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                ) : null;
-                              })
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                            {responsaveisEdicao.length > 4 && (
-                              <span className="text-muted-foreground ml-1">+{responsaveisEdicao.length - 4}</span>
-                            )}
-                          </div>
-                        </div>
+                      <span className="text-sm font-medium">Descrição</span>
+                      <div className={cn(
+                        "text-sm leading-relaxed whitespace-pre-wrap min-h-[80px] p-3 rounded-md bg-muted/30",
+                        !project.notes && "text-muted-foreground italic"
+                      )}>
+                        {project.notes || 'Adicione uma descrição com diretrizes para o projeto...'}
                       </div>
                     </div>
 
-                    {/* LINKS - Inline compacto */}
-                    {(project.drive_folder_url || project.dropbox_folder_url || project.google_meet_url) && (
-                      <div className="flex items-center gap-4 text-xs">
-                        {project.drive_folder_url && (
-                          <a 
-                            href={project.drive_folder_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-primary hover:underline flex items-center gap-1"
-                          >
-                            <Folder className="h-3 w-3" /> Drive
-                          </a>
-                        )}
-                        {project.dropbox_folder_url && (
-                          <a 
-                            href={project.dropbox_folder_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-primary hover:underline flex items-center gap-1"
-                          >
-                            <Folder className="h-3 w-3" /> Dropbox
-                          </a>
-                        )}
-                        {project.google_meet_url && (
-                          <a 
-                            href={project.google_meet_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-primary hover:underline flex items-center gap-1"
-                          >
-                            <Video className="h-3 w-3" /> Meet
-                          </a>
-                        )}
-                      </div>
-                    )}
-
-                    {/* NOTAS INTERNAS - Apenas admin, estilo sutil */}
+                    {/* NOTAS INTERNAS - Apenas admin */}
                     {isAdmin && project.internal_notes && (
-                      <div className="bg-muted/30 rounded-md p-3">
-                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                          Notas Internas
-                        </span>
-                        <p className="mt-1.5 text-xs text-muted-foreground whitespace-pre-wrap">
+                      <div className="mt-2 p-3 bg-muted/20 rounded-md border border-border/30">
+                        <span className="text-xs font-medium text-muted-foreground">Notas Internas</span>
+                        <p className="mt-1 text-xs text-muted-foreground/80 whitespace-pre-wrap">
                           {project.internal_notes}
                         </p>
                       </div>
