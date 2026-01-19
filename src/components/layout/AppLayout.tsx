@@ -115,18 +115,15 @@ export function AppLayout() {
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background relative">
       {/* Premium Background Effects - Purple gradient with blur */}
-      <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
         {/* Large purple gradient spot - top right */}
-        <div className="absolute -top-32 -right-32 w-[700px] h-[700px] bg-gradient-to-bl from-primary/20 via-primary/10 to-transparent dark:from-primary/30 dark:via-primary/15 dark:to-transparent rounded-full blur-[120px]" />
+        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/40 dark:bg-primary/50 rounded-full blur-[150px] translate-x-1/4 -translate-y-1/4" />
         
         {/* Medium cyan accent spot - bottom left */}
-        <div className="absolute -bottom-24 -left-24 w-[500px] h-[500px] bg-gradient-to-tr from-accent/15 via-accent/5 to-transparent dark:from-accent/20 dark:via-accent/10 dark:to-transparent rounded-full blur-[100px]" />
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-accent/30 dark:bg-accent/40 rounded-full blur-[120px] -translate-x-1/4 translate-y-1/4" />
         
-        {/* Secondary purple spot - center left for depth */}
-        <div className="absolute top-1/3 -left-20 w-[400px] h-[400px] bg-gradient-to-r from-primary/10 via-primary/5 to-transparent dark:from-primary/15 dark:via-primary/8 dark:to-transparent rounded-full blur-[80px]" />
-        
-        {/* Dark overlay for readability */}
-        <div className="absolute inset-0 bg-gradient-to-b from-background/0 via-background/30 to-background/60" />
+        {/* Secondary purple spot - center for depth */}
+        <div className="absolute top-1/2 left-1/4 w-[500px] h-[500px] bg-primary/20 dark:bg-primary/30 rounded-full blur-[100px]" />
       </div>
       {debugEnabled && debugPanelOpen && (
         <div className="fixed bottom-4 left-4 z-[200] w-[340px] rounded-lg border bg-card text-card-foreground shadow-lg">
