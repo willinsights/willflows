@@ -461,12 +461,12 @@ export default function Landing() {
             >
               <CarouselContent className="-ml-8">
                 {[
-                  { src: "/logos/production-company-white.png", name: "Produtora parceira" },
-                  { src: "/logos/tempo-vip.png", name: "TEMPO VIP" },
-                  { src: "/logos/client-logo.avif", name: "Cliente parceiro" },
-                  { src: "/logos/production-company-white.png", name: "Produtora parceira" },
-                  { src: "/logos/tempo-vip.png", name: "TEMPO VIP" },
-                  { src: "/logos/client-logo.avif", name: "Cliente parceiro" },
+                  { src: "/logos/logo-cliente-1.png", name: "Produtora parceira" },
+                  { src: "/logos/logo-cliente-2.png", name: "Cliente parceiro" },
+                  { src: "/logos/tempspian.png", name: "Tempspian" },
+                  { src: "/logos/logo-cliente-1.png", name: "Produtora parceira" },
+                  { src: "/logos/logo-cliente-2.png", name: "Cliente parceiro" },
+                  { src: "/logos/tempspian.png", name: "Tempspian" },
                 ].map((logo, index) => (
                   <CarouselItem key={index} className="pl-8 basis-1/2 md:basis-1/3 lg:basis-1/4">
                     <div className="flex items-center justify-center h-20 p-4">
