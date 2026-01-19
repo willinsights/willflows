@@ -86,7 +86,7 @@ export function PerformanceMetricsCard({ metrics, loading }: PerformanceMetricsC
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
     >
-      <Card className="h-full">
+      <Card className="h-full bg-card">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <PieChart className="h-4 w-4 text-primary" />
