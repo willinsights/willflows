@@ -113,7 +113,7 @@ export function AppLayout() {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background relative">
+    <div className="flex h-screen w-full overflow-hidden relative bg-[#f4f4f6] dark:bg-background">
       {/* Premium Background Effects - Purple gradient with blur */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
         {/* Large purple gradient spot - top right */}
