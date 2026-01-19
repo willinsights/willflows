@@ -63,9 +63,8 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
 
   // Map workspace members to mention format - filter out members without user_id
   const mentionMembers = useMemo(() => {
-    console.log('[ChatDebug] Building mentionMembers, workspaceMembers:', workspaceMembers.length);
-    const mapped = workspaceMembers
-      .filter((m) => m.user_id) // Filter out members without user_id
+    return workspaceMembers
+      .filter((m) => m.user_id)
       .map((m) => ({
         id: m.user_id,
         user_id: m.user_id,
@@ -73,8 +72,6 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
         avatar_url: m.avatar_url || null,
         email: m.email,
       }));
-    console.log('[ChatDebug] Mapped mentionMembers:', mapped.length);
-    return mapped;
   }, [workspaceMembers]);
 
   // Auto-scroll to bottom on new messages
