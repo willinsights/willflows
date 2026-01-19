@@ -55,6 +55,50 @@ export type Database = {
           },
         ]
       }
+      admin_audit_log: {
+        Row: {
+          action: string
+          admin_user_id: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          ip_address: string | null
+          target_id: string
+          target_type: string
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          admin_user_id: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          target_id: string
+          target_type: string
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          admin_user_id?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          target_id?: string
+          target_type?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_audit_log_admin_user_id_fkey"
+            columns: ["admin_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       beta_invite_tokens: {
         Row: {
           created_at: string | null
@@ -702,12 +746,15 @@ export type Database = {
       }
       feedback: {
         Row: {
+          assigned_to: string | null
           created_at: string | null
           description: string
           id: string
           page_url: string | null
+          priority: string | null
           screenshot_url: string | null
           status: string | null
+          tags: string[] | null
           title: string
           type: string
           updated_at: string | null
@@ -716,12 +763,15 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          assigned_to?: string | null
           created_at?: string | null
           description: string
           id?: string
           page_url?: string | null
+          priority?: string | null
           screenshot_url?: string | null
           status?: string | null
+          tags?: string[] | null
           title: string
           type: string
           updated_at?: string | null
@@ -730,12 +780,15 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          assigned_to?: string | null
           created_at?: string | null
           description?: string
           id?: string
           page_url?: string | null
+          priority?: string | null
           screenshot_url?: string | null
           status?: string | null
+          tags?: string[] | null
           title?: string
           type?: string
           updated_at?: string | null
@@ -744,6 +797,13 @@ export type Database = {
           workspace_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "feedback_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "feedback_workspace_id_fkey"
             columns: ["workspace_id"]
@@ -1359,9 +1419,11 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          is_blocked: boolean | null
           is_internal_test: boolean
           last_login_at: string | null
           phone: string | null
+          source: string | null
           updated_at: string
         }
         Insert: {
@@ -1370,9 +1432,11 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          is_blocked?: boolean | null
           is_internal_test?: boolean
           last_login_at?: string | null
           phone?: string | null
+          source?: string | null
           updated_at?: string
         }
         Update: {
@@ -1381,9 +1445,11 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          is_blocked?: boolean | null
           is_internal_test?: boolean
           last_login_at?: string | null
           phone?: string | null
+          source?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1747,6 +1813,39 @@ export type Database = {
           max_uses?: number | null
           trial_days?: number
           used_count?: number
+        }
+        Relationships: []
+      }
+      stripe_webhook_log: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          event_id: string
+          event_type: string
+          id: string
+          payload: Json | null
+          processed_at: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          event_id: string
+          event_type: string
+          id?: string
+          payload?: Json | null
+          processed_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          event_id?: string
+          event_type?: string
+          id?: string
+          payload?: Json | null
+          processed_at?: string | null
+          status?: string | null
         }
         Relationships: []
       }
@@ -2566,6 +2665,15 @@ export type Database = {
       is_workspace_member: {
         Args: { _user_id: string; _workspace_id: string }
         Returns: boolean
+      }
+      log_admin_action: {
+        Args: {
+          p_action: string
+          p_details?: Json
+          p_target_id: string
+          p_target_type: string
+        }
+        Returns: string
       }
       reopen_project: { Args: { p_project_id: string }; Returns: Json }
       verify_beta_token: {
