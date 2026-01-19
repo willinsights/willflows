@@ -41,12 +41,6 @@ export function ChatComposer({
   conversationId,
   projectId,
 }: ChatComposerProps) {
-  // Log members for debugging
-  useEffect(() => {
-    if (members.length === 0) {
-      console.log('[ChatDebug] ChatComposer: No members available for mentions');
-    }
-  }, [members.length]);
 
   const [message, setMessage] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
@@ -202,8 +196,6 @@ export function ChatComposer({
   };
 
   const triggerMention = () => {
-    console.log('[ChatDebug] triggerMention called, members.length:', members.length);
-    
     const cursorPos = textareaRef.current?.selectionStart || message.length;
     const beforeCursor = message.slice(0, cursorPos);
     const afterCursor = message.slice(cursorPos);
@@ -214,8 +206,6 @@ export function ChatComposer({
     setMentionStartPos(cursorPos);
     setMentionFilter('');
     setShowMentions(true);
-    
-    console.log('[ChatDebug] showMentions set to true');
     
     setTimeout(() => {
       if (textareaRef.current) {
@@ -269,23 +259,22 @@ export function ChatComposer({
   return (
     <>
       <div className="rounded-xl border border-border bg-card/50 overflow-hidden relative">
-        {/* Mention Popover */}
-        {showMentions && members.length > 0 && (
+        {/* Mention Popover - Always show when mentions triggered */}
+        {showMentions && (
           <div className="absolute bottom-full left-3 mb-2 z-50">
-            <MentionPopover
-              members={members}
-              filter={mentionFilter}
-              onSelect={selectMention}
-              onClose={closeMentions}
-              selectedIndex={mentionSelectedIndex}
-            />
-          </div>
-        )}
-        {showMentions && members.length === 0 && (
-          <div className="absolute bottom-full left-3 mb-2 z-50">
-            <div className="w-64 p-3 rounded-lg border border-border bg-popover shadow-lg">
-              <p className="text-sm text-muted-foreground">Nenhum membro disponível para mencionar</p>
-            </div>
+            {members.length > 0 ? (
+              <MentionPopover
+                members={members}
+                filter={mentionFilter}
+                onSelect={selectMention}
+                onClose={closeMentions}
+                selectedIndex={mentionSelectedIndex}
+              />
+            ) : (
+              <div className="w-64 p-3 rounded-lg border border-border bg-popover shadow-lg">
+                <p className="text-sm text-muted-foreground">Nenhum membro disponível para mencionar</p>
+              </div>
+            )}
           </div>
         )}
 

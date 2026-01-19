@@ -23,7 +23,7 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
   const { messages, isLoading, sendMessage, toggleReaction } = useMessages(conversationId);
   const { conversations } = useConversations();
   const { members: conversationMembers } = useConversation(conversationId);
-  const { members: workspaceMembers } = useWorkspaceMembers();
+  const { members: workspaceMembers, loading: membersLoading } = useWorkspaceMembers();
   const { isOnline, onlineCount } = usePresence();
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -31,6 +31,17 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const conversation = conversations.find((c) => c.id === conversationId);
+
+  // Map workspace members to mention format
+  const mentionMembers = useMemo(() => {
+    return workspaceMembers.map((m) => ({
+      id: m.user_id,
+      user_id: m.user_id,
+      full_name: m.full_name || null,
+      avatar_url: m.avatar_url || null,
+      email: m.email,
+    }));
+  }, [workspaceMembers]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -245,13 +256,7 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
               onSend={handleSendMessage}
               placeholder={`Mensagem para ${conversation?.displayName || conversation?.name || 'conversa'}...`}
               isLoading={sendMessage.isPending}
-              members={workspaceMembers.map((m) => ({
-                id: m.user_id,
-                user_id: m.user_id,
-                full_name: m.full_name || null,
-                avatar_url: m.avatar_url || null,
-                email: m.email,
-              }))}
+              members={mentionMembers}
               conversationId={conversationId}
               projectId={conversation?.project_id || undefined}
             />
