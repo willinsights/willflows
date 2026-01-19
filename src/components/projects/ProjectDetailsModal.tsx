@@ -493,10 +493,11 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
       let conversationId = projectChats.find(c => c.project_id === project.id)?.id;
       
       if (!conversationId) {
-        // Create new conversation
+        // Create new conversation using the project's workspace_id
         const newConversation = await createProjectChat.mutateAsync({
           projectId: project.id,
           projectName: project.name,
+          workspaceId: project.workspace_id,
         });
         conversationId = newConversation.id;
       }
