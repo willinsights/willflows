@@ -2282,6 +2282,7 @@ export type Database = {
           invited_by: string | null
           role: Database["public"]["Enums"]["app_role"]
           token: string
+          token_hash: string | null
           workspace_id: string
         }
         Insert: {
@@ -2293,6 +2294,7 @@ export type Database = {
           invited_by?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           token?: string
+          token_hash?: string | null
           workspace_id: string
         }
         Update: {
@@ -2304,6 +2306,7 @@ export type Database = {
           invited_by?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           token?: string
+          token_hash?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -2529,6 +2532,7 @@ export type Database = {
         Args: { _user_id: string; _workspace_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      hash_invitation_token: { Args: { _token: string }; Returns: string }
       increment_promo_code_usage: {
         Args: { code_text: string }
         Returns: undefined
