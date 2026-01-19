@@ -2,26 +2,44 @@ import { useState, useEffect } from 'react';
 import { ProductTour } from '@/components/tour/ProductTour';
 import { TrialBanner } from '@/components/dashboard/TrialBanner';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { QuickActionsCard } from '@/components/dashboard/QuickActionsCard';
 import { KPICards } from '@/components/dashboard/KPICards';
 import { FinancialChart } from '@/components/dashboard/FinancialChart';
+import { AnnualComparisonChart } from '@/components/dashboard/AnnualComparisonChart';
 import { UrgentProjectsCard } from '@/components/dashboard/UrgentProjectsCard';
+import { UpcomingEventsCard } from '@/components/dashboard/UpcomingEventsCard';
 import { PendingPaymentsCard } from '@/components/dashboard/PendingPaymentsCard';
 import { RecentActivityCard } from '@/components/dashboard/RecentActivityCard';
+import { PerformanceMetricsCard } from '@/components/dashboard/PerformanceMetricsCard';
 import { useProductTour } from '@/hooks/useProductTour';
 import { useDashboardMetrics, UrgentProject } from '@/hooks/useDashboardMetrics';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { ProjectDetailsModal } from '@/components/projects/ProjectDetailsModal';
 import type { ProjectWithClient } from '@/hooks/useKanban';
 
 export default function Dashboard() {
   const { currentWorkspace } = useWorkspace();
+  const { canViewAllFinancials } = useFinancialPermissions();
   const [currentTime, setCurrentTime] = useState(new Date());
   const { showTour, completeTour, skipTour } = useProductTour();
-  const { metrics, urgentProjects, recentActivity, monthlyData, loading, refresh } = useDashboardMetrics();
+  const { 
+    metrics, 
+    performanceMetrics,
+    urgentProjects, 
+    recentActivity, 
+    monthlyData, 
+    upcomingEvents,
+    annualComparison,
+    loading, 
+    refresh 
+  } = useDashboardMetrics();
   
   // State for project details modal
   const [selectedProject, setSelectedProject] = useState<ProjectWithClient | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const currentYear = new Date().getFullYear();
 
   const handleProjectClick = (project: UrgentProject) => {
     // Convert UrgentProject to minimal ProjectWithClient for modal
@@ -86,36 +104,58 @@ export default function Dashboard() {
       {/* Trial Banner */}
       <TrialBanner />
       
-      {/* Header with greeting */}
-      <DashboardHeader currentTime={currentTime} />
+      {/* Header with Quick Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <DashboardHeader currentTime={currentTime} />
+        <QuickActionsCard />
+      </div>
 
       {/* KPIs Row */}
       <KPICards metrics={metrics} loading={loading} />
 
-      {/* Financial Chart */}
-      <FinancialChart monthlyData={monthlyData} loading={loading} />
-
-      {/* Main Content Grid */}
+      {/* Charts Row - Financial (6 months) + Annual Comparison */}
       <div className="grid lg:grid-cols-2 gap-3">
-        {/* Urgent Projects */}
+        <FinancialChart monthlyData={monthlyData} loading={loading} />
+        {canViewAllFinancials && (
+          <AnnualComparisonChart 
+            data={annualComparison} 
+            loading={loading}
+            currentYearLabel={String(currentYear)}
+            previousYearLabel={String(currentYear - 1)}
+          />
+        )}
+      </div>
+
+      {/* Projects and Events Row */}
+      <div className="grid lg:grid-cols-2 gap-3">
         <UrgentProjectsCard 
           urgentProjects={urgentProjects} 
           loading={loading} 
           onProjectClick={handleProjectClick}
         />
+        <UpcomingEventsCard 
+          events={upcomingEvents} 
+          loading={loading}
+        />
+      </div>
 
-        {/* Right Column - Stacked cards */}
-        <div className="flex flex-col gap-3">
-          <PendingPaymentsCard 
-            pendingPayments={metrics.pendingPayments} 
-            pendingPaymentsCount={metrics.pendingPaymentsCount} 
+      {/* Bottom Row - Performance, Payments, Activity */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {canViewAllFinancials && (
+          <PerformanceMetricsCard 
+            metrics={performanceMetrics} 
             loading={loading}
           />
-          <RecentActivityCard 
-            recentActivity={recentActivity} 
-            loading={loading}
-          />
-        </div>
+        )}
+        <PendingPaymentsCard 
+          pendingPayments={metrics.pendingPayments} 
+          pendingPaymentsCount={metrics.pendingPaymentsCount} 
+          loading={loading}
+        />
+        <RecentActivityCard 
+          recentActivity={recentActivity} 
+          loading={loading}
+        />
       </div>
 
       {/* Project Details Modal */}
