@@ -120,7 +120,7 @@ export function AppLayout() {
         <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/5 dark:bg-primary/20 rounded-full blur-[150px] translate-x-1/4 -translate-y-1/4" />
         
         {/* Secondary purple spot - bottom left */}
-        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-primary/15 dark:bg-primary/15 rounded-full blur-[120px] -translate-x-1/4 translate-y-1/4" />
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-primary/[0.03] dark:bg-primary/15 rounded-full blur-[120px] -translate-x-1/4 translate-y-1/4" />
         
         {/* Third purple spot - center for depth */}
         <div className="absolute top-1/2 left-1/4 w-[500px] h-[500px] bg-primary/25 dark:bg-primary/25 rounded-full blur-[100px]" />

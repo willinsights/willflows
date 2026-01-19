@@ -121,7 +121,7 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
       iconColor: 'text-primary',
       bgColor: 'bg-primary/15',
       cardClass: 'border-primary/20 hover:border-primary/40 bg-primary/5',
-      valueClass: cn('text-lg', metrics.lucro >= 0 ? 'text-primary' : 'text-destructive'),
+      valueClass: cn('text-lg', (metrics.lucro ?? 0) >= 0 ? 'text-primary' : 'text-destructive'),
       isCurrency: true,
       change: metrics.lucroChange,
       delay: 0.18,
