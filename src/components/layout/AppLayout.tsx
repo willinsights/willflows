@@ -190,7 +190,7 @@ export function AppLayout() {
       {!isMobile && (
         <motion.aside
           initial={false}
-          animate={{ width: sidebarCollapsed ? 72 : 260 }}
+          animate={{ width: sidebarCollapsed ? 80 : 260 }}
           transition={{ duration: 0.2, ease: 'easeInOut' }}
           className="hidden md:flex flex-col border-r border-sidebar-border bg-sidebar"
         >

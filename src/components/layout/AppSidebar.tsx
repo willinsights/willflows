@@ -177,7 +177,7 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
       </div>
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 py-4">
+      <ScrollArea className="flex-1 py-4 [&>div>div]:!overflow-y-auto [&>div>div::-webkit-scrollbar]:hidden [&>div>div]:scrollbar-none">
         <nav className="px-3 space-y-6">
           {sections.map((section) => (
             <div key={section.title}>
@@ -210,7 +210,7 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
                     >
                       <item.icon className={cn('flex-shrink-0', collapsed && !isMobile ? 'h-4 w-4' : 'h-5 w-5', active && 'text-primary')} />
                       {collapsed && !isMobile ? (
-                        <span className="text-[9px] truncate max-w-full text-center leading-tight">{item.label}</span>
+                        <span className="text-[10px] truncate max-w-full text-center leading-tight font-medium">{item.label}</span>
                       ) : (
                         <span className="truncate">{item.label}</span>
                       )}
