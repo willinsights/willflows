@@ -1,24 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Shield, Users, FileText, MessageSquarePlus, FlaskConical, Loader2, LayoutDashboard, Globe, BookOpen } from 'lucide-react';
+import { Shield, Loader2, LayoutDashboard, Users, Building2, CreditCard, MessageSquarePlus, Megaphone, FlaskConical } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
-import { BetaAdminTab } from '@/components/admin/BetaAdminTab';
-import { BlogAdminTab } from '@/components/admin/BlogAdminTab';
+import { SaaSCockpitTab } from '@/components/admin/SaaSCockpitTab';
+import { UsersTab } from '@/components/admin/UsersTab';
+import { WorkspacesTab } from '@/components/admin/WorkspacesTab';
+import { BillingTab } from '@/components/admin/BillingTab';
 import { FeedbackAdminTab } from '@/components/admin/FeedbackAdminTab';
-import { TestAccountsTab } from '@/components/admin/TestAccountsTab';
-import { SystemOverviewTab } from '@/components/admin/SystemOverviewTab';
-import { AccountsReportTab } from '@/components/admin/AccountsReportTab';
-import { SiteAnalyticsTab } from '@/components/admin/SiteAnalyticsTab';
-import { BlogAnalyticsTab } from '@/components/admin/BlogAnalyticsTab';
+import { MarketingTab } from '@/components/admin/MarketingTab';
+import { LabsTab } from '@/components/admin/LabsTab';
 
 export default function SuperAdmin() {
   const { isSuperAdmin, loading: authLoading } = useSuperAdmin();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const currentTab = searchParams.get('tab') || 'overview';
+  const currentTab = searchParams.get('tab') || 'saas';
 
   const handleTabChange = (value: string) => {
     setSearchParams({ tab: value });
@@ -66,66 +65,59 @@ export default function SuperAdmin() {
         <CardContent className="p-0">
           <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
             <div className="border-b px-6 pt-4 overflow-x-auto">
-              <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-8">
-                <TabsTrigger value="overview" className="gap-2">
+              <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-7">
+                <TabsTrigger value="saas" className="gap-2">
                   <LayoutDashboard className="h-4 w-4" />
-                  <span className="hidden sm:inline">Overview</span>
+                  <span className="hidden sm:inline">SaaS</span>
                 </TabsTrigger>
-                <TabsTrigger value="accounts" className="gap-2">
+                <TabsTrigger value="users" className="gap-2">
                   <Users className="h-4 w-4" />
-                  <span className="hidden sm:inline">Contas</span>
+                  <span className="hidden sm:inline">Utilizadores</span>
                 </TabsTrigger>
-                <TabsTrigger value="site-analytics" className="gap-2">
-                  <Globe className="h-4 w-4" />
-                  <span className="hidden sm:inline">Site</span>
+                <TabsTrigger value="workspaces" className="gap-2">
+                  <Building2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Workspaces</span>
                 </TabsTrigger>
-                <TabsTrigger value="blog-analytics" className="gap-2">
-                  <BookOpen className="h-4 w-4" />
-                  <span className="hidden sm:inline">Blog</span>
+                <TabsTrigger value="billing" className="gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  <span className="hidden sm:inline">Billing</span>
                 </TabsTrigger>
-                <TabsTrigger value="beta" className="gap-2">
-                  <Users className="h-4 w-4" />
-                  <span className="hidden sm:inline">Beta</span>
-                </TabsTrigger>
-                <TabsTrigger value="blog" className="gap-2">
-                  <FileText className="h-4 w-4" />
-                  <span className="hidden sm:inline">Artigos</span>
-                </TabsTrigger>
-                <TabsTrigger value="feedback" className="gap-2">
+                <TabsTrigger value="support" className="gap-2">
                   <MessageSquarePlus className="h-4 w-4" />
-                  <span className="hidden sm:inline">Feedback</span>
+                  <span className="hidden sm:inline">Suporte</span>
                 </TabsTrigger>
-                <TabsTrigger value="test-accounts" className="gap-2">
+                <TabsTrigger value="marketing" className="gap-2">
+                  <Megaphone className="h-4 w-4" />
+                  <span className="hidden sm:inline">Marketing</span>
+                </TabsTrigger>
+                <TabsTrigger value="labs" className="gap-2">
                   <FlaskConical className="h-4 w-4" />
-                  <span className="hidden sm:inline">Testes</span>
+                  <span className="hidden sm:inline">Labs</span>
                 </TabsTrigger>
               </TabsList>
             </div>
 
             <div className="p-6">
-              <TabsContent value="overview" className="mt-0">
-                <SystemOverviewTab />
+              <TabsContent value="saas" className="mt-0">
+                <SaaSCockpitTab />
               </TabsContent>
-              <TabsContent value="accounts" className="mt-0">
-                <AccountsReportTab />
+              <TabsContent value="users" className="mt-0">
+                <UsersTab />
               </TabsContent>
-              <TabsContent value="site-analytics" className="mt-0">
-                <SiteAnalyticsTab />
+              <TabsContent value="workspaces" className="mt-0">
+                <WorkspacesTab />
               </TabsContent>
-              <TabsContent value="blog-analytics" className="mt-0">
-                <BlogAnalyticsTab />
+              <TabsContent value="billing" className="mt-0">
+                <BillingTab />
               </TabsContent>
-              <TabsContent value="beta" className="mt-0">
-                <BetaAdminTab />
-              </TabsContent>
-              <TabsContent value="blog" className="mt-0">
-                <BlogAdminTab />
-              </TabsContent>
-              <TabsContent value="feedback" className="mt-0">
+              <TabsContent value="support" className="mt-0">
                 <FeedbackAdminTab />
               </TabsContent>
-              <TabsContent value="test-accounts" className="mt-0">
-                <TestAccountsTab />
+              <TabsContent value="marketing" className="mt-0">
+                <MarketingTab />
+              </TabsContent>
+              <TabsContent value="labs" className="mt-0">
+                <LabsTab />
               </TabsContent>
             </div>
           </Tabs>
