@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import { useMessages } from '@/hooks/useMessages';
 import { useConversations, useConversation } from '@/hooks/useConversations';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
+import { usePresence } from '@/hooks/usePresence';
 import { ChatMessage } from './ChatMessage';
 import { ChatComposer } from './ChatComposer';
 import { ChatThread } from './ChatThread';
@@ -23,6 +24,7 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
   const { conversations } = useConversations();
   const { members: conversationMembers } = useConversation(conversationId);
   const { members: workspaceMembers } = useWorkspaceMembers();
+  const { isOnline, onlineCount } = usePresence();
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -216,6 +218,7 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
                         threadCount={
                           messages.filter((m) => m.parent_message_id === message.id).length
                         }
+                        isOnline={isOnline(message.user_id)}
                       />
                     ))}
                   </div>
