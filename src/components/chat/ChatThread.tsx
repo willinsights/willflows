@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useMessages } from '@/hooks/useMessages';
+import { useMessages, useThreadMessages } from '@/hooks/useMessages';
 import { ChatMessage } from './ChatMessage';
 import { ChatComposer } from './ChatComposer';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -18,13 +18,12 @@ export function ChatThread({
   conversationId,
   onClose,
 }: ChatThreadProps) {
-  const { messages, isLoading, sendMessage } = useMessages(conversationId);
+  const { messages: allMessages, sendMessage } = useMessages(conversationId);
+  const { messages: threadReplies, isLoading } = useThreadMessages(parentMessageId);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const parentMessage = messages.find((m) => m.id === parentMessageId);
-  const threadReplies = messages.filter(
-    (m) => m.parent_message_id === parentMessageId
-  );
+  // Find parent message from main messages list
+  const parentMessage = allMessages.find((m) => m.id === parentMessageId);
 
   // Auto-scroll to bottom on new replies
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { useConversations, useConversation } from '@/hooks/useConversations';
 import { useProjects } from '@/hooks/useProjects';
+import { usePresence } from '@/hooks/usePresence';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +40,7 @@ export function ChatContextPanel({
   const { members } = useConversation(conversationId);
   const { projects, loading: projectsLoading } = useProjects();
   const { isAdmin } = useWorkspace();
+  const { isOnline } = usePresence();
 
   const conversation = conversations.find((c) => c.id === conversationId);
   const isProjectChat = conversation?.type === 'project';
@@ -128,33 +130,40 @@ export function ChatContextPanel({
                   Membros ({members.length})
                 </h4>
                 <div className="space-y-2">
-                  {members.map((member: any) => (
-                    <div
-                      key={member.id}
-                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="relative">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={member.profile?.avatar_url} />
-                          <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                            {(member.profile?.full_name || 'U').slice(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-success border border-background" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {member.profile?.full_name || 'Utilizador'}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {member.profile?.email}
-                        </p>
-                      </div>
-                      {member.role === 'admin' && (
-                        <Badge variant="outline" className="text-[10px]">Admin</Badge>
-                      )}
-                    </div>
-                  ))}
+                    {members.map((member: any) => {
+                      const memberIsOnline = isOnline(member.user_id);
+                      return (
+                        <div
+                          key={member.id}
+                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="relative">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={member.profile?.avatar_url} />
+                              <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                                {(member.profile?.full_name || 'U').slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span 
+                              className={`absolute bottom-0 right-0 h-2 w-2 rounded-full border border-background ${
+                                memberIsOnline ? 'bg-success' : 'bg-muted-foreground/40'
+                              }`} 
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {member.profile?.full_name || 'Utilizador'}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {member.profile?.email}
+                            </p>
+                          </div>
+                          {member.role === 'admin' && (
+                            <Badge variant="outline" className="text-[10px]">Admin</Badge>
+                          )}
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
             )}
