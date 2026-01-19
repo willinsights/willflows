@@ -133,6 +133,14 @@ export function useMessages(conversationId: string | undefined) {
 
   const sendMessage = useMutation({
     mutationFn: async ({ body, parentMessageId, attachments, mentionedUserIds }: { body: string; parentMessageId?: string; attachments?: File[]; mentionedUserIds?: string[] }) => {
+      console.log('[ChatDebug] Starting sendMessage:', { 
+        body: body.substring(0, 50), 
+        attachmentsCount: attachments?.length || 0, 
+        mentionedUserIds,
+        conversationId,
+        userId: user?.id
+      });
+
       if (!conversationId || !user?.id) throw new Error('Conversa ou utilizador não encontrado');
 
       const { data, error } = await supabase
@@ -146,17 +154,27 @@ export function useMessages(conversationId: string | undefined) {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[ChatDebug] Message insert FAILED:', error);
+        throw error;
+      }
+      console.log('[ChatDebug] Message inserted successfully, id:', data.id);
 
       // Save mentions (triggers will create notifications)
       if (mentionedUserIds && mentionedUserIds.length > 0) {
+        console.log('[ChatDebug] Saving mentions for users:', mentionedUserIds);
         const uniqueUserIds = [...new Set(mentionedUserIds)];
-        await supabase.from('message_mentions').insert(
+        const { error: mentionError } = await supabase.from('message_mentions').insert(
           uniqueUserIds.map(userId => ({
             message_id: data.id,
             mentioned_user_id: userId,
           }))
         );
+        if (mentionError) {
+          console.error('[ChatDebug] Mention insert FAILED:', mentionError);
+        } else {
+          console.log('[ChatDebug] Mentions saved successfully');
+        }
       }
 
       // Auto-add mentioned users to conversation members (so they can see the chat)
@@ -176,7 +194,10 @@ export function useMessages(conversationId: string | undefined) {
 
       // Upload attachments if any
       if (attachments && attachments.length > 0) {
+        console.log('[ChatDebug] Processing', attachments.length, 'attachments');
         for (const file of attachments) {
+          console.log('[ChatDebug] Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
+          
           // Sanitize filename: replace spaces and special chars
           const sanitizedName = file.name
             .replace(/[^a-zA-Z0-9._-]/g, '_')
@@ -188,10 +209,11 @@ export function useMessages(conversationId: string | undefined) {
             .upload(filePath, file);
 
           if (uploadError) {
-            console.error('Error uploading file:', uploadError);
-            toast.error('Erro ao carregar ficheiro', { description: file.name });
+            console.error('[ChatDebug] Upload FAILED:', uploadError.message, uploadError);
+            toast.error('Erro ao carregar ficheiro', { description: `${file.name}: ${uploadError.message}` });
             continue;
           }
+          console.log('[ChatDebug] Upload SUCCESS, path:', filePath);
 
           // Save attachment reference
           const { error: attachError } = await supabase.from('message_attachments').insert({
@@ -203,8 +225,10 @@ export function useMessages(conversationId: string | undefined) {
           });
           
           if (attachError) {
-            console.error('Error saving attachment reference:', attachError);
+            console.error('[ChatDebug] Attachment reference FAILED:', attachError);
             toast.error('Erro ao guardar referência do anexo', { description: file.name });
+          } else {
+            console.log('[ChatDebug] Attachment reference saved:', file.name);
           }
         }
       }
@@ -212,10 +236,12 @@ export function useMessages(conversationId: string | undefined) {
       return data;
     },
     onSuccess: () => {
+      console.log('[ChatDebug] sendMessage mutation SUCCESS');
       queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
       setReplyingTo(null);
     },
     onError: (error: Error) => {
+      console.error('[ChatDebug] sendMessage mutation ERROR:', error);
       toast.error('Erro ao enviar mensagem', { description: error.message });
     },
   });
