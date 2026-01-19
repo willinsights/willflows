@@ -32,7 +32,7 @@ export function PerformanceMetricsCard({ metrics, loading }: PerformanceMetricsC
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
       >
-        <Card className="h-full opacity-60 bg-white dark:bg-card">
+        <Card className="glass-card h-full opacity-60">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <div className="p-1.5 rounded-md bg-muted/50">
@@ -86,7 +86,7 @@ export function PerformanceMetricsCard({ metrics, loading }: PerformanceMetricsC
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
     >
-      <Card className="h-full bg-white dark:bg-card">
+      <Card className="glass-card h-full">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <PieChart className="h-4 w-4 text-primary" />
