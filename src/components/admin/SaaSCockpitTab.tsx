@@ -76,7 +76,21 @@ export function SaaSCockpitTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="relative min-h-full">
+      {/* Background Effects - Purple gradient with blur */}
+      <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+        {/* Large purple gradient spot - top left */}
+        <div className="absolute -top-32 -left-32 w-[600px] h-[600px] bg-gradient-to-br from-primary/30 via-primary/10 to-transparent rounded-full blur-[100px]" />
+        
+        {/* Smaller cyan accent spot - bottom right */}
+        <div className="absolute -bottom-20 -right-20 w-[400px] h-[400px] bg-gradient-to-tl from-accent/20 via-accent/5 to-transparent rounded-full blur-[80px]" />
+        
+        {/* Dark overlay for depth */}
+        <div className="absolute inset-0 bg-gradient-to-b from-background/0 via-background/50 to-background/80" />
+      </div>
+
+      {/* Main Content */}
+      <div className="relative space-y-6">
       {/* Period Selector */}
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold">Cockpit SaaS</h2>
@@ -309,6 +323,7 @@ export function SaaSCockpitTab() {
             </ChartContainer>
           </CardContent>
         </Card>
+      </div>
       </div>
     </div>
   );
