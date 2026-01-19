@@ -311,7 +311,7 @@ export function useSaaSCockpit(period: PeriodType, customRange?: DateRange) {
           .select('subscription_plan, subscription_status, created_at')
           .lte('created_at', monthEnd.toISOString());
 
-        const activeSubs = (subs || []).filter(s => s.subscription_status === 'active' || s.subscription_status === 'trialing');
+        const activeSubs = (subs || []).filter(s => s.subscription_status === 'active');
         const mrr = activeSubs.reduce((sum, s) => {
           const plan = s.subscription_plan as string;
           return sum + (PLAN_PRICES[plan] || 0);

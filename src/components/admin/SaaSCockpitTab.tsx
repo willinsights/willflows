@@ -109,18 +109,20 @@ export function SaaSCockpitTab() {
       {/* Financial KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
-          title="MRR"
+          title="Receita Mensal"
           value={formatCurrency(metrics?.mrr || 0)}
           icon={<DollarSign className="h-4 w-4" />}
           trend={null}
           color="text-primary"
+          tooltip="Receita mensal recorrente (apenas contas ativas e pagantes)"
         />
         <KPICard
-          title="ARR"
+          title="Receita Anual"
           value={formatCurrency(metrics?.arr || 0)}
           icon={<TrendingUp className="h-4 w-4" />}
           trend={null}
           color="text-emerald-500"
+          tooltip="Receita anual recorrente projetada"
         />
         <KPICard
           title="Receita (período)"
@@ -155,14 +157,14 @@ export function SaaSCockpitTab() {
           small
         />
         <KPICard
-          title="Past Due"
+          title="Em Atraso"
           value={formatNumber(metrics?.subscriptions.pastDue)}
           icon={<AlertTriangle className="h-4 w-4" />}
           color="text-orange-500"
           small
         />
         <KPICard
-          title="Cancel End"
+          title="A Cancelar"
           value={formatNumber(metrics?.subscriptions.cancelAtPeriodEnd)}
           icon={<AlertCircle className="h-4 w-4" />}
           color="text-yellow-500"
@@ -180,32 +182,32 @@ export function SaaSCockpitTab() {
       {/* Activity & Churn KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPICard
-          title="WAU"
+          title="Ativos 7d"
           value={formatNumber(metrics?.activity.wau)}
           icon={<Activity className="h-4 w-4" />}
           color="text-primary"
           tooltip="Utilizadores ativos nos últimos 7 dias"
         />
         <KPICard
-          title="MAU"
+          title="Ativos 30d"
           value={formatNumber(metrics?.activity.mau)}
           icon={<Users className="h-4 w-4" />}
           color="text-primary"
           tooltip="Utilizadores ativos nos últimos 30 dias"
         />
         <KPICard
-          title="Churn Users"
+          title="Saídas %"
           value={formatPercent(metrics?.churn.usersPercent)}
           icon={<TrendingDown className="h-4 w-4" />}
           color="text-red-500"
           tooltip="% de utilizadores que cancelaram no período"
         />
         <KPICard
-          title="Churn Receita"
+          title="Perda %"
           value={formatPercent(metrics?.churn.revenuePercent)}
           icon={<TrendingDown className="h-4 w-4" />}
           color="text-red-500"
-          tooltip="% de MRR perdido no período"
+          tooltip="% de receita perdida no período"
         />
       </div>
 
@@ -254,12 +256,12 @@ export function SaaSCockpitTab() {
         {/* MRR Chart */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">MRR ao Longo do Tempo</CardTitle>
+            <CardTitle className="text-base">Receita Mensal ao Longo do Tempo</CardTitle>
           </CardHeader>
           <CardContent>
             <ChartContainer
               config={{
-                mrr: { label: 'MRR', color: 'hsl(var(--primary))' },
+                mrr: { label: 'Receita Mensal', color: 'hsl(var(--primary))' },
               }}
               className="h-64"
             >
