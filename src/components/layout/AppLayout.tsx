@@ -123,7 +123,7 @@ export function AppLayout() {
         <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-primary/[0.03] dark:bg-primary/15 rounded-full blur-[120px] -translate-x-1/4 translate-y-1/4" />
         
         {/* Third purple spot - center for depth */}
-        <div className="absolute top-1/2 left-1/4 w-[500px] h-[500px] bg-primary/25 dark:bg-primary/25 rounded-full blur-[100px]" />
+        <div className="absolute top-1/2 left-1/4 w-[500px] h-[500px] bg-primary/[0.02] dark:bg-primary/25 rounded-full blur-[100px]" />
       </div>
       {debugEnabled && debugPanelOpen && (
         <div className="fixed bottom-4 left-4 z-[200] w-[340px] rounded-lg border bg-card text-card-foreground shadow-lg">
