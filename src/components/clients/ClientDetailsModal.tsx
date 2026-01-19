@@ -64,6 +64,7 @@ interface Project {
   created_at: string;
   delivery_date?: string | null;
   category: string;
+  workspace_id: string;
 }
 
 interface ClientDetailsModalProps {
@@ -202,10 +203,11 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
       let conversationId = projectChats.find(c => c.project_id === recentProject.id)?.id;
       
       if (!conversationId) {
-        // Create new conversation for the project
+        // Create new conversation for the project using the project's workspace_id
         const newConversation = await createProjectChat.mutateAsync({
           projectId: recentProject.id,
           projectName: recentProject.name,
+          workspaceId: recentProject.workspace_id,
         });
         conversationId = newConversation.id;
       }

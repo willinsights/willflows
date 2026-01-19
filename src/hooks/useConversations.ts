@@ -253,18 +253,24 @@ export function useConversations() {
   });
 
   const createProjectChat = useMutation({
-    mutationFn: async ({ projectId, projectName }: { projectId: string; projectName: string }) => {
-      if (!workspace?.id || !user?.id) throw new Error('Workspace não encontrado');
+    mutationFn: async ({ projectId, projectName, workspaceId }: { projectId: string; projectName: string; workspaceId: string }) => {
+      if (!user?.id) throw new Error('Utilizador não encontrado');
 
       // Check if conversation already exists for this project
-      const existing = projectChats.find(c => c.project_id === projectId);
+      const { data: existing } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('workspace_id', workspaceId)
+        .maybeSingle();
+      
       if (existing) return existing;
 
-      // Create new project conversation
+      // Create new project conversation using the PROJECT's workspace_id
       const { data: conversation, error: convError } = await supabase
         .from('conversations')
         .insert({
-          workspace_id: workspace.id,
+          workspace_id: workspaceId,
           type: 'project' as const,
           name: projectName,
           project_id: projectId,
