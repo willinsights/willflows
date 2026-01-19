@@ -9,8 +9,6 @@ import type { MonthlyData, AnnualComparisonData } from '@/hooks/useDashboardMetr
 import {
   AreaChart,
   Area,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -184,10 +182,20 @@ export function FinancialChart({
                   </ResponsiveContainer>
                 </TabsContent>
 
-                {/* Annual Comparison Chart */}
+                {/* Annual Comparison Chart - Overlay 6 months */}
                 <TabsContent value="annual" className="mt-0">
                   <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={annualComparison} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <AreaChart data={annualComparison} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorCurrentYear" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="colorPreviousYear" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0.15}/>
+                          <stop offset="95%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
                       <XAxis 
                         dataKey="month" 
@@ -218,22 +226,26 @@ export function FinancialChart({
                         iconType="circle"
                         iconSize={8}
                       />
-                      <Bar 
-                        dataKey="currentYear" 
-                        name={currentYearLabel}
-                        fill="hsl(var(--primary))" 
-                        radius={[4, 4, 0, 0]}
-                        maxBarSize={20}
-                      />
-                      <Bar 
-                        dataKey="previousYear" 
+                      <Area
+                        type="monotone"
+                        dataKey="previousYear"
                         name={previousYearLabel}
-                        fill="hsl(var(--muted-foreground))" 
-                        opacity={0.5}
-                        radius={[4, 4, 0, 0]}
-                        maxBarSize={20}
+                        stroke="hsl(var(--muted-foreground))"
+                        strokeWidth={1.5}
+                        strokeDasharray="4 4"
+                        fillOpacity={1}
+                        fill="url(#colorPreviousYear)"
                       />
-                    </BarChart>
+                      <Area
+                        type="monotone"
+                        dataKey="currentYear"
+                        name={currentYearLabel}
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={2.5}
+                        fillOpacity={1}
+                        fill="url(#colorCurrentYear)"
+                      />
+                    </AreaChart>
                   </ResponsiveContainer>
                   
                   {/* Annual Totals Summary */}

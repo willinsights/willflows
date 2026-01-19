@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Target, Pencil, Lock, Check, X } from 'lucide-react';
+import { Target, Pencil, Lock, Check, X, Trophy, PartyPopper } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -192,14 +192,22 @@ export function MonthlyGoalsCard({
               )}
             </div>
           ) : (
-            <div className="space-y-4">
+          <div className="space-y-4">
               {/* Receita */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs text-muted-foreground">Receita</span>
-                  <span className="text-xs font-medium">
-                    {revenueProgress}%
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {revenueProgress >= 100 && (
+                      <span className="flex items-center gap-0.5 text-success text-[10px] font-medium">
+                        <Trophy className="h-3 w-3" />
+                        Meta atingida!
+                      </span>
+                    )}
+                    <span className="text-xs font-medium">
+                      {revenueProgress}%
+                    </span>
+                  </div>
                 </div>
                 <Progress value={revenueProgress} className="h-2" />
                 <div className="flex items-center justify-between mt-1">
@@ -216,9 +224,17 @@ export function MonthlyGoalsCard({
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs text-muted-foreground">Projetos Entregues</span>
-                  <span className="text-xs font-medium">
-                    {projectsProgress}%
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {projectsProgress >= 100 && (
+                      <span className="flex items-center gap-0.5 text-success text-[10px] font-medium">
+                        <PartyPopper className="h-3 w-3" />
+                        Meta atingida!
+                      </span>
+                    )}
+                    <span className="text-xs font-medium">
+                      {projectsProgress}%
+                    </span>
+                  </div>
                 </div>
                 <Progress value={projectsProgress} className="h-2" />
                 <div className="flex items-center justify-between mt-1">
