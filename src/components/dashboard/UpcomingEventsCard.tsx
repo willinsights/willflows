@@ -51,14 +51,16 @@ export function UpcomingEventsCard({ events, loading }: UpcomingEventsCardProps)
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.25 }}
     >
-      <Card className="h-full">
-        <CardHeader className="pb-2">
+      <Card className="glass-card h-[280px]">
+        <CardHeader className="py-3 px-4">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-primary" />
+            <div className="p-1.5 rounded-md bg-primary/10">
+              <Calendar className="h-4 w-4 text-primary" />
+            </div>
             Próximos Eventos
           </CardTitle>
         </CardHeader>
-        <CardContent className="pt-0">
+        <CardContent className="px-4 pb-4">
           {loading ? (
             <div className="space-y-3">
               {[...Array(3)].map((_, i) => (

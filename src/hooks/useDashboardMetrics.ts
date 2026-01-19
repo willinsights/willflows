@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { startOfMonth, endOfMonth, subMonths, subYears, format, differenceInDays } from 'date-fns';
+import { startOfMonth, endOfMonth, subMonths, subYears, format, differenceInDays, startOfDay } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { logger } from '@/lib/logger';
 
@@ -310,27 +310,21 @@ export function useDashboardMetrics() {
       
       setMonthlyData(monthlyStats);
 
-      // Calculate ANNUAL COMPARISON (current year vs previous year)
+      // Calculate ANNUAL COMPARISON (last 6 months: current year vs previous year)
       const currentYear = now.getFullYear();
       const previousYear = currentYear - 1;
       const annualData: AnnualComparisonData[] = [];
       
-      for (let month = 0; month < 12; month++) {
-        const currentYearMonth = new Date(currentYear, month, 1);
-        const previousYearMonth = new Date(previousYear, month, 1);
+      // Only last 6 months to match the 6-month chart
+      for (let i = 5; i >= 0; i--) {
+        const monthDate = subMonths(now, i);
+        const monthNumber = monthDate.getMonth();
         
-        // Only include months up to current month for current year
-        if (currentYearMonth > now) {
-          annualData.push({
-            month: format(currentYearMonth, 'MMM', { locale: pt }),
-            currentYear: 0,
-            previousYear: 0,
-          });
-          continue;
-        }
+        const currentYearMonth = new Date(currentYear, monthNumber, 1);
+        const previousYearMonth = new Date(previousYear, monthNumber, 1);
         
-        const currentYearStart = startOfMonth(currentYearMonth);
-        const currentYearEnd = endOfMonth(currentYearMonth);
+        const currentYearStart = startOfMonth(monthDate);
+        const currentYearEnd = endOfMonth(monthDate);
         const previousYearStart = startOfMonth(previousYearMonth);
         const previousYearEnd = endOfMonth(previousYearMonth);
         
@@ -347,7 +341,7 @@ export function useDashboardMetrics() {
         }).reduce((sum, p) => sum + (p.agreed_value || 0), 0) || 0;
         
         annualData.push({
-          month: format(currentYearMonth, 'MMM', { locale: pt }),
+          month: format(monthDate, 'MMM', { locale: pt }),
           currentYear: currentYearRevenue,
           previousYear: previousYearRevenue,
         });
@@ -356,13 +350,14 @@ export function useDashboardMetrics() {
       setAnnualComparison(annualData);
 
       // Fetch UPCOMING EVENTS (next 7 days)
+      const todayStart = startOfDay(now);
       const nextWeekDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       
       const { data: eventsData } = await supabase
         .from('calendar_events')
         .select('id, title, start_at, end_at, location, event_type, project_id, projects(name)')
         .eq('workspace_id', currentWorkspace.id)
-        .gte('start_at', now.toISOString())
+        .gte('start_at', todayStart.toISOString())
         .lte('start_at', nextWeekDate.toISOString())
         .order('start_at', { ascending: true })
         .limit(5);

@@ -18,7 +18,7 @@ export function RecentActivityCard({ recentActivity, loading }: RecentActivityCa
       transition={{ delay: 0.3 }}
       className="flex-1"
     >
-      <Card className="glass-card h-full min-h-[130px]">
+      <Card className="glass-card h-full min-h-[180px]">
         <CardHeader className="py-3 px-4">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <div className="p-1.5 rounded-md bg-info/10">
@@ -28,7 +28,7 @@ export function RecentActivityCard({ recentActivity, loading }: RecentActivityCa
           </CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4">
-          <ScrollArea className="h-[80px] pr-2">
+          <ScrollArea className="h-[110px] pr-2">
             {loading ? (
               <div className="space-y-2">
                 {[1, 2, 3].map((i) => (

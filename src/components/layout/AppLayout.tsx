@@ -27,7 +27,10 @@ type ClickDebugInfo = {
 };
 
 export function AppLayout() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('sidebar-collapsed');
+    return saved === 'true';
+  });
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [retryCooldown, setRetryCooldown] = useState(false);
@@ -75,7 +78,9 @@ export function AppLayout() {
     if (isMobile) {
       setMobileSidebarOpen(!mobileSidebarOpen);
     } else {
-      setSidebarCollapsed(!sidebarCollapsed);
+      const newState = !sidebarCollapsed;
+      setSidebarCollapsed(newState);
+      localStorage.setItem('sidebar-collapsed', String(newState));
     }
   };
 
