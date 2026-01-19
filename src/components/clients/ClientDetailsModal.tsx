@@ -201,19 +201,8 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       )[0];
       
-      console.warn(`[ChatDebug ${attemptId}] handleOpenChat START (ClientDetailsModal)`, {
-        projectId: recentProject.id,
-        projectName: recentProject.name,
-        projectWorkspaceId: recentProject.workspace_id,
-      });
-      
       // Check if conversation exists for this project
       let conversationId = projectChats.find(c => c.project_id === recentProject.id)?.id;
-      
-      console.warn(`[ChatDebug ${attemptId}] Existing conversation check:`, {
-        found: !!conversationId,
-        conversationId,
-      });
       
       if (!conversationId) {
         // Create new conversation for the project using the project's workspace_id
@@ -226,11 +215,10 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
         conversationId = newConversation.id;
       }
       
-      console.warn(`[ChatDebug ${attemptId}] Navigating to:`, `/app/chat/${conversationId}`);
       onOpenChange(false);
       navigate(`/app/chat/${conversationId}`);
     } catch (error) {
-      console.error(`[ChatDebug ${attemptId}] ERROR:`, error);
+      // Error handled by mutation
     } finally {
       setOpeningChat(false);
     }

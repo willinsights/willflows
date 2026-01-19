@@ -485,35 +485,14 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
   };
 
   const handleOpenChat = async () => {
-    // ALWAYS log when handler is called (not gated by debug flag)
-    console.warn('[ChatDebug] handleOpenChat CALLED', { 
-      hasProject: !!project, 
-      hasUser: !!user,
-      projectId: project?.id,
-      userId: user?.id 
-    });
-    
     if (!project || !user) {
-      console.warn('[ChatDebug] EARLY RETURN - missing project or user');
       return;
     }
     setOpeningChat(true);
     
-    const attemptId = crypto.randomUUID().slice(0, 8);
-    console.warn(`[ChatDebug ${attemptId}] handleOpenChat START (ProjectDetailsModal)`, {
-      projectId: project.id,
-      projectName: project.name,
-      projectWorkspaceId: project.workspace_id,
-    });
-    
     try {
       // Check if conversation exists
       let conversationId = projectChats.find(c => c.project_id === project.id)?.id;
-      
-      console.warn(`[ChatDebug ${attemptId}] Existing conversation check:`, {
-        found: !!conversationId,
-        conversationId,
-      });
       
       if (!conversationId) {
         // Create new conversation using the project's workspace_id
@@ -521,16 +500,15 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
           projectId: project.id,
           projectName: project.name,
           workspaceId: project.workspace_id,
-          attemptId,
+          attemptId: crypto.randomUUID().slice(0, 8),
         });
         conversationId = newConversation.id;
       }
       
-      console.warn(`[ChatDebug ${attemptId}] Navigating to:`, `/app/chat/${conversationId}`);
       onOpenChange(false);
       navigate(`/app/chat/${conversationId}`);
     } catch (error) {
-      console.error(`[ChatDebug ${attemptId}] ERROR:`, error);
+      // Error handled by mutation
     } finally {
       setOpeningChat(false);
     }
