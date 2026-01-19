@@ -117,7 +117,7 @@ export function AppLayout() {
       {/* Premium Background Effects - Purple gradient with blur */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
         {/* Large purple gradient spot - top right */}
-        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/15 dark:bg-primary/20 rounded-full blur-[150px] translate-x-1/4 -translate-y-1/4" />
+        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/5 dark:bg-primary/20 rounded-full blur-[150px] translate-x-1/4 -translate-y-1/4" />
         
         {/* Secondary purple spot - bottom left */}
         <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-primary/15 dark:bg-primary/15 rounded-full blur-[120px] -translate-x-1/4 translate-y-1/4" />
