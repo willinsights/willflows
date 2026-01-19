@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'logo-willflow-purple.png'],
+      includeAssets: ['favicon.ico', 'pwa-icon.png'],
       manifest: {
         name: 'WillFlow - Gestão de Projetos',
         short_name: 'WillFlow',
@@ -28,12 +28,12 @@ export default defineConfig(({ mode }) => ({
         scope: '/',
         icons: [
           {
-            src: '/logo-willflow-purple.png',
+            src: '/pwa-icon.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: '/logo-willflow-purple.png',
+            src: '/pwa-icon.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
