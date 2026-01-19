@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus, MoreHorizontal, Pencil, Trash2, ArrowRight } from 'lucide-react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { Plus, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +20,6 @@ import {
 } from '@/components/ui/popover';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -51,35 +51,117 @@ const colorOptions = [
   '#06b6d4', // Cyan
 ];
 
+// Estimated height for each card (used for virtualization)
+const ESTIMATED_CARD_HEIGHT = 120;
+// How many extra items to render above/below viewport
+const OVERSCAN_COUNT = 3;
+// Minimum projects to enable virtualization
+const VIRTUALIZATION_THRESHOLD = 10;
+
 export function KanbanColumn({ column, onUpdateColumn, onDeleteColumn, onAddProject, onProjectClick }: KanbanColumnProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(column.name);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
   });
 
-  const handleSaveName = () => {
+  // Memoize project IDs for SortableContext
+  const projectIds = useMemo(() => column.projects.map(p => p.id), [column.projects]);
+
+  // Only use virtualization if we have many projects
+  const useVirtualization = column.projects.length >= VIRTUALIZATION_THRESHOLD;
+
+  const virtualizer = useVirtualizer({
+    count: column.projects.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: () => ESTIMATED_CARD_HEIGHT,
+    overscan: OVERSCAN_COUNT,
+    enabled: useVirtualization,
+  });
+
+  const handleSaveName = useCallback(() => {
     if (editName.trim() && editName !== column.name) {
       onUpdateColumn(column.id, { name: editName.trim() });
     }
     setIsEditing(false);
-  };
+  }, [editName, column.name, column.id, onUpdateColumn]);
 
-  const handleColorChange = (color: string) => {
+  const handleColorChange = useCallback((color: string) => {
     onUpdateColumn(column.id, { color });
     setShowColorPicker(false);
-  };
+  }, [column.id, onUpdateColumn]);
 
-  const handleDeleteClick = () => {
+  const handleDeleteClick = useCallback(() => {
     if (column.projects.length > 0) {
       setShowDeleteDialog(true);
     } else if (onDeleteColumn) {
       onDeleteColumn(column.id);
     }
+  }, [column.projects.length, column.id, onDeleteColumn]);
+
+  const handleProjectClick = useCallback((projectId: string) => {
+    onProjectClick(projectId);
+  }, [onProjectClick]);
+
+  const handleAddProject = useCallback(() => {
+    onAddProject(column.id);
+  }, [column.id, onAddProject]);
+
+  // Render virtualized list
+  const renderVirtualizedList = () => {
+    const virtualItems = virtualizer.getVirtualItems();
+    
+    return (
+      <div
+        style={{
+          height: `${virtualizer.getTotalSize()}px`,
+          width: '100%',
+          position: 'relative',
+        }}
+      >
+        {virtualItems.map((virtualRow) => {
+          const project = column.projects[virtualRow.index];
+          return (
+            <div
+              key={project.id}
+              data-index={virtualRow.index}
+              ref={virtualizer.measureElement}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+            >
+              <KanbanCard
+                project={project}
+                onClick={() => handleProjectClick(project.id)}
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
   };
+
+  // Render non-virtualized list (for small number of projects)
+  const renderNormalList = () => (
+    <>
+      {column.projects.map((project) => (
+        <KanbanCard
+          key={project.id}
+          project={project}
+          onClick={() => handleProjectClick(project.id)}
+        />
+      ))}
+    </>
+  );
 
   return (
     <>
@@ -169,29 +251,28 @@ export function KanbanColumn({ column, onUpdateColumn, onDeleteColumn, onAddProj
               variant="ghost"
               size="icon"
               className="h-5 w-5"
-              onClick={() => onAddProject(column.id)}
+              onClick={handleAddProject}
             >
               <Plus className="h-3 w-3" />
             </Button>
           </div>
         </div>
 
-        {/* Column Content */}
+        {/* Column Content - Virtualized */}
         <div
-          ref={setNodeRef}
+          ref={(node) => {
+            setNodeRef(node);
+            if (node) {
+              scrollContainerRef.current = node;
+            }
+          }}
           className="flex-1 p-1 space-y-1 overflow-y-auto min-h-[120px] max-h-[calc(100vh-220px)]"
         >
           <SortableContext
-            items={column.projects.map(p => p.id)}
+            items={projectIds}
             strategy={verticalListSortingStrategy}
           >
-            {column.projects.map((project) => (
-              <KanbanCard
-                key={project.id}
-                project={project}
-                onClick={() => onProjectClick(project.id)}
-              />
-            ))}
+            {useVirtualization ? renderVirtualizedList() : renderNormalList()}
           </SortableContext>
 
           {column.projects.length === 0 && (

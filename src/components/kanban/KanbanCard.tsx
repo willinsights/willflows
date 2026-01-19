@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { format, differenceInDays, isPast } from 'date-fns';
@@ -14,6 +15,7 @@ import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 interface KanbanCardProps {
   project: ProjectWithClient;
   onClick?: () => void;
+  style?: React.CSSProperties;
 }
 
 const typeIcons = {
@@ -35,7 +37,7 @@ const priorityConfig = {
   urgente: { class: 'priority-urgente', label: 'Urgente', border: 'border-l-2 border-l-destructive' },
 };
 
-export function KanbanCard({ project, onClick }: KanbanCardProps) {
+function KanbanCardComponent({ project, onClick, style: externalStyle }: KanbanCardProps) {
   const { canViewTeamContacts } = useFinancialPermissions();
   const {
     attributes,
@@ -47,6 +49,7 @@ export function KanbanCard({ project, onClick }: KanbanCardProps) {
   } = useSortable({ id: project.id });
 
   const style = {
+    ...externalStyle,
     transform: CSS.Transform.toString(transform),
     transition,
   };
@@ -237,3 +240,20 @@ export function KanbanCard({ project, onClick }: KanbanCardProps) {
     </div>
   );
 }
+
+// Memoize to prevent unnecessary re-renders during virtualization
+export const KanbanCard = memo(KanbanCardComponent, (prevProps, nextProps) => {
+  // Custom comparison for performance
+  return (
+    prevProps.project.id === nextProps.project.id &&
+    prevProps.project.name === nextProps.project.name &&
+    prevProps.project.priority === nextProps.project.priority &&
+    prevProps.project.delivery_date === nextProps.project.delivery_date &&
+    prevProps.project.shoot_date === nextProps.project.shoot_date &&
+    prevProps.project.task_count === nextProps.project.task_count &&
+    prevProps.project.task_completed === nextProps.project.task_completed &&
+    prevProps.project.checklist_count === nextProps.project.checklist_count &&
+    prevProps.project.checklist_completed === nextProps.project.checklist_completed &&
+    prevProps.project.team_members?.length === nextProps.project.team_members?.length
+  );
+});
