@@ -10,15 +10,30 @@ interface ScrollAreaProps extends React.ComponentPropsWithoutRef<typeof ScrollAr
 const ScrollArea = React.forwardRef<
   React.ElementRef<typeof ScrollAreaPrimitive.Root>,
   ScrollAreaProps
->(({ className, children, hideScrollbar = false, ...props }, ref) => (
-  <ScrollAreaPrimitive.Root ref={ref} className={cn("relative overflow-hidden", className)} {...props}>
-    <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit] overflow-y-auto">
-      {children}
-    </ScrollAreaPrimitive.Viewport>
-    {!hideScrollbar && <ScrollBar />}
-    {!hideScrollbar && <ScrollAreaPrimitive.Corner />}
-  </ScrollAreaPrimitive.Root>
-));
+>(({ className, children, hideScrollbar = false, ...props }, ref) => {
+  if (hideScrollbar) {
+    // For hideScrollbar mode, use a simple div with overflow-y-auto
+    return (
+      <div 
+        ref={ref as React.Ref<HTMLDivElement>}
+        className={cn("relative overflow-y-auto", className)} 
+        {...props}
+      >
+        {children}
+      </div>
+    );
+  }
+  
+  return (
+    <ScrollAreaPrimitive.Root ref={ref} className={cn("relative overflow-hidden", className)} {...props}>
+      <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit]">
+        {children}
+      </ScrollAreaPrimitive.Viewport>
+      <ScrollBar />
+      <ScrollAreaPrimitive.Corner />
+    </ScrollAreaPrimitive.Root>
+  );
+});
 ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName;
 
 const ScrollBar = React.forwardRef<
