@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppToast } from '@/hooks/useAppToast';
+import { chatDebug, chatDebugError, isChatDebugEnabled } from '@/lib/debug-flags';
 
 export type ConversationType = 'channel' | 'project' | 'dm';
 
@@ -253,47 +254,110 @@ export function useConversations() {
   });
 
   const createProjectChat = useMutation({
-    mutationFn: async ({ projectId, projectName, workspaceId }: { projectId: string; projectName: string; workspaceId: string }) => {
-      if (!user?.id) throw new Error('Utilizador não encontrado');
+    mutationFn: async ({ projectId, projectName, workspaceId, attemptId }: { projectId: string; projectName: string; workspaceId: string; attemptId?: string }) => {
+      const aid = attemptId || crypto.randomUUID().slice(0, 8);
+      
+      chatDebug(aid, 'createProjectChat START', {
+        projectId,
+        projectName,
+        workspaceId_received: workspaceId,
+        workspaceId_context: workspace?.id,
+        userId: user?.id,
+      });
+
+      if (!user?.id) {
+        chatDebugError(aid, 'No user found', { userId: user?.id });
+        throw new Error('Utilizador não encontrado');
+      }
 
       // Check if conversation already exists for this project
-      const { data: existing } = await supabase
+      chatDebug(aid, 'Checking for existing conversation...');
+      const { data: existing, error: existingError } = await supabase
         .from('conversations')
         .select('*')
         .eq('project_id', projectId)
         .eq('workspace_id', workspaceId)
         .maybeSingle();
       
-      if (existing) return existing;
+      if (existingError) {
+        chatDebugError(aid, 'Error checking existing conversation', existingError);
+      }
+
+      if (existing) {
+        chatDebug(aid, 'Found existing conversation', {
+          id: existing.id,
+          workspace_id: existing.workspace_id,
+          project_id: existing.project_id,
+        });
+        return existing;
+      }
+
+      chatDebug(aid, 'No existing conversation, creating new one...');
 
       // Create new project conversation using the PROJECT's workspace_id
+      const insertPayload = {
+        workspace_id: workspaceId,
+        type: 'project' as const,
+        name: projectName,
+        project_id: projectId,
+        created_by: user.id,
+      };
+      
+      chatDebug(aid, 'Insert payload for conversations:', insertPayload);
+
       const { data: conversation, error: convError } = await supabase
         .from('conversations')
-        .insert({
-          workspace_id: workspaceId,
-          type: 'project' as const,
-          name: projectName,
-          project_id: projectId,
-          created_by: user.id,
-        })
+        .insert(insertPayload)
         .select()
         .single();
 
-      if (convError) throw convError;
+      if (convError) {
+        chatDebugError(aid, 'ERROR inserting conversation', {
+          message: convError.message,
+          code: (convError as any).code,
+          details: (convError as any).details,
+          hint: (convError as any).hint,
+        });
+        throw convError;
+      }
+
+      chatDebug(aid, 'Conversation created successfully', { conversationId: conversation.id });
 
       // Add creator as member
-      await supabase.from('conversation_members').insert({
+      const memberPayload = {
         conversation_id: conversation.id,
         user_id: user.id,
         role: 'admin',
-      });
+      };
+      
+      chatDebug(aid, 'Insert payload for conversation_members:', memberPayload);
 
+      const { error: memberError } = await supabase.from('conversation_members').insert(memberPayload);
+
+      if (memberError) {
+        chatDebugError(aid, 'ERROR inserting conversation_member', {
+          message: memberError.message,
+          code: (memberError as any).code,
+          details: (memberError as any).details,
+          hint: (memberError as any).hint,
+        });
+        // Don't throw - conversation was created successfully
+      } else {
+        chatDebug(aid, 'Member added successfully');
+      }
+
+      chatDebug(aid, 'createProjectChat COMPLETE', { conversationId: conversation.id });
       return conversation;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversations', workspace?.id] });
     },
-    onError: (error: Error) => toast.error('Erro ao criar chat', { description: error.message }),
+    onError: (error: Error) => {
+      const errorDetails = isChatDebugEnabled() 
+        ? `${error.message} | Code: ${(error as any).code || 'N/A'}`
+        : error.message;
+      toast.error('Erro ao criar chat', { description: errorDetails });
+    },
   });
 
   useEffect(() => {
