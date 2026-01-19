@@ -474,7 +474,7 @@ export default function Landing() {
                         src={logo.src}
                         alt={logo.name}
                         className="h-10 w-auto max-w-[140px] object-contain 
-                                   brightness-0 dark:brightness-100 dark:invert
+                                   invert dark:invert-0
                                    opacity-50 hover:opacity-100 transition-all duration-500"
                       />
                     </div>
