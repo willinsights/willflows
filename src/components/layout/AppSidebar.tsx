@@ -154,18 +154,6 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
           />
         </button>
         
-        {/* Expand button in header when collapsed */}
-        {!isMobile && collapsed && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onToggle}
-            className="h-7 w-7 hover:bg-primary/10 ml-1"
-            title="Expandir menu"
-          >
-            <ChevronRight className="h-4 w-4 text-primary" />
-          </Button>
-        )}
         
         {isMobile ? (
           <Button
@@ -213,14 +201,17 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
                       aria-label={collapsed && !isMobile ? item.label : undefined}
                       onClick={() => !isMobile && !collapsed && onToggle()}
                       className={cn(
-                        'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
+                        collapsed && !isMobile 
+                          ? 'flex flex-col items-center gap-0.5 px-1 py-2 rounded-lg transition-all duration-200'
+                          : 'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
                         'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                        collapsed && !isMobile && 'justify-center px-2',
                         active && 'bg-primary/10 text-primary font-medium'
                       )}
                     >
-                      <item.icon className={cn('h-5 w-5 flex-shrink-0', active && 'text-primary')} />
-                      {(!collapsed || isMobile) && (
+                      <item.icon className={cn('flex-shrink-0', collapsed && !isMobile ? 'h-4 w-4' : 'h-5 w-5', active && 'text-primary')} />
+                      {collapsed && !isMobile ? (
+                        <span className="text-[9px] truncate max-w-full text-center leading-tight">{item.label}</span>
+                      ) : (
                         <span className="truncate">{item.label}</span>
                       )}
                     </NavLink>
