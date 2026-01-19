@@ -252,15 +252,15 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
 
       {/* Collapse Button (desktop only) */}
       {!isMobile && collapsed && (
-        <div className="p-3 border-t border-sidebar-border">
+        <div className="p-2 border-t border-sidebar-border">
           <Button
-            variant="outline"
+            variant="ghost"
             size="icon"
             onClick={onToggle}
-            className="w-full h-10 bg-primary/10 hover:bg-primary/20 border-primary/30 hover:border-primary/50 transition-all"
+            className="w-full h-8 hover:bg-primary/10 transition-all"
             title="Expandir menu"
           >
-            <ChevronRight className="h-5 w-5 text-primary" />
+            <ChevronRight className="h-4 w-4 text-primary" />
           </Button>
         </div>
       )}
