@@ -11,21 +11,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useFilteredProjects } from '@/hooks/useFilteredProjects';
 import { useClients } from '@/hooks/useClients';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -36,26 +23,38 @@ import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 import { ProjectDetailsModal } from '@/components/projects/ProjectDetailsModal';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-
 const typeIcons: Record<string, any> = {
   fotografia: Camera,
   video: Film,
-  foto_video: Video,
+  foto_video: Video
 };
-
 const typeLabels: Record<string, string> = {
   fotografia: 'Fotografia',
   video: 'Vídeo',
-  foto_video: 'Foto + Vídeo',
+  foto_video: 'Foto + Vídeo'
 };
-
 export default function Finalizados() {
-  const { projects } = useFilteredProjects();
-  const { clients } = useClients();
-  const { currentWorkspace } = useWorkspace();
-  const { members: workspaceMembers } = useWorkspaceMembers();
-  const { canViewAllFinancials } = useFinancialPermissions();
-  const { checkFeature, upgradeAlert, closeUpgradeAlert, hasFeatureAccess } = usePlanFeatures();
+  const {
+    projects
+  } = useFilteredProjects();
+  const {
+    clients
+  } = useClients();
+  const {
+    currentWorkspace
+  } = useWorkspace();
+  const {
+    members: workspaceMembers
+  } = useWorkspaceMembers();
+  const {
+    canViewAllFinancials
+  } = useFinancialPermissions();
+  const {
+    checkFeature,
+    upgradeAlert,
+    closeUpgradeAlert,
+    hasFeatureAccess
+  } = usePlanFeatures();
   const canExportPdf = hasFeatureAccess('exportPdf');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterClient, setFilterClient] = useState<string>('all');
@@ -65,14 +64,15 @@ export default function Finalizados() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [filterResponsavel, setFilterResponsavel] = useState<string>('all');
   const [filterPhase, setFilterPhase] = useState<string>('all');
-  const [projectTeams, setProjectTeams] = useState<Record<string, { captacao: string[]; edicao: string[] }>>({}); 
-
+  const [projectTeams, setProjectTeams] = useState<Record<string, {
+    captacao: string[];
+    edicao: string[];
+  }>>({});
   const currency = currentWorkspace?.currency || 'EUR';
-
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat(currentWorkspace?.locale || 'pt-PT', {
       style: 'currency',
-      currency,
+      currency
     }).format(value);
   };
 
@@ -81,44 +81,41 @@ export default function Finalizados() {
     const fetchProjectTeams = async () => {
       const deliveredProjectIds = projects.filter(p => p.is_delivered).map(p => p.id);
       if (deliveredProjectIds.length === 0) return;
-
-      const { data } = await supabase
-        .from('project_team')
-        .select('project_id, user_id, phase')
-        .in('project_id', deliveredProjectIds);
-
+      const {
+        data
+      } = await supabase.from('project_team').select('project_id, user_id, phase').in('project_id', deliveredProjectIds);
       if (data) {
-        const teamsMap: Record<string, { captacao: string[]; edicao: string[] }> = {};
+        const teamsMap: Record<string, {
+          captacao: string[];
+          edicao: string[];
+        }> = {};
         data.forEach(item => {
           if (!teamsMap[item.project_id]) {
-            teamsMap[item.project_id] = { captacao: [], edicao: [] };
+            teamsMap[item.project_id] = {
+              captacao: [],
+              edicao: []
+            };
           }
           teamsMap[item.project_id][item.phase].push(item.user_id);
         });
         setProjectTeams(teamsMap);
       }
     };
-
     fetchProjectTeams();
   }, [projects]);
-
   const getMemberInfo = (userId: string) => {
     const member = workspaceMembers.find(m => m.user_id === userId);
     return member || null;
   };
-
   const renderTeamAvatars = (userIds: string[]) => {
     if (userIds.length === 0) {
       return <span className="text-xs text-muted-foreground">-</span>;
     }
-
-    return (
-      <div className="flex -space-x-2">
+    return <div className="flex -space-x-2">
         {userIds.slice(0, 3).map(userId => {
-          const member = getMemberInfo(userId);
-          if (!member) return null;
-          return (
-            <Tooltip key={userId}>
+        const member = getMemberInfo(userId);
+        if (!member) return null;
+        return <Tooltip key={userId}>
               <TooltipTrigger asChild>
                 <Avatar className="h-6 w-6 border-2 border-background">
                   <AvatarImage src={member.avatar_url || undefined} />
@@ -130,18 +127,13 @@ export default function Finalizados() {
               <TooltipContent>
                 {member.full_name || member.email}
               </TooltipContent>
-            </Tooltip>
-          );
-        })}
-        {userIds.length > 3 && (
-          <div className="h-6 w-6 rounded-full bg-muted border-2 border-background flex items-center justify-center">
+            </Tooltip>;
+      })}
+        {userIds.length > 3 && <div className="h-6 w-6 rounded-full bg-muted border-2 border-background flex items-center justify-center">
             <span className="text-[10px] text-muted-foreground">+{userIds.length - 3}</span>
-          </div>
-        )}
-      </div>
-    );
+          </div>}
+      </div>;
   };
-
   const clearFilters = () => {
     setSearchQuery('');
     setFilterClient('all');
@@ -151,67 +143,58 @@ export default function Finalizados() {
     setStartDate(undefined);
     setEndDate(undefined);
   };
-
   const hasActiveFilters = searchQuery || filterClient !== 'all' || filterType !== 'all' || filterResponsavel !== 'all' || filterPhase !== 'all' || startDate || endDate;
-
   const completedProjects = useMemo(() => {
-    return projects
-      .filter(project => project.is_delivered)
-      .filter(project => {
-        // Search filter
-        if (searchQuery) {
-          const query = searchQuery.toLowerCase();
-          if (
-            !project.name.toLowerCase().includes(query) &&
-            !project.project_code?.toLowerCase().includes(query) &&
-            !project.clients?.name?.toLowerCase().includes(query)
-          ) {
-            return false;
-          }
+    return projects.filter(project => project.is_delivered).filter(project => {
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        if (!project.name.toLowerCase().includes(query) && !project.project_code?.toLowerCase().includes(query) && !project.clients?.name?.toLowerCase().includes(query)) {
+          return false;
         }
+      }
 
-        // Client filter
-        if (filterClient !== 'all' && project.client_id !== filterClient) return false;
+      // Client filter
+      if (filterClient !== 'all' && project.client_id !== filterClient) return false;
 
-        // Type filter
-        if (filterType !== 'all' && project.type !== filterType) return false;
+      // Type filter
+      if (filterType !== 'all' && project.type !== filterType) return false;
 
-        // Responsável filter
-        if (filterResponsavel !== 'all') {
-          const team = projectTeams[project.id];
-          if (!team) return false;
-          
-          if (filterPhase === 'captacao') {
-            if (!team.captacao.includes(filterResponsavel)) return false;
-          } else if (filterPhase === 'edicao') {
-            if (!team.edicao.includes(filterResponsavel)) return false;
-          } else {
-            // Any phase
-            if (!team.captacao.includes(filterResponsavel) && !team.edicao.includes(filterResponsavel)) return false;
-          }
+      // Responsável filter
+      if (filterResponsavel !== 'all') {
+        const team = projectTeams[project.id];
+        if (!team) return false;
+        if (filterPhase === 'captacao') {
+          if (!team.captacao.includes(filterResponsavel)) return false;
+        } else if (filterPhase === 'edicao') {
+          if (!team.edicao.includes(filterResponsavel)) return false;
+        } else {
+          // Any phase
+          if (!team.captacao.includes(filterResponsavel) && !team.edicao.includes(filterResponsavel)) return false;
         }
+      }
 
-        // Date range filter
-        if ((startDate || endDate) && project.delivered_at) {
-          const deliveredDate = parseISO(project.delivered_at);
-          
-          if (startDate && endDate) {
-            if (!isWithinInterval(deliveredDate, { start: startDate, end: endDate })) return false;
-          } else if (startDate && deliveredDate < startDate) {
-            return false;
-          } else if (endDate && deliveredDate > endDate) {
-            return false;
-          }
+      // Date range filter
+      if ((startDate || endDate) && project.delivered_at) {
+        const deliveredDate = parseISO(project.delivered_at);
+        if (startDate && endDate) {
+          if (!isWithinInterval(deliveredDate, {
+            start: startDate,
+            end: endDate
+          })) return false;
+        } else if (startDate && deliveredDate < startDate) {
+          return false;
+        } else if (endDate && deliveredDate > endDate) {
+          return false;
         }
-
-        return true;
-      })
-      .sort((a, b) => {
-        // Ordenar por data de entrega (mais recente primeiro)
-        const dateA = a.delivered_at ? new Date(a.delivered_at).getTime() : 0;
-        const dateB = b.delivered_at ? new Date(b.delivered_at).getTime() : 0;
-        return dateB - dateA; // Mais recentes primeiro
-      });
+      }
+      return true;
+    }).sort((a, b) => {
+      // Ordenar por data de entrega (mais recente primeiro)
+      const dateA = a.delivered_at ? new Date(a.delivered_at).getTime() : 0;
+      const dateB = b.delivered_at ? new Date(b.delivered_at).getTime() : 0;
+      return dateB - dateA; // Mais recentes primeiro
+    });
   }, [projects, searchQuery, filterClient, filterType, filterResponsavel, filterPhase, projectTeams, startDate, endDate]);
 
   // Get unique team members who have worked on finished projects
@@ -221,48 +204,30 @@ export default function Finalizados() {
       team.captacao.forEach(id => memberIds.add(id));
       team.edicao.forEach(id => memberIds.add(id));
     });
-    return Array.from(memberIds)
-      .map(id => getMemberInfo(id))
-      .filter(Boolean)
-      .sort((a, b) => (a?.full_name || a?.email || '').localeCompare(b?.full_name || b?.email || ''));
+    return Array.from(memberIds).map(id => getMemberInfo(id)).filter(Boolean).sort((a, b) => (a?.full_name || a?.email || '').localeCompare(b?.full_name || b?.email || ''));
   }, [projectTeams, workspaceMembers]);
-
   const totalRevenue = completedProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
   const selectedProject = selectedProjectId ? projects.find(p => p.id === selectedProjectId) : null;
-
   const getTeamNames = (userIds: string[]) => {
-    return userIds
-      .map(id => {
-        const member = getMemberInfo(id);
-        return member?.full_name || member?.email || '';
-      })
-      .filter(Boolean)
-      .join(', ') || '-';
+    return userIds.map(id => {
+      const member = getMemberInfo(id);
+      return member?.full_name || member?.email || '';
+    }).filter(Boolean).join(', ') || '-';
   };
-
   const exportToCSV = () => {
     if (completedProjects.length === 0) return;
-    
     const headers = ['Projeto', 'Código', 'Cliente', 'Tipo', 'Data de Entrega', 'Captação', 'Edição'];
     const rows = completedProjects.map(project => {
-      const team = projectTeams[project.id] || { captacao: [], edicao: [] };
-      return [
-        project.name,
-        project.project_code || '',
-        project.clients?.name || 'Sem cliente',
-        typeLabels[project.type],
-        project.delivered_at ? format(new Date(project.delivered_at), 'dd/MM/yyyy') : 'N/A',
-        getTeamNames(team.captacao),
-        getTeamNames(team.edicao),
-      ];
+      const team = projectTeams[project.id] || {
+        captacao: [],
+        edicao: []
+      };
+      return [project.name, project.project_code || '', project.clients?.name || 'Sem cliente', typeLabels[project.type], project.delivered_at ? format(new Date(project.delivered_at), 'dd/MM/yyyy') : 'N/A', getTeamNames(team.captacao), getTeamNames(team.edicao)];
     });
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const csvContent = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
+    const blob = new Blob([csvContent], {
+      type: 'text/csv;charset=utf-8;'
+    });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -270,11 +235,10 @@ export default function Finalizados() {
     link.click();
     URL.revokeObjectURL(url);
   };
-
   const exportToPDF = () => {
     if (completedProjects.length === 0) return;
     if (!checkFeature('exportPdf')) return;
-    
+
     // Create printable HTML
     const printContent = `
       <!DOCTYPE html>
@@ -310,8 +274,11 @@ export default function Finalizados() {
           </thead>
           <tbody>
             ${completedProjects.map(project => {
-              const team = projectTeams[project.id] || { captacao: [], edicao: [] };
-              return `
+      const team = projectTeams[project.id] || {
+        captacao: [],
+        edicao: []
+      };
+      return `
               <tr>
                 <td>${project.name}</td>
                 <td>${project.project_code || '-'}</td>
@@ -321,13 +288,13 @@ export default function Finalizados() {
                 <td>${getTeamNames(team.captacao)}</td>
                 <td>${getTeamNames(team.edicao)}</td>
               </tr>
-            `}).join('')}
+            `;
+    }).join('')}
           </tbody>
         </table>
       </body>
       </html>
     `;
-
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(printContent);
@@ -335,9 +302,7 @@ export default function Finalizados() {
       printWindow.print();
     }
   };
-
-  return (
-    <div className="p-6 space-y-6">
+  return <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -345,36 +310,16 @@ export default function Finalizados() {
           <p className="text-muted-foreground">Histórico completo de projetos concluídos</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="gap-2"
-            onClick={exportToCSV}
-            disabled={completedProjects.length === 0}
-          >
+          <Button variant="outline" size="sm" className="gap-2" onClick={exportToCSV} disabled={completedProjects.length === 0}>
             <Download className="h-4 w-4" />
             CSV
           </Button>
-          {canExportPdf ? (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="gap-2"
-              onClick={exportToPDF}
-              disabled={completedProjects.length === 0}
-            >
+          {canExportPdf ? <Button variant="outline" size="sm" className="gap-2" onClick={exportToPDF} disabled={completedProjects.length === 0}>
               <FileText className="h-4 w-4" />
               PDF
-            </Button>
-          ) : (
-            <Tooltip>
+            </Button> : <Tooltip>
               <TooltipTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="gap-2 opacity-60"
-                  onClick={() => checkFeature('exportPdf')}
-                >
+                <Button variant="outline" size="sm" className="gap-2 opacity-60" onClick={() => checkFeature('exportPdf')}>
                   <Lock className="h-4 w-4" />
                   PDF
                 </Button>
@@ -382,8 +327,7 @@ export default function Finalizados() {
               <TooltipContent>
                 Disponível nos planos Pro e Studio
               </TooltipContent>
-            </Tooltip>
-          )}
+            </Tooltip>}
         </div>
       </div>
 
@@ -399,12 +343,7 @@ export default function Finalizados() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative md:col-span-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por título ou cliente..."
-                className="pl-9"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+              <Input placeholder="Buscar por título ou cliente..." className="pl-9" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
             </div>
 
             <Select value={filterClient} onValueChange={setFilterClient}>
@@ -413,11 +352,9 @@ export default function Finalizados() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os clientes</SelectItem>
-                {clients.map(client => (
-                  <SelectItem key={client.id} value={client.id}>
+                {clients.map(client => <SelectItem key={client.id} value={client.id}>
                     {client.name}
-                  </SelectItem>
-                ))}
+                  </SelectItem>)}
               </SelectContent>
             </Select>
 
@@ -433,12 +370,7 @@ export default function Finalizados() {
               </SelectContent>
             </Select>
 
-            <Button 
-              variant="outline" 
-              onClick={clearFilters}
-              disabled={!hasActiveFilters}
-              className="w-full"
-            >
+            <Button variant="outline" onClick={clearFilters} disabled={!hasActiveFilters} className="w-full">
               Limpar Filtros
             </Button>
           </div>
@@ -451,8 +383,7 @@ export default function Finalizados() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os responsáveis</SelectItem>
-                {teamMembersInProjects.map(member => member && (
-                  <SelectItem key={member.user_id} value={member.user_id}>
+                {teamMembersInProjects.map(member => member && <SelectItem key={member.user_id} value={member.user_id}>
                     <div className="flex items-center gap-2">
                       <Avatar className="h-5 w-5">
                         <AvatarImage src={member.avatar_url || undefined} />
@@ -462,16 +393,11 @@ export default function Finalizados() {
                       </Avatar>
                       {member.full_name || member.email}
                     </div>
-                  </SelectItem>
-                ))}
+                  </SelectItem>)}
               </SelectContent>
             </Select>
 
-            <Select 
-              value={filterPhase} 
-              onValueChange={setFilterPhase}
-              disabled={filterResponsavel === 'all'}
-            >
+            <Select value={filterPhase} onValueChange={setFilterPhase} disabled={filterResponsavel === 'all'}>
               <SelectTrigger>
                 <SelectValue placeholder="Qualquer fase" />
               </SelectTrigger>
@@ -491,24 +417,13 @@ export default function Finalizados() {
               <label className="text-xs text-muted-foreground">Data inicial</label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !startDate && "text-muted-foreground"
-                    )}
-                  >
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground")}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {startDate ? format(startDate, "dd/MM/yyyy") : "dd/mm/aaaa"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={startDate}
-                    onSelect={setStartDate}
-                    initialFocus
-                  />
+                  <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
                 </PopoverContent>
               </Popover>
             </div>
@@ -517,24 +432,13 @@ export default function Finalizados() {
               <label className="text-xs text-muted-foreground">Data final</label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !endDate && "text-muted-foreground"
-                    )}
-                  >
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground")}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {endDate ? format(endDate, "dd/MM/yyyy") : "dd/mm/aaaa"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={endDate}
-                    onSelect={setEndDate}
-                    initialFocus
-                  />
+                  <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
                 </PopoverContent>
               </Popover>
             </div>
@@ -548,12 +452,13 @@ export default function Finalizados() {
       </div>
 
       {/* Projects Table */}
-      {completedProjects.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center justify-center py-20 text-center"
-        >
+      {completedProjects.length === 0 ? <motion.div initial={{
+      opacity: 0,
+      y: 20
+    }} animate={{
+      opacity: 1,
+      y: 0
+    }} className="flex flex-col items-center justify-center py-20 text-center">
           <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
             <CalendarIcon className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -561,9 +466,7 @@ export default function Finalizados() {
           <p className="text-muted-foreground max-w-sm">
             Os projetos entregues aparecerão aqui.
           </p>
-        </motion.div>
-      ) : (
-        <Card className="glass-card overflow-hidden">
+        </motion.div> : <Card className="glass-card overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -578,27 +481,28 @@ export default function Finalizados() {
             </TableHeader>
             <TableBody>
               {completedProjects.map((project, index) => {
-                const TypeIcon = typeIcons[project.type] || Camera;
-                const team = projectTeams[project.id] || { captacao: [], edicao: [] };
-                return (
-                  <motion.tr
-                    key={project.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.03 }}
-                    className="group hover:bg-muted/50 cursor-pointer"
-                    onClick={() => setSelectedProjectId(project.id)}
-                  >
+            const TypeIcon = typeIcons[project.type] || Camera;
+            const team = projectTeams[project.id] || {
+              captacao: [],
+              edicao: []
+            };
+            return <motion.tr key={project.id} initial={{
+              opacity: 0,
+              x: -20
+            }} animate={{
+              opacity: 1,
+              x: 0
+            }} transition={{
+              delay: index * 0.03
+            }} className="group hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedProjectId(project.id)}>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-success/10">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary">
                           <TypeIcon className="h-4 w-4 text-success" />
                         </div>
                         <div>
                           <p className="font-medium">{project.name}</p>
-                          {project.project_code && (
-                            <p className="text-xs text-muted-foreground">{project.project_code}</p>
-                          )}
+                          {project.project_code && <p className="text-xs text-muted-foreground">{project.project_code}</p>}
                         </div>
                       </div>
                     </TableCell>
@@ -611,9 +515,9 @@ export default function Finalizados() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {project.delivered_at 
-                        ? format(new Date(project.delivered_at), 'dd/MM/yyyy', { locale: pt })
-                        : 'N/A'}
+                      {project.delivered_at ? format(new Date(project.delivered_at), 'dd/MM/yyyy', {
+                  locale: pt
+                }) : 'N/A'}
                     </TableCell>
                     <TableCell>
                       {renderTeamAvatars(team.captacao)}
@@ -622,25 +526,18 @@ export default function Finalizados() {
                       {renderTeamAvatars(team.edicao)}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedProjectId(project.id);
-                        }}
-                      >
+                      <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => {
+                  e.stopPropagation();
+                  setSelectedProjectId(project.id);
+                }}>
                         <Eye className="h-4 w-4" />
                       </Button>
                     </TableCell>
-                  </motion.tr>
-                );
-              })}
+                  </motion.tr>;
+          })}
             </TableBody>
           </Table>
-        </Card>
-      )}
+        </Card>}
 
       {/* Summary Cards - Valores financeiros apenas para admin */}
       <div className={cn("grid gap-4", canViewAllFinancials ? "grid-cols-2 md:grid-cols-3" : "grid-cols-1")}>
@@ -650,8 +547,7 @@ export default function Finalizados() {
             <p className="text-2xl font-bold">{completedProjects.length}</p>
           </CardContent>
         </Card>
-        {canViewAllFinancials && (
-          <>
+        {canViewAllFinancials && <>
             <Card className="glass-card">
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Receita Total</p>
@@ -666,27 +562,13 @@ export default function Finalizados() {
                 </p>
               </CardContent>
             </Card>
-          </>
-        )}
+          </>}
       </div>
 
       {/* Project Details Modal */}
-      {selectedProject && (
-        <ProjectDetailsModal
-          project={selectedProject}
-          open={!!selectedProjectId}
-          onOpenChange={(open) => !open && setSelectedProjectId(null)}
-          onUpdate={() => {}}
-        />
-      )}
+      {selectedProject && <ProjectDetailsModal project={selectedProject} open={!!selectedProjectId} onOpenChange={open => !open && setSelectedProjectId(null)} onUpdate={() => {}} />}
 
       {/* Upgrade Alert */}
-      <UpgradeAlert
-        isOpen={upgradeAlert.isOpen}
-        onClose={closeUpgradeAlert}
-        feature={upgradeAlert.feature}
-        requiredPlan={upgradeAlert.requiredPlan}
-      />
-    </div>
-  );
+      <UpgradeAlert isOpen={upgradeAlert.isOpen} onClose={closeUpgradeAlert} feature={upgradeAlert.feature} requiredPlan={upgradeAlert.requiredPlan} />
+    </div>;
 }
