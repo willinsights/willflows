@@ -27,6 +27,7 @@ const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Blog = lazy(() => import("./pages/Blog"));
 const BlogPost = lazy(() => import("./pages/BlogPost"));
+const BlogCategory = lazy(() => import("./pages/BlogCategory"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Cookies = lazy(() => import("./pages/Cookies"));
@@ -78,6 +79,7 @@ const App = () => (
                     <Route path="/seguranca" element={<Security />} />
                     <Route path="/ajuda" element={<Help />} />
                     <Route path="/blog" element={<Blog />} />
+                    <Route path="/blog/categoria/:category" element={<BlogCategory />} />
                     <Route path="/blog/:slug" element={<BlogPost />} />
                     <Route path="/convite" element={<AcceptInvite />} />
                     <Route path="/privacidade" element={<Privacy />} />

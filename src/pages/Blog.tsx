@@ -64,10 +64,39 @@ export default function Blog() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="text-lg text-muted-foreground max-w-2xl mx-auto"
+              className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8"
             >
               Novidades, tutoriais, comparações e dicas para otimizar a gestão do seu estúdio de produção audiovisual.
             </motion.p>
+            
+            {/* Category Links */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="flex flex-wrap justify-center gap-3"
+            >
+              <Link to="/blog/categoria/novidades">
+                <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer py-2 px-4">
+                  Novidades
+                </Badge>
+              </Link>
+              <Link to="/blog/categoria/tutorial">
+                <Badge variant="secondary" className="bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 transition-colors cursor-pointer py-2 px-4">
+                  Tutoriais
+                </Badge>
+              </Link>
+              <Link to="/blog/categoria/comparacao">
+                <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 transition-colors cursor-pointer py-2 px-4">
+                  Comparações
+                </Badge>
+              </Link>
+              <Link to="/blog/categoria/dicas">
+                <Badge variant="secondary" className="bg-green-500/10 text-green-500 hover:bg-green-500/20 transition-colors cursor-pointer py-2 px-4">
+                  Dicas
+                </Badge>
+              </Link>
+            </motion.div>
           </div>
         </section>
 
