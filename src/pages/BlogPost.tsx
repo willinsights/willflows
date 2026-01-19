@@ -10,6 +10,7 @@ import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
 import { ShareButtons } from '@/components/blog/ShareButtons';
 import { TableOfContents } from '@/components/blog/TableOfContents';
+import { RelatedArticles } from '@/components/blog/RelatedArticles';
 import { useBlogPost } from '@/hooks/useBlogPosts';
 import { trackBlogView } from '@/hooks/usePageTracking';
 import { format } from 'date-fns';
@@ -335,6 +336,14 @@ export default function BlogPost() {
                   <TableOfContents content={post.content} />
                 </div>
               </aside>
+            </div>
+            
+            {/* Related Articles */}
+            <div className="container mx-auto max-w-6xl px-4">
+              <RelatedArticles 
+                currentPostId={post.id} 
+                currentCategory={post.category} 
+              />
             </div>
           </div>
         </article>
