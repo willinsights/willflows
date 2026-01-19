@@ -42,10 +42,16 @@
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="https://storage.googleapis.com/gpt-engineer-file-uploads/z4CECCBrcwb0jzml6YOF9oj4G8C2/uploads/1768663324297-logo_willflow_trasparent_v4.png">
 
-    <!-- Fonts - Non-blocking load with preconnect -->
+    <!-- Preconnect to critical origins -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://wppfmyseeigsdqutkgyc.supabase.co" crossorigin />
+    
+    <!-- Preload critical resources -->
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" />
+    <link rel="preload" as="image" href="/src/assets/screenshot-dark-kanban.png" fetchpriority="high" />
+    
+    <!-- Fonts - Non-blocking load -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
     <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" /></noscript>
 

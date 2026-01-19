@@ -234,11 +234,36 @@ export default {
   				'50%': {
   					transform: 'translateY(-3px)'
   				}
+  			},
+  			'orb-float-1': {
+  				'0%, 100%': { transform: 'translate(0, 0) scale(1)' },
+  				'50%': { transform: 'translate(50px, 30px) scale(1.1)' }
+  			},
+  			'orb-float-2': {
+  				'0%, 100%': { transform: 'translate(0, 0) scale(1)' },
+  				'50%': { transform: 'translate(-40px, -40px) scale(1.15)' }
+  			},
+  			'orb-float-3': {
+  				'0%, 100%': { transform: 'translate(0, 0) scale(1)' },
+  				'50%': { transform: 'translate(30px, -30px) scale(1.05)' }
   			}
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out',
+  			'fade-in': 'fade-in 0.15s ease-out',
+  			'fade-out': 'fade-out 0.15s ease-out',
+  			'slide-in-right': 'slide-in-right 0.25s ease-out',
+  			'slide-out-right': 'slide-out-right 0.25s ease-out',
+  			'slide-in-up': 'slide-in-up 0.2s ease-out',
+  			'scale-in': 'scale-in 0.15s ease-out',
+  			shimmer: 'shimmer 1.5s linear infinite',
+  			pulse: 'pulse 2s ease-in-out infinite',
+  			float: 'float 2.5s ease-in-out infinite',
+  			'orb-1': 'orb-float-1 15s ease-in-out infinite',
+  			'orb-2': 'orb-float-2 18s ease-in-out 2s infinite',
+  			'orb-3': 'orb-float-3 12s ease-in-out 4s infinite'
+  		},
   			'fade-in': 'fade-in 0.15s ease-out',
   			'fade-out': 'fade-out 0.15s ease-out',
   			'slide-in-right': 'slide-in-right 0.25s ease-out',
