@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Helmet } from 'react-helmet-async';
 import { Calendar, ArrowRight, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +36,17 @@ export default function Blog() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <Helmet>
+        <title>Blog | WillFlow - Dicas de Gestão para Produtores</title>
+        <meta name="description" content="Novidades, tutoriais, comparações e dicas para otimizar a gestão do seu estúdio de produção audiovisual. Artigos sobre fotografia, vídeo e gestão de negócios." />
+        <link rel="canonical" href="https://willflow.app/blog" />
+        <meta property="og:title" content="Blog | WillFlow - Dicas de Gestão para Produtores" />
+        <meta property="og:description" content="Novidades, tutoriais, comparações e dicas para otimizar a gestão do seu estúdio de produção audiovisual." />
+        <meta property="og:url" content="https://willflow.app/blog" />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:title" content="Blog | WillFlow - Dicas de Gestão para Produtores" />
+        <meta name="twitter:description" content="Novidades, tutoriais, comparações e dicas para otimizar a gestão do seu estúdio de produção audiovisual." />
+      </Helmet>
       <PublicHeader />
       
       <main className="flex-1">

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Helmet } from 'react-helmet-async';
 import {
   Check,
   X,
@@ -124,6 +125,31 @@ export default function Pricing() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Planos e Preços | WillFlow - A partir de 14€/mês</title>
+        <meta name="description" content="Escolha o plano ideal para o seu estúdio. Starter, Pro ou Studio. 30 dias grátis, sem cartão. Facturação em EUR ou BRL. Cancele quando quiser." />
+        <link rel="canonical" href="https://willflow.app/planos" />
+        <meta property="og:title" content="Planos e Preços | WillFlow - A partir de 14€/mês" />
+        <meta property="og:description" content="Escolha o plano ideal para o seu estúdio. Starter, Pro ou Studio. 30 dias grátis, sem cartão. Facturação em EUR ou BRL." />
+        <meta property="og:url" content="https://willflow.app/planos" />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:title" content="Planos e Preços | WillFlow - A partir de 14€/mês" />
+        <meta name="twitter:description" content="Escolha o plano ideal para o seu estúdio. Starter, Pro ou Studio. 30 dias grátis, sem cartão." />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": faqs.map(faq => ({
+              "@type": "Question",
+              "name": faq.question,
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": faq.answer
+              }
+            }))
+          })}
+        </script>
+      </Helmet>
       <PublicHeader />
 
       {/* Hero */}

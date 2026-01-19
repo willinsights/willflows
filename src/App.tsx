@@ -30,6 +30,7 @@ const BlogPost = lazy(() => import("./pages/BlogPost"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Cookies = lazy(() => import("./pages/Cookies"));
+const About = lazy(() => import("./pages/About"));
 
 // Lazy loaded protected pages
 const Onboarding = lazy(() => import("./pages/Onboarding"));
@@ -82,6 +83,7 @@ const App = () => (
                     <Route path="/privacidade" element={<Privacy />} />
                     <Route path="/termos" element={<Terms />} />
                     <Route path="/cookies" element={<Cookies />} />
+                    <Route path="/sobre" element={<About />} />
                     
                     {/* Protected Routes */}
                     <Route

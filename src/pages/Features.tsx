@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import {
   Kanban,
   Users,
@@ -133,6 +134,17 @@ const features = [
 export default function Features() {
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Funcionalidades | WillFlow - Kanban, CRM, Calendário e Mais</title>
+        <meta name="description" content="Descubra todas as funcionalidades do WillFlow: Kanban visual, CRM integrado, calendário com Google Calendar, gestão de pagamentos, relatórios financeiros e muito mais." />
+        <link rel="canonical" href="https://willflow.app/funcionalidades" />
+        <meta property="og:title" content="Funcionalidades | WillFlow - Kanban, CRM, Calendário e Mais" />
+        <meta property="og:description" content="Descubra todas as funcionalidades do WillFlow: Kanban visual, CRM integrado, calendário com Google Calendar, gestão de pagamentos, relatórios financeiros e muito mais." />
+        <meta property="og:url" content="https://willflow.app/funcionalidades" />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:title" content="Funcionalidades | WillFlow - Kanban, CRM, Calendário e Mais" />
+        <meta name="twitter:description" content="Descubra todas as funcionalidades do WillFlow: Kanban visual, CRM integrado, calendário com Google Calendar, gestão de pagamentos, relatórios financeiros e muito mais." />
+      </Helmet>
       <PublicHeader />
 
       {/* Hero */}

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import {
   Calendar,
   Video,
@@ -66,6 +67,17 @@ const comingSoon = [
 export default function Integrations() {
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Integrações | WillFlow - Google Calendar, Frame.io e Mais</title>
+        <meta name="description" content="Integre o WillFlow com as suas apps favoritas: Google Calendar, Google Meet, Frame.io e muito mais. Sincronize calendários, reuniões e reviews de vídeo." />
+        <link rel="canonical" href="https://willflow.app/integracoes" />
+        <meta property="og:title" content="Integrações | WillFlow - Google Calendar, Frame.io e Mais" />
+        <meta property="og:description" content="Integre o WillFlow com as suas apps favoritas: Google Calendar, Google Meet, Frame.io e muito mais." />
+        <meta property="og:url" content="https://willflow.app/integracoes" />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:title" content="Integrações | WillFlow - Google Calendar, Frame.io e Mais" />
+        <meta name="twitter:description" content="Integre o WillFlow com as suas apps favoritas: Google Calendar, Google Meet, Frame.io e muito mais." />
+      </Helmet>
       <PublicHeader />
 
       {/* Hero */}
