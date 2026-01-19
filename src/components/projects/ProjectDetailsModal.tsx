@@ -485,7 +485,18 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
   };
 
   const handleOpenChat = async () => {
-    if (!project || !user) return;
+    // ALWAYS log when handler is called (not gated by debug flag)
+    console.warn('[ChatDebug] handleOpenChat CALLED', { 
+      hasProject: !!project, 
+      hasUser: !!user,
+      projectId: project?.id,
+      userId: user?.id 
+    });
+    
+    if (!project || !user) {
+      console.warn('[ChatDebug] EARLY RETURN - missing project or user');
+      return;
+    }
     setOpeningChat(true);
     
     const attemptId = crypto.randomUUID().slice(0, 8);
