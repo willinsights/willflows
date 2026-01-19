@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CreateProjectModal } from '@/components/projects/CreateProjectModal';
 import { ProjectDetailsModal } from '@/components/projects/ProjectDetailsModal';
 import { TrialBadge } from '@/components/dashboard/TrialBadge';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { AccountModal } from '@/components/account/AccountModal';
 import { WorkspaceSelector } from '@/components/workspace/WorkspaceSelector';
@@ -290,6 +291,9 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          {/* Theme Toggle */}
+          <ThemeToggle />
+
           {/* Trial Badge - Enhanced */}
           <TrialBadge
             variant="header"

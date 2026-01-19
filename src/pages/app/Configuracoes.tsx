@@ -41,6 +41,7 @@ import { useWorkspaceInvitations } from '@/hooks/useWorkspaceInvitations';
 import { EmailPreferencesCard } from '@/components/settings/EmailPreferencesCard';
 import { NotificationPreferencesCard } from '@/components/settings/NotificationPreferencesCard';
 import { PermissionsMatrix } from '@/components/settings/PermissionsMatrix';
+import { PushNotificationSettings } from '@/components/settings/PushNotificationSettings';
 import { DeleteWorkspaceModal } from '@/components/workspace/DeleteWorkspaceModal';
 import { LeaveWorkspaceModal } from '@/components/workspace/LeaveWorkspaceModal';
 import { useProductTour } from '@/hooks/useProductTour';
@@ -751,6 +752,9 @@ export default function Configuracoes() {
 
             {/* Notification Preferences */}
             <NotificationPreferencesCard />
+
+            {/* Push Notifications */}
+            <PushNotificationSettings />
 
             {/* Tour & Conta */}
             <Card className="glass-card">
