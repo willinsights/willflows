@@ -159,27 +159,53 @@ export function useMessages(conversationId: string | undefined) {
         );
       }
 
+      // Auto-add mentioned users to conversation members (so they can see the chat)
+      if (mentionedUserIds && mentionedUserIds.length > 0) {
+        const uniqueMentionedIds = [...new Set(mentionedUserIds)].filter(id => id !== user.id);
+        for (const mentionedUserId of uniqueMentionedIds) {
+          // Use upsert to avoid duplicates - ignore errors (user may already be member)
+          await supabase
+            .from('conversation_members')
+            .upsert(
+              { conversation_id: conversationId, user_id: mentionedUserId, role: 'member' },
+              { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
+            )
+            .select();
+        }
+      }
+
       // Upload attachments if any
       if (attachments && attachments.length > 0) {
         for (const file of attachments) {
-          const filePath = `${user.id}/${data.id}/${Date.now()}-${file.name}`;
+          // Sanitize filename: replace spaces and special chars
+          const sanitizedName = file.name
+            .replace(/[^a-zA-Z0-9._-]/g, '_')
+            .replace(/__+/g, '_');
+          const filePath = `${user.id}/${data.id}/${Date.now()}-${sanitizedName}`;
+          
           const { error: uploadError } = await supabase.storage
             .from('chat-attachments')
             .upload(filePath, file);
 
           if (uploadError) {
             console.error('Error uploading file:', uploadError);
+            toast.error('Erro ao carregar ficheiro', { description: file.name });
             continue;
           }
 
           // Save attachment reference
-          await supabase.from('message_attachments').insert({
+          const { error: attachError } = await supabase.from('message_attachments').insert({
             message_id: data.id,
             file_name: file.name,
             file_path: filePath,
             file_size: file.size,
             mime_type: file.type,
           });
+          
+          if (attachError) {
+            console.error('Error saving attachment reference:', attachError);
+            toast.error('Erro ao guardar referência do anexo', { description: file.name });
+          }
         }
       }
 
