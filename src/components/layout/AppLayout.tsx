@@ -117,13 +117,13 @@ export function AppLayout() {
       {/* Premium Background Effects - Purple gradient with blur */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
         {/* Large purple gradient spot - top right */}
-        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/[0.32] dark:bg-primary/[0.38] rounded-full blur-[150px] translate-x-1/4 -translate-y-1/4" />
+        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/[0.27] dark:bg-primary/[0.33] rounded-full blur-[150px] translate-x-1/4 -translate-y-1/4" />
         
         {/* Secondary purple spot - bottom left */}
-        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-primary/[0.28] dark:bg-primary/[0.32] rounded-full blur-[120px] -translate-x-1/4 translate-y-1/4" />
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-primary/[0.23] dark:bg-primary/[0.27] rounded-full blur-[120px] -translate-x-1/4 translate-y-1/4" />
         
         {/* Third purple spot - center for depth */}
-        <div className="absolute top-1/2 left-1/4 w-[500px] h-[500px] bg-primary/[0.25] dark:bg-primary/[0.30] rounded-full blur-[100px]" />
+        <div className="absolute top-1/2 left-1/4 w-[500px] h-[500px] bg-primary/20 dark:bg-primary/25 rounded-full blur-[100px]" />
       </div>
       {debugEnabled && debugPanelOpen && (
         <div className="fixed bottom-4 left-4 z-[200] w-[340px] rounded-lg border bg-card text-card-foreground shadow-lg">
