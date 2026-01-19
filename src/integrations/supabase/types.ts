@@ -2198,6 +2198,44 @@ export type Database = {
         }
         Relationships: []
       }
+      workspace_goals: {
+        Row: {
+          created_at: string | null
+          id: string
+          month: string
+          projects_goal: number | null
+          revenue_goal: number | null
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          month: string
+          projects_goal?: number | null
+          revenue_goal?: number | null
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          month?: string
+          projects_goal?: number | null
+          revenue_goal?: number | null
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_goals_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspace_invitations: {
         Row: {
           accepted_at: string | null

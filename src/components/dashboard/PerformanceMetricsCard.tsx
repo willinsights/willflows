@@ -1,9 +1,9 @@
 import { motion } from 'framer-motion';
-import { Target, Clock, PieChart, TrendingUp } from 'lucide-react';
+import { Target, PieChart, TrendingUp, Lock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 
 export interface PerformanceMetrics {
   deliveryRate: number;
@@ -22,6 +22,36 @@ interface PerformanceMetricsCardProps {
 }
 
 export function PerformanceMetricsCard({ metrics, loading }: PerformanceMetricsCardProps) {
+  const { canViewAllFinancials } = useFinancialPermissions();
+
+  // Se não for admin, não mostra o card
+  if (!canViewAllFinancials) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        <Card className="h-full opacity-60">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <div className="p-1.5 rounded-md bg-muted/50">
+                <Lock className="h-4 w-4 text-muted-foreground" />
+              </div>
+              Métricas de Desempenho
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="h-[140px] flex flex-col items-center justify-center text-center">
+              <Lock className="h-10 w-10 text-muted-foreground/50 mb-2" />
+              <p className="text-xs text-muted-foreground">Apenas administradores</p>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+  }
+
   const totalProjects = metrics.projectsByType.fotografia + metrics.projectsByType.video + metrics.projectsByType.foto_video;
   
   const typePercentages = totalProjects > 0 ? {
@@ -30,6 +60,7 @@ export function PerformanceMetricsCard({ metrics, loading }: PerformanceMetricsC
     foto_video: Math.round((metrics.projectsByType.foto_video / totalProjects) * 100),
   } : { fotografia: 0, video: 0, foto_video: 0 };
 
+  // Métricas sem "Tempo Médio de Entrega"
   const performanceItems = [
     {
       label: 'Taxa de Entrega',
@@ -38,13 +69,6 @@ export function PerformanceMetricsCard({ metrics, loading }: PerformanceMetricsC
       progress: metrics.deliveryRate,
       color: metrics.deliveryRate >= 80 ? 'text-success' : metrics.deliveryRate >= 50 ? 'text-warning' : 'text-destructive',
       progressColor: metrics.deliveryRate >= 80 ? 'bg-success' : metrics.deliveryRate >= 50 ? 'bg-warning' : 'bg-destructive',
-    },
-    {
-      label: 'Tempo Médio Entrega',
-      value: `${metrics.avgDeliveryDays} dias`,
-      icon: Clock,
-      subtext: 'Da criação à entrega',
-      color: 'text-info',
     },
     {
       label: 'Margem Média',
@@ -72,7 +96,7 @@ export function PerformanceMetricsCard({ metrics, loading }: PerformanceMetricsC
         <CardContent className="pt-0 space-y-4">
           {loading ? (
             <div className="space-y-4">
-              {[...Array(3)].map((_, i) => (
+              {[...Array(2)].map((_, i) => (
                 <div key={i} className="space-y-2">
                   <Skeleton className="h-4 w-1/3" />
                   <Skeleton className="h-2 w-full" />
@@ -97,9 +121,6 @@ export function PerformanceMetricsCard({ metrics, loading }: PerformanceMetricsC
                         style={{ width: `${item.progress}%` }}
                       />
                     </div>
-                  )}
-                  {item.subtext && (
-                    <p className="text-[10px] text-muted-foreground">{item.subtext}</p>
                   )}
                 </div>
               ))}

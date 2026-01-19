@@ -1,13 +1,16 @@
 import { motion } from 'framer-motion';
-import { BarChart3, Lock } from 'lucide-react';
+import { BarChart3, Lock, TrendingUp, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
-import type { MonthlyData } from '@/hooks/useDashboardMetrics';
+import type { MonthlyData, AnnualComparisonData } from '@/hooks/useDashboardMetrics';
 import {
   AreaChart,
   Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -18,10 +21,19 @@ import {
 
 interface FinancialChartProps {
   monthlyData: MonthlyData[];
+  annualComparison: AnnualComparisonData[];
   loading: boolean;
+  currentYearLabel?: string;
+  previousYearLabel?: string;
 }
 
-export function FinancialChart({ monthlyData, loading }: FinancialChartProps) {
+export function FinancialChart({ 
+  monthlyData, 
+  annualComparison,
+  loading,
+  currentYearLabel = new Date().getFullYear().toString(),
+  previousYearLabel = (new Date().getFullYear() - 1).toString(),
+}: FinancialChartProps) {
   const { formatCurrency } = useCurrentWorkspace();
   const { canViewAllFinancials } = useFinancialPermissions();
 
@@ -39,7 +51,7 @@ export function FinancialChart({ monthlyData, loading }: FinancialChartProps) {
               <div className="p-1.5 rounded-md bg-muted/50">
                 <Lock className="h-4 w-4 text-muted-foreground" />
               </div>
-              Evolução Financeira (6 meses)
+              Evolução Financeira
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-4">
@@ -55,6 +67,13 @@ export function FinancialChart({ monthlyData, loading }: FinancialChartProps) {
     );
   }
 
+  // Calculate annual totals for legend
+  const currentYearTotal = annualComparison.reduce((sum, d) => sum + d.currentYear, 0);
+  const previousYearTotal = annualComparison.reduce((sum, d) => sum + d.previousYear, 0);
+  const growthPercentage = previousYearTotal > 0 
+    ? ((currentYearTotal - previousYearTotal) / previousYearTotal) * 100 
+    : 0;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -62,95 +81,185 @@ export function FinancialChart({ monthlyData, loading }: FinancialChartProps) {
       transition={{ delay: 0.2 }}
     >
       <Card className="glass-card">
-        <CardHeader className="flex flex-row items-center justify-between py-3 px-4">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <div className="p-1.5 rounded-md bg-primary/10">
-              <BarChart3 className="h-4 w-4 text-primary" />
-            </div>
-            Evolução Financeira (6 meses)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4">
-          {loading ? (
-            <Skeleton className="h-[200px] w-full rounded-lg" />
-          ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorReceita" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorCustos" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--destructive))" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="hsl(var(--destructive))" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorLucro" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                <XAxis 
-                  dataKey="month" 
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                  axisLine={{ stroke: 'hsl(var(--border))' }}
-                  tickLine={false}
-                />
-                <YAxis 
-                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                  width={40}
-                />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                    fontSize: '12px',
-                  }}
-                  formatter={(value: number) => [formatCurrency(value), '']}
-                  labelStyle={{ fontWeight: 600, marginBottom: 4 }}
-                />
-                <Legend 
-                  wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
-                  iconType="circle"
-                  iconSize={8}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="receita"
-                  name="Receita"
-                  stroke="hsl(var(--success))"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#colorReceita)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="custos"
-                  name="Custos"
-                  stroke="hsl(var(--destructive))"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#colorCustos)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="lucro"
-                  name="Lucro"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2.5}
-                  fillOpacity={1}
-                  fill="url(#colorLucro)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
+        <Tabs defaultValue="6months" className="w-full">
+          <CardHeader className="flex flex-row items-center justify-between py-3 px-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <div className="p-1.5 rounded-md bg-primary/10">
+                <BarChart3 className="h-4 w-4 text-primary" />
+              </div>
+              Evolução Financeira
+            </CardTitle>
+            <TabsList className="h-7">
+              <TabsTrigger value="6months" className="text-xs px-2 h-6">
+                <TrendingUp className="h-3 w-3 mr-1" />
+                6 Meses
+              </TabsTrigger>
+              <TabsTrigger value="annual" className="text-xs px-2 h-6">
+                <Calendar className="h-3 w-3 mr-1" />
+                Anual
+              </TabsTrigger>
+            </TabsList>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            {loading ? (
+              <Skeleton className="h-[200px] w-full rounded-lg" />
+            ) : (
+              <>
+                {/* 6 Months Chart */}
+                <TabsContent value="6months" className="mt-0">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <AreaChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorReceita" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="colorCustos" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--destructive))" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="hsl(var(--destructive))" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="colorLucro" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                      <XAxis 
+                        dataKey="month" 
+                        tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                        axisLine={{ stroke: 'hsl(var(--border))' }}
+                        tickLine={false}
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                        width={40}
+                      />
+                      <Tooltip 
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                          fontSize: '12px',
+                        }}
+                        formatter={(value: number) => [formatCurrency(value), '']}
+                        labelStyle={{ fontWeight: 600, marginBottom: 4 }}
+                      />
+                      <Legend 
+                        wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
+                        iconType="circle"
+                        iconSize={8}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="receita"
+                        name="Receita"
+                        stroke="hsl(var(--success))"
+                        strokeWidth={2}
+                        fillOpacity={1}
+                        fill="url(#colorReceita)"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="custos"
+                        name="Custos"
+                        stroke="hsl(var(--destructive))"
+                        strokeWidth={2}
+                        fillOpacity={1}
+                        fill="url(#colorCustos)"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="lucro"
+                        name="Lucro"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={2.5}
+                        fillOpacity={1}
+                        fill="url(#colorLucro)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </TabsContent>
+
+                {/* Annual Comparison Chart */}
+                <TabsContent value="annual" className="mt-0">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={annualComparison} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                      <XAxis 
+                        dataKey="month" 
+                        tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                        axisLine={{ stroke: 'hsl(var(--border))' }}
+                        tickLine={false}
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                        width={35}
+                      />
+                      <Tooltip 
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                          fontSize: '12px',
+                        }}
+                        formatter={(value: number) => [formatCurrency(value), '']}
+                        labelStyle={{ fontWeight: 600, marginBottom: 4 }}
+                      />
+                      <Legend 
+                        wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
+                        iconType="circle"
+                        iconSize={8}
+                      />
+                      <Bar 
+                        dataKey="currentYear" 
+                        name={currentYearLabel}
+                        fill="hsl(var(--primary))" 
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={20}
+                      />
+                      <Bar 
+                        dataKey="previousYear" 
+                        name={previousYearLabel}
+                        fill="hsl(var(--muted-foreground))" 
+                        opacity={0.5}
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={20}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  
+                  {/* Annual Totals Summary */}
+                  <div className="flex items-center justify-center gap-6 mt-2 pt-2 border-t border-border/50">
+                    <div className="text-center">
+                      <p className="text-xs text-muted-foreground">{currentYearLabel}</p>
+                      <p className="text-sm font-semibold text-primary">{formatCurrency(currentYearTotal)}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-muted-foreground">{previousYearLabel}</p>
+                      <p className="text-sm font-medium text-muted-foreground">{formatCurrency(previousYearTotal)}</p>
+                    </div>
+                    {previousYearTotal > 0 && (
+                      <div className="text-center">
+                        <p className="text-xs text-muted-foreground">Crescimento</p>
+                        <p className={`text-sm font-semibold ${growthPercentage >= 0 ? 'text-success' : 'text-destructive'}`}>
+                          {growthPercentage >= 0 ? '+' : ''}{growthPercentage.toFixed(1)}%
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+              </>
+            )}
+          </CardContent>
+        </Tabs>
       </Card>
     </motion.div>
   );
