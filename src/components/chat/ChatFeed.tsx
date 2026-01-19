@@ -30,7 +30,7 @@ interface ChatFeedProps {
 
 export function ChatFeed({ conversationId }: ChatFeedProps) {
   const navigate = useNavigate();
-  const { messages, isLoading, sendMessage, toggleReaction } = useMessages(conversationId);
+  const { messages, isLoading, sendMessage, updateMessage, toggleReaction } = useMessages(conversationId);
   const { conversations, leaveConversation } = useConversations();
   const { members: conversationMembers } = useConversation(conversationId);
   const { members: workspaceMembers, loading: membersLoading } = useWorkspaceMembers();
@@ -286,6 +286,9 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
                         message={message}
                         onOpenThread={() => handleOpenThread(message.id)}
                         onToggleReaction={toggleReaction}
+                        onEditMessage={async (id, body) => {
+                          await updateMessage.mutateAsync({ messageId: id, body });
+                        }}
                         threadCount={
                           messages.filter((m) => m.parent_message_id === message.id).length
                         }

@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,16 +24,23 @@ import {
   Flag,
   ThumbsUp,
   Heart,
-  Smile,
+  Pencil,
+  X,
+  Check,
 } from 'lucide-react';
 import { CreateTaskFromMessageModal } from './CreateTaskFromMessageModal';
 import { CreateFollowUpModal } from './CreateFollowUpModal';
+import { MessageAttachments } from './MessageAttachments';
 import type { Message } from '@/hooks/useMessages';
+import { useAuth } from '@/contexts/AuthContext';
+
+const EDIT_WINDOW_SECONDS = 15;
 
 interface ChatMessageProps {
   message: Message;
   onOpenThread?: () => void;
   onToggleReaction?: (messageId: string, emoji: string) => void;
+  onEditMessage?: (messageId: string, body: string) => Promise<void>;
   threadCount?: number;
   isThreadReply?: boolean;
   isOnline?: boolean;
@@ -42,13 +50,39 @@ export function ChatMessage({
   message,
   onOpenThread,
   onToggleReaction,
+  onEditMessage,
   threadCount = 0,
   isThreadReply = false,
   isOnline = false,
 }: ChatMessageProps) {
+  const { user: currentUser } = useAuth();
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedBody, setEditedBody] = useState(message.body);
+  const [isSaving, setIsSaving] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
+
+  // Calculate if user can edit (owner + within 15 seconds + not already edited)
+  const isOwner = message.user_id === currentUser?.id;
+  
+  useEffect(() => {
+    if (!isOwner || message.is_edited) {
+      setCanEdit(false);
+      return;
+    }
+    
+    const checkEditWindow = () => {
+      const createdAt = new Date(message.created_at);
+      const secondsAgo = (Date.now() - createdAt.getTime()) / 1000;
+      setCanEdit(secondsAgo <= EDIT_WINDOW_SECONDS);
+    };
+    
+    checkEditWindow();
+    const interval = setInterval(checkEditWindow, 1000);
+    return () => clearInterval(interval);
+  }, [isOwner, message.is_edited, message.created_at]);
 
   const userProfile = message.user;
   const initials =
@@ -82,6 +116,26 @@ export function ChatMessage({
 
   const handleReaction = (emoji: string) => {
     onToggleReaction?.(message.id, emoji);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!onEditMessage || editedBody.trim() === message.body) {
+      setIsEditing(false);
+      return;
+    }
+    
+    setIsSaving(true);
+    try {
+      await onEditMessage(message.id, editedBody.trim());
+      setIsEditing(false);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditedBody(message.body);
+    setIsEditing(false);
   };
 
   return (
@@ -131,10 +185,47 @@ export function ChatMessage({
             )}
           </div>
 
-          {/* Body */}
-          <div className="text-sm text-foreground/90 mt-1 whitespace-pre-wrap break-words leading-relaxed">
-            {message.body}
-          </div>
+          {/* Body - Editable or Static */}
+          {isEditing ? (
+            <div className="mt-1 space-y-2">
+              <Textarea
+                value={editedBody}
+                onChange={(e) => setEditedBody(e.target.value)}
+                className="min-h-[60px] text-sm resize-none"
+                autoFocus
+              />
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={handleSaveEdit}
+                  disabled={isSaving || editedBody.trim() === message.body}
+                >
+                  <Check className="h-3 w-3 mr-1" />
+                  Guardar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs"
+                  onClick={handleCancelEdit}
+                  disabled={isSaving}
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-foreground/90 mt-1 whitespace-pre-wrap break-words leading-relaxed">
+              {message.body}
+            </div>
+          )}
+
+          {/* Attachments */}
+          {message.attachments && message.attachments.length > 0 && !isEditing && (
+            <MessageAttachments attachments={message.attachments} />
+          )}
 
           {/* Reactions */}
           {message.reactions && message.reactions.length > 0 && (
@@ -240,6 +331,16 @@ export function ChatMessage({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
+              {/* Edit option - only if can edit */}
+              {canEdit && onEditMessage && (
+                <>
+                  <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Editar (15s)
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem onClick={() => setShowTaskModal(true)}>
                 <CheckSquare className="h-4 w-4 mr-2" />
                 Criar Tarefa

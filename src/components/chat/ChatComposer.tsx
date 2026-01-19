@@ -200,12 +200,13 @@ export function ChatComposer({
     const beforeCursor = message.slice(0, cursorPos);
     const afterCursor = message.slice(cursorPos);
     
-    // Add @ and show mentions
+    // Add @ and show mentions immediately with all members
     const newMessage = beforeCursor + '@' + afterCursor;
     setMessage(newMessage);
     setMentionStartPos(cursorPos);
-    setMentionFilter('');
+    setMentionFilter(''); // Empty filter = show all members
     setShowMentions(true);
+    setMentionSelectedIndex(0);
     
     setTimeout(() => {
       if (textareaRef.current) {

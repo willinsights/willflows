@@ -6,6 +6,14 @@ import { useAppToast } from '@/hooks/useAppToast';
 
 export type MessageType = 'text' | 'post' | 'system';
 
+export interface MessageAttachment {
+  id: string;
+  file_name: string;
+  file_path: string;
+  file_size: number | null;
+  mime_type: string | null;
+}
+
 export interface Message {
   id: string;
   conversation_id: string;
@@ -20,6 +28,7 @@ export interface Message {
   updated_at: string;
   user?: { full_name: string | null; avatar_url: string | null; email: string } | null;
   reactions?: { emoji: string; count: number; users: string[]; reacted_by_me: boolean }[];
+  attachments?: MessageAttachment[];
 }
 
 const PAGE_SIZE = 50;
@@ -56,10 +65,23 @@ export function useMessages(conversationId: string | undefined) {
         ? await supabase.from('profiles').select('id, full_name, avatar_url, email').in('id', userIds)
         : { data: [] };
       
+      // Fetch attachments for messages
+      const msgIds = (data || []).map(m => m.id);
+      const { data: attachments } = msgIds.length > 0
+        ? await supabase.from('message_attachments').select('*').in('message_id', msgIds)
+        : { data: [] };
+      
       const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+      const attachmentMap = (attachments || []).reduce((acc, a) => {
+        if (!acc[a.message_id]) acc[a.message_id] = [];
+        acc[a.message_id].push(a);
+        return acc;
+      }, {} as Record<string, typeof attachments>);
+      
       const messagesWithUsers = (data || []).map(m => ({
         ...m,
-        user: profileMap.get(m.user_id) || null
+        user: profileMap.get(m.user_id) || null,
+        attachments: attachmentMap[m.id] || [],
       }));
       
       return { messages: messagesWithUsers, nextCursor: data?.length === PAGE_SIZE ? pageParam + 1 : null };
@@ -105,6 +127,7 @@ export function useMessages(conversationId: string | undefined) {
       ...m,
       metadata: m.metadata as Record<string, any> | null,
       reactions: Object.values(reactionGroups),
+      attachments: m.attachments || [],
     };
   });
 
@@ -191,6 +214,33 @@ export function useMessages(conversationId: string | undefined) {
     queryClient.invalidateQueries({ queryKey: ['message-reactions', conversationId] });
   }, [user?.id, conversationId, queryClient]);
 
+  // Update message (edit within 15 seconds)
+  const updateMessage = useMutation({
+    mutationFn: async ({ messageId, body }: { messageId: string; body: string }) => {
+      if (!user?.id) throw new Error('Utilizador não autenticado');
+      
+      const { data, error } = await supabase
+        .from('messages')
+        .update({ 
+          body, 
+          is_edited: true, 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', messageId)
+        .eq('user_id', user.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+    },
+    onError: (error: Error) => {
+      toast.error('Erro ao editar mensagem', { description: error.message });
+    },
+  });
   useEffect(() => {
     if (!conversationId) return;
 
@@ -216,7 +266,7 @@ export function useMessages(conversationId: string | undefined) {
     return () => { supabase.removeChannel(channel); };
   }, [conversationId, queryClient]);
 
-  return { messages, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage, sendMessage, toggleReaction, replyingTo, setReplyingTo };
+  return { messages, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage, sendMessage, updateMessage, toggleReaction, replyingTo, setReplyingTo };
 }
 
 export function useThreadMessages(parentMessageId: string | undefined) {
