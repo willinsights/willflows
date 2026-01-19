@@ -6,8 +6,9 @@ import { ChatContextPanel } from './ChatContextPanel';
 import { FollowUpInbox } from './FollowUpInbox';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Info, Inbox, MessageCircle, Hash } from 'lucide-react';
+import { ArrowLeft, Info, Inbox, MessageCircle, Hash, MessageSquare } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface ChatLayoutProps {
   selectedConversationId?: string;
@@ -135,16 +136,12 @@ export function ChatLayout({ selectedConversationId }: ChatLayoutProps) {
         {activeConversationId ? (
           <ChatFeed conversationId={activeConversationId} />
         ) : (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            <div className="text-center max-w-sm">
-              <div className="h-20 w-20 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-6">
-                <Hash className="h-10 w-10 text-muted-foreground/50" />
-              </div>
-              <h2 className="text-xl font-semibold mb-2">Seleciona uma conversa</h2>
-              <p className="text-sm">
-                Escolhe um projeto, canal ou mensagem direta para começar a conversar
-              </p>
-            </div>
+          <div className="flex-1 flex items-center justify-center">
+            <EmptyState
+              icon={MessageSquare}
+              title="Seleciona uma conversa"
+              description="Escolhe um projeto, canal ou mensagem direta para começar a conversar com a tua equipa."
+            />
           </div>
         )}
       </div>

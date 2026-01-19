@@ -13,6 +13,7 @@ import {
   FileText,
   Lock,
   Crown,
+  FolderKanban,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,10 +47,13 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useFeatureGate } from '@/components/subscription/FeatureGate';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { EmptyState } from '@/components/ui/empty-state';
+import { useNavigate } from 'react-router-dom';
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--info))', 'hsl(var(--destructive))'];
 
 export default function Relatorios() {
+  const navigate = useNavigate();
   const { projects } = useProjects();
   const { clients } = useClients();
   const { payments } = usePayments();
@@ -290,6 +294,32 @@ export default function Relatorios() {
             Relatórios financeiros estão disponíveis apenas para administradores.
           </p>
         </div>
+      </div>
+    );
+  }
+
+  // Estado vazio - sem projetos
+  const hasNoData = projects.length === 0;
+
+  if (hasNoData) {
+    return (
+      <div className="p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">Relatórios</h1>
+            <p className="text-muted-foreground">Análises e métricas do seu negócio</p>
+          </div>
+        </div>
+        <EmptyState
+          icon={FolderKanban}
+          title="Sem dados para analisar"
+          description="Os relatórios aparecerão quando tiver projetos entregues. Comece criando o seu primeiro projeto."
+          action={{
+            label: 'Criar projeto',
+            onClick: () => navigate('/app/captacao'),
+            icon: FolderKanban,
+          }}
+        />
       </div>
     );
   }

@@ -216,19 +216,15 @@ export function ChatComposer({
   };
 
   const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
-    console.log('[ChatDebug] handleFileSelect triggered');
     const files = Array.from(e.target.files || []);
-    console.log('[ChatDebug] Files selected:', files.length, files.map(f => f.name));
     
     const validFiles = files.filter((file) => {
       if (file.size > MAX_FILE_SIZE) {
-        console.warn(`File ${file.name} is too large (max 10MB)`);
         return false;
       }
       return true;
     });
     
-    console.log('[ChatDebug] Valid files:', validFiles.length);
     setAttachments((prev) => [...prev, ...validFiles]);
     
     // Reset input

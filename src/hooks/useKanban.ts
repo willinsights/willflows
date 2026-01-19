@@ -426,9 +426,7 @@ export function useKanban(phase: KanbanPhase) {
         },
         handleTeamChange
       )
-      .subscribe((status) => {
-        console.log('[Kanban Realtime] Subscription status:', status);
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
@@ -528,7 +526,6 @@ export function useKanban(phase: KanbanPhase) {
         p_target_column_id: targetColumnId
       });
       
-      console.warn('[deliver_project RPC result]', { data, error });
       
       if (error) {
         // Capture trigger error - fetch pending items for rich alert

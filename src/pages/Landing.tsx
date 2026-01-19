@@ -1,5 +1,6 @@
 import { useState, memo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { trackCtaClick } from '@/lib/google-ads';
 import { isBetaModeEnabled } from '@/contexts/BetaContext';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -216,6 +217,50 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen">
+      <Helmet>
+        <title>WillFlow - Gestão de Projetos para Fotógrafos e Filmmakers</title>
+        <meta name="description" content="WillFlow é o sistema completo de gestão de projetos e produção para fotógrafos, filmmakers, agências e produtoras. Kanban, CRM, calendário e finanças num só lugar." />
+        <link rel="canonical" href="https://willflow.app" />
+        <meta property="og:title" content="WillFlow - Gestão de Projetos para Fotógrafos e Filmmakers" />
+        <meta property="og:description" content="Sistema completo de gestão para produtores: Kanban visual, CRM, calendário, pagamentos e relatórios. 30 dias grátis." />
+        <meta property="og:url" content="https://willflow.app" />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:title" content="WillFlow - Gestão de Projetos para Fotógrafos e Filmmakers" />
+        <meta name="twitter:description" content="Sistema completo de gestão para produtores: Kanban visual, CRM, calendário, pagamentos e relatórios. 30 dias grátis." />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "WillFlow",
+            "applicationCategory": "BusinessApplication",
+            "operatingSystem": "Web",
+            "description": "Sistema de gestão de projetos para fotógrafos, videomakers, agências e produtoras. Kanban, CRM, calendário e finanças num só lugar.",
+            "offers": {
+              "@type": "AggregateOffer",
+              "priceCurrency": "EUR",
+              "lowPrice": "0",
+              "highPrice": "99",
+              "offerCount": "3"
+            },
+            "aggregateRating": {
+              "@type": "AggregateRating",
+              "ratingValue": "5",
+              "ratingCount": "1",
+              "bestRating": "5"
+            },
+            "creator": {
+              "@type": "Organization",
+              "name": "WillFlow",
+              "url": "https://willflow.app",
+              "logo": "https://willflow.app/logo-willflow-purple.png",
+              "sameAs": [
+                "https://www.instagram.com/willflow.app",
+                "https://www.linkedin.com/company/willflow"
+              ]
+            }
+          })}
+        </script>
+      </Helmet>
       <PublicHeader />
 
       {/* Hero Section - ClickUp Style with Floating Screenshots */}
