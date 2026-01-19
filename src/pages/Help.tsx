@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import {
   HelpCircle,
   Mail,
@@ -103,9 +104,37 @@ const faqCategories = [
   },
 ];
 
+// Flatten all FAQs for schema
+const allFaqs = faqCategories.flatMap(category => category.faqs);
+
 export default function Help() {
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Ajuda e FAQ | WillFlow - Perguntas Frequentes</title>
+        <meta name="description" content="Encontre respostas para as suas dúvidas sobre o WillFlow. FAQ completo sobre trial, pagamentos, workspaces, funcionalidades, segurança e privacidade." />
+        <link rel="canonical" href="https://willflow.app/ajuda" />
+        <meta property="og:title" content="Ajuda e FAQ | WillFlow - Perguntas Frequentes" />
+        <meta property="og:description" content="Encontre respostas para as suas dúvidas sobre o WillFlow. FAQ completo sobre trial, pagamentos, workspaces e funcionalidades." />
+        <meta property="og:url" content="https://willflow.app/ajuda" />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:title" content="Ajuda e FAQ | WillFlow - Perguntas Frequentes" />
+        <meta name="twitter:description" content="Encontre respostas para as suas dúvidas sobre o WillFlow. FAQ completo sobre trial, pagamentos e funcionalidades." />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": allFaqs.map(faq => ({
+              "@type": "Question",
+              "name": faq.question,
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": faq.answer
+              }
+            }))
+          })}
+        </script>
+      </Helmet>
       <PublicHeader />
 
       {/* Hero */}

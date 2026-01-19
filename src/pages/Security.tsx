@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import {
   Shield,
   Lock,
@@ -53,6 +54,17 @@ const gdprPoints = [
 export default function Security() {
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Segurança e Privacidade | WillFlow - RGPD Compliant</title>
+        <meta name="description" content="A segurança dos seus dados é a nossa prioridade. Encriptação TLS 1.3, servidores na UE, conformidade total com RGPD, backups automáticos e controlo de acesso granular." />
+        <link rel="canonical" href="https://willflow.app/seguranca" />
+        <meta property="og:title" content="Segurança e Privacidade | WillFlow - RGPD Compliant" />
+        <meta property="og:description" content="A segurança dos seus dados é a nossa prioridade. Encriptação, servidores na UE e conformidade total com RGPD." />
+        <meta property="og:url" content="https://willflow.app/seguranca" />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:title" content="Segurança e Privacidade | WillFlow - RGPD Compliant" />
+        <meta name="twitter:description" content="A segurança dos seus dados é a nossa prioridade. Encriptação, servidores na UE e conformidade total com RGPD." />
+      </Helmet>
       <PublicHeader />
 
       {/* Hero */}

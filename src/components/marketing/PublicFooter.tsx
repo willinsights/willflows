@@ -11,6 +11,7 @@ const footerLinks = {
     { label: 'Blog', href: '/blog' },
     { label: 'Ajuda & FAQ', href: '/ajuda' },
     { label: 'Segurança', href: '/seguranca' },
+    { label: 'Sobre Nós', href: '/sobre' },
   ],
   legal: [
     { label: 'Termos de Uso', href: '/termos' },
