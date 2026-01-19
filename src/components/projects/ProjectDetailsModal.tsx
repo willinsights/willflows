@@ -976,22 +976,12 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
 
                     {/* Notes */}
                     <div className="space-y-2">
-                      <Label>Notas do Projeto</Label>
+                      <Label>Descrição projeto</Label>
                       <Textarea 
                         value={editForm.notes}
                         onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
                         rows={3}
                         placeholder="Detalhes sobre o projeto..."
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Notas Internas</Label>
-                      <Textarea 
-                        value={editForm.internal_notes}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, internal_notes: e.target.value }))}
-                        rows={2}
-                        placeholder="Notas internas da equipe..."
                       />
                     </div>
                   </>
