@@ -260,20 +260,10 @@ export default {
   			shimmer: 'shimmer 1.5s linear infinite',
   			pulse: 'pulse 2s ease-in-out infinite',
   			float: 'float 2.5s ease-in-out infinite',
-  			'orb-1': 'orb-float-1 15s ease-in-out infinite',
-  			'orb-2': 'orb-float-2 18s ease-in-out 2s infinite',
-  			'orb-3': 'orb-float-3 12s ease-in-out 4s infinite'
-  		},
-  			'fade-in': 'fade-in 0.15s ease-out',
-  			'fade-out': 'fade-out 0.15s ease-out',
-  			'slide-in-right': 'slide-in-right 0.25s ease-out',
-  			'slide-out-right': 'slide-out-right 0.25s ease-out',
-  			'slide-in-up': 'slide-in-up 0.2s ease-out',
-  			'scale-in': 'scale-in 0.15s ease-out',
-  			shimmer: 'shimmer 1.5s linear infinite',
-  			pulse: 'pulse 2s ease-in-out infinite',
-  			float: 'float 2.5s ease-in-out infinite'
-  		},
+			'orb-1': 'orb-float-1 15s ease-in-out infinite',
+			'orb-2': 'orb-float-2 18s ease-in-out 2s infinite',
+			'orb-3': 'orb-float-3 12s ease-in-out 4s infinite'
+		},
   		backdropBlur: {
   			xs: '2px'
   		}
