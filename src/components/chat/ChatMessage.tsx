@@ -35,6 +35,7 @@ interface ChatMessageProps {
   onToggleReaction?: (messageId: string, emoji: string) => void;
   threadCount?: number;
   isThreadReply?: boolean;
+  isOnline?: boolean;
 }
 
 export function ChatMessage({
@@ -43,6 +44,7 @@ export function ChatMessage({
   onToggleReaction,
   threadCount = 0,
   isThreadReply = false,
+  isOnline = false,
 }: ChatMessageProps) {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
@@ -101,8 +103,10 @@ export function ChatMessage({
               {initials}
             </AvatarFallback>
           </Avatar>
-          {/* Online indicator - shown randomly for demo */}
-          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-success border-2 border-background" />
+          {/* Online indicator - shows real presence status */}
+          {isOnline && (
+            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-success border-2 border-background" />
+          )}
         </div>
 
         {/* Content */}

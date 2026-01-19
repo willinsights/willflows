@@ -41,6 +41,11 @@ export function ChatComposer({
   conversationId,
   projectId,
 }: ChatComposerProps) {
+  // Debug log on mount and when members change
+  useEffect(() => {
+    console.log('[ChatDebug] ChatComposer mounted/updated, members:', members.length);
+  }, [members.length]);
+
   const [message, setMessage] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -195,6 +200,8 @@ export function ChatComposer({
   };
 
   const triggerMention = () => {
+    console.log('[ChatDebug] triggerMention called, members.length:', members.length);
+    
     const cursorPos = textareaRef.current?.selectionStart || message.length;
     const beforeCursor = message.slice(0, cursorPos);
     const afterCursor = message.slice(cursorPos);
@@ -206,6 +213,8 @@ export function ChatComposer({
     setMentionFilter('');
     setShowMentions(true);
     
+    console.log('[ChatDebug] showMentions set to true');
+    
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
@@ -215,7 +224,10 @@ export function ChatComposer({
   };
 
   const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
+    console.log('[ChatDebug] handleFileSelect triggered');
     const files = Array.from(e.target.files || []);
+    console.log('[ChatDebug] Files selected:', files.length, files.map(f => f.name));
+    
     const validFiles = files.filter((file) => {
       if (file.size > MAX_FILE_SIZE) {
         console.warn(`File ${file.name} is too large (max 10MB)`);
@@ -224,12 +236,19 @@ export function ChatComposer({
       return true;
     });
     
+    console.log('[ChatDebug] Valid files:', validFiles.length);
     setAttachments((prev) => [...prev, ...validFiles]);
     
     // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleAttachClick = () => {
+    console.log('[ChatDebug] Attach button clicked');
+    console.log('[ChatDebug] fileInputRef.current:', !!fileInputRef.current);
+    fileInputRef.current?.click();
   };
 
   const removeAttachment = (index: number) => {
@@ -284,7 +303,7 @@ export function ChatComposer({
                   variant="ghost" 
                   size="icon" 
                   className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={handleAttachClick}
                 >
                   <Paperclip className="h-4 w-4" />
                 </Button>
