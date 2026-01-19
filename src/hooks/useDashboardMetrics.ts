@@ -72,6 +72,16 @@ export interface AnnualComparisonData {
   previousYear: number;
 }
 
+export interface PendingPaymentItem {
+  id: string;
+  description: string | null;
+  amount: number;
+  dueDate: string | null;
+  clientName: string | null;
+  projectName: string | null;
+  isOverdue: boolean;
+}
+
 export function useDashboardMetrics() {
   const { currentWorkspace, fetchError } = useWorkspace();
   const [metrics, setMetrics] = useState<DashboardMetrics>({
@@ -99,6 +109,7 @@ export function useDashboardMetrics() {
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [annualComparison, setAnnualComparison] = useState<AnnualComparisonData[]>([]);
+  const [pendingPaymentItems, setPendingPaymentItems] = useState<PendingPaymentItem[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Refs to prevent duplicate fetches
@@ -186,16 +197,31 @@ export function useDashboardMetrics() {
         ? Math.round(((entregues - entreguesPrevious) / entreguesPrevious) * 100)
         : null;
 
-      // Fetch pending payments
+      // Fetch pending payments with details
       const { data: paymentsData } = await supabase
         .from('payments')
-        .select('amount')
+        .select('id, amount, description, due_date, client_id, project_id, clients(name), projects(name)')
         .eq('workspace_id', currentWorkspace.id)
         .eq('is_receivable', true)
-        .eq('status', 'pendente');
+        .eq('status', 'pendente')
+        .order('due_date', { ascending: true, nullsFirst: false })
+        .limit(10);
 
       const pendingPayments = paymentsData?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
       const pendingPaymentsCount = paymentsData?.length || 0;
+      
+      // Map to PendingPaymentItem format
+      const paymentItems: PendingPaymentItem[] = paymentsData?.map(p => ({
+        id: p.id,
+        description: p.description,
+        amount: p.amount,
+        dueDate: p.due_date,
+        clientName: (p.clients as any)?.name || null,
+        projectName: (p.projects as any)?.name || null,
+        isOverdue: p.due_date ? new Date(p.due_date) < new Date() : false,
+      })) || [];
+      
+      setPendingPaymentItems(paymentItems);
 
       setMetrics({
         captacao,
@@ -446,6 +472,7 @@ export function useDashboardMetrics() {
       setMonthlyData([]);
       setUpcomingEvents([]);
       setAnnualComparison([]);
+      setPendingPaymentItems([]);
       setLoading(true);
     }
     
@@ -464,6 +491,7 @@ export function useDashboardMetrics() {
     monthlyData, 
     upcomingEvents,
     annualComparison,
+    pendingPaymentItems,
     loading, 
     refresh: fetchMetrics 
   };

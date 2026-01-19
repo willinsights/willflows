@@ -5,10 +5,10 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { QuickActionsCard } from '@/components/dashboard/QuickActionsCard';
 import { KPICards } from '@/components/dashboard/KPICards';
 import { FinancialChart } from '@/components/dashboard/FinancialChart';
-import { AnnualComparisonChart } from '@/components/dashboard/AnnualComparisonChart';
+import { MonthlyGoalsCard } from '@/components/dashboard/MonthlyGoalsCard';
 import { UrgentProjectsCard } from '@/components/dashboard/UrgentProjectsCard';
 import { UpcomingEventsCard } from '@/components/dashboard/UpcomingEventsCard';
-import { PendingPaymentsCard } from '@/components/dashboard/PendingPaymentsCard';
+import { PendingPaymentsList } from '@/components/dashboard/PendingPaymentsList';
 import { RecentActivityCard } from '@/components/dashboard/RecentActivityCard';
 import { PerformanceMetricsCard } from '@/components/dashboard/PerformanceMetricsCard';
 import { useProductTour } from '@/hooks/useProductTour';
@@ -31,6 +31,7 @@ export default function Dashboard() {
     monthlyData, 
     upcomingEvents,
     annualComparison,
+    pendingPaymentItems,
     loading, 
     refresh 
   } = useDashboardMetrics();
@@ -113,15 +114,20 @@ export default function Dashboard() {
       {/* KPIs Row */}
       <KPICards metrics={metrics} loading={loading} />
 
-      {/* Charts Row - Financial (6 months) + Annual Comparison */}
+      {/* Charts Row - Financial (with tabs) + Monthly Goals */}
       <div className="grid lg:grid-cols-2 gap-3">
-        <FinancialChart monthlyData={monthlyData} loading={loading} />
+        <FinancialChart 
+          monthlyData={monthlyData} 
+          annualComparison={annualComparison}
+          loading={loading}
+          currentYearLabel={String(currentYear)}
+          previousYearLabel={String(currentYear - 1)}
+        />
         {canViewAllFinancials && (
-          <AnnualComparisonChart 
-            data={annualComparison} 
+          <MonthlyGoalsCard 
+            currentRevenue={metrics.receita}
+            currentProjectsDelivered={metrics.entregues}
             loading={loading}
-            currentYearLabel={String(currentYear)}
-            previousYearLabel={String(currentYear - 1)}
           />
         )}
       </div>
@@ -147,9 +153,9 @@ export default function Dashboard() {
             loading={loading}
           />
         )}
-        <PendingPaymentsCard 
-          pendingPayments={metrics.pendingPayments} 
-          pendingPaymentsCount={metrics.pendingPaymentsCount} 
+        <PendingPaymentsList 
+          payments={pendingPaymentItems}
+          totalAmount={metrics.pendingPayments}
           loading={loading}
         />
         <RecentActivityCard 
