@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useConversations } from '@/hooks/useConversations';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -18,14 +19,23 @@ import {
   ChevronRight,
   Lock,
   MessageCircle,
+  MoreHorizontal,
+  Trash2,
 } from 'lucide-react';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { CreateChannelModal } from './CreateChannelModal';
 import { CreateDMModal } from './CreateDMModal';
+import { DeleteConversationModal } from './DeleteConversationModal';
 import type { Conversation } from '@/hooks/useConversations';
 
 interface ChatSidebarProps {
@@ -37,10 +47,12 @@ export function ChatSidebar({
   activeConversationId,
   onSelectConversation,
 }: ChatSidebarProps) {
-  const { conversations, isLoading } = useConversations();
+  const navigate = useNavigate();
+  const { conversations, isLoading, leaveConversation } = useConversations();
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showCreateDM, setShowCreateDM] = useState(false);
+  const [conversationToDelete, setConversationToDelete] = useState<Conversation | null>(null);
   const [expandedSections, setExpandedSections] = useState({
     projects: true,
     channels: true,
@@ -49,6 +61,23 @@ export function ChatSidebar({
 
   const toggleSection = (section: 'projects' | 'channels' | 'dms') => {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const handleDeleteConversation = () => {
+    if (!conversationToDelete) return;
+    
+    leaveConversation.mutate(conversationToDelete.id, {
+      onSuccess: () => {
+        // If we deleted the active conversation, navigate away
+        if (activeConversationId === conversationToDelete.id) {
+          navigate('/app/chat');
+        }
+        setConversationToDelete(null);
+      },
+      onError: () => {
+        setConversationToDelete(null);
+      },
+    });
   };
 
   // Filter and group conversations
@@ -240,6 +269,8 @@ export function ChatSidebar({
                     conversation={conversation}
                     isActive={activeConversationId === conversation.id}
                     onClick={() => onSelectConversation(conversation.id)}
+                    onDelete={() => setConversationToDelete(conversation)}
+                    showDeleteOption
                   />
                 ))
               )}
@@ -257,6 +288,14 @@ export function ChatSidebar({
         open={showCreateDM}
         onOpenChange={setShowCreateDM}
       />
+
+      <DeleteConversationModal
+        open={!!conversationToDelete}
+        onOpenChange={(open) => !open && setConversationToDelete(null)}
+        onConfirm={handleDeleteConversation}
+        isLoading={leaveConversation.isPending}
+        conversationName={conversationToDelete?.displayName || conversationToDelete?.dmParticipant?.full_name || undefined}
+      />
     </div>
   );
 }
@@ -265,12 +304,16 @@ interface ConversationItemProps {
   conversation: Conversation;
   isActive: boolean;
   onClick: () => void;
+  onDelete?: () => void;
+  showDeleteOption?: boolean;
 }
 
 function ConversationItem({
   conversation,
   isActive,
   onClick,
+  onDelete,
+  showDeleteOption,
 }: ConversationItemProps) {
   const displayName = conversation.displayName || conversation.name || 'Sem nome';
   const lastMessage = conversation.lastMessage;
@@ -279,13 +322,13 @@ function ConversationItem({
     switch (conversation.type) {
       case 'project':
         return (
-          <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+          <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center shrink-0">
             <FolderKanban className="h-4 w-4 text-primary" />
           </div>
         );
       case 'channel':
         return (
-          <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
+          <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
             {conversation.is_private ? (
               <Lock className="h-4 w-4 text-muted-foreground" />
             ) : (
@@ -295,7 +338,7 @@ function ConversationItem({
         );
       case 'dm':
         return (
-          <Avatar className="h-9 w-9">
+          <Avatar className="h-9 w-9 shrink-0">
             <AvatarImage src={conversation.dmParticipant?.avatar_url || undefined} />
             <AvatarFallback className="bg-primary/10 text-primary text-xs">
               {displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
@@ -308,14 +351,14 @@ function ConversationItem({
   };
 
   return (
-    <button
-      onClick={onClick}
+    <div
       className={cn(
-        'flex items-center gap-3 w-full px-3 py-2.5 mx-1 rounded-lg text-left transition-all duration-150',
+        'group flex items-center gap-3 w-full px-3 py-2.5 mx-1 rounded-lg text-left transition-all duration-150 cursor-pointer',
         'hover:bg-muted/60',
         isActive && 'bg-primary/10 hover:bg-primary/15'
       )}
       style={{ width: 'calc(100% - 8px)' }}
+      onClick={onClick}
     >
       {getIcon()}
       
@@ -327,7 +370,7 @@ function ConversationItem({
           )}>
             {displayName}
           </span>
-          {lastMessage && (
+          {lastMessage && !showDeleteOption && (
             <span className="text-[10px] text-muted-foreground whitespace-nowrap">
               {formatDistanceToNow(new Date(lastMessage.created_at), {
                 addSuffix: false,
@@ -348,10 +391,36 @@ function ConversationItem({
       </div>
 
       {conversation.unread_count && conversation.unread_count > 0 && (
-        <span className="bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+        <span className="bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shrink-0">
           {conversation.unread_count > 99 ? '99+' : conversation.unread_count}
         </span>
       )}
-    </button>
+
+      {showDeleteOption && onDelete && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Remover conversa
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+    </div>
   );
 }

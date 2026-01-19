@@ -253,6 +253,40 @@ export function useConversations() {
     },
   });
 
+  const leaveConversation = useMutation({
+    mutationFn: async (conversationId: string) => {
+      if (!user?.id) throw new Error('Utilizador não encontrado');
+
+      // Remove user from conversation_members
+      const { error: removeError } = await supabase
+        .from('conversation_members')
+        .delete()
+        .eq('conversation_id', conversationId)
+        .eq('user_id', user.id);
+
+      if (removeError) throw removeError;
+
+      // Check if any members remain
+      const { count } = await supabase
+        .from('conversation_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('conversation_id', conversationId);
+
+      // If no members left, archive the conversation
+      if (count === 0) {
+        await supabase
+          .from('conversations')
+          .update({ is_archived: true })
+          .eq('id', conversationId);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations', workspace?.id] });
+      toast.success('Conversa removida');
+    },
+    onError: (error: Error) => toast.error('Erro ao remover conversa', { description: error.message }),
+  });
+
   const createProjectChat = useMutation({
     mutationFn: async ({ projectId, projectName, workspaceId, attemptId }: { projectId: string; projectName: string; workspaceId: string; attemptId?: string }) => {
       const aid = attemptId || crypto.randomUUID().slice(0, 8);
@@ -376,7 +410,7 @@ export function useConversations() {
     return () => { supabase.removeChannel(channel); };
   }, [workspace?.id, queryClient]);
 
-  return { conversations, projectChats, channels, dms, isLoading, error, refetch, createChannel, joinChannel, createDM, createProjectChat };
+  return { conversations, projectChats, channels, dms, isLoading, error, refetch, createChannel, joinChannel, createDM, createProjectChat, leaveConversation };
 }
 
 export function useConversation(conversationId: string | undefined) {
