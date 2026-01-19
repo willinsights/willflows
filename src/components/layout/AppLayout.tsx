@@ -116,14 +116,14 @@ export function AppLayout() {
     <div className="flex h-screen w-full overflow-hidden bg-background relative">
       {/* Premium Background Effects - Purple gradient with blur */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
-        {/* Large gradient spot - top right (black light / purple dark) */}
-        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-black/[0.27] dark:bg-primary/20 rounded-full blur-[150px] translate-x-1/4 -translate-y-1/4" />
+        {/* Large purple gradient spot - top right */}
+        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/[0.33] dark:bg-primary/20 rounded-full blur-[150px] translate-x-1/4 -translate-y-1/4" />
         
-        {/* Secondary spot - bottom left */}
-        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-black/[0.23] dark:bg-primary/15 rounded-full blur-[120px] -translate-x-1/4 translate-y-1/4" />
+        {/* Secondary purple spot - bottom left */}
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-primary/15 dark:bg-primary/15 rounded-full blur-[120px] -translate-x-1/4 translate-y-1/4" />
         
-        {/* Third spot - center for depth */}
-        <div className="absolute top-1/2 left-1/4 w-[500px] h-[500px] bg-black/20 dark:bg-primary/25 rounded-full blur-[100px]" />
+        {/* Third purple spot - center for depth */}
+        <div className="absolute top-1/2 left-1/4 w-[500px] h-[500px] bg-primary/25 dark:bg-primary/25 rounded-full blur-[100px]" />
       </div>
       {debugEnabled && debugPanelOpen && (
         <div className="fixed bottom-4 left-4 z-[200] w-[340px] rounded-lg border bg-card text-card-foreground shadow-lg">
