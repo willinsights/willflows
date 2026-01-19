@@ -183,6 +183,8 @@ const MobileScreenshotCard = memo(function MobileScreenshotCard({
         <img 
           src={src} 
           alt={alt}
+          width={288}
+          height={187}
           loading="lazy"
           decoding="async"
           className="w-full h-auto"
@@ -233,44 +235,18 @@ export default function Landing() {
             }}
           />
           
-          {/* Animated gradient orbs */}
-          <motion.div 
-            className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full opacity-30"
-            style={{
-              background: 'radial-gradient(circle, hsl(var(--primary) / 0.4) 0%, transparent 70%)',
-              filter: 'blur(80px)',
-            }}
-            animate={{ 
-              x: [0, 50, 0], 
-              y: [0, 30, 0],
-              scale: [1, 1.1, 1],
-            }}
-            transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+          {/* Animated gradient orbs - CSS animations for better performance */}
+          <div 
+            className="gradient-orb gradient-orb-1 absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full opacity-30"
+            aria-hidden="true"
           />
-          <motion.div 
-            className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full opacity-25"
-            style={{
-              background: 'radial-gradient(circle, hsl(180 100% 45% / 0.4) 0%, transparent 70%)',
-              filter: 'blur(80px)',
-            }}
-            animate={{ 
-              x: [0, -40, 0], 
-              y: [0, -40, 0],
-              scale: [1, 1.15, 1],
-            }}
-            transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          <div 
+            className="gradient-orb gradient-orb-2 absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full opacity-25"
+            aria-hidden="true"
           />
-          <motion.div 
-            className="absolute top-1/2 left-0 w-[400px] h-[400px] rounded-full opacity-20"
-            style={{
-              background: 'radial-gradient(circle, hsl(330 80% 55% / 0.3) 0%, transparent 70%)',
-              filter: 'blur(60px)',
-            }}
-            animate={{ 
-              x: [0, 30, 0], 
-              y: [0, -30, 0],
-            }}
-            transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 4 }}
+          <div 
+            className="gradient-orb gradient-orb-3 absolute top-1/2 left-0 w-[400px] h-[400px] rounded-full opacity-20"
+            aria-hidden="true"
           />
         </div>
 
@@ -473,6 +449,10 @@ export default function Landing() {
                       <img 
                         src={logo.src}
                         alt={logo.name}
+                        width={140}
+                        height={40}
+                        loading="lazy"
+                        decoding="async"
                         className="h-10 w-auto max-w-[140px] object-contain 
                                    invert dark:invert-0
                                    opacity-50 hover:opacity-100 transition-all duration-500"

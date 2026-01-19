@@ -87,13 +87,22 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   }, []);
 
   // Keep dropdown above everything (portal + fixed positioning)
+  // Optimized: throttled updates to prevent forced reflow
   useEffect(() => {
     if (!searchFocused || !hasQuery) {
       setDropdownRect(null);
       return;
     }
 
+    let rafId: number | null = null;
+    let lastUpdate = 0;
+    const THROTTLE_MS = 100;
+
     const update = () => {
+      const now = Date.now();
+      if (now - lastUpdate < THROTTLE_MS) return;
+      lastUpdate = now;
+      
       const inputEl = inputRef.current;
       if (!inputEl) return;
       const rect = inputEl.getBoundingClientRect();
@@ -104,15 +113,23 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
       });
     };
 
+    // Initial position
     update();
 
-    window.addEventListener('resize', update);
-    window.addEventListener('scroll', update, true);
-    return () => {
-      window.removeEventListener('resize', update);
-      window.removeEventListener('scroll', update, true);
+    const handleResize = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(update);
     };
-  }, [searchFocused, hasQuery, searchQuery]);
+
+    window.addEventListener('resize', handleResize, { passive: true });
+    window.addEventListener('scroll', handleResize, { passive: true, capture: true });
+    
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleResize, true);
+    };
+  }, [searchFocused, hasQuery]);
 
   const getProjectRoute = (isDelivered?: boolean, currentPhase?: 'captacao' | 'edicao') => {
     if (isDelivered) return '/app/finalizados';
