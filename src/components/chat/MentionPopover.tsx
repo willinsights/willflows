@@ -45,7 +45,7 @@ export function MentionPopover({
 
   if (filteredMembers.length === 0) {
     return (
-      <div className="absolute bottom-full left-0 mb-2 w-64 p-3 rounded-lg border border-border bg-popover shadow-lg z-50">
+      <div className="w-64 p-3 rounded-lg border border-border bg-popover shadow-lg">
         <p className="text-sm text-muted-foreground">Nenhum membro encontrado</p>
       </div>
     );
@@ -54,7 +54,7 @@ export function MentionPopover({
   return (
     <div
       ref={listRef}
-      className="absolute bottom-full left-0 mb-2 w-64 max-h-48 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg z-50"
+      className="w-64 max-h-48 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg"
     >
       {filteredMembers.map((member, index) => {
         const initials =
