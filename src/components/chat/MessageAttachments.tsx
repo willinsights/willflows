@@ -97,22 +97,20 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
                     className="w-full h-auto max-h-[200px] object-cover"
                     loading="lazy"
                   />
-                  {/* Hover overlay with download */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        className="h-8 w-8 rounded-full bg-white/90 hover:bg-white shadow-lg"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDownload(url, attachment.file_name);
-                        }}
-                      >
-                        <Download className="h-4 w-4 text-foreground" />
-                      </Button>
-                    </div>
-                  </div>
+                  {/* Always visible download button */}
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="absolute bottom-2 right-2 h-7 w-7 rounded-full bg-background/80 backdrop-blur-sm shadow-md hover:bg-background border border-border/50"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownload(url, attachment.file_name);
+                    }}
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                  </Button>
+                  {/* Click hint overlay on hover */}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
                 </div>
               );
             })}

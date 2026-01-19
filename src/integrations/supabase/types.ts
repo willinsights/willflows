@@ -2159,6 +2159,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_push_preferences: {
+        Row: {
+          advance_hours: number | null
+          created_at: string | null
+          deadlines_enabled: boolean | null
+          events_enabled: boolean | null
+          id: string
+          push_enabled: boolean | null
+          push_subscription: Json | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          advance_hours?: number | null
+          created_at?: string | null
+          deadlines_enabled?: boolean | null
+          events_enabled?: boolean | null
+          id?: string
+          push_enabled?: boolean | null
+          push_subscription?: Json | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          advance_hours?: number | null
+          created_at?: string | null
+          deadlines_enabled?: boolean | null
+          events_enabled?: boolean | null
+          id?: string
+          push_enabled?: boolean | null
+          push_subscription?: Json | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_subscriptions: {
         Row: {
           created_at: string

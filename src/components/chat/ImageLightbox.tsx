@@ -35,50 +35,74 @@ export function ImageLightbox({ src, alt, onClose, onDownload }: ImageLightboxPr
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in-0 duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
       onClick={handleBackdropClick}
+      style={{ animation: 'fadeIn 0.2s ease-out' }}
     >
-      {/* Close Button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute top-4 right-4 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white z-10"
-        onClick={onClose}
-      >
-        <X className="h-5 w-5" />
-      </Button>
+      {/* Top Actions Bar */}
+      <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+        {/* Zoom Hint */}
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 text-white/70 text-xs backdrop-blur-sm">
+          <ZoomIn className="h-3.5 w-3.5" />
+          <span>Clique para fechar</span>
+        </div>
 
-      {/* Download Button */}
-      {onDownload && (
+        {/* Download Button */}
+        {onDownload && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDownload();
+            }}
+          >
+            <Download className="h-5 w-5" />
+          </Button>
+        )}
+
+        {/* Close Button */}
         <Button
           variant="ghost"
           size="icon"
-          className="absolute top-4 right-16 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white z-10"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDownload();
-          }}
+          className="h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white"
+          onClick={onClose}
         >
-          <Download className="h-5 w-5" />
+          <X className="h-5 w-5" />
         </Button>
-      )}
+      </div>
 
       {/* Image Container */}
-      <div className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center">
+      <div 
+        className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center"
+        style={{ animation: 'scaleIn 0.25s ease-out' }}
+      >
         <img
           src={src}
           alt={alt}
           className={cn(
             'max-w-full max-h-[90vh] object-contain rounded-lg',
-            'shadow-2xl animate-in zoom-in-95 duration-200'
+            'shadow-2xl'
           )}
         />
         
         {/* Image Info */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/60 rounded-full text-white text-sm backdrop-blur-sm">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/60 rounded-full text-white text-sm backdrop-blur-sm max-w-[80%] truncate">
           {alt}
         </div>
       </div>
+
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes scaleIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+      `}</style>
     </div>
   );
 }
