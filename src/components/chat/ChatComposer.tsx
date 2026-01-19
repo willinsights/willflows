@@ -148,9 +148,13 @@ export function ChatComposer({
     
     if (lastAtIndex !== -1) {
       const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1);
-      // Only show mentions if @ is at start or after whitespace, and no space after @
+      // Only show mentions if @ is at start or after whitespace
       const charBeforeAt = value[lastAtIndex - 1];
-      if ((lastAtIndex === 0 || /\s/.test(charBeforeAt)) && !/\s/.test(textAfterAt)) {
+      const isValidPosition = lastAtIndex === 0 || /\s/.test(charBeforeAt);
+      // Allow empty filter (show all) OR text without spaces
+      const hasNoSpaceAfterAt = !/\s/.test(textAfterAt);
+      
+      if (isValidPosition && hasNoSpaceAfterAt) {
         setShowMentions(true);
         setMentionFilter(textAfterAt);
         setMentionStartPos(lastAtIndex);
@@ -159,7 +163,10 @@ export function ChatComposer({
       }
     }
     
-    closeMentions();
+    // Only close if mentionStartPos is not set (user didn't trigger via @ button)
+    if (mentionStartPos === null || !value.includes('@')) {
+      closeMentions();
+    }
   };
 
   const closeMentions = () => {
