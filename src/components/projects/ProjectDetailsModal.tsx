@@ -488,9 +488,21 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
     if (!project || !user) return;
     setOpeningChat(true);
     
+    const attemptId = crypto.randomUUID().slice(0, 8);
+    console.warn(`[ChatDebug ${attemptId}] handleOpenChat START (ProjectDetailsModal)`, {
+      projectId: project.id,
+      projectName: project.name,
+      projectWorkspaceId: project.workspace_id,
+    });
+    
     try {
       // Check if conversation exists
       let conversationId = projectChats.find(c => c.project_id === project.id)?.id;
+      
+      console.warn(`[ChatDebug ${attemptId}] Existing conversation check:`, {
+        found: !!conversationId,
+        conversationId,
+      });
       
       if (!conversationId) {
         // Create new conversation using the project's workspace_id
@@ -498,14 +510,16 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
           projectId: project.id,
           projectName: project.name,
           workspaceId: project.workspace_id,
+          attemptId,
         });
         conversationId = newConversation.id;
       }
       
+      console.warn(`[ChatDebug ${attemptId}] Navigating to:`, `/app/chat/${conversationId}`);
       onOpenChange(false);
       navigate(`/app/chat/${conversationId}`);
     } catch (error) {
-      console.error('Error opening chat:', error);
+      console.error(`[ChatDebug ${attemptId}] ERROR:`, error);
     } finally {
       setOpeningChat(false);
     }
