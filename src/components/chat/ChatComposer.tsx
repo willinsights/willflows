@@ -41,9 +41,11 @@ export function ChatComposer({
   conversationId,
   projectId,
 }: ChatComposerProps) {
-  // Debug log on mount and when members change
+  // Log members for debugging
   useEffect(() => {
-    console.log('[ChatDebug] ChatComposer mounted/updated, members:', members.length);
+    if (members.length === 0) {
+      console.log('[ChatDebug] ChatComposer: No members available for mentions');
+    }
   }, [members.length]);
 
   const [message, setMessage] = useState('');
@@ -268,21 +270,22 @@ export function ChatComposer({
     <>
       <div className="rounded-xl border border-border bg-card/50 overflow-hidden relative">
         {/* Mention Popover */}
-        {showMentions && (
+        {showMentions && members.length > 0 && (
           <div className="absolute bottom-full left-3 mb-2 z-50">
-            {members.length > 0 ? (
-              <MentionPopover
-                members={members}
-                filter={mentionFilter}
-                onSelect={selectMention}
-                onClose={closeMentions}
-                selectedIndex={mentionSelectedIndex}
-              />
-            ) : (
-              <div className="w-64 p-3 rounded-lg border border-border bg-popover shadow-lg">
-                <p className="text-sm text-muted-foreground">Nenhum membro disponível</p>
-              </div>
-            )}
+            <MentionPopover
+              members={members}
+              filter={mentionFilter}
+              onSelect={selectMention}
+              onClose={closeMentions}
+              selectedIndex={mentionSelectedIndex}
+            />
+          </div>
+        )}
+        {showMentions && members.length === 0 && (
+          <div className="absolute bottom-full left-3 mb-2 z-50">
+            <div className="w-64 p-3 rounded-lg border border-border bg-popover shadow-lg">
+              <p className="text-sm text-muted-foreground">Nenhum membro disponível para mencionar</p>
+            </div>
           </div>
         )}
 

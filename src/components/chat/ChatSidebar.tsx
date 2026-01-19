@@ -17,6 +17,7 @@ import {
   ChevronDown,
   ChevronRight,
   Lock,
+  MessageCircle,
 } from 'lucide-react';
 import {
   Collapsible,
@@ -161,9 +162,19 @@ export function ChatSidebar({
             </div>
             <CollapsibleContent className="space-y-0.5">
               {channels.length === 0 ? (
-                <p className="px-4 py-3 text-sm text-muted-foreground">
-                  Nenhum canal criado
-                </p>
+                <div className="px-4 py-4 text-center">
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Nenhum canal criado
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowCreateChannel(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Criar Canal
+                  </Button>
+                </div>
               ) : (
                 channels.map((conversation) => (
                   <ConversationItem
@@ -206,9 +217,22 @@ export function ChatSidebar({
             </div>
             <CollapsibleContent className="space-y-0.5">
               {dms.length === 0 ? (
-                <p className="px-4 py-3 text-sm text-muted-foreground">
-                  Nenhuma mensagem direta
-                </p>
+                <div className="px-4 py-6 text-center">
+                  <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
+                    <MessageCircle className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Nenhuma mensagem direta
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowCreateDM(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Iniciar Conversa
+                  </Button>
+                </div>
               ) : (
                 dms.map((conversation) => (
                   <ConversationItem
