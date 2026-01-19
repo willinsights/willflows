@@ -57,7 +57,7 @@ export function CreateQuickTaskModal({
       phase,
       projectId,
       conversationId,
-      assigneeId: assigneeId || undefined,
+      assigneeId: assigneeId && assigneeId !== '__unassigned__' ? assigneeId : undefined,
       dueDate: dueDate || undefined,
     });
 
@@ -160,7 +160,7 @@ export function CreateQuickTaskModal({
                 <SelectValue placeholder="Selecionar membro" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Sem atribuição</SelectItem>
+                <SelectItem value="__unassigned__">Sem atribuição</SelectItem>
                 {members.map((member) => (
                   <SelectItem key={member.user_id} value={member.user_id}>
                     {member.full_name || member.email || 'Membro'}
