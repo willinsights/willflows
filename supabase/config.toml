@@ -66,3 +66,6 @@ verify_jwt = false
 
 [functions.blog-rss]
 verify_jwt = false
+
+[functions.send-friend-invite]
+verify_jwt = false
