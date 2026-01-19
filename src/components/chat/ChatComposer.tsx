@@ -155,6 +155,7 @@ export function ChatComposer({
       const hasNoSpaceAfterAt = !/\s/.test(textAfterAt);
       
       if (isValidPosition && hasNoSpaceAfterAt) {
+        console.log('[ChatDebug] Showing mentions, filter:', textAfterAt, 'members:', members.length);
         setShowMentions(true);
         setMentionFilter(textAfterAt);
         setMentionStartPos(lastAtIndex);
@@ -206,6 +207,7 @@ export function ChatComposer({
   };
 
   const triggerMention = () => {
+    console.log('[ChatDebug] triggerMention called, members count:', members.length);
     const cursorPos = textareaRef.current?.selectionStart || message.length;
     const beforeCursor = message.slice(0, cursorPos);
     const afterCursor = message.slice(cursorPos);
@@ -227,11 +229,14 @@ export function ChatComposer({
   };
 
   const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
+    console.log('[ChatDebug] handleFileSelect triggered');
+    console.log('[ChatDebug] Files selected:', e.target.files?.length);
     const files = Array.from(e.target.files || []);
     
     const validFiles: File[] = [];
     
     files.forEach((file) => {
+      console.log('[ChatDebug] Processing file:', file.name, file.type, file.size);
       // Check for blocked audio types
       if (file.type.startsWith('audio/') || BLOCKED_AUDIO_TYPES.includes(file.type)) {
         toast.error('Áudio não permitido', { 
@@ -251,6 +256,7 @@ export function ChatComposer({
       validFiles.push(file);
     });
     
+    console.log('[ChatDebug] Valid files to attach:', validFiles.length);
     if (validFiles.length > 0) {
       setAttachments((prev) => [...prev, ...validFiles]);
     }

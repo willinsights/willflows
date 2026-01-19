@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useConversations } from '@/hooks/useConversations';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -49,6 +50,7 @@ export function ChatSidebar({
 }: ChatSidebarProps) {
   const navigate = useNavigate();
   const { conversations, isLoading, leaveConversation } = useConversations();
+  const { isAdmin } = useWorkspace();
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showCreateDM, setShowCreateDM] = useState(false);
@@ -109,9 +111,9 @@ export function ChatSidebar({
   }
 
   return (
-    <div className="flex flex-col h-full bg-card">
+    <div className="flex flex-col h-full overflow-hidden bg-card">
       {/* Search */}
-      <div className="p-3 border-b border-border">
+      <div className="p-3 border-b border-border shrink-0">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -123,7 +125,7 @@ export function ChatSidebar({
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 h-0">
         <div className="py-2 space-y-1">
           {/* Project Chats */}
           <Collapsible
@@ -182,14 +184,16 @@ export function ChatSidebar({
                   <ChevronRight className="h-3.5 w-3.5" />
                 )}
               </CollapsibleTrigger>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 hover:bg-primary/10 hover:text-primary"
-                onClick={() => setShowCreateChannel(true)}
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </Button>
+              {isAdmin && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 hover:bg-primary/10 hover:text-primary"
+                  onClick={() => setShowCreateChannel(true)}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              )}
             </div>
             <CollapsibleContent className="space-y-0.5">
               {channels.length === 0 ? (
@@ -197,14 +201,16 @@ export function ChatSidebar({
                   <p className="text-sm text-muted-foreground mb-3">
                     Nenhum canal criado
                   </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowCreateChannel(true)}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Criar Canal
-                  </Button>
+                  {isAdmin && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowCreateChannel(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Criar Canal
+                    </Button>
+                  )}
                 </div>
               ) : (
                 channels.map((conversation) => (
@@ -227,7 +233,7 @@ export function ChatSidebar({
             <div className="flex items-center justify-between px-4 py-2">
               <CollapsibleTrigger className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors">
                 <User className="h-3.5 w-3.5" />
-                Mensagens Diretas
+                Mensagens
                 <span className="text-[10px] font-normal bg-muted px-1.5 py-0.5 rounded-full">
                   {dms.length}
                 </span>
@@ -253,7 +259,7 @@ export function ChatSidebar({
                     <MessageCircle className="h-6 w-6 text-muted-foreground" />
                   </div>
                   <p className="text-sm text-muted-foreground mb-3">
-                    Nenhuma mensagem direta
+                    Nenhuma mensagem
                   </p>
                   <Button
                     variant="outline"
@@ -355,11 +361,10 @@ function ConversationItem({
   return (
     <div
       className={cn(
-        'group flex items-center gap-3 w-full px-3 py-2.5 mx-1 rounded-lg text-left transition-all duration-150 cursor-pointer',
+        'group flex items-center gap-3 w-full px-4 py-2.5 rounded-lg text-left transition-all duration-150 cursor-pointer',
         'hover:bg-muted/60',
         isActive && 'bg-primary/10 hover:bg-primary/15'
       )}
-      style={{ width: 'calc(100% - 8px)' }}
       onClick={onClick}
     >
       {getIcon()}
