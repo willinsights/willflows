@@ -340,13 +340,6 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
     if (!project) return;
     setLoading(true);
     
-    // DEBUG LOG
-    console.warn('[handleDeliver]', {
-      projectId: project.id,
-      item_type: project.item_type,
-      current_phase: project.current_phase
-    });
-    
     try {
       // Buscar coluna final da fase atual
       const { data: finalColumn } = await supabase
@@ -373,8 +366,6 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
         p_phase: project.current_phase,
         p_target_column_id: finalColumn.id
       });
-      
-      console.warn('[deliver_project RPC result]', { data, error });
       
       if (error) {
         const errorMessage = error.message.includes('CHECKLIST_INCOMPLETE')
@@ -434,14 +425,11 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
     setLoading(true);
     
     try {
-      console.warn('[handleReopenProject]', { projectId: project.id });
-      
       const { data, error } = await supabase.rpc('reopen_project', {
         p_project_id: project.id
       });
       
       const result = data as { success: boolean; reason?: string; new_column_id?: string; phase?: string } | null;
-      console.warn('[reopen_project RPC result]', { result, error });
       
       if (error) throw error;
       
