@@ -120,7 +120,7 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
       icon: Wallet,
       iconColor: 'text-primary',
       bgColor: 'bg-primary/15',
-      cardClass: 'border-primary/20 hover:border-primary/40 bg-primary/5',
+      cardClass: 'border-primary/20 hover:border-primary/40 bg-card',
       valueClass: cn('text-lg', (metrics.lucro ?? 0) >= 0 ? 'text-primary' : 'text-destructive'),
       isCurrency: true,
       change: metrics.lucroChange,
