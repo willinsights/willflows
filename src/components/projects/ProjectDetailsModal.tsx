@@ -1008,17 +1008,15 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                       </Badge>
                     </div>
 
-                    {/* INFORMAÇÕES EM LINHAS */}
-                    <div className="space-y-0 divide-y divide-border/40">
-                      {/* Cliente */}
-                      <div className="flex items-center py-2.5">
-                        <span className="w-36 text-sm font-medium shrink-0">Cliente</span>
-                        <span className="text-sm text-muted-foreground">{project.clients?.name || '—'}</span>
+                    {/* INFORMAÇÕES EM GRID 2 COLUNAS */}
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                      {/* Linha 1: Cliente | Tipo */}
+                      <div className="flex items-center py-1.5">
+                        <span className="w-28 text-sm font-medium shrink-0">Cliente</span>
+                        <span className="text-sm text-muted-foreground truncate">{project.clients?.name || '—'}</span>
                       </div>
-
-                      {/* Tipo */}
-                      <div className="flex items-center py-2.5">
-                        <span className="w-36 text-sm font-medium shrink-0">Tipo</span>
+                      <div className="flex items-center py-1.5">
+                        <span className="w-28 text-sm font-medium shrink-0">Tipo</span>
                         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                           {project.type === 'fotografia' && <Camera className="h-4 w-4" />}
                           {project.type === 'video' && <Film className="h-4 w-4" />}
@@ -1027,18 +1025,25 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                         </div>
                       </div>
 
-                      {/* Categoria */}
-                      <div className="flex items-center py-2.5">
-                        <span className="w-36 text-sm font-medium shrink-0">Categoria</span>
-                        <span className="text-sm text-muted-foreground">
+                      {/* Linha 2: Categoria | Cidade */}
+                      <div className="flex items-center py-1.5">
+                        <span className="w-28 text-sm font-medium shrink-0">Categoria</span>
+                        <span className="text-sm text-muted-foreground truncate">
                           {categories.find(c => c.id === project.custom_category_id)?.name || 
                            categoryOptions.find(c => c.value === project.category)?.label || 'Outro'}
                         </span>
                       </div>
+                      <div className="flex items-center py-1.5">
+                        <span className="w-28 text-sm font-medium shrink-0">Cidade</span>
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                          <MapPin className="h-4 w-4" />
+                          <span className="truncate">{project.city || '—'}</span>
+                        </div>
+                      </div>
 
-                      {/* Data Captação */}
-                      <div className="flex items-center py-2.5">
-                        <span className="w-36 text-sm font-medium shrink-0">Data Captação</span>
+                      {/* Linha 3: Data Captação | Data Entrega */}
+                      <div className="flex items-center py-1.5">
+                        <span className="w-28 text-sm font-medium shrink-0">Captação</span>
                         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                           <Calendar className="h-4 w-4" />
                           <span>
@@ -1047,16 +1052,14 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                               : '—'}
                           </span>
                           {project.shoot_start_time && (
-                            <span className="ml-2 text-xs">
-                              {project.shoot_start_time.slice(0,5)} – {project.shoot_end_time?.slice(0,5) || '—'}
+                            <span className="text-xs">
+                              {project.shoot_start_time.slice(0,5)}
                             </span>
                           )}
                         </div>
                       </div>
-
-                      {/* Data Entrega */}
-                      <div className="flex items-center py-2.5">
-                        <span className="w-36 text-sm font-medium shrink-0">Data Entrega</span>
+                      <div className="flex items-center py-1.5">
+                        <span className="w-28 text-sm font-medium shrink-0">Entrega</span>
                         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                           <Clock className="h-4 w-4" />
                           <span>
@@ -1067,117 +1070,105 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                         </div>
                       </div>
 
-                      {/* Cidade */}
-                      <div className="flex items-center py-2.5">
-                        <span className="w-36 text-sm font-medium shrink-0">Cidade</span>
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <MapPin className="h-4 w-4" />
-                          <span>{project.city || '—'}</span>
-                        </div>
-                      </div>
-
-                      {/* Responsáveis Captação */}
-                      <div className="flex items-center py-2.5">
-                        <span className="w-36 text-sm font-medium shrink-0">Resp. Captação</span>
-                        <div className="flex items-center gap-2">
+                      {/* Linha 4: Resp. Captação | Resp. Edição */}
+                      <div className="flex items-center py-1.5">
+                        <span className="w-28 text-sm font-medium shrink-0">Resp. Captação</span>
+                        <div className="flex items-center gap-1">
                           {responsaveisCaptacao.length > 0 ? (
-                            responsaveisCaptacao.slice(0, 3).map(userId => {
-                              const member = workspaceMembers.find(m => m.user_id === userId);
-                              return member ? (
-                                <div key={userId} className="flex items-center gap-1.5">
-                                  <Avatar className="h-6 w-6">
-                                    <AvatarImage src={member.avatar_url || undefined} />
-                                    <AvatarFallback className="text-[10px]">
-                                      {(member.full_name || member.email).slice(0, 2).toUpperCase()}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span className="text-sm text-muted-foreground">{member.full_name || member.email.split('@')[0]}</span>
-                                </div>
-                              ) : null;
-                            })
+                            <>
+                              <div className="flex -space-x-1">
+                                {responsaveisCaptacao.slice(0, 3).map(userId => {
+                                  const member = workspaceMembers.find(m => m.user_id === userId);
+                                  return member ? (
+                                    <Avatar key={userId} className="h-5 w-5 border border-background">
+                                      <AvatarImage src={member.avatar_url || undefined} />
+                                      <AvatarFallback className="text-[8px]">
+                                        {(member.full_name || member.email).slice(0, 2).toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                  ) : null;
+                                })}
+                              </div>
+                              {responsaveisCaptacao.length > 3 && (
+                                <span className="text-xs text-muted-foreground">+{responsaveisCaptacao.length - 3}</span>
+                              )}
+                            </>
                           ) : (
                             <span className="text-sm text-muted-foreground">—</span>
                           )}
-                          {responsaveisCaptacao.length > 3 && (
-                            <span className="text-xs text-muted-foreground">+{responsaveisCaptacao.length - 3}</span>
-                          )}
                         </div>
                       </div>
-
-                      {/* Responsáveis Edição */}
-                      <div className="flex items-center py-2.5">
-                        <span className="w-36 text-sm font-medium shrink-0">Resp. Edição</span>
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-center py-1.5">
+                        <span className="w-28 text-sm font-medium shrink-0">Resp. Edição</span>
+                        <div className="flex items-center gap-1">
                           {responsaveisEdicao.length > 0 ? (
-                            responsaveisEdicao.slice(0, 3).map(userId => {
-                              const member = workspaceMembers.find(m => m.user_id === userId);
-                              return member ? (
-                                <div key={userId} className="flex items-center gap-1.5">
-                                  <Avatar className="h-6 w-6">
-                                    <AvatarImage src={member.avatar_url || undefined} />
-                                    <AvatarFallback className="text-[10px]">
-                                      {(member.full_name || member.email).slice(0, 2).toUpperCase()}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span className="text-sm text-muted-foreground">{member.full_name || member.email.split('@')[0]}</span>
-                                </div>
-                              ) : null;
-                            })
+                            <>
+                              <div className="flex -space-x-1">
+                                {responsaveisEdicao.slice(0, 3).map(userId => {
+                                  const member = workspaceMembers.find(m => m.user_id === userId);
+                                  return member ? (
+                                    <Avatar key={userId} className="h-5 w-5 border border-background">
+                                      <AvatarImage src={member.avatar_url || undefined} />
+                                      <AvatarFallback className="text-[8px]">
+                                        {(member.full_name || member.email).slice(0, 2).toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                  ) : null;
+                                })}
+                              </div>
+                              {responsaveisEdicao.length > 3 && (
+                                <span className="text-xs text-muted-foreground">+{responsaveisEdicao.length - 3}</span>
+                              )}
+                            </>
                           ) : (
                             <span className="text-sm text-muted-foreground">—</span>
-                          )}
-                          {responsaveisEdicao.length > 3 && (
-                            <span className="text-xs text-muted-foreground">+{responsaveisEdicao.length - 3}</span>
                           )}
                         </div>
                       </div>
 
-                      {/* Links */}
-                      {(project.drive_folder_url || project.dropbox_folder_url || project.google_meet_url) && (
-                        <div className="flex items-center py-2.5">
-                          <span className="w-36 text-sm font-medium shrink-0">Links</span>
-                          <div className="flex items-center gap-4 text-sm">
-                            {project.drive_folder_url && (
-                              <a 
-                                href={project.drive_folder_url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-primary hover:underline flex items-center gap-1"
-                              >
-                                <Folder className="h-4 w-4" /> Drive
-                              </a>
-                            )}
-                            {project.dropbox_folder_url && (
-                              <a 
-                                href={project.dropbox_folder_url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-primary hover:underline flex items-center gap-1"
-                              >
-                                <Folder className="h-4 w-4" /> Dropbox
-                              </a>
-                            )}
-                            {project.google_meet_url && (
-                              <a 
-                                href={project.google_meet_url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-primary hover:underline flex items-center gap-1"
-                              >
-                                <Video className="h-4 w-4" /> Meet
-                              </a>
-                            )}
-                          </div>
+                      {/* Linha 5: Links | ID */}
+                      <div className="flex items-center py-1.5">
+                        <span className="w-28 text-sm font-medium shrink-0">Links</span>
+                        <div className="flex items-center gap-3 text-sm">
+                          {project.drive_folder_url && (
+                            <a 
+                              href={project.drive_folder_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline flex items-center gap-1"
+                            >
+                              <Folder className="h-3.5 w-3.5" /> Drive
+                            </a>
+                          )}
+                          {project.dropbox_folder_url && (
+                            <a 
+                              href={project.dropbox_folder_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline flex items-center gap-1"
+                            >
+                              <Folder className="h-3.5 w-3.5" /> Dropbox
+                            </a>
+                          )}
+                          {project.google_meet_url && (
+                            <a 
+                              href={project.google_meet_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline flex items-center gap-1"
+                            >
+                              <Video className="h-3.5 w-3.5" /> Meet
+                            </a>
+                          )}
+                          {!project.drive_folder_url && !project.dropbox_folder_url && !project.google_meet_url && (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </div>
-                      )}
-
-                      {/* ID do Projeto */}
-                      {project.project_code && (
-                        <div className="flex items-center py-2.5">
-                          <span className="w-36 text-sm font-medium shrink-0">ID</span>
-                          <span className="text-sm font-mono text-primary">{project.project_code}</span>
-                        </div>
-                      )}
+                      </div>
+                      <div className="flex items-center py-1.5">
+                        <span className="w-28 text-sm font-medium shrink-0">ID</span>
+                        <span className="text-sm font-mono text-primary">{project.project_code || '—'}</span>
+                      </div>
                     </div>
 
                     {/* DESCRIÇÃO - ÁREA SEPARADA */}
