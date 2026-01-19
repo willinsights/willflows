@@ -154,6 +154,19 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
           />
         </button>
         
+        {/* Expand button in header when collapsed */}
+        {!isMobile && collapsed && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggle}
+            className="h-7 w-7 hover:bg-primary/10 ml-1"
+            title="Expandir menu"
+          >
+            <ChevronRight className="h-4 w-4 text-primary" />
+          </Button>
+        )}
+        
         {isMobile ? (
           <Button
             variant="ghost"
@@ -198,6 +211,7 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
                       to={item.path}
                       title={collapsed && !isMobile ? item.label : undefined}
                       aria-label={collapsed && !isMobile ? item.label : undefined}
+                      onClick={() => !isMobile && !collapsed && onToggle()}
                       className={cn(
                         'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
                         'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
@@ -249,12 +263,13 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
       {!isMobile && collapsed && (
         <div className="p-3 border-t border-sidebar-border">
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
             onClick={onToggle}
-            className="w-full h-10"
+            className="w-full h-10 bg-primary/10 hover:bg-primary/20 border-primary/30 hover:border-primary/50 transition-all"
+            title="Expandir menu"
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-5 w-5 text-primary" />
           </Button>
         </div>
       )}
