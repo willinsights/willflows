@@ -541,7 +541,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
             <TabsList className={cn("grid w-full mb-4", canViewOwnFinancials ? "grid-cols-4" : "grid-cols-3")}>
               <TabsTrigger value="details">Detalhes</TabsTrigger>
               <TabsTrigger value="checklist">Checklist</TabsTrigger>
-              <TabsTrigger value="media">Media</TabsTrigger>
+              <TabsTrigger value="media">Links e Pastas</TabsTrigger>
               {canViewOwnFinancials && <TabsTrigger value="financial">Financeiro</TabsTrigger>}
             </TabsList>
 
@@ -1051,9 +1051,9 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                               ? format(new Date(project.shoot_date), "d MMM yyyy", { locale: pt })
                               : '—'}
                           </span>
-                          {project.shoot_start_time && (
+                          {(project.shoot_start_time || project.shoot_end_time) && (
                             <span className="text-xs">
-                              {project.shoot_start_time.slice(0,5)}
+                              {project.shoot_start_time?.slice(0,5) || '—'} – {project.shoot_end_time?.slice(0,5) || '—'}
                             </span>
                           )}
                         </div>
@@ -1126,46 +1126,8 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                         </div>
                       </div>
 
-                      {/* Linha 5: Links | ID */}
-                      <div className="flex items-center py-1.5">
-                        <span className="w-28 text-sm font-medium shrink-0">Links</span>
-                        <div className="flex items-center gap-3 text-sm">
-                          {project.drive_folder_url && (
-                            <a 
-                              href={project.drive_folder_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline flex items-center gap-1"
-                            >
-                              <Folder className="h-3.5 w-3.5" /> Drive
-                            </a>
-                          )}
-                          {project.dropbox_folder_url && (
-                            <a 
-                              href={project.dropbox_folder_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline flex items-center gap-1"
-                            >
-                              <Folder className="h-3.5 w-3.5" /> Dropbox
-                            </a>
-                          )}
-                          {project.google_meet_url && (
-                            <a 
-                              href={project.google_meet_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline flex items-center gap-1"
-                            >
-                              <Video className="h-3.5 w-3.5" /> Meet
-                            </a>
-                          )}
-                          {!project.drive_folder_url && !project.dropbox_folder_url && !project.google_meet_url && (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center py-1.5">
+                      {/* Linha 5: ID (ocupa 2 colunas) */}
+                      <div className="flex items-center py-1.5 col-span-2">
                         <span className="w-28 text-sm font-medium shrink-0">ID</span>
                         <span className="text-sm font-mono text-primary">{project.project_code || '—'}</span>
                       </div>
