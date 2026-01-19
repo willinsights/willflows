@@ -61,9 +61,8 @@ export function trackConversion(
       value: value,
       currency: currency,
     });
-    console.log(`[Google Ads] Conversion tracked: ${conversionId}, value: ${value} ${currency}`);
   } catch (error) {
-    console.error('[Google Ads] Error tracking conversion:', error);
+    // Silently fail for analytics
   }
 }
 
@@ -117,5 +116,4 @@ export function trackWaitlistSignup(country?: string): void {
 export function trackCtaClick(ctaLocation: string = 'unknown'): void {
   // Track as a micro-conversion with low value
   trackConversion(CONVERSION_IDS.CTA_CLICK, 0.05, 'EUR');
-  console.log(`[Google Ads] CTA click tracked from: ${ctaLocation}`);
 }

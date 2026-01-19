@@ -63,3 +63,6 @@ verify_jwt = false
 
 [functions.delete-account]
 verify_jwt = false
+
+[functions.blog-rss]
+verify_jwt = false

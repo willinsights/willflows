@@ -39,10 +39,11 @@ export default function Blog() {
       <Helmet>
         <title>Blog | WillFlow - Dicas de Gestão para Produtores</title>
         <meta name="description" content="Novidades, tutoriais, comparações e dicas para otimizar a gestão do seu estúdio de produção audiovisual. Artigos sobre fotografia, vídeo e gestão de negócios." />
-        <link rel="canonical" href="https://willflow.app/blog" />
+        <link rel="canonical" href="https://willflows.lovable.app/blog" />
+        <link rel="alternate" type="application/rss+xml" title="WillFlow Blog RSS" href="https://wppfmyseeigsdqutkgyc.supabase.co/functions/v1/blog-rss" />
         <meta property="og:title" content="Blog | WillFlow - Dicas de Gestão para Produtores" />
         <meta property="og:description" content="Novidades, tutoriais, comparações e dicas para otimizar a gestão do seu estúdio de produção audiovisual." />
-        <meta property="og:url" content="https://willflow.app/blog" />
+        <meta property="og:url" content="https://willflows.lovable.app/blog" />
         <meta property="og:type" content="website" />
         <meta name="twitter:title" content="Blog | WillFlow - Dicas de Gestão para Produtores" />
         <meta name="twitter:description" content="Novidades, tutoriais, comparações e dicas para otimizar a gestão do seu estúdio de produção audiovisual." />
