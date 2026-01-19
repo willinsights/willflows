@@ -242,7 +242,14 @@ export function useThreadMessages(parentMessageId: string | undefined) {
         : { data: [] };
       
       const profileMap = new Map((profiles || []).map(p => [p.id, p]));
-      return (data || []).map(m => ({ ...m, user: profileMap.get(m.user_id) || null }));
+      
+      // Map to Message type with proper metadata handling
+      return (data || []).map(m => ({
+        ...m,
+        metadata: m.metadata as Record<string, any> | null,
+        user: profileMap.get(m.user_id) || null,
+        reactions: [],
+      })) as Message[];
     },
     enabled: !!parentMessageId,
   });
