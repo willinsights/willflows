@@ -111,7 +111,10 @@ async function refreshTokenIfNeeded(connection: any, supabaseAdmin: any): Promis
   return tokens.access_token;
 }
 
-// Create or update Google Calendar event
+// Delay utility for rate limiting
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Create or update Google Calendar event with rate limiting and retry
 async function upsertGoogleEvent(
   accessToken: string,
   calendarId: string,
@@ -123,26 +126,39 @@ async function upsertGoogleEvent(
     end: { dateTime?: string; date?: string; timeZone?: string };
     location?: string;
   },
-  existingEventId?: string
+  existingEventId?: string,
+  maxRetries = 3
 ): Promise<{ id: string }> {
   const url = existingEventId
     ? `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${existingEventId}`
     : `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
 
-  console.log(`Upserting event to Google Calendar:`, JSON.stringify(event, null, 2));
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    console.log(`Upserting event to Google Calendar (attempt ${attempt + 1}):`, event.summary);
 
-  const response = await fetch(url, {
-    method: existingEventId ? 'PUT' : 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(event),
-  });
+    const response = await fetch(url, {
+      method: existingEventId ? 'PUT' : 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(event),
+    });
 
-  if (!response.ok) {
+    if (response.ok) {
+      return await response.json();
+    }
+
     const errorBody = await response.text();
     console.error(`Google Calendar API error (${response.status}):`, errorBody);
+    
+    // Handle rate limit (429) with exponential backoff
+    if (response.status === 429 && attempt < maxRetries - 1) {
+      const waitTime = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
+      console.log(`Rate limited, waiting ${waitTime}ms before retry...`);
+      await delay(waitTime);
+      continue;
+    }
     
     let errorMessage = 'Unknown error';
     try {
@@ -155,7 +171,7 @@ async function upsertGoogleEvent(
     throw new Error(`Google Calendar API error: ${errorMessage}`);
   }
 
-  return await response.json();
+  throw new Error('Max retries exceeded for Google Calendar API');
 }
 
 // Delete Google Calendar event
@@ -281,12 +297,15 @@ serve(async (req) => {
       const results = { synced: 0, errors: [] as string[] };
       const calendarId = connection.calendar_id || 'primary';
 
-      // Get projects to sync
+      // Get projects to sync (only recent ones to avoid rate limits)
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data: projects } = await supabaseAdmin
         .from('projects')
         .select('id, name, shoot_date, shoot_start_time, shoot_end_time, delivery_date, clients(name), google_meet_url')
         .eq('workspace_id', workspaceId)
-        .eq('is_delivered', false);
+        .eq('is_delivered', false)
+        .or(`updated_at.gte.${yesterday},shoot_date.gte.${new Date().toISOString().split('T')[0]}`)
+        .limit(20);
 
       // Get existing sync logs
       const { data: syncLogs } = await supabaseAdmin
@@ -345,6 +364,8 @@ serve(async (req) => {
               });
 
             results.synced++;
+            // Rate limiting delay between API calls
+            await delay(200);
           } catch (e: any) {
             console.error(`Error syncing shoot for ${project.name}:`, e.message);
             results.errors.push(`Shoot "${project.name}": ${e.message}`);
@@ -387,6 +408,9 @@ serve(async (req) => {
               });
 
             results.synced++;
+            
+            // Rate limiting delay between API calls
+            await delay(200);
           } catch (e: any) {
             console.error(`Error syncing delivery for ${project.name}:`, e.message);
             results.errors.push(`Entrega "${project.name}": ${e.message}`);
@@ -441,6 +465,9 @@ serve(async (req) => {
               });
 
             results.synced++;
+            
+            // Rate limiting delay between API calls
+            await delay(200);
           } catch (e: any) {
             console.error(`Error syncing event ${calEvent.title}:`, e.message);
             results.errors.push(`Evento "${calEvent.title}": ${e.message}`);

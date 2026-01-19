@@ -236,11 +236,21 @@ export function GoogleCalendarSettings() {
       </CardHeader>
       
       {connection.sync_error && (
-        <CardContent className="pt-0">
+        <CardContent className="pt-0 space-y-2">
           <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm max-h-40 overflow-y-auto">
             <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
             <pre className="whitespace-pre-wrap font-sans text-sm flex-1">{connection.sync_error}</pre>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={sync}
+            disabled={syncing}
+            className="gap-2"
+          >
+            <RefreshCw className={cn("h-4 w-4", syncing && "animate-spin")} />
+            Tentar novamente
+          </Button>
         </CardContent>
       )}
       

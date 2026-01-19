@@ -4,7 +4,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/lib/logger';
 
-const AUTO_SYNC_INTERVAL_MS = 60000; // 1 minute
+const AUTO_SYNC_INTERVAL_MS = 300000; // 5 minutes
 
 export interface GoogleCalendarConnection {
   id: string;
@@ -296,7 +296,7 @@ export function useGoogleCalendar() {
     }
   }, [currentWorkspace?.id, connection?.is_connected, connection?.import_from_google, fetchStatus]);
 
-  // Auto-sync interval - runs every minute when connected
+  // Auto-sync interval - runs every 5 minutes when connected (no immediate sync on load)
   useEffect(() => {
     // Clear any existing interval
     if (autoSyncIntervalRef.current) {
@@ -306,12 +306,9 @@ export function useGoogleCalendar() {
 
     // Only start auto-sync if connected
     if (connection?.is_connected) {
-      logger.debug('[Auto-sync] Starting interval (every 1 minute)');
+      logger.debug('[Auto-sync] Starting interval (every 5 minutes)');
       
-      // Run immediately on mount/connection
-      silentSync();
-      
-      // Then run every minute
+      // Run every 5 minutes (no immediate sync to avoid rate limits)
       autoSyncIntervalRef.current = setInterval(() => {
         silentSync();
       }, AUTO_SYNC_INTERVAL_MS);
