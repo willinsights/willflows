@@ -249,15 +249,21 @@ export function ChatComposer({
     <>
       <div className="rounded-xl border border-border bg-card/50 overflow-hidden relative">
         {/* Mention Popover */}
-        {showMentions && members.length > 0 && (
-          <div className="absolute bottom-full left-3 z-50">
-            <MentionPopover
-              members={members}
-              filter={mentionFilter}
-              onSelect={selectMention}
-              onClose={closeMentions}
-              selectedIndex={mentionSelectedIndex}
-            />
+        {showMentions && (
+          <div className="absolute bottom-full left-3 mb-2 z-50">
+            {members.length > 0 ? (
+              <MentionPopover
+                members={members}
+                filter={mentionFilter}
+                onSelect={selectMention}
+                onClose={closeMentions}
+                selectedIndex={mentionSelectedIndex}
+              />
+            ) : (
+              <div className="w-64 p-3 rounded-lg border border-border bg-popover shadow-lg">
+                <p className="text-sm text-muted-foreground">Nenhum membro disponível</p>
+              </div>
+            )}
           </div>
         )}
 
