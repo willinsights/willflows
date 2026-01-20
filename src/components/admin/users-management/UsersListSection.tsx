@@ -60,6 +60,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
 import { useAdminUsers, AdminUser, UserFilters } from '@/hooks/useAdminUsers';
+import { getDisplayPlanName } from '@/lib/plans';
 
 export function UsersListSection() {
   const [filters, setFilters] = useState<UserFilters>({
@@ -96,12 +97,13 @@ export function UsersListSection() {
     if (!plan) return <span className="text-muted-foreground">—</span>;
     const colors: Record<string, string> = {
       essencial: 'bg-blue-500/10 text-blue-500 border-blue-500/30',
+      starter: 'bg-blue-500/10 text-blue-500 border-blue-500/30',
       pro: 'bg-purple-500/10 text-purple-500 border-purple-500/30',
       studio: 'bg-amber-500/10 text-amber-500 border-amber-500/30',
     };
     return (
       <Badge variant="outline" className={colors[plan] || ''}>
-        {plan.charAt(0).toUpperCase() + plan.slice(1)}
+        {getDisplayPlanName(plan)}
       </Badge>
     );
   };
@@ -171,7 +173,7 @@ export function UsersListSection() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="essencial">Essencial</SelectItem>
+            <SelectItem value="essencial">Starter</SelectItem>
             <SelectItem value="pro">Pro</SelectItem>
             <SelectItem value="studio">Studio</SelectItem>
           </SelectContent>

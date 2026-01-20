@@ -17,6 +17,7 @@ import {
   Trash2,
   ShieldAlert,
   Loader2,
+  Shield,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -50,6 +51,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useAdminBilling, Subscription, Invoice, WebhookLog } from '@/hooks/useAdminBilling';
+import { getDisplayPlanName } from '@/lib/plans';
 
 export function BillingTab() {
   return (
@@ -217,18 +219,32 @@ function SubscriptionsSubTab() {
               {filteredSubscriptions.map((sub) => (
                 <TableRow key={sub.id}>
                   <TableCell>
-                    <div>
-                      <p className="font-medium text-sm">{sub.user_name || '—'}</p>
-                      <p className="text-xs text-muted-foreground">{sub.user_email}</p>
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <p className="font-medium text-sm">{sub.user_name || '—'}</p>
+                        <p className="text-xs text-muted-foreground">{sub.user_email}</p>
+                      </div>
+                      {(sub as any).isSuperAdmin && (
+                        <Badge variant="outline" className="gap-1 text-xs">
+                          <Shield className="h-3 w-3" />
+                          Admin
+                        </Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="capitalize">
-                      {sub.subscription_plan}
+                      {getDisplayPlanName(sub.subscription_plan)}
                     </Badge>
                   </TableCell>
                   <TableCell>{getStatusBadge(sub.subscription_status)}</TableCell>
-                  <TableCell>{formatCurrency(sub.mrr)}</TableCell>
+                  <TableCell>
+                    {(sub as any).isSuperAdmin ? (
+                      <span className="text-muted-foreground text-sm">—</span>
+                    ) : (
+                      formatCurrency(sub.mrr)
+                    )}
+                  </TableCell>
                   <TableCell>
                     <span className="text-sm text-muted-foreground">
                       {formatDate(sub.current_period_end)}
