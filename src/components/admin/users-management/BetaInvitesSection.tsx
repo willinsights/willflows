@@ -321,8 +321,8 @@ export function BetaInvitesSection() {
     return { label: 'Ativo', variant: 'outline' as const, icon: Send };
   };
 
-  const handleBulkImport = async (emails: string[], freeDays: number) => {
-    let successCount = 0;
+  const handleBulkImport = async (emails: string[], freeDays: number): Promise<{ success: number; failed: number; errors: string[] }> => {
+    let success = 0;
     const errors: string[] = [];
 
     for (const email of emails) {
@@ -343,14 +343,15 @@ export function BetaInvitesSection() {
         if (inviteError) throw inviteError;
 
         await sendBetaInviteEmail(email, invite.token);
-        successCount++;
+        success++;
       } catch (error: any) {
         errors.push(`${email}: ${error.message}`);
       }
     }
 
     await fetchData();
-    return { successCount, errors };
+    const failed = emails.length - success;
+    return { success, failed, errors };
   };
 
   const activeInvites = invites.filter(inv => !inv.used_at && (!inv.expires_at || new Date(inv.expires_at) > new Date()));
@@ -710,7 +711,7 @@ export function BetaInvitesSection() {
         {/* Import Modal */}
         <ImportContactsModal
           open={showImportModal}
-          onOpenChange={setShowImportModal}
+          onClose={() => setShowImportModal(false)}
           onImport={handleBulkImport}
         />
       </div>

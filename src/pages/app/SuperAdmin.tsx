@@ -1,14 +1,12 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Shield, Loader2, LayoutDashboard, Users, Building2, CreditCard, MessageSquarePlus, Megaphone, FlaskConical, ClipboardList } from 'lucide-react';
+import { Shield, Loader2, LayoutDashboard, Users, CreditCard, MessageSquarePlus, Megaphone, FlaskConical } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { SaaSCockpitTab } from '@/components/admin/SaaSCockpitTab';
-import { UsersSummaryTab } from '@/components/admin/UsersSummaryTab';
-import { UsersTab } from '@/components/admin/UsersTab';
-import { WorkspacesTab } from '@/components/admin/WorkspacesTab';
+import { UsersManagementTab } from '@/components/admin/UsersManagementTab';
 import { BillingTab } from '@/components/admin/BillingTab';
 import { FeedbackAdminTab } from '@/components/admin/FeedbackAdminTab';
 import { MarketingTab } from '@/components/admin/MarketingTab';
@@ -61,39 +59,31 @@ export default function SuperAdmin() {
         </p>
       </div>
 
-      {/* Main Tabs */}
+      {/* Main Tabs - 6 tabs instead of 8 */}
       <Card>
         <CardContent className="p-0">
           <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
             <div className="border-b px-6 pt-4 overflow-x-auto">
-              <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-8">
+              <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-6">
                 <TabsTrigger value="saas" className="gap-2">
                   <LayoutDashboard className="h-4 w-4" />
                   <span className="hidden sm:inline">SaaS</span>
-                </TabsTrigger>
-                <TabsTrigger value="resumo" className="gap-2">
-                  <ClipboardList className="h-4 w-4" />
-                  <span className="hidden sm:inline">Resumo</span>
                 </TabsTrigger>
                 <TabsTrigger value="users" className="gap-2">
                   <Users className="h-4 w-4" />
                   <span className="hidden sm:inline">Utilizadores</span>
                 </TabsTrigger>
-                <TabsTrigger value="workspaces" className="gap-2">
-                  <Building2 className="h-4 w-4" />
-                  <span className="hidden sm:inline">Workspaces</span>
-                </TabsTrigger>
                 <TabsTrigger value="billing" className="gap-2">
                   <CreditCard className="h-4 w-4" />
                   <span className="hidden sm:inline">Billing</span>
                 </TabsTrigger>
-                <TabsTrigger value="support" className="gap-2">
-                  <MessageSquarePlus className="h-4 w-4" />
-                  <span className="hidden sm:inline">Suporte</span>
-                </TabsTrigger>
                 <TabsTrigger value="marketing" className="gap-2">
                   <Megaphone className="h-4 w-4" />
                   <span className="hidden sm:inline">Marketing</span>
+                </TabsTrigger>
+                <TabsTrigger value="support" className="gap-2">
+                  <MessageSquarePlus className="h-4 w-4" />
+                  <span className="hidden sm:inline">Suporte</span>
                 </TabsTrigger>
                 <TabsTrigger value="labs" className="gap-2">
                   <FlaskConical className="h-4 w-4" />
@@ -106,23 +96,17 @@ export default function SuperAdmin() {
               <TabsContent value="saas" className="mt-0">
                 <SaaSCockpitTab />
               </TabsContent>
-              <TabsContent value="resumo" className="mt-0">
-                <UsersSummaryTab />
-              </TabsContent>
               <TabsContent value="users" className="mt-0">
-                <UsersTab />
-              </TabsContent>
-              <TabsContent value="workspaces" className="mt-0">
-                <WorkspacesTab />
+                <UsersManagementTab />
               </TabsContent>
               <TabsContent value="billing" className="mt-0">
                 <BillingTab />
               </TabsContent>
-              <TabsContent value="support" className="mt-0">
-                <FeedbackAdminTab />
-              </TabsContent>
               <TabsContent value="marketing" className="mt-0">
                 <MarketingTab />
+              </TabsContent>
+              <TabsContent value="support" className="mt-0">
+                <FeedbackAdminTab />
               </TabsContent>
               <TabsContent value="labs" className="mt-0">
                 <LabsTab />
