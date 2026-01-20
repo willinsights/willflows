@@ -69,3 +69,6 @@ verify_jwt = false
 
 [functions.send-friend-invite]
 verify_jwt = false
+
+[functions.cleanup-users]
+verify_jwt = false
