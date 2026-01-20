@@ -19,8 +19,12 @@ export function TrialBadge({ variant = "full", className, onUpgradeClick }: Tria
     isTrial, 
     trialDaysRemaining, 
     shouldShowTrialUI, 
-    loading 
+    loading,
+    isSuperAdmin 
   } = useWorkspaceSubscription();
+
+  // Super Admin never sees trial badge
+  if (isSuperAdmin) return null;
 
   // Don't show if:
   // - Loading

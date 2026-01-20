@@ -9,10 +9,14 @@ export function TrialBanner() {
     isTrial, 
     trialDaysRemaining, 
     shouldShowTrialUI, 
-    loading 
+    loading,
+    isSuperAdmin 
   } = useWorkspaceSubscription();
   const navigate = useNavigate();
 
+  // Super Admin never sees trial banner
+  if (isSuperAdmin) return null;
+  
   // Don't show if:
   // - Loading
   // - User is not owner of the workspace (shouldShowTrialUI handles this)

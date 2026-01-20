@@ -13,6 +13,7 @@ import { WorkspaceExpiredModal } from '@/components/subscription/WorkspaceExpire
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useTrialWarning } from '@/hooks/useTrialWarning';
 import { FeedbackButton } from '@/components/feedback/FeedbackButton';
+import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 
 const RETRY_COOLDOWN_MS = 5000; // 5 seconds cooldown between retries
 
@@ -37,9 +38,11 @@ export function AppLayout() {
   const isMobile = useIsMobile();
   const { fetchError, refreshWorkspaces } = useWorkspace();
   const { isWorkspaceExpired } = useWorkspaceSubscription();
+  const { isSuperAdmin } = useSuperAdmin();
 
   // Show expired modal for ALL users when workspace is expired (not just owners)
-  const showExpiredModal = isWorkspaceExpired;
+  // NEVER show for Super Admins
+  const showExpiredModal = isWorkspaceExpired && !isSuperAdmin;
 
   // Hook to show trial warning notification when 2 days or less remain
   useTrialWarning();

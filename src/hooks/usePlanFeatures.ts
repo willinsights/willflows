@@ -3,6 +3,7 @@ import { useWorkspaceSubscription, type SubscriptionPlan } from './useWorkspaceS
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { useSuperAdmin } from './useSuperAdmin';
 import { 
   PLANS, 
   PLAN_DB_MAPPING, 
@@ -126,6 +127,7 @@ export interface UpgradeAlertState {
 export function usePlanFeatures() {
   const { subscription, limits, loading, isOwner, canManageSubscription } = useWorkspaceSubscription();
   const { workspace } = useWorkspace();
+  const { isSuperAdmin } = useSuperAdmin();
   
   // Fetch workspace usage counts
   const { data: usage = { workspaces: 0, users: 0, projects: 0 } } = useQuery({
@@ -179,6 +181,9 @@ export function usePlanFeatures() {
 
   // Check if user can use a specific feature (boolean check only)
   const canUseFeature = useCallback((feature: FeatureKey): boolean => {
+    // Super Admin has access to ALL features
+    if (isSuperAdmin) return true;
+    
     const featureInfo = FEATURES[feature];
     if (!featureInfo) return false;
 
@@ -195,14 +200,17 @@ export function usePlanFeatures() {
 
     // For boolean features, check plan level
     return isPlanAtLeast(currentPlan, featureInfo.minimumPlan);
-  }, [currentPlan, usage, limits]);
+  }, [currentPlan, usage, limits, isSuperAdmin]);
 
   // Check if user has access to a feature (plan level, ignoring limits)
   const hasFeatureAccess = useCallback((feature: FeatureKey): boolean => {
+    // Super Admin has access to ALL features
+    if (isSuperAdmin) return true;
+    
     const featureInfo = FEATURES[feature];
     if (!featureInfo) return false;
     return isPlanAtLeast(currentPlan, featureInfo.minimumPlan);
-  }, [currentPlan]);
+  }, [currentPlan, isSuperAdmin]);
 
   // Get the minimum plan required for a feature
   const getRequiredPlan = useCallback((feature: FeatureKey): SubscriptionPlan => {
@@ -229,6 +237,9 @@ export function usePlanFeatures() {
 
   // Check feature and show upgrade alert if not available
   const checkFeature = useCallback((feature: FeatureKey): boolean => {
+    // Super Admin always has access - no alerts needed
+    if (isSuperAdmin) return true;
+    
     if (canUseFeature(feature)) {
       return true;
     }
@@ -248,7 +259,7 @@ export function usePlanFeatures() {
     });
 
     return false;
-  }, [canUseFeature, getUpgradePlan, currentPlan]);
+  }, [canUseFeature, getUpgradePlan, currentPlan, isSuperAdmin]);
 
   // Close upgrade alert
   const closeUpgradeAlert = useCallback(() => {
