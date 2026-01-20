@@ -15,7 +15,8 @@ import {
   Mail,
   AlertCircle,
   RefreshCw,
-  Upload
+  Upload,
+  Send
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -98,11 +99,20 @@ const FunnelStep = ({
 );
 
 export function UsersSummaryTab() {
-  const { data: summary, isLoading, error, resendInvitation, bulkImportInvitations } = useUsersSummary();
+  const { 
+    data: summary, 
+    isLoading, 
+    error, 
+    resendInvitation, 
+    bulkSendBetaInvites,
+    sendBetaInviteToWaitlist,
+    resendBetaInvite
+  } = useUsersSummary();
   const { toast } = useToast();
   const [activeTable, setActiveTable] = useState('owners');
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [processingEmail, setProcessingEmail] = useState<string | null>(null);
 
   const handleResendInvite = async (invite: PendingInvite) => {
     setResendingId(invite.id);
@@ -125,8 +135,50 @@ export function UsersSummaryTab() {
     setResendingId(null);
   };
 
-  const handleBulkImport = async (emails: string[], workspaceId: string, role: string) => {
-    return await bulkImportInvitations(emails, workspaceId, role);
+  const handleBulkImport = async (emails: string[], freeDays: number) => {
+    return await bulkSendBetaInvites(emails, freeDays);
+  };
+
+  const handleSendBetaInvite = async (email: string, name: string | null) => {
+    setProcessingEmail(email);
+    
+    const result = await sendBetaInviteToWaitlist(email, name, 30);
+    
+    if (result.success) {
+      toast({
+        title: 'Convite enviado',
+        description: `Email enviado para ${email}`,
+      });
+    } else {
+      toast({
+        title: 'Erro ao enviar',
+        description: result.error || 'Tente novamente',
+        variant: 'destructive',
+      });
+    }
+    
+    setProcessingEmail(null);
+  };
+
+  const handleResendBetaInvite = async (email: string, name: string | null) => {
+    setProcessingEmail(email);
+    
+    const result = await resendBetaInvite(email, name);
+    
+    if (result.success) {
+      toast({
+        title: 'Convite reenviado',
+        description: `Email reenviado para ${email}`,
+      });
+    } else {
+      toast({
+        title: 'Erro ao reenviar',
+        description: result.error || 'Tente novamente',
+        variant: 'destructive',
+      });
+    }
+    
+    setProcessingEmail(null);
   };
 
   const exportToCSV = (type: string) => {
@@ -508,13 +560,14 @@ export function UsersSummaryTab() {
                         <TableHead>Empresa</TableHead>
                         <TableHead>Origem</TableHead>
                         <TableHead>Inscrito em</TableHead>
-                        <TableHead>Convite</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Acções</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {summary.waitlistWithoutAccount.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          <TableCell colSpan={7} className="text-center text-muted-foreground">
                             Todos os contactos da waitlist já criaram conta
                           </TableCell>
                         </TableRow>
@@ -535,6 +588,37 @@ export function UsersSummaryTab() {
                                 {entry.wasInvited ? 'Enviado' : 'Não enviado'}
                               </Badge>
                             </TableCell>
+                            <TableCell className="text-right">
+                              {entry.wasInvited ? (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleResendBetaInvite(entry.email, entry.name)}
+                                  disabled={processingEmail === entry.email}
+                                >
+                                  {processingEmail === entry.email ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <RefreshCw className="h-4 w-4" />
+                                  )}
+                                  <span className="ml-2">Reenviar</span>
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleSendBetaInvite(entry.email, entry.name)}
+                                  disabled={processingEmail === entry.email}
+                                >
+                                  {processingEmail === entry.email ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Send className="h-4 w-4" />
+                                  )}
+                                  <span className="ml-2">Convidar</span>
+                                </Button>
+                              )}
+                            </TableCell>
                           </TableRow>
                         ))
                       )}
@@ -551,7 +635,6 @@ export function UsersSummaryTab() {
       <ImportContactsModal
         open={showImportModal}
         onClose={() => setShowImportModal(false)}
-        workspaces={summary.allWorkspaces}
         onImport={handleBulkImport}
       />
     </div>
