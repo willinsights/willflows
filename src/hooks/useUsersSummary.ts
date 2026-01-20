@@ -1,6 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useSuperAdmin } from './useSuperAdmin';
+import { useCallback } from 'react';
+import { logger } from '@/lib/logger';
 
 export interface WorkspaceOwner {
   userId: string;
@@ -28,6 +30,7 @@ export interface PendingInvite {
   id: string;
   email: string;
   role: string;
+  token: string;
   workspaceId: string;
   workspaceName: string;
   invitedByEmail: string;
@@ -47,6 +50,11 @@ export interface WaitlistEntry {
   invitedAt: string | null;
 }
 
+export interface WorkspaceOption {
+  id: string;
+  name: string;
+}
+
 export interface UsersSummary {
   totals: {
     profiles: number;
@@ -61,12 +69,14 @@ export interface UsersSummary {
   collaborators: Collaborator[];
   pendingInvites: PendingInvite[];
   waitlistWithoutAccount: WaitlistEntry[];
+  allWorkspaces: WorkspaceOption[];
 }
 
 export function useUsersSummary() {
   const { isSuperAdmin } = useSuperAdmin();
+  const queryClient = useQueryClient();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ['admin-users-summary'],
     queryFn: async (): Promise<UsersSummary> => {
       // 1. Get all profiles count
@@ -99,13 +109,14 @@ export function useUsersSummary() {
         .from('user_subscriptions')
         .select('user_id, subscription_plan');
 
-      // 5. Get pending invitations
+      // 5. Get pending invitations (including token for resend)
       const { data: invitationsData } = await supabase
         .from('workspace_invitations')
         .select(`
           id,
           email,
           role,
+          token,
           workspace_id,
           invited_by,
           created_at,
@@ -201,6 +212,7 @@ export function useUsersSummary() {
           id: inv.id,
           email: inv.email,
           role: inv.role,
+          token: inv.token,
           workspaceId: inv.workspace_id,
           workspaceName: workspacesMap.get(inv.workspace_id) || 'N/A',
           invitedByEmail: inviterProfile?.email || 'N/A',
@@ -228,6 +240,12 @@ export function useUsersSummary() {
         existingEmails.has(w.email.toLowerCase())
       ).length;
 
+      // Build all workspaces list for import modal
+      const allWorkspaces: WorkspaceOption[] = (workspacesData || []).map(w => ({
+        id: w.id,
+        name: w.name,
+      }));
+
       return {
         totals: {
           profiles: profilesCount || 0,
@@ -250,9 +268,172 @@ export function useUsersSummary() {
         waitlistWithoutAccount: waitlistWithoutAccount.sort((a, b) => 
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         ),
+        allWorkspaces: allWorkspaces.sort((a, b) => a.name.localeCompare(b.name)),
       };
     },
     enabled: isSuperAdmin,
     staleTime: 1000 * 60 * 2, // 2 minutes
   });
+
+  // Resend invitation function
+  const resendInvitation = useCallback(async (invite: PendingInvite): Promise<{ success: boolean; error?: string }> => {
+    try {
+      // Extend expiration by 7 days
+      const newExpiry = new Date();
+      newExpiry.setDate(newExpiry.getDate() + 7);
+
+      const { error: updateError } = await supabase
+        .from('workspace_invitations')
+        .update({ expires_at: newExpiry.toISOString() })
+        .eq('id', invite.id);
+
+      if (updateError) {
+        logger.error('Error updating invitation:', updateError);
+        return { success: false, error: 'Erro ao atualizar convite' };
+      }
+
+      // Send invitation email via edge function
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { error: emailError } = await supabase.functions.invoke('send-invitation-email', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          body: {
+            invitationId: invite.id,
+            email: invite.email,
+            workspaceName: invite.workspaceName,
+            inviterName: 'Administrador',
+            role: invite.role,
+            token: invite.token,
+          },
+        });
+
+        if (emailError) {
+          logger.warn('Failed to send invitation email:', emailError);
+          // Don't fail if just email fails
+        }
+      }
+
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['admin-users-summary'] });
+      
+      return { success: true };
+    } catch (error) {
+      logger.error('Error resending invitation:', error);
+      return { success: false, error: 'Erro ao reenviar convite' };
+    }
+  }, [queryClient]);
+
+  // Bulk import function
+  const bulkImportInvitations = useCallback(async (
+    emails: string[], 
+    workspaceId: string, 
+    role: string
+  ): Promise<{ success: number; failed: number }> => {
+    let success = 0;
+    let failed = 0;
+
+    // Get admin user info
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return { success: 0, failed: emails.length };
+    }
+
+    const userId = session.user.id;
+
+    // Get workspace name
+    const { data: workspaceData } = await supabase
+      .from('workspaces')
+      .select('name')
+      .eq('id', workspaceId)
+      .single();
+
+    const workspaceName = workspaceData?.name || 'Workspace';
+
+    for (const email of emails) {
+      try {
+        // Check if already invited
+        const { data: existing } = await supabase
+          .from('workspace_invitations')
+          .select('id')
+          .eq('workspace_id', workspaceId)
+          .eq('email', email.toLowerCase())
+          .is('accepted_at', null)
+          .gt('expires_at', new Date().toISOString())
+          .single();
+
+        if (existing) {
+          failed++;
+          continue;
+        }
+
+        // Check if already member
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', email.toLowerCase())
+          .single();
+
+        if (profile) {
+          const { data: member } = await supabase
+            .from('workspace_members')
+            .select('id')
+            .eq('workspace_id', workspaceId)
+            .eq('user_id', profile.id)
+            .eq('is_active', true)
+            .single();
+
+          if (member) {
+            failed++;
+            continue;
+          }
+        }
+
+        // Create invitation
+        const { data: invitation, error: insertError } = await supabase
+          .from('workspace_invitations')
+          .insert({
+            workspace_id: workspaceId,
+            email: email.toLowerCase(),
+            role: role as any,
+            invited_by: userId,
+          })
+          .select('id, token')
+          .single();
+
+        if (insertError || !invitation) {
+          failed++;
+          continue;
+        }
+
+        // Send email
+        await supabase.functions.invoke('send-invitation-email', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          body: {
+            invitationId: invitation.id,
+            email: email.toLowerCase(),
+            workspaceName,
+            inviterName: 'Administrador',
+            role,
+            token: invitation.token,
+          },
+        });
+
+        success++;
+      } catch (error) {
+        logger.error('Error importing invitation for', email, error);
+        failed++;
+      }
+    }
+
+    // Refresh data
+    queryClient.invalidateQueries({ queryKey: ['admin-users-summary'] });
+
+    return { success, failed };
+  }, [queryClient]);
+
+  return {
+    ...query,
+    resendInvitation,
+    bulkImportInvitations,
+  };
 }
