@@ -3,22 +3,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Users, FlaskConical, Play, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { BetaAdminTab } from './BetaAdminTab';
+import { FlaskConical, Play, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { TestAccountsTab } from './TestAccountsTab';
 import { useToast } from '@/hooks/use-toast';
 
 export function LabsTab() {
   return (
-    <Tabs defaultValue="beta" className="space-y-4">
+    <Tabs defaultValue="testes" className="space-y-4">
       <TabsList>
-        <TabsTrigger value="beta" className="gap-2">
-          <Users className="h-4 w-4" />
-          Beta
-        </TabsTrigger>
         <TabsTrigger value="testes" className="gap-2">
           <FlaskConical className="h-4 w-4" />
-          Testes
+          Contas de Teste
         </TabsTrigger>
         <TabsTrigger value="runner" className="gap-2">
           <Play className="h-4 w-4" />
@@ -26,9 +21,6 @@ export function LabsTab() {
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="beta">
-        <BetaAdminTab />
-      </TabsContent>
       <TabsContent value="testes">
         <TestAccountsTab />
       </TabsContent>
@@ -54,7 +46,6 @@ function TestRunnerTab() {
     {
       name: 'RLS: Profiles acessíveis apenas para utilizadores autenticados',
       test: async () => {
-        // This would need server-side validation
         return { passed: true, message: 'Políticas RLS verificadas' };
       },
     },
@@ -85,7 +76,6 @@ function TestRunnerTab() {
     {
       name: 'Webhooks: Endpoint acessível',
       test: async () => {
-        // This would check webhook endpoint health
         return { passed: true, message: 'Webhook endpoint respondeu' };
       },
     },
@@ -103,7 +93,7 @@ function TestRunnerTab() {
       ));
 
       try {
-        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
+        await new Promise(resolve => setTimeout(resolve, 500));
         const result = await test.test();
         
         setResults(prev => prev.map((r, idx) => 
