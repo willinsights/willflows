@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { UpgradeAlert } from './UpgradeAlert';
 import { usePlanFeatures, type FeatureKey } from '@/hooks/usePlanFeatures';
+import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 
 interface FeatureGateProps {
   /** The feature key to check access for */
@@ -55,6 +56,7 @@ export function FeatureGate({
   lockLabel,
   className,
 }: FeatureGateProps) {
+  const { isSuperAdmin } = useSuperAdmin();
   const { 
     canUseFeature, 
     checkFeature, 
@@ -63,6 +65,11 @@ export function FeatureGate({
     upgradeAlert, 
     closeUpgradeAlert 
   } = usePlanFeatures();
+
+  // Super Admin has direct access to everything
+  if (isSuperAdmin) {
+    return <>{children}</>;
+  }
 
   const hasAccess = canUseFeature(feature);
   const featureInfo = getFeatureInfo(feature);

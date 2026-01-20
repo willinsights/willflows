@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { differenceInDays, parseISO } from 'date-fns';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { getPlanLimits, type PlanLimits } from '@/lib/plans';
+import { useSuperAdmin } from './useSuperAdmin';
 
 export type SubscriptionPlan = 'essencial' | 'pro' | 'studio';
 
@@ -38,6 +39,9 @@ export interface WorkspaceSubscriptionState {
   shouldShowTrialUI: boolean; // Only show trial UI if user is owner
   canManageSubscription: boolean; // Only admins can manage billing
   
+  // Super Admin flag - has full access to everything
+  isSuperAdmin: boolean;
+  
   // Loading state
   loading: boolean;
   
@@ -62,6 +66,7 @@ export function useWorkspaceSubscription(): WorkspaceSubscriptionState {
     isAdmin,
     canEdit,
   } = useWorkspace();
+  const { isSuperAdmin } = useSuperAdmin();
 
   return useMemo(() => {
     // No workspace yet
@@ -81,6 +86,7 @@ export function useWorkspaceSubscription(): WorkspaceSubscriptionState {
         canEdit: false,
         shouldShowTrialUI: false,
         canManageSubscription: false,
+        isSuperAdmin,
         loading,
         workspaceId: null,
         workspaceName: null,
@@ -131,13 +137,15 @@ export function useWorkspaceSubscription(): WorkspaceSubscriptionState {
     // Workspace is expired if:
     // 1. status is 'expired' OR 'canceled' OR 'past_due' OR 'unpaid'
     // 2. OR status is 'trialing' AND trial has expired
+    // 3. NEVER expired for Super Admins
     const isTrialExpired = isTrial && trialExpired;
-    const isWorkspaceExpired = 
-      status === 'expired' || 
-      status === 'canceled' || 
-      status === 'past_due' || 
-      status === 'unpaid' ||
-      isTrialExpired;
+    const isWorkspaceExpired = isSuperAdmin 
+      ? false 
+      : (status === 'expired' || 
+         status === 'canceled' || 
+         status === 'past_due' || 
+         status === 'unpaid' ||
+         isTrialExpired);
 
     return {
       subscription,
@@ -152,15 +160,16 @@ export function useWorkspaceSubscription(): WorkspaceSubscriptionState {
       isOwner: isUserOwner,
       isAdmin: isUserOwner,
       canEdit,
-      // Only show trial UI to workspace owners
-      shouldShowTrialUI: isUserOwner && isTrial,
+      // Only show trial UI to workspace owners, NEVER for Super Admins
+      shouldShowTrialUI: isUserOwner && isTrial && !isSuperAdmin,
       // Only admins can manage billing
       canManageSubscription: isUserOwner,
+      isSuperAdmin,
       loading,
       workspaceId: workspace.id,
       workspaceName: workspace.name,
     };
-  }, [workspace, membership, loading, isAdmin, canEdit]);
+  }, [workspace, membership, loading, isAdmin, canEdit, isSuperAdmin]);
 }
 
 /**
