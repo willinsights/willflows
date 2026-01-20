@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useSuperAdmin } from './useSuperAdmin';
 import { subDays, startOfDay, endOfDay, format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { PLANS, PLAN_DB_MAPPING, type PlanId } from '@/lib/plans';
 
 export type PeriodType = 'today' | '7d' | '30d' | '90d' | 'custom';
 
@@ -68,10 +69,10 @@ export interface ChurnDataPoint {
   churned: number;
 }
 
-const PLAN_PRICES: Record<string, number> = {
-  essencial: 19,
-  pro: 49,
-  studio: 99,
+// Use official prices from plans.ts
+const getPlanPrice = (plan: string): number => {
+  const planId: PlanId = PLAN_DB_MAPPING[plan] || 'starter';
+  return PLANS[planId]?.prices.eur.monthly || 0;
 };
 
 export function useSaaSCockpit(period: PeriodType, customRange?: DateRange) {
@@ -112,13 +113,21 @@ export function useSaaSCockpit(period: PeriodType, customRange?: DateRange) {
         .from('user_subscriptions')
         .select('*');
 
+      // Fetch super admins to exclude from MRR
+      const { data: systemAdmins } = await supabase
+        .from('system_admins')
+        .select('user_id');
+
+      const adminIds = new Set((systemAdmins || []).map(a => a.user_id));
+
       const subs = subscriptions || [];
       
-      // Calculate MRR from active subscriptions
-      const activeSubs = subs.filter(s => s.subscription_status === 'active');
+      // Calculate MRR from active subscriptions (excluding super admins)
+      const activeSubs = subs.filter(s => 
+        s.subscription_status === 'active' && !adminIds.has(s.user_id)
+      );
       const mrr = activeSubs.reduce((sum, s) => {
-        const plan = s.subscription_plan as string;
-        return sum + (PLAN_PRICES[plan] || 0);
+        return sum + getPlanPrice(s.subscription_plan);
       }, 0);
 
       // Subscription counts
@@ -308,13 +317,20 @@ export function useSaaSCockpit(period: PeriodType, customRange?: DateRange) {
         // Get subscriptions that were active at that month end
         const { data: subs } = await supabase
           .from('user_subscriptions')
-          .select('subscription_plan, subscription_status, created_at')
+          .select('subscription_plan, subscription_status, created_at, user_id')
           .lte('created_at', monthEnd.toISOString());
 
-        const activeSubs = (subs || []).filter(s => s.subscription_status === 'active');
+        // Fetch super admins to exclude
+        const { data: systemAdmins } = await supabase
+          .from('system_admins')
+          .select('user_id');
+        const adminIds = new Set((systemAdmins || []).map(a => a.user_id));
+
+        const activeSubs = (subs || []).filter(s => 
+          s.subscription_status === 'active' && !adminIds.has(s.user_id)
+        );
         const mrr = activeSubs.reduce((sum, s) => {
-          const plan = s.subscription_plan as string;
-          return sum + (PLAN_PRICES[plan] || 0);
+          return sum + getPlanPrice(s.subscription_plan);
         }, 0);
 
         dataPoints.push({
