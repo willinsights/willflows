@@ -7,7 +7,15 @@ const corsHeaders = {
 
 // Utilizadores a MANTER
 const KEEP_EMAILS = [
+  // Super Admin
   'willdesign7@gmail.com',
+  // Clientes reais
+  'moraisdanobrega@gmail.com',      // José Morais
+  'pedro.nobre@phormulagroup.com',  // Pedro Nobre
+  'pablosouza7101997@gmail.com',    // Pablo Souza
+  'juniomedialab@gmail.com',        // Júnio Cunha
+  'lukasalmeida1500@gmail.com',     // Lucas Almeida
+  // Contas de teste internas
   'starter@test.willflow.local',
   'pro@test.willflow.local',
   'studio@test.willflow.local',
@@ -18,9 +26,16 @@ const KEEP_EMAILS = [
 
 // Workspaces a MANTER (por slug)
 const KEEP_WORKSPACE_SLUGS = [
+  // Workspaces de teste
   'test-starter',
   'test-pro',
   'test-studio',
+  // Workspaces dos clientes reais
+  'estudio-jose-mkjvd4zl',
+  'estudio-pedro-mkjl1tga',
+  'estudio-pablo-mkhhls73',
+  'estudio-junio-mkhgxys8',
+  'estudio-lucas-mkbr2k7l',
 ];
 
 Deno.serve(async (req) => {
