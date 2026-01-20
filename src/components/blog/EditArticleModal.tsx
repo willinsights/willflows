@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { 
+import DOMPurify from 'dompurify';
+import {
   Dialog, 
   DialogContent, 
   DialogHeader, 
@@ -191,10 +192,10 @@ export function EditArticleModal({
                   className="font-mono text-sm"
                 />
               ) : (
-                <div 
-                  className="prose prose-sm max-w-none p-4 border rounded-lg bg-background min-h-[300px]"
-                  dangerouslySetInnerHTML={{ __html: content }}
-                />
+              <div 
+                className="prose prose-sm max-w-none p-4 border rounded-lg bg-background min-h-[300px]"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }}
+              />
               )}
             </div>
           </div>
