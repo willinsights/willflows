@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSuperAdmin } from './useSuperAdmin';
 import { useAdminAudit } from './useAdminAudit';
 import { useToast } from './use-toast';
+import { PLAN_LIMITS, PLAN_DB_MAPPING, type PlanId } from '@/lib/plans';
 
 export interface AdminWorkspace {
   id: string;
@@ -34,12 +35,6 @@ export interface WorkspaceFilters {
   status: 'all' | 'active' | 'trialing' | 'past_due' | 'canceled';
   plan: 'all' | 'essencial' | 'pro' | 'studio';
 }
-
-const PLAN_LIMITS = {
-  essencial: { members: 2, projects: 15 },
-  pro: { members: 10, projects: 100 },
-  studio: { members: 999, projects: 999 },
-};
 
 export function useAdminWorkspaces(filters: WorkspaceFilters) {
   const { isSuperAdmin } = useSuperAdmin();
@@ -140,8 +135,9 @@ export function useAdminWorkspaces(filters: WorkspaceFilters) {
       });
 
       return workspacesData.map(w => {
-        const plan = (w.subscription_plan as keyof typeof PLAN_LIMITS) || 'essencial';
-        const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.essencial;
+        // Use centralized plan limits from plans.ts
+        const planId: PlanId = PLAN_DB_MAPPING[w.subscription_plan || 'essencial'] || 'starter';
+        const limits = PLAN_LIMITS[planId];
         const membersCount = memberCountMap.get(w.id) || 0;
         const projectsCount = projectCountMap.get(w.id) || 0;
 
@@ -161,7 +157,7 @@ export function useAdminWorkspaces(filters: WorkspaceFilters) {
           tasks_count: taskCountMap.get(w.id) || 0,
           last_activity_at: lastActivityMap.get(w.id) || null,
           limits: {
-            members: { current: membersCount, max: limits.members },
+            members: { current: membersCount, max: limits.users },
             projects: { current: projectsCount, max: limits.projects },
           },
         };

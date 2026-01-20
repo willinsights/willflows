@@ -75,10 +75,16 @@ export function useAdminBilling() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Subscriptions
+  // Subscriptions (excluding Super Admins from MRR calculations)
   const { data: subscriptions = [], isLoading: subscriptionsLoading } = useQuery({
     queryKey: ['admin-subscriptions'],
-    queryFn: async (): Promise<Subscription[]> => {
+    queryFn: async (): Promise<(Subscription & { isSuperAdmin?: boolean })[]> => {
+      // Fetch super admins to exclude from MRR
+      const { data: systemAdmins } = await supabase
+        .from('system_admins')
+        .select('user_id');
+      const adminIds = new Set((systemAdmins || []).map(a => a.user_id));
+
       const { data: subs, error } = await supabase
         .from('user_subscriptions')
         .select('*')
@@ -95,20 +101,24 @@ export function useAdminBilling() {
 
       const profileMap = new Map((profiles || []).map(p => [p.id, p]));
 
-      return subs.map(s => ({
-        id: s.id,
-        user_id: s.user_id,
-        user_email: profileMap.get(s.user_id)?.email || 'N/A',
-        user_name: profileMap.get(s.user_id)?.full_name || null,
-        subscription_plan: s.subscription_plan,
-        subscription_status: s.subscription_status,
-        stripe_customer_id: s.stripe_customer_id,
-        stripe_subscription_id: s.stripe_subscription_id,
-        trial_ends_at: s.trial_ends_at,
-        current_period_end: s.current_period_end,
-        cancel_at_period_end: false, // Field not yet in schema
-        mrr: getPlanPrice(s.subscription_plan),
-      }));
+      return subs.map(s => {
+        const isSuperAdmin = adminIds.has(s.user_id);
+        return {
+          id: s.id,
+          user_id: s.user_id,
+          user_email: profileMap.get(s.user_id)?.email || 'N/A',
+          user_name: profileMap.get(s.user_id)?.full_name || null,
+          subscription_plan: s.subscription_plan,
+          subscription_status: s.subscription_status,
+          stripe_customer_id: s.stripe_customer_id,
+          stripe_subscription_id: s.stripe_subscription_id,
+          trial_ends_at: s.trial_ends_at,
+          current_period_end: s.current_period_end,
+          cancel_at_period_end: false, // Field not yet in schema
+          mrr: isSuperAdmin ? 0 : getPlanPrice(s.subscription_plan), // Super Admins don't pay
+          isSuperAdmin,
+        };
+      });
     },
     enabled: isSuperAdmin,
     staleTime: 1000 * 60 * 5,
