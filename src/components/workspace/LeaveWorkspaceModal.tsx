@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2, LogOut } from 'lucide-react';
+import { Loader2, LogOut, AlertTriangle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,7 @@ interface LeaveWorkspaceModalProps {
   workspaceId: string;
   workspaceName: string;
   onSuccess: () => void;
+  isLastWorkspace?: boolean;
 }
 
 export function LeaveWorkspaceModal({
@@ -27,6 +28,7 @@ export function LeaveWorkspaceModal({
   workspaceId,
   workspaceName,
   onSuccess,
+  isLastWorkspace = false,
 }: LeaveWorkspaceModalProps) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -45,6 +47,30 @@ export function LeaveWorkspaceModal({
         .eq('user_id', user.id);
 
       if (error) throw error;
+
+      // If this is the last workspace, delete the account
+      if (isLastWorkspace) {
+        toast({
+          title: 'A eliminar conta...',
+          description: 'A sua conta está a ser eliminada permanentemente.',
+        });
+
+        const { error: deleteError } = await supabase.functions.invoke('delete-account');
+        
+        if (deleteError) {
+          console.error('Error deleting account:', deleteError);
+          // Continue with signout even if delete fails
+        }
+
+        // Clear all local storage
+        localStorage.clear();
+        sessionStorage.clear();
+
+        // Sign out and redirect to landing
+        await supabase.auth.signOut();
+        window.location.href = '/';
+        return;
+      }
 
       toast({
         title: 'Saiu do workspace',
@@ -69,20 +95,45 @@ export function LeaveWorkspaceModal({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <LogOut className="h-5 w-5" />
-            Sair do Workspace
+            {isLastWorkspace ? (
+              <>
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                <span className="text-destructive">Eliminar Conta e Sair</span>
+              </>
+            ) : (
+              <>
+                <LogOut className="h-5 w-5" />
+                Sair do Workspace
+              </>
+            )}
           </DialogTitle>
           <DialogDescription>
-            Tem a certeza que deseja sair do workspace "{workspaceName}"?
+            {isLastWorkspace 
+              ? 'Este é o seu único workspace. Ao sair, a sua conta será eliminada.'
+              : `Tem a certeza que deseja sair do workspace "${workspaceName}"?`
+            }
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="p-4 rounded-lg border border-warning/20 bg-warning/5">
-            <p className="text-sm text-warning">
-              <strong>Atenção:</strong> Ao sair deste workspace, irá perder o acesso a todos os projetos, tarefas e dados associados. Para voltar a ter acesso, precisará de um novo convite.
-            </p>
-          </div>
+          {isLastWorkspace ? (
+            <div className="p-4 rounded-lg border border-destructive/20 bg-destructive/5">
+              <p className="text-sm text-destructive font-medium mb-2">
+                <strong>Atenção: A sua conta Willflow será eliminada permanentemente!</strong>
+              </p>
+              <ul className="text-sm text-destructive list-disc list-inside space-y-1">
+                <li>Todos os seus dados serão perdidos</li>
+                <li>Esta ação é irreversível</li>
+                <li>Para voltar a utilizar a Willflow, terá de criar uma nova conta</li>
+              </ul>
+            </div>
+          ) : (
+            <div className="p-4 rounded-lg border border-warning/20 bg-warning/5">
+              <p className="text-sm text-warning">
+                <strong>Atenção:</strong> Ao sair deste workspace, irá perder o acesso a todos os projetos, tarefas e dados associados. Para voltar a ter acesso, precisará de um novo convite.
+              </p>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
@@ -97,10 +148,10 @@ export function LeaveWorkspaceModal({
             {leaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                A sair...
+                {isLastWorkspace ? 'A eliminar conta...' : 'A sair...'}
               </>
             ) : (
-              'Sair do Workspace'
+              isLastWorkspace ? 'Eliminar Conta e Sair' : 'Sair do Workspace'
             )}
           </Button>
         </DialogFooter>

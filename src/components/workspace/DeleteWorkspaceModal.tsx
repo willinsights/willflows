@@ -35,7 +35,8 @@ export function DeleteWorkspaceModal({
   const [confirmName, setConfirmName] = useState('');
   const [deleting, setDeleting] = useState(false);
 
-  const canDelete = confirmName === workspaceName && !isLastWorkspace;
+  // Allow deletion even if it's the last workspace
+  const canDelete = confirmName === workspaceName;
 
   const handleDelete = async () => {
     if (!canDelete) return;
@@ -147,6 +148,30 @@ export function DeleteWorkspaceModal({
 
       if (error) throw error;
 
+      // If this was the last workspace, delete the account
+      if (isLastWorkspace) {
+        toast({
+          title: 'A eliminar conta...',
+          description: 'A sua conta está a ser eliminada permanentemente.',
+        });
+
+        const { error: deleteError } = await supabase.functions.invoke('delete-account');
+        
+        if (deleteError) {
+          console.error('Error deleting account:', deleteError);
+          // Continue with signout even if delete fails
+        }
+
+        // Clear all local storage
+        localStorage.clear();
+        sessionStorage.clear();
+
+        // Sign out and redirect to landing
+        await supabase.auth.signOut();
+        window.location.href = '/';
+        return;
+      }
+
       toast({
         title: 'Workspace eliminado',
         description: 'O workspace e todos os dados foram eliminados permanentemente.',
@@ -176,7 +201,7 @@ export function DeleteWorkspaceModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-destructive">
             <AlertTriangle className="h-5 w-5" />
-            Eliminar Workspace
+            {isLastWorkspace ? 'Eliminar Workspace e Conta' : 'Eliminar Workspace'}
           </DialogTitle>
           <DialogDescription>
             Esta ação é irreversível. Todos os dados serão perdidos permanentemente.
@@ -184,63 +209,63 @@ export function DeleteWorkspaceModal({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {isLastWorkspace ? (
-            <div className="p-4 rounded-lg border border-destructive/20 bg-destructive/5">
-              <p className="text-sm text-destructive font-medium">
-                Não é possível eliminar o último workspace. Crie outro workspace antes de eliminar este.
+          {isLastWorkspace && (
+            <div className="p-4 rounded-lg border border-destructive/20 bg-destructive/5 mb-4">
+              <p className="text-sm text-destructive font-medium mb-2">
+                <strong>Atenção: A sua conta Willflow será eliminada!</strong>
+              </p>
+              <p className="text-sm text-destructive">
+                Este é o seu único workspace. Ao eliminá-lo, a sua conta será também eliminada permanentemente. Para voltar a utilizar a Willflow, terá de criar uma nova conta.
               </p>
             </div>
-          ) : (
-            <>
-              <div className="p-4 rounded-lg border border-destructive/20 bg-destructive/5">
-                <p className="text-sm text-destructive">
-                  <strong>Os seguintes dados serão eliminados:</strong>
-                </p>
-                <ul className="text-sm text-destructive mt-2 list-disc list-inside space-y-1">
-                  <li>Todos os projetos e tarefas</li>
-                  <li>Todos os clientes</li>
-                  <li>Todos os pagamentos</li>
-                  <li>Todos os eventos do calendário</li>
-                  <li>Todos os membros e convites</li>
-                </ul>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirm-name">
-                  Escreva <strong>{workspaceName}</strong> para confirmar
-                </Label>
-                <Input
-                  id="confirm-name"
-                  value={confirmName}
-                  onChange={(e) => setConfirmName(e.target.value)}
-                  placeholder={workspaceName}
-                  disabled={deleting}
-                />
-              </div>
-            </>
           )}
+
+          <div className="p-4 rounded-lg border border-destructive/20 bg-destructive/5">
+            <p className="text-sm text-destructive">
+              <strong>Os seguintes dados serão eliminados:</strong>
+            </p>
+            <ul className="text-sm text-destructive mt-2 list-disc list-inside space-y-1">
+              <li>Todos os projetos e tarefas</li>
+              <li>Todos os clientes</li>
+              <li>Todos os pagamentos</li>
+              <li>Todos os eventos do calendário</li>
+              <li>Todos os membros e convites</li>
+              {isLastWorkspace && <li className="font-medium">A sua conta Willflow</li>}
+            </ul>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="confirm-name">
+              Escreva <strong>{workspaceName}</strong> para confirmar
+            </Label>
+            <Input
+              id="confirm-name"
+              value={confirmName}
+              onChange={(e) => setConfirmName(e.target.value)}
+              placeholder={workspaceName}
+              disabled={deleting}
+            />
+          </div>
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={handleClose} disabled={deleting}>
             Cancelar
           </Button>
-          {!isLastWorkspace && (
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={!canDelete || deleting}
-            >
-              {deleting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  A eliminar...
-                </>
-              ) : (
-                'Eliminar Permanentemente'
-              )}
-            </Button>
-          )}
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={!canDelete || deleting}
+          >
+            {deleting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                A eliminar...
+              </>
+            ) : (
+              isLastWorkspace ? 'Eliminar Tudo Permanentemente' : 'Eliminar Permanentemente'
+            )}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
