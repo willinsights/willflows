@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Shield, Loader2, LayoutDashboard, Users, Building2, CreditCard, MessageSquarePlus, Megaphone, FlaskConical } from 'lucide-react';
+import { Shield, Loader2, LayoutDashboard, Users, Building2, CreditCard, MessageSquarePlus, Megaphone, FlaskConical, ClipboardList } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { SaaSCockpitTab } from '@/components/admin/SaaSCockpitTab';
+import { UsersSummaryTab } from '@/components/admin/UsersSummaryTab';
 import { UsersTab } from '@/components/admin/UsersTab';
 import { WorkspacesTab } from '@/components/admin/WorkspacesTab';
 import { BillingTab } from '@/components/admin/BillingTab';
@@ -65,10 +66,14 @@ export default function SuperAdmin() {
         <CardContent className="p-0">
           <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
             <div className="border-b px-6 pt-4 overflow-x-auto">
-              <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-7">
+              <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-8">
                 <TabsTrigger value="saas" className="gap-2">
                   <LayoutDashboard className="h-4 w-4" />
                   <span className="hidden sm:inline">SaaS</span>
+                </TabsTrigger>
+                <TabsTrigger value="resumo" className="gap-2">
+                  <ClipboardList className="h-4 w-4" />
+                  <span className="hidden sm:inline">Resumo</span>
                 </TabsTrigger>
                 <TabsTrigger value="users" className="gap-2">
                   <Users className="h-4 w-4" />
@@ -100,6 +105,9 @@ export default function SuperAdmin() {
             <div className="p-6">
               <TabsContent value="saas" className="mt-0">
                 <SaaSCockpitTab />
+              </TabsContent>
+              <TabsContent value="resumo" className="mt-0">
+                <UsersSummaryTab />
               </TabsContent>
               <TabsContent value="users" className="mt-0">
                 <UsersTab />
