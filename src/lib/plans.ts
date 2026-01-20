@@ -61,40 +61,40 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
   studio: { workspaces: 10, users: 999, projects: 999 },
 };
 
-// Stripe Price IDs
+// Stripe Price IDs - LIVE PRODUCTION
 export const STRIPE_PRICES = {
   starter: {
     eur: {
-      monthly: 'price_1SnadaGuTRnB7JCLGGHL4Ru2',
-      yearly: 'price_1SnadqGuTRnB7JCLWCP258CR',
+      monthly: 'price_1SrikWGr2lXbVyw9yonzyJlM',
+      yearly: 'price_1SrikXGr2lXbVyw9NqSZ9svF',
     },
     brl: {
-      monthly: 'price_1SnadwGuTRnB7JCLjowstEIV',
-      yearly: 'price_1SnadxGuTRnB7JCL3QAmVujq',
+      monthly: 'price_1SrikZGr2lXbVyw9359CeNDt',
+      yearly: 'price_1SrikZGr2lXbVyw9NI0jXQ52',
     },
-    product_id: 'prod_Tl6rw16ZNqHrWd',
+    product_id: 'prod_TpNVDQjhG0wlZ4',
   },
   pro: {
     eur: {
-      monthly: 'price_1SnadzGuTRnB7JCL3pro5G3S',
-      yearly: 'price_1Snae1GuTRnB7JCLShZh5dmz',
+      monthly: 'price_1SrikbGr2lXbVyw91Rz0i9zt',
+      yearly: 'price_1SrikcGr2lXbVyw9uMfHWw6L',
     },
     brl: {
-      monthly: 'price_1Snae2GuTRnB7JCLl2ECVsKS',
-      yearly: 'price_1Snae4GuTRnB7JCLMQSuINEu',
+      monthly: 'price_1SrikcGr2lXbVyw9JDMREfdR',
+      yearly: 'price_1SrikdGr2lXbVyw98tP1rsYd',
     },
-    product_id: 'prod_Tl6rsZkoz6yqYu',
+    product_id: 'prod_TpNVjl9D0tQ8wQ',
   },
   studio: {
     eur: {
-      monthly: 'price_1Snae6GuTRnB7JCLWnrkIkrW',
-      yearly: 'price_1Snae7GuTRnB7JCLYUGXT2Gi',
+      monthly: 'price_1SrikfGr2lXbVyw9fXBV7BGs',
+      yearly: 'price_1SrikfGr2lXbVyw9KpGstQ2S',
     },
     brl: {
-      monthly: 'price_1Snae9GuTRnB7JCLP27ypl43',
-      yearly: 'price_1SnaeBGuTRnB7JCLntkQu4Kx',
+      monthly: 'price_1SrikgGr2lXbVyw9Rt6xW57v',
+      yearly: 'price_1SrikhGr2lXbVyw9JnFXF1E2',
     },
-    product_id: 'prod_Tl6rxTvnCICjTL',
+    product_id: 'prod_TpNVM1mlDtAvKA',
   },
 } as const;
 
