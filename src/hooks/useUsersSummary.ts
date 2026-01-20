@@ -275,7 +275,7 @@ export function useUsersSummary() {
     staleTime: 1000 * 60 * 2, // 2 minutes
   });
 
-  // Resend invitation function
+  // Resend invitation function (for workspace invites)
   const resendInvitation = useCallback(async (invite: PendingInvite): Promise<{ success: boolean; error?: string }> => {
     try {
       // Extend expiration by 7 days
@@ -323,117 +323,234 @@ export function useUsersSummary() {
     }
   }, [queryClient]);
 
-  // Bulk import function
-  const bulkImportInvitations = useCallback(async (
+  // Bulk send beta invites function
+  const bulkSendBetaInvites = useCallback(async (
     emails: string[], 
-    workspaceId: string, 
-    role: string
-  ): Promise<{ success: number; failed: number }> => {
-    let success = 0;
-    let failed = 0;
+    freeDays: number
+  ): Promise<{ success: number; failed: number; errors: string[] }> => {
+    const results = { success: 0, failed: 0, errors: [] as string[] };
 
-    // Get admin user info
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      return { success: 0, failed: emails.length };
+      return { success: 0, failed: emails.length, errors: ['Sessão não encontrada'] };
     }
-
-    const userId = session.user.id;
-
-    // Get workspace name
-    const { data: workspaceData } = await supabase
-      .from('workspaces')
-      .select('name')
-      .eq('id', workspaceId)
-      .single();
-
-    const workspaceName = workspaceData?.name || 'Workspace';
 
     for (const email of emails) {
       try {
-        // Check if already invited
-        const { data: existing } = await supabase
-          .from('workspace_invitations')
+        // Check if already has active beta invite
+        const { data: existingInvite } = await supabase
+          .from('beta_invite_tokens')
           .select('id')
-          .eq('workspace_id', workspaceId)
           .eq('email', email.toLowerCase())
-          .is('accepted_at', null)
+          .is('used_at', null)
           .gt('expires_at', new Date().toISOString())
-          .single();
+          .maybeSingle();
 
-        if (existing) {
-          failed++;
+        if (existingInvite) {
+          results.errors.push(`${email}: já tem convite ativo`);
+          results.failed++;
           continue;
         }
 
-        // Check if already member
-        const { data: profile } = await supabase
+        // Check if already has account
+        const { data: existingProfile } = await supabase
           .from('profiles')
           .select('id')
           .eq('email', email.toLowerCase())
-          .single();
+          .maybeSingle();
 
-        if (profile) {
-          const { data: member } = await supabase
-            .from('workspace_members')
-            .select('id')
-            .eq('workspace_id', workspaceId)
-            .eq('user_id', profile.id)
-            .eq('is_active', true)
-            .single();
-
-          if (member) {
-            failed++;
-            continue;
-          }
-        }
-
-        // Create invitation
-        const { data: invitation, error: insertError } = await supabase
-          .from('workspace_invitations')
-          .insert({
-            workspace_id: workspaceId,
-            email: email.toLowerCase(),
-            role: role as any,
-            invited_by: userId,
-          })
-          .select('id, token')
-          .single();
-
-        if (insertError || !invitation) {
-          failed++;
+        if (existingProfile) {
+          results.errors.push(`${email}: já tem conta`);
+          results.failed++;
           continue;
         }
 
-        // Send email
-        await supabase.functions.invoke('send-invitation-email', {
+        // Create beta invite token
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + freeDays);
+
+        const { data: invite, error: insertError } = await supabase
+          .from('beta_invite_tokens')
+          .insert({
+            email: email.toLowerCase(),
+            notes: `Importação em massa - ${freeDays} dias grátis`,
+            expires_at: expiresAt.toISOString(),
+          })
+          .select('token')
+          .single();
+
+        if (insertError || !invite) {
+          results.errors.push(`${email}: erro ao criar convite`);
+          results.failed++;
+          continue;
+        }
+
+        // Send beta invite email
+        const { error: emailError } = await supabase.functions.invoke('send-beta-invite', {
           headers: { Authorization: `Bearer ${session.access_token}` },
           body: {
-            invitationId: invitation.id,
             email: email.toLowerCase(),
-            workspaceName,
-            inviterName: 'Administrador',
-            role,
-            token: invitation.token,
+            inviteToken: invite.token,
+            freeDays,
           },
         });
 
-        success++;
-      } catch (error) {
-        logger.error('Error importing invitation for', email, error);
-        failed++;
+        if (emailError) {
+          logger.warn(`Failed to send beta invite email to ${email}:`, emailError);
+          // Still count as success since invite was created
+        }
+
+        results.success++;
+      } catch (error: any) {
+        logger.error(`Error sending beta invite to ${email}:`, error);
+        results.errors.push(`${email}: ${error.message || 'erro desconhecido'}`);
+        results.failed++;
       }
     }
 
     // Refresh data
     queryClient.invalidateQueries({ queryKey: ['admin-users-summary'] });
+    queryClient.invalidateQueries({ queryKey: ['beta-invites'] });
 
-    return { success, failed };
+    return results;
+  }, [queryClient]);
+
+  // Send beta invite to waitlist entry
+  const sendBetaInviteToWaitlist = useCallback(async (
+    email: string,
+    name: string | null,
+    freeDays: number = 30
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        return { success: false, error: 'Sessão não encontrada' };
+      }
+
+      // Check if already has active invite
+      const { data: existingInvite } = await supabase
+        .from('beta_invite_tokens')
+        .select('id')
+        .eq('email', email.toLowerCase())
+        .is('used_at', null)
+        .gt('expires_at', new Date().toISOString())
+        .maybeSingle();
+
+      if (existingInvite) {
+        return { success: false, error: 'Já tem convite ativo' };
+      }
+
+      // Create beta invite token
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + freeDays);
+
+      const { data: invite, error: insertError } = await supabase
+        .from('beta_invite_tokens')
+        .insert({
+          email: email.toLowerCase(),
+          notes: `Convite da waitlist - ${freeDays} dias grátis`,
+          expires_at: expiresAt.toISOString(),
+        })
+        .select('id, token')
+        .single();
+
+      if (insertError || !invite) {
+        return { success: false, error: 'Erro ao criar convite' };
+      }
+
+      // Update waitlist entry
+      await supabase
+        .from('beta_waitlist')
+        .update({ 
+          invited_at: new Date().toISOString(),
+          invite_token_id: invite.id,
+        })
+        .eq('email', email.toLowerCase());
+
+      // Send beta invite email
+      await supabase.functions.invoke('send-beta-invite', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: {
+          email: email.toLowerCase(),
+          name,
+          inviteToken: invite.token,
+          freeDays,
+        },
+      });
+
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['admin-users-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['beta-invites'] });
+      queryClient.invalidateQueries({ queryKey: ['beta-waitlist'] });
+
+      return { success: true };
+    } catch (error: any) {
+      logger.error('Error sending beta invite to waitlist:', error);
+      return { success: false, error: error.message || 'Erro desconhecido' };
+    }
+  }, [queryClient]);
+
+  // Resend beta invite
+  const resendBetaInvite = useCallback(async (
+    email: string,
+    name: string | null
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        return { success: false, error: 'Sessão não encontrada' };
+      }
+
+      // Find existing invite
+      const { data: invite } = await supabase
+        .from('beta_invite_tokens')
+        .select('id, token')
+        .eq('email', email.toLowerCase())
+        .is('used_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!invite) {
+        return { success: false, error: 'Convite não encontrado' };
+      }
+
+      // Extend expiration by 7 days
+      const newExpiry = new Date();
+      newExpiry.setDate(newExpiry.getDate() + 7);
+
+      await supabase
+        .from('beta_invite_tokens')
+        .update({ expires_at: newExpiry.toISOString() })
+        .eq('id', invite.id);
+
+      // Resend email
+      await supabase.functions.invoke('send-beta-invite', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: {
+          email: email.toLowerCase(),
+          name,
+          inviteToken: invite.token,
+          freeDays: 7, // For resend, show 7 days extension
+        },
+      });
+
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['admin-users-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['beta-invites'] });
+
+      return { success: true };
+    } catch (error: any) {
+      logger.error('Error resending beta invite:', error);
+      return { success: false, error: error.message || 'Erro desconhecido' };
+    }
   }, [queryClient]);
 
   return {
     ...query,
     resendInvitation,
-    bulkImportInvitations,
+    bulkSendBetaInvites,
+    sendBetaInviteToWaitlist,
+    resendBetaInvite,
   };
 }

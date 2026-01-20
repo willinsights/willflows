@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload, X, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Upload, X, AlertCircle, CheckCircle2, Loader2, Mail } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -22,31 +22,29 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 
-interface WorkspaceOption {
-  id: string;
-  name: string;
-}
-
 interface ImportContactsModalProps {
   open: boolean;
   onClose: () => void;
-  workspaces: WorkspaceOption[];
-  onImport: (emails: string[], workspaceId: string, role: string) => Promise<{ success: number; failed: number }>;
+  onImport: (emails: string[], freeDays: number) => Promise<{
+    success: number;
+    failed: number;
+    errors: string[];
+  }>;
 }
 
-const roleOptions = [
-  { value: 'editor', label: 'Editor' },
-  { value: 'captacao', label: 'Captação' },
-  { value: 'freelancer', label: 'Freelancer' },
-  { value: 'visualizador', label: 'Visualizador' },
+const freeDaysOptions = [
+  { value: '7', label: '7 dias' },
+  { value: '14', label: '14 dias' },
+  { value: '30', label: '30 dias' },
+  { value: '60', label: '60 dias' },
+  { value: '90', label: '90 dias' },
 ];
 
-export function ImportContactsModal({ open, onClose, workspaces, onImport }: ImportContactsModalProps) {
+export function ImportContactsModal({ open, onClose, onImport }: ImportContactsModalProps) {
   const { toast } = useToast();
   const [inputMethod, setInputMethod] = useState<'paste' | 'csv'>('paste');
   const [pastedText, setPastedText] = useState('');
-  const [selectedWorkspace, setSelectedWorkspace] = useState('');
-  const [selectedRole, setSelectedRole] = useState('editor');
+  const [freeDays, setFreeDays] = useState('30');
   const [isImporting, setIsImporting] = useState(false);
   const [parsedEmails, setParsedEmails] = useState<string[]>([]);
   const [duplicates, setDuplicates] = useState(0);
@@ -112,24 +110,23 @@ export function ImportContactsModal({ open, onClose, workspaces, onImport }: Imp
       return;
     }
 
-    if (!selectedWorkspace) {
-      toast({
-        title: 'Workspace obrigatório',
-        description: 'Selecione um workspace',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setIsImporting(true);
     
     try {
-      const result = await onImport(parsedEmails, selectedWorkspace, selectedRole);
+      const result = await onImport(parsedEmails, parseInt(freeDays));
       
-      toast({
-        title: 'Importação concluída',
-        description: `${result.success} convites enviados, ${result.failed} falharam`,
-      });
+      if (result.errors.length > 0) {
+        toast({
+          title: 'Importação concluída',
+          description: `${result.success} convites enviados, ${result.failed} falharam`,
+          variant: result.success > 0 ? 'default' : 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Importação concluída',
+          description: `${result.success} convites enviados com sucesso!`,
+        });
+      }
 
       if (result.success > 0) {
         handleClose();
@@ -150,8 +147,7 @@ export function ImportContactsModal({ open, onClose, workspaces, onImport }: Imp
     setParsedEmails([]);
     setDuplicates(0);
     setInvalid(0);
-    setSelectedWorkspace('');
-    setSelectedRole('editor');
+    setFreeDays('30');
     onClose();
   };
 
@@ -160,11 +156,11 @@ export function ImportContactsModal({ open, onClose, workspaces, onImport }: Imp
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
+            <Mail className="h-5 w-5" />
             Importar Contactos
           </DialogTitle>
           <DialogDescription>
-            Importe uma lista de emails para enviar convites em massa
+            Envie convites beta para uma lista de emails. Cada pessoa poderá criar a sua própria conta e workspace.
           </DialogDescription>
         </DialogHeader>
 
@@ -222,38 +218,24 @@ export function ImportContactsModal({ open, onClose, workspaces, onImport }: Imp
             </div>
           )}
 
-          {/* Workspace Selection */}
+          {/* Free Days Selection */}
           <div className="space-y-2">
-            <Label>Workspace destino</Label>
-            <Select value={selectedWorkspace} onValueChange={setSelectedWorkspace}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecionar workspace..." />
-              </SelectTrigger>
-              <SelectContent>
-                {workspaces.map((ws) => (
-                  <SelectItem key={ws.id} value={ws.id}>
-                    {ws.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Role Selection */}
-          <div className="space-y-2">
-            <Label>Role</Label>
-            <Select value={selectedRole} onValueChange={setSelectedRole}>
+            <Label>Período grátis</Label>
+            <Select value={freeDays} onValueChange={setFreeDays}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {roleOptions.map((role) => (
-                  <SelectItem key={role.value} value={role.value}>
-                    {role.label}
+                {freeDaysOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              Cada utilizador terá {freeDays} dias de acesso grátis após criar conta
+            </p>
           </div>
 
           {/* Actions */}
@@ -263,7 +245,7 @@ export function ImportContactsModal({ open, onClose, workspaces, onImport }: Imp
             </Button>
             <Button 
               onClick={handleImport} 
-              disabled={parsedEmails.length === 0 || !selectedWorkspace || isImporting}
+              disabled={parsedEmails.length === 0 || isImporting}
             >
               {isImporting ? (
                 <>
