@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSuperAdmin } from './useSuperAdmin';
 import { useAdminAudit } from './useAdminAudit';
 import { useToast } from './use-toast';
+import { PLANS, PLAN_DB_MAPPING, type PlanId } from '@/lib/plans';
 
 export interface BillingResetPreview {
   subscriptionsToReset: number;
@@ -62,10 +63,10 @@ export interface WebhookLog {
   processed_at: string | null;
 }
 
-const PLAN_PRICES: Record<string, number> = {
-  essencial: 19,
-  pro: 49,
-  studio: 99,
+// Use official prices from plans.ts
+const getPlanPrice = (plan: string): number => {
+  const planId: PlanId = PLAN_DB_MAPPING[plan] || 'starter';
+  return PLANS[planId]?.prices.eur.monthly || 0;
 };
 
 export function useAdminBilling() {
@@ -106,7 +107,7 @@ export function useAdminBilling() {
         trial_ends_at: s.trial_ends_at,
         current_period_end: s.current_period_end,
         cancel_at_period_end: false, // Field not yet in schema
-        mrr: PLAN_PRICES[s.subscription_plan] || 0,
+        mrr: getPlanPrice(s.subscription_plan),
       }));
     },
     enabled: isSuperAdmin,
@@ -176,7 +177,7 @@ export function useAdminBilling() {
         trial_ends_at: s.trial_ends_at,
         current_period_end: s.current_period_end,
         cancel_at_period_end: false, // Field not yet in schema
-        mrr: PLAN_PRICES[s.subscription_plan] || 0,
+        mrr: getPlanPrice(s.subscription_plan),
       }));
     },
     enabled: isSuperAdmin,
