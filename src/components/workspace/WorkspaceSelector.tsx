@@ -276,7 +276,7 @@ export function WorkspaceSelector() {
                     )}
                     <button
                       onClick={(e) => handleLeaveWorkspace(e, { id: workspace.id, name: workspace.name })}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                      className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
                       title="Sair do workspace"
                     >
                       <LogOut className="h-3.5 w-3.5" />
@@ -287,32 +287,28 @@ export function WorkspaceSelector() {
             </>
           )}
 
-          {/* Create Workspace - Only show if user has admin workspaces or no workspaces */}
-          {(adminWorkspaces.length > 0 || allWorkspaces.length === 0) && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={handleCreateWorkspace}
-                className={cn(
-                  "flex items-center gap-2 py-2.5 cursor-pointer",
-                  canCreateWorkspace ? "text-primary" : "text-muted-foreground"
-                )}
-                disabled={switching}
-              >
-                {canCreateWorkspace ? (
-                  <Plus className="h-4 w-4" />
-                ) : (
-                  <Lock className="h-4 w-4" />
-                )}
-                <span className="font-medium">Criar novo workspace</span>
-                {!canCreateWorkspace && (
-                  <Badge variant="secondary" className="ml-auto text-[10px] h-4 px-1.5">
-                    Upgrade
-                  </Badge>
-                )}
-              </DropdownMenuItem>
-            </>
-          )}
+          {/* Create Workspace - Always show option */}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={handleCreateWorkspace}
+            className={cn(
+              "flex items-center gap-2 py-2.5 cursor-pointer",
+              canCreateWorkspace ? "text-primary" : "text-muted-foreground"
+            )}
+            disabled={switching}
+          >
+            {canCreateWorkspace ? (
+              <Plus className="h-4 w-4" />
+            ) : (
+              <Lock className="h-4 w-4" />
+            )}
+            <span className="font-medium">Criar novo workspace</span>
+            {!canCreateWorkspace && (
+              <Badge variant="secondary" className="ml-auto text-[10px] h-4 px-1.5">
+                Upgrade
+              </Badge>
+            )}
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
