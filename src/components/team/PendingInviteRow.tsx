@@ -23,17 +23,10 @@ import type { WorkspaceInvitation } from '@/hooks/useWorkspaceInvitations';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { useRoleLabels } from '@/hooks/useRoleLabels';
 import type { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
-
-const roleLabels: Record<AppRole, string> = {
-  admin: 'Admin',
-  editor: 'Editor',
-  captacao: 'Captação',
-  freelancer: 'Freelancer',
-  visualizador: 'Visualizador',
-};
 
 interface PendingInviteRowProps {
   invitation: WorkspaceInvitation;
@@ -44,6 +37,7 @@ interface PendingInviteRowProps {
 export function PendingInviteRow({ invitation, onResend, onCancel }: PendingInviteRowProps) {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { getRoleLabel } = useRoleLabels();
 
   const expiresAt = new Date(invitation.expires_at);
   const isExpired = expiresAt < new Date();
@@ -88,7 +82,7 @@ export function PendingInviteRow({ invitation, onResend, onCancel }: PendingInvi
       </TableCell>
       <TableCell>
         <Badge variant="outline" className="font-normal bg-amber-500/10 text-amber-600 border-amber-500/20">
-          {roleLabels[invitation.role]} (pendente)
+          {getRoleLabel(invitation.role)} (pendente)
         </Badge>
       </TableCell>
       <TableCell className="hidden lg:table-cell">

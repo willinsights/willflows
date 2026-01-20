@@ -30,6 +30,7 @@ import { TeamMemberRow } from '@/components/team/TeamMemberRow';
 import { PendingInviteRow } from '@/components/team/PendingInviteRow';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useWorkspaceInvitations } from '@/hooks/useWorkspaceInvitations';
+import { useRoleLabels, DEFAULT_ROLE_LABELS } from '@/hooks/useRoleLabels';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -37,6 +38,8 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
+
+const ALL_ROLES: AppRole[] = ['admin', 'editor', 'captacao', 'freelancer', 'visualizador'];
 
 export default function Equipa() {
   const { user } = useAuth();
@@ -50,6 +53,7 @@ export default function Equipa() {
     cancelInvitation,
   } = useWorkspaceInvitations();
   const { toast } = useToast();
+  const { getRoleLabel } = useRoleLabels();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
@@ -248,11 +252,11 @@ export default function Equipa() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os roles</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="editor">Editor</SelectItem>
-                  <SelectItem value="captacao">Captação</SelectItem>
-                  <SelectItem value="freelancer">Freelancer</SelectItem>
-                  <SelectItem value="visualizador">Visualizador</SelectItem>
+                  {ALL_ROLES.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {getRoleLabel(role)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

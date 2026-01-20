@@ -2475,6 +2475,38 @@ export type Database = {
           },
         ]
       }
+      workspace_role_labels: {
+        Row: {
+          custom_label: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          custom_label: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          custom_label?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_role_labels_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspace_role_permissions: {
         Row: {
           created_at: string

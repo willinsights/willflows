@@ -32,15 +32,16 @@ import type { WorkspaceMember } from '@/hooks/useWorkspaceMembers';
 import type { Database } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
+import { useRoleLabels } from '@/hooks/useRoleLabels';
 
 type AppRole = Database['public']['Enums']['app_role'];
 
-const roleConfig: Record<AppRole, { label: string; color: string }> = {
-  admin: { label: 'Admin', color: 'bg-primary/10 text-primary border-primary/20' },
-  editor: { label: 'Editor', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20' },
-  captacao: { label: 'Captação', color: 'bg-amber-500/10 text-amber-500 border-amber-500/20' },
-  freelancer: { label: 'Freelancer', color: 'bg-purple-500/10 text-purple-500 border-purple-500/20' },
-  visualizador: { label: 'Visualizador', color: 'bg-muted text-muted-foreground border-border' },
+const roleColors: Record<AppRole, string> = {
+  admin: 'bg-primary/10 text-primary border-primary/20',
+  editor: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+  captacao: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+  freelancer: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
+  visualizador: 'bg-muted text-muted-foreground border-border',
 };
 
 interface TeamMemberRowProps {
@@ -62,8 +63,9 @@ export function TeamMemberRow({
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [loading, setLoading] = useState(false);
   const { canViewTeamContacts } = useFinancialPermissions();
+  const { getRoleLabel } = useRoleLabels();
 
-  const roleInfo = roleConfig[member.role as AppRole] || roleConfig.visualizador;
+  const roleColor = roleColors[member.role as AppRole] || roleColors.visualizador;
 
   const getInitials = (name: string | null, email: string) => {
     if (name) {
@@ -142,16 +144,16 @@ export function TeamMemberRow({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(roleConfig).map(([value, config]) => (
+                {Object.keys(roleColors).map((value) => (
                   <SelectItem key={value} value={value}>
-                    {config.label}
+                    {getRoleLabel(value as AppRole)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           ) : (
-            <Badge variant="outline" className={cn('font-normal', roleInfo.color)}>
-              {roleInfo.label}
+            <Badge variant="outline" className={cn('font-normal', roleColor)}>
+              {getRoleLabel(member.role as AppRole)}
             </Badge>
           )}
         </TableCell>

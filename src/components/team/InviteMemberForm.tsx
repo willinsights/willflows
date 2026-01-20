@@ -12,20 +12,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useWorkspaceInvitations } from '@/hooks/useWorkspaceInvitations';
+import { useRoleLabels, INVITE_ROLES } from '@/hooks/useRoleLabels';
 import { useToast } from '@/hooks/use-toast';
 import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import type { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
-
-// Nota: Admin removido intencionalmente - convidados não podem ser admin
-const roleOptions: { value: AppRole; label: string }[] = [
-  { value: 'editor', label: 'Editor' },
-  { value: 'captacao', label: 'Captação' },
-  { value: 'freelancer', label: 'Freelancer' },
-  { value: 'visualizador', label: 'Visualizador' },
-];
 
 interface InviteMemberFormProps {
   onSuccess?: () => void;
@@ -37,6 +30,7 @@ export function InviteMemberForm({ onSuccess }: InviteMemberFormProps) {
   const [loading, setLoading] = useState(false);
   const [showUpgradeAlert, setShowUpgradeAlert] = useState(false);
   const { createInvitation, userLimits } = useWorkspaceInvitations();
+  const { getRoleLabel } = useRoleLabels();
   const { currentPlan, getFeatureInfo, getUpgradePlan } = usePlanFeatures();
   const { toast } = useToast();
 
@@ -111,9 +105,9 @@ export function InviteMemberForm({ onSuccess }: InviteMemberFormProps) {
               <SelectValue placeholder="Selecionar role" />
             </SelectTrigger>
             <SelectContent>
-              {roleOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
+              {INVITE_ROLES.map((roleValue) => (
+                <SelectItem key={roleValue} value={roleValue}>
+                  {getRoleLabel(roleValue)}
                 </SelectItem>
               ))}
             </SelectContent>

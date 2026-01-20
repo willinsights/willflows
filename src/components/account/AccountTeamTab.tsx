@@ -16,21 +16,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useWorkspaceInvitations } from '@/hooks/useWorkspaceInvitations';
+import { useRoleLabels, INVITE_ROLES, DEFAULT_ROLE_LABELS } from '@/hooks/useRoleLabels';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import type { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
-
-const roles: { id: AppRole; name: string }[] = [
-  { id: 'admin', name: 'Admin' },
-  { id: 'editor', name: 'Editor' },
-  { id: 'captacao', name: 'Captação' },
-  { id: 'freelancer', name: 'Freelancer' },
-  { id: 'visualizador', name: 'Visualizador' },
-];
 
 export function AccountTeamTab() {
   const { user } = useAuth();
@@ -44,6 +36,7 @@ export function AccountTeamTab() {
     cancelInvitation, 
     resendInvitation,
   } = useWorkspaceInvitations();
+  const { getRoleLabel } = useRoleLabels();
   
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<AppRole>('editor');
@@ -134,9 +127,9 @@ export function AccountTeamTab() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {roles.map(role => (
-                  <SelectItem key={role.id} value={role.id}>
-                    {role.name}
+                {INVITE_ROLES.map(role => (
+                  <SelectItem key={role} value={role}>
+                    {getRoleLabel(role)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -179,7 +172,7 @@ export function AccountTeamTab() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Badge variant="outline" className="text-xs">{roles.find(r => r.id === invitation.role)?.name}</Badge>
+                  <Badge variant="outline" className="text-xs">{getRoleLabel(invitation.role)}</Badge>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -241,7 +234,7 @@ export function AccountTeamTab() {
                   </div>
                 </div>
                 <Badge variant="outline" className="text-xs">
-                  {roles.find(r => r.id === member.role)?.name || member.role}
+                  {getRoleLabel(member.role as AppRole)}
                 </Badge>
               </motion.div>
             ))}
