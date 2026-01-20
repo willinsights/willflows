@@ -5,15 +5,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Protected emails that won't be affected
+// Protected emails that won't be affected (only Super Admins)
 const PROTECTED_EMAILS = [
-  'willdesign7@gmail.com',
-  'geral@willflow.app',
-  'moraisdanobrega@gmail.com',
-  'pedro.nobre@phormulagroup.com',
-  'pablosouza7101997@gmail.com',
-  'juniomedialab@gmail.com',
-  'lukasalmeida1500@gmail.com',
+  'geral@willflow.app',      // Super Admin principal - plano Studio permanente
+  'willdesign7@gmail.com',   // Super Admin secundário
 ];
 
 interface PreviewResult {
