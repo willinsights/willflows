@@ -15,11 +15,14 @@ import {
   FlaskConical,
   Crown,
   UserCog,
+  AlertTriangle,
+  Skull,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -76,6 +79,27 @@ interface TestAccountsResponse {
   accounts: TestAccount[];
 }
 
+interface CleanupPreview {
+  usersToKeep: Array<{ id: string; email: string; full_name: string | null }>;
+  usersToDelete: Array<{ id: string; email: string; full_name: string | null }>;
+  workspacesToKeep: Array<{ id: string; name: string; slug: string }>;
+  workspacesToDelete: Array<{ id: string; name: string; slug: string }>;
+  countsToDelete: {
+    waitlist: number;
+    betaTokens: number;
+    invitations: number;
+  };
+}
+
+interface CleanupResults {
+  deletedUsers: number;
+  deletedWorkspaces: number;
+  deletedWaitlist: number;
+  deletedBetaTokens: number;
+  deletedInvitations: number;
+  errors: string[];
+}
+
 export function TestAccountsTab() {
   const { toast } = useToast();
   const [accounts, setAccounts] = useState<TestAccount[]>([]);
@@ -87,6 +111,13 @@ export function TestAccountsTab() {
   const [newCredentials, setNewCredentials] = useState<TestAccount[]>([]);
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
+  
+  // Cleanup state
+  const [cleanupPreview, setCleanupPreview] = useState<CleanupPreview | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [cleanupDialogOpen, setCleanupDialogOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [executingCleanup, setExecutingCleanup] = useState(false);
 
   useEffect(() => {
     fetchAccounts();
@@ -231,6 +262,63 @@ export function TestAccountsTab() {
       });
     } finally {
       setDeleting(false);
+    }
+  };
+
+  // Cleanup functions
+  const loadCleanupPreview = async () => {
+    setLoadingPreview(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('cleanup-users', {
+        body: { action: 'preview' },
+      });
+
+      if (error) throw error;
+      setCleanupPreview(data as CleanupPreview);
+      setCleanupDialogOpen(true);
+    } catch (error: any) {
+      console.error('Error loading cleanup preview:', error);
+      toast({
+        title: 'Erro ao carregar preview',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const executeCleanup = async () => {
+    if (confirmText !== 'LIMPAR') return;
+    
+    setExecutingCleanup(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('cleanup-users', {
+        body: { action: 'execute' },
+      });
+
+      if (error) throw error;
+
+      const results = data.results as CleanupResults;
+      
+      toast({
+        title: 'Limpeza concluída!',
+        description: `Eliminados: ${results.deletedUsers} utilizadores, ${results.deletedWorkspaces} workspaces`,
+      });
+      
+      setCleanupDialogOpen(false);
+      setConfirmText('');
+      setCleanupPreview(null);
+      await fetchAccounts();
+    } catch (error: any) {
+      console.error('Error executing cleanup:', error);
+      toast({
+        title: 'Erro na limpeza',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setExecutingCleanup(false);
     }
   };
 
@@ -511,6 +599,188 @@ export function TestAccountsTab() {
               </div>
             ))}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cleanup Section */}
+      <Card className="border-destructive/30">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <Skull className="h-5 w-5" />
+                Limpeza de Dados
+              </CardTitle>
+              <CardDescription>
+                Eliminar todos os utilizadores e workspaces excepto contas de teste e super admin
+              </CardDescription>
+            </div>
+            <Button
+              variant="destructive"
+              onClick={loadCleanupPreview}
+              disabled={loadingPreview}
+            >
+              {loadingPreview ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  A carregar...
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  Limpar Base de Dados
+                </>
+              )}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-xs text-muted-foreground space-y-1 p-3 bg-destructive/5 rounded-lg border border-destructive/20">
+            <p><strong>⚠️ ATENÇÃO:</strong> Esta acção é irreversível!</p>
+            <p><strong>Mantidos:</strong> willdesign7@gmail.com + 6 contas de teste</p>
+            <p><strong>Eliminados:</strong> Todos os outros utilizadores, workspaces e dados associados</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Cleanup Dialog */}
+      <Dialog open={cleanupDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setConfirmText('');
+        }
+        setCleanupDialogOpen(open);
+      }}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Confirmar Limpeza de Dados
+            </DialogTitle>
+            <DialogDescription>
+              Esta acção eliminará permanentemente os seguintes dados:
+            </DialogDescription>
+          </DialogHeader>
+          
+          {cleanupPreview && (
+            <div className="space-y-4 mt-4">
+              {/* Users to Delete */}
+              <div className="space-y-2">
+                <h4 className="font-medium text-destructive">
+                  Utilizadores a Eliminar ({cleanupPreview.usersToDelete.length})
+                </h4>
+                <div className="max-h-32 overflow-y-auto border rounded-lg p-2 bg-destructive/5">
+                  {cleanupPreview.usersToDelete.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum utilizador a eliminar</p>
+                  ) : (
+                    <ul className="text-sm space-y-1">
+                      {cleanupPreview.usersToDelete.map(u => (
+                        <li key={u.id} className="flex items-center gap-2">
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                          {u.email} {u.full_name && `(${u.full_name})`}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+
+              {/* Users to Keep */}
+              <div className="space-y-2">
+                <h4 className="font-medium text-green-600">
+                  Utilizadores a Manter ({cleanupPreview.usersToKeep.length})
+                </h4>
+                <div className="max-h-32 overflow-y-auto border rounded-lg p-2 bg-green-500/5">
+                  <ul className="text-sm space-y-1">
+                    {cleanupPreview.usersToKeep.map(u => (
+                      <li key={u.id} className="flex items-center gap-2">
+                        <Check className="h-3 w-3 text-green-600" />
+                        {u.email}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Workspaces to Delete */}
+              <div className="space-y-2">
+                <h4 className="font-medium text-destructive">
+                  Workspaces a Eliminar ({cleanupPreview.workspacesToDelete.length})
+                </h4>
+                <div className="max-h-32 overflow-y-auto border rounded-lg p-2 bg-destructive/5">
+                  {cleanupPreview.workspacesToDelete.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum workspace a eliminar</p>
+                  ) : (
+                    <ul className="text-sm space-y-1">
+                      {cleanupPreview.workspacesToDelete.map(w => (
+                        <li key={w.id} className="flex items-center gap-2">
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                          {w.name} ({w.slug})
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+
+              {/* Other data */}
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div className="p-3 bg-muted/50 rounded-lg text-center">
+                  <div className="text-2xl font-bold">{cleanupPreview.countsToDelete.waitlist}</div>
+                  <div className="text-muted-foreground">Waitlist</div>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg text-center">
+                  <div className="text-2xl font-bold">{cleanupPreview.countsToDelete.betaTokens}</div>
+                  <div className="text-muted-foreground">Beta Tokens</div>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg text-center">
+                  <div className="text-2xl font-bold">{cleanupPreview.countsToDelete.invitations}</div>
+                  <div className="text-muted-foreground">Convites</div>
+                </div>
+              </div>
+
+              {/* Confirmation */}
+              <div className="space-y-2 pt-4 border-t">
+                <Label htmlFor="confirmText" className="text-sm font-medium">
+                  Para confirmar, escreva <code className="bg-destructive/20 px-1 rounded">LIMPAR</code>:
+                </Label>
+                <Input
+                  id="confirmText"
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
+                  placeholder="Escreva LIMPAR"
+                  className="font-mono"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setCleanupDialogOpen(false)}
+                  disabled={executingCleanup}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={executeCleanup}
+                  disabled={confirmText !== 'LIMPAR' || executingCleanup}
+                >
+                  {executingCleanup ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      A limpar...
+                    </>
+                  ) : (
+                    <>
+                      <Skull className="h-4 w-4 mr-2" />
+                      Confirmar Limpeza
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </motion.div>
