@@ -13,7 +13,9 @@ import {
   Crown,
   Building2,
   Mail,
-  AlertCircle
+  AlertCircle,
+  RefreshCw,
+  Upload
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,8 +29,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useUsersSummary } from '@/hooks/useUsersSummary';
+import { useUsersSummary, type PendingInvite } from '@/hooks/useUsersSummary';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { ImportContactsModal } from './ImportContactsModal';
 
 const KPICard = ({ 
   title, 
@@ -94,8 +98,36 @@ const FunnelStep = ({
 );
 
 export function UsersSummaryTab() {
-  const { data: summary, isLoading, error } = useUsersSummary();
+  const { data: summary, isLoading, error, resendInvitation, bulkImportInvitations } = useUsersSummary();
+  const { toast } = useToast();
   const [activeTable, setActiveTable] = useState('owners');
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+
+  const handleResendInvite = async (invite: PendingInvite) => {
+    setResendingId(invite.id);
+    
+    const result = await resendInvitation(invite);
+    
+    if (result.success) {
+      toast({
+        title: 'Convite reenviado',
+        description: `Email enviado para ${invite.email}`,
+      });
+    } else {
+      toast({
+        title: 'Erro ao reenviar',
+        description: result.error || 'Tente novamente',
+        variant: 'destructive',
+      });
+    }
+    
+    setResendingId(null);
+  };
+
+  const handleBulkImport = async (emails: string[], workspaceId: string, role: string) => {
+    return await bulkImportInvitations(emails, workspaceId, role);
+  };
 
   const exportToCSV = (type: string) => {
     if (!summary) return;
@@ -382,7 +414,11 @@ export function UsersSummaryTab() {
 
               {/* Pending Invites Table */}
               <TabsContent value="invites" className="mt-0">
-                <div className="flex justify-end mb-4">
+                <div className="flex justify-between mb-4">
+                  <Button onClick={() => setShowImportModal(true)}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Importar Contactos
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => exportToCSV('invites')}>
                     <Download className="h-4 w-4 mr-2" />
                     Exportar CSV
@@ -398,12 +434,13 @@ export function UsersSummaryTab() {
                         <TableHead>Convidado por</TableHead>
                         <TableHead>Data</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Acções</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {summary.pendingInvites.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          <TableCell colSpan={7} className="text-center text-muted-foreground">
                             Nenhum convite pendente
                           </TableCell>
                         </TableRow>
@@ -430,6 +467,21 @@ export function UsersSummaryTab() {
                               <Badge variant={invite.isExpired ? 'destructive' : 'secondary'}>
                                 {invite.isExpired ? 'Expirado' : 'Pendente'}
                               </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleResendInvite(invite)}
+                                disabled={resendingId === invite.id}
+                              >
+                                {resendingId === invite.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="h-4 w-4" />
+                                )}
+                                <span className="ml-2">Reenviar</span>
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))
@@ -494,6 +546,14 @@ export function UsersSummaryTab() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Import Contacts Modal */}
+      <ImportContactsModal
+        open={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        workspaces={summary.allWorkspaces}
+        onImport={handleBulkImport}
+      />
     </div>
   );
 }
