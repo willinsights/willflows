@@ -72,3 +72,6 @@ verify_jwt = false
 
 [functions.cleanup-users]
 verify_jwt = false
+
+[functions.reset-billing-data]
+verify_jwt = false

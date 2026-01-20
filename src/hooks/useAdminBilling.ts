@@ -1,9 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSuperAdmin } from './useSuperAdmin';
 import { useAdminAudit } from './useAdminAudit';
 import { useToast } from './use-toast';
 
+export interface BillingResetPreview {
+  subscriptionsToReset: number;
+  protectedSubscriptions: number;
+  invoicesToDelete: number;
+  webhookLogsToDelete: number;
+  protectedEmails: string[];
+}
+
+export interface BillingResetResult {
+  subscriptionsReset: number;
+  invoicesDeleted: number;
+  webhookLogsDeleted: number;
+  success: boolean;
+}
 export interface Subscription {
   id: string;
   user_id: string;
@@ -232,6 +247,88 @@ export function useAdminBilling() {
     canceledCount: subscriptions.filter(s => s.subscription_status === 'canceled').length,
   };
 
+  // Reset billing preview
+  const [resetPreview, setResetPreview] = useState<BillingResetPreview | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+
+  const fetchResetPreview = async () => {
+    setIsLoadingPreview(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.access_token) throw new Error('Not authenticated');
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/reset-billing-data`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.session.access_token}`,
+          },
+          body: JSON.stringify({ action: 'preview' }),
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to fetch preview');
+      
+      setResetPreview(result.preview);
+      return result.preview;
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar a pré-visualização.',
+        variant: 'destructive',
+      });
+      throw error;
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  };
+
+  // Execute reset
+  const executeReset = useMutation({
+    mutationFn: async (): Promise<BillingResetResult> => {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.access_token) throw new Error('Not authenticated');
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/reset-billing-data`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.session.access_token}`,
+          },
+          body: JSON.stringify({ action: 'execute' }),
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to execute reset');
+      
+      return result;
+    },
+    onSuccess: (result) => {
+      toast({
+        title: 'Reset concluído',
+        description: `${result.subscriptionsReset} subscrições resetadas, ${result.invoicesDeleted} invoices apagadas.`,
+      });
+      setResetPreview(null);
+      queryClient.invalidateQueries({ queryKey: ['admin-subscriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-webhook-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dunning'] });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Erro',
+        description: error instanceof Error ? error.message : 'Não foi possível executar o reset.',
+        variant: 'destructive',
+      });
+    },
+  });
+
   return {
     subscriptions,
     invoices,
@@ -241,5 +338,11 @@ export function useAdminBilling() {
     isLoading: subscriptionsLoading || invoicesLoading || dunningLoading || webhooksLoading,
     cancelSubscription: cancelSubscription.mutate,
     isCanceling: cancelSubscription.isPending,
+    // Reset billing
+    resetPreview,
+    isLoadingPreview,
+    fetchResetPreview,
+    executeReset: executeReset.mutate,
+    isResetting: executeReset.isPending,
   };
 }

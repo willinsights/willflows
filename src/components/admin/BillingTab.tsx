@@ -14,10 +14,13 @@ import {
   Clock,
   RefreshCw,
   Download,
+  Trash2,
+  ShieldAlert,
+  Loader2,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -36,6 +39,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useAdminBilling, Subscription, Invoice, WebhookLog } from '@/hooks/useAdminBilling';
 
 export function BillingTab() {
@@ -59,6 +72,10 @@ export function BillingTab() {
             <Webhook className="h-4 w-4" />
             Webhooks
           </TabsTrigger>
+          <TabsTrigger value="reset" className="gap-2 text-destructive">
+            <Trash2 className="h-4 w-4" />
+            Reset
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="subscriptions">
@@ -72,6 +89,9 @@ export function BillingTab() {
         </TabsContent>
         <TabsContent value="webhooks">
           <WebhooksSubTab />
+        </TabsContent>
+        <TabsContent value="reset">
+          <ResetBillingSubTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -595,6 +615,177 @@ function WebhooksSubTab() {
           </Table>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function ResetBillingSubTab() {
+  const [confirmInput, setConfirmInput] = useState('');
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const { 
+    resetPreview, 
+    isLoadingPreview, 
+    fetchResetPreview, 
+    executeReset, 
+    isResetting 
+  } = useAdminBilling();
+
+  const handlePreview = async () => {
+    await fetchResetPreview();
+  };
+
+  const handleReset = () => {
+    if (confirmInput === 'RESET') {
+      executeReset();
+      setShowConfirmDialog(false);
+      setConfirmInput('');
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card className="border-destructive/50">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="h-5 w-5 text-destructive" />
+            <CardTitle className="text-destructive">Reset Dados de Billing</CardTitle>
+          </div>
+          <CardDescription>
+            Esta ação irá limpar todos os dados de teste de billing mantendo as contas protegidas intactas.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-lg bg-muted p-4 space-y-2 text-sm">
+            <p className="font-medium">Esta ação irá:</p>
+            <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+              <li>Apagar <strong>todos os invoices</strong> da base de dados</li>
+              <li>Apagar <strong>todos os webhook logs</strong> da base de dados</li>
+              <li>Reset subscrições não-protegidas para <strong>trial de 30 dias</strong></li>
+              <li>Limpar IDs do Stripe (stripe_customer_id, stripe_subscription_id)</li>
+            </ul>
+          </div>
+
+          <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-4 space-y-2 text-sm">
+            <p className="font-medium flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              Contas Protegidas (não serão afetadas):
+            </p>
+            <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+              <li>willdesign7@gmail.com (Super Admin)</li>
+              <li>geral@willflow.app</li>
+              <li>moraisdanobrega@gmail.com</li>
+              <li>pedro.nobre@phormulagroup.com</li>
+              <li>pablosouza7101997@gmail.com</li>
+              <li>juniomedialab@gmail.com</li>
+              <li>lukasalmeida1500@gmail.com</li>
+              <li>Contas de teste (*@test.willflow.local)</li>
+            </ul>
+          </div>
+
+          <Button 
+            onClick={handlePreview} 
+            variant="outline" 
+            disabled={isLoadingPreview}
+            className="w-full"
+          >
+            {isLoadingPreview ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                A carregar...
+              </>
+            ) : (
+              <>
+                <Search className="mr-2 h-4 w-4" />
+                Pré-visualizar alterações
+              </>
+            )}
+          </Button>
+
+          {resetPreview && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Pré-visualização do Reset</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 rounded-lg bg-muted">
+                    <p className="text-2xl font-bold text-destructive">{resetPreview.subscriptionsToReset}</p>
+                    <p className="text-xs text-muted-foreground">Subscrições a resetar</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted">
+                    <p className="text-2xl font-bold text-emerald-500">{resetPreview.protectedSubscriptions}</p>
+                    <p className="text-xs text-muted-foreground">Subscrições protegidas</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted">
+                    <p className="text-2xl font-bold">{resetPreview.invoicesToDelete}</p>
+                    <p className="text-xs text-muted-foreground">Invoices a apagar</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted">
+                    <p className="text-2xl font-bold">{resetPreview.webhookLogsToDelete}</p>
+                    <p className="text-xs text-muted-foreground">Webhook logs a apagar</p>
+                  </div>
+                </div>
+
+                <Button 
+                  onClick={() => setShowConfirmDialog(true)}
+                  variant="destructive" 
+                  className="w-full mt-4"
+                  disabled={resetPreview.subscriptionsToReset === 0 && resetPreview.invoicesToDelete === 0 && resetPreview.webhookLogsToDelete === 0}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Executar Reset
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <ShieldAlert className="h-5 w-5" />
+              Confirmar Reset de Billing
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
+              <p>
+                Esta ação é <strong>irreversível</strong>. Tens a certeza que queres continuar?
+              </p>
+              <div className="space-y-2">
+                <p className="text-sm font-medium">
+                  Escreve <strong>RESET</strong> para confirmar:
+                </p>
+                <Input
+                  value={confirmInput}
+                  onChange={(e) => setConfirmInput(e.target.value)}
+                  placeholder="RESET"
+                  className="font-mono"
+                />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmInput('')}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleReset}
+              disabled={confirmInput !== 'RESET' || isResetting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isResetting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  A executar...
+                </>
+              ) : (
+                'Confirmar Reset'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
