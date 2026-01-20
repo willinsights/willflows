@@ -76,12 +76,14 @@ const LAST_WORKSPACE_KEY = 'willflow_last_workspace_id';
 const SWITCH_HANDOFF_KEY = 'willflow_workspace_switch_to';
 const FETCH_COOLDOWN_MS = 30000;
 const MAX_RETRIES = 3;
+const CACHE_VALID_MS = 1000 * 60 * 5; // Cache válido por 5 minutos - evita re-fetches ao navegar
 
 interface CachedWorkspaceData {
   userId: string;
   workspace: Workspace;
   membership: WorkspaceMember;
   allWorkspaces: WorkspaceWithRole[];
+  cachedAt: number; // Timestamp para validar se cache ainda é recente
 }
 
 function getCachedWorkspace(): CachedWorkspaceData | null {
@@ -96,9 +98,21 @@ function getCachedWorkspace(): CachedWorkspaceData | null {
   return null;
 }
 
+function isCacheValid(cached: CachedWorkspaceData | null): boolean {
+  if (!cached || !cached.cachedAt) return false;
+  const age = Date.now() - cached.cachedAt;
+  return age < CACHE_VALID_MS;
+}
+
 function setCachedWorkspace(userId: string, workspace: Workspace, membership: WorkspaceMember, allWorkspaces: WorkspaceWithRole[]) {
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ userId, workspace, membership, allWorkspaces }));
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ 
+      userId, 
+      workspace, 
+      membership, 
+      allWorkspaces,
+      cachedAt: Date.now() // Adicionar timestamp
+    }));
   } catch {
     // Ignore cache errors
   }
@@ -441,21 +455,27 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (user) {
       // Try to use cache first for faster initial load
       const cached = getCachedWorkspace();
+      const cacheIsValid = cached && cached.userId === user.id && isCacheValid(cached);
       
       // Only use cache if it belongs to the current user
-      if (cached && cached.userId === user.id && !hasFetchedRef.current) {
+      if (cached && cached.userId === user.id) {
         setWorkspace(cached.workspace);
         setMembership(cached.membership);
         setAllWorkspaces(cached.allWorkspaces || []);
         setLoading(false);
+        
+        // Se o cache é válido e recente, marcar como já fetched para evitar re-fetch
+        if (cacheIsValid && !hasFetchedRef.current) {
+          hasFetchedRef.current = true;
+        }
       } else if (cached && cached.userId !== user.id) {
         // Different user - clear the stale cache
         clearCachedWorkspace();
         localStorage.removeItem(LAST_WORKSPACE_KEY);
       }
       
-      // Only fetch if we haven't fetched yet for this user
-      if (!hasFetchedRef.current) {
+      // Fetch se: não temos cache válido OU cache expirou
+      if (!hasFetchedRef.current && !cacheIsValid) {
         refreshWorkspace();
       }
     } else {
