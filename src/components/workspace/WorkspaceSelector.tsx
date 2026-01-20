@@ -335,6 +335,7 @@ export function WorkspaceSelector() {
           workspaceId={workspaceToLeave.id}
           workspaceName={workspaceToLeave.name}
           onSuccess={handleLeaveSuccess}
+          isLastWorkspace={allWorkspaces.length === 1}
         />
       )}
     </>
