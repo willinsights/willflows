@@ -39,10 +39,16 @@ export function useConversations() {
 
       const { data: memberConversations } = await supabase
         .from('conversation_members')
-        .select('conversation_id')
+        .select('conversation_id, last_read_at')
         .eq('user_id', user.id);
 
       const conversationIds = memberConversations?.map(m => m.conversation_id) || [];
+      
+      // Map last_read_at by conversation_id for unread calculation
+      const lastReadMap: Record<string, string | null> = {};
+      (memberConversations || []).forEach(m => {
+        lastReadMap[m.conversation_id] = m.last_read_at;
+      });
 
       const { data, error: convError } = await supabase
         .from('conversations')
@@ -128,6 +134,35 @@ export function useConversations() {
         }
       }
 
+      // Fetch all messages for unread count calculation (messages from others)
+      const { data: allMessages } = await supabase
+        .from('messages')
+        .select('conversation_id, created_at, user_id')
+        .in('conversation_id', convIds)
+        .is('parent_message_id', null)
+        .eq('is_deleted', false)
+        .neq('user_id', user.id);
+
+      // Calculate unread counts for each conversation
+      const unreadCountMap: Record<string, number> = {};
+      for (const conv of filtered) {
+        const lastReadAt = lastReadMap[conv.id];
+        if (lastReadAt) {
+          // Count messages after last_read_at
+          const unreadMsgs = (allMessages || []).filter(
+            m => m.conversation_id === conv.id && 
+                 new Date(m.created_at) > new Date(lastReadAt)
+          );
+          unreadCountMap[conv.id] = unreadMsgs.length;
+        } else {
+          // If never read, count all messages not from current user
+          const unreadMsgs = (allMessages || []).filter(
+            m => m.conversation_id === conv.id
+          );
+          unreadCountMap[conv.id] = unreadMsgs.length;
+        }
+      }
+
       return filtered.map((c: any) => {
         const lastMsg = lastMessageMap[c.id];
         const dmParticipant = c.type === 'dm' ? dmParticipantsMap[c.id] : null;
@@ -149,6 +184,7 @@ export function useConversations() {
             user_name: lastMsg.user_name || 'Participante',
           } : null,
           dmParticipant,
+          unread_count: unreadCountMap[c.id] || 0,
         } as Conversation;
       });
     },
