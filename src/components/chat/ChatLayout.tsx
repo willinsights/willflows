@@ -6,22 +6,30 @@ import { ChatContextPanel } from './ChatContextPanel';
 import { FollowUpInbox } from './FollowUpInbox';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Info, Inbox, MessageCircle, Hash, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Info, Inbox, MessageCircle, MessageSquare, Volume2, VolumeX } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { EmptyState } from '@/components/ui/empty-state';
-
+import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 interface ChatLayoutProps {
   selectedConversationId?: string;
 }
 
 export function ChatLayout({ selectedConversationId }: ChatLayoutProps) {
   const isMobile = useIsMobile();
+  const { preferences, updatePreferences, loading: prefsLoading } = usePushNotifications();
   const [activeConversationId, setActiveConversationId] = useState<string | null>(
     selectedConversationId || null
   );
   const [showContextPanel, setShowContextPanel] = useState(!isMobile);
   const [showFollowUpInbox, setShowFollowUpInbox] = useState(false);
   const [mobileView, setMobileView] = useState<'sidebar' | 'chat'>('sidebar');
+
+  const isMuted = preferences?.sound_enabled === false;
+
+  const toggleMute = () => {
+    updatePreferences({ sound_enabled: !isMuted ? false : true });
+  };
 
   const handleSelectConversation = (conversationId: string) => {
     setActiveConversationId(conversationId);
@@ -64,13 +72,18 @@ export function ChatLayout({ selectedConversationId }: ChatLayoutProps) {
                 <MessageCircle className="h-5 w-5 text-primary" />
                 <h1 className="text-lg font-semibold">Chat</h1>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowFollowUpInbox(true)}
-              >
-                <Inbox className="h-5 w-5" />
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" onClick={toggleMute}>
+                  {isMuted ? <VolumeX className="h-5 w-5 text-muted-foreground" /> : <Volume2 className="h-5 w-5" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowFollowUpInbox(true)}
+                >
+                  <Inbox className="h-5 w-5" />
+                </Button>
+              </div>
             </>
           )}
         </div>
@@ -107,6 +120,19 @@ export function ChatLayout({ selectedConversationId }: ChatLayoutProps) {
             <MessageCircle className="h-5 w-5 text-primary" />
             <h1 className="font-semibold">Chat</h1>
           </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleMute}
+                className={cn('h-8 w-8 transition-colors', isMuted && 'text-muted-foreground')}
+              >
+                {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{isMuted ? 'Ativar som' : 'Silenciar'}</TooltipContent>
+          </Tooltip>
           <Button
             variant="ghost"
             size="icon"

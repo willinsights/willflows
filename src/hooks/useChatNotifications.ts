@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePushNotifications } from './usePushNotifications';
+import { toast } from 'sonner';
 
 export function useChatNotifications() {
   const { user } = useAuth();
@@ -39,9 +40,6 @@ export function useChatNotifications() {
     const shouldPlaySound = preferences?.sound_enabled !== false;
     const shouldNotify = preferences?.push_enabled && preferences?.messages_enabled !== false && permission === 'granted';
     
-    // Don't subscribe if nothing is enabled
-    if (!shouldPlaySound && !shouldNotify) return;
-
     // Subscribe to new messages via Realtime
     const channel = supabase
       .channel('chat-notifications')
@@ -75,22 +73,34 @@ export function useChatNotifications() {
           if (lastNotifiedRef.current === newMessage.id) return;
           lastNotifiedRef.current = newMessage.id;
           
+          // Fetch sender name
+          const { data: sender } = await supabase
+            .from('profiles')
+            .select('full_name, email')
+            .eq('id', newMessage.user_id)
+            .single();
+          
+          const senderName = sender?.full_name || sender?.email?.split('@')[0] || 'Alguém';
+          
           // Play sound if enabled (independent of push notification permission)
           if (shouldPlaySound) {
             playSound();
           }
           
+          // Show visual toast notification (always show for better UX)
+          toast(`💬 ${senderName}`, {
+            description: newMessage.body?.slice(0, 80) || 'Nova mensagem',
+            action: {
+              label: 'Ver',
+              onClick: () => {
+                window.location.href = `/app/chat?c=${newMessage.conversation_id}`;
+              },
+            },
+            duration: 5000,
+          });
+          
           // Send push notification if permission granted and enabled
           if (shouldNotify) {
-            // Fetch sender name
-            const { data: sender } = await supabase
-              .from('profiles')
-              .select('full_name, email')
-              .eq('id', newMessage.user_id)
-              .single();
-            
-            const senderName = sender?.full_name || sender?.email?.split('@')[0] || 'Alguém';
-            
             sendLocalNotification(`Nova mensagem de ${senderName}`, {
               body: newMessage.body?.slice(0, 100) || 'Nova mensagem',
               tag: 'chat-message',
