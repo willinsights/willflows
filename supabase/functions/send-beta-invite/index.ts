@@ -83,7 +83,7 @@ const handler = async (req: Request): Promise<Response> => {
     const displayName = name || email.split('@')[0];
 
     const emailResponse = await resend.emails.send({
-      from: "Willflow <hello@willflow.pt>",
+      from: "WillFlow <noreply@willflow.app>",
       to: [email],
       subject: `🎉 Convite Exclusivo: ${freeDays} dias grátis no Willflow!`,
       html: `
