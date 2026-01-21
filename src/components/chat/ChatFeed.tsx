@@ -50,6 +50,7 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
   const [showSearchBar, setShowSearchBar] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const conversation = conversations.find((c) => c.id === conversationId);
 
@@ -99,17 +100,31 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
       }));
   }, [workspaceMembers]);
 
+  // Mark conversation as read when opened
+  useEffect(() => {
+    if (!conversationId || !user?.id) return;
+    
+    // Update last_read_at in conversation_members
+    const markConversationAsRead = async () => {
+      await supabase
+        .from('conversation_members')
+        .update({ last_read_at: new Date().toISOString() })
+        .eq('conversation_id', conversationId)
+        .eq('user_id', user.id);
+    };
+    
+    markConversationAsRead();
+  }, [conversationId, user?.id]);
+
   // Auto-scroll to bottom on initial load and new messages
   useEffect(() => {
-    if (scrollRef.current && messages.length > 0) {
-      // Use setTimeout to ensure DOM is fully rendered
+    if (messagesEndRef.current && messages.length > 0) {
+      // Use setTimeout to ensure DOM is fully rendered, then scroll to anchor
       setTimeout(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-      }, 50);
+        messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+      }, 100);
     }
-  }, [messages.length]);
+  }, [messages.length, conversationId]);
 
   // Check scroll position for FAB
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -119,12 +134,7 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
   };
 
   const scrollToBottom = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: 'smooth'
-      });
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   };
 
   const getConversationIcon = () => {
@@ -383,6 +393,8 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
                     ))}
                   </div>
                 ))}
+                {/* Scroll anchor at the end of messages */}
+                <div ref={messagesEndRef} />
               </div>
             )}
           </ScrollArea>
