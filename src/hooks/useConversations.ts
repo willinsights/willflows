@@ -90,7 +90,7 @@ export function useConversations() {
           const profile = messageProfilesMap[msg.user_id];
           lastMessageMap[msg.conversation_id] = {
             ...msg,
-            user_name: profile?.full_name || profile?.email?.split('@')[0] || 'Anónimo'
+            user_name: profile?.full_name || 'Utilizador'
           };
         }
       });
@@ -135,10 +135,7 @@ export function useConversations() {
         // Para DMs, usar nome do participante ou email como fallback garantido
         let displayName: string | null = c.name;
         if (c.type === 'dm') {
-          displayName = dmParticipant?.full_name 
-            || dmParticipant?.email?.split('@')[0] 
-            || dmParticipant?.email
-            || 'Desconhecido';
+          displayName = dmParticipant?.full_name || 'Utilizador';
         } else if (c.type === 'project' && c.project?.name) {
           displayName = c.project.name;
         }

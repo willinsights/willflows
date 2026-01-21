@@ -29,6 +29,8 @@ export interface Message {
   user?: { full_name: string | null; avatar_url: string | null; email: string } | null;
   reactions?: { emoji: string; count: number; users: string[]; reacted_by_me: boolean }[];
   attachments?: MessageAttachment[];
+  read_by?: { user_id: string; read_at: string }[];
+  reply_to?: { id: string; body: string; user_name: string } | null;
 }
 
 const PAGE_SIZE = 50;
@@ -108,6 +110,21 @@ export function useMessages(conversationId: string | undefined) {
     enabled: messageIds.length > 0,
   });
 
+  // Fetch read receipts for all messages
+  const { data: readsData } = useQuery({
+    queryKey: ['message-reads', conversationId, messageIds.length],
+    queryFn: async () => {
+      if (messageIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from('message_reads')
+        .select('*')
+        .in('message_id', messageIds);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: messageIds.length > 0,
+  });
+
   const messages: Message[] = (data?.pages.flatMap(page => page.messages).reverse() || []).map(m => {
     // Group reactions by emoji
     const msgReactions = (reactionsData || []).filter(r => r.message_id === m.id);
@@ -123,25 +140,46 @@ export function useMessages(conversationId: string | undefined) {
       return acc;
     }, {} as Record<string, { emoji: string; count: number; users: string[]; reacted_by_me: boolean }>);
 
+    // Get read receipts for this message
+    const msgReads = (readsData || [])
+      .filter(r => r.message_id === m.id)
+      .map(r => ({ user_id: r.user_id, read_at: r.read_at }));
+
+    // Extract reply_to from metadata
+    const metadataObj = m.metadata as Record<string, any> | null;
+    const replyTo = metadataObj?.reply_to as { id: string; body: string; user_name: string } | null;
+
     return {
       ...m,
       metadata: m.metadata as Record<string, any> | null,
       reactions: Object.values(reactionGroups),
       attachments: m.attachments || [],
+      read_by: msgReads,
+      reply_to: replyTo,
     };
   });
 
   const sendMessage = useMutation({
-    mutationFn: async ({ body, parentMessageId, attachments, mentionedUserIds }: { body: string; parentMessageId?: string; attachments?: File[]; mentionedUserIds?: string[] }) => {
+    mutationFn: async ({ body, parentMessageId, attachments, mentionedUserIds, replyTo }: { 
+      body: string; 
+      parentMessageId?: string; 
+      attachments?: File[]; 
+      mentionedUserIds?: string[];
+      replyTo?: { id: string; body: string; user_name: string } | null;
+    }) => {
       console.log('[ChatDebug] Starting sendMessage:', { 
         body: body.substring(0, 50), 
         attachmentsCount: attachments?.length || 0, 
         mentionedUserIds,
         conversationId,
-        userId: user?.id
+        userId: user?.id,
+        hasReplyTo: !!replyTo
       });
 
       if (!conversationId || !user?.id) throw new Error('Conversa ou utilizador não encontrado');
+
+      // Build metadata with reply_to if present
+      const metadata = replyTo ? { reply_to: replyTo } : null;
 
       const { data, error } = await supabase
         .from('messages')
@@ -150,6 +188,7 @@ export function useMessages(conversationId: string | undefined) {
           user_id: user.id,
           body,
           parent_message_id: parentMessageId || null,
+          metadata,
         })
         .select()
         .single();
@@ -266,6 +305,21 @@ export function useMessages(conversationId: string | undefined) {
     queryClient.invalidateQueries({ queryKey: ['message-reactions', conversationId] });
   }, [user?.id, conversationId, queryClient]);
 
+  // Mark message as read
+  const markAsRead = useCallback(async (messageId: string) => {
+    if (!user?.id) return;
+    
+    // Use upsert to avoid duplicates
+    await supabase
+      .from('message_reads')
+      .upsert(
+        { message_id: messageId, user_id: user.id },
+        { onConflict: 'message_id,user_id', ignoreDuplicates: true }
+      );
+    
+    queryClient.invalidateQueries({ queryKey: ['message-reads', conversationId] });
+  }, [user?.id, conversationId, queryClient]);
+
   // Update message (edit within 15 seconds)
   const updateMessage = useMutation({
     mutationFn: async ({ messageId, body }: { messageId: string; body: string }) => {
@@ -318,7 +372,7 @@ export function useMessages(conversationId: string | undefined) {
     return () => { supabase.removeChannel(channel); };
   }, [conversationId, queryClient]);
 
-  return { messages, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage, sendMessage, updateMessage, toggleReaction, replyingTo, setReplyingTo };
+  return { messages, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage, sendMessage, updateMessage, toggleReaction, markAsRead, replyingTo, setReplyingTo };
 }
 
 export function useThreadMessages(parentMessageId: string | undefined) {
