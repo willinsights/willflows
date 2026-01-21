@@ -34,19 +34,49 @@ export default function Blog() {
     }
   };
 
+  // Generate ItemList Schema for blog listing
+  const generateBlogListSchema = () => ({
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "Blog WillFlow",
+    "description": "Novidades, tutoriais, comparações e dicas para otimizar a gestão do seu estúdio de produção audiovisual.",
+    "url": "https://willflow.app/blog",
+    "mainEntity": {
+      "@type": "ItemList",
+      "numberOfItems": posts.length,
+      "itemListElement": posts.slice(0, 20).map((post, index) => ({
+        "@type": "ListItem",
+        "position": index + 1,
+        "item": {
+          "@type": "BlogPosting",
+          "headline": post.title,
+          "url": `https://willflow.app/blog/${post.slug}`,
+          "image": post.cover_image || "https://willflow.app/logo-willflow-purple.png",
+          "datePublished": post.published_at,
+          "description": post.excerpt
+        }
+      }))
+    }
+  });
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Helmet>
         <title>Blog | WillFlow - Dicas de Gestão para Produtores</title>
         <meta name="description" content="Novidades, tutoriais, comparações e dicas para otimizar a gestão do seu estúdio de produção audiovisual. Artigos sobre fotografia, vídeo e gestão de negócios." />
-        <link rel="canonical" href="https://willflows.lovable.app/blog" />
+        <link rel="canonical" href="https://willflow.app/blog" />
         <link rel="alternate" type="application/rss+xml" title="WillFlow Blog RSS" href="https://wppfmyseeigsdqutkgyc.supabase.co/functions/v1/blog-rss" />
         <meta property="og:title" content="Blog | WillFlow - Dicas de Gestão para Produtores" />
         <meta property="og:description" content="Novidades, tutoriais, comparações e dicas para otimizar a gestão do seu estúdio de produção audiovisual." />
-        <meta property="og:url" content="https://willflows.lovable.app/blog" />
+        <meta property="og:url" content="https://willflow.app/blog" />
         <meta property="og:type" content="website" />
         <meta name="twitter:title" content="Blog | WillFlow - Dicas de Gestão para Produtores" />
         <meta name="twitter:description" content="Novidades, tutoriais, comparações e dicas para otimizar a gestão do seu estúdio de produção audiovisual." />
+        
+        {/* Structured Data for Blog Listing */}
+        <script type="application/ld+json">
+          {JSON.stringify(generateBlogListSchema())}
+        </script>
       </Helmet>
       <PublicHeader />
       
@@ -135,7 +165,12 @@ export default function Blog() {
                             <img
                               src={post.cover_image}
                               alt={post.title}
+                              title={post.title}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              loading="lazy"
+                              decoding="async"
+                              width={800}
+                              height={450}
                             />
                           </div>
                         )}
