@@ -150,7 +150,7 @@ export function useCurrentWorkspace(): CurrentWorkspaceData {
       country: workspace?.country || null,
       
       // Subscription info
-      subscriptionPlan: (workspace?.subscription_plan === 'essencial' ? 'starter' : workspace?.subscription_plan) || 'starter',
+      subscriptionPlan: workspace?.subscription_plan || 'starter',
       subscriptionStatus,
       isTrialing: subscriptionStatus === 'trialing',
       trialEndsAt,
