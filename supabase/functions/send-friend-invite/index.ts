@@ -178,7 +178,7 @@ const generateEmailHTML = (recipientName: string, senderName: string, customMess
               
               <!-- Botão CTA com gradiente cyan para roxo -->
               <div style="text-align: center; margin: 0 0 24px 0;">
-                <a href="https://willflows.lovable.app/auth" style="display: inline-block; background: linear-gradient(135deg, #00E5E5 0%, #7c3aed 100%); color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 16px 48px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0, 229, 229, 0.4), 0 0 40px rgba(0, 229, 229, 0.2);">
+                <a href="https://willflow.app/auth" style="display: inline-block; background: linear-gradient(135deg, #00E5E5 0%, #7c3aed 100%); color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 16px 48px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0, 229, 229, 0.4), 0 0 40px rgba(0, 229, 229, 0.2);">
                   Criar conta grátis →
                 </a>
               </div>
@@ -197,7 +197,7 @@ const generateEmailHTML = (recipientName: string, senderName: string, customMess
                 © 2026 WillFlow. Todos os direitos reservados.
               </p>
               <p style="color: #52525b; font-size: 12px; margin: 0;">
-                <a href="https://willflows.lovable.app" style="color: #00E5E5; text-decoration: none;">willflows.lovable.app</a>
+                <a href="https://willflow.app" style="color: #00E5E5; text-decoration: none;">willflow.app</a>
               </p>
             </td>
           </tr>
