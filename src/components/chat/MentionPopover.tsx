@@ -90,7 +90,12 @@ export const MentionPopover = React.forwardRef<HTMLDivElement, MentionPopoverPro
           return (
             <button
               key={member.id || member.user_id}
-              onClick={() => onSelect(member)}
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault(); // Prevent blur before selection
+                e.stopPropagation();
+                onSelect(member);
+              }}
               className={cn(
                 'w-full flex items-center gap-4 px-4 py-3 text-left transition-all duration-150',
                 'hover:bg-muted/60 focus:bg-muted/60 focus:outline-none',
