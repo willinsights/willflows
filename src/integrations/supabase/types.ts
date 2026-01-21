@@ -621,6 +621,7 @@ export type Database = {
         Row: {
           conversation_id: string
           id: string
+          is_active: boolean | null
           is_muted: boolean | null
           is_pinned: boolean | null
           joined_at: string | null
@@ -631,6 +632,7 @@ export type Database = {
         Insert: {
           conversation_id: string
           id?: string
+          is_active?: boolean | null
           is_muted?: boolean | null
           is_pinned?: boolean | null
           joined_at?: string | null
@@ -641,6 +643,7 @@ export type Database = {
         Update: {
           conversation_id?: string
           id?: string
+          is_active?: boolean | null
           is_muted?: boolean | null
           is_pinned?: boolean | null
           joined_at?: string | null

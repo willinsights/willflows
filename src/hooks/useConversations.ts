@@ -42,16 +42,18 @@ export function useConversations() {
 
       const { data: memberConversations } = await supabase
         .from('conversation_members')
-        .select('conversation_id, last_read_at')
+        .select('conversation_id, last_read_at, is_active')
         .eq('user_id', user.id);
 
       const conversationIds = memberConversations?.map(m => m.conversation_id) || [];
       const memberConversationIdSet = new Set(conversationIds);
       
-      // Map last_read_at by conversation_id for unread calculation
+      // Map last_read_at and is_active by conversation_id
       const lastReadMap: Record<string, string | null> = {};
+      const isActiveMap: Record<string, boolean> = {};
       (memberConversations || []).forEach(m => {
         lastReadMap[m.conversation_id] = m.last_read_at;
+        isActiveMap[m.conversation_id] = m.is_active ?? false;
       });
 
       const { data, error: convError } = await supabase
@@ -63,11 +65,17 @@ export function useConversations() {
 
       if (convError) throw convError;
       
-      // Filter conversations based on role
-      // Freelancers e visualizadores só veem conversas onde são membros
-      // Outros papéis veem as suas conversas + canais públicos
+      // Filter conversations based on role and type
+      // - Chats de projeto: só aparecem se is_active = true
+      // - Freelancers e visualizadores: só veem conversas onde são membros
+      // - Outros papéis: veem as suas conversas + canais públicos
       const isUserRestricted = membership?.role === 'freelancer' || membership?.role === 'visualizador';
       const filtered = (data || []).filter((c: any) => {
+        // Chats de projeto só aparecem se is_active = true
+        if (c.type === 'project') {
+          return isActiveMap[c.id] === true;
+        }
+        
         if (isUserRestricted) {
           // Papéis restritos só veem conversas onde são membros
           return conversationIds.includes(c.id);
