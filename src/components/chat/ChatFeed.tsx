@@ -460,7 +460,7 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
           )}
 
           {/* Composer Area */}
-          <div className="border-t border-border p-4 bg-card space-y-2">
+          <div className="border-t border-border/30 p-4 space-y-2">
             {/* Reply Preview */}
             {replyingTo && (
               <MessageReplyPreview 
