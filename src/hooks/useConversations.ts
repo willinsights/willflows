@@ -417,7 +417,45 @@ export function useConversations() {
     return () => { supabase.removeChannel(channel); };
   }, [workspace?.id, queryClient]);
 
-  return { conversations, projectChats, channels, dms, isLoading, error, refetch, createChannel, joinChannel, createDM, createProjectChat, leaveConversation };
+  // Mutation to add member to channel
+  const addChannelMember = useMutation({
+    mutationFn: async ({ conversationId, userId }: { conversationId: string; userId: string }) => {
+      const { error } = await supabase
+        .from('conversation_members')
+        .insert({ conversation_id: conversationId, user_id: userId, role: 'member' });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations', workspace?.id] });
+      queryClient.invalidateQueries({ queryKey: ['conversation-members'] });
+      toast.success('Membro adicionado');
+    },
+    onError: (error: Error) => toast.error('Erro ao adicionar membro', { description: error.message }),
+  });
+
+  // Mutation to remove member from channel
+  const removeChannelMember = useMutation({
+    mutationFn: async ({ conversationId, userId }: { conversationId: string; userId: string }) => {
+      const { error } = await supabase
+        .from('conversation_members')
+        .delete()
+        .eq('conversation_id', conversationId)
+        .eq('user_id', userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations', workspace?.id] });
+      queryClient.invalidateQueries({ queryKey: ['conversation-members'] });
+      toast.success('Membro removido');
+    },
+    onError: (error: Error) => toast.error('Erro ao remover membro', { description: error.message }),
+  });
+
+  return { 
+    conversations, projectChats, channels, dms, isLoading, error, refetch, 
+    createChannel, joinChannel, createDM, createProjectChat, leaveConversation,
+    addChannelMember, removeChannelMember 
+  };
 }
 
 export function useConversation(conversationId: string | undefined) {
