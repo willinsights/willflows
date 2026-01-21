@@ -13,6 +13,7 @@ import logoWillflow from '@/assets/logo-willflow-sistema.png';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -34,8 +35,16 @@ export default function Onboarding() {
   // State
   const [step, setStep] = useState<Step>('region');
   const [country, setCountry] = useState<'PT' | 'BR'>('PT');
+  const [workspaceName, setWorkspaceName] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Pre-fill workspace name with suggestion
+  useEffect(() => {
+    if (user && !workspaceName) {
+      setWorkspaceName(getWorkspaceName());
+    }
+  }, [user]);
 
   // If user already has workspace and is NOT creating a new one, redirect to app
   useEffect(() => {
@@ -71,15 +80,15 @@ export default function Onboarding() {
   const handleCreateTrialWorkspace = async () => {
     if (!user) return;
 
-    const workspaceName = getWorkspaceName();
+    const finalName = workspaceName.trim() || getWorkspaceName();
     setLoading(true);
     setError(null);
 
     try {
       // Create workspace (comes with trial from backend - essencial plan, trialing status)
       const { data: workspaceId, error: rpcError } = await supabase.rpc('create_workspace_with_admin', {
-        p_name: workspaceName,
-        p_slug: createSlug(workspaceName),
+        p_name: finalName,
+        p_slug: createSlug(finalName),
         p_country: country,
         p_currency: country === 'PT' ? 'EUR' : 'BRL',
         p_timezone: country === 'PT' ? 'Europe/Lisbon' : 'America/Sao_Paulo',
@@ -219,6 +228,24 @@ export default function Onboarding() {
                 </Label>
               </RadioGroup>
 
+              {/* Workspace Name */}
+              <div className="space-y-2">
+                <Label htmlFor="workspace-name" className="text-sm font-medium">
+                  Nome do espaço de trabalho
+                </Label>
+                <Input
+                  id="workspace-name"
+                  value={workspaceName}
+                  onChange={(e) => setWorkspaceName(e.target.value)}
+                  placeholder="Ex: Estúdio Criativo"
+                  className="w-full"
+                  maxLength={50}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Este nome será visível para todos os membros da equipa
+                </p>
+              </div>
+
               {/* Error State */}
               {error && (
                 <motion.div
@@ -245,7 +272,7 @@ export default function Onboarding() {
                 onClick={handleCreateTrialWorkspace} 
                 className="w-full gradient-primary"
                 size="lg"
-                disabled={loading}
+                disabled={loading || !workspaceName.trim()}
               >
                 {loading ? (
                   <>
