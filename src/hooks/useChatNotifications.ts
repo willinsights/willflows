@@ -98,6 +98,7 @@ export function useChatNotifications() {
               },
             },
             duration: 10000,
+            closeButton: true,
           });
           
           // Send push notification if permission granted and enabled
