@@ -76,7 +76,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Use production URL for invite links
-    const baseUrl = "https://willflows.lovable.app";
+    const baseUrl = "https://willflow.app";
     const inviteLink = `${baseUrl}/auth?token=${inviteToken}`;
     logStep("Generated invite link", { inviteLink });
 
