@@ -159,6 +159,7 @@ import {
 } from '@/lib/plans';
 
 // Memoized mobile screenshot card for performance
+// Memoized mobile screenshot card with optimized loading
 const MobileScreenshotCard = memo(function MobileScreenshotCard({ 
   src, 
   alt, 
@@ -170,6 +171,9 @@ const MobileScreenshotCard = memo(function MobileScreenshotCard({
   index: number;
   onClick: () => void;
 }) {
+  // First card is priority (LCP candidate on mobile)
+  const isPriority = index === 0;
+  
   return (
     <div
       role="button"
@@ -186,8 +190,9 @@ const MobileScreenshotCard = memo(function MobileScreenshotCard({
           alt={alt}
           width={288}
           height={187}
-          loading="lazy"
+          loading={isPriority ? 'eager' : 'lazy'}
           decoding="async"
+          fetchPriority={isPriority ? 'high' : 'auto'}
           className="w-full h-auto"
         />
       </div>

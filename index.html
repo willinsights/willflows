@@ -4,13 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
-    <!-- Google tag (gtag.js) - Google Ads -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=AW-10883570283"></script>
+    <!-- Google tag (gtag.js) - Google Ads - Deferred for performance -->
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'AW-10883570283');
+      // Defer non-critical analytics until after page load
+      window.addEventListener('load', function() {
+        var script = document.createElement('script');
+        script.src = 'https://www.googletagmanager.com/gtag/js?id=AW-10883570283';
+        script.async = true;
+        document.head.appendChild(script);
+        
+        script.onload = function() {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          window.gtag = gtag;
+          gtag('js', new Date());
+          gtag('config', 'AW-10883570283');
+        };
+      });
     </script>
     <title>WillFlow - Gestão de Projetos para Fotógrafos e Filmmakers</title>
     <meta name="description" content="WillFlow é o sistema completo de gestão de projetos e produção para fotógrafos, filmmakers, agências e produtoras. Kanban, CRM, calendário e finanças num só lugar.">
@@ -65,16 +75,70 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://wppfmyseeigsdqutkgyc.supabase.co" crossorigin />
     
-    <!-- Preload critical resources -->
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" />
+    <!-- Preload critical resources for LCP -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
     <link rel="preload" as="image" href="/src/assets/screenshot-dark-kanban.png" fetchpriority="high" />
+    <link rel="preload" as="image" href="/src/assets/screenshot-dark-dashboard.png" />
     
-    <!-- Fonts - Non-blocking load -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
-    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" /></noscript>
+    <!-- Fonts - Non-blocking load with reduced weights -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" /></noscript>
 
     <!-- Theme color -->
     <meta name="theme-color" content="#8224e3" />
+    
+    <!-- Critical CSS inline for faster FCP/LCP -->
+    <style>
+      /* Critical above-the-fold styles */
+      :root {
+        --background: 220 14% 96%;
+        --foreground: 240 10% 10%;
+        --primary: 246 74% 59%;
+        --muted-foreground: 220 9% 46%;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background: 240 10% 4%;
+          --foreground: 0 0% 98%;
+          --muted-foreground: 240 5% 65%;
+        }
+      }
+      body {
+        margin: 0;
+        background: hsl(var(--background));
+        color: hsl(var(--foreground));
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      /* Prevent FOUC - hide until styles load */
+      #root:empty {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #root:empty::after {
+        content: '';
+        width: 24px;
+        height: 24px;
+        border: 2px solid hsl(var(--primary));
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      /* Critical image optimization */
+      img {
+        content-visibility: auto;
+      }
+      /* Reduce CLS for common elements */
+      img[width][height] {
+        aspect-ratio: attr(width) / attr(height);
+      }
+    </style>
 
     <!-- Apple/iOS PWA Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
