@@ -27,13 +27,16 @@ export interface Conversation {
 }
 
 export function useConversations() {
-  const { workspace } = useWorkspace();
+  const { workspace, membership } = useWorkspace();
   const { user } = useAuth();
   const toast = useAppToast();
   const queryClient = useQueryClient();
+  
+  // Freelancers e visualizadores só veem canais onde são membros
+  const isRestrictedRole = membership?.role === 'freelancer' || membership?.role === 'visualizador';
 
   const { data: conversations = [], isLoading, error, refetch } = useQuery({
-    queryKey: ['conversations', workspace?.id],
+    queryKey: ['conversations', workspace?.id, membership?.role],
     queryFn: async () => {
       if (!workspace?.id || !user?.id) return [];
 
@@ -60,10 +63,18 @@ export function useConversations() {
 
       if (convError) throw convError;
       
-      // Filter to show member conversations + public channels
-      const filtered = (data || []).filter((c: any) => 
-        conversationIds.includes(c.id) || (c.type === 'channel' && !c.is_private)
-      );
+      // Filter conversations based on role
+      // Freelancers e visualizadores só veem conversas onde são membros
+      // Outros papéis veem as suas conversas + canais públicos
+      const isUserRestricted = membership?.role === 'freelancer' || membership?.role === 'visualizador';
+      const filtered = (data || []).filter((c: any) => {
+        if (isUserRestricted) {
+          // Papéis restritos só veem conversas onde são membros
+          return conversationIds.includes(c.id);
+        }
+        // Outros papéis veem as suas conversas + canais públicos
+        return conversationIds.includes(c.id) || (c.type === 'channel' && !c.is_private);
+      });
       
       // Track which conversations are public channels the user has NOT joined
       const isPublicChannelNotJoined = (conv: any) => 

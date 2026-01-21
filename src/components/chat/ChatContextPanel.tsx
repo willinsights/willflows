@@ -4,6 +4,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { usePresence } from '@/hooks/usePresence';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { supabase } from '@/integrations/supabase/client';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -121,6 +122,7 @@ export function ChatContextPanel({
   const { isAdmin, currentWorkspace } = useWorkspace();
   const { isOnline } = usePresence();
   const { members: workspaceMembers } = useWorkspaceMembers();
+  const { canViewTeamContacts } = useFinancialPermissions();
 
   // State for project-specific data
   const [projectTeam, setProjectTeam] = useState<ProjectTeamMember[]>([]);
@@ -360,8 +362,8 @@ export function ChatContextPanel({
   // Channel or DM context
   if (!isProjectChat) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+      <div className="flex flex-col h-full bg-card/60 backdrop-blur-sm border-l border-border/50">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 bg-card/40 backdrop-blur-sm">
           <h3 className="font-semibold">Detalhes</h3>
           {onClose && (
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
@@ -463,11 +465,13 @@ export function ChatContextPanel({
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">
-                              {member.profile?.full_name || 'Utilizador'}
+                              {member.profile?.full_name || 'Membro'}
                             </p>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {member.profile?.email}
-                            </p>
+                            {canViewTeamContacts && member.profile?.email && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                {member.profile?.email}
+                              </p>
+                            )}
                           </div>
                           {member.role === 'admin' && (
                             <Badge variant="outline" className="text-[10px]">Admin</Badge>
@@ -622,8 +626,8 @@ export function ChatContextPanel({
 
   // Project Chat context
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+    <div className="flex flex-col h-full bg-card/60 backdrop-blur-sm border-l border-border/50">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 bg-card/40 backdrop-blur-sm">
         <h3 className="font-semibold">Projeto</h3>
         {onClose && (
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>

@@ -151,7 +151,9 @@ export function ChatMessage({
     <>
       <div
         className={cn(
-          'group flex gap-3 py-2 px-3 -mx-3 rounded-xl transition-all duration-150',
+          'group flex gap-3 py-2.5 px-3 -mx-3 rounded-xl',
+          'transition-all duration-200',
+          'hover:bg-muted/30 hover:shadow-sm',
           isHovered && 'bg-muted/40',
           isThreadReply && 'ml-8'
         )}

@@ -111,9 +111,9 @@ export function ChatSidebar({
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-card">
+    <div className="flex flex-col h-full overflow-hidden bg-card/60 backdrop-blur-sm">
       {/* Search */}
-      <div className="p-3 border-b border-border shrink-0">
+      <div className="p-3 border-b border-border/40 shrink-0">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -362,9 +362,10 @@ function ConversationItem({
   return (
     <div
       className={cn(
-        'group flex items-center gap-3 w-full px-4 py-2.5 rounded-lg text-left transition-all duration-150 cursor-pointer',
-        'hover:bg-muted/60',
-        isActive && 'bg-primary/10 hover:bg-primary/15'
+        'group flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-left',
+        'transition-all duration-200 cursor-pointer',
+        'hover:bg-muted/60 hover:shadow-sm hover:-translate-x-0.5',
+        isActive && 'bg-primary/10 hover:bg-primary/15 shadow-sm border-l-2 border-primary'
       )}
       onClick={onClick}
     >
