@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { FileIcon, FileText, FileImage, FileVideo, FileAudio, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ImageLightbox } from './ImageLightbox';
 import { VideoModal } from './VideoModal';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export interface MessageAttachment {
   id: string;
@@ -35,17 +36,71 @@ function getFileIcon(mimeType: string | null) {
   return FileIcon;
 }
 
+// Cache for signed URLs to avoid regenerating them
+const signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
+
+async function getSignedUrl(filePath: string): Promise<string | null> {
+  // Check cache first
+  const cached = signedUrlCache.get(filePath);
+  const now = Date.now();
+  
+  // Return cached URL if still valid (with 5 min buffer)
+  if (cached && cached.expiresAt > now + 5 * 60 * 1000) {
+    return cached.url;
+  }
+
+  const { data, error } = await supabase.storage
+    .from('chat-attachments')
+    .createSignedUrl(filePath, 3600); // 1 hour expiry
+
+  if (error || !data?.signedUrl) {
+    console.error('Failed to get signed URL:', error);
+    return null;
+  }
+
+  // Cache the URL
+  signedUrlCache.set(filePath, {
+    url: data.signedUrl,
+    expiresAt: now + 3600 * 1000
+  });
+
+  return data.signedUrl;
+}
+
 export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
   const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string } | null>(null);
   const [activeVideo, setActiveVideo] = useState<{ src: string; name: string } | null>(null);
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch signed URLs for all attachments
+  useEffect(() => {
+    if (!attachments?.length) {
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchUrls = async () => {
+      setIsLoading(true);
+      const urls: Record<string, string> = {};
+      
+      await Promise.all(
+        attachments.map(async (attachment) => {
+          const url = await getSignedUrl(attachment.file_path);
+          if (url) {
+            urls[attachment.id] = url;
+          }
+        })
+      );
+      
+      setSignedUrls(urls);
+      setIsLoading(false);
+    };
+
+    fetchUrls();
+  }, [attachments]);
 
   if (!attachments?.length) return null;
-
-  const getPublicUrl = (filePath: string) => {
-    return supabase.storage
-      .from('chat-attachments')
-      .getPublicUrl(filePath).data.publicUrl;
-  };
 
   const handleDownload = async (url: string, filename: string) => {
     try {
@@ -72,6 +127,19 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
     !a.mime_type?.startsWith('image/') && !a.mime_type?.startsWith('video/')
   );
 
+  // Show loading skeleton while fetching URLs
+  if (isLoading) {
+    return (
+      <div className="mt-2 space-y-2">
+        <div className="flex gap-2">
+          {attachments.slice(0, 3).map((_, i) => (
+            <Skeleton key={i} className="h-20 w-20 rounded-lg" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="mt-2 space-y-2">
@@ -84,7 +152,8 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
             images.length >= 3 && 'grid-cols-3 max-w-lg'
           )}>
             {images.map((attachment) => {
-              const url = getPublicUrl(attachment.file_path);
+              const url = signedUrls[attachment.id];
+              if (!url) return null;
               return (
                 <div
                   key={attachment.id}
@@ -121,7 +190,8 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
         {videos.length > 0 && (
           <div className="space-y-2">
             {videos.map((attachment) => {
-              const url = getPublicUrl(attachment.file_path);
+              const url = signedUrls[attachment.id];
+              if (!url) return null;
               return (
                 <div 
                   key={attachment.id} 
@@ -165,8 +235,9 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
         {otherFiles.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {otherFiles.map((attachment) => {
-              const url = getPublicUrl(attachment.file_path);
+              const url = signedUrls[attachment.id];
               const IconComponent = getFileIcon(attachment.mime_type);
+              if (!url) return null;
               return (
                 <div
                   key={attachment.id}
