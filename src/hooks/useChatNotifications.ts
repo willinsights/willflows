@@ -35,9 +35,12 @@ export function useChatNotifications() {
   useEffect(() => {
     if (!user?.id) return;
     
-    // Don't subscribe if notifications are completely disabled
-    const shouldListen = preferences?.push_enabled && preferences?.messages_enabled !== false;
-    if (!shouldListen) return;
+    // Check what features are enabled
+    const shouldPlaySound = preferences?.sound_enabled !== false;
+    const shouldNotify = preferences?.push_enabled && preferences?.messages_enabled !== false && permission === 'granted';
+    
+    // Don't subscribe if nothing is enabled
+    if (!shouldPlaySound && !shouldNotify) return;
 
     // Subscribe to new messages via Realtime
     const channel = supabase
@@ -72,26 +75,28 @@ export function useChatNotifications() {
           if (lastNotifiedRef.current === newMessage.id) return;
           lastNotifiedRef.current = newMessage.id;
           
-          // Fetch sender name
-          const { data: sender } = await supabase
-            .from('profiles')
-            .select('full_name, email')
-            .eq('id', newMessage.user_id)
-            .single();
+          // Play sound if enabled (independent of push notification permission)
+          if (shouldPlaySound) {
+            playSound();
+          }
           
-          const senderName = sender?.full_name || sender?.email?.split('@')[0] || 'Alguém';
-          
-          // Send notification if permission granted
-          if (permission === 'granted') {
+          // Send push notification if permission granted and enabled
+          if (shouldNotify) {
+            // Fetch sender name
+            const { data: sender } = await supabase
+              .from('profiles')
+              .select('full_name, email')
+              .eq('id', newMessage.user_id)
+              .single();
+            
+            const senderName = sender?.full_name || sender?.email?.split('@')[0] || 'Alguém';
+            
             sendLocalNotification(`Nova mensagem de ${senderName}`, {
               body: newMessage.body?.slice(0, 100) || 'Nova mensagem',
               tag: 'chat-message',
               data: { conversationId: newMessage.conversation_id },
             });
           }
-          
-          // Always play sound if enabled (doesn't require notification permission)
-          playSound();
         }
       )
       .subscribe();

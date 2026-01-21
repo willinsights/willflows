@@ -422,13 +422,18 @@ export function useConversations() {
     mutationFn: async ({ conversationId, userId }: { conversationId: string; userId: string }) => {
       const { error } = await supabase
         .from('conversation_members')
-        .insert({ conversation_id: conversationId, user_id: userId, role: 'member' });
+        .upsert(
+          { conversation_id: conversationId, user_id: userId, role: 'member' },
+          { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
+        );
       if (error) throw error;
+      return { conversationId };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['conversations', workspace?.id] });
-      queryClient.invalidateQueries({ queryKey: ['conversation-members'] });
-      toast.success('Membro adicionado');
+      queryClient.invalidateQueries({ queryKey: ['conversation-members', data.conversationId] });
+      queryClient.invalidateQueries({ queryKey: ['conversation', data.conversationId] });
+      toast.success('Membro adicionado ao canal');
     },
     onError: (error: Error) => toast.error('Erro ao adicionar membro', { description: error.message }),
   });

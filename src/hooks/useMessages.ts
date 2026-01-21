@@ -347,24 +347,101 @@ export function useMessages(conversationId: string | undefined) {
       toast.error('Erro ao editar mensagem', { description: error.message });
     },
   });
+
+  // Optimistic realtime updates for instant message display
   useEffect(() => {
     if (!conversationId) return;
 
     const channel = supabase
       .channel(`messages:${conversationId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
-        () => queryClient.invalidateQueries({ queryKey: ['messages', conversationId] })
+        async (payload) => {
+          const newMessage = payload.new as any;
+          
+          // Skip if it's a thread reply (parent_message_id is set)
+          if (newMessage.parent_message_id) return;
+          
+          // Check if message already exists in cache to avoid duplicates
+          const currentData = queryClient.getQueryData(['messages', conversationId]) as any;
+          if (currentData?.pages) {
+            const allMessages = currentData.pages.flatMap((p: any) => p.messages);
+            if (allMessages.some((m: any) => m.id === newMessage.id)) return;
+          }
+          
+          // Fetch user profile for the new message
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url, email')
+            .eq('id', newMessage.user_id)
+            .single();
+          
+          const messageWithUser = {
+            ...newMessage,
+            user: profile || null,
+            reactions: [],
+            attachments: [],
+          };
+          
+          // Optimistically add to cache
+          queryClient.setQueryData(['messages', conversationId], (old: any) => {
+            if (!old?.pages?.[0]) return old;
+            return {
+              ...old,
+              pages: old.pages.map((page: any, index: number) =>
+                index === 0
+                  ? { ...page, messages: [messageWithUser, ...page.messages] }
+                  : page
+              ),
+            };
+          });
+        }
       )
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
-        () => queryClient.invalidateQueries({ queryKey: ['messages', conversationId] })
+        (payload) => {
+          const updatedMessage = payload.new as any;
+          
+          // Update message directly in cache
+          queryClient.setQueryData(['messages', conversationId], (old: any) => {
+            if (!old?.pages) return old;
+            return {
+              ...old,
+              pages: old.pages.map((page: any) => ({
+                ...page,
+                messages: page.messages.map((m: any) =>
+                  m.id === updatedMessage.id ? { ...m, ...updatedMessage } : m
+                ),
+              })),
+            };
+          });
+        }
       )
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
-        () => queryClient.invalidateQueries({ queryKey: ['messages', conversationId] })
+        (payload) => {
+          const deletedMessage = payload.old as any;
+          
+          // Remove from cache
+          queryClient.setQueryData(['messages', conversationId], (old: any) => {
+            if (!old?.pages) return old;
+            return {
+              ...old,
+              pages: old.pages.map((page: any) => ({
+                ...page,
+                messages: page.messages.filter((m: any) => m.id !== deletedMessage.id),
+              })),
+            };
+          });
+        }
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'message_reactions' },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+          // Reactions still need a refetch for accuracy
           queryClient.invalidateQueries({ queryKey: ['message-reactions', conversationId] });
+        }
+      )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'message_reads' },
+        () => {
+          // Read receipts update
+          queryClient.invalidateQueries({ queryKey: ['message-reads', conversationId] });
         }
       )
       .subscribe();
