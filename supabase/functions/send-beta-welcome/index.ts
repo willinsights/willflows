@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { validateEmail } from "../_shared/email-validator.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -14,7 +15,7 @@ interface BetaWelcomeEmailRequest {
   name: string;
 }
 
-const logStep = (step: string, details?: any) => {
+const logStep = (step: string, details?: Record<string, unknown>) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[SEND-BETA-WELCOME] ${step}${detailsStr}`);
 };
@@ -58,10 +59,17 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { email, name }: BetaWelcomeEmailRequest = await req.json();
 
-    if (!email) {
-      logStep("ERROR: Missing email");
+    // Validate email with full validation (format, domain, MX records)
+    const emailValidation = await validateEmail(email);
+    if (!emailValidation.valid) {
+      logStep("ERROR: Email validation failed", { 
+        email, 
+        error: emailValidation.error,
+        errorCode: emailValidation.errorCode,
+        checks: emailValidation.checks 
+      });
       return new Response(
-        JSON.stringify({ error: "Email is required" }),
+        JSON.stringify({ error: emailValidation.error }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

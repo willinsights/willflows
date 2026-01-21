@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { validateEmail } from "../_shared/email-validator.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -219,18 +220,19 @@ const handler = async (req: Request): Promise<Response> => {
     const { recipientEmail, recipientName, senderName, customMessage }: FriendInviteRequest = await req.json();
 
     // Validate required fields
-    if (!recipientEmail || !recipientName || !senderName) {
+    if (!recipientName || !senderName) {
       return new Response(
-        JSON.stringify({ error: "recipientEmail, recipientName e senderName são obrigatórios" }),
+        JSON.stringify({ error: "recipientName e senderName são obrigatórios" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(recipientEmail)) {
+    // Validate email with full validation (format, domain, MX records)
+    const emailValidation = await validateEmail(recipientEmail);
+    if (!emailValidation.valid) {
+      console.error("Email validation failed:", emailValidation.error);
       return new Response(
-        JSON.stringify({ error: "Formato de email inválido" }),
+        JSON.stringify({ error: emailValidation.error }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }

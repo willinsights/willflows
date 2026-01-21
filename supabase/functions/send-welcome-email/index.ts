@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { validateEmail } from "../_shared/email-validator.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -10,7 +11,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const logStep = (step: string, details?: any) => {
+const logStep = (step: string, details?: Record<string, unknown>) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[SEND-WELCOME-EMAIL] ${step}${detailsStr}`);
 };
@@ -62,11 +63,17 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { email, name }: WelcomeEmailRequest = await req.json();
     
-    // Validate input
-    if (!email || typeof email !== 'string' || !email.includes('@')) {
-      logStep("ERROR: Invalid email input");
+    // Validate email with full validation (format, domain, MX records)
+    const emailValidation = await validateEmail(email);
+    if (!emailValidation.valid) {
+      logStep("ERROR: Email validation failed", { 
+        email, 
+        error: emailValidation.error,
+        errorCode: emailValidation.errorCode,
+        checks: emailValidation.checks 
+      });
       return new Response(
-        JSON.stringify({ error: "Invalid email address" }),
+        JSON.stringify({ error: emailValidation.error }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }

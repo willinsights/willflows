@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.2";
+import { validateEmail } from "../_shared/email-validator.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -92,11 +93,17 @@ const handler = async (req: Request): Promise<Response> => {
 
   const { email, name, resetLink }: PasswordResetEmailRequest = await req.json();
     
-    // Validate email input
-    if (!email || typeof email !== 'string' || !email.includes('@')) {
-      logStep("ERROR: Invalid email input");
+    // Validate email with full validation (format, domain, MX records)
+    const emailValidation = await validateEmail(email);
+    if (!emailValidation.valid) {
+      logStep("ERROR: Email validation failed", { 
+        email, 
+        error: emailValidation.error,
+        errorCode: emailValidation.errorCode,
+        checks: emailValidation.checks 
+      });
       return new Response(
-        JSON.stringify({ error: "Invalid email address" }),
+        JSON.stringify({ error: emailValidation.error }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
