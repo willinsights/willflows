@@ -125,7 +125,8 @@ export function useMessages(conversationId: string | undefined) {
     enabled: messageIds.length > 0,
   });
 
-  const messages: Message[] = (data?.pages.flatMap(page => page.messages) || []).map(m => {
+  // Reverse for chronological order (oldest first, newest at bottom - WhatsApp style)
+  const messages: Message[] = (data?.pages.flatMap(page => page.messages).reverse() || []).map(m => {
     // Group reactions by emoji
     const msgReactions = (reactionsData || []).filter(r => r.message_id === m.id);
     const reactionGroups = msgReactions.reduce((acc, r) => {

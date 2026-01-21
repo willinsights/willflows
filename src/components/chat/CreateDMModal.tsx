@@ -14,6 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useConversations } from '@/hooks/useConversations';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface CreateDMModalProps {
   open: boolean;
@@ -47,6 +48,14 @@ export function CreateDMModal({ open, onOpenChange }: CreateDMModalProps) {
     try {
       const conversation = await createDM.mutateAsync(memberId);
       onOpenChange(false);
+      
+      // Show feedback if conversation already existed
+      if (conversation.isExisting) {
+        toast.info('Conversa existente', { 
+          description: 'Já tens uma conversa com este utilizador' 
+        });
+      }
+      
       navigate(`/app/chat/${conversation.id}`);
     } finally {
       setCreating(null);
