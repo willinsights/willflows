@@ -234,11 +234,21 @@ export function useConversations() {
 
       if (convError) throw convError;
 
-      // Add both members
-      await supabase.from('conversation_members').insert([
+      // Add both members in a single insert
+      const membersToInsert = [
         { conversation_id: conversation.id, user_id: user.id, role: 'admin' },
         { conversation_id: conversation.id, user_id: otherUserId, role: 'member' },
-      ]);
+      ];
+
+      const { error: membersError } = await supabase
+        .from('conversation_members')
+        .insert(membersToInsert);
+
+      if (membersError) {
+        // If member insert fails, delete the conversation we just created
+        await supabase.from('conversations').delete().eq('id', conversation.id);
+        throw membersError;
+      }
 
       return conversation;
     },
@@ -420,20 +430,34 @@ export function useConversations() {
   // Mutation to add member to channel
   const addChannelMember = useMutation({
     mutationFn: async ({ conversationId, userId }: { conversationId: string; userId: string }) => {
+      // First check if user is already a member
+      const { data: existing } = await supabase
+        .from('conversation_members')
+        .select('id')
+        .eq('conversation_id', conversationId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (existing) {
+        // Already a member, return success silently
+        return { conversationId, alreadyMember: true };
+      }
+
+      // Insert new member
       const { error } = await supabase
         .from('conversation_members')
-        .upsert(
-          { conversation_id: conversationId, user_id: userId, role: 'member' },
-          { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
-        );
+        .insert({ conversation_id: conversationId, user_id: userId, role: 'member' });
+
       if (error) throw error;
-      return { conversationId };
+      return { conversationId, alreadyMember: false };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['conversations', workspace?.id] });
       queryClient.invalidateQueries({ queryKey: ['conversation-members', data.conversationId] });
       queryClient.invalidateQueries({ queryKey: ['conversation', data.conversationId] });
-      toast.success('Membro adicionado ao canal');
+      if (!data.alreadyMember) {
+        toast.success('Membro adicionado ao canal');
+      }
     },
     onError: (error: Error) => toast.error('Erro ao adicionar membro', { description: error.message }),
   });
