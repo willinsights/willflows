@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useConversations, useConversation } from '@/hooks/useConversations';
 import { useProjects } from '@/hooks/useProjects';
 import { usePresence } from '@/hooks/usePresence';
+import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -10,6 +12,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +57,8 @@ import {
   FileIcon,
   Video,
   Music,
+  UserPlus,
+  Loader2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -102,11 +114,13 @@ export function ChatContextPanel({
   const navigate = useNavigate();
   const toast = useAppToast();
   const queryClient = useQueryClient();
-  const { conversations, isLoading: conversationsLoading } = useConversations();
+  const { user } = useAuth();
+  const { conversations, isLoading: conversationsLoading, addChannelMember, removeChannelMember } = useConversations();
   const { members } = useConversation(conversationId);
   const { projects, loading: projectsLoading } = useProjects();
   const { isAdmin, currentWorkspace } = useWorkspace();
   const { isOnline } = usePresence();
+  const { members: workspaceMembers } = useWorkspaceMembers();
 
   // State for project-specific data
   const [projectTeam, setProjectTeam] = useState<ProjectTeamMember[]>([]);
@@ -120,6 +134,7 @@ export function ChatContextPanel({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [channelName, setChannelName] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [memberToAdd, setMemberToAdd] = useState<string>('');
 
   const conversation = conversations.find((c) => c.id === conversationId);
   const isProjectChat = conversation?.type === 'project';
@@ -127,6 +142,23 @@ export function ChatContextPanel({
   const project = isProjectChat
     ? projects.find((p) => p.id === conversation?.project_id)
     : null;
+
+  // Get members not yet in the channel for adding
+  const availableMembersToAdd = useMemo(() => {
+    const currentMemberIds = members.map((m: any) => m.user_id);
+    return workspaceMembers.filter(wm => !currentMemberIds.includes(wm.user_id));
+  }, [workspaceMembers, members]);
+
+  const handleAddMember = async () => {
+    if (!memberToAdd || !conversationId) return;
+    await addChannelMember.mutateAsync({ conversationId, userId: memberToAdd });
+    setMemberToAdd('');
+  };
+
+  const handleRemoveMember = async (userId: string) => {
+    if (!conversationId) return;
+    await removeChannelMember.mutateAsync({ conversationId, userId });
+  };
 
   // Fetch project-specific data
   useEffect(() => {
@@ -451,19 +483,106 @@ export function ChatContextPanel({
 
         {/* Edit Channel Dialog */}
         <Dialog open={showEditChannel} onOpenChange={setShowEditChannel}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Editar Canal</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className="space-y-6 py-4">
+              {/* Channel Name */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Nome do Canal</label>
+                <Label>Nome do Canal</Label>
                 <Input
                   value={channelName}
                   onChange={(e) => setChannelName(e.target.value)}
                   placeholder="Nome do canal"
                 />
               </div>
+
+              {/* Current Members */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Membros do Canal ({members.length})
+                </Label>
+                <ScrollArea className="h-40 border rounded-lg p-2">
+                  <div className="space-y-1">
+                    {members.map((member: any) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <Avatar className="h-7 w-7">
+                          <AvatarImage src={member.profile?.avatar_url} />
+                          <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                            {(member.profile?.full_name || 'U').slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {member.profile?.full_name || member.profile?.email?.split('@')[0] || 'Membro'}
+                          </p>
+                        </div>
+                        {member.role === 'admin' ? (
+                          <Badge variant="outline" className="text-[10px]">Admin</Badge>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleRemoveMember(member.user_id)}
+                            disabled={removeChannelMember.isPending}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+
+              {/* Add New Members */}
+              {availableMembersToAdd.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <UserPlus className="h-4 w-4" />
+                    Adicionar Membro
+                  </Label>
+                  <div className="flex gap-2">
+                    <Select value={memberToAdd} onValueChange={setMemberToAdd}>
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Selecionar membro..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableMembersToAdd.map((member) => (
+                          <SelectItem key={member.user_id} value={member.user_id}>
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-5 w-5">
+                                <AvatarImage src={member.avatar_url || undefined} />
+                                <AvatarFallback className="text-[10px]">
+                                  {(member.full_name || 'U').slice(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span>{member.full_name || member.email?.split('@')[0]}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="icon"
+                      onClick={handleAddMember}
+                      disabled={!memberToAdd || addChannelMember.isPending}
+                    >
+                      {addChannelMember.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <UserPlus className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowEditChannel(false)}>
