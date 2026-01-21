@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Bell, Check, CheckCheck, Clock, Info, AlertTriangle, X, Trash2, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, Check, CheckCheck, Clock, Info, AlertTriangle, X, Trash2, Loader2, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -9,7 +10,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNotifications, NotificationType } from '@/hooks/useNotifications';
+import { useNotifications, Notification, NotificationType } from '@/hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
@@ -48,7 +49,32 @@ function formatTimeAgo(dateString: string): string {
   }
 }
 
+// Maps entity_type to navigation routes
+function getNotificationRoute(notification: Notification): string | null {
+  if (!notification.entity_type || !notification.entity_id) return null;
+  
+  switch (notification.entity_type) {
+    case 'project':
+      return `/app/captacao?projeto=${notification.entity_id}`;
+    case 'task':
+      return `/app/captacao?tarefa=${notification.entity_id}`;
+    case 'payment':
+      return `/app/pagamentos?id=${notification.entity_id}`;
+    case 'calendar_event':
+      return `/app/calendario?evento=${notification.entity_id}`;
+    case 'conversation':
+      return `/app/chat?c=${notification.entity_id}`;
+    case 'follow_up':
+      return `/app/chat`;
+    case 'client':
+      return `/app/clientes?id=${notification.entity_id}`;
+    default:
+      return null;
+  }
+}
+
 export function NotificationCenter() {
+  const navigate = useNavigate();
   const {
     notifications,
     loading,
@@ -59,6 +85,16 @@ export function NotificationCenter() {
     clearAll,
   } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
+
+  const handleNotificationClick = (notification: Notification) => {
+    markAsRead(notification.id);
+    
+    const route = getNotificationRoute(notification);
+    if (route) {
+      setIsOpen(false);
+      navigate(route);
+    }
+  };
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -149,20 +185,21 @@ export function NotificationCenter() {
                   const Icon = config.icon;
 
                   return (
-                    <motion.div
-                      key={notification.id}
-                      layout
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 20, height: 0 }}
-                      transition={{ delay: index * 0.03 }}
-                      className={cn(
-                        'group relative px-4 py-3 cursor-pointer transition-all duration-200',
-                        'hover:bg-muted/40',
-                        !notification.read && 'bg-primary/[0.03]'
-                      )}
-                      onClick={() => markAsRead(notification.id)}
-                    >
+                      <motion.div
+                        key={notification.id}
+                        layout
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20, height: 0 }}
+                        transition={{ delay: index * 0.03 }}
+                        className={cn(
+                          'group relative px-4 py-3 cursor-pointer transition-all duration-200',
+                          'hover:bg-muted/40',
+                          !notification.read && 'bg-primary/[0.03]',
+                          notification.entity_type && 'hover:pr-10'
+                        )}
+                        onClick={() => handleNotificationClick(notification)}
+                      >
                       {/* Unread indicator */}
                       {!notification.read && (
                         <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-primary" />
@@ -201,17 +238,23 @@ export function NotificationCenter() {
                         </div>
 
                         {/* Delete button */}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="shrink-0 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteNotification(notification.id);
-                          }}
-                        >
-                          <X className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-                        </Button>
+                        <div className="shrink-0 flex items-center gap-1">
+                          {/* Navigate indicator */}
+                          {notification.entity_type && (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteNotification(notification.id);
+                            }}
+                          >
+                            <X className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                          </Button>
+                        </div>
                       </div>
                     </motion.div>
                   );
