@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useMessages } from '@/hooks/useMessages';
 import { useConversations, useConversation } from '@/hooks/useConversations';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { usePresence } from '@/hooks/usePresence';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { ChatMessage } from './ChatMessage';
 import { ChatComposer } from './ChatComposer';
 import { ChatThread } from './ChatThread';
 import { DeleteConversationModal } from './DeleteConversationModal';
 import { TypingIndicator } from './TypingIndicator';
 import { MessageReplyPreview } from './MessageReplyPreview';
+import { MessageSearchBar } from './MessageSearchBar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -23,7 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Hash, FolderKanban, User, Users, MessageCircle, ArrowDown, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Hash, FolderKanban, User, Users, MessageCircle, ArrowDown, MoreHorizontal, Trash2, Search } from 'lucide-react';
 import { format, isToday, isYesterday, isSameDay, parseISO } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -44,10 +47,26 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showSearchBar, setShowSearchBar] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const conversation = conversations.find((c) => c.id === conversationId);
+
+  // Fetch current user profile for typing indicator
+  const { data: userProfile } = useQuery({
+    queryKey: ['profile', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .eq('id', user.id)
+        .single();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
   
   // Only projects and DMs can be deleted/left
   const canDelete = conversation?.type === 'project' || conversation?.type === 'dm';
@@ -171,7 +190,7 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
     const replyTo = replyingTo ? {
       id: replyingTo.id,
       body: replyingTo.body.slice(0, 150),
-      user_name: replyingTo.user?.full_name || 'Utilizador'
+      user_name: replyingTo.user?.full_name || replyingTo.user?.email?.split('@')[0] || 'Participante'
     } : undefined;
     
     stopTyping();
@@ -182,6 +201,22 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
     setReplyingTo(message);
   };
 
+  const handleOpenThread = (messageId: string) => {
+    setActiveThreadId(messageId);
+  };
+
+  // Scroll to a specific message (for search results)
+  const scrollToMessage = (messageId: string) => {
+    const messageElement = document.getElementById(`message-${messageId}`);
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Highlight briefly
+      messageElement.classList.add('bg-primary/10');
+      setTimeout(() => {
+        messageElement.classList.remove('bg-primary/10');
+      }, 2000);
+    }
+  };
   // Mark messages as read when they come into view
   useEffect(() => {
     if (!user?.id || messages.length === 0) return;
@@ -243,6 +278,16 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
             </Badge>
           </div>
         </div>
+
+        {/* Search Button */}
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-8 w-8" 
+          onClick={() => setShowSearchBar(!showSearchBar)}
+        >
+          <Search className="h-4 w-4" />
+        </Button>
         
         {/* Options Menu */}
         {canDelete && (
@@ -273,6 +318,15 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
         isLoading={leaveConversation.isPending}
         conversationName={conversation?.displayName || conversation?.name}
       />
+
+      {/* Search Bar */}
+      {showSearchBar && (
+        <MessageSearchBar
+          conversationId={conversationId}
+          onResultClick={scrollToMessage}
+          onClose={() => setShowSearchBar(false)}
+        />
+      )}
 
       {/* Messages Container with optional Thread */}
       <div className="flex-1 flex overflow-hidden relative">
@@ -306,20 +360,21 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
                     
                     {/* Messages */}
                     {group.messages.map((message) => (
-                      <ChatMessage
-                        key={message.id}
-                        message={message}
-                        onOpenThread={() => handleOpenThread(message.id)}
-                        onToggleReaction={toggleReaction}
-                        onEditMessage={async (id, body) => {
-                          await updateMessage.mutateAsync({ messageId: id, body });
-                        }}
-                        onReply={handleReply}
-                        threadCount={
-                          messages.filter((m) => m.parent_message_id === message.id).length
-                        }
-                        isOnline={isOnline(message.user_id)}
-                      />
+                      <div key={message.id} id={`message-${message.id}`} className="transition-colors duration-500">
+                        <ChatMessage
+                          message={message}
+                          onOpenThread={() => handleOpenThread(message.id)}
+                          onToggleReaction={toggleReaction}
+                          onEditMessage={async (id, body) => {
+                            await updateMessage.mutateAsync({ messageId: id, body });
+                          }}
+                          onReply={handleReply}
+                          threadCount={
+                            messages.filter((m) => m.parent_message_id === message.id).length
+                          }
+                          isOnline={isOnline(message.user_id)}
+                        />
+                      </div>
                     ))}
                   </div>
                 ))}
@@ -347,7 +402,7 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
                 replyTo={{
                   id: replyingTo.id,
                   body: replyingTo.body.slice(0, 150),
-                  user_name: replyingTo.user?.full_name || 'Utilizador'
+                  user_name: replyingTo.user?.full_name || replyingTo.user?.email?.split('@')[0] || 'Participante'
                 }}
                 onClear={() => setReplyingTo(null)}
               />

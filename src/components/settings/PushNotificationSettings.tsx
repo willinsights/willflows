@@ -1,4 +1,4 @@
-import { Bell, BellOff, Calendar, Clock, AlertTriangle } from 'lucide-react';
+import { Bell, BellOff, Calendar, Clock, AlertTriangle, MessageSquare, Volume2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -112,6 +112,24 @@ export function PushNotificationSettings() {
           {preferences?.push_enabled && !needsPermission && (
             <>
               <div className="border-t pt-4 space-y-4">
+                {/* Messages toggle */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                    <div className="space-y-0.5">
+                      <Label htmlFor="messages-enabled">Mensagens de chat</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Alertas para novas mensagens
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="messages-enabled"
+                    checked={preferences.messages_enabled}
+                    onCheckedChange={(checked) => updatePreferences({ messages_enabled: checked })}
+                  />
+                </div>
+
                 {/* Events toggle */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -145,6 +163,24 @@ export function PushNotificationSettings() {
                     id="deadlines-enabled"
                     checked={preferences.deadlines_enabled}
                     onCheckedChange={(checked) => updatePreferences({ deadlines_enabled: checked })}
+                  />
+                </div>
+
+                {/* Sound toggle - Prominent and easy to access */}
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border">
+                  <div className="flex items-center gap-3">
+                    <Volume2 className="h-4 w-4 text-muted-foreground" />
+                    <div className="space-y-0.5">
+                      <Label htmlFor="sound-enabled" className="font-medium">Som de notificação</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Ouvir som quando receber mensagens
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="sound-enabled"
+                    checked={preferences.sound_enabled}
+                    onCheckedChange={(checked) => updatePreferences({ sound_enabled: checked })}
                   />
                 </div>
 
