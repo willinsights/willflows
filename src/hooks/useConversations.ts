@@ -215,7 +215,8 @@ export function useConversations() {
             .limit(1);
 
           if (dmConvs && dmConvs.length > 0) {
-            return dmConvs[0];
+            // Return existing DM with flag indicating it already existed
+            return { ...dmConvs[0], isExisting: true };
           }
         }
       }
@@ -250,7 +251,7 @@ export function useConversations() {
         throw membersError;
       }
 
-      return conversation;
+      return { ...conversation, isExisting: false };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversations', workspace?.id] });

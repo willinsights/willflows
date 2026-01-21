@@ -99,12 +99,17 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
       }));
   }, [workspaceMembers]);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom on initial load and new messages
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (scrollRef.current && messages.length > 0) {
+      // Use setTimeout to ensure DOM is fully rendered
+      setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      }, 50);
     }
-  }, [messages]);
+  }, [messages.length]);
 
   // Check scroll position for FAB
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
