@@ -8,6 +8,8 @@ interface PushPreferences {
   events_enabled: boolean;
   deadlines_enabled: boolean;
   advance_hours: number;
+  messages_enabled: boolean;
+  sound_enabled: boolean;
 }
 
 interface UsePushNotificationsReturn {
@@ -48,7 +50,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       try {
         const { data, error } = await supabase
           .from('user_push_preferences')
-          .select('push_enabled, events_enabled, deadlines_enabled, advance_hours')
+          .select('push_enabled, events_enabled, deadlines_enabled, advance_hours, messages_enabled, sound_enabled')
           .eq('user_id', user.id)
           .maybeSingle();
 
@@ -60,6 +62,8 @@ export function usePushNotifications(): UsePushNotificationsReturn {
             events_enabled: data.events_enabled ?? true,
             deadlines_enabled: data.deadlines_enabled ?? true,
             advance_hours: data.advance_hours ?? 24,
+            messages_enabled: data.messages_enabled ?? true,
+            sound_enabled: data.sound_enabled ?? true,
           });
         } else {
           // Default preferences
@@ -68,6 +72,8 @@ export function usePushNotifications(): UsePushNotificationsReturn {
             events_enabled: true,
             deadlines_enabled: true,
             advance_hours: 24,
+            messages_enabled: true,
+            sound_enabled: true,
           });
         }
       } catch (error) {
@@ -113,16 +119,18 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     const newPrefs = { ...preferences, ...prefs };
     
     try {
-      const { error } = await supabase
-        .from('user_push_preferences')
-        .upsert({
-          user_id: user.id,
-          push_enabled: newPrefs.push_enabled,
-          events_enabled: newPrefs.events_enabled,
-          deadlines_enabled: newPrefs.deadlines_enabled,
-          advance_hours: newPrefs.advance_hours,
-          updated_at: new Date().toISOString(),
-        }, {
+        const { error } = await supabase
+          .from('user_push_preferences')
+          .upsert({
+            user_id: user.id,
+            push_enabled: newPrefs.push_enabled,
+            events_enabled: newPrefs.events_enabled,
+            deadlines_enabled: newPrefs.deadlines_enabled,
+            advance_hours: newPrefs.advance_hours,
+            messages_enabled: newPrefs.messages_enabled,
+            sound_enabled: newPrefs.sound_enabled,
+            updated_at: new Date().toISOString(),
+          }, {
           onConflict: 'user_id'
         });
 

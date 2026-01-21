@@ -14,6 +14,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useTrialWarning } from '@/hooks/useTrialWarning';
 import { FeedbackButton } from '@/components/feedback/FeedbackButton';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
+import { useChatNotifications } from '@/hooks/useChatNotifications';
 
 const RETRY_COOLDOWN_MS = 5000; // 5 seconds cooldown between retries
 
@@ -46,6 +47,9 @@ export function AppLayout() {
 
   // Hook to show trial warning notification when 2 days or less remain
   useTrialWarning();
+
+  // Enable global chat notifications (sound + push)
+  useChatNotifications();
 
   const lastRetryTimeRef = useRef(0);
 

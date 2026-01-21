@@ -2294,8 +2294,10 @@ export type Database = {
           deadlines_enabled: boolean | null
           events_enabled: boolean | null
           id: string
+          messages_enabled: boolean | null
           push_enabled: boolean | null
           push_subscription: Json | null
+          sound_enabled: boolean | null
           updated_at: string | null
           user_id: string
         }
@@ -2305,8 +2307,10 @@ export type Database = {
           deadlines_enabled?: boolean | null
           events_enabled?: boolean | null
           id?: string
+          messages_enabled?: boolean | null
           push_enabled?: boolean | null
           push_subscription?: Json | null
+          sound_enabled?: boolean | null
           updated_at?: string | null
           user_id: string
         }
@@ -2316,8 +2320,10 @@ export type Database = {
           deadlines_enabled?: boolean | null
           events_enabled?: boolean | null
           id?: string
+          messages_enabled?: boolean | null
           push_enabled?: boolean | null
           push_subscription?: Json | null
+          sound_enabled?: boolean | null
           updated_at?: string | null
           user_id?: string
         }

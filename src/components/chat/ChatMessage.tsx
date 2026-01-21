@@ -34,6 +34,7 @@ import { CreateTaskFromMessageModal } from './CreateTaskFromMessageModal';
 import { CreateFollowUpModal } from './CreateFollowUpModal';
 import { MessageAttachments } from './MessageAttachments';
 import { MessageReplyPreview } from './MessageReplyPreview';
+import { ReactionUsersPopover } from './ReactionUsersPopover';
 import type { Message } from '@/hooks/useMessages';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -176,7 +177,7 @@ export function ChatMessage({
           {/* Header */}
           <div className="flex items-baseline gap-2">
             <span className="font-semibold text-sm">
-              {userProfile?.full_name || 'Utilizador'}
+              {userProfile?.full_name || userProfile?.email?.split('@')[0] || 'Participante'}
             </span>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -251,28 +252,18 @@ export function ChatMessage({
             <MessageAttachments attachments={message.attachments} />
           )}
 
-          {/* Reactions */}
+          {/* Reactions with user list popover */}
           {message.reactions && message.reactions.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
               {message.reactions.map((reaction) => (
-                <button
+                <ReactionUsersPopover
                   key={reaction.emoji}
-                  onClick={() => handleReaction(reaction.emoji)}
-                  className={cn(
-                    'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all',
-                    reaction.reacted_by_me
-                      ? 'bg-primary/15 text-primary border border-primary/20'
-                      : 'bg-muted hover:bg-muted/80 border border-transparent'
-                  )}
-                >
-                  <span>{reaction.emoji}</span>
-                  <span className={cn(
-                    'font-medium',
-                    reaction.reacted_by_me ? 'text-primary' : 'text-muted-foreground'
-                  )}>
-                    {reaction.count}
-                  </span>
-                </button>
+                  emoji={reaction.emoji}
+                  userIds={reaction.users}
+                  count={reaction.count}
+                  reactedByMe={reaction.reacted_by_me}
+                  onToggle={() => handleReaction(reaction.emoji)}
+                />
               ))}
             </div>
           )}
