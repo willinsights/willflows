@@ -296,7 +296,7 @@ export function ChatComposer({
 
   return (
     <>
-      <div className="rounded-xl border border-border bg-card/50 relative overflow-visible">
+      <div className="rounded-2xl border border-border/60 bg-card/80 backdrop-blur-sm relative overflow-visible shadow-sm">
         {/* Mention Popover - Always show when mentions triggered */}
         {showMentions && (
           <div className="absolute bottom-full left-3 mb-2 z-50">
@@ -442,7 +442,7 @@ export function ChatComposer({
         </div>
 
         {/* Footer with quick actions and char count */}
-        <div className="flex items-center justify-between px-3 py-2 border-t border-border/50 bg-muted/30">
+        <div className="flex items-center justify-between px-3 py-2 border-t border-border/30 bg-muted/10 rounded-b-2xl">
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"
