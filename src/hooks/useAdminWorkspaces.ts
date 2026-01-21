@@ -33,7 +33,7 @@ export interface AdminWorkspace {
 export interface WorkspaceFilters {
   search: string;
   status: 'all' | 'active' | 'trialing' | 'past_due' | 'canceled';
-  plan: 'all' | 'essencial' | 'pro' | 'studio';
+  plan: 'all' | 'starter' | 'pro' | 'studio';
 }
 
 export function useAdminWorkspaces(filters: WorkspaceFilters) {
@@ -136,7 +136,7 @@ export function useAdminWorkspaces(filters: WorkspaceFilters) {
 
       return workspacesData.map(w => {
         // Use centralized plan limits from plans.ts
-        const planId: PlanId = PLAN_DB_MAPPING[w.subscription_plan || 'essencial'] || 'starter';
+        const planId: PlanId = PLAN_DB_MAPPING[w.subscription_plan || 'starter'] || 'starter';
         const limits = PLAN_LIMITS[planId];
         const membersCount = memberCountMap.get(w.id) || 0;
         const projectsCount = projectCountMap.get(w.id) || 0;

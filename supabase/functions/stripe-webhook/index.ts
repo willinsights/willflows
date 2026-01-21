@@ -7,9 +7,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
 };
 
-// Product ID to Plan mapping from stripe-prices.ts
+// Product ID to Plan mapping - now using 'starter' instead of 'essencial'
 const PRODUCT_TO_PLAN: Record<string, string> = {
-  'prod_Tl6rw16ZNqHrWd': 'essencial', // Starter plan maps to 'essencial' in DB enum
+  'prod_Tl6rw16ZNqHrWd': 'starter', // Starter plan
   'prod_Tl6rsZkoz6yqYu': 'pro',
   'prod_Tl6rxTvnCICjTL': 'studio',
 };
@@ -128,7 +128,7 @@ serve(async (req) => {
           .from('user_subscriptions')
           .insert({
             user_id: userId,
-            subscription_plan: updates.subscription_plan || 'essencial',
+            subscription_plan: updates.subscription_plan || 'starter',
             subscription_status: updates.subscription_status || 'trialing',
             ...updates,
           });
@@ -171,7 +171,7 @@ serve(async (req) => {
           // Get subscription details to determine the plan
           const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
           const productId = subscription.items.data[0]?.price.product as string;
-          const plan = PRODUCT_TO_PLAN[productId] || 'essencial';
+          const plan = PRODUCT_TO_PLAN[productId] || 'starter';
           
           const currentPeriodEnd = subscription.current_period_end 
             ? new Date(subscription.current_period_end * 1000).toISOString()
@@ -237,7 +237,7 @@ serve(async (req) => {
 
         const customerId = subscription.customer as string;
         const productId = subscription.items.data[0]?.price.product as string;
-        const plan = PRODUCT_TO_PLAN[productId] || 'essencial';
+        const plan = PRODUCT_TO_PLAN[productId] || 'starter';
         
         const currentPeriodEnd = subscription.current_period_end 
           ? new Date(subscription.current_period_end * 1000).toISOString()

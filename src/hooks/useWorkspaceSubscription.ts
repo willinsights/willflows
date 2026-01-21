@@ -4,7 +4,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { getPlanLimits, type PlanLimits } from '@/lib/plans';
 import { useSuperAdmin } from './useSuperAdmin';
 
-export type SubscriptionPlan = 'essencial' | 'pro' | 'studio';
+export type SubscriptionPlan = 'starter' | 'pro' | 'studio';
 
 export interface WorkspaceSubscription {
   plan: SubscriptionPlan;
@@ -73,7 +73,7 @@ export function useWorkspaceSubscription(): WorkspaceSubscriptionState {
     if (!workspace) {
       return {
         subscription: null,
-        plan: 'essencial',
+        plan: 'starter',
         status: 'trialing',
         limits: getPlanLimits('starter'),
         trialEndsAt: null,
@@ -93,7 +93,7 @@ export function useWorkspaceSubscription(): WorkspaceSubscriptionState {
       };
     }
 
-    const plan = (workspace.subscription_plan || 'essencial') as SubscriptionPlan;
+    const plan = (workspace.subscription_plan || 'starter') as SubscriptionPlan;
     const status = workspace.subscription_status || 'trialing';
     const trialEndsAt = workspace.trial_ends_at || null;
     
@@ -125,8 +125,7 @@ export function useWorkspaceSubscription(): WorkspaceSubscriptionState {
     const isUserOwner = isAdmin; // In our system, 'admin' role = owner
     
     // Get plan limits based on the workspace's plan
-    const planId = plan === 'essencial' ? 'starter' : plan;
-    const limits = getPlanLimits(planId);
+    const limits = getPlanLimits(plan);
 
     const subscription: WorkspaceSubscription = {
       plan,

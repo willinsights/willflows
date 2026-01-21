@@ -51,7 +51,7 @@ const CheckoutSuccess = () => {
 
   const getPlanDisplayName = (plan: string | null) => {
     switch (plan) {
-      case "essencial":
+      case "starter":
         return "Starter";
       case "pro":
         return "Pro";

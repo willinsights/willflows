@@ -19,9 +19,9 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
 };
 
-// Plan mapping by product ID
+// Plan mapping by product ID - now using 'starter'
 const PLAN_MAPPING: Record<string, string> = {
-  'prod_Tl6rw16ZNqHrWd': 'essencial',
+  'prod_Tl6rw16ZNqHrWd': 'starter',
   'prod_Tl6rsZkoz6yqYu': 'pro',
   'prod_Tl6rxTvnCICjTL': 'studio',
 };

@@ -26,7 +26,7 @@ export const CONVERSION_IDS = {
 
 // Plan values for conversion tracking
 export const PLAN_VALUES: Record<string, { EUR: number; BRL: number }> = {
-  essencial: { EUR: 19, BRL: 95 },
+  starter: { EUR: 19, BRL: 95 },
   pro: { EUR: 39, BRL: 195 },
   studio: { EUR: 79, BRL: 395 },
 };

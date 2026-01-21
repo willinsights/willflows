@@ -5,7 +5,7 @@ import { getPlanLimits } from '@/lib/plans';
 import { logger } from '@/lib/logger';
 
 // Database subscription plan type
-export type SubscriptionPlan = 'essencial' | 'pro' | 'studio';
+export type SubscriptionPlan = 'starter' | 'pro' | 'studio';
 
 export interface UserSubscription {
   plan: SubscriptionPlan;
@@ -130,7 +130,7 @@ export function useUserSubscription(props?: UseUserSubscriptionProps) {
         stripeCustomerId: subData.stripe_customer_id,
         stripeSubscriptionId: subData.stripe_subscription_id,
       } : {
-        plan: 'essencial',
+        plan: 'starter',
         status: 'trialing',
         trialEndsAt: null,
         currentPeriodEnd: null,

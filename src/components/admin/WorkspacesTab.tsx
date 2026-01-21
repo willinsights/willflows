@@ -84,7 +84,7 @@ export function WorkspacesTab() {
   const getPlanBadge = (plan: string | null) => {
     if (!plan) return <span className="text-muted-foreground">—</span>;
     const colors: Record<string, string> = {
-      essencial: 'bg-blue-500/10 text-blue-500 border-blue-500/30',
+      starter: 'bg-blue-500/10 text-blue-500 border-blue-500/30',
       pro: 'bg-purple-500/10 text-purple-500 border-purple-500/30',
       studio: 'bg-amber-500/10 text-amber-500 border-amber-500/30',
     };
@@ -184,7 +184,7 @@ export function WorkspacesTab() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="essencial">Essencial</SelectItem>
+            <SelectItem value="starter">Starter</SelectItem>
             <SelectItem value="pro">Pro</SelectItem>
             <SelectItem value="studio">Studio</SelectItem>
           </SelectContent>

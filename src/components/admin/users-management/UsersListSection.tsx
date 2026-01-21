@@ -173,7 +173,7 @@ export function UsersListSection() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="essencial">Starter</SelectItem>
+            <SelectItem value="starter">Starter</SelectItem>
             <SelectItem value="pro">Pro</SelectItem>
             <SelectItem value="studio">Studio</SelectItem>
           </SelectContent>

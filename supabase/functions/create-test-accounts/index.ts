@@ -323,8 +323,8 @@ async function createTestAccounts(supabaseAdmin: any, includeEditors: boolean) {
         logStep("Warning: Could not update profile", { error: profileError.message });
       }
 
-      // Map subscription_plan to the correct enum value
-      let subscriptionPlan = 'essencial';
+      // Map subscription_plan - now DB uses 'starter' directly
+      let subscriptionPlan = 'starter';
       if (account.plan === 'pro') subscriptionPlan = 'pro';
       if (account.plan === 'studio') subscriptionPlan = 'studio';
 
