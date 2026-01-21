@@ -18,6 +18,23 @@ interface MentionPopoverProps {
   selectedIndex: number;
 }
 
+// Cores dinâmicas para avatares - baseadas na imagem de referência
+const AVATAR_COLORS = [
+  'bg-emerald-500',
+  'bg-blue-500',
+  'bg-rose-500',
+  'bg-amber-500',
+  'bg-violet-500',
+  'bg-cyan-500',
+  'bg-orange-500',
+  'bg-teal-500',
+];
+
+function getAvatarColor(identifier: string): string {
+  const hash = identifier.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+}
+
 export const MentionPopover = React.forwardRef<HTMLDivElement, MentionPopoverProps>(
   ({ members, filter, onSelect, onClose, selectedIndex }, ref) => {
     const listRef = useRef<HTMLDivElement>(null);
@@ -40,7 +57,7 @@ export const MentionPopover = React.forwardRef<HTMLDivElement, MentionPopoverPro
 
     if (filteredMembers.length === 0) {
       return (
-        <div ref={ref} className="w-64 p-3 rounded-lg border border-border bg-popover shadow-lg">
+        <div ref={ref} className="w-80 p-4 rounded-xl border border-border/50 bg-popover shadow-xl">
           <p className="text-sm text-muted-foreground">Nenhum membro encontrado</p>
         </div>
       );
@@ -57,7 +74,7 @@ export const MentionPopover = React.forwardRef<HTMLDivElement, MentionPopoverPro
             ref.current = node;
           }
         }}
-        className="w-64 max-h-48 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg"
+        className="w-80 max-h-64 overflow-y-auto rounded-xl border border-border/50 bg-popover shadow-xl"
       >
         {filteredMembers.map((member, index) => {
           const initials =
@@ -67,25 +84,27 @@ export const MentionPopover = React.forwardRef<HTMLDivElement, MentionPopoverPro
               .join('')
               .toUpperCase()
               .slice(0, 2) || '??';
+          
+          const avatarColor = getAvatarColor(member.id || member.user_id || member.email || 'default');
 
           return (
             <button
               key={member.id || member.user_id}
               onClick={() => onSelect(member)}
               className={cn(
-                'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors',
-                'hover:bg-muted focus:bg-muted focus:outline-none',
-                index === selectedIndex && 'bg-muted'
+                'w-full flex items-center gap-4 px-4 py-3 text-left transition-all duration-150',
+                'hover:bg-muted/60 focus:bg-muted/60 focus:outline-none',
+                index === selectedIndex && 'bg-muted/80 border-l-2 border-primary'
               )}
             >
-              <Avatar className="h-7 w-7">
+              <Avatar className="h-10 w-10 ring-2 ring-background shadow-sm">
                 <AvatarImage src={member.avatar_url || undefined} />
-                <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                <AvatarFallback className={cn('text-sm font-semibold text-white', avatarColor)}>
                   {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">
+                <p className="text-sm font-medium truncate text-foreground">
                   {member.full_name || 'Utilizador'}
                 </p>
                 {member.email && (
