@@ -23,7 +23,7 @@ export interface Conversation {
   displayName?: string;
   lastMessage?: { body: string; created_at: string; user_name: string } | null;
   unread_count?: number;
-  dmParticipant?: { full_name: string | null; avatar_url: string | null } | null;
+  dmParticipant?: { full_name: string | null; avatar_url: string | null; email?: string | null } | null;
 }
 
 export function useConversations() {
@@ -107,10 +107,10 @@ export function useConversations() {
         // Get other user IDs (not current user)
         const otherUserIds = [...new Set((dmMembers || []).filter(m => m.user_id !== user.id).map(m => m.user_id))];
         
-        if (otherUserIds.length > 0) {
+      if (otherUserIds.length > 0) {
           const { data: dmProfiles } = await supabase
             .from('profiles')
-            .select('id, full_name, avatar_url')
+            .select('id, full_name, avatar_url, email')
             .in('id', otherUserIds);
           
           const dmProfilesMap: Record<string, any> = {};
@@ -131,11 +131,19 @@ export function useConversations() {
         const lastMsg = lastMessageMap[c.id];
         const dmParticipant = c.type === 'dm' ? dmParticipantsMap[c.id] : null;
         
+        // Para DMs, usar nome do participante ou email como fallback
+        let displayName: string | null = c.name;
+        if (c.type === 'dm') {
+          displayName = dmParticipant?.full_name 
+            || dmParticipant?.email?.split('@')[0] 
+            || 'Utilizador';
+        } else if (c.type === 'project' && c.project?.name) {
+          displayName = c.project.name;
+        }
+        
         return {
           ...c,
-          displayName: c.type === 'dm' && dmParticipant 
-            ? dmParticipant.full_name || 'Utilizador' 
-            : c.name,
+          displayName,
           lastMessage: lastMsg ? {
             body: lastMsg.body,
             created_at: lastMsg.created_at,
