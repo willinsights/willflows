@@ -97,7 +97,7 @@ export function useChatNotifications() {
                 window.location.href = `/app/chat?c=${newMessage.conversation_id}`;
               },
             },
-            duration: 5000,
+            duration: 10000,
           });
           
           // Send push notification if permission granted and enabled
