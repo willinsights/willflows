@@ -323,7 +323,12 @@ function ConversationItem({
   onDelete,
   showDeleteOption,
 }: ConversationItemProps) {
-  const displayName = conversation.displayName || conversation.name || 'Sem nome';
+  // Para DMs usar nome do participante, para projetos usar nome do projeto
+  const displayName = conversation.displayName 
+    || conversation.dmParticipant?.full_name 
+    || conversation.dmParticipant?.email?.split('@')[0]
+    || conversation.name 
+    || 'Utilizador';
   const lastMessage = conversation.lastMessage;
   
   const getIcon = () => {

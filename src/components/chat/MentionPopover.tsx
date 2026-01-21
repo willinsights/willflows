@@ -57,7 +57,7 @@ export const MentionPopover = React.forwardRef<HTMLDivElement, MentionPopoverPro
 
     if (filteredMembers.length === 0) {
       return (
-        <div ref={ref} className="w-80 p-4 rounded-xl border border-border/50 bg-popover shadow-xl">
+        <div ref={ref} className="w-64 p-3 rounded-lg border border-border bg-popover shadow-lg">
           <p className="text-sm text-muted-foreground">Nenhum membro encontrado</p>
         </div>
       );
@@ -66,7 +66,6 @@ export const MentionPopover = React.forwardRef<HTMLDivElement, MentionPopoverPro
     return (
       <div
         ref={(node) => {
-          // Merge refs
           listRef.current = node;
           if (typeof ref === 'function') {
             ref(node);
@@ -74,7 +73,7 @@ export const MentionPopover = React.forwardRef<HTMLDivElement, MentionPopoverPro
             ref.current = node;
           }
         }}
-        className="w-80 max-h-64 overflow-y-auto rounded-xl border border-border/50 bg-popover shadow-xl"
+        className="w-64 max-h-52 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg"
       >
         {filteredMembers.map((member, index) => {
           const initials =
@@ -92,24 +91,24 @@ export const MentionPopover = React.forwardRef<HTMLDivElement, MentionPopoverPro
               key={member.id || member.user_id}
               type="button"
               onMouseDown={(e) => {
-                e.preventDefault(); // Prevent blur before selection
+                e.preventDefault();
                 e.stopPropagation();
                 onSelect(member);
               }}
               className={cn(
-                'w-full flex items-center gap-4 px-4 py-3 text-left transition-all duration-150',
-                'hover:bg-muted/60 focus:bg-muted/60 focus:outline-none',
-                index === selectedIndex && 'bg-muted/80 border-l-2 border-primary'
+                'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors',
+                'hover:bg-primary/10 focus:bg-primary/10 focus:outline-none',
+                index === selectedIndex && 'bg-primary/15'
               )}
             >
-              <Avatar className="h-10 w-10 ring-2 ring-background shadow-sm">
+              <Avatar className="h-8 w-8 shrink-0">
                 <AvatarImage src={member.avatar_url || undefined} />
-                <AvatarFallback className={cn('text-sm font-semibold text-white', avatarColor)}>
+                <AvatarFallback className={cn('text-xs font-medium text-white', avatarColor)}>
                   {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate text-foreground">
+                <p className="text-sm font-medium truncate">
                   {member.full_name || 'Utilizador'}
                 </p>
                 {member.email && (
