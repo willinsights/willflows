@@ -21,6 +21,7 @@ import { Loader2, Hash, Users } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppToast } from '@/hooks/useAppToast';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 
 interface CreateChannelModalProps {
   open: boolean;
@@ -34,6 +35,7 @@ export function CreateChannelModal({
   const { user } = useAuth();
   const { workspace } = useWorkspace();
   const { members: workspaceMembers, loading: membersLoading } = useWorkspaceMembers();
+  const { canViewTeamContacts } = useFinancialPermissions();
   const queryClient = useQueryClient();
   const toast = useAppToast();
   
@@ -208,11 +210,13 @@ export function CreateChannelModal({
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">
-                          {member.full_name || member.email?.split('@')[0] || 'Membro'}
+                          {member.full_name || 'Membro'}
                         </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {member.email}
-                        </p>
+                        {canViewTeamContacts && member.email && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            {member.email}
+                          </p>
+                        )}
                       </div>
                     </label>
                   ))}

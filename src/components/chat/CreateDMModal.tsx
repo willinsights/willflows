@@ -14,6 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useConversations } from '@/hooks/useConversations';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { toast } from 'sonner';
 
 interface CreateDMModalProps {
@@ -26,6 +27,7 @@ export function CreateDMModal({ open, onOpenChange }: CreateDMModalProps) {
   const { user } = useAuth();
   const { members, loading: loadingMembers } = useWorkspaceMembers();
   const { createDM } = useConversations();
+  const { canViewTeamContacts } = useFinancialPermissions();
   const [search, setSearch] = useState('');
   const [creating, setCreating] = useState<string | null>(null);
 
@@ -114,11 +116,13 @@ export function CreateDMModal({ open, onOpenChange }: CreateDMModalProps) {
                     </Avatar>
                     <div className="flex-1 text-left min-w-0">
                       <p className="font-medium truncate">
-                        {member.full_name || 'Utilizador'}
+                        {member.full_name || 'Membro'}
                       </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {member.email}
-                      </p>
+                      {canViewTeamContacts && member.email && (
+                        <p className="text-xs text-muted-foreground truncate">
+                          {member.email}
+                        </p>
+                      )}
                     </div>
                     {creating === member.user_id && (
                       <Loader2 className="h-4 w-4 animate-spin ml-2" />

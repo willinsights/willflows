@@ -322,7 +322,7 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-border px-4 py-3 bg-card">
+      <div className="flex items-center gap-3 border-b border-border/40 px-4 py-3 bg-card/40 backdrop-blur-sm">
         {getConversationIcon()}
         <div className="flex-1 min-w-0">
           <h2 className="font-semibold truncate">
