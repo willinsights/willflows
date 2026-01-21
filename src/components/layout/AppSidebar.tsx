@@ -1,6 +1,6 @@
 import type React from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
   Video,
@@ -25,6 +25,7 @@ import {
   ExternalLink,
   MessageSquare,
 } from 'lucide-react';
+import { useTotalUnreadMessages } from '@/hooks/useTotalUnreadMessages';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -112,7 +113,7 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
   const { user } = useAuth();
   const { isAdmin } = useWorkspace();
   const { isSuperAdmin } = useSuperAdmin();
-
+  const { totalUnread } = useTotalUnreadMessages();
   // Add super admin section only if user is super admin
   const baseSections = isSuperAdmin ? [...navSections, superAdminSection] : navSections;
   
@@ -193,6 +194,9 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
               <div className="space-y-1">
                 {section.items.map((item) => {
                   const active = isActive(item.path);
+                  const isChat = item.path === '/app/chat';
+                  const showBadge = isChat && totalUnread > 0;
+                  
                   return (
                     <NavLink
                       key={item.path}
@@ -201,6 +205,7 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
                       aria-label={collapsed && !isMobile ? item.label : undefined}
                       onClick={() => !isMobile && !collapsed && onToggle()}
                       className={cn(
+                        'relative',
                         collapsed && !isMobile 
                           ? 'flex flex-col items-center gap-0.5 px-1 py-2 rounded-lg transition-all duration-200'
                           : 'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
@@ -212,8 +217,36 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
                       {collapsed && !isMobile ? (
                         <span className="text-[10px] truncate max-w-full text-center leading-tight font-medium">{item.label}</span>
                       ) : (
-                        <span className="truncate">{item.label}</span>
+                        <>
+                          <span className="truncate">{item.label}</span>
+                          {/* Badge for chat unread messages - expanded sidebar */}
+                          <AnimatePresence>
+                            {showBadge && (
+                              <motion.span
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0 }}
+                                className="ml-auto min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-primary text-primary-foreground text-[10px] font-bold rounded-full"
+                              >
+                                {totalUnread > 99 ? '99+' : totalUnread}
+                              </motion.span>
+                            )}
+                          </AnimatePresence>
+                        </>
                       )}
+                      {/* Badge for chat unread messages - collapsed sidebar */}
+                      <AnimatePresence>
+                        {showBadge && collapsed && !isMobile && (
+                          <motion.span
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            exit={{ scale: 0 }}
+                            className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 flex items-center justify-center bg-primary text-primary-foreground text-[8px] font-bold rounded-full"
+                          >
+                            {totalUnread > 9 ? '9+' : totalUnread}
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
                     </NavLink>
                   );
                 })}
