@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMessages } from '@/hooks/useMessages';
 import { useConversations, useConversation } from '@/hooks/useConversations';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { usePresence } from '@/hooks/usePresence';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatMessage } from './ChatMessage';
 import { ChatComposer } from './ChatComposer';
@@ -38,6 +39,8 @@ interface ChatFeedProps {
 export function ChatFeed({ conversationId }: ChatFeedProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { workspace } = useWorkspace();
+  const queryClient = useQueryClient();
   const { messages, isLoading, sendMessage, updateMessage, toggleReaction, markAsRead, replyingTo, setReplyingTo } = useMessages(conversationId);
   const { conversations, leaveConversation } = useConversations();
   const { members: conversationMembers } = useConversation(conversationId);
@@ -106,15 +109,20 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
     
     // Update last_read_at in conversation_members
     const markConversationAsRead = async () => {
-      await supabase
+      const { error } = await supabase
         .from('conversation_members')
         .update({ last_read_at: new Date().toISOString() })
         .eq('conversation_id', conversationId)
         .eq('user_id', user.id);
+      
+      // Invalidate cache to update unread_count in sidebar
+      if (!error && workspace?.id) {
+        queryClient.invalidateQueries({ queryKey: ['conversations', workspace.id] });
+      }
     };
     
     markConversationAsRead();
-  }, [conversationId, user?.id]);
+  }, [conversationId, user?.id, queryClient, workspace?.id]);
 
   // Auto-scroll to bottom on initial load and new messages
   useEffect(() => {
