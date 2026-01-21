@@ -323,12 +323,8 @@ function ConversationItem({
   onDelete,
   showDeleteOption,
 }: ConversationItemProps) {
-  // Para DMs usar nome do participante, para projetos usar nome do projeto
-  const displayName = conversation.displayName 
-    || conversation.dmParticipant?.full_name 
-    || conversation.dmParticipant?.email?.split('@')[0]
-    || conversation.name 
-    || 'Utilizador';
+  // displayName já vem correto do hook, usar fallback simples
+  const displayName = conversation.displayName || conversation.name || 'Conversa';
   const lastMessage = conversation.lastMessage;
   
   const getIcon = () => {

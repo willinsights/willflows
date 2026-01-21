@@ -75,7 +75,7 @@ export function useConversations() {
       if (messageUserIds.length > 0) {
         const { data: msgProfiles } = await supabase
           .from('profiles')
-          .select('id, full_name')
+          .select('id, full_name, email')
           .in('id', messageUserIds);
         
         (msgProfiles || []).forEach(p => {
@@ -87,9 +87,10 @@ export function useConversations() {
       const lastMessageMap: Record<string, any> = {};
       (lastMessages || []).forEach(msg => {
         if (!lastMessageMap[msg.conversation_id]) {
+          const profile = messageProfilesMap[msg.user_id];
           lastMessageMap[msg.conversation_id] = {
             ...msg,
-            user_name: messageProfilesMap[msg.user_id]?.full_name || 'Utilizador'
+            user_name: profile?.full_name || profile?.email?.split('@')[0] || 'Anónimo'
           };
         }
       });
@@ -131,12 +132,13 @@ export function useConversations() {
         const lastMsg = lastMessageMap[c.id];
         const dmParticipant = c.type === 'dm' ? dmParticipantsMap[c.id] : null;
         
-        // Para DMs, usar nome do participante ou email como fallback
+        // Para DMs, usar nome do participante ou email como fallback garantido
         let displayName: string | null = c.name;
         if (c.type === 'dm') {
           displayName = dmParticipant?.full_name 
             || dmParticipant?.email?.split('@')[0] 
-            || 'Utilizador';
+            || dmParticipant?.email
+            || 'Desconhecido';
         } else if (c.type === 'project' && c.project?.name) {
           displayName = c.project.name;
         }
