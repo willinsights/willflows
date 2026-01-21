@@ -125,7 +125,7 @@ export function useMessages(conversationId: string | undefined) {
     enabled: messageIds.length > 0,
   });
 
-  const messages: Message[] = (data?.pages.flatMap(page => page.messages).reverse() || []).map(m => {
+  const messages: Message[] = (data?.pages.flatMap(page => page.messages) || []).map(m => {
     // Group reactions by emoji
     const msgReactions = (reactionsData || []).filter(r => r.message_id === m.id);
     const reactionGroups = msgReactions.reduce((acc, r) => {
