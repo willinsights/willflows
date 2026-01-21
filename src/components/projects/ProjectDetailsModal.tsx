@@ -492,6 +492,15 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
         conversationId = newConversation.id;
       }
       
+      // Ativar o chat para este utilizador (torna visível na página Chat)
+      await supabase
+        .from('conversation_members')
+        .upsert({
+          conversation_id: conversationId,
+          user_id: user.id,
+          is_active: true,
+        }, { onConflict: 'conversation_id,user_id' });
+      
       onOpenChange(false);
       navigate(`/app/chat/${conversationId}`);
     } catch (error) {
