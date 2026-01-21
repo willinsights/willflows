@@ -38,7 +38,7 @@ function checkRateLimit(email: string): boolean {
 interface PasswordResetEmailRequest {
   email: string;
   name?: string;
-  resetLink: string;
+  resetLink?: string;  // Optional - will be generated if not provided
 }
 
 async function sendEmailWithResend(
@@ -90,43 +90,13 @@ const handler = async (req: Request): Promise<Response> => {
       { auth: { persistSession: false } }
     );
 
-    const { email, name, resetLink }: PasswordResetEmailRequest = await req.json();
+  const { email, name, resetLink }: PasswordResetEmailRequest = await req.json();
     
-    // Validate inputs
+    // Validate email input
     if (!email || typeof email !== 'string' || !email.includes('@')) {
       logStep("ERROR: Invalid email input");
       return new Response(
         JSON.stringify({ error: "Invalid email address" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    if (!resetLink || typeof resetLink !== 'string') {
-      logStep("ERROR: Missing reset link");
-      return new Response(
-        JSON.stringify({ error: "Reset link is required" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    // Validate reset link is from trusted domains
-    const allowedDomains = ['willflow.app', 'www.willflow.app', 'willflow.pt', 'www.willflow.pt', 'localhost', 'lovable.app'];
-    try {
-      const linkUrl = new URL(resetLink);
-      const isAllowed = allowedDomains.some(domain => 
-        linkUrl.hostname === domain || linkUrl.hostname.endsWith('.' + domain)
-      );
-      if (!isAllowed) {
-        logStep("ERROR: Untrusted reset link domain", { hostname: linkUrl.hostname });
-        return new Response(
-          JSON.stringify({ error: "Invalid reset link" }),
-          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
-      }
-    } catch {
-      logStep("ERROR: Invalid reset link URL");
-      return new Response(
-        JSON.stringify({ error: "Invalid reset link format" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -153,6 +123,54 @@ const handler = async (req: Request): Promise<Response> => {
         JSON.stringify({ success: true }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
+    }
+
+    // Generate reset link if not provided
+    let finalResetLink = resetLink;
+    
+    if (!finalResetLink) {
+      logStep("Generating reset link via Admin API", { email });
+      
+      const { data: linkData, error: linkError } = await supabaseClient.auth.admin.generateLink({
+        type: 'recovery',
+        email: email,
+        options: {
+          redirectTo: 'https://willflow.app/auth?mode=reset'
+        }
+      });
+      
+      if (linkError || !linkData?.properties?.action_link) {
+        logStep("ERROR: Failed to generate reset link", { error: linkError?.message });
+        return new Response(
+          JSON.stringify({ error: "Failed to generate reset link" }),
+          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+      
+      finalResetLink = linkData.properties.action_link;
+      logStep("Reset link generated successfully");
+    } else {
+      // Validate reset link is from trusted domains (only if provided externally)
+      const allowedDomains = ['willflow.app', 'www.willflow.app', 'willflow.pt', 'www.willflow.pt', 'localhost', 'lovable.app'];
+      try {
+        const linkUrl = new URL(finalResetLink);
+        const isAllowed = allowedDomains.some(domain => 
+          linkUrl.hostname === domain || linkUrl.hostname.endsWith('.' + domain)
+        );
+        if (!isAllowed) {
+          logStep("ERROR: Untrusted reset link domain", { hostname: linkUrl.hostname });
+          return new Response(
+            JSON.stringify({ error: "Invalid reset link" }),
+            { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        }
+      } catch {
+        logStep("ERROR: Invalid reset link URL");
+        return new Response(
+          JSON.stringify({ error: "Invalid reset link format" }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
     }
 
     const displayName = name || profile.full_name || email.split('@')[0];
@@ -198,7 +216,7 @@ const handler = async (req: Request): Promise<Response> => {
                     <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 30px 0;">
                       <tr>
                         <td align="center">
-                          <a href="${resetLink}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                          <a href="${finalResetLink}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
                             Redefinir password
                           </a>
                         </td>
@@ -208,7 +226,7 @@ const handler = async (req: Request): Promise<Response> => {
                       Se não conseguir clicar no botão, copie e cole o seguinte link no seu browser:
                     </p>
                     <p style="margin: 0 0 20px; padding: 12px 16px; background-color: #f4f4f5; border-radius: 8px; word-break: break-all;">
-                      <a href="${resetLink}" style="color: #7c3aed; font-size: 14px; text-decoration: none;">${resetLink}</a>
+                      <a href="${finalResetLink}" style="color: #7c3aed; font-size: 14px; text-decoration: none;">${finalResetLink}</a>
                     </p>
                     <table role="presentation" style="width: 100%; border-collapse: collapse; margin-top: 30px;">
                       <tr>
