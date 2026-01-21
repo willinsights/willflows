@@ -1,4 +1,5 @@
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { validateEmail } from "../_shared/email-validator.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -45,10 +46,28 @@ const handler = async (req: Request): Promise<Response> => {
     const { email, name, inviteToken, freeDays = 30 }: BetaInviteEmailRequest = await req.json();
     logStep("Request data parsed", { email, hasName: !!name, hasToken: !!inviteToken, freeDays });
 
-    if (!email || !inviteToken) {
-      logStep("Missing required fields");
+    if (!inviteToken) {
+      logStep("Missing inviteToken");
       return new Response(
-        JSON.stringify({ error: "Email and inviteToken are required" }),
+        JSON.stringify({ error: "inviteToken is required" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
+    // Validate email with full validation (format, domain, MX records)
+    const emailValidation = await validateEmail(email);
+    if (!emailValidation.valid) {
+      logStep("Email validation failed", { 
+        email, 
+        error: emailValidation.error,
+        errorCode: emailValidation.errorCode,
+        checks: emailValidation.checks 
+      });
+      return new Response(
+        JSON.stringify({ error: emailValidation.error }),
         {
           status: 400,
           headers: { "Content-Type": "application/json", ...corsHeaders },

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { validateEmail } from "../_shared/email-validator.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -68,10 +69,20 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { email, workspaceName, inviterName, role, token: inviteToken }: InvitationEmailRequest = await req.json();
 
-    if (!email || !workspaceName || !inviteToken) {
+    if (!workspaceName || !inviteToken) {
       console.error("Missing required fields");
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate email with full validation (format, domain, MX records)
+    const emailValidation = await validateEmail(email);
+    if (!emailValidation.valid) {
+      console.error("Email validation failed:", emailValidation.error);
+      return new Response(
+        JSON.stringify({ error: emailValidation.error }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
