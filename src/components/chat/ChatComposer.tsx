@@ -27,6 +27,7 @@ interface ChatComposerProps {
   members?: MentionMember[];
   conversationId?: string;
   projectId?: string;
+  showMentionButton?: boolean;
 }
 
 const EMOJI_LIST = ['👍', '❤️', '🔥', '👏', '💯', '😊', '🎉', '✨', '👀', '🙌', '💪', '🚀'];
@@ -43,6 +44,7 @@ export function ChatComposer({
   members = [],
   conversationId,
   projectId,
+  showMentionButton = true,
 }: ChatComposerProps) {
 
   const [message, setMessage] = useState('');
@@ -333,19 +335,21 @@ export function ChatComposer({
               <TooltipContent>Anexar ficheiro</TooltipContent>
             </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
-                  onClick={triggerMention}
-                >
-                  <AtSign className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Mencionar</TooltipContent>
-            </Tooltip>
+            {showMentionButton && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+                    onClick={triggerMention}
+                  >
+                    <AtSign className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Mencionar</TooltipContent>
+              </Tooltip>
+            )}
           </div>
 
           {/* Hidden File Input */}

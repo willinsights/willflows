@@ -319,7 +319,8 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
               onSend={handleSendMessage}
               placeholder={`Mensagem para ${conversation?.displayName || conversation?.name || 'conversa'}...`}
               isLoading={sendMessage.isPending}
-              members={mentionMembers}
+              members={conversation?.type === 'dm' ? [] : mentionMembers}
+              showMentionButton={conversation?.type !== 'dm'}
               conversationId={conversationId}
               projectId={conversation?.project_id || undefined}
             />
