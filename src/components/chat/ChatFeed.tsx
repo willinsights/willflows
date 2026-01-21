@@ -105,26 +105,44 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
   }, [workspaceMembers]);
 
   // Mark conversation as read when opened (using last message timestamp to avoid clock skew)
+  // Uses upsert to ensure membership exists (important for public channels)
   useEffect(() => {
     if (!conversationId || !user?.id || !workspace?.id) return;
     // Wait for messages to load before marking as read
-    if (isLoading || messages.length === 0) return;
+    if (isLoading) return;
     
     const markConversationAsRead = async () => {
       // Use last message timestamp instead of client time to avoid clock skew issues
-      const lastMessageAt = messages[messages.length - 1]?.created_at;
+      const lastMessageAt = messages.length > 0 ? messages[messages.length - 1]?.created_at : null;
       const readTimestamp = lastMessageAt || new Date().toISOString();
       
-      const { error } = await supabase
-        .from('conversation_members')
-        .update({ last_read_at: readTimestamp })
-        .eq('conversation_id', conversationId)
-        .eq('user_id', user.id);
+      logger.debug('markConversationAsRead:', { conversationId, userId: user.id, readTimestamp, messageCount: messages.length });
       
-      if (error) {
-        logger.error('Failed to mark conversation as read:', error.message);
+      // Upsert membership to ensure it exists (for public channels user may not have membership yet)
+      const { error: upsertError } = await supabase
+        .from('conversation_members')
+        .upsert(
+          { 
+            conversation_id: conversationId, 
+            user_id: user.id, 
+            role: 'member',
+            last_read_at: readTimestamp 
+          },
+          { 
+            onConflict: 'conversation_id,user_id',
+            ignoreDuplicates: false 
+          }
+        );
+      
+      if (upsertError) {
+        logger.error('Failed to upsert conversation membership:', upsertError.code, upsertError.message);
         return;
       }
+      
+      logger.debug('markConversationAsRead: upsert successful');
+      
+      // Cancel any pending queries to prevent stale data from overwriting
+      await queryClient.cancelQueries({ queryKey: ['conversations', workspace.id] });
       
       // Optimistic update: immediately set unread_count to 0 in cache
       queryClient.setQueryData(

@@ -43,6 +43,7 @@ export function useConversations() {
         .eq('user_id', user.id);
 
       const conversationIds = memberConversations?.map(m => m.conversation_id) || [];
+      const memberConversationIdSet = new Set(conversationIds);
       
       // Map last_read_at by conversation_id for unread calculation
       const lastReadMap: Record<string, string | null> = {};
@@ -63,6 +64,10 @@ export function useConversations() {
       const filtered = (data || []).filter((c: any) => 
         conversationIds.includes(c.id) || (c.type === 'channel' && !c.is_private)
       );
+      
+      // Track which conversations are public channels the user has NOT joined
+      const isPublicChannelNotJoined = (conv: any) => 
+        conv.type === 'channel' && !conv.is_private && !memberConversationIdSet.has(conv.id);
 
       // Fetch last messages for each conversation
       const convIds = filtered.map(c => c.id);
@@ -146,6 +151,12 @@ export function useConversations() {
       // Calculate unread counts for each conversation
       const unreadCountMap: Record<string, number> = {};
       for (const conv of filtered) {
+        // For public channels user hasn't joined, show 0 unread (they'll see badge after first open)
+        if (isPublicChannelNotJoined(conv)) {
+          unreadCountMap[conv.id] = 0;
+          continue;
+        }
+        
         const lastReadAt = lastReadMap[conv.id];
         if (lastReadAt) {
           // Count messages after last_read_at
@@ -155,7 +166,7 @@ export function useConversations() {
           );
           unreadCountMap[conv.id] = unreadMsgs.length;
         } else {
-          // If never read, count all messages not from current user
+          // If never read but is a member, count all messages not from current user
           const unreadMsgs = (allMessages || []).filter(
             m => m.conversation_id === conv.id
           );
