@@ -9,6 +9,7 @@ import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { ChatMessage } from './ChatMessage';
 import { ChatComposer } from './ChatComposer';
 import { ChatThread } from './ChatThread';
@@ -103,26 +104,47 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
       }));
   }, [workspaceMembers]);
 
-  // Mark conversation as read when opened
+  // Mark conversation as read when opened (using last message timestamp to avoid clock skew)
   useEffect(() => {
-    if (!conversationId || !user?.id) return;
+    if (!conversationId || !user?.id || !workspace?.id) return;
+    // Wait for messages to load before marking as read
+    if (isLoading || messages.length === 0) return;
     
-    // Update last_read_at in conversation_members
     const markConversationAsRead = async () => {
+      // Use last message timestamp instead of client time to avoid clock skew issues
+      const lastMessageAt = messages[messages.length - 1]?.created_at;
+      const readTimestamp = lastMessageAt || new Date().toISOString();
+      
       const { error } = await supabase
         .from('conversation_members')
-        .update({ last_read_at: new Date().toISOString() })
+        .update({ last_read_at: readTimestamp })
         .eq('conversation_id', conversationId)
         .eq('user_id', user.id);
       
-      // Invalidate cache to update unread_count in sidebar
-      if (!error && workspace?.id) {
-        queryClient.invalidateQueries({ queryKey: ['conversations', workspace.id] });
+      if (error) {
+        logger.error('Failed to mark conversation as read:', error.message);
+        return;
       }
+      
+      // Optimistic update: immediately set unread_count to 0 in cache
+      queryClient.setQueryData(
+        ['conversations', workspace.id],
+        (oldData: typeof conversations | undefined) => {
+          if (!oldData) return oldData;
+          return oldData.map(conv => 
+            conv.id === conversationId 
+              ? { ...conv, unread_count: 0 }
+              : conv
+          );
+        }
+      );
+      
+      // Also invalidate to ensure consistency with backend
+      queryClient.invalidateQueries({ queryKey: ['conversations', workspace.id] });
     };
     
     markConversationAsRead();
-  }, [conversationId, user?.id, queryClient, workspace?.id]);
+  }, [conversationId, user?.id, workspace?.id, messages, isLoading, queryClient]);
 
   // Auto-scroll to bottom on initial load and new messages
   useEffect(() => {
