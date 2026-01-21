@@ -87,7 +87,7 @@ export default function BlogCategory() {
     ]
   });
 
-  // Generate CollectionPage Schema
+  // Generate CollectionPage Schema with images
   const generateCollectionSchema = () => ({
     "@context": "https://schema.org",
     "@type": "CollectionPage",
@@ -97,11 +97,17 @@ export default function BlogCategory() {
     "mainEntity": {
       "@type": "ItemList",
       "numberOfItems": filteredPosts.length,
-      "itemListElement": filteredPosts.slice(0, 10).map((post, index) => ({
+      "itemListElement": filteredPosts.slice(0, 20).map((post, index) => ({
         "@type": "ListItem",
         "position": index + 1,
-        "url": `https://willflow.app/blog/${post.slug}`,
-        "name": post.title
+        "item": {
+          "@type": "BlogPosting",
+          "headline": post.title,
+          "url": `https://willflow.app/blog/${post.slug}`,
+          "image": post.cover_image || "https://willflow.app/logo-willflow-purple.png",
+          "datePublished": post.published_at,
+          "description": post.excerpt
+        }
       }))
     }
   });
@@ -235,8 +241,12 @@ export default function BlogCategory() {
                             <img
                               src={post.cover_image}
                               alt={post.title}
+                              title={post.title}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                               loading="lazy"
+                              decoding="async"
+                              width={800}
+                              height={450}
                             />
                           </div>
                         )}

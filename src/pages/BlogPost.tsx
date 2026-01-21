@@ -57,16 +57,30 @@ export default function BlogPost() {
   const currentUrl = typeof window !== 'undefined' ? `https://willflow.app/blog/${slug}` : '';
   const readingTime = post ? calculateReadingTime(post.content) : 0;
 
-  // Generate Article Schema JSON-LD
+  // Generate Article Schema JSON-LD with enhanced image data
   const generateArticleSchema = () => {
     if (!post) return null;
+    
+    const imageObject = post.cover_image ? {
+      "@type": "ImageObject",
+      "url": post.cover_image,
+      "width": 1200,
+      "height": 630,
+      "caption": post.excerpt || post.title
+    } : {
+      "@type": "ImageObject",
+      "url": "https://willflow.app/logo-willflow-purple.png",
+      "width": 512,
+      "height": 512
+    };
     
     return {
       "@context": "https://schema.org",
       "@type": "Article",
       "headline": post.title,
       "description": post.excerpt || post.title,
-      "image": post.cover_image || "https://willflow.app/logo-willflow-purple.png",
+      "image": imageObject,
+      "thumbnailUrl": post.cover_image || "https://willflow.app/logo-willflow-purple.png",
       "author": {
         "@type": "Person",
         "name": post.author_name
@@ -164,22 +178,38 @@ export default function BlogPost() {
         <meta name="robots" content="index, follow, max-image-preview:large" />
         <link rel="canonical" href={currentUrl} />
         
-        {/* Open Graph */}
+        {/* Google Images specific */}
+        {post.cover_image && <meta name="thumbnail" content={post.cover_image} />}
+        
+        {/* Open Graph with enhanced image data */}
         <meta property="og:type" content="article" />
         <meta property="og:title" content={post.title} />
         <meta property="og:description" content={post.excerpt || post.title} />
         <meta property="og:url" content={currentUrl} />
-        {post.cover_image && <meta property="og:image" content={post.cover_image} />}
+        {post.cover_image && (
+          <>
+            <meta property="og:image" content={post.cover_image} />
+            <meta property="og:image:width" content="1200" />
+            <meta property="og:image:height" content="630" />
+            <meta property="og:image:alt" content={post.title} />
+          </>
+        )}
         <meta property="og:site_name" content="WillFlow" />
         <meta property="article:published_time" content={post.published_at || ''} />
+        <meta property="article:modified_time" content={post.updated_at || post.published_at || ''} />
         <meta property="article:author" content={post.author_name} />
         <meta property="article:section" content={getCategoryLabel(post.category)} />
         
-        {/* Twitter */}
+        {/* Twitter with enhanced image */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={post.title} />
         <meta name="twitter:description" content={post.excerpt || post.title} />
-        {post.cover_image && <meta name="twitter:image" content={post.cover_image} />}
+        {post.cover_image && (
+          <>
+            <meta name="twitter:image" content={post.cover_image} />
+            <meta name="twitter:image:alt" content={post.title} />
+          </>
+        )}
         
         {/* Structured Data */}
         <script type="application/ld+json">
@@ -225,8 +255,12 @@ export default function BlogPost() {
               <img
                 src={post.cover_image}
                 alt={post.title}
+                title={post.title}
                 className="w-full h-full object-cover"
                 loading="eager"
+                width={1200}
+                height={514}
+                decoding="async"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
               
