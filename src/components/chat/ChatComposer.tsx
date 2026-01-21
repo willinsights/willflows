@@ -288,7 +288,7 @@ export function ChatComposer({
 
   return (
     <>
-      <div className="rounded-xl border border-border bg-card/50 overflow-hidden relative">
+      <div className="rounded-xl border border-border bg-card/50 relative overflow-visible">
         {/* Mention Popover - Always show when mentions triggered */}
         {showMentions && (
           <div className="absolute bottom-full left-3 mb-2 z-50">
