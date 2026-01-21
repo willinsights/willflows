@@ -9,6 +9,16 @@ export function useChatNotifications() {
   const { permission, preferences, sendLocalNotification } = usePushNotifications();
   const lastNotifiedRef = useRef<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  // Use refs to always have fresh values in callbacks (avoid stale closures)
+  const preferencesRef = useRef(preferences);
+  const permissionRef = useRef(permission);
+  
+  // Keep refs updated
+  useEffect(() => {
+    preferencesRef.current = preferences;
+    permissionRef.current = permission;
+  }, [preferences, permission]);
 
   // Initialize audio lazily with cache-busting
   const getAudio = useCallback(() => {
@@ -21,7 +31,8 @@ export function useChatNotifications() {
   }, []);
 
   const playSound = useCallback(() => {
-    if (preferences?.sound_enabled !== false) {
+    // Always check the current ref value
+    if (preferencesRef.current?.sound_enabled !== false) {
       try {
         const audio = getAudio();
         audio.currentTime = 0;
@@ -32,14 +43,10 @@ export function useChatNotifications() {
         console.warn('Could not play notification sound:', e);
       }
     }
-  }, [preferences?.sound_enabled, getAudio]);
+  }, [getAudio]);
 
   useEffect(() => {
     if (!user?.id) return;
-    
-    // Check what features are enabled
-    const shouldPlaySound = preferences?.sound_enabled !== false;
-    const shouldNotify = preferences?.push_enabled && preferences?.messages_enabled !== false && permission === 'granted';
     
     // Subscribe to new messages via Realtime
     const channel = supabase
@@ -83,8 +90,8 @@ export function useChatNotifications() {
           
           const senderName = sender?.full_name || sender?.email?.split('@')[0] || 'Alguém';
           
-          // Play sound if enabled (independent of push notification permission)
-          if (shouldPlaySound) {
+          // Play sound if enabled - use ref for fresh value
+          if (preferencesRef.current?.sound_enabled !== false) {
             playSound();
           }
           
@@ -101,8 +108,10 @@ export function useChatNotifications() {
             closeButton: true,
           });
           
-          // Send push notification if permission granted and enabled
-          if (shouldNotify) {
+          // Send push notification if permission granted and enabled - use refs for fresh values
+          const currentPrefs = preferencesRef.current;
+          const currentPerm = permissionRef.current;
+          if (currentPrefs?.push_enabled && currentPrefs?.messages_enabled !== false && currentPerm === 'granted') {
             sendLocalNotification(`Nova mensagem de ${senderName}`, {
               body: newMessage.body?.slice(0, 100) || 'Nova mensagem',
               tag: 'chat-message',
@@ -116,7 +125,7 @@ export function useChatNotifications() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, permission, preferences, sendLocalNotification, playSound]);
+  }, [user?.id, playSound, sendLocalNotification]);
 
   return { playSound };
 }
