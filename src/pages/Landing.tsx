@@ -260,6 +260,20 @@ export default function Landing() {
             }
           })}
         </script>
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "HowTo",
+            "name": "Como começar com o WillFlow",
+            "description": "Guia passo a passo para configurar o WillFlow e gerir os seus projetos de fotografia e vídeo",
+            "step": steps.map((step, index) => ({
+              "@type": "HowToStep",
+              "position": index + 1,
+              "name": step.title,
+              "text": step.description
+            }))
+          })}
+        </script>
       </Helmet>
       <PublicHeader />
 

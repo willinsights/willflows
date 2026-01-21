@@ -21,6 +21,21 @@
     <link rel="canonical" href="https://willflow.app/" />
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     
+    <!-- Hreflang for PT/BR markets -->
+    <link rel="alternate" hreflang="pt-PT" href="https://willflow.app/" />
+    <link rel="alternate" hreflang="pt-BR" href="https://willflow.app/" />
+    <link rel="alternate" hreflang="x-default" href="https://willflow.app/" />
+    
+    <!-- Additional SEO Tags -->
+    <meta name="application-name" content="WillFlow" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    
+    <!-- Geo Tags for Local SEO -->
+    <meta name="geo.region" content="PT" />
+    <meta name="geo.placename" content="Lisboa" />
+    
     <!-- Open Graph -->
     
     
@@ -125,6 +140,32 @@
         "contactType": "customer support",
         "email": "geral@willflow.app",
         "availableLanguage": ["Portuguese", "English"]
+      }
+    }
+    </script>
+
+    <!-- Structured Data - LocalBusiness for Local SEO -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "LocalBusiness",
+      "name": "WillFlow",
+      "description": "Software de gestão de projetos para fotógrafos e filmmakers",
+      "url": "https://willflow.app",
+      "priceRange": "€€",
+      "address": {
+        "@type": "PostalAddress",
+        "addressCountry": "PT"
+      },
+      "areaServed": ["Portugal", "Brasil"],
+      "hasOfferCatalog": {
+        "@type": "OfferCatalog",
+        "name": "Planos WillFlow",
+        "itemListElement": [
+          { "@type": "Offer", "name": "Starter", "price": "14", "priceCurrency": "EUR" },
+          { "@type": "Offer", "name": "Pro", "price": "22", "priceCurrency": "EUR" },
+          { "@type": "Offer", "name": "Studio", "price": "32", "priceCurrency": "EUR" }
+        ]
       }
     }
     </script>

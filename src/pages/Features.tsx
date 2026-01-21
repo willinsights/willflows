@@ -144,6 +144,16 @@ export default function Features() {
         <meta property="og:type" content="website" />
         <meta name="twitter:title" content="Funcionalidades | WillFlow - Kanban, CRM, Calendário e Mais" />
         <meta name="twitter:description" content="Descubra todas as funcionalidades do WillFlow: Kanban visual, CRM integrado, calendário com Google Calendar, gestão de pagamentos, relatórios financeiros e muito mais." />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://willflow.app" },
+              { "@type": "ListItem", "position": 2, "name": "Funcionalidades", "item": "https://willflow.app/funcionalidades" }
+            ]
+          })}
+        </script>
       </Helmet>
       <PublicHeader />
 

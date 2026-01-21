@@ -77,6 +77,16 @@ export default function Blog() {
         <script type="application/ld+json">
           {JSON.stringify(generateBlogListSchema())}
         </script>
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://willflow.app" },
+              { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://willflow.app/blog" }
+            ]
+          })}
+        </script>
       </Helmet>
       <PublicHeader />
       
