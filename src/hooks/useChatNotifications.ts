@@ -10,10 +10,11 @@ export function useChatNotifications() {
   const lastNotifiedRef = useRef<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Initialize audio lazily
+  // Initialize audio lazily with cache-busting
   const getAudio = useCallback(() => {
     if (!audioRef.current) {
-      audioRef.current = new Audio('/sounds/notification.mp3');
+      // Add version param to bust browser cache
+      audioRef.current = new Audio('/sounds/notification.mp3?v=2');
       audioRef.current.volume = 0.5;
     }
     return audioRef.current;
