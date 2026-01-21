@@ -64,6 +64,16 @@ export default function Security() {
         <meta property="og:type" content="website" />
         <meta name="twitter:title" content="Segurança e Privacidade | WillFlow - RGPD Compliant" />
         <meta name="twitter:description" content="A segurança dos seus dados é a nossa prioridade. Encriptação, servidores na UE e conformidade total com RGPD." />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://willflow.app" },
+              { "@type": "ListItem", "position": 2, "name": "Segurança", "item": "https://willflow.app/seguranca" }
+            ]
+          })}
+        </script>
       </Helmet>
       <PublicHeader />
 

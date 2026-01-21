@@ -77,6 +77,16 @@ export default function Integrations() {
         <meta property="og:type" content="website" />
         <meta name="twitter:title" content="Integrações | WillFlow - Google Calendar, Frame.io e Mais" />
         <meta name="twitter:description" content="Integre o WillFlow com as suas apps favoritas: Google Calendar, Google Meet, Frame.io e muito mais." />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://willflow.app" },
+              { "@type": "ListItem", "position": 2, "name": "Integrações", "item": "https://willflow.app/integracoes" }
+            ]
+          })}
+        </script>
       </Helmet>
       <PublicHeader />
 

@@ -149,6 +149,54 @@ export default function Pricing() {
             }))
           })}
         </script>
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://willflow.app" },
+              { "@type": "ListItem", "position": 2, "name": "Planos e Preços", "item": "https://willflow.app/planos" }
+            ]
+          })}
+        </script>
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Product",
+            "name": "WillFlow",
+            "description": "Sistema de gestão de projetos para fotógrafos e filmmakers",
+            "brand": { "@type": "Brand", "name": "WillFlow" },
+            "offers": [
+              {
+                "@type": "Offer",
+                "name": "Starter",
+                "url": "https://willflow.app/planos",
+                "priceCurrency": "EUR",
+                "price": "14",
+                "priceValidUntil": "2027-12-31",
+                "availability": "https://schema.org/InStock"
+              },
+              {
+                "@type": "Offer",
+                "name": "Pro",
+                "url": "https://willflow.app/planos",
+                "priceCurrency": "EUR",
+                "price": "22",
+                "priceValidUntil": "2027-12-31",
+                "availability": "https://schema.org/InStock"
+              },
+              {
+                "@type": "Offer",
+                "name": "Studio",
+                "url": "https://willflow.app/planos",
+                "priceCurrency": "EUR",
+                "price": "32",
+                "priceValidUntil": "2027-12-31",
+                "availability": "https://schema.org/InStock"
+              }
+            ]
+          })}
+        </script>
       </Helmet>
       <PublicHeader />
 
