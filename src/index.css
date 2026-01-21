@@ -783,6 +783,20 @@ html.theme-transition *::after {
 }
 
 /* Dark mode enhancements for DoF effects */
+/* Pulse dot animation for loader - CSS instead of Framer Motion */
+@keyframes pulse-dot {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 1s ease-in-out infinite;
+}
+
 .dark {
   .bokeh-orb {
     opacity: 0.4;
