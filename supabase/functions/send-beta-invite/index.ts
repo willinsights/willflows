@@ -94,21 +94,21 @@ const handler = async (req: Request): Promise<Response> => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Convite Beta Willflow</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #0a0a0a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+<body style="margin: 0; padding: 0; background-color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
   <table role="presentation" style="width: 100%; border-collapse: collapse;">
     <tr>
       <td align="center" style="padding: 40px 20px;">
-        <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse;">
-          <!-- Logo -->
+        <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);">
+          <!-- Header with gradient -->
           <tr>
-            <td align="center" style="padding-bottom: 32px;">
-              <img src="https://willflows.lovable.app/logo-willflow-white.png" alt="Willflow" style="height: 40px; width: auto;">
+            <td style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); border-radius: 16px 16px 0 0; padding: 32px 40px; text-align: center;">
+              <img src="https://willflows.lovable.app/logo-willflow-white.png" alt="Willflow" style="height: 36px; width: auto;">
             </td>
           </tr>
           
-          <!-- Main Card -->
+          <!-- Main Content -->
           <tr>
-            <td style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 48px 40px; border: 1px solid rgba(139, 92, 246, 0.3);">
+            <td style="padding: 40px;">
               <!-- Badge -->
               <table role="presentation" style="width: 100%; margin-bottom: 24px;">
                 <tr>
@@ -121,20 +121,20 @@ const handler = async (req: Request): Promise<Response> => {
               </table>
               
               <!-- Title -->
-              <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; text-align: center; margin: 0 0 16px 0; line-height: 1.3;">
+              <h1 style="color: #18181b; font-size: 28px; font-weight: 700; text-align: center; margin: 0 0 16px 0; line-height: 1.3;">
                 Olá${name ? `, ${displayName}` : ''}! 👋
               </h1>
               
               <!-- Subtitle -->
-              <p style="color: #a1a1aa; font-size: 18px; text-align: center; margin: 0 0 32px 0; line-height: 1.6;">
-                Foste selecionado para aceder ao <strong style="color: #8b5cf6;">Willflow</strong> com <strong style="color: #22c55e;">${freeDays} dias grátis!</strong>
+              <p style="color: #52525b; font-size: 18px; text-align: center; margin: 0 0 32px 0; line-height: 1.6;">
+                Foste selecionado para aceder ao <strong style="color: #7c3aed;">Willflow</strong> com <strong style="color: #16a34a;">${freeDays} dias grátis!</strong>
               </p>
               
               <!-- CTA Button -->
               <table role="presentation" style="width: 100%; margin-bottom: 32px;">
                 <tr>
                   <td align="center">
-                    <a href="${inviteLink}" style="display: inline-block; background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 12px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 24px rgba(139, 92, 246, 0.4);">
+                    <a href="${inviteLink}" style="display: inline-block; background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 12px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 16px rgba(124, 58, 237, 0.3);">
                       Criar Minha Conta →
                     </a>
                   </td>
@@ -142,35 +142,35 @@ const handler = async (req: Request): Promise<Response> => {
               </table>
               
               <!-- Features -->
-              <table role="presentation" style="width: 100%; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 24px;">
+              <table role="presentation" style="width: 100%; background: #f4f4f5; border-radius: 12px; padding: 24px;">
                 <tr>
                   <td>
-                    <p style="color: #8b5cf6; font-size: 14px; font-weight: 600; text-transform: uppercase; margin: 0 0 16px 0; letter-spacing: 0.5px;">
+                    <p style="color: #7c3aed; font-size: 14px; font-weight: 600; text-transform: uppercase; margin: 0 0 16px 0; letter-spacing: 0.5px;">
                       O que vais ter acesso:
                     </p>
                     <table role="presentation" style="width: 100%;">
                       <tr>
                         <td style="padding: 8px 0;">
-                          <span style="color: #22c55e; margin-right: 8px;">✓</span>
-                          <span style="color: #e4e4e7;">Gestão completa de projetos</span>
+                          <span style="color: #16a34a; margin-right: 8px;">✓</span>
+                          <span style="color: #3f3f46;">Gestão completa de projetos</span>
                         </td>
                       </tr>
                       <tr>
                         <td style="padding: 8px 0;">
-                          <span style="color: #22c55e; margin-right: 8px;">✓</span>
-                          <span style="color: #e4e4e7;">Calendário e agendamentos</span>
+                          <span style="color: #16a34a; margin-right: 8px;">✓</span>
+                          <span style="color: #3f3f46;">Calendário e agendamentos</span>
                         </td>
                       </tr>
                       <tr>
                         <td style="padding: 8px 0;">
-                          <span style="color: #22c55e; margin-right: 8px;">✓</span>
-                          <span style="color: #e4e4e7;">Controlo financeiro simplificado</span>
+                          <span style="color: #16a34a; margin-right: 8px;">✓</span>
+                          <span style="color: #3f3f46;">Controlo financeiro simplificado</span>
                         </td>
                       </tr>
                       <tr>
                         <td style="padding: 8px 0;">
-                          <span style="color: #22c55e; margin-right: 8px;">✓</span>
-                          <span style="color: #e4e4e7;">Chat e colaboração em equipa</span>
+                          <span style="color: #16a34a; margin-right: 8px;">✓</span>
+                          <span style="color: #3f3f46;">Chat e colaboração em equipa</span>
                         </td>
                       </tr>
                     </table>
@@ -182,26 +182,22 @@ const handler = async (req: Request): Promise<Response> => {
           
           <!-- Footer -->
           <tr>
-            <td style="padding-top: 32px;">
-              <p style="color: #71717a; font-size: 14px; text-align: center; margin: 0 0 8px 0;">
+            <td style="padding: 0 40px 32px 40px; border-top: 1px solid #e4e4e7;">
+              <p style="color: #71717a; font-size: 14px; text-align: center; margin: 24px 0 8px 0;">
                 Este convite expira em ${freeDays} dias.
               </p>
-              <p style="color: #52525b; font-size: 12px; text-align: center; margin: 0;">
+              <p style="color: #a1a1aa; font-size: 12px; text-align: center; margin: 0;">
                 Se não conseguires clicar no botão, copia este link:<br>
-                <a href="${inviteLink}" style="color: #8b5cf6; word-break: break-all;">${inviteLink}</a>
-              </p>
-            </td>
-          </tr>
-          
-          <!-- Social -->
-          <tr>
-            <td align="center" style="padding-top: 32px;">
-              <p style="color: #52525b; font-size: 12px; margin: 0;">
-                © 2025 Willflow. Feito com 💜 em Portugal.
+                <a href="${inviteLink}" style="color: #7c3aed; word-break: break-all;">${inviteLink}</a>
               </p>
             </td>
           </tr>
         </table>
+        
+        <!-- Copyright outside card -->
+        <p style="color: #a1a1aa; font-size: 12px; text-align: center; margin: 24px 0 0 0;">
+          © 2025 Willflow. Feito com 💜 em Portugal.
+        </p>
       </td>
     </tr>
   </table>
