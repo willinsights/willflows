@@ -17,7 +17,7 @@ interface CurrentWorkspaceData {
   country: 'PT' | 'BR' | null;
   
   // Subscription info
-  subscriptionPlan: 'essencial' | 'pro' | 'studio';
+  subscriptionPlan: 'starter' | 'pro' | 'studio';
   subscriptionStatus: SubscriptionStatus;
   isTrialing: boolean;
   trialEndsAt: Date | null;
@@ -150,7 +150,7 @@ export function useCurrentWorkspace(): CurrentWorkspaceData {
       country: workspace?.country || null,
       
       // Subscription info
-      subscriptionPlan: workspace?.subscription_plan || 'essencial',
+      subscriptionPlan: (workspace?.subscription_plan === 'essencial' ? 'starter' : workspace?.subscription_plan) || 'starter',
       subscriptionStatus,
       isTrialing: subscriptionStatus === 'trialing',
       trialEndsAt,

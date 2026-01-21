@@ -75,7 +75,7 @@ serve(async (req) => {
           user_id: user.id,
           stripe_customer_id: customerId,
           subscription_status: 'trialing',
-          subscription_plan: 'essencial',
+          subscription_plan: 'starter',
         }, { onConflict: 'user_id' });
 
       if (updateError) {

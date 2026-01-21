@@ -3,16 +3,17 @@
 
 export type PlanId = 'starter' | 'pro' | 'studio';
 
-// Database uses 'essencial' but UI uses 'starter' - this maps between them
+// Database now uses 'starter' directly (was 'essencial')
+// Keeping backward compatibility for any old data that might still have 'essencial'
 export const PLAN_DB_MAPPING: Record<string, PlanId> = {
-  'essencial': 'starter',
+  'essencial': 'starter', // Legacy - backward compatibility
   'starter': 'starter',
   'pro': 'pro',
   'studio': 'studio',
 };
 
 export const PLAN_ID_TO_DB: Record<PlanId, string> = {
-  'starter': 'essencial',
+  'starter': 'starter', // Now uses 'starter' in DB
   'pro': 'pro',
   'studio': 'studio',
 };

@@ -34,13 +34,13 @@ interface UpgradeAlertProps {
 }
 
 const PLAN_LABELS: Record<SubscriptionPlan, string> = {
-  essencial: 'Starter',
+  starter: 'Starter',
   pro: 'Pro',
   studio: 'Studio',
 };
 
 const PLAN_COLORS: Record<SubscriptionPlan, string> = {
-  essencial: 'bg-muted text-muted-foreground',
+  starter: 'bg-muted text-muted-foreground',
   pro: 'bg-primary/20 text-primary',
   studio: 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-400',
 };
@@ -50,7 +50,7 @@ export function UpgradeAlert({
   onClose,
   feature,
   requiredPlan,
-  currentPlan = 'essencial',
+  currentPlan = 'starter',
   isLimitReached = false,
   currentUsage,
   limit,
@@ -63,7 +63,7 @@ export function UpgradeAlert({
 
   if (!feature || !requiredPlan) return null;
 
-  const planInfo = PLAN_INFO[requiredPlan === 'essencial' ? 'starter' : requiredPlan];
+  const planInfo = PLAN_INFO[requiredPlan];
   const currencyKey = (currentWorkspace?.currency?.toLowerCase() === 'brl' ? 'brl' : 'eur') as 'eur' | 'brl';
   const price = planInfo?.prices?.[currencyKey]?.monthly;
   const currencySymbol = currencyKey === 'eur' ? '€' : 'R$';
@@ -79,7 +79,7 @@ export function UpgradeAlert({
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not authenticated');
 
-      const planId = requiredPlan === 'essencial' ? 'starter' : requiredPlan;
+      const planId = requiredPlan;
       const priceId = getPriceId(planId, currencyKey, 'monthly');
 
       const { data, error } = await supabase.functions.invoke('create-checkout', {

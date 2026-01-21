@@ -112,10 +112,10 @@ describe("usePlanFeatures", () => {
     expect(result.current.getRequiredPlan("automations")).toBe("studio");
     expect(result.current.getRequiredPlan("api")).toBe("studio");
     
-    // Features available from starter (essencial in DB)
-    expect(result.current.getRequiredPlan("workspaces")).toBe("essencial");
-    expect(result.current.getRequiredPlan("kanban")).toBe("essencial");
-    expect(result.current.getRequiredPlan("exportExcel")).toBe("essencial");
+    // Features available from starter
+    expect(result.current.getRequiredPlan("workspaces")).toBe("starter");
+    expect(result.current.getRequiredPlan("kanban")).toBe("starter");
+    expect(result.current.getRequiredPlan("exportExcel")).toBe("starter");
   });
 
   it("should calculate remaining quota for limit-based features", () => {

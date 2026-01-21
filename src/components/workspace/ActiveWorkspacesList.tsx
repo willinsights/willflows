@@ -9,7 +9,7 @@ interface WorkspaceWithRole {
   id: string;
   name: string;
   slug: string;
-  subscription_plan: 'essencial' | 'pro' | 'studio';
+  subscription_plan: 'starter' | 'pro' | 'studio';
   subscription_status: string;
   trial_ends_at?: string | null;
   role: 'admin' | 'editor' | 'captacao' | 'freelancer' | 'visualizador';
@@ -24,7 +24,7 @@ interface ActiveWorkspacesListProps {
 }
 
 const planLabels: Record<string, string> = {
-  essencial: 'Essencial',
+  starter: 'Starter',
   pro: 'Pro',
   studio: 'Studio',
 };

@@ -94,7 +94,7 @@ export function FeatureGate({
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Disponível no plano {featureInfo?.minimumPlan === 'essencial' ? 'Starter' : featureInfo?.minimumPlan}</p>
+              <p>Disponível no plano {featureInfo?.minimumPlan === 'starter' ? 'Starter' : featureInfo?.minimumPlan}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -120,7 +120,7 @@ export function FeatureGate({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Requer plano {featureInfo?.minimumPlan === 'essencial' ? 'Starter' : featureInfo?.minimumPlan === 'pro' ? 'Pro' : 'Studio'}</p>
+                <p>Requer plano {featureInfo?.minimumPlan === 'starter' ? 'Starter' : featureInfo?.minimumPlan === 'pro' ? 'Pro' : 'Studio'}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

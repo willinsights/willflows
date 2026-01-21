@@ -13,7 +13,7 @@ interface Workspace {
   timezone: string;
   locale: string;
   logo_url: string | null;
-  subscription_plan: 'essencial' | 'pro' | 'studio';
+  subscription_plan: 'starter' | 'pro' | 'studio';
   subscription_status: string;
   trial_ends_at?: string | null;
 }

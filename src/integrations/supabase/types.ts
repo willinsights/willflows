@@ -2790,7 +2790,7 @@ export type Database = {
       priority_level: "baixa" | "media" | "alta" | "urgente"
       project_category: "hotel" | "experiencia" | "evento" | "outro"
       project_type: "fotografia" | "video" | "foto_video"
-      subscription_plan: "essencial" | "pro" | "studio"
+      subscription_plan: "essencial" | "pro" | "studio" | "starter"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2928,7 +2928,7 @@ export const Constants = {
       priority_level: ["baixa", "media", "alta", "urgente"],
       project_category: ["hotel", "experiencia", "evento", "outro"],
       project_type: ["fotografia", "video", "foto_video"],
-      subscription_plan: ["essencial", "pro", "studio"],
+      subscription_plan: ["essencial", "pro", "studio", "starter"],
     },
   },
 } as const

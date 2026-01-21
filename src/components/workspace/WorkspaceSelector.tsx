@@ -21,7 +21,6 @@ import { differenceInDays, parseISO } from 'date-fns';
 
 
 const planLabels: Record<string, string> = {
-  essencial: 'Starter',
   starter: 'Starter',
   pro: 'Pro',
   studio: 'Studio',

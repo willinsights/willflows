@@ -35,7 +35,7 @@ export interface AdminUser {
 export interface UserFilters {
   search: string;
   status: 'all' | 'active' | 'blocked' | 'trialing';
-  plan: 'all' | 'essencial' | 'pro' | 'studio';
+  plan: 'all' | 'starter' | 'pro' | 'studio';
   source: 'all' | 'public' | 'invite' | 'waitlist';
   dateFrom?: Date;
   dateTo?: Date;

@@ -73,7 +73,7 @@ function buildFeatureInfo(): Record<FeatureKey, FeatureInfo> {
   
   planOrder.forEach(planId => {
     const plan = PLANS[planId];
-    const dbPlan = planId === 'starter' ? 'essencial' : planId;
+    const dbPlan = planId; // Now DB uses same names as UI
     
     plan.features.forEach(feature => {
       const featureKey = feature.key as FeatureKey;
@@ -177,7 +177,7 @@ export function usePlanFeatures() {
     isLimitReached: false,
   });
 
-  const currentPlan = subscription?.plan || 'essencial';
+  const currentPlan = subscription?.plan || 'starter';
 
   // Check if user can use a specific feature (boolean check only)
   const canUseFeature = useCallback((feature: FeatureKey): boolean => {
@@ -221,7 +221,7 @@ export function usePlanFeatures() {
   const getUpgradePlan = useCallback((feature: FeatureKey): SubscriptionPlan => {
     const requiredPlan = getRequiredPlan(feature);
     
-    const planOrderDb: SubscriptionPlan[] = ['essencial', 'pro', 'studio'];
+    const planOrderDb: SubscriptionPlan[] = ['starter', 'pro', 'studio'];
     const requiredIndex = planOrderDb.indexOf(requiredPlan);
     const userIndex = planOrderDb.indexOf(currentPlan);
     

@@ -427,7 +427,7 @@ export default function Planos() {
               <div className="grid gap-6 md:grid-cols-3 max-w-5xl mx-auto">
                 {(['starter', 'pro', 'studio'] as const).map((planId) => {
                   const plan = PLAN_INFO[planId];
-                  const internalPlanId = planId === 'starter' ? 'essencial' : planId;
+                  const internalPlanId = planId; // Now DB uses same names as UI
                   const isCurrentPlan = currentPlan === internalPlanId && !trialExpired;
                   const price = billingInterval === 'monthly' 
                     ? plan.prices[currency].monthly 

@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
           .from('user_subscriptions')
           .update({
             subscription_status: 'trialing',
-            subscription_plan: 'essencial',
+            subscription_plan: 'starter',
             stripe_customer_id: null,
             stripe_subscription_id: null,
             trial_ends_at: trialEndsAt.toISOString(),
@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
           .from('user_subscriptions')
           .update({
             subscription_status: 'trialing',
-            subscription_plan: 'essencial',
+            subscription_plan: 'starter',
             stripe_customer_id: null,
             stripe_subscription_id: null,
             trial_ends_at: trialEndsAt.toISOString(),
