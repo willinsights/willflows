@@ -4,10 +4,14 @@ import { useMessages } from '@/hooks/useMessages';
 import { useConversations, useConversation } from '@/hooks/useConversations';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { usePresence } from '@/hooks/usePresence';
+import { useTypingIndicator } from '@/hooks/useTypingIndicator';
+import { useAuth } from '@/contexts/AuthContext';
 import { ChatMessage } from './ChatMessage';
 import { ChatComposer } from './ChatComposer';
 import { ChatThread } from './ChatThread';
 import { DeleteConversationModal } from './DeleteConversationModal';
+import { TypingIndicator } from './TypingIndicator';
+import { MessageReplyPreview } from './MessageReplyPreview';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -30,11 +34,13 @@ interface ChatFeedProps {
 
 export function ChatFeed({ conversationId }: ChatFeedProps) {
   const navigate = useNavigate();
-  const { messages, isLoading, sendMessage, updateMessage, toggleReaction } = useMessages(conversationId);
+  const { user } = useAuth();
+  const { messages, isLoading, sendMessage, updateMessage, toggleReaction, markAsRead, replyingTo, setReplyingTo } = useMessages(conversationId);
   const { conversations, leaveConversation } = useConversations();
   const { members: conversationMembers } = useConversation(conversationId);
   const { members: workspaceMembers, loading: membersLoading } = useWorkspaceMembers();
   const { isOnline, onlineCount } = usePresence();
+  const { typingUsers, startTyping, stopTyping } = useTypingIndicator(conversationId);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -162,12 +168,31 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
   };
 
   const handleSendMessage = async (body: string, attachments?: File[], mentionedUserIds?: string[]) => {
-    await sendMessage.mutateAsync({ body, attachments, mentionedUserIds });
+    const replyTo = replyingTo ? {
+      id: replyingTo.id,
+      body: replyingTo.body.slice(0, 150),
+      user_name: replyingTo.user?.full_name || 'Utilizador'
+    } : undefined;
+    
+    stopTyping();
+    await sendMessage.mutateAsync({ body, attachments, mentionedUserIds, replyTo });
   };
 
-  const handleOpenThread = (messageId: string) => {
-    setActiveThreadId(messageId);
+  const handleReply = (message: typeof messages[0]) => {
+    setReplyingTo(message);
   };
+
+  // Mark messages as read when they come into view
+  useEffect(() => {
+    if (!user?.id || messages.length === 0) return;
+    
+    // Mark the last few messages as read
+    const unreadMessages = messages
+      .filter(m => m.user_id !== user.id && (!m.read_by || !m.read_by.some(r => r.user_id === user.id)))
+      .slice(-5);
+    
+    unreadMessages.forEach(m => markAsRead(m.id));
+  }, [messages, user?.id, markAsRead]);
 
   if (isLoading) {
     return (
@@ -289,6 +314,7 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
                         onEditMessage={async (id, body) => {
                           await updateMessage.mutateAsync({ messageId: id, body });
                         }}
+                        onReply={handleReply}
                         threadCount={
                           messages.filter((m) => m.parent_message_id === message.id).length
                         }
@@ -313,8 +339,23 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
             </Button>
           )}
 
-          {/* Composer */}
-          <div className="border-t border-border p-4 bg-card">
+          {/* Composer Area */}
+          <div className="border-t border-border p-4 bg-card space-y-2">
+            {/* Reply Preview */}
+            {replyingTo && (
+              <MessageReplyPreview 
+                replyTo={{
+                  id: replyingTo.id,
+                  body: replyingTo.body.slice(0, 150),
+                  user_name: replyingTo.user?.full_name || 'Utilizador'
+                }}
+                onClear={() => setReplyingTo(null)}
+              />
+            )}
+            
+            {/* Typing Indicator */}
+            <TypingIndicator typingUsers={typingUsers} />
+            
             <ChatComposer
               onSend={handleSendMessage}
               placeholder={`Mensagem para ${conversation?.displayName || conversation?.name || 'conversa'}...`}
@@ -323,6 +364,7 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
               showMentionButton={conversation?.type !== 'dm'}
               conversationId={conversationId}
               projectId={conversation?.project_id || undefined}
+              onTyping={() => startTyping(userProfile?.full_name)}
             />
           </div>
         </div>

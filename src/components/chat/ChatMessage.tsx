@@ -27,10 +27,13 @@ import {
   Pencil,
   X,
   Check,
+  CheckCheck,
+  Reply,
 } from 'lucide-react';
 import { CreateTaskFromMessageModal } from './CreateTaskFromMessageModal';
 import { CreateFollowUpModal } from './CreateFollowUpModal';
 import { MessageAttachments } from './MessageAttachments';
+import { MessageReplyPreview } from './MessageReplyPreview';
 import type { Message } from '@/hooks/useMessages';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -41,6 +44,7 @@ interface ChatMessageProps {
   onOpenThread?: () => void;
   onToggleReaction?: (messageId: string, emoji: string) => void;
   onEditMessage?: (messageId: string, body: string) => Promise<void>;
+  onReply?: (message: Message) => void;
   threadCount?: number;
   isThreadReply?: boolean;
   isOnline?: boolean;
@@ -51,6 +55,7 @@ export function ChatMessage({
   onOpenThread,
   onToggleReaction,
   onEditMessage,
+  onReply,
   threadCount = 0,
   isThreadReply = false,
   isOnline = false,
@@ -103,6 +108,9 @@ export function ChatMessage({
   });
 
   const isSystemMessage = message.type === 'system';
+  
+  // Check if message was read (for owner's messages)
+  const hasBeenRead = isOwner && message.read_by && message.read_by.length > 0;
 
   if (isSystemMessage) {
     return (
@@ -172,18 +180,34 @@ export function ChatMessage({
             </span>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="text-[11px] text-muted-foreground cursor-default">
+                <span className="text-[11px] text-muted-foreground cursor-default flex items-center gap-1">
                   {formattedTime}
+                  {/* Read receipt - only for owner's messages */}
+                  {isOwner && (
+                    hasBeenRead ? (
+                      <CheckCheck className="h-3 w-3 text-primary" />
+                    ) : (
+                      <Check className="h-3 w-3 text-muted-foreground" />
+                    )
+                  )}
                 </span>
               </TooltipTrigger>
               <TooltipContent side="top" className="text-xs">
                 {formattedDate}
+                {isOwner && hasBeenRead && (
+                  <span className="block text-primary">Lida</span>
+                )}
               </TooltipContent>
             </Tooltip>
             {message.is_edited && (
               <span className="text-[10px] text-muted-foreground italic">(editado)</span>
             )}
           </div>
+
+          {/* Reply Preview - if message is a reply to another */}
+          {message.reply_to && !isEditing && (
+            <MessageReplyPreview replyTo={message.reply_to} compact />
+          )}
 
           {/* Body - Editable or Static */}
           {isEditing ? (
@@ -305,6 +329,23 @@ export function ChatMessage({
             </TooltipTrigger>
             <TooltipContent side="top" className="text-xs">Adorar</TooltipContent>
           </Tooltip>
+
+          {/* Reply - Inline reply */}
+          {onReply && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 hover:bg-muted"
+                  onClick={() => onReply(message)}
+                >
+                  <Reply className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">Responder</TooltipContent>
+            </Tooltip>
+          )}
 
           {/* Thread */}
           {!isThreadReply && onOpenThread && (

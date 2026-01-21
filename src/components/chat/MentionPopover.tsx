@@ -39,12 +39,11 @@ export const MentionPopover = React.forwardRef<HTMLDivElement, MentionPopoverPro
   ({ members, filter, onSelect, onClose, selectedIndex }, ref) => {
     const listRef = useRef<HTMLDivElement>(null);
 
-    // Filter members by name or email
+    // Filter members by name only (email hidden from non-admins)
     const filteredMembers = members.filter((m) => {
       const searchTerm = filter.toLowerCase();
       const name = m.full_name?.toLowerCase() || '';
-      const email = m.email?.toLowerCase() || '';
-      return name.includes(searchTerm) || email.includes(searchTerm);
+      return name.includes(searchTerm);
     });
 
     // Scroll selected item into view
@@ -109,13 +108,8 @@ export const MentionPopover = React.forwardRef<HTMLDivElement, MentionPopoverPro
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">
-                  {member.full_name || 'Utilizador'}
+                  {member.full_name || 'Membro'}
                 </p>
-                {member.email && (
-                  <p className="text-xs text-muted-foreground truncate">
-                    {member.email}
-                  </p>
-                )}
               </div>
             </button>
           );

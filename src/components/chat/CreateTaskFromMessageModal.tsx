@@ -169,7 +169,7 @@ export function CreateTaskFromMessageModal({
                 <SelectItem value="__unassigned__">Sem atribuição</SelectItem>
                 {members.map((member) => (
                   <SelectItem key={member.user_id} value={member.user_id}>
-                    {member.full_name || member.email || 'Membro'}
+                    {member.full_name || 'Membro'}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -28,6 +28,7 @@ interface ChatComposerProps {
   conversationId?: string;
   projectId?: string;
   showMentionButton?: boolean;
+  onTyping?: () => void;
 }
 
 const EMOJI_LIST = ['👍', '❤️', '🔥', '👏', '💯', '😊', '🎉', '✨', '👀', '🙌', '💪', '🚀'];
@@ -45,6 +46,7 @@ export function ChatComposer({
   conversationId,
   projectId,
   showMentionButton = true,
+  onTyping,
 }: ChatComposerProps) {
 
   const [message, setMessage] = useState('');
@@ -100,8 +102,7 @@ export function ChatComposer({
       const filteredMembers = members.filter((m) => {
         const searchTerm = mentionFilter.toLowerCase();
         const name = m.full_name?.toLowerCase() || '';
-        const email = m.email?.toLowerCase() || '';
-        return name.includes(searchTerm) || email.includes(searchTerm);
+        return name.includes(searchTerm);
       });
 
       if (e.key === 'ArrowDown') {
@@ -143,6 +144,11 @@ export function ChatComposer({
     const value = e.target.value;
     const cursorPos = e.target.selectionStart || 0;
     setMessage(value);
+    
+    // Trigger typing indicator
+    if (value.length > 0) {
+      onTyping?.();
+    }
 
     // Check for @ mention trigger
     const textBeforeCursor = value.slice(0, cursorPos);
