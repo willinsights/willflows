@@ -78,8 +78,11 @@ const Chat = lazy(() => import("./pages/app/Chat"));
 const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
 const AdminLayout = lazy(() => import("./pages/admin/AdminLayout"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminAnalytics = lazy(() => import("./pages/admin/AdminAnalytics"));
+const AdminContent = lazy(() => import("./pages/admin/AdminContent"));
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
 const AdminBilling = lazy(() => import("./pages/admin/AdminBilling"));
+const AdminGrowth = lazy(() => import("./pages/admin/AdminGrowth"));
 const AdminSystem = lazy(() => import("./pages/admin/AdminSystem"));
 
 const App = () => (
@@ -133,8 +136,11 @@ const App = () => (
                     <Route path="/admin" element={<AdminLogin />} />
                     <Route path="/admin" element={<AdminLayout />}>
                       <Route path="dashboard" element={<AdminDashboard />} />
+                      <Route path="analytics" element={<AdminAnalytics />} />
+                      <Route path="content" element={<AdminContent />} />
                       <Route path="users" element={<AdminUsers />} />
                       <Route path="billing" element={<AdminBilling />} />
+                      <Route path="growth" element={<AdminGrowth />} />
                       <Route path="system" element={<AdminSystem />} />
                     </Route>
                     

@@ -758,7 +758,7 @@ export default function AdminGrowth() {
         {/* Import Modal */}
         <ImportContactsModal
           open={showImportModal}
-          onOpenChange={setShowImportModal}
+          onClose={() => setShowImportModal(false)}
           onImport={handleBulkImport}
         />
       </div>
