@@ -2253,6 +2253,7 @@ export type Database = {
           notify_payment_received: boolean
           notify_task_assigned: boolean
           notify_team_updates: boolean
+          sidebar_auto_collapse: boolean
           updated_at: string
           user_id: string
         }
@@ -2269,6 +2270,7 @@ export type Database = {
           notify_payment_received?: boolean
           notify_task_assigned?: boolean
           notify_team_updates?: boolean
+          sidebar_auto_collapse?: boolean
           updated_at?: string
           user_id: string
         }
@@ -2285,6 +2287,7 @@ export type Database = {
           notify_payment_received?: boolean
           notify_task_assigned?: boolean
           notify_team_updates?: boolean
+          sidebar_auto_collapse?: boolean
           updated_at?: string
           user_id?: string
         }

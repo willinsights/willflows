@@ -39,6 +39,7 @@ interface AppSidebarProps {
   collapsed: boolean;
   onToggle: () => void;
   isMobile?: boolean;
+  autoCollapseOnNav?: boolean;
 }
 
 interface NavItem {
@@ -107,7 +108,7 @@ const superAdminSection: NavSection = {
   ],
 };
 
-export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
+export function AppSidebar({ collapsed, onToggle, isMobile, autoCollapseOnNav = true }: AppSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -203,7 +204,7 @@ export function AppSidebar({ collapsed, onToggle, isMobile }: AppSidebarProps) {
                       to={item.path}
                       title={collapsed && !isMobile ? item.label : undefined}
                       aria-label={collapsed && !isMobile ? item.label : undefined}
-                      onClick={() => !isMobile && !collapsed && onToggle()}
+                      onClick={() => !isMobile && !collapsed && autoCollapseOnNav && onToggle()}
                       className={cn(
                         'relative',
                         collapsed && !isMobile 
