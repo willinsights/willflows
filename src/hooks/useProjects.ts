@@ -76,23 +76,30 @@ export function useProjects() {
     const validatedData = validation.data;
 
     try {
-      // Get first column for captacao phase
+      // Determine initial phase based on item_type
+      const itemType = validatedData.item_type || 'projeto_completo';
+      const initialPhase = itemType === 'projeto_edicao' ? 'edicao' : 'captacao';
+
+      // Get first column for the correct phase
       const { data: firstColumn } = await supabase
         .from('kanban_columns')
         .select('id')
         .eq('workspace_id', currentWorkspace.id)
-        .eq('phase', 'captacao')
+        .eq('phase', initialPhase)
         .order('position', { ascending: true })
         .limit(1)
         .single();
+
+      // Set the correct column field based on phase
+      const columnField = initialPhase === 'captacao' ? 'captacao_column_id' : 'edicao_column_id';
 
       const { data, error } = await supabase
         .from('projects')
         .insert({
           ...validatedData,
           workspace_id: currentWorkspace.id,
-          captacao_column_id: firstColumn?.id || null,
-          current_phase: 'captacao',
+          [columnField]: firstColumn?.id || null,
+          current_phase: initialPhase,
         } as any)
         .select('*, clients(name)')
         .single();
@@ -182,6 +189,10 @@ export function useProjects() {
       if (fetchError || !originalProject) throw fetchError;
 
       // 2. Create new project with copied data
+      // Determine initial phase based on item_type
+      const itemType = originalProject.item_type || 'projeto_completo';
+      const initialPhase = itemType === 'projeto_edicao' ? 'edicao' : 'captacao';
+
       const projectCopy = {
         name: newName || `${originalProject.name} (cópia)`,
         workspace_id: currentWorkspace.id,
@@ -203,25 +214,28 @@ export function useProjects() {
         drive_folder_url: null, // Don't copy URLs
         dropbox_folder_url: null,
         google_meet_url: null,
-        current_phase: 'captacao' as const,
+        current_phase: initialPhase,
         is_delivered: false,
       };
 
-      // Get first column for captacao phase
+      // Get first column for the correct phase
       const { data: firstColumn } = await supabase
         .from('kanban_columns')
         .select('id')
         .eq('workspace_id', currentWorkspace.id)
-        .eq('phase', 'captacao')
+        .eq('phase', initialPhase)
         .order('position', { ascending: true })
         .limit(1)
         .single();
+
+      // Set the correct column field based on phase
+      const columnField = initialPhase === 'captacao' ? 'captacao_column_id' : 'edicao_column_id';
 
       const { data: newProject, error: insertError } = await supabase
         .from('projects')
         .insert({
           ...projectCopy,
-          captacao_column_id: firstColumn?.id || null,
+          [columnField]: firstColumn?.id || null,
         } as any)
         .select('*, clients(name)')
         .single();
