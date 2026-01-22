@@ -104,17 +104,72 @@ export function useAdminUsers(filters: UserFilters) {
         .in('user_id', userIds)
         .eq('is_active', true);
 
-      // Fetch project counts
-      const { data: projectCounts } = await supabase
-        .from('projects')
-        .select('created_by')
-        .in('created_by', userIds);
+      // Build user -> workspaces map
+      const userWorkspaceMap = new Map<string, string[]>();
+      (memberships || []).forEach(m => {
+        if (m.workspace) {
+          const existing = userWorkspaceMap.get(m.user_id) || [];
+          existing.push((m.workspace as any).id);
+          userWorkspaceMap.set(m.user_id, existing);
+        }
+      });
 
-      // Fetch task counts
-      const { data: taskCounts } = await supabase
-        .from('tasks')
-        .select('created_by')
-        .in('created_by', userIds);
+      // Get all unique workspace IDs
+      const allWorkspaceIds = [...new Set(
+        Array.from(userWorkspaceMap.values()).flat()
+      )];
+
+      // Fetch projects by workspace (not by created_by)
+      const { data: projectsByWorkspace } = allWorkspaceIds.length > 0
+        ? await supabase
+            .from('projects')
+            .select('workspace_id')
+            .in('workspace_id', allWorkspaceIds)
+        : { data: [] };
+
+      // Count projects per workspace
+      const workspaceProjectCount = new Map<string, number>();
+      (projectsByWorkspace || []).forEach(p => {
+        workspaceProjectCount.set(
+          p.workspace_id,
+          (workspaceProjectCount.get(p.workspace_id) || 0) + 1
+        );
+      });
+
+      // Calculate total projects per user (sum of all their workspaces)
+      const projectCountMap = new Map<string, number>();
+      userWorkspaceMap.forEach((workspaces, oderId) => {
+        const total = workspaces.reduce((sum, wsId) =>
+          sum + (workspaceProjectCount.get(wsId) || 0), 0
+        );
+        projectCountMap.set(oderId, total);
+      });
+
+      // Fetch tasks by workspace (not by created_by)
+      const { data: tasksByWorkspace } = allWorkspaceIds.length > 0
+        ? await supabase
+            .from('tasks')
+            .select('workspace_id')
+            .in('workspace_id', allWorkspaceIds)
+        : { data: [] };
+
+      // Count tasks per workspace
+      const workspaceTaskCount = new Map<string, number>();
+      (tasksByWorkspace || []).forEach(t => {
+        workspaceTaskCount.set(
+          t.workspace_id,
+          (workspaceTaskCount.get(t.workspace_id) || 0) + 1
+        );
+      });
+
+      // Calculate total tasks per user
+      const taskCountMap = new Map<string, number>();
+      userWorkspaceMap.forEach((workspaces, oderId) => {
+        const total = workspaces.reduce((sum, wsId) =>
+          sum + (workspaceTaskCount.get(wsId) || 0), 0
+        );
+        taskCountMap.set(oderId, total);
+      });
 
       // Map data
       const subsMap = new Map((subscriptions || []).map(s => [s.user_id, s]));
@@ -129,20 +184,6 @@ export function useAdminUsers(filters: UserFilters) {
           });
         }
         membershipMap.set(m.user_id, existing);
-      });
-
-      const projectCountMap = new Map<string, number>();
-      (projectCounts || []).forEach(p => {
-        if (p.created_by) {
-          projectCountMap.set(p.created_by, (projectCountMap.get(p.created_by) || 0) + 1);
-        }
-      });
-
-      const taskCountMap = new Map<string, number>();
-      (taskCounts || []).forEach(t => {
-        if (t.created_by) {
-          taskCountMap.set(t.created_by, (taskCountMap.get(t.created_by) || 0) + 1);
-        }
       });
 
       let result: AdminUser[] = profiles.map(p => ({
