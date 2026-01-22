@@ -219,7 +219,7 @@ export function AppLayout() {
           <AppSidebar 
             collapsed={sidebarCollapsed} 
             onToggle={toggleSidebar}
-            autoCollapseOnNav={preferences?.sidebar_auto_collapse ?? true}
+            autoCollapseOnNav={preferences?.sidebar_auto_collapse ?? (localStorage.getItem('pref-sidebar-auto-collapse') !== 'false')}
           />
         </motion.aside>
       )}
