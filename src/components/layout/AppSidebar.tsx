@@ -104,7 +104,7 @@ const navSections: NavSection[] = [
 const superAdminSection: NavSection = {
   title: 'ADMIN',
   items: [
-    { icon: Shield, label: 'Super Admin', path: '/app/admin' },
+    { icon: Shield, label: 'Super Admin', path: '/admin/dashboard' },
   ],
 };
 
