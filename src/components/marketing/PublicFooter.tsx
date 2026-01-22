@@ -7,6 +7,10 @@ const footerLinks = {
     { label: 'Planos & Preços', href: '/planos' },
     { label: 'Integrações', href: '/integracoes' },
   ],
+  solucoes: [
+    { label: 'Para Fotógrafos', href: '/para-fotografos' },
+    { label: 'Para Videomakers', href: '/para-videomakers' },
+  ],
   recursos: [
     { label: 'Blog', href: '/blog' },
     { label: 'Ajuda & FAQ', href: '/ajuda' },
@@ -24,7 +28,7 @@ export function PublicFooter() {
   return (
     <footer className="py-16 px-4 border-t border-border bg-muted/30">
       <div className="container mx-auto">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Logo className="h-10 mb-4" />
@@ -38,6 +42,23 @@ export function PublicFooter() {
             <h4 className="font-semibold mb-4">Produto</h4>
             <ul className="space-y-2">
               {footerLinks.produto.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    to={link.href}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Solutions Links */}
+          <div>
+            <h4 className="font-semibold mb-4">Soluções</h4>
+            <ul className="space-y-2">
+              {footerLinks.solucoes.map((link) => (
                 <li key={link.href}>
                   <Link
                     to={link.href}

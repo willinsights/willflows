@@ -1,19 +1,29 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, Sun, Menu, X } from 'lucide-react';
+import { Moon, Sun, Menu, X, ChevronDown, Camera, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/ui/logo';
 import { useTheme } from '@/contexts/ThemeContext';
 import { isBetaModeEnabled } from '@/contexts/BetaContext';
 import { trackCtaClick } from '@/lib/google-ads';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const navLinks = [
   { label: 'Funcionalidades', href: '/funcionalidades' },
   { label: 'Planos', href: '/planos' },
   { label: 'Blog', href: '/blog' },
-  { label: 'Integrações', href: '/integracoes' },
   { label: 'Ajuda', href: '/ajuda' },
+];
+
+const solutionsLinks = [
+  { label: 'Para Fotógrafos', href: '/para-fotografos', icon: Camera },
+  { label: 'Para Videomakers', href: '/para-videomakers', icon: Video },
 ];
 
 export function PublicHeader() {
@@ -45,6 +55,32 @@ export function PublicHeader() {
               {link.label}
             </Link>
           ))}
+          
+          {/* Solutions Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
+                  solutionsLinks.some(s => location.pathname === s.href)
+                    ? 'text-primary bg-primary/5'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                Soluções
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="w-48">
+              {solutionsLinks.map((link) => (
+                <DropdownMenuItem key={link.href} asChild>
+                  <Link to={link.href} className="flex items-center gap-2">
+                    <link.icon className="h-4 w-4" />
+                    {link.label}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </nav>
 
         {/* Right Actions */}
@@ -103,6 +139,26 @@ export function PublicHeader() {
                 </Link>
               ))}
               
+              {/* Solutions section in mobile */}
+              <div className="pt-2 pb-2">
+                <p className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Soluções</p>
+                {solutionsLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    to={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      location.pathname === link.href
+                        ? 'text-primary bg-primary/5'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <link.icon className="h-4 w-4" />
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+              
               <div className="pt-4 border-t border-border space-y-2">
                 <div className="flex items-center justify-between px-3">
                   <span className="text-sm text-muted-foreground">Tema</span>
@@ -119,7 +175,7 @@ export function PublicHeader() {
                 {!isBetaMode && (
                   <Link to="/auth?trial=true" onClick={() => setMobileMenuOpen(false)}>
                     <Button className="w-full gradient-primary">
-                      Começar teste grátis (7 dias)
+                      Começar teste grátis
                     </Button>
                   </Link>
                 )}
