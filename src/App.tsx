@@ -36,6 +36,15 @@ const Tutorial = lazy(() => import("./pages/Tutorial"));
 const ParaFotografos = lazy(() => import("./pages/ParaFotografos"));
 const ParaVideomakers = lazy(() => import("./pages/ParaVideomakers"));
 
+// Feature pages
+const ChatFeature = lazy(() => import("./pages/features/Chat"));
+const KanbanFeature = lazy(() => import("./pages/features/Kanban"));
+const CRMFeature = lazy(() => import("./pages/features/CRM"));
+const CalendarioFeature = lazy(() => import("./pages/features/Calendario"));
+const PagamentosFeature = lazy(() => import("./pages/features/Pagamentos"));
+const RelatoriosFeature = lazy(() => import("./pages/features/Relatorios"));
+const MediaHubFeature = lazy(() => import("./pages/features/MediaHub"));
+
 // Lazy loaded protected pages
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const CheckoutSuccess = lazy(() => import("./pages/CheckoutSuccess"));
@@ -78,6 +87,13 @@ const App = () => (
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/planos" element={<Pricing />} />
                     <Route path="/funcionalidades" element={<Features />} />
+                    <Route path="/funcionalidades/chat" element={<ChatFeature />} />
+                    <Route path="/funcionalidades/kanban" element={<KanbanFeature />} />
+                    <Route path="/funcionalidades/crm" element={<CRMFeature />} />
+                    <Route path="/funcionalidades/calendario" element={<CalendarioFeature />} />
+                    <Route path="/funcionalidades/pagamentos" element={<PagamentosFeature />} />
+                    <Route path="/funcionalidades/relatorios" element={<RelatoriosFeature />} />
+                    <Route path="/funcionalidades/media-hub" element={<MediaHubFeature />} />
                     <Route path="/integracoes" element={<Integrations />} />
                     <Route path="/seguranca" element={<Security />} />
                     <Route path="/ajuda" element={<Help />} />
