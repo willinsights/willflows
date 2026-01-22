@@ -17,6 +17,8 @@ import { FeatureHero } from '@/components/marketing/FeatureHero';
 import { FeatureSection } from '@/components/marketing/FeatureSection';
 import { FlowDiagram } from '@/components/marketing/FlowDiagram';
 import { ComparisonTable } from '@/components/marketing/ComparisonTable';
+import { RelatedFeatures } from '@/components/marketing/RelatedFeatures';
+import { AutoBreadcrumbs } from '@/components/seo/Breadcrumbs';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
@@ -99,6 +101,12 @@ export default function KanbanFeature() {
 
       <PublicHeader />
 
+      <div className="pt-24 pb-4 px-4">
+        <div className="container mx-auto">
+          <AutoBreadcrumbs />
+        </div>
+      </div>
+
       <FeatureHero
         icon={Kanban}
         badge="Gestão Visual"
@@ -175,6 +183,8 @@ export default function KanbanFeature() {
         competitorName="Trello / Asana"
         items={comparisonItems}
       />
+
+      <RelatedFeatures currentFeature="/funcionalidades/kanban" />
 
       <section className="py-20 px-4">
         <div className="container mx-auto">
