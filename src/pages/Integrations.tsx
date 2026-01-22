@@ -7,6 +7,7 @@ import {
   Film,
   ArrowRight,
   Check,
+  Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,35 +28,11 @@ const integrations = [
     ],
     status: 'available',
   },
-  {
-    name: 'Google Meet',
-    description: 'Crie reuniões com clientes diretamente do WillFlow com link do Google Meet.',
-    icon: Video,
-    plan: 'Pro',
-    features: [
-      'Links de reunião automáticos',
-      'Integrado no calendário',
-      'Convites enviados automaticamente',
-      'Histórico de reuniões',
-    ],
-    status: 'available',
-  },
-  {
-    name: 'Frame.io',
-    description: 'Review de vídeos integrado. Veja comentários e aprovações sem sair do WillFlow.',
-    icon: Film,
-    plan: 'Studio',
-    features: [
-      'Embed de projetos Frame.io',
-      'Comentários sincronizados',
-      'Status de aprovação',
-      'Notificações em tempo real',
-    ],
-    status: 'available',
-  },
 ];
 
 const comingSoon = [
+  { name: 'Frame.io', description: 'Review de vídeos integrado com comentários sincronizados', icon: Film },
+  { name: 'Google Meet', description: 'Links de reunião automáticos integrados no calendário', icon: Video },
   { name: 'Dropbox', description: 'Sincronização de ficheiros de projeto' },
   { name: 'Outlook Calendar', description: 'Alternativa ao Google Calendar' },
   { name: 'Zapier', description: 'Conecte com milhares de apps' },
@@ -68,15 +45,15 @@ export default function Integrations() {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>Integrações | WillFlow - Google Calendar, Frame.io e Mais</title>
-        <meta name="description" content="Integre o WillFlow com as suas apps favoritas: Google Calendar, Google Meet, Frame.io e muito mais. Sincronize calendários, reuniões e reviews de vídeo." />
+        <title>Integrações | WillFlow - Google Calendar e Mais</title>
+        <meta name="description" content="Integre o WillFlow com as suas apps favoritas: Google Calendar para sincronização de eventos e muito mais em desenvolvimento." />
         <link rel="canonical" href="https://willflow.app/integracoes" />
-        <meta property="og:title" content="Integrações | WillFlow - Google Calendar, Frame.io e Mais" />
-        <meta property="og:description" content="Integre o WillFlow com as suas apps favoritas: Google Calendar, Google Meet, Frame.io e muito mais." />
+        <meta property="og:title" content="Integrações | WillFlow - Google Calendar e Mais" />
+        <meta property="og:description" content="Integre o WillFlow com as suas apps favoritas: Google Calendar para sincronização de eventos e muito mais em desenvolvimento." />
         <meta property="og:url" content="https://willflow.app/integracoes" />
         <meta property="og:type" content="website" />
-        <meta name="twitter:title" content="Integrações | WillFlow - Google Calendar, Frame.io e Mais" />
-        <meta name="twitter:description" content="Integre o WillFlow com as suas apps favoritas: Google Calendar, Google Meet, Frame.io e muito mais." />
+        <meta name="twitter:title" content="Integrações | WillFlow - Google Calendar e Mais" />
+        <meta name="twitter:description" content="Integre o WillFlow com as suas apps favoritas: Google Calendar para sincronização de eventos e muito mais em desenvolvimento." />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
@@ -114,7 +91,7 @@ export default function Integrations() {
         <div className="container mx-auto">
           <h2 className="text-2xl font-bold mb-8 text-center">Integrações disponíveis</h2>
           
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-1 gap-6 max-w-lg mx-auto">
             {integrations.map((integration, index) => (
               <motion.div
                 key={integration.name}
@@ -157,9 +134,12 @@ export default function Integrations() {
       {/* Coming Soon */}
       <section className="py-16 px-4 bg-muted/30">
         <div className="container mx-auto">
-          <h2 className="text-2xl font-bold mb-8 text-center">Em breve</h2>
+          <h2 className="text-2xl font-bold mb-8 text-center flex items-center justify-center gap-2">
+            <Clock className="h-6 w-6 text-muted-foreground" />
+            Em breve
+          </h2>
           
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
             {comingSoon.map((item, index) => (
               <motion.div
                 key={item.name}
@@ -167,9 +147,14 @@ export default function Integrations() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
                 viewport={{ once: true }}
-                className="glass-card p-4 opacity-60"
+                className="glass-card p-4 opacity-70"
               >
-                <h3 className="font-semibold mb-1">{item.name}</h3>
+                <div className="flex items-center gap-2 mb-2">
+                  {'icon' in item && item.icon && (
+                    <item.icon className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <h3 className="font-semibold">{item.name}</h3>
+                </div>
                 <p className="text-sm text-muted-foreground">{item.description}</p>
               </motion.div>
             ))}

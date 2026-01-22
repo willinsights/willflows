@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Settings, User, Users, Shield, Palette, Loader2, Database as DatabaseIcon, Clock, Trash2, RefreshCw, X, Calendar, Video, AlertTriangle, LogOut, Camera, HelpCircle } from 'lucide-react';
+import { Settings, User, Users, Shield, Palette, Loader2, Database as DatabaseIcon, Clock, Trash2, RefreshCw, X, Calendar, Video, Film, AlertTriangle, LogOut, Camera, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -1033,36 +1033,45 @@ export default function Configuracoes() {
               </CardContent>
             </Card>
 
-            <Card className="glass-card">
+            <Card className="glass-card opacity-60">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Video className="h-5 w-5" />
-                  Google Meet
-                </CardTitle>
-                <CardDescription>Crie reuniões automaticamente</CardDescription>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Video className="h-5 w-5" />
+                    Google Meet
+                  </CardTitle>
+                  <Badge variant="outline" className="text-xs">
+                    <Clock className="h-3 w-3 mr-1" />
+                    Em breve
+                  </Badge>
+                </div>
+                <CardDescription>Links de reunião automáticos (em desenvolvimento)</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Status: Não conectado</p>
-                  </div>
-                  <Button variant="outline">Conectar</Button>
-                </div>
+                <p className="text-sm text-muted-foreground">
+                  Esta integração permitirá criar links do Google Meet automaticamente ao agendar reuniões.
+                </p>
               </CardContent>
             </Card>
 
-            <Card className="glass-card">
+            <Card className="glass-card opacity-60">
               <CardHeader>
-                <CardTitle>Frame.io</CardTitle>
-                <CardDescription>Integração com Frame.io para revisão de vídeos</CardDescription>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Film className="h-5 w-5" />
+                    Frame.io
+                  </CardTitle>
+                  <Badge variant="outline" className="text-xs">
+                    <Clock className="h-3 w-3 mr-1" />
+                    Em breve
+                  </Badge>
+                </div>
+                <CardDescription>Review de vídeos integrado (em desenvolvimento)</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Status: Não conectado</p>
-                  </div>
-                  <Button variant="outline">Conectar</Button>
-                </div>
+                <p className="text-sm text-muted-foreground">
+                  Esta integração permitirá ver comentários e aprovações do Frame.io diretamente no WillFlow.
+                </p>
               </CardContent>
             </Card>
           </div>
