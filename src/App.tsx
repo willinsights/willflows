@@ -33,6 +33,8 @@ const Terms = lazy(() => import("./pages/Terms"));
 const Cookies = lazy(() => import("./pages/Cookies"));
 const About = lazy(() => import("./pages/About"));
 const Tutorial = lazy(() => import("./pages/Tutorial"));
+const ParaFotografos = lazy(() => import("./pages/ParaFotografos"));
+const ParaVideomakers = lazy(() => import("./pages/ParaVideomakers"));
 
 // Lazy loaded protected pages
 const Onboarding = lazy(() => import("./pages/Onboarding"));
@@ -88,6 +90,8 @@ const App = () => (
                     <Route path="/cookies" element={<Cookies />} />
                     <Route path="/sobre" element={<About />} />
                     <Route path="/tutorial" element={<Tutorial />} />
+                    <Route path="/para-fotografos" element={<ParaFotografos />} />
+                    <Route path="/para-videomakers" element={<ParaVideomakers />} />
                     
                     {/* Protected Routes */}
                     <Route

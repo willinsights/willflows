@@ -46,6 +46,8 @@ Deno.serve(async (req) => {
       { loc: '/', priority: '1.0', changefreq: 'weekly' },
       { loc: '/funcionalidades', priority: '0.9', changefreq: 'monthly' },
       { loc: '/planos', priority: '0.9', changefreq: 'monthly' },
+      { loc: '/para-fotografos', priority: '0.9', changefreq: 'monthly' },
+      { loc: '/para-videomakers', priority: '0.9', changefreq: 'monthly' },
       { loc: '/ajuda', priority: '0.7', changefreq: 'monthly' },
       { loc: '/sobre', priority: '0.6', changefreq: 'monthly' },
       { loc: '/seguranca', priority: '0.6', changefreq: 'monthly' },
