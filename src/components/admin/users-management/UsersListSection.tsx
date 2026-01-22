@@ -488,7 +488,7 @@ export function UsersListSection() {
               onClick={() => {
                 if (!confirmAction) return;
                 if (confirmAction.type === 'reset') {
-                  sendResetLink(confirmAction.user.email);
+                  sendResetLink(confirmAction.user.id);
                 } else {
                   blockUser({
                     userId: confirmAction.user.id,
