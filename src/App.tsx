@@ -72,11 +72,15 @@ const Configuracoes = lazy(() => import("./pages/app/Configuracoes"));
 const Equipa = lazy(() => import("./pages/app/Equipa"));
 const Faturacao = lazy(() => import("./pages/app/Faturacao"));
 const Planos = lazy(() => import("./pages/app/Planos"));
-const BetaAdmin = lazy(() => import("./pages/app/BetaAdmin"));
-const FeedbackAdmin = lazy(() => import("./pages/app/FeedbackAdmin"));
-const BlogAdmin = lazy(() => import("./pages/app/BlogAdmin"));
-const SuperAdmin = lazy(() => import("./pages/app/SuperAdmin"));
 const Chat = lazy(() => import("./pages/app/Chat"));
+
+// Admin pages (new /admin route)
+const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
+const AdminLayout = lazy(() => import("./pages/admin/AdminLayout"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
+const AdminBilling = lazy(() => import("./pages/admin/AdminBilling"));
+const AdminSystem = lazy(() => import("./pages/admin/AdminSystem"));
 
 const App = () => (
   <HelmetProvider>
@@ -125,6 +129,15 @@ const App = () => (
                     <Route path="/vs/clickup" element={<VsClickUp />} />
                     <Route path="/vs/trello" element={<VsTrello />} />
                     
+                    {/* Admin Routes (public login, protected dashboard) */}
+                    <Route path="/admin" element={<AdminLogin />} />
+                    <Route path="/admin" element={<AdminLayout />}>
+                      <Route path="dashboard" element={<AdminDashboard />} />
+                      <Route path="users" element={<AdminUsers />} />
+                      <Route path="billing" element={<AdminBilling />} />
+                      <Route path="system" element={<AdminSystem />} />
+                    </Route>
+                    
                     {/* Protected Routes */}
                     <Route
                       path="/onboarding"
@@ -167,10 +180,6 @@ const App = () => (
                       <Route path="planos" element={<Planos />} />
                       {/* Redirect conta to planos */}
                       <Route path="conta" element={<Planos />} />
-                      <Route path="beta-admin" element={<BetaAdmin />} />
-                      <Route path="feedback" element={<FeedbackAdmin />} />
-                      <Route path="blog-admin" element={<BlogAdmin />} />
-                      <Route path="admin" element={<SuperAdmin />} />
                       <Route path="chat" element={<Chat />} />
                       <Route path="chat/:conversationId" element={<Chat />} />
                     </Route>
