@@ -94,6 +94,17 @@ export function useUserPreferences() {
   const updatePreferences = async (updates: Partial<Omit<UserPreferences, 'id' | 'user_id'>>) => {
     if (!user?.id || !preferences) return { success: false, error: 'Preferências não encontradas' };
 
+    // Store previous state for rollback
+    const previousPreferences = { ...preferences };
+
+    // 1. OPTIMISTIC UPDATE - Update state immediately
+    setPreferences(prev => prev ? { ...prev, ...updates } : null);
+
+    // 2. Cache sidebar preference in localStorage for instant load
+    if (updates.sidebar_auto_collapse !== undefined) {
+      localStorage.setItem('pref-sidebar-auto-collapse', String(updates.sidebar_auto_collapse));
+    }
+
     setSaving(true);
     
     const { error } = await supabase
@@ -108,10 +119,14 @@ export function useUserPreferences() {
 
     if (error) {
       logger.error('Error updating user preferences:', error);
+      // Rollback on error
+      setPreferences(previousPreferences);
+      if (updates.sidebar_auto_collapse !== undefined) {
+        localStorage.setItem('pref-sidebar-auto-collapse', String(previousPreferences.sidebar_auto_collapse));
+      }
       return { success: false, error: error.message };
     }
 
-    setPreferences(prev => prev ? { ...prev, ...updates } : null);
     return { success: true };
   };
 
