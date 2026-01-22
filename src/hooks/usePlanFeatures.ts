@@ -20,14 +20,18 @@ export type FeatureKey =
   | 'workspaces'
   | 'users'
   | 'projects'
+  | 'clients'
   | 'kanban'
   | 'crmBasic'
   | 'crmComplete'
   | 'calendar'
+  | 'chat'
+  | 'mediaHub'
   | 'exportExcel'
   | 'exportPdf'
   | 'reportsBasic'
   | 'reportsAdvanced'
+  | 'financialReports'
   | 'googleCalendar'
   | 'googleMeet'
   | 'templates'
@@ -49,14 +53,18 @@ function buildFeatureInfo(): Record<FeatureKey, FeatureInfo> {
     workspaces: 'Criar múltiplos workspaces',
     users: 'Convidar membros para a equipa',
     projects: 'Criar projetos',
+    clients: 'Adicionar clientes',
     kanban: 'Gestão de projetos em Kanban',
     crmBasic: 'Gestão básica de clientes',
     crmComplete: 'Funcionalidades avançadas de CRM',
     calendar: 'Calendário integrado com projetos',
+    chat: 'Chat interno para comunicação com a equipa',
+    mediaHub: 'Gestão centralizada de media e links',
     exportExcel: 'Exportar dados para Excel/CSV',
     exportPdf: 'Exportar relatórios e documentos em PDF',
     reportsBasic: 'Relatórios e métricas simples',
     reportsAdvanced: 'Análises detalhadas e dashboards personalizados',
+    financialReports: 'Relatórios financeiros detalhados',
     googleCalendar: 'Sincronização com Google Calendar',
     googleMeet: 'Criar reuniões automaticamente',
     templates: 'Templates de projeto personalizados',
@@ -130,10 +138,10 @@ export function usePlanFeatures() {
   const { isSuperAdmin } = useSuperAdmin();
   
   // Fetch workspace usage counts
-  const { data: usage = { workspaces: 0, users: 0, projects: 0 } } = useQuery({
+  const { data: usage = { workspaces: 0, users: 0, projects: 0, clients: 0 } } = useQuery({
     queryKey: ['workspace-usage', workspace?.id],
     queryFn: async () => {
-      if (!workspace?.id) return { workspaces: 0, users: 0, projects: 0 };
+      if (!workspace?.id) return { workspaces: 0, users: 0, projects: 0, clients: 0 };
       
       // Count members in this workspace
       const { count: membersCount } = await supabase
@@ -147,6 +155,13 @@ export function usePlanFeatures() {
         .from('projects')
         .select('*', { count: 'exact', head: true })
         .eq('workspace_id', workspace.id);
+      
+      // Count clients in this workspace
+      const { count: clientsCount } = await supabase
+        .from('clients')
+        .select('*', { count: 'exact', head: true })
+        .eq('workspace_id', workspace.id)
+        .eq('is_active', true);
       
       // For workspaces count, we count how many workspaces the admin owns
       // This is only relevant if user is admin
@@ -164,6 +179,7 @@ export function usePlanFeatures() {
         workspaces: workspacesCount,
         users: membersCount ?? 0,
         projects: projectsCount ?? 0,
+        clients: clientsCount ?? 0,
       };
     },
     enabled: !!workspace?.id,
@@ -196,6 +212,9 @@ export function usePlanFeatures() {
     }
     if (feature === 'projects') {
       return usage.projects < limits.projects;
+    }
+    if (feature === 'clients') {
+      return usage.clients < limits.clients;
     }
 
     // For boolean features, check plan level
@@ -248,7 +267,7 @@ export function usePlanFeatures() {
     const requiredPlan = getUpgradePlan(feature);
     
     // Determine if it's a limit issue vs plan issue
-    const isLimitReached = ['workspaces', 'users', 'projects'].includes(feature) && 
+    const isLimitReached = ['workspaces', 'users', 'projects', 'clients'].includes(feature) && 
       isPlanAtLeast(currentPlan, featureInfo.minimumPlan);
 
     setUpgradeAlert({
@@ -272,7 +291,7 @@ export function usePlanFeatures() {
   }, []);
 
   // Get remaining quota for limit-based features
-  const getRemainingQuota = useCallback((feature: 'workspaces' | 'users' | 'projects') => {
+  const getRemainingQuota = useCallback((feature: 'workspaces' | 'users' | 'projects' | 'clients') => {
     return Math.max(0, limits[feature] - usage[feature]);
   }, [limits, usage]);
 

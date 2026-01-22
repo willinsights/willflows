@@ -2,6 +2,8 @@ import { FileSpreadsheet, FileText, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
+import { usePlanFeatures } from '@/hooks/usePlanFeatures';
+import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 
 export interface ExportData {
   id?: string;
@@ -30,8 +32,6 @@ interface PaymentExportButtonsProps {
   filename: string;
   type: 'clients' | 'freelancers' | 'invoices' | 'previsao' | 'custos';
   forecastSummary?: ForecastSummary;
-  canExportPdf?: boolean;
-  onPdfBlocked?: () => void;
 }
 
 export function PaymentExportButtons({ 
@@ -39,10 +39,18 @@ export function PaymentExportButtons({
   filename, 
   type, 
   forecastSummary,
-  canExportPdf = true,
-  onPdfBlocked
 }: PaymentExportButtonsProps) {
   const { toast } = useToast();
+  const { 
+    canUseFeature, 
+    checkFeature, 
+    upgradeAlert, 
+    closeUpgradeAlert, 
+    currentPlan 
+  } = usePlanFeatures();
+  
+  const canExportExcel = canUseFeature('exportExcel');
+  const canExportPdf = canUseFeature('exportPdf');
 
   const exportToCSV = () => {
     if (data.length === 0 && !forecastSummary) {
@@ -442,40 +450,75 @@ export function PaymentExportButtons({
     });
   };
 
+  const handleExcelClick = () => {
+    if (!canExportExcel) {
+      checkFeature('exportExcel');
+      return;
+    }
+    exportToCSV();
+  };
+
   const handlePdfClick = () => {
     if (!canExportPdf) {
-      onPdfBlocked?.();
+      checkFeature('exportPdf');
       return;
     }
     exportToPDF();
   };
 
   return (
-    <div className="flex gap-2">
-      <Button variant="outline" size="sm" onClick={exportToCSV}>
-        <FileSpreadsheet className="h-4 w-4 mr-2" />
-        CSV
-      </Button>
-      {canExportPdf ? (
-        <Button variant="outline" size="sm" onClick={handlePdfClick}>
-          <FileText className="h-4 w-4 mr-2" />
-          PDF
-        </Button>
-      ) : (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" size="sm" className="opacity-60 cursor-not-allowed" onClick={handlePdfClick}>
-                <Lock className="h-4 w-4 mr-2" />
-                PDF
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Disponível nos planos Pro e Studio</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
-    </div>
+    <>
+      <div className="flex gap-2">
+        {canExportExcel ? (
+          <Button variant="outline" size="sm" onClick={handleExcelClick}>
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Excel
+          </Button>
+        ) : (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" className="opacity-60" onClick={handleExcelClick}>
+                  <Lock className="h-4 w-4 mr-2" />
+                  Excel
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Disponível nos planos Pro e Studio</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        {canExportPdf ? (
+          <Button variant="outline" size="sm" onClick={handlePdfClick}>
+            <FileText className="h-4 w-4 mr-2" />
+            PDF
+          </Button>
+        ) : (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" className="opacity-60" onClick={handlePdfClick}>
+                  <Lock className="h-4 w-4 mr-2" />
+                  PDF
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Disponível nos planos Pro e Studio</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
+      
+      <UpgradeAlert
+        isOpen={upgradeAlert.isOpen}
+        onClose={closeUpgradeAlert}
+        feature={upgradeAlert.feature}
+        requiredPlan={upgradeAlert.requiredPlan}
+        currentPlan={currentPlan}
+        isLimitReached={upgradeAlert.isLimitReached}
+      />
+    </>
   );
 }

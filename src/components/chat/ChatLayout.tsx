@@ -11,6 +11,8 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { EmptyState } from '@/components/ui/empty-state';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { usePlanFeatures } from '@/hooks/usePlanFeatures';
+import { FeatureTeaser } from '@/components/subscription/FeatureTeaser';
 interface ChatLayoutProps {
   selectedConversationId?: string;
 }
@@ -18,6 +20,9 @@ interface ChatLayoutProps {
 export function ChatLayout({ selectedConversationId }: ChatLayoutProps) {
   const isMobile = useIsMobile();
   const { preferences, updatePreferences, loading: prefsLoading } = usePushNotifications();
+  const { canUseFeature } = usePlanFeatures();
+  const hasChat = canUseFeature('chat');
+  
   const [activeConversationId, setActiveConversationId] = useState<string | null>(
     selectedConversationId || null
   );
@@ -42,6 +47,21 @@ export function ChatLayout({ selectedConversationId }: ChatLayoutProps) {
     setMobileView('sidebar');
     setActiveConversationId(null);
   };
+
+  // Feature not available - show teaser
+  if (!hasChat) {
+    return (
+      <div className="flex h-[calc(100vh-4rem)] items-center justify-center p-4 bg-background">
+        <FeatureTeaser
+          feature="chat"
+          title="Chat da Equipa"
+          description="Comunique em tempo real com a sua equipa. Organize conversas por projeto, crie canais temáticos e mantenha toda a comunicação centralizada."
+          ctaLabel="Desbloquear Chat"
+          className="max-w-md w-full"
+        />
+      </div>
+    );
+  }
 
   // Mobile Layout
   if (isMobile) {
