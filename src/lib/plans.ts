@@ -22,6 +22,8 @@ export interface PlanLimits {
   workspaces: number;
   users: number;
   projects: number;
+  clients: number;
+  storage: number; // in GB
 }
 
 export interface PlanPrices {
@@ -57,9 +59,9 @@ export interface PlanInfo {
 
 // Plan limits - authoritative source
 export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
-  starter: { workspaces: 1, users: 2, projects: 20 },
-  pro: { workspaces: 3, users: 10, projects: 999 },
-  studio: { workspaces: 10, users: 999, projects: 999 },
+  starter: { workspaces: 1, users: 2, projects: 20, clients: 20, storage: 1 },
+  pro: { workspaces: 3, users: 10, projects: 999, clients: 100, storage: 10 },
+  studio: { workspaces: 10, users: 999, projects: 999, clients: 999, storage: 100 },
 };
 
 // Stripe Price IDs - LIVE PRODUCTION
@@ -121,12 +123,16 @@ export const PLANS: Record<PlanId, PlanInfo> = {
       { key: 'workspaces', name: 'Workspaces', value: '1', included: true, category: 'limit' },
       { key: 'users', name: 'Utilizadores', value: '2', included: true, category: 'limit' },
       { key: 'projects', name: 'Projetos ativos', value: '20', included: true, category: 'limit' },
+      { key: 'clients', name: 'Clientes', value: '20', included: true, category: 'limit' },
       { key: 'kanban', name: 'Kanban Captação + Edição', value: true, included: true, category: 'core' },
       { key: 'crmBasic', name: 'CRM básico', value: true, included: true, category: 'core' },
       { key: 'calendar', name: 'Calendário integrado', value: true, included: true, category: 'core' },
-      { key: 'exportExcel', name: 'Exportação Excel', value: true, included: true, category: 'export' },
-      { key: 'reportsBasic', name: 'Relatórios simples', value: true, included: true, category: 'core' },
+      { key: 'chat', name: 'Chat interno', value: false, included: false, category: 'core' },
+      { key: 'mediaHub', name: 'Media Hub', value: false, included: false, category: 'core' },
+      { key: 'exportExcel', name: 'Exportação Excel', value: false, included: false, category: 'export' },
       { key: 'exportPdf', name: 'Exportação PDF', value: false, included: false, category: 'export' },
+      { key: 'reportsBasic', name: 'Relatórios simples', value: true, included: true, category: 'core' },
+      { key: 'financialReports', name: 'Relatórios financeiros', value: false, included: false, category: 'core' },
       { key: 'googleCalendar', name: 'Google Calendar', value: false, included: false, category: 'integration' },
       { key: 'googleMeet', name: 'Meet integrado', value: false, included: false, category: 'integration' },
       { key: 'reportsAdvanced', name: 'Relatórios avançados', value: false, included: false, category: 'core' },
@@ -155,11 +161,15 @@ export const PLANS: Record<PlanId, PlanInfo> = {
       { key: 'workspaces', name: 'Workspaces', value: '3', included: true, category: 'limit' },
       { key: 'users', name: 'Utilizadores', value: '10', included: true, category: 'limit' },
       { key: 'projects', name: 'Projetos ativos', value: 'Ilimitados', included: true, category: 'limit' },
+      { key: 'clients', name: 'Clientes', value: '100', included: true, category: 'limit' },
       { key: 'kanban', name: 'Kanban Captação + Edição', value: true, included: true, category: 'core' },
       { key: 'crmComplete', name: 'CRM completo', value: true, included: true, category: 'core' },
       { key: 'calendar', name: 'Calendário integrado', value: true, included: true, category: 'core' },
+      { key: 'chat', name: 'Chat interno', value: true, included: true, category: 'core' },
+      { key: 'mediaHub', name: 'Media Hub', value: true, included: true, category: 'core' },
       { key: 'exportExcel', name: 'Exportação Excel', value: true, included: true, category: 'export' },
       { key: 'exportPdf', name: 'Exportação PDF', value: true, included: true, category: 'export' },
+      { key: 'financialReports', name: 'Relatórios financeiros', value: true, included: true, category: 'core' },
       { key: 'reportsAdvanced', name: 'Relatórios avançados', value: true, included: true, category: 'core' },
       { key: 'googleCalendar', name: 'Google Calendar', value: true, included: true, category: 'integration' },
       { key: 'googleMeet', name: 'Meet integrado', value: true, included: true, category: 'integration' },
@@ -187,11 +197,15 @@ export const PLANS: Record<PlanId, PlanInfo> = {
       { key: 'workspaces', name: 'Workspaces', value: '10', included: true, category: 'limit' },
       { key: 'users', name: 'Utilizadores', value: 'Ilimitados', included: true, category: 'limit' },
       { key: 'projects', name: 'Projetos ativos', value: 'Ilimitados', included: true, category: 'limit' },
+      { key: 'clients', name: 'Clientes', value: 'Ilimitados', included: true, category: 'limit' },
       { key: 'kanban', name: 'Kanban Captação + Edição', value: true, included: true, category: 'core' },
       { key: 'crmComplete', name: 'CRM completo', value: true, included: true, category: 'core' },
       { key: 'calendar', name: 'Calendário integrado', value: true, included: true, category: 'core' },
+      { key: 'chat', name: 'Chat interno', value: true, included: true, category: 'core' },
+      { key: 'mediaHub', name: 'Media Hub', value: true, included: true, category: 'core' },
       { key: 'exportExcel', name: 'Exportação Excel', value: true, included: true, category: 'export' },
       { key: 'exportPdf', name: 'Exportação PDF', value: true, included: true, category: 'export' },
+      { key: 'financialReports', name: 'Relatórios financeiros', value: true, included: true, category: 'core' },
       { key: 'reportsAdvanced', name: 'Relatórios avançados', value: true, included: true, category: 'core' },
       { key: 'googleCalendar', name: 'Google Calendar', value: true, included: true, category: 'integration' },
       { key: 'googleMeet', name: 'Meet integrado', value: true, included: true, category: 'integration' },

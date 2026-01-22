@@ -408,8 +408,6 @@ export default function Pagamentos() {
               filename={`previsao-${format(currentMonth, 'yyyy-MM')}`}
               type="previsao"
               forecastSummary={forecastSummary}
-              canExportPdf={canExportPdf}
-              onPdfBlocked={() => checkFeature('exportPdf')}
             />
           </div>
 
