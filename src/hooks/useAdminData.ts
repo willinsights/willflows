@@ -121,7 +121,6 @@ export function useAdminData() {
         membersRes,
         projectsRes,
         subscriptionsRes,
-        invitationsRes,
         waitlistRes,
         pageViewsMonthRes,
         pageViewsWeekRes,
@@ -129,11 +128,10 @@ export function useAdminData() {
         activityLogRes,
       ] = await Promise.all([
         supabase.from('profiles').select('id, email, full_name, created_at, last_login_at, is_blocked'),
-        supabase.from('workspaces').select('id, name, subscription_status, subscription_plan, owner_id, created_at'),
+        supabase.from('workspaces').select('id, name, subscription_status, subscription_plan, created_at'),
         supabase.from('workspace_members').select('id, user_id, workspace_id, role, is_active'),
         supabase.from('projects').select('id, workspace_id'),
         supabase.from('user_subscriptions').select('*'),
-        supabase.from('workspace_invitations').select('id, email, workspace_id, status, created_at, expires_at'),
         supabase.from('beta_waitlist').select('id, email, name, invited_at, created_at'),
         supabase.from('page_views').select('id, session_id, created_at').gte('created_at', thirtyDaysAgo),
         supabase.from('page_views').select('id', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo),
@@ -147,7 +145,6 @@ export function useAdminData() {
         members: membersRes.data || [],
         projects: projectsRes.data || [],
         subscriptions: subscriptionsRes.data || [],
-        invitations: invitationsRes.data || [],
         waitlist: waitlistRes.data || [],
         pageViewsMonth: pageViewsMonthRes.data || [],
         pageViewsWeekCount: pageViewsWeekRes.count || 0,
@@ -166,10 +163,10 @@ export function useAdminData() {
     
     const { subscriptions } = coreDataQuery.data;
     
-    // Calculate MRR from active subscriptions
+    // Calculate MRR from active subscriptions (use subscription_status and subscription_plan)
     const mrr = subscriptions
-      .filter(s => s.status === 'active')
-      .reduce((sum, s) => sum + getPlanMonthlyPrice(s.plan_id || 'starter'), 0);
+      .filter(s => s.subscription_status === 'active')
+      .reduce((sum, s) => sum + getPlanMonthlyPrice(s.subscription_plan || 'starter'), 0);
 
     return {
       mrr,
@@ -183,24 +180,19 @@ export function useAdminData() {
     if (!coreDataQuery.data) return { total: 0, active: 0, trialing: 0, pastDue: 0, canceled30d: 0, byPlan: {} };
     
     const { subscriptions } = coreDataQuery.data;
-    const thirtyDaysAgo = subDays(new Date(), 30);
 
     const byPlan: Record<string, number> = {};
     subscriptions.forEach(s => {
-      const plan = s.plan_id || 'starter';
+      const plan = s.subscription_plan || 'starter';
       byPlan[plan] = (byPlan[plan] || 0) + 1;
     });
 
     return {
       total: subscriptions.length,
-      active: subscriptions.filter(s => s.status === 'active').length,
-      trialing: subscriptions.filter(s => s.status === 'trialing').length,
-      pastDue: subscriptions.filter(s => s.status === 'past_due').length,
-      canceled30d: subscriptions.filter(s => 
-        s.status === 'canceled' && 
-        s.canceled_at && 
-        new Date(s.canceled_at) > thirtyDaysAgo
-      ).length,
+      active: subscriptions.filter(s => s.subscription_status === 'active').length,
+      trialing: subscriptions.filter(s => s.subscription_status === 'trialing').length,
+      pastDue: subscriptions.filter(s => s.subscription_status === 'past_due').length,
+      canceled30d: 0, // Would need canceled_at column
       byPlan,
     };
   }, [coreDataQuery.data]);
@@ -208,7 +200,7 @@ export function useAdminData() {
   const userMetrics = useMemo<UserMetrics>(() => {
     if (!coreDataQuery.data) return { totalProfiles: 0, workspaceOwners: 0, collaborators: 0, pendingInvites: 0, waitlistCount: 0, blockedUsers: 0 };
     
-    const { profiles, members, invitations, waitlist } = coreDataQuery.data;
+    const { profiles, members, waitlist } = coreDataQuery.data;
 
     // Owners = users who are admin in at least one workspace
     const ownerIds = new Set(
@@ -218,12 +210,6 @@ export function useAdminData() {
     // Collaborators = users who are NOT admin in any workspace but are members
     const allMemberIds = new Set(members.filter(m => m.is_active).map(m => m.user_id));
     const collaboratorIds = [...allMemberIds].filter(id => !ownerIds.has(id));
-
-    // Pending invitations
-    const pendingInvites = invitations.filter(i => 
-      i.status === 'pending' && 
-      (!i.expires_at || new Date(i.expires_at) > new Date())
-    ).length;
 
     // Waitlist not yet invited
     const waitlistPending = waitlist.filter(w => !w.invited_at).length;
@@ -235,7 +221,7 @@ export function useAdminData() {
       totalProfiles: profiles.length,
       workspaceOwners: ownerIds.size,
       collaborators: collaboratorIds.length,
-      pendingInvites,
+      pendingInvites: 0, // Would need separate query
       waitlistCount: waitlistPending,
       blockedUsers,
     };
@@ -285,7 +271,7 @@ export function useAdminData() {
     );
 
     // Users with active subscriptions
-    const paidUsers = subscriptions.filter(s => s.status === 'active').length;
+    const paidUsers = subscriptions.filter(s => s.subscription_status === 'active').length;
 
     return {
       registered: profiles.length,
@@ -305,7 +291,7 @@ export function useAdminData() {
       const { data: pastDue } = await supabase
         .from('user_subscriptions')
         .select('id')
-        .eq('status', 'past_due');
+        .eq('subscription_status', 'past_due');
 
       if (pastDue && pastDue.length > 0) {
         alerts.push({
@@ -335,11 +321,11 @@ export function useAdminData() {
 
         const { data: subs } = await supabase
           .from('user_subscriptions')
-          .select('plan_id, status')
-          .eq('status', 'active')
+          .select('subscription_plan, subscription_status')
+          .eq('subscription_status', 'active')
           .lte('created_at', monthEnd.toISOString());
 
-        const mrr = (subs || []).reduce((sum, s) => sum + getPlanMonthlyPrice(s.plan_id || 'starter'), 0);
+        const mrr = (subs || []).reduce((sum, s) => sum + getPlanMonthlyPrice(s.subscription_plan || 'starter'), 0);
 
         history.push({ month: monthLabel, mrr });
       }
@@ -371,7 +357,7 @@ export function useAdminData() {
           supabase
             .from('user_subscriptions')
             .select('id', { count: 'exact', head: true })
-            .eq('status', 'active')
+            .eq('subscription_status', 'active')
             .gte('created_at', monthStart.toISOString())
             .lte('created_at', monthEnd.toISOString()),
         ]);

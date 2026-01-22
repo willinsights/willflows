@@ -10,7 +10,10 @@ import {
   LogOut,
   Loader2,
   ChevronRight,
-  ExternalLink
+  ExternalLink,
+  BarChart3,
+  FileText,
+  Rocket
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -29,8 +32,11 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { path: '/admin/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-5 w-5" /> },
+  { path: '/admin/analytics', label: 'Analytics', icon: <BarChart3 className="h-5 w-5" /> },
+  { path: '/admin/content', label: 'Conteúdo', icon: <FileText className="h-5 w-5" /> },
   { path: '/admin/users', label: 'Utilizadores', icon: <Users className="h-5 w-5" /> },
   { path: '/admin/billing', label: 'Billing', icon: <CreditCard className="h-5 w-5" /> },
+  { path: '/admin/growth', label: 'Growth', icon: <Rocket className="h-5 w-5" /> },
   { path: '/admin/system', label: 'Sistema', icon: <Settings className="h-5 w-5" /> },
 ];
 
@@ -88,7 +94,8 @@ export default function AdminLayout() {
         <ScrollArea className="flex-1 py-4">
           <nav className="px-3 space-y-1">
             {navItems.map((item) => {
-              const isActive = location.pathname === item.path;
+              const isActive = location.pathname === item.path || 
+                (item.path !== '/admin/dashboard' && location.pathname.startsWith(item.path));
               return (
                 <Link
                   key={item.path}
