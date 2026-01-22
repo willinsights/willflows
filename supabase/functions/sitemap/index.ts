@@ -45,6 +45,13 @@ Deno.serve(async (req) => {
     const staticPages = [
       { loc: '/', priority: '1.0', changefreq: 'weekly' },
       { loc: '/funcionalidades', priority: '0.9', changefreq: 'monthly' },
+      { loc: '/funcionalidades/chat', priority: '0.85', changefreq: 'monthly' },
+      { loc: '/funcionalidades/kanban', priority: '0.85', changefreq: 'monthly' },
+      { loc: '/funcionalidades/crm', priority: '0.85', changefreq: 'monthly' },
+      { loc: '/funcionalidades/calendario', priority: '0.85', changefreq: 'monthly' },
+      { loc: '/funcionalidades/pagamentos', priority: '0.85', changefreq: 'monthly' },
+      { loc: '/funcionalidades/relatorios', priority: '0.85', changefreq: 'monthly' },
+      { loc: '/funcionalidades/media-hub', priority: '0.85', changefreq: 'monthly' },
       { loc: '/planos', priority: '0.9', changefreq: 'monthly' },
       { loc: '/para-fotografos', priority: '0.9', changefreq: 'monthly' },
       { loc: '/para-videomakers', priority: '0.9', changefreq: 'monthly' },
