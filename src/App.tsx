@@ -35,6 +35,7 @@ const About = lazy(() => import("./pages/About"));
 const Tutorial = lazy(() => import("./pages/Tutorial"));
 const ParaFotografos = lazy(() => import("./pages/ParaFotografos"));
 const ParaVideomakers = lazy(() => import("./pages/ParaVideomakers"));
+const Contact = lazy(() => import("./pages/Contact"));
 
 // Feature pages
 const ChatFeature = lazy(() => import("./pages/features/Chat"));
@@ -44,6 +45,12 @@ const CalendarioFeature = lazy(() => import("./pages/features/Calendario"));
 const PagamentosFeature = lazy(() => import("./pages/features/Pagamentos"));
 const RelatoriosFeature = lazy(() => import("./pages/features/Relatorios"));
 const MediaHubFeature = lazy(() => import("./pages/features/MediaHub"));
+
+// Comparison pages
+const ComparisonsHub = lazy(() => import("./pages/comparisons/ComparisonsHub"));
+const VsAsana = lazy(() => import("./pages/comparisons/VsAsana"));
+const VsClickUp = lazy(() => import("./pages/comparisons/VsClickUp"));
+const VsTrello = lazy(() => import("./pages/comparisons/VsTrello"));
 
 // Lazy loaded protected pages
 const Onboarding = lazy(() => import("./pages/Onboarding"));
@@ -108,6 +115,11 @@ const App = () => (
                     <Route path="/tutorial" element={<Tutorial />} />
                     <Route path="/para-fotografos" element={<ParaFotografos />} />
                     <Route path="/para-videomakers" element={<ParaVideomakers />} />
+                    <Route path="/contato" element={<Contact />} />
+                    <Route path="/vs" element={<ComparisonsHub />} />
+                    <Route path="/vs/asana" element={<VsAsana />} />
+                    <Route path="/vs/clickup" element={<VsClickUp />} />
+                    <Route path="/vs/trello" element={<VsTrello />} />
                     
                     {/* Protected Routes */}
                     <Route

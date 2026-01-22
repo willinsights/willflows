@@ -11,11 +11,17 @@ const footerLinks = {
     { label: 'Para Fotógrafos', href: '/para-fotografos' },
     { label: 'Para Videomakers', href: '/para-videomakers' },
   ],
+  comparacoes: [
+    { label: 'WillFlow vs Asana', href: '/vs/asana' },
+    { label: 'WillFlow vs ClickUp', href: '/vs/clickup' },
+    { label: 'WillFlow vs Trello', href: '/vs/trello' },
+  ],
   recursos: [
     { label: 'Blog', href: '/blog' },
     { label: 'Ajuda & FAQ', href: '/ajuda' },
     { label: 'Segurança', href: '/seguranca' },
     { label: 'Sobre Nós', href: '/sobre' },
+    { label: 'Contato', href: '/contato' },
   ],
   legal: [
     { label: 'Termos de Uso', href: '/termos' },
@@ -28,12 +34,12 @@ export function PublicFooter() {
   return (
     <footer className="py-16 px-4 border-t border-border bg-muted/30">
       <div className="container mx-auto">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-8 mb-12">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Logo className="h-10 mb-4" />
             <p className="text-sm text-muted-foreground max-w-xs">
-              O CRM + Kanban feito para produção de Foto e Vídeo. Gerencie projetos desde a captação até a entrega.
+              O CRM + Kanban feito para produção de Foto e Vídeo.
             </p>
           </div>
 
@@ -43,10 +49,7 @@ export function PublicFooter() {
             <ul className="space-y-2">
               {footerLinks.produto.map((link) => (
                 <li key={link.href}>
-                  <Link
-                    to={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
+                  <Link to={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                     {link.label}
                   </Link>
                 </li>
@@ -60,10 +63,21 @@ export function PublicFooter() {
             <ul className="space-y-2">
               {footerLinks.solucoes.map((link) => (
                 <li key={link.href}>
-                  <Link
-                    to={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
+                  <Link to={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Comparisons Links */}
+          <div>
+            <h4 className="font-semibold mb-4">Comparações</h4>
+            <ul className="space-y-2">
+              {footerLinks.comparacoes.map((link) => (
+                <li key={link.href}>
+                  <Link to={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                     {link.label}
                   </Link>
                 </li>
@@ -77,10 +91,7 @@ export function PublicFooter() {
             <ul className="space-y-2">
               {footerLinks.recursos.map((link) => (
                 <li key={link.href}>
-                  <Link
-                    to={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
+                  <Link to={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                     {link.label}
                   </Link>
                 </li>
@@ -94,10 +105,7 @@ export function PublicFooter() {
             <ul className="space-y-2">
               {footerLinks.legal.map((link) => (
                 <li key={link.href}>
-                  <Link
-                    to={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
+                  <Link to={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                     {link.label}
                   </Link>
                 </li>

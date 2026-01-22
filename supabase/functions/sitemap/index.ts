@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
     const baseUrl = 'https://willflow.app';
     const today = new Date().toISOString().split('T')[0];
 
-    // Static pages
+    // Static pages - excluding auth routes per robots.txt
     const staticPages = [
       { loc: '/', priority: '1.0', changefreq: 'weekly' },
       { loc: '/funcionalidades', priority: '0.9', changefreq: 'monthly' },
@@ -59,12 +59,12 @@ Deno.serve(async (req) => {
       { loc: '/sobre', priority: '0.6', changefreq: 'monthly' },
       { loc: '/seguranca', priority: '0.6', changefreq: 'monthly' },
       { loc: '/integracoes', priority: '0.7', changefreq: 'monthly' },
+      { loc: '/contato', priority: '0.7', changefreq: 'monthly' },
       { loc: '/blog', priority: '0.8', changefreq: 'daily' },
       { loc: '/blog/categoria/novidades', priority: '0.7', changefreq: 'weekly' },
       { loc: '/blog/categoria/tutorial', priority: '0.7', changefreq: 'weekly' },
       { loc: '/blog/categoria/comparacao', priority: '0.7', changefreq: 'weekly' },
       { loc: '/blog/categoria/dicas', priority: '0.7', changefreq: 'weekly' },
-      { loc: '/auth', priority: '0.5', changefreq: 'monthly' },
       { loc: '/privacidade', priority: '0.5', changefreq: 'yearly' },
       { loc: '/termos', priority: '0.5', changefreq: 'yearly' },
       { loc: '/cookies', priority: '0.5', changefreq: 'yearly' },
