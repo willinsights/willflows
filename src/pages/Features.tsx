@@ -15,6 +15,7 @@ import {
   FolderOpen,
   Archive,
   ArrowRight,
+  ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PublicHeader } from '@/components/marketing/PublicHeader';
@@ -22,75 +23,46 @@ import { PublicFooter } from '@/components/marketing/PublicFooter';
 
 const features = [
   {
+    icon: MessageCircle,
+    title: 'Chat de Equipa',
+    description: 'Comunicação interna integrada com canais por projeto, criação de tarefas e follow-ups.',
+    href: '/funcionalidades/chat',
+    details: [
+      'Canais por projeto automáticos',
+      'Criar tarefas de mensagens',
+      'Threads, reações e menções',
+      'Follow-ups e lembretes',
+    ],
+  },
+  {
     icon: Kanban,
     title: 'Kanban Visual',
     description: 'Acompanhe cada projeto desde a captação até a entrega final com um fluxo visual intuitivo.',
+    href: '/funcionalidades/kanban',
     details: [
       'Colunas customizáveis por fase',
-      'Coluna "Entregue" fixa no final',
       'Drag & drop para mover projetos',
-      'Filtros por cliente, tipo, prioridade',
-    ],
-  },
-  {
-    icon: FolderKanban,
-    title: 'Projetos Completos',
-    description: 'Crie projetos de Fotografia, Vídeo ou ambos. Cada tipo com o seu fluxo específico.',
-    details: [
-      'Tipos: Fotografia, Vídeo, Foto + Vídeo',
-      'Categorias: Hotel, Experiência, Evento, Outro',
-      'Campos personalizados por projeto',
-      'Notas internas e cliente',
-    ],
-  },
-  {
-    icon: CheckSquare,
-    title: 'Tarefas & Checklists',
-    description: 'Pop-up de tarefa estilo Asana com checklist obrigatório antes de avançar.',
-    details: [
-      'Checklists por fase (Captação/Edição)',
-      'Assignees por tarefa',
-      'Anexos e comentários',
-      'Histórico de atividade',
+      'Transição automática de fases',
+      'Filtros por cliente e prioridade',
     ],
   },
   {
     icon: Users,
     title: 'CRM Integrado',
     description: 'Gerencie todos os seus clientes, contactos e histórico de projetos num só lugar.',
+    href: '/funcionalidades/crm',
     details: [
       'Ficha completa do cliente',
       'Histórico de projetos',
-      'Métricas: receita total, projetos ativos',
-      'Tags e categorização',
-    ],
-  },
-  {
-    icon: MessageCircle,
-    title: 'Chat de Equipa',
-    description: 'Comunicação interna integrada com canais, mensagens diretas e threads.',
-    details: [
-      'Canais por projeto ou tema',
-      'Mensagens diretas entre membros',
-      'Anexos, reações e menções',
-      'Follow-ups e tarefas rápidas',
-    ],
-  },
-  {
-    icon: FolderOpen,
-    title: 'Media Hub',
-    description: 'Centralize todos os links externos de media dos seus projetos.',
-    details: [
-      'Links de NAS organizados',
-      'Vimeo, YouTube, Google Drive',
-      'Pesquisa e filtros por projeto',
-      'Acesso rápido a ficheiros',
+      'Métricas: receita total, projetos',
+      'Notas e comunicações',
     ],
   },
   {
     icon: Calendar,
     title: 'Calendário',
     description: 'Visualize compromissos, sessões e prazos com integração Google Calendar.',
+    href: '/funcionalidades/calendario',
     details: [
       'Vista mês, semana, dia',
       'Sincronização Google Calendar',
@@ -102,33 +74,58 @@ const features = [
     icon: CreditCard,
     title: 'Pagamentos',
     description: 'Controle receitas, custos e pagamentos de forma simples e organizada.',
+    href: '/funcionalidades/pagamentos',
     details: [
       'A receber vs A pagar',
       'Status: Pendente, Pago, Vencido',
-      'Previsão de cash flow',
-      'Associação a projetos e clientes',
-    ],
-  },
-  {
-    icon: FileSpreadsheet,
-    title: 'Export & Faturação',
-    description: 'Exporte dados para faturar externamente. Excel e PDF disponíveis.',
-    details: [
-      'Export Excel (todos os planos)',
-      'Export PDF (Pro e Studio)',
-      'Dados formatados para faturação',
-      'Relatórios personalizáveis',
+      'Export Excel e PDF',
+      'Dashboard financeiro',
     ],
   },
   {
     icon: BarChart3,
     title: 'Relatórios',
     description: 'Analise o desempenho do seu negócio com relatórios visuais e detalhados.',
+    href: '/funcionalidades/relatorios',
     details: [
       'Top clientes por receita',
       'Projetos por categoria',
       'Performance da equipa',
       'Tendências mensais',
+    ],
+  },
+  {
+    icon: FolderOpen,
+    title: 'Media Hub',
+    description: 'Centralize todos os links externos de media dos seus projetos.',
+    href: '/funcionalidades/media-hub',
+    details: [
+      'Links de NAS organizados',
+      'Vimeo, YouTube, Google Drive',
+      'Pesquisa centralizada',
+      'Acesso rápido a ficheiros',
+    ],
+  },
+  {
+    icon: FolderKanban,
+    title: 'Projetos Completos',
+    description: 'Crie projetos de Fotografia, Vídeo ou ambos. Cada tipo com o seu fluxo específico.',
+    details: [
+      'Tipos: Fotografia, Vídeo, Foto + Vídeo',
+      'Categorias customizáveis',
+      'Notas internas e cliente',
+      'Checklists por fase',
+    ],
+  },
+  {
+    icon: CheckSquare,
+    title: 'Tarefas & Checklists',
+    description: 'Pop-up de tarefa estilo Asana com checklist obrigatório antes de avançar.',
+    details: [
+      'Checklists por fase',
+      'Assignees por tarefa',
+      'Anexos e comentários',
+      'Histórico de atividade',
     ],
   },
   {
@@ -150,7 +147,7 @@ const features = [
       'Histórico completo de projetos',
       'Pesquisa por cliente ou data',
       'Métricas de projetos passados',
-      'Reativar projetos se necessário',
+      'Reativar se necessário',
     ],
   },
 ];
@@ -211,21 +208,19 @@ export default function Features() {
       <section className="py-20 px-4">
         <div className="container mx-auto">
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                viewport={{ once: true }}
-                className="glass-card p-6"
-              >
+            {features.map((feature, index) => {
+              const CardContent = (
                 <div className="flex items-start gap-4">
                   <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 flex-shrink-0">
                     <feature.icon className="h-6 w-6 text-primary" />
                   </div>
-                  <div>
-                    <h3 className="font-bold text-lg mb-2">{feature.title}</h3>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-bold text-lg">{feature.title}</h3>
+                      {'href' in feature && (
+                        <ChevronRight className="h-5 w-5 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                      )}
+                    </div>
                     <p className="text-muted-foreground text-sm mb-4">{feature.description}</p>
                     <ul className="space-y-1.5">
                       {feature.details.map((detail) => (
@@ -235,10 +230,33 @@ export default function Features() {
                         </li>
                       ))}
                     </ul>
+                    {'href' in feature && (
+                      <p className="text-primary text-sm font-medium mt-4">Ver detalhes →</p>
+                    )}
                   </div>
                 </div>
-              </motion.div>
-            ))}
+              );
+
+              return (
+                <motion.div
+                  key={feature.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  viewport={{ once: true }}
+                >
+                  {'href' in feature ? (
+                    <Link to={feature.href} className="block glass-card p-6 group hover:border-primary/50 transition-colors">
+                      {CardContent}
+                    </Link>
+                  ) : (
+                    <div className="glass-card p-6">
+                      {CardContent}
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
