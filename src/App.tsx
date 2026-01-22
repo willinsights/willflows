@@ -35,6 +35,8 @@ const About = lazy(() => import("./pages/About"));
 const Tutorial = lazy(() => import("./pages/Tutorial"));
 const ParaFotografos = lazy(() => import("./pages/ParaFotografos"));
 const ParaVideomakers = lazy(() => import("./pages/ParaVideomakers"));
+const ParaAgencias = lazy(() => import("./pages/ParaAgencias"));
+const ParaProdutoras = lazy(() => import("./pages/ParaProdutoras"));
 const Contact = lazy(() => import("./pages/Contact"));
 
 // Feature pages
@@ -115,6 +117,8 @@ const App = () => (
                     <Route path="/tutorial" element={<Tutorial />} />
                     <Route path="/para-fotografos" element={<ParaFotografos />} />
                     <Route path="/para-videomakers" element={<ParaVideomakers />} />
+                    <Route path="/para-agencias" element={<ParaAgencias />} />
+                    <Route path="/para-produtoras" element={<ParaProdutoras />} />
                     <Route path="/contato" element={<Contact />} />
                     <Route path="/vs" element={<ComparisonsHub />} />
                     <Route path="/vs/asana" element={<VsAsana />} />
