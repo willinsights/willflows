@@ -11,7 +11,9 @@ import {
   CheckSquare,
   Clock,
   FileSpreadsheet,
-  Video,
+  MessageCircle,
+  FolderOpen,
+  Archive,
   ArrowRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -64,6 +66,28 @@ const features = [
     ],
   },
   {
+    icon: MessageCircle,
+    title: 'Chat de Equipa',
+    description: 'Comunicação interna integrada com canais, mensagens diretas e threads.',
+    details: [
+      'Canais por projeto ou tema',
+      'Mensagens diretas entre membros',
+      'Anexos, reações e menções',
+      'Follow-ups e tarefas rápidas',
+    ],
+  },
+  {
+    icon: FolderOpen,
+    title: 'Media Hub',
+    description: 'Centralize todos os links externos de media dos seus projetos.',
+    details: [
+      'Links de NAS organizados',
+      'Vimeo, YouTube, Google Drive',
+      'Pesquisa e filtros por projeto',
+      'Acesso rápido a ficheiros',
+    ],
+  },
+  {
     icon: Calendar,
     title: 'Calendário',
     description: 'Visualize compromissos, sessões e prazos com integração Google Calendar.',
@@ -71,7 +95,7 @@ const features = [
       'Vista mês, semana, dia',
       'Sincronização Google Calendar',
       'Eventos de projeto automáticos',
-      'Google Meet integrado',
+      'Arrastar para reagendar',
     ],
   },
   {
@@ -119,14 +143,14 @@ const features = [
     ],
   },
   {
-    icon: Video,
-    title: 'Frame.io',
-    description: 'Integração com Frame.io para review de vídeos diretamente no WillFlow.',
+    icon: Archive,
+    title: 'Arquivo de Finalizados',
+    description: 'Projetos concluídos ficam organizados num arquivo separado para consulta.',
     details: [
-      'Embed de projetos Frame.io',
-      'Comentários sincronizados',
-      'Status de aprovação',
-      'Disponível no plano Studio',
+      'Histórico completo de projetos',
+      'Pesquisa por cliente ou data',
+      'Métricas de projetos passados',
+      'Reativar projetos se necessário',
     ],
   },
 ];
@@ -135,15 +159,15 @@ export default function Features() {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>Funcionalidades | WillFlow - Kanban, CRM, Calendário e Mais</title>
-        <meta name="description" content="Descubra todas as funcionalidades do WillFlow: Kanban visual, CRM integrado, calendário com Google Calendar, gestão de pagamentos, relatórios financeiros e muito mais." />
+        <title>Funcionalidades | WillFlow - Kanban, CRM, Chat, Calendário e Mais</title>
+        <meta name="description" content="Descubra todas as funcionalidades do WillFlow: Kanban visual, CRM integrado, chat de equipa, calendário com Google Calendar, gestão de pagamentos, relatórios financeiros e muito mais." />
         <link rel="canonical" href="https://willflow.app/funcionalidades" />
-        <meta property="og:title" content="Funcionalidades | WillFlow - Kanban, CRM, Calendário e Mais" />
-        <meta property="og:description" content="Descubra todas as funcionalidades do WillFlow: Kanban visual, CRM integrado, calendário com Google Calendar, gestão de pagamentos, relatórios financeiros e muito mais." />
+        <meta property="og:title" content="Funcionalidades | WillFlow - Kanban, CRM, Chat, Calendário e Mais" />
+        <meta property="og:description" content="Descubra todas as funcionalidades do WillFlow: Kanban visual, CRM integrado, chat de equipa, calendário com Google Calendar, gestão de pagamentos, relatórios financeiros e muito mais." />
         <meta property="og:url" content="https://willflow.app/funcionalidades" />
         <meta property="og:type" content="website" />
-        <meta name="twitter:title" content="Funcionalidades | WillFlow - Kanban, CRM, Calendário e Mais" />
-        <meta name="twitter:description" content="Descubra todas as funcionalidades do WillFlow: Kanban visual, CRM integrado, calendário com Google Calendar, gestão de pagamentos, relatórios financeiros e muito mais." />
+        <meta name="twitter:title" content="Funcionalidades | WillFlow - Kanban, CRM, Chat, Calendário e Mais" />
+        <meta name="twitter:description" content="Descubra todas as funcionalidades do WillFlow: Kanban visual, CRM integrado, chat de equipa, calendário com Google Calendar, gestão de pagamentos, relatórios financeiros e muito mais." />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
@@ -186,7 +210,7 @@ export default function Features() {
       {/* Features Grid */}
       <section className="py-20 px-4">
         <div className="container mx-auto">
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
               <motion.div
                 key={feature.title}
@@ -194,16 +218,16 @@ export default function Features() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
                 viewport={{ once: true }}
-                className="glass-card p-8"
+                className="glass-card p-6"
               >
                 <div className="flex items-start gap-4">
                   <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 flex-shrink-0">
                     <feature.icon className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-xl mb-2">{feature.title}</h3>
-                    <p className="text-muted-foreground mb-4">{feature.description}</p>
-                    <ul className="space-y-2">
+                    <h3 className="font-bold text-lg mb-2">{feature.title}</h3>
+                    <p className="text-muted-foreground text-sm mb-4">{feature.description}</p>
+                    <ul className="space-y-1.5">
                       {feature.details.map((detail) => (
                         <li key={detail} className="flex items-center gap-2 text-sm">
                           <div className="w-1.5 h-1.5 rounded-full bg-primary" />
