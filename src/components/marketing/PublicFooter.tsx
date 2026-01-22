@@ -10,6 +10,8 @@ const footerLinks = {
   solucoes: [
     { label: 'Para Fotógrafos', href: '/para-fotografos' },
     { label: 'Para Videomakers', href: '/para-videomakers' },
+    { label: 'Para Agências', href: '/para-agencias' },
+    { label: 'Para Produtoras', href: '/para-produtoras' },
   ],
   comparacoes: [
     { label: 'WillFlow vs Asana', href: '/vs/asana' },

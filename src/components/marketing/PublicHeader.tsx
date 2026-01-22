@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, Sun, Menu, X, ChevronDown, Camera, Video, Scale } from 'lucide-react';
+import { Moon, Sun, Menu, X, ChevronDown, Camera, Video, Scale, Building2, Film } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/ui/logo';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -24,6 +24,8 @@ const navLinks = [
 const solutionsLinks = [
   { label: 'Para Fotógrafos', href: '/para-fotografos', icon: Camera },
   { label: 'Para Videomakers', href: '/para-videomakers', icon: Video },
+  { label: 'Para Agências', href: '/para-agencias', icon: Building2 },
+  { label: 'Para Produtoras', href: '/para-produtoras', icon: Film },
 ];
 
 const comparisonLinks = [
