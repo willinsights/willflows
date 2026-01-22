@@ -14,7 +14,10 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      registerType: 'prompt', // Changed from 'autoUpdate' to 'prompt' to prevent forced reloads
+      // We manage SW registration manually (see PWAUpdateListener) to avoid any implicit reloads
+      // when returning to the tab/window.
+      registerType: 'prompt',
+      injectRegister: null,
       includeAssets: ['favicon.ico', 'pwa-icon.png'],
       manifest: {
         name: 'WillFlow - Gestão de Projetos',
