@@ -101,13 +101,6 @@
     <priority>0.7</priority>
   </url>
   
-  <!-- Auth -->
-  <url>
-    <loc>https://willflow.app/auth</loc>
-    <lastmod>2026-01-21</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
   
   <!-- Legal Pages -->
   <url>
