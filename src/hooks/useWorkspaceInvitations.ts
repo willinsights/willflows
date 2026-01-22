@@ -11,6 +11,7 @@ type AppRole = Database['public']['Enums']['app_role'];
 export interface WorkspaceInvitation {
   id: string;
   email: string;
+  email_masked: string | null; // Masked email for display (e.g., w***n@gmail.com)
   role: AppRole;
   token: string;
   expires_at: string;

@@ -70,7 +70,7 @@ export function PendingInviteRow({ invitation, onResend, onCancel }: PendingInvi
             <Mail className="h-4 w-4 text-muted-foreground" />
           </div>
           <div className="min-w-0">
-            <p className="font-medium truncate">{invitation.email}</p>
+            <p className="font-medium truncate">{invitation.email_masked || invitation.email}</p>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Clock className="h-3 w-3" />
               <span className={cn(isExpired && 'text-destructive')}>

@@ -2417,6 +2417,8 @@ export type Database = {
           accepted_at: string | null
           created_at: string
           email: string
+          email_hash: string | null
+          email_masked: string | null
           expires_at: string
           id: string
           invited_by: string | null
@@ -2429,6 +2431,8 @@ export type Database = {
           accepted_at?: string | null
           created_at?: string
           email: string
+          email_hash?: string | null
+          email_masked?: string | null
           expires_at?: string
           id?: string
           invited_by?: string | null
@@ -2441,6 +2445,8 @@ export type Database = {
           accepted_at?: string | null
           created_at?: string
           email?: string
+          email_hash?: string | null
+          email_masked?: string | null
           expires_at?: string
           id?: string
           invited_by?: string | null
@@ -2685,6 +2691,7 @@ export type Database = {
         Returns: {
           accepted_at: string
           email: string
+          email_masked: string
           expires_at: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
@@ -2708,6 +2715,7 @@ export type Database = {
         Args: { _user_id: string; _workspace_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      hash_email: { Args: { _email: string }; Returns: string }
       hash_invitation_token: { Args: { _token: string }; Returns: string }
       increment_promo_code_usage: {
         Args: { code_text: string }
@@ -2756,6 +2764,7 @@ export type Database = {
         }
         Returns: string
       }
+      mask_email: { Args: { _email: string }; Returns: string }
       reopen_project: { Args: { p_project_id: string }; Returns: Json }
       verify_beta_token: {
         Args: { _token: string }
@@ -2773,6 +2782,7 @@ export type Database = {
         Returns: {
           accepted_at: string
           email: string
+          email_masked: string
           expires_at: string
           id: string
           is_valid: boolean

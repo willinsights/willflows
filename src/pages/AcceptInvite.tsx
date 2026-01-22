@@ -13,6 +13,7 @@ import { Loader2, CheckCircle, XCircle, UserPlus, Mail, Lock, ArrowRight } from 
 type InvitationData = {
   id: string;
   email: string;
+  email_masked: string | null; // For display to users
   role: string;
   workspace_id: string;
   workspace_name: string;
@@ -73,6 +74,7 @@ export default function AcceptInvite() {
       setInvitation({
         id: invitationData.id,
         email: invitationData.email,
+        email_masked: invitationData.email_masked || null,
         role: invitationData.role,
         workspace_id: invitationData.workspace_id,
         workspace_name: invitationData.workspace_name,
@@ -102,7 +104,7 @@ export default function AcceptInvite() {
         setViewState('needs_auth');
         toast({
           title: "Email diferente",
-          description: `Este convite foi enviado para ${invitation.email}. Por favor, faça login com esse email.`,
+          description: `Este convite foi enviado para ${invitation.email_masked || invitation.email}. Por favor, faça login com esse email.`,
           variant: "destructive",
         });
         return;
