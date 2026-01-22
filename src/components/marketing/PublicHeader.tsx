@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, Sun, Menu, X, ChevronDown, Camera, Video } from 'lucide-react';
+import { Moon, Sun, Menu, X, ChevronDown, Camera, Video, Scale } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/ui/logo';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -24,6 +24,12 @@ const navLinks = [
 const solutionsLinks = [
   { label: 'Para Fotógrafos', href: '/para-fotografos', icon: Camera },
   { label: 'Para Videomakers', href: '/para-videomakers', icon: Video },
+];
+
+const comparisonLinks = [
+  { label: 'WillFlow vs Asana', href: '/vs/asana' },
+  { label: 'WillFlow vs ClickUp', href: '/vs/clickup' },
+  { label: 'WillFlow vs Trello', href: '/vs/trello' },
 ];
 
 export function PublicHeader() {
@@ -75,6 +81,32 @@ export function PublicHeader() {
                 <DropdownMenuItem key={link.href} asChild>
                   <Link to={link.href} className="flex items-center gap-2">
                     <link.icon className="h-4 w-4" />
+                    {link.label}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          {/* Comparisons Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
+                  comparisonLinks.some(c => location.pathname === c.href) || location.pathname === '/vs'
+                    ? 'text-primary bg-primary/5'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                Comparações
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="w-48">
+              {comparisonLinks.map((link) => (
+                <DropdownMenuItem key={link.href} asChild>
+                  <Link to={link.href} className="flex items-center gap-2">
+                    <Scale className="h-4 w-4" />
                     {link.label}
                   </Link>
                 </DropdownMenuItem>
@@ -154,6 +186,26 @@ export function PublicHeader() {
                     }`}
                   >
                     <link.icon className="h-4 w-4" />
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+              
+              {/* Comparisons section in mobile */}
+              <div className="pt-2 pb-2">
+                <p className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Comparações</p>
+                {comparisonLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    to={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      location.pathname === link.href
+                        ? 'text-primary bg-primary/5'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <Scale className="h-4 w-4" />
                     {link.label}
                   </Link>
                 ))}
