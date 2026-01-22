@@ -8,8 +8,16 @@ interface FeatureSectionProps {
   screenshot: string;
   features: string[];
   reversed?: boolean;
+  /** Optional custom alt text for SEO - defaults to descriptive pattern */
+  screenshotAlt?: string;
 }
 
+/**
+ * Feature section with alternating layout for marketing pages
+ * - Optimized image loading with lazy loading
+ * - SEO-friendly alt text generation
+ * - Accessible structure with semantic HTML
+ */
 export function FeatureSection({
   icon: Icon,
   title,
@@ -17,7 +25,12 @@ export function FeatureSection({
   screenshot,
   features,
   reversed = false,
+  screenshotAlt,
 }: FeatureSectionProps) {
+  // Generate SEO-optimized alt text if not provided
+  const altText = screenshotAlt || 
+    `Interface WillFlow mostrando ${title.toLowerCase()} - ${description.slice(0, 100)}`;
+
   return (
     <section className="py-16 md:py-24">
       <div className="container mx-auto px-4">
@@ -60,7 +73,7 @@ export function FeatureSection({
             </ul>
           </motion.div>
           
-          {/* Screenshot */}
+          {/* Screenshot with SEO-optimized alt text */}
           <motion.div
             initial={{ opacity: 0, x: reversed ? -20 : 20 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -72,9 +85,11 @@ export function FeatureSection({
               <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 to-accent/20 rounded-3xl blur-2xl opacity-50" />
               <img
                 src={screenshot}
-                alt={title}
+                alt={altText}
+                title={title}
                 className="relative rounded-2xl shadow-2xl border border-border/50 w-full"
                 loading="lazy"
+                decoding="async"
               />
             </div>
           </motion.div>
