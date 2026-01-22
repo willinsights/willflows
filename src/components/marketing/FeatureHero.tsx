@@ -10,6 +10,8 @@ interface FeatureHeroProps {
   titleHighlight?: string;
   subtitle: string;
   screenshot: string;
+  /** Custom alt text for SEO - defaults to title + subtitle */
+  screenshotAlt?: string;
   ctaText?: string;
   ctaLink?: string;
 }
@@ -21,9 +23,14 @@ export function FeatureHero({
   titleHighlight,
   subtitle,
   screenshot,
+  screenshotAlt,
   ctaText = 'Começar teste grátis (30 dias)',
   ctaLink = '/auth?trial=true',
 }: FeatureHeroProps) {
+  // Generate SEO-friendly alt text
+  const fullTitle = titleHighlight ? `${title} ${titleHighlight}` : title;
+  const altText = screenshotAlt || 
+    `Interface WillFlow - ${fullTitle}. ${subtitle.slice(0, 80)}`;
   return (
     <section className="pt-32 pb-16 px-4 overflow-hidden">
       <div className="container mx-auto">
@@ -77,8 +84,12 @@ export function FeatureHero({
             <div className="absolute -inset-8 bg-gradient-to-r from-primary/30 via-accent/20 to-primary/30 rounded-3xl blur-3xl opacity-40" />
             <img
               src={screenshot}
-              alt={title}
+              alt={altText}
+              title={fullTitle}
               className="relative rounded-2xl shadow-2xl border border-border/50 w-full"
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
             />
           </motion.div>
         </div>

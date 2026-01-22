@@ -161,9 +161,12 @@ export default function ParaVideomakers() {
               <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded-3xl blur-3xl" />
               <img
                 src="/screenshots/screenshot-kanban-full.png"
-                alt="Kanban WillFlow para produções de vídeo"
+                alt="Quadro Kanban WillFlow para produção de vídeo mostrando projetos organizados por fases: briefing, pré-produção, filmagem, edição, colorização e entrega"
+                title="Kanban WillFlow para Videomakers"
                 className="relative rounded-2xl shadow-2xl border border-border/50"
                 loading="eager"
+                decoding="async"
+                fetchPriority="high"
               />
             </motion.div>
           </div>
@@ -203,6 +206,7 @@ export default function ParaVideomakers() {
         title="Kanban com Fases de Produção"
         description="Colunas específicas para vídeo: Briefing, Pré-produção, Filmagem, Edição, Color, Som e Entrega."
         screenshot="/screenshots/screenshot-kanban-full.png"
+        screenshotAlt="Quadro Kanban WillFlow com fases de produção de vídeo personalizáveis: briefing, pré-produção, filmagem, edição, colorização, design de som e entrega"
         features={[
           'Fases personalizáveis',
           'Arraste projetos entre fases',
@@ -216,6 +220,7 @@ export default function ParaVideomakers() {
         title="Timeline de Produções"
         description="Visualize todas as filmagens e deadlines num calendário visual com sync Google Calendar."
         screenshot="/screenshots/screenshot-calendario-full.png"
+        screenshotAlt="Timeline WillFlow para videomakers com calendário de filmagens, deadlines de entrega e sincronização bidirecional com Google Calendar"
         features={[
           'Vista de timeline',
           'Sync bidirecional',
@@ -230,6 +235,7 @@ export default function ParaVideomakers() {
         title="Gestão de Equipa"
         description="Atribua tarefas a operadores, editores, coloristas e designers de som. Veja quem está livre."
         screenshot="/screenshots/screenshot-dashboard-estudio.png"
+        screenshotAlt="Dashboard WillFlow para gestão de equipa de vídeo mostrando atribuição de tarefas a operadores de câmara, editores, coloristas e designers de som"
         features={[
           'Membros por projeto',
           'Permissões por função',
@@ -243,6 +249,7 @@ export default function ParaVideomakers() {
         title="Orçamentos & Pagamentos"
         description="Controle custos de produção, pagamentos a freelancers e faturas de clientes num só lugar."
         screenshot="/screenshots/screenshot-pagamentos-estudio.png"
+        screenshotAlt="Gestão de orçamentos e pagamentos WillFlow para produção de vídeo com controlo de custos de freelancers, faturas de clientes e cálculo automático de margem"
         features={[
           'Orçamento por projeto',
           'Custos de freelancers',
@@ -257,6 +264,7 @@ export default function ParaVideomakers() {
         title="Media Hub Centralizado"
         description="Centralize todos os links: drives, proxies, masters, entregas Vimeo/YouTube e mais."
         screenshot="/screenshots/screenshot-relatorios-6m.png"
+        screenshotAlt="Media Hub WillFlow para videomakers centralizando links de drives, proxies, masters, entregas Vimeo, YouTube e outros ficheiros de produção"
         features={[
           'Links por projeto',
           'Categorias de media',
