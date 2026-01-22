@@ -75,3 +75,6 @@ verify_jwt = false
 
 [functions.reset-billing-data]
 verify_jwt = false
+
+[functions.check-deadlines]
+verify_jwt = false
