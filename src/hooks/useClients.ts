@@ -96,6 +96,30 @@ export function useClients() {
     }
   };
 
+  const updateClient = async (clientId: string, updates: Partial<Omit<ClientInsert, 'workspace_id'>>) => {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .update(updates)
+        .eq('id', clientId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({ title: 'Cliente actualizado com sucesso' });
+      setClients(prev => prev.map(c => c.id === clientId ? data : c).sort((a, b) => a.name.localeCompare(b.name)));
+      return data;
+    } catch (error) {
+      toast({
+        title: 'Erro ao actualizar cliente',
+        description: handleDatabaseError('updateClient', error),
+        variant: 'destructive',
+      });
+      return null;
+    }
+  };
+
   const deleteClient = async (clientId: string) => {
     try {
       const { error } = await supabase
@@ -122,6 +146,7 @@ export function useClients() {
     clients,
     loading,
     createClient,
+    updateClient,
     deleteClient,
     refresh: fetchClients,
   };

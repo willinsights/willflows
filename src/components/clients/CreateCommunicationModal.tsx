@@ -54,18 +54,34 @@ export function CreateCommunicationModal({
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState<Date>(new Date());
+  const [time, setTime] = useState(() => {
+    const now = new Date();
+    return `${now.getHours().toString().padStart(2, '0')}:${Math.floor(now.getMinutes() / 30) * 30 === 0 ? '00' : '30'}`;
+  });
   const [loading, setLoading] = useState(false);
+
+  // Gerar opções de hora (intervalos de 30 minutos)
+  const timeOptions = Array.from({ length: 24 }, (_, h) => [
+    `${h.toString().padStart(2, '0')}:00`,
+    `${h.toString().padStart(2, '0')}:30`,
+  ]).flat();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!subject.trim()) return;
 
     setLoading(true);
+    
+    // Combinar data + hora
+    const contactDateTime = new Date(date);
+    const [hours, minutes] = time.split(':').map(Number);
+    contactDateTime.setHours(hours, minutes, 0, 0);
+    
     const success = await onSubmit({
       type,
       subject: subject.trim(),
       description: description.trim() || undefined,
-      contact_date: date.toISOString(),
+      contact_date: contactDateTime.toISOString(),
     });
 
     if (success) {
@@ -73,6 +89,7 @@ export function CreateCommunicationModal({
       setSubject('');
       setDescription('');
       setDate(new Date());
+      setTime(`${new Date().getHours().toString().padStart(2, '0')}:00`);
       onOpenChange(false);
     }
     setLoading(false);
@@ -116,30 +133,49 @@ export function CreateCommunicationModal({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="date">Data</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    'w-full justify-start text-left font-normal',
-                    !date && 'text-muted-foreground'
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date ? format(date, 'PPP', { locale: pt }) : 'Selecionar data'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={(d) => d && setDate(d)}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="date">Data</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      'w-full justify-start text-left font-normal',
+                      !date && 'text-muted-foreground'
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {date ? format(date, 'dd/MM/yyyy', { locale: pt }) : 'Data'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={(d) => d && setDate(d)}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="time">Hora</Label>
+              <Select value={time} onValueChange={setTime}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Hora" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {timeOptions.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-2">

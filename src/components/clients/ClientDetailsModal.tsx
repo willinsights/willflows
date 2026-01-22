@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -15,7 +15,11 @@ import {
   Euro,
   Plus,
   Trash2,
-  Users
+  Users,
+  Pencil,
+  X,
+  Save,
+  MapPin
 } from 'lucide-react';
 import {
   Dialog,
@@ -28,6 +32,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useClientCommunications } from '@/hooks/useClientCommunications';
@@ -72,6 +79,7 @@ interface ClientDetailsModalProps {
   onOpenChange: (open: boolean) => void;
   client: Client | null;
   projects: Project[];
+  onClientUpdate?: (clientId: string, updates: Partial<Client>) => Promise<any>;
 }
 
 const phaseLabels: Record<string, string> = {
@@ -93,16 +101,52 @@ const communicationTypeLabels: Record<string, { label: string; icon: typeof Phon
   other: { label: 'Outro', icon: MessageSquare },
 };
 
-export function ClientDetailsModal({ open, onOpenChange, client, projects }: ClientDetailsModalProps) {
+export function ClientDetailsModal({ open, onOpenChange, client, projects, onClientUpdate }: ClientDetailsModalProps) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('info');
   const [showCommunicationModal, setShowCommunicationModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [openingChat, setOpeningChat] = useState(false);
-  const { currentWorkspace } = useWorkspace();
+  const [isEditing, setIsEditing] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    company: '',
+    nif: '',
+    city: '',
+    address: '',
+    notes: '',
+  });
+  
+  const { currentWorkspace, isAdmin } = useWorkspace();
   const { canViewAllFinancials, canViewClientContacts } = useFinancialPermissions();
   const { projectChats, createProjectChat } = useConversations();
   const { user } = useAuth();
+  
+  // Sincronizar formulário quando cliente muda
+  useEffect(() => {
+    if (client) {
+      setEditForm({
+        name: client.name || '',
+        email: client.email || '',
+        phone: client.phone || '',
+        company: client.company || '',
+        nif: client.nif || '',
+        city: client.city || '',
+        address: client.address || '',
+        notes: client.notes || '',
+      });
+    }
+  }, [client]);
+  
+  // Reset edit mode when modal closes
+  useEffect(() => {
+    if (!open) {
+      setIsEditing(false);
+    }
+  }, [open]);
   
   const { 
     communications, 
@@ -112,11 +156,48 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
   } = useClientCommunications(client?.id || null);
   
   const { 
-    notes, 
+    notes: clientNotes, 
     loading: notesLoading, 
     createNote,
     deleteNote 
   } = useClientNotes(client?.id || null);
+
+  const handleSaveEdit = async () => {
+    if (!client || !onClientUpdate) return;
+    
+    setSavingEdit(true);
+    const result = await onClientUpdate(client.id, {
+      name: editForm.name.trim(),
+      email: editForm.email.trim() || null,
+      phone: editForm.phone.trim() || null,
+      company: editForm.company.trim() || null,
+      nif: editForm.nif.trim() || null,
+      city: editForm.city.trim() || null,
+      address: editForm.address.trim() || null,
+      notes: editForm.notes.trim() || null,
+    });
+    
+    if (result) {
+      setIsEditing(false);
+    }
+    setSavingEdit(false);
+  };
+
+  const handleCancelEdit = () => {
+    if (client) {
+      setEditForm({
+        name: client.name || '',
+        email: client.email || '',
+        phone: client.phone || '',
+        company: client.company || '',
+        nif: client.nif || '',
+        city: client.city || '',
+        address: client.address || '',
+        notes: client.notes || '',
+      });
+    }
+    setIsEditing(false);
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat(currentWorkspace?.locale || 'pt-PT', {
@@ -231,28 +312,42 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-3xl max-h-[90vh] p-0 overflow-hidden">
           <DialogHeader className="p-6 pb-0">
-            <DialogTitle className="flex items-start justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-primary">{client.name}</h2>
-                <div className="flex flex-wrap items-center gap-2 mt-2">
-                  {client.company && (
-                    <Badge variant="outline" className="gap-1">
-                      <Building2 className="h-3 w-3" />
-                      {client.company}
+            <DialogTitle className="flex items-start justify-between w-full">
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold text-primary">{isEditing ? 'Editar Cliente' : client.name}</h2>
+                {!isEditing && (
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    {client.company && (
+                      <Badge variant="outline" className="gap-1">
+                        <Building2 className="h-3 w-3" />
+                        {client.company}
+                      </Badge>
+                    )}
+                    {canViewAllFinancials && (
+                      <Badge variant="outline" className="gap-1 bg-success/10 text-success border-success/20">
+                        <Euro className="h-3 w-3" />
+                        {formatCurrency(stats.totalRevenue)} receita
+                      </Badge>
+                    )}
+                    <Badge variant="outline" className="gap-1 bg-primary/10 text-primary border-primary/20">
+                      <Video className="h-3 w-3" />
+                      {stats.totalProjects} projetos
                     </Badge>
-                  )}
-                  {canViewAllFinancials && (
-                    <Badge variant="outline" className="gap-1 bg-success/10 text-success border-success/20">
-                      <Euro className="h-3 w-3" />
-                      {formatCurrency(stats.totalRevenue)} receita
-                    </Badge>
-                  )}
-                  <Badge variant="outline" className="gap-1 bg-primary/10 text-primary border-primary/20">
-                    <Video className="h-3 w-3" />
-                    {stats.totalProjects} projetos
-                  </Badge>
-                </div>
+                  </div>
+                )}
               </div>
+              {/* Edit button - only for admin users */}
+              {isAdmin && onClientUpdate && !isEditing && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="ml-4 gap-2"
+                  onClick={() => setIsEditing(true)}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Editar
+                </Button>
+              )}
             </DialogTitle>
           </DialogHeader>
 
@@ -277,6 +372,115 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
               <ScrollArea className="h-[60vh]">
                 {/* Info Tab */}
                 <TabsContent value="info" className="p-6 pt-4 space-y-6 mt-0">
+                {/* Edit Form */}
+                {isEditing ? (
+                  <div className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-name">Nome *</Label>
+                        <Input
+                          id="edit-name"
+                          value={editForm.name}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                          placeholder="Nome do cliente"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-company">Empresa</Label>
+                        <Input
+                          id="edit-company"
+                          value={editForm.company}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, company: e.target.value }))}
+                          placeholder="Nome da empresa"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-email">Email</Label>
+                        <Input
+                          id="edit-email"
+                          type="email"
+                          value={editForm.email}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                          placeholder="email@exemplo.com"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-phone">Telefone</Label>
+                        <Input
+                          id="edit-phone"
+                          value={editForm.phone}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                          placeholder="+351 900 000 000"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-nif">NIF/VAT</Label>
+                        <Input
+                          id="edit-nif"
+                          value={editForm.nif}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, nif: e.target.value }))}
+                          placeholder="Número de contribuinte"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-city">Cidade</Label>
+                        <Input
+                          id="edit-city"
+                          value={editForm.city}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, city: e.target.value }))}
+                          placeholder="Cidade"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-address">Morada</Label>
+                      <Input
+                        id="edit-address"
+                        value={editForm.address}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, address: e.target.value }))}
+                        placeholder="Morada completa"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-notes">Notas Internas</Label>
+                      <Textarea
+                        id="edit-notes"
+                        value={editForm.notes}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
+                        placeholder="Notas sobre o cliente..."
+                        rows={3}
+                      />
+                    </div>
+                    
+                    <div className="flex justify-end gap-2 pt-4 border-t">
+                      <Button
+                        variant="outline"
+                        onClick={handleCancelEdit}
+                        disabled={savingEdit}
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Cancelar
+                      </Button>
+                      <Button
+                        onClick={handleSaveEdit}
+                        disabled={savingEdit || !editForm.name.trim()}
+                        className="gradient-primary"
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        {savingEdit ? 'Guardando...' : 'Guardar'}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
                 {/* Quick Actions */}
                   <div className="flex flex-wrap gap-2">
                     {canViewClientContacts && client.email && (
@@ -472,7 +676,7 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
                           <FileText className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium">Notas</span>
                           <Badge variant="secondary" className="h-5 px-1.5">
-                            {notes.length}
+                            {clientNotes.length}
                           </Badge>
                         </div>
                         <Button 
@@ -488,9 +692,9 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
                         <div className="py-4 text-center text-muted-foreground text-sm">
                           Carregando...
                         </div>
-                      ) : notes.length > 0 ? (
+                      ) : clientNotes.length > 0 ? (
                         <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {notes.map((note) => (
+                          {clientNotes.map((note) => (
                             <div 
                               key={note.id} 
                               className="p-2 rounded-lg hover:bg-muted/50 group"
@@ -522,6 +726,8 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects }: Cli
                       )}
                     </CardContent>
                   </Card>
+                  </>
+                )}
                 </TabsContent>
 
                 {/* Projects Tab */}

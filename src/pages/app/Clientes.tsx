@@ -45,7 +45,7 @@ import { ClientDetailsModal } from '@/components/clients/ClientDetailsModal';
 import { cn } from '@/lib/utils';
 
 export default function Clientes() {
-  const { clients, loading, deleteClient } = useClients();
+  const { clients, loading, deleteClient, updateClient, refresh } = useClients();
   const { projects } = useProjects();
   const { currentWorkspace } = useWorkspace();
   const { canViewAllFinancials } = useFinancialPermissions();
@@ -414,9 +414,17 @@ export default function Clientes() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between">
                           <div>
-                            <h3 className="font-semibold group-hover:text-primary transition-colors">
-                              {client.name}
-                            </h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold group-hover:text-primary transition-colors">
+                                {client.name}
+                              </h3>
+                              {/* Badge "Novo" para clientes criados há menos de 15 dias */}
+                              {(new Date().getTime() - new Date(client.created_at).getTime()) < (15 * 24 * 60 * 60 * 1000) && (
+                                <Badge className="bg-success/20 text-success border-success/30 text-[10px] px-1.5 py-0">
+                                  Novo
+                                </Badge>
+                              )}
+                            </div>
                             {client.company && (
                               <p className="text-sm text-muted-foreground">{client.company}</p>
                             )}
@@ -528,6 +536,13 @@ export default function Clientes() {
         onOpenChange={() => setSelectedClient(null)}
         client={selectedClientData}
         projects={selectedClientProjects}
+        onClientUpdate={async (clientId, updates) => {
+          const result = await updateClient(clientId, updates);
+          if (result) {
+            refresh();
+          }
+          return result;
+        }}
       />
     </div>
   );
