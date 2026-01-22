@@ -361,22 +361,28 @@ export function BetaInvitesSection() {
   return (
     <TooltipProvider>
       <div className="space-y-6">
-        {/* Header */}
+        {/* Header with explanation */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <p className="text-muted-foreground">
-              {isBetaMode ? (
-                <span className="flex items-center gap-2">
-                  <Badge variant="default" className="bg-primary">Beta Ativo</Badge>
-                  Apenas utilizadores convidados podem criar conta
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <Badge variant="secondary">Modo Público</Badge>
-                  Qualquer pessoa pode criar conta
-                </span>
-              )}
+            <h3 className="text-lg font-semibold">Aquisição de Novos Utilizadores</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Gerir convites para <strong>criar conta</strong> na plataforma.
+              {' '}
+              <span className="text-xs opacity-75">
+                (Para adicionar membros a workspaces existentes, use a gestão de cada workspace)
+              </span>
             </p>
+            <div className="mt-2">
+              {isBetaMode ? (
+                <Badge variant="default" className="bg-primary">
+                  Beta Ativo — Apenas utilizadores convidados podem criar conta
+                </Badge>
+              ) : (
+                <Badge variant="secondary">
+                  Modo Público — Qualquer pessoa pode criar conta
+                </Badge>
+              )}
+            </div>
           </div>
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
@@ -489,11 +495,11 @@ export function BetaInvitesSection() {
           <TabsList>
             <TabsTrigger value="invites">
               <LinkIcon className="h-4 w-4 mr-2" />
-              Convites ({invites.length})
+              Convites Plataforma ({invites.length})
             </TabsTrigger>
             <TabsTrigger value="waitlist">
               <Users className="h-4 w-4 mr-2" />
-              Waitlist ({waitlist.length})
+              Lista de Espera ({waitlist.length})
             </TabsTrigger>
           </TabsList>
 

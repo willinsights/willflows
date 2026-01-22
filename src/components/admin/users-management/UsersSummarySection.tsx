@@ -262,8 +262,8 @@ export function UsersSummarySection() {
 
   return (
     <div className="space-y-6">
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      {/* KPI Cards - Apenas gestão de utilizadores existentes */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPICard
           title="Total Perfis"
           value={summary.totals.profiles}
@@ -283,34 +283,24 @@ export function UsersSummarySection() {
           color="primary"
         />
         <KPICard
-          title="Convites Pendentes"
+          title="Convites Workspace"
           value={summary.totals.pendingInvites}
           icon={Clock}
           color="warning"
-        />
-        <KPICard
-          title="Waitlist s/ Conta"
-          value={summary.totals.waitlistWithoutAccount}
-          icon={ListChecks}
-          color="destructive"
-        />
-        <KPICard
-          title="Waitlist c/ Conta"
-          value={summary.totals.waitlistWithAccount}
-          icon={UserPlus}
-          color="success"
-          subtitle="Convertidos"
+          subtitle="Pendentes"
         />
       </div>
 
-      {/* Acquisition Funnel */}
+      {/* Activation Funnel - Apenas utilizadores existentes */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Funil de Aquisição</CardTitle>
+          <CardTitle className="text-lg">Funil de Ativação</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Progresso dos utilizadores com conta criada
+          </p>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-center justify-center gap-2 py-4">
-            <FunnelStep label="Waitlist" value={summary.totals.waitlistTotal} />
             <FunnelStep label="Contas" value={summary.totals.profiles} />
             <FunnelStep label="Workspaces" value={summary.totals.workspaceOwners} />
             <FunnelStep label="Colaboradores" value={summary.totals.collaborators} isLast />
@@ -334,11 +324,7 @@ export function UsersSummarySection() {
                 </TabsTrigger>
                 <TabsTrigger value="invites" className="gap-2">
                   <Mail className="h-4 w-4" />
-                  Convites ({summary.totals.pendingInvites})
-                </TabsTrigger>
-                <TabsTrigger value="waitlist" className="gap-2">
-                  <ListChecks className="h-4 w-4" />
-                  Waitlist ({summary.totals.waitlistWithoutAccount})
+                  Convites Workspace ({summary.totals.pendingInvites})
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -512,83 +498,6 @@ export function UsersSummarySection() {
                 </div>
               </TabsContent>
 
-              {/* Waitlist Table */}
-              <TabsContent value="waitlist" className="mt-0">
-                <div className="flex justify-end mb-4">
-                  <Button variant="outline" size="sm" onClick={() => exportToCSV('waitlist')}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Exportar CSV
-                  </Button>
-                </div>
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>Empresa</TableHead>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {summary.waitlistWithoutAccount.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground">
-                            Nenhuma entrada na waitlist sem conta
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        summary.waitlistWithoutAccount.map((entry) => (
-                          <TableRow key={entry.id}>
-                            <TableCell className="font-medium">{entry.email}</TableCell>
-                            <TableCell>{entry.name || '-'}</TableCell>
-                            <TableCell>{entry.company || '-'}</TableCell>
-                            <TableCell>
-                              {format(new Date(entry.createdAt), 'dd MMM yyyy', { locale: pt })}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={entry.wasInvited ? 'secondary' : 'outline'}>
-                                {entry.wasInvited ? 'Convidado' : 'Pendente'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {entry.wasInvited ? (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleResendBetaInvite(entry.email, entry.name)}
-                                  disabled={processingEmail === entry.email}
-                                >
-                                  {processingEmail === entry.email ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <RefreshCw className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              ) : (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleSendBetaInvite(entry.email, entry.name)}
-                                  disabled={processingEmail === entry.email}
-                                >
-                                  {processingEmail === entry.email ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Send className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </TabsContent>
             </div>
           </Tabs>
         </CardContent>

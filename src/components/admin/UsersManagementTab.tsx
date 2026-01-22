@@ -4,7 +4,7 @@ import {
   BarChart3, 
   Users, 
   Building2, 
-  Send, 
+  UserPlus, 
   Trash2 
 } from 'lucide-react';
 import { UsersSummarySection } from './users-management/UsersSummarySection';
@@ -31,9 +31,9 @@ export function UsersManagementTab() {
           <Building2 className="h-4 w-4" />
           Workspaces
         </TabsTrigger>
-        <TabsTrigger value="beta" className="gap-2">
-          <Send className="h-4 w-4" />
-          Beta & Convites
+        <TabsTrigger value="aquisicao" className="gap-2">
+          <UserPlus className="h-4 w-4" />
+          Aquisição
         </TabsTrigger>
         <TabsTrigger value="cleanup" className="gap-2">
           <Trash2 className="h-4 w-4" />
@@ -50,7 +50,7 @@ export function UsersManagementTab() {
       <TabsContent value="workspaces">
         <WorkspacesSection />
       </TabsContent>
-      <TabsContent value="beta">
+      <TabsContent value="aquisicao">
         <BetaInvitesSection />
       </TabsContent>
       <TabsContent value="cleanup">
