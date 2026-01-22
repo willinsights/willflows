@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
@@ -45,6 +46,7 @@ import { PushNotificationSettings } from '@/components/settings/PushNotification
 import { DeleteWorkspaceModal } from '@/components/workspace/DeleteWorkspaceModal';
 import { LeaveWorkspaceModal } from '@/components/workspace/LeaveWorkspaceModal';
 import { useProductTour } from '@/hooks/useProductTour';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 import type { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
@@ -56,6 +58,7 @@ export default function Configuracoes() {
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const { restartTour } = useProductTour();
+  const { preferences, updatePreferences, saving: savingPreferences } = useUserPreferences();
   
   // Workspace members and invitations
   const { members, loading: membersLoading, refresh: refreshMembers } = useWorkspaceMembers();
@@ -602,6 +605,20 @@ export default function Configuracoes() {
                   <Switch
                     checked={theme === 'dark'}
                     onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
+                  />
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Minimizar Menu ao Navegar</p>
+                    <p className="text-sm text-muted-foreground">
+                      Minimiza automaticamente a barra lateral quando clica num link
+                    </p>
+                  </div>
+                  <Switch
+                    checked={preferences?.sidebar_auto_collapse ?? true}
+                    onCheckedChange={(checked) => updatePreferences({ sidebar_auto_collapse: checked })}
+                    disabled={savingPreferences}
                   />
                 </div>
               </CardContent>

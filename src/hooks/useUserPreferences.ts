@@ -18,6 +18,8 @@ export interface UserPreferences {
   notify_payment_received: boolean;
   notify_deadline_reminder: boolean;
   notify_team_updates: boolean;
+  // UI preferences
+  sidebar_auto_collapse: boolean;
 }
 
 const defaultPreferences: Omit<UserPreferences, 'id' | 'user_id'> = {
@@ -31,6 +33,7 @@ const defaultPreferences: Omit<UserPreferences, 'id' | 'user_id'> = {
   notify_payment_received: true,
   notify_deadline_reminder: true,
   notify_team_updates: true,
+  sidebar_auto_collapse: true,
 };
 
 export function useUserPreferences() {
