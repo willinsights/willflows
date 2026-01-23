@@ -2,7 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { FullPageLoader } from '@/components/layout/FullPageLoader';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -22,6 +22,10 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   
   // State to ensure initial data load is complete before any navigation decisions
   const [initialCheckDone, setInitialCheckDone] = useState(false);
+  
+  // GRACE PERIOD: Track if children have rendered successfully at least once
+  // This prevents unmounting modals when tab returns and loading states flicker
+  const hasRenderedChildrenRef = useRef(false);
 
   // Only mark initial check as done when ALL loading is complete
   useEffect(() => {
@@ -34,19 +38,28 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     }
   }, [authLoading, workspaceLoading, subscription.loading]);
 
-  // Show branded loading while checking auth
-  if (authLoading) {
+  // Mark children as rendered once all data is loaded and user is authenticated
+  useEffect(() => {
+    if (!authLoading && !workspaceLoading && !subscription.loading && user) {
+      hasRenderedChildrenRef.current = true;
+    }
+  }, [authLoading, workspaceLoading, subscription.loading, user]);
+
+  // Show branded loading while checking auth (only on first load)
+  if (authLoading && !hasRenderedChildrenRef.current) {
     return <FullPageLoader />;
   }
 
   // Redirect to auth if not logged in
   if (!user) {
+    // Reset the ref when user logs out
+    hasRenderedChildrenRef.current = false;
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
   // IMPORTANT: Wait for ALL data to fully load before making any navigation decisions
-  // This prevents the flash of onboarding page when user has workspaces
-  if (workspaceLoading || subscription.loading || !initialCheckDone) {
+  // BUT: If children have rendered before, don't show loader (prevents modal close on tab switch)
+  if ((workspaceLoading || subscription.loading || !initialCheckDone) && !hasRenderedChildrenRef.current) {
     return <FullPageLoader />;
   }
 

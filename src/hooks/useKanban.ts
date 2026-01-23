@@ -71,6 +71,20 @@ export function useKanban(phase: KanbanPhase) {
   const isFetchingRef = useRef(false);
   const lastFetchedKeyRef = useRef<string | null>(null);
   const localUpdateTimestampRef = useRef<number>(0);
+  
+  // Track visibility changes to prevent refresh storms when returning to tab
+  const lastVisibilityChangeRef = useRef<number>(0);
+  
+  // Listen for visibility changes
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        lastVisibilityChangeRef.current = Date.now();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
 
   const clearPendingAlert = useCallback(() => {
     setPendingAlert(initialPendingAlert);
@@ -319,9 +333,17 @@ export function useKanban(phase: KanbanPhase) {
       return timeSinceLocal < 2000;
     };
     
+    // Check if tab recently became visible (within last 3 seconds)
+    // This prevents refresh storms when Supabase reconnects after tab switch
+    const isRecentlyVisible = () => {
+      const timeSinceVisible = Date.now() - lastVisibilityChangeRef.current;
+      return timeSinceVisible < 3000;
+    };
+    
     const handleProjectChange = (payload: RealtimePostgresChangesPayload<Project>) => {
       // Ignore local updates to prevent echo
-      if (isLocalUpdate()) return;
+      // Also ignore events right after returning to tab (Supabase reconnect can trigger spurious events)
+      if (isLocalUpdate() || isRecentlyVisible()) return;
       
       const newData = payload.new as Project | undefined;
       const oldData = payload.old as Partial<Project> | undefined;
@@ -335,7 +357,7 @@ export function useKanban(phase: KanbanPhase) {
     };
 
     const handleColumnChange = (payload: RealtimePostgresChangesPayload<KanbanColumn>) => {
-      if (isLocalUpdate()) return;
+      if (isLocalUpdate() || isRecentlyVisible()) return;
       
       const newData = payload.new as KanbanColumn | undefined;
       const oldData = payload.old as Partial<KanbanColumn> | undefined;
@@ -349,7 +371,7 @@ export function useKanban(phase: KanbanPhase) {
     };
 
     const handleTaskChange = (payload: RealtimePostgresChangesPayload<Task>) => {
-      if (isLocalUpdate()) return;
+      if (isLocalUpdate() || isRecentlyVisible()) return;
       
       const newData = payload.new as Task | undefined;
       const oldData = payload.old as Partial<Task> | undefined;
@@ -363,14 +385,14 @@ export function useKanban(phase: KanbanPhase) {
     };
 
     const handleChecklistChange = () => {
-      if (isLocalUpdate()) return;
+      if (isLocalUpdate() || isRecentlyVisible()) return;
       // Checklists affect counters, so we refresh
       logger.debug('[Kanban Realtime] Checklist change detected');
       debouncedSilentRefresh();
     };
 
     const handleTeamChange = () => {
-      if (isLocalUpdate()) return;
+      if (isLocalUpdate() || isRecentlyVisible()) return;
       // Team changes affect project cards
       logger.debug('[Kanban Realtime] Team change detected');
       debouncedSilentRefresh();
