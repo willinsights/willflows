@@ -15,6 +15,7 @@ import { PageTrackingProvider } from "@/components/PageTrackingProvider";
 import { CookieConsentBanner } from "@/components/cookies/CookieConsentBanner";
 import { queryClient } from "@/lib/query-client";
 import { PWAUpdateListener } from "@/components/pwa/PWAUpdateListener";
+import { DebugLifecycle } from "@/components/debug/DebugLifecycle";
 
 // Lazy loaded public pages
 const Landing = lazy(() => import("./pages/Landing"));
@@ -93,6 +94,7 @@ const App = () => (
         <AuthProvider>
           <WorkspaceProvider>
             <TooltipProvider>
+              <DebugLifecycle />
               <PWAUpdateListener />
               <Toaster />
               <Sonner />
