@@ -1,13 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
-import { DollarSign, User, Camera, Film, CreditCard, Calendar, Package, Lock } from 'lucide-react';
+import { DollarSign, User, Camera, Film, CreditCard, Calendar, Package, Lock, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
@@ -277,6 +279,10 @@ export function ProjectFinancialTab({
     team: ProjectTeam[],
     phase: 'captacao' | 'edicao'
   ) => {
+    // Calculate suggested amount based on phase
+    const totalCost = phase === 'edicao' ? custoEdicao : custoCaptacao;
+    const suggestedAmount = team.length > 0 ? totalCost / team.length : 0;
+
     if (team.length === 0) {
       return (
         <div className="p-4 bg-muted/30 rounded-lg border border-border/50">
@@ -295,12 +301,19 @@ export function ProjectFinancialTab({
           {icon}
           <span className="font-medium">{title}</span>
           <Badge variant="outline" className="ml-auto">{team.length} membro(s)</Badge>
+          {suggestedAmount > 0 && (
+            <span className="text-xs text-muted-foreground ml-2">
+              (sugerido: €{suggestedAmount.toFixed(2)}/cada)
+            </span>
+          )}
         </div>
         
         <div className="space-y-3">
           {team.map((member) => {
             const profile = getMemberInfo(member.user_id);
             const statusOption = getStatusBadge(member.payment_status);
+            const currentAmount = member.payment_amount || 0;
+            const isManuallyEdited = currentAmount > 0 && Math.abs(currentAmount - suggestedAmount) > 0.01;
             
             return (
               <div 
@@ -315,13 +328,20 @@ export function ProjectFinancialTab({
                 </Avatar>
                 
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {profile.full_name || profile.email || 'Desconhecido'}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium truncate">
+                      {profile.full_name || profile.email || 'Desconhecido'}
+                    </p>
+                    {isManuallyEdited && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                        Editado
+                      </Badge>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <div className="w-24">
+                  <div className="relative w-24">
                     <Input
                       type="number"
                       placeholder="€0.00"
@@ -331,9 +351,31 @@ export function ProjectFinancialTab({
                         'payment_amount', 
                         Number(e.target.value)
                       )}
-                      className="h-8 text-sm"
+                      className="h-8 text-sm pr-7"
                       disabled={loading}
                     />
+                    {isManuallyEdited && suggestedAmount > 0 && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-0 top-0 h-8 w-7 p-0"
+                            onClick={() => handleTeamMemberPaymentChange(
+                              member.id, 
+                              'payment_amount', 
+                              suggestedAmount
+                            )}
+                            disabled={loading}
+                          >
+                            <RotateCcw className="h-3 w-3 text-muted-foreground" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          Restaurar valor automático (€{suggestedAmount.toFixed(2)})
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                   </div>
                   
                   <Select

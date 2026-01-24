@@ -233,17 +233,30 @@ export function CreateProjectModal({
         );
       }
 
-      // Save team members (responsáveis)
+      // Save team members (responsáveis) with auto-calculated payment amounts
+      const custoCaptacaoTotal = data.custo_captacao || 0;
+      const custoEdicaoTotal = data.custo_edicao || 0;
+      const valorPorCaptador = responsaveisCaptacao.length > 0 
+        ? custoCaptacaoTotal / responsaveisCaptacao.length 
+        : 0;
+      const valorPorEditor = responsaveisEdicao.length > 0 
+        ? custoEdicaoTotal / responsaveisEdicao.length 
+        : 0;
+      
       const teamMembers = [
         ...responsaveisCaptacao.map(userId => ({
           project_id: project.id,
           user_id: userId,
           phase: 'captacao' as const,
+          payment_amount: valorPorCaptador,
+          payment_status: 'pendente' as const,
         })),
         ...responsaveisEdicao.map(userId => ({
           project_id: project.id,
           user_id: userId,
           phase: 'edicao' as const,
+          payment_amount: valorPorEditor,
+          payment_status: 'pendente' as const,
         })),
       ];
 
