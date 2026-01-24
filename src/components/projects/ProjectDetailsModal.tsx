@@ -274,23 +274,62 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
       
       if (error) throw error;
 
-      // Update project team - delete existing and insert new
+      // Fetch existing team payments before deleting (to preserve manual edits)
+      const { data: existingTeam } = await supabase
+        .from('project_team')
+        .select('user_id, phase, payment_amount, payment_status')
+        .eq('project_id', project.id);
+
+      // Calculate auto values
+      const custoCaptacaoTotal = editForm.custo_captacao || 0;
+      const custoEdicaoTotal = editForm.custo_edicao || 0;
+      const valorPorCaptador = responsaveisCaptacao.length > 0 
+        ? custoCaptacaoTotal / responsaveisCaptacao.length 
+        : 0;
+      const valorPorEditor = responsaveisEdicao.length > 0 
+        ? custoEdicaoTotal / responsaveisEdicao.length 
+        : 0;
+
+      // Helper to get existing payment or calculate new
+      const getPaymentData = (userId: string, phase: string, autoValue: number) => {
+        const existing = existingTeam?.find(t => t.user_id === userId && t.phase === phase);
+        // If member already existed AND had a manual value set, preserve it
+        if (existing && existing.payment_amount !== null) {
+          return { 
+            payment_amount: existing.payment_amount, 
+            payment_status: existing.payment_status || 'pendente' 
+          };
+        }
+        return { payment_amount: autoValue, payment_status: 'pendente' };
+      };
+
+      // Delete existing team
       await supabase
         .from('project_team')
         .delete()
         .eq('project_id', project.id);
 
       const teamMembers = [
-        ...responsaveisCaptacao.map(userId => ({
-          project_id: project.id,
-          user_id: userId,
-          phase: 'captacao' as const,
-        })),
-        ...responsaveisEdicao.map(userId => ({
-          project_id: project.id,
-          user_id: userId,
-          phase: 'edicao' as const,
-        })),
+        ...responsaveisCaptacao.map(userId => {
+          const paymentData = getPaymentData(userId, 'captacao', valorPorCaptador);
+          return {
+            project_id: project.id,
+            user_id: userId,
+            phase: 'captacao' as const,
+            payment_amount: paymentData.payment_amount,
+            payment_status: paymentData.payment_status as 'pendente' | 'pago' | 'vencido' | 'cancelado',
+          };
+        }),
+        ...responsaveisEdicao.map(userId => {
+          const paymentData = getPaymentData(userId, 'edicao', valorPorEditor);
+          return {
+            project_id: project.id,
+            user_id: userId,
+            phase: 'edicao' as const,
+            payment_amount: paymentData.payment_amount,
+            payment_status: paymentData.payment_status as 'pendente' | 'pago' | 'vencido' | 'cancelado',
+          };
+        }),
       ];
 
       if (teamMembers.length > 0) {
