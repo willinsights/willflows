@@ -141,7 +141,7 @@ export function CreateClientModal({
             </div>
             <Input
               id="nif"
-              placeholder="Ex: 123456789"
+              placeholder="ex.: NIF, VAT, CNPJ, CPF, EIN…"
               {...form.register('nif')}
             />
             {form.formState.errors.nif && (
