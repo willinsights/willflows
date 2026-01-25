@@ -63,6 +63,7 @@ interface FreelancerPaymentsControlProps {
   members: Member[];
   onStatusChange: (teamId: string, newStatus: string) => Promise<void>;
   formatCurrency: (value: number) => string;
+  workspaceName?: string;
 }
 
 export function FreelancerPaymentsControl({
@@ -71,6 +72,7 @@ export function FreelancerPaymentsControl({
   members,
   onStatusChange,
   formatCurrency,
+  workspaceName = 'WillFlow',
 }: FreelancerPaymentsControlProps) {
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: null,
@@ -146,6 +148,7 @@ export function FreelancerPaymentsControl({
               data={exportData}
               filename="pagamentos-colaboradores"
               type="freelancers"
+              workspaceName={workspaceName}
             />
           </div>
         </div>
