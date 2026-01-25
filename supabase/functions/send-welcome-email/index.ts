@@ -204,7 +204,7 @@ const handler = async (req: Request): Promise<Response> => {
                       <table role="presentation" style="width: 100%; border-collapse: collapse;">
                         <tr>
                           <td align="center">
-                            <a href="https://willflow.pt/app" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                            <a href="https://willflow.app/app" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
                               Começar a usar o WillFlow
                             </a>
                           </td>
