@@ -51,6 +51,7 @@ interface ClientPaymentsControlProps {
   onStatusChange: (paymentId: string, newStatus: string) => Promise<void>;
   formatCurrency: (value: number) => string;
   projects?: { id: string; name: string; project_code: string | null }[];
+  workspaceName?: string;
 }
 
 export function ClientPaymentsControl({
@@ -59,6 +60,7 @@ export function ClientPaymentsControl({
   onStatusChange,
   formatCurrency,
   projects = [],
+  workspaceName = 'WillFlow',
 }: ClientPaymentsControlProps) {
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: null,
@@ -137,6 +139,7 @@ export function ClientPaymentsControl({
               data={exportData}
               filename="pagamentos-clientes"
               type="clients"
+              workspaceName={workspaceName}
             />
           </div>
         </div>

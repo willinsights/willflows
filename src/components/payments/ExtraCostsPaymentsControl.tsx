@@ -47,12 +47,14 @@ interface ExtraCostsPaymentsControlProps {
   projectCosts: ProjectCustoExtra[];
   onStatusChange: (projectId: string, newStatus: string) => Promise<void>;
   formatCurrency: (value: number) => string;
+  workspaceName?: string;
 }
 
 export function ExtraCostsPaymentsControl({
   projectCosts,
   onStatusChange,
   formatCurrency,
+  workspaceName = 'WillFlow',
 }: ExtraCostsPaymentsControlProps) {
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: null,
@@ -108,6 +110,7 @@ export function ExtraCostsPaymentsControl({
               data={exportData}
               filename="custos-extras"
               type="custos"
+              workspaceName={workspaceName}
             />
           </div>
         </div>

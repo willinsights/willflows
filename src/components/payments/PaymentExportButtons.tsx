@@ -5,6 +5,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useToast } from '@/hooks/use-toast';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
+import { format } from 'date-fns';
+import { pt } from 'date-fns/locale';
 
 export interface ExportData {
   id?: string;
@@ -14,6 +16,9 @@ export interface ExportData {
   status: string;
   valor: string;
   fase?: string;
+  iban?: string;
+  banco?: string;
+  tipo?: string;
 }
 
 interface ForecastSummary {
@@ -33,13 +38,70 @@ interface PaymentExportButtonsProps {
   filename: string;
   type: 'clients' | 'freelancers' | 'invoices' | 'previsao' | 'custos';
   forecastSummary?: ForecastSummary;
+  workspaceName?: string;
 }
+
+// Professional report titles
+const typeLabels: Record<string, string> = {
+  clients: 'Receita de Clientes',
+  freelancers: 'Pagamentos a Colaboradores',
+  invoices: 'Faturas',
+  previsao: 'Relatório de Previsão Financeira',
+  custos: 'Custos Extras de Projetos',
+};
+
+// Column labels per export type
+const columnLabelsMap: Record<string, Record<string, string>> = {
+  clients: {
+    id: 'Código',
+    projeto: 'Projeto',
+    contraparte: 'Cliente',
+    vencimento: 'Data Vencimento',
+    status: 'Status',
+    valor: 'Preço Cliente',
+  },
+  freelancers: {
+    id: 'Código',
+    projeto: 'Projeto',
+    contraparte: 'Colaborador',
+    fase: 'Fase',
+    vencimento: 'Data Vencimento',
+    status: 'Status Pagamento',
+    valor: 'Valor a Pagar',
+    iban: 'IBAN',
+    banco: 'Banco',
+  },
+  custos: {
+    id: 'Código',
+    projeto: 'Projeto',
+    status: 'Status',
+    valor: 'Custo Extra',
+  },
+  previsao: {
+    id: 'Código',
+    projeto: 'Projeto',
+    contraparte: 'Entidade',
+    tipo: 'Tipo',
+    vencimento: 'Data Vencimento',
+    status: 'Status',
+    valor: 'Valor',
+  },
+  invoices: {
+    id: 'Código',
+    projeto: 'Projeto',
+    contraparte: 'Entidade',
+    vencimento: 'Data Vencimento',
+    status: 'Status',
+    valor: 'Valor',
+  },
+};
 
 export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButtonsProps>(function PaymentExportButtons({ 
   data, 
   filename, 
   type, 
   forecastSummary,
+  workspaceName = 'WillFlow',
 }, ref) {
   const { toast } = useToast();
   const { 
@@ -53,6 +115,26 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
   const canExportExcel = canUseFeature('exportExcel');
   const canExportPdf = canUseFeature('exportPdf');
 
+  const currentDateTime = format(new Date(), "dd MMM yyyy 'às' HH:mm", { locale: pt });
+  const currentDateFile = format(new Date(), 'yyyy-MM-dd', { locale: pt });
+  const reportTitle = typeLabels[type] || 'Relatório';
+
+  const getColumnLabels = () => columnLabelsMap[type] || columnLabelsMap.clients;
+
+  // Get relevant keys based on export type (only include columns that have data)
+  const getRelevantKeys = () => {
+    const labels = getColumnLabels();
+    const allKeys = Object.keys(labels);
+    
+    // Filter out columns that have no data
+    return allKeys.filter(key => {
+      return data.some(row => {
+        const value = row[key as keyof ExportData];
+        return value !== undefined && value !== null && value !== '' && value !== '-';
+      });
+    });
+  };
+
   const exportToCSV = () => {
     if (data.length === 0 && !forecastSummary) {
       toast({
@@ -63,63 +145,72 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
       return;
     }
 
-    let csvContent = '';
+    const labels = getColumnLabels();
+    const keys = getRelevantKeys();
+    const headers = keys.map(k => labels[k]);
+    
+    // BOM for UTF-8
+    let csvContent = '\ufeff';
+    
+    // Add professional header
+    csvContent += `"${reportTitle}"\n`;
+    csvContent += `"${workspaceName}"\n`;
+    csvContent += `"Exportado: ${currentDateTime}"\n`;
+    csvContent += `"Total: ${data.length} registos"\n\n`;
 
     // Add forecast summary for previsao type
     if (type === 'previsao' && forecastSummary) {
-      csvContent += `RELATÓRIO DE PREVISÃO - ${forecastSummary.month || ''}\n\n`;
-      csvContent += `RESUMO\n`;
-      csvContent += `Previsão de Entrada;${forecastSummary.receivable}\n`;
-      csvContent += `Previsão de Saída;${forecastSummary.totalPayable}\n`;
-      csvContent += `Saldo Previsto;${forecastSummary.net}\n\n`;
+      csvContent += `"RESUMO FINANCEIRO"\n`;
+      csvContent += `"Previsão de Entrada";"${forecastSummary.receivable}"\n`;
+      csvContent += `"Previsão de Saída";"${forecastSummary.totalPayable}"\n`;
+      csvContent += `"Saldo Previsto";"${forecastSummary.net}"\n\n`;
       
       if (forecastSummary.teamTotal || forecastSummary.custosExtras || forecastSummary.payable) {
-        csvContent += `DETALHES DE SAÍDAS\n`;
+        csvContent += `"DETALHES DE SAÍDAS"\n`;
         if (forecastSummary.teamTotal && forecastSummary.teamTotal !== '0') {
-          csvContent += `A Pagar Colaboradores;${forecastSummary.teamTotal}\n`;
-          if (forecastSummary.teamCaptacao) csvContent += `  - Captação;${forecastSummary.teamCaptacao}\n`;
-          if (forecastSummary.teamEdicao) csvContent += `  - Edição;${forecastSummary.teamEdicao}\n`;
+          csvContent += `"A Pagar Colaboradores";"${forecastSummary.teamTotal}"\n`;
+          if (forecastSummary.teamCaptacao) csvContent += `"  - Captação";"${forecastSummary.teamCaptacao}"\n`;
+          if (forecastSummary.teamEdicao) csvContent += `"  - Edição";"${forecastSummary.teamEdicao}"\n`;
         }
         if (forecastSummary.custosExtras && forecastSummary.custosExtras !== '0') {
-          csvContent += `Custos Extras;${forecastSummary.custosExtras}\n`;
+          csvContent += `"Custos Extras";"${forecastSummary.custosExtras}"\n`;
         }
         if (forecastSummary.payable && forecastSummary.payable !== '0') {
-          csvContent += `Outros Pagamentos;${forecastSummary.payable}\n`;
+          csvContent += `"Outros Pagamentos";"${forecastSummary.payable}"\n`;
         }
         csvContent += '\n';
       }
       
-      csvContent += `MOVIMENTOS DO MÊS\n`;
+      csvContent += `"MOVIMENTOS DO MÊS"\n`;
     }
 
-    const headers = type === 'freelancers' 
-      ? ['ID', 'Projeto', 'Colaborador', 'Fase', 'Status', 'Valor']
-      : type === 'custos'
-      ? ['ID', 'Projeto', 'Status', 'Valor']
-      : type === 'clients'
-      ? ['ID', 'Projeto', 'Cliente', 'Vencimento', 'Status', 'Valor']
-      : ['Projeto', 'Cliente', 'Vencimento', 'Status', 'Valor'];
+    // Add data headers and rows
+    csvContent += headers.map(h => `"${h}"`).join(';') + '\n';
     
-    const rows = data.map(item => 
-      type === 'freelancers'
-        ? [item.id || '', item.projeto, item.contraparte || '', item.fase || '', item.status, item.valor]
-        : type === 'custos'
-        ? [item.id || '', item.projeto, item.status, item.valor]
-        : type === 'clients'
-        ? [item.id || '', item.projeto, item.contraparte || '', item.vencimento || '', item.status, item.valor]
-        : [item.projeto, item.contraparte || '', item.vencimento || '', item.status, item.valor]
-    );
+    data.forEach(row => {
+      const cells = keys.map(key => {
+        const value = row[key as keyof ExportData] || '-';
+        const escaped = String(value).replace(/"/g, '""');
+        return `"${escaped}"`;
+      });
+      csvContent += cells.join(';') + '\n';
+    });
 
-    csvContent += [
-      headers.join(';'),
-      ...rows.map(row => row.join(';'))
-    ].join('\n');
+    // Calculate and add totals
+    const totals = calculateTotals();
+    csvContent += '\n"TOTAIS"\n';
+    if (type === 'clients') {
+      csvContent += `"Total Pago";"${formatCurrencyValue(totals.pago)}"\n`;
+      csvContent += `"Total Pendente";"${formatCurrencyValue(totals.pendente)}"\n`;
+      csvContent += `"Total Vencido";"${formatCurrencyValue(totals.vencido)}"\n`;
+    }
+    csvContent += `"Total Geral";"${formatCurrencyValue(totals.total)}"\n`;
 
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `${filename}.csv`);
+    link.setAttribute('download', `${filename}-${currentDateFile}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -127,8 +218,31 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
 
     toast({
       title: 'Exportado com sucesso',
-      description: `Ficheiro ${filename}.csv exportado`,
+      description: `Ficheiro ${filename}.csv exportado com ${data.length} registos`,
     });
+  };
+
+  const formatCurrencyValue = (value: number) => {
+    return new Intl.NumberFormat('pt-PT', {
+      style: 'currency',
+      currency: 'EUR',
+    }).format(value);
+  };
+
+  const calculateTotals = () => {
+    return data.reduce((acc, row) => {
+      const valorStr = row.valor.replace(/[^\d,.-]/g, '').replace(',', '.');
+      const valor = parseFloat(valorStr) || 0;
+      if (row.status === 'Pago') {
+        acc.pago += Math.abs(valor);
+      } else if (row.status === 'Pendente') {
+        acc.pendente += Math.abs(valor);
+      } else if (row.status === 'Vencido') {
+        acc.vencido += Math.abs(valor);
+      }
+      acc.total += Math.abs(valor);
+      return acc;
+    }, { pago: 0, pendente: 0, vencido: 0, total: 0 });
   };
 
   const exportToPDF = () => {
@@ -141,50 +255,33 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
       return;
     }
 
-    const headers = type === 'freelancers' 
-      ? ['ID', 'Projeto', 'Colaborador', 'Fase', 'Status', 'Valor']
-      : type === 'custos'
-      ? ['ID', 'Projeto', 'Status', 'Valor']
-      : type === 'clients'
-      ? ['ID', 'Projeto', 'Cliente', 'Vencimento', 'Status', 'Valor']
-      : ['Projeto', 'Cliente', 'Vencimento', 'Status', 'Valor'];
+    const labels = getColumnLabels();
+    const keys = getRelevantKeys();
+    const headers = keys.map(k => labels[k]);
+    const totals = calculateTotals();
 
-    const tableRows = data.map(item => {
-      if (type === 'freelancers') {
-        return `<tr>
-          <td class="id-cell">${item.id || '-'}</td>
-          <td>${item.projeto}</td>
-          <td>${item.contraparte || '-'}</td>
-          <td>${item.fase || '-'}</td>
-          <td>${item.status}</td>
-          <td style="text-align: right">${item.valor}</td>
-        </tr>`;
-      }
-      if (type === 'custos') {
-        return `<tr>
-          <td class="id-cell">${item.id || '-'}</td>
-          <td>${item.projeto}</td>
-          <td>${item.status}</td>
-          <td style="text-align: right">${item.valor}</td>
-        </tr>`;
-      }
-      if (type === 'clients') {
-        return `<tr>
-          <td class="id-cell">${item.id || '-'}</td>
-          <td>${item.projeto}</td>
-          <td>${item.contraparte || '-'}</td>
-          <td>${item.vencimento || '-'}</td>
-          <td>${item.status}</td>
-          <td style="text-align: right">${item.valor}</td>
-        </tr>`;
-      }
-      return `<tr>
-        <td>${item.projeto}</td>
-        <td>${item.contraparte || '-'}</td>
-        <td>${item.vencimento || '-'}</td>
-        <td>${item.status}</td>
-        <td style="text-align: right">${item.valor}</td>
-      </tr>`;
+    const tableRows = data.map(row => {
+      const cells = keys.map(key => {
+        const value = row[key as keyof ExportData] || '-';
+        let className = '';
+        
+        if (key === 'status') {
+          const statusClass = String(value).toLowerCase().replace(/\s/g, '');
+          return `<td><span class="status-badge status-${statusClass}">${value}</span></td>`;
+        }
+        
+        if (key === 'valor') {
+          if (type === 'clients' || String(value).startsWith('+')) {
+            className = 'valor-positivo';
+          } else if (type === 'freelancers' || type === 'custos' || String(value).startsWith('-')) {
+            className = 'valor-negativo';
+          }
+        }
+        
+        return `<td class="${className}">${value}</td>`;
+      }).join('');
+      
+      return `<tr>${cells}</tr>`;
     }).join('');
 
     // Build forecast summary section for previsao type
@@ -255,18 +352,18 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
 
     const title = type === 'previsao' && forecastSummary?.month 
       ? `Relatório de Previsão - ${forecastSummary.month}`
-      : filename;
+      : reportTitle;
 
     const htmlContent = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8">
-        <title>${title}</title>
+        <title>${title} - ${workspaceName}</title>
         <style>
           * { box-sizing: border-box; margin: 0; padding: 0; }
           body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; 
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif; 
             padding: 40px; 
             background: #fff;
             color: #1a1a1a;
@@ -277,23 +374,51 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
             justify-content: space-between;
             align-items: flex-start;
             margin-bottom: 30px;
-            border-bottom: 2px solid #e5e7eb;
+            border-bottom: 3px solid #8224e3;
             padding-bottom: 20px;
           }
-          h1 { 
-            color: #111; 
+          .brand h1 { 
+            color: #8224e3; 
             font-size: 24px;
             font-weight: 700;
+            margin-bottom: 4px;
           }
-          .date { 
-            color: #666; 
-            font-size: 13px;
+          .brand .workspace-name {
+            font-size: 14px;
+            color: #6b7280;
+            font-weight: 500;
           }
+          .meta {
+            text-align: right;
+            font-size: 12px;
+            color: #6b7280;
+          }
+          .meta p { margin-bottom: 4px; }
+          
+          /* Stats bar */
+          .stats-bar {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 24px;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+            border-radius: 12px;
+          }
+          .stat-item { text-align: center; }
+          .stat-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6b7280;
+            margin-bottom: 4px;
+          }
+          .stat-value { font-size: 18px; font-weight: 700; }
+          .stat-value.success { color: #16a34a; }
+          .stat-value.warning { color: #ca8a04; }
+          .stat-value.destructive { color: #dc2626; }
           
           /* Forecast Summary Styles */
-          .forecast-summary {
-            margin-bottom: 30px;
-          }
+          .forecast-summary { margin-bottom: 30px; }
           .forecast-cards {
             display: flex;
             gap: 20px;
@@ -316,10 +441,7 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
             text-transform: uppercase;
             letter-spacing: 0.5px;
           }
-          .card-value {
-            font-size: 28px;
-            font-weight: 700;
-          }
+          .card-value { font-size: 28px; font-weight: 700; }
           .income-value { color: #16a34a; }
           .expense-value { color: #dc2626; }
           .card-sublabel {
@@ -341,66 +463,68 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
             margin-bottom: 15px;
             color: #374151;
           }
-          .details-table {
-            width: 100%;
-            border-collapse: collapse;
-          }
-          .details-table tr {
-            border-bottom: 1px solid #e5e7eb;
-          }
-          .details-table tr:last-child {
-            border-bottom: none;
-          }
-          .details-table td {
-            padding: 12px 8px;
-          }
-          .detail-label {
-            font-weight: 500;
-          }
+          .details-table { width: 100%; border-collapse: collapse; }
+          .details-table tr { border-bottom: 1px solid #e5e7eb; }
+          .details-table tr:last-child { border-bottom: none; }
+          .details-table td { padding: 12px 8px; }
+          .detail-label { font-weight: 500; }
           .detail-label.sublabel {
             padding-left: 30px;
             font-weight: 400;
             color: #666;
           }
-          .detail-value {
-            text-align: right;
-            font-weight: 600;
-          }
-          .subrow td {
-            padding: 8px;
-          }
+          .detail-value { text-align: right; font-weight: 600; }
+          .subrow td { padding: 8px; }
           
-          /* Table Styles */
+          /* Main Table Styles */
           h2 {
             font-size: 16px;
             font-weight: 600;
             margin-bottom: 15px;
             color: #374151;
           }
-          table { 
+          table.main-table { 
             width: 100%; 
             border-collapse: collapse;
             margin-top: 10px;
-          }
-          th, td { 
-            padding: 12px 10px; 
-            text-align: left; 
-            border-bottom: 1px solid #e5e7eb;
-          }
-          th { 
-            background-color: #f3f4f6; 
-            font-weight: 600;
             font-size: 12px;
+          }
+          table.main-table th { 
+            background: linear-gradient(135deg, #8224e3 0%, #6b21a8 100%);
+            color: white;
+            text-align: left;
+            padding: 12px 10px;
+            font-weight: 600;
+            font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: #4b5563;
           }
-          td {
-            font-size: 14px;
+          table.main-table th:first-child { border-radius: 8px 0 0 0; }
+          table.main-table th:last-child { border-radius: 0 8px 0 0; }
+          table.main-table td { 
+            padding: 10px;
+            border-bottom: 1px solid #e5e7eb;
           }
-          tr:hover {
-            background-color: #f9fafb;
+          table.main-table tr:nth-child(even) { background: #f9fafb; }
+          table.main-table tr:hover { background: #f3f4f6; }
+          
+          /* Status badges */
+          .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
           }
+          .status-pago { background: #dcfce7; color: #16a34a; }
+          .status-pendente { background: #fef9c3; color: #ca8a04; }
+          .status-vencido { background: #fee2e2; color: #dc2626; }
+          .status-cancelado { background: #f3f4f6; color: #6b7280; }
+          
+          .valor-positivo { color: #16a34a; font-weight: 600; }
+          .valor-negativo { color: #dc2626; font-weight: 600; }
           
           .empty-message {
             text-align: center;
@@ -409,31 +533,70 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
             font-style: italic;
           }
           
+          .footer {
+            margin-top: 32px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+            font-size: 10px;
+            color: #9ca3af;
+          }
+          
           @media print {
             body { padding: 20px; }
             .forecast-cards { page-break-inside: avoid; }
+            .header { margin-bottom: 20px; }
           }
         </style>
       </head>
       <body>
         <div class="header">
-          <div>
-            <h1>${title}</h1>
-            <p class="date">Exportado em: ${new Date().toLocaleDateString('pt-PT')} às ${new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</p>
+          <div class="brand">
+            <h1>📊 ${title}</h1>
+            <p class="workspace-name">${workspaceName}</p>
+          </div>
+          <div class="meta">
+            <p><strong>Exportado:</strong> ${currentDateTime}</p>
+            <p><strong>Total:</strong> ${data.length} registos</p>
           </div>
         </div>
+        
+        ${type !== 'previsao' ? `
+        <div class="stats-bar">
+          <div class="stat-item">
+            <div class="stat-label">Total Geral</div>
+            <div class="stat-value">${formatCurrencyValue(totals.total)}</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Pago</div>
+            <div class="stat-value success">${formatCurrencyValue(totals.pago)}</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Pendente</div>
+            <div class="stat-value warning">${formatCurrencyValue(totals.pendente)}</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Vencido</div>
+            <div class="stat-value destructive">${formatCurrencyValue(totals.vencido)}</div>
+          </div>
+        </div>
+        ` : ''}
         
         ${forecastSection}
         
         ${data.length > 0 ? `
-        <h2>📋 ${type === 'previsao' ? 'Movimentos do Mês' : 'Pagamentos'}</h2>
-        <table>
+        <h2>📋 ${type === 'previsao' ? 'Movimentos do Mês' : 'Detalhes'}</h2>
+        <table class="main-table">
           <thead>
             <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
           </thead>
           <tbody>${tableRows}</tbody>
         </table>
         ` : type !== 'previsao' ? '<p class="empty-message">Sem movimentos registados</p>' : ''}
+        
+        <div class="footer">
+          Gerado por ${workspaceName} • willflow.app
+        </div>
       </body>
       </html>
     `;
@@ -442,7 +605,12 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
     if (printWindow) {
       printWindow.document.write(htmlContent);
       printWindow.document.close();
-      printWindow.print();
+      
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.print();
+        }, 300);
+      };
     }
 
     toast({

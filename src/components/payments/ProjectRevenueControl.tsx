@@ -60,6 +60,7 @@ interface ProjectRevenueControlProps {
   clients: Client[];
   onStatusChange: (projectId: string, newStatus: string) => Promise<void>;
   formatCurrency: (value: number) => string;
+  workspaceName?: string;
 }
 
 export function ProjectRevenueControl({
@@ -67,6 +68,7 @@ export function ProjectRevenueControl({
   clients,
   onStatusChange,
   formatCurrency,
+  workspaceName = 'WillFlow',
 }: ProjectRevenueControlProps) {
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: null,
@@ -119,7 +121,7 @@ export function ProjectRevenueControl({
     return filteredProjects.map(project => ({
       id: project.project_code || project.id.slice(0, 8).toUpperCase(),
       projeto: project.name,
-      cliente: project.clients?.name || '-',
+      contraparte: project.clients?.name || '-',
       vencimento: project.client_payment_due_date 
         ? format(new Date(project.client_payment_due_date), 'dd/MM/yyyy', { locale: pt })
         : project.delivery_date 
@@ -152,8 +154,9 @@ export function ProjectRevenueControl({
             />
             <PaymentExportButtons
               data={exportData}
-              filename="receita-projetos"
+              filename="receita-clientes"
               type="clients"
+              workspaceName={workspaceName}
             />
           </div>
         </div>
