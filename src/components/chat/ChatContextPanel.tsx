@@ -380,18 +380,18 @@ export function ChatContextPanel({
   // Channel or DM context
   if (!isProjectChat) {
     return (
-      <div className="flex flex-col h-full bg-card/60 backdrop-blur-sm border-l border-border/50">
+      <div className="flex flex-col h-full min-w-0 bg-card/60 backdrop-blur-sm">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 bg-card/40 backdrop-blur-sm">
           <h3 className="font-semibold">Detalhes</h3>
           {onClose && (
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onClose}>
               <X className="h-4 w-4" />
             </Button>
           )}
         </div>
 
         <ScrollArea className="flex-1">
-          <div className="p-4 space-y-6">
+          <div className="p-4 space-y-6 min-w-0 overflow-x-hidden">
             {/* Header Card */}
             <div className="p-4 rounded-xl bg-muted/50">
               <div className="flex items-center gap-3 mb-3">
@@ -653,18 +653,18 @@ export function ChatContextPanel({
 
   // Project Chat context
   return (
-    <div className="flex flex-col h-full bg-card/60 backdrop-blur-sm border-l border-border/50">
+    <div className="flex flex-col h-full min-w-0 bg-card/60 backdrop-blur-sm">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 bg-card/40 backdrop-blur-sm">
         <h3 className="font-semibold">Projeto</h3>
         {onClose && (
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         )}
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="p-4 space-y-6">
+        <div className="p-4 space-y-6 min-w-0 overflow-x-hidden">
           {/* Project Header Card */}
           {project && (
             <>
@@ -783,15 +783,15 @@ export function ChatContextPanel({
 
               {/* Open Tasks - Collapsible */}
               <Collapsible open={expandedSections.tasks} onOpenChange={() => toggleSection('tasks')}>
-                <CollapsibleTrigger className="flex items-center justify-between w-full group">
-                  <h4 className="text-sm font-medium flex items-center gap-2">
-                    <CheckSquare className="h-4 w-4" />
-                    Tarefas Abertas ({openTasks.length})
+                <CollapsibleTrigger className="flex items-center justify-between w-full group min-w-0">
+                  <h4 className="text-sm font-medium flex items-center gap-2 min-w-0 flex-1">
+                    <CheckSquare className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Tarefas Abertas ({openTasks.length})</span>
                   </h4>
                   {expandedSections.tasks ? (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform" />
+                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform shrink-0" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform" />
+                    <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform shrink-0" />
                   )}
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-3">
@@ -802,7 +802,7 @@ export function ChatContextPanel({
                     </div>
                   ) : openTasks.length === 0 ? (
                     <div className="p-3 rounded-lg border border-dashed border-border text-center">
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground break-words">
                         Nenhuma tarefa pendente 🎉
                       </p>
                     </div>
@@ -834,15 +834,15 @@ export function ChatContextPanel({
 
               {/* Shared Links - Collapsible */}
               <Collapsible open={expandedSections.links} onOpenChange={() => toggleSection('links')}>
-                <CollapsibleTrigger className="flex items-center justify-between w-full group">
-                  <h4 className="text-sm font-medium flex items-center gap-2">
-                    <LinkIcon className="h-4 w-4" />
-                    Links Partilhados ({sharedLinks.length})
+                <CollapsibleTrigger className="flex items-center justify-between w-full group min-w-0">
+                  <h4 className="text-sm font-medium flex items-center gap-2 min-w-0 flex-1">
+                    <LinkIcon className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Links Partilhados ({sharedLinks.length})</span>
                   </h4>
                   {expandedSections.links ? (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform" />
+                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform shrink-0" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform" />
+                    <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform shrink-0" />
                   )}
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-3">
@@ -850,7 +850,7 @@ export function ChatContextPanel({
                     <Skeleton className="h-16 w-full" />
                   ) : sharedLinks.length === 0 ? (
                     <div className="p-3 rounded-lg border border-dashed border-border text-center">
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground break-words">
                         Nenhum link partilhado
                       </p>
                     </div>
@@ -862,7 +862,7 @@ export function ChatContextPanel({
                           href={link.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-3 p-2 rounded-lg border border-border hover:bg-muted/50 transition-colors group"
+                          className="flex items-center gap-3 p-2 rounded-lg border border-border hover:bg-muted/50 transition-colors group min-w-0"
                         >
                           <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
                             <ExternalLink className="h-4 w-4 text-primary" />
@@ -884,15 +884,15 @@ export function ChatContextPanel({
 
               {/* Shared Files - Collapsible */}
               <Collapsible open={expandedSections.files} onOpenChange={() => toggleSection('files')}>
-                <CollapsibleTrigger className="flex items-center justify-between w-full group">
-                  <h4 className="text-sm font-medium flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Ficheiros Partilhados ({sharedFiles.length})
+                <CollapsibleTrigger className="flex items-center justify-between w-full group min-w-0">
+                  <h4 className="text-sm font-medium flex items-center gap-2 min-w-0 flex-1">
+                    <FileText className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Ficheiros Partilhados ({sharedFiles.length})</span>
                   </h4>
                   {expandedSections.files ? (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform" />
+                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform shrink-0" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform" />
+                    <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform shrink-0" />
                   )}
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-3">
@@ -900,7 +900,7 @@ export function ChatContextPanel({
                     <Skeleton className="h-16 w-full" />
                   ) : sharedFiles.length === 0 ? (
                     <div className="p-3 rounded-lg border border-dashed border-border text-center">
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground break-words">
                         Nenhum ficheiro partilhado
                       </p>
                     </div>
@@ -912,7 +912,7 @@ export function ChatContextPanel({
                           href={file.file_path}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-3 p-2 rounded-lg border border-border hover:bg-muted/50 transition-colors group"
+                          className="flex items-center gap-3 p-2 rounded-lg border border-border hover:bg-muted/50 transition-colors group min-w-0"
                         >
                           <div className="h-8 w-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
                             {getFileIcon(file.mime_type)}
