@@ -5,6 +5,7 @@ import {
   DragOverlay,
   DragStartEvent,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   closestCenter,
@@ -60,6 +61,12 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 4,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 150,
+        tolerance: 5,
       },
     }),
   );

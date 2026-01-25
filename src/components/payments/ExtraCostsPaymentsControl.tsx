@@ -126,10 +126,10 @@ export function ExtraCostsPaymentsControl({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[100px]">ID</TableHead>
-                <TableHead>Projeto</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
+                <TableHead className="w-[80px] min-w-[80px]">ID</TableHead>
+                <TableHead className="min-w-[150px]">Projeto</TableHead>
+                <TableHead className="min-w-[130px]">Status</TableHead>
+                <TableHead className="text-right min-w-[100px]">Valor</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
