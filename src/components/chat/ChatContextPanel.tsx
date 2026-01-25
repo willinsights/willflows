@@ -871,18 +871,18 @@ export function ChatContextPanel({
               </div>
 
               {/* Actions */}
-              <div className="pt-2">
+              <div className="pt-4 pb-2">
                 <Button
                   variant="outline"
-                  className="w-full"
+                  className="w-full gap-2"
                   onClick={() =>
                     navigate(
                       `/app/${project.current_phase === 'captacao' ? 'captacao' : 'edicao'}`
                     )
                   }
                 >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Ver no Kanban
+                  <ExternalLink className="h-4 w-4 shrink-0" />
+                  <span className="truncate">Ver no Kanban</span>
                 </Button>
               </div>
             </>
