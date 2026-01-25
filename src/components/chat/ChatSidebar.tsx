@@ -111,7 +111,7 @@ export function ChatSidebar({
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-card/60 backdrop-blur-sm">
+    <div className="flex flex-col h-full overflow-hidden max-w-full bg-card/60 backdrop-blur-sm">
       {/* Search */}
       <div className="p-3 border-b border-border/40 shrink-0">
         <div className="relative">
@@ -125,8 +125,8 @@ export function ChatSidebar({
         </div>
       </div>
 
-      <ScrollArea className="flex-1 h-0">
-        <div className="py-2 space-y-1">
+      <ScrollArea className="flex-1 h-0 overflow-hidden">
+        <div className="py-2 space-y-1 overflow-hidden">
           {/* Project Chats */}
           <Collapsible
             open={expandedSections.projects}
@@ -171,9 +171,9 @@ export function ChatSidebar({
             open={expandedSections.channels}
             onOpenChange={() => toggleSection('channels')}
           >
-            <div className="flex items-center justify-between px-4 py-2">
-              <CollapsibleTrigger className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors flex-1">
-                <Hash className="h-3.5 w-3.5" />
+            <div className="flex items-center justify-between px-4 py-2 gap-2 overflow-hidden">
+              <CollapsibleTrigger className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors flex-1 min-w-0 overflow-hidden">
+                <Hash className="h-3.5 w-3.5 shrink-0" />
                 Canais
                 <span className="text-[10px] font-normal bg-muted px-1.5 py-0.5 rounded-full">
                   {channels.length}
@@ -232,9 +232,9 @@ export function ChatSidebar({
             open={expandedSections.dms}
             onOpenChange={() => toggleSection('dms')}
           >
-            <div className="flex items-center justify-between px-4 py-2">
-              <CollapsibleTrigger className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors flex-1">
-                <User className="h-3.5 w-3.5" />
+            <div className="flex items-center justify-between px-4 py-2 gap-2 overflow-hidden">
+              <CollapsibleTrigger className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors flex-1 min-w-0 overflow-hidden">
+                <User className="h-3.5 w-3.5 shrink-0" />
                 Mensagens
                 <span className="text-[10px] font-normal bg-muted px-1.5 py-0.5 rounded-full">
                   {dms.length}
@@ -367,7 +367,7 @@ function ConversationItem({
     <div
       className={cn(
         'group flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-left',
-        'transition-all duration-200 cursor-pointer',
+        'transition-all duration-200 cursor-pointer overflow-hidden',
         'hover:bg-muted/60 hover:shadow-sm hover:-translate-x-0.5',
         isActive && 'bg-primary/10 hover:bg-primary/15 shadow-sm border-l-2 border-primary'
       )}
@@ -375,7 +375,7 @@ function ConversationItem({
     >
       {getIcon()}
       
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 overflow-hidden">
         <div className="flex items-center justify-between gap-2">
           <span className={cn(
             'font-medium text-sm truncate',
