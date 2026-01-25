@@ -2940,6 +2940,22 @@ export type Database = {
         Args: { _token: string; _user_id: string }
         Returns: string
       }
+      get_blog_analytics: {
+        Args: { days_back?: number }
+        Returns: {
+          post_id: string
+          unique_sessions: number
+          view_count: number
+        }[]
+      }
+      get_daily_page_views: {
+        Args: { days_back?: number }
+        Returns: {
+          unique_sessions: number
+          view_count: number
+          view_date: string
+        }[]
+      }
       get_invitation_by_token: {
         Args: { _token: string }
         Returns: {
@@ -2951,6 +2967,23 @@ export type Database = {
           role: Database["public"]["Enums"]["app_role"]
           workspace_id: string
           workspace_name: string
+        }[]
+      }
+      get_page_analytics: {
+        Args: { days_back?: number }
+        Returns: {
+          page_path: string
+          page_title: string
+          unique_sessions: number
+          view_count: number
+        }[]
+      }
+      get_page_view_counts: {
+        Args: never
+        Returns: {
+          month_views: number
+          today_views: number
+          week_views: number
         }[]
       }
       get_user_subscription_info: {

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useSuperAdmin } from './useSuperAdmin';
-import { startOfDay, subDays, format } from 'date-fns';
+import { subDays, format } from 'date-fns';
 
 export interface SystemOverview {
   totalUsers: number;
@@ -143,118 +143,78 @@ export const useSystemStats = () => {
     staleTime: 1000 * 60 * 5,
   });
 
-  // Page analytics
+  // Page analytics - uses RPC for server-side aggregation (avoids 1000 row limit)
   const pageAnalyticsQuery = useQuery({
     queryKey: ['admin-page-analytics'],
-    queryFn: async () => {
-      const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
-
-      // Get page views grouped by path
-      const { data: pageViews, error } = await supabase
-        .from('page_views')
-        .select('page_path, page_title, session_id')
-        .gte('created_at', thirtyDaysAgo);
+    queryFn: async (): Promise<PageAnalytics[]> => {
+      const { data, error } = await supabase.rpc('get_page_analytics', { days_back: 30 });
 
       if (error) throw error;
 
-      // Aggregate by page path
-      const pageMap: Record<string, { title: string | null; views: number; sessions: Set<string> }> = {};
-      
-      pageViews?.forEach(pv => {
-        if (!pageMap[pv.page_path]) {
-          pageMap[pv.page_path] = { title: pv.page_title, views: 0, sessions: new Set() };
-        }
-        pageMap[pv.page_path].views++;
-        pageMap[pv.page_path].sessions.add(pv.session_id);
-      });
-
-      const analytics: PageAnalytics[] = Object.entries(pageMap)
-        .map(([path, data]) => ({
-          pagePath: path,
-          pageTitle: data.title,
-          viewCount: data.views,
-          uniqueSessions: data.sessions.size,
-        }))
-        .sort((a, b) => b.viewCount - a.viewCount);
-
-      return analytics;
+      return (data || []).map((row: { page_path: string; page_title: string | null; view_count: number; unique_sessions: number }) => ({
+        pagePath: row.page_path,
+        pageTitle: row.page_title,
+        viewCount: Number(row.view_count),
+        uniqueSessions: Number(row.unique_sessions),
+      }));
     },
     enabled: isSuperAdmin,
     staleTime: 1000 * 60 * 5,
   });
 
-  // Daily visits for chart
+  // Daily visits for chart - uses RPC for server-side aggregation (avoids 1000 row limit)
   const dailyVisitsQuery = useQuery({
     queryKey: ['admin-daily-visits'],
     queryFn: async (): Promise<DailyVisits[]> => {
-      const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
-
-      const { data: pageViews, error } = await supabase
-        .from('page_views')
-        .select('created_at, session_id')
-        .gte('created_at', thirtyDaysAgo);
+      const { data, error } = await supabase.rpc('get_daily_page_views', { days_back: 30 });
 
       if (error) throw error;
 
-      // Aggregate by day
-      const dayMap: Record<string, { views: number; sessions: Set<string> }> = {};
-      
-      // Initialize all 30 days
+      // Initialize all 30 days with zeros
+      const dayMap: Record<string, DailyVisits> = {};
       for (let i = 0; i < 30; i++) {
         const date = format(subDays(new Date(), i), 'yyyy-MM-dd');
-        dayMap[date] = { views: 0, sessions: new Set() };
+        dayMap[date] = { date, views: 0, uniqueSessions: 0 };
       }
 
-      pageViews?.forEach(pv => {
-        const date = format(new Date(pv.created_at), 'yyyy-MM-dd');
-        if (dayMap[date]) {
-          dayMap[date].views++;
-          dayMap[date].sessions.add(pv.session_id);
+      // Fill in actual data from RPC
+      (data || []).forEach((row: { view_date: string; view_count: number; unique_sessions: number }) => {
+        const dateStr = format(new Date(row.view_date), 'yyyy-MM-dd');
+        if (dayMap[dateStr]) {
+          dayMap[dateStr].views = Number(row.view_count);
+          dayMap[dateStr].uniqueSessions = Number(row.unique_sessions);
         }
       });
 
-      return Object.entries(dayMap)
-        .map(([date, data]) => ({
-          date,
-          views: data.views,
-          uniqueSessions: data.sessions.size,
-        }))
-        .sort((a, b) => a.date.localeCompare(b.date));
+      return Object.values(dayMap).sort((a, b) => a.date.localeCompare(b.date));
     },
     enabled: isSuperAdmin,
     staleTime: 1000 * 60 * 5,
   });
 
-  // Blog view analytics
+  // Blog view analytics - uses RPC for server-side aggregation
   const blogAnalyticsQuery = useQuery({
     queryKey: ['admin-blog-analytics'],
     queryFn: async (): Promise<BlogViewAnalytics[]> => {
-      const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
-
-      // Get blog views with post info
-      const { data: blogViews, error: viewsError } = await supabase
-        .from('blog_views')
-        .select('post_id, session_id')
-        .gte('created_at', thirtyDaysAgo);
+      // Get aggregated blog views via RPC
+      const { data: viewsData, error: viewsError } = await supabase.rpc('get_blog_analytics', { days_back: 30 });
 
       if (viewsError) throw viewsError;
 
-      // Get all blog posts
+      // Get all blog posts metadata
       const { data: posts, error: postsError } = await supabase
         .from('blog_posts')
         .select('id, title, slug, published_at');
 
       if (postsError) throw postsError;
 
-      // Aggregate views by post
-      const postViewMap: Record<string, { views: number; sessions: Set<string> }> = {};
-      
-      blogViews?.forEach(bv => {
-        if (!postViewMap[bv.post_id]) {
-          postViewMap[bv.post_id] = { views: 0, sessions: new Set() };
-        }
-        postViewMap[bv.post_id].views++;
-        postViewMap[bv.post_id].sessions.add(bv.session_id);
+      // Create lookup map from RPC results
+      const postViewMap: Record<string, { views: number; sessions: number }> = {};
+      (viewsData || []).forEach((row: { post_id: string; view_count: number; unique_sessions: number }) => {
+        postViewMap[row.post_id] = {
+          views: Number(row.view_count),
+          sessions: Number(row.unique_sessions),
+        };
       });
 
       const analytics: BlogViewAnalytics[] = (posts || []).map(post => ({
@@ -262,7 +222,7 @@ export const useSystemStats = () => {
         postTitle: post.title,
         postSlug: post.slug,
         viewCount: postViewMap[post.id]?.views || 0,
-        uniqueSessions: postViewMap[post.id]?.sessions?.size || 0,
+        uniqueSessions: postViewMap[post.id]?.sessions || 0,
         publishedAt: post.published_at,
       })).sort((a, b) => b.viewCount - a.viewCount);
 
@@ -272,24 +232,19 @@ export const useSystemStats = () => {
     staleTime: 1000 * 60 * 5,
   });
 
-  // Total stats for quick overview
+  // Total stats for quick overview - uses RPC for exact counts
   const totalsQuery = useQuery({
     queryKey: ['admin-totals'],
     queryFn: async () => {
-      const today = startOfDay(new Date()).toISOString();
-      const sevenDaysAgo = subDays(new Date(), 7).toISOString();
-      const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
+      const { data, error } = await supabase.rpc('get_page_view_counts');
 
-      const [todayRes, weekRes, monthRes] = await Promise.all([
-        supabase.from('page_views').select('id', { count: 'exact', head: true }).gte('created_at', today),
-        supabase.from('page_views').select('id', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo),
-        supabase.from('page_views').select('id', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo),
-      ]);
+      if (error) throw error;
 
+      const row = data?.[0] || { today_views: 0, week_views: 0, month_views: 0 };
       return {
-        todayViews: todayRes.count || 0,
-        weekViews: weekRes.count || 0,
-        monthViews: monthRes.count || 0,
+        todayViews: Number(row.today_views) || 0,
+        weekViews: Number(row.week_views) || 0,
+        monthViews: Number(row.month_views) || 0,
       };
     },
     enabled: isSuperAdmin,
