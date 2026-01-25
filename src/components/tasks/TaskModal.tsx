@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Loader2, CalendarIcon, User, FolderOpen, ListChecks } from 'lucide-react';
+import { TaskChatIndicator } from './TaskChatIndicator';
 import {
   Dialog,
   DialogContent,
@@ -235,6 +236,14 @@ export function TaskModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Chat Indicator - only show when editing */}
+          {isEditing && task?.id && (
+            <TaskChatIndicator 
+              taskId={task.id} 
+              onOpenChat={() => onOpenChange(false)} 
+            />
+          )}
+
           {/* Task Title */}
           <div className="space-y-2">
             <Label htmlFor="task-title">Título *</Label>
