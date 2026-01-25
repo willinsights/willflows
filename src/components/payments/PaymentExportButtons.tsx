@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import { FileSpreadsheet, FileText, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -34,12 +35,12 @@ interface PaymentExportButtonsProps {
   forecastSummary?: ForecastSummary;
 }
 
-export function PaymentExportButtons({ 
+export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButtonsProps>(function PaymentExportButtons({ 
   data, 
   filename, 
   type, 
   forecastSummary,
-}: PaymentExportButtonsProps) {
+}, ref) {
   const { toast } = useToast();
   const { 
     canUseFeature, 
@@ -521,4 +522,4 @@ export function PaymentExportButtons({
       />
     </>
   );
-}
+});
