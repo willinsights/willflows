@@ -501,18 +501,18 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:max-w-xl p-0 flex flex-col">
-          <SheetHeader className="px-6 py-4 border-b border-border shrink-0">
-            <SheetTitle className="flex items-center justify-between pr-2">
+        <SheetContent side="right" className="w-full sm:max-w-2xl lg:max-w-3xl p-0 flex flex-col">
+          <SheetHeader className="px-6 py-5 border-b border-border/60 shrink-0 bg-card/80 backdrop-blur-sm">
+            <SheetTitle className="flex items-center justify-between pr-8">
               {isEditing ? (
                 <Input 
                   value={editForm.name} 
                   onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="text-lg font-semibold max-w-sm"
+                  className="text-lg font-semibold max-w-md"
                   placeholder="Nome do projeto"
                 />
               ) : (
-                <span className="truncate max-w-sm text-lg">{project.name}</span>
+                <span className="truncate max-w-md text-lg font-semibold">{project.name}</span>
               )}
               <Badge className={currentPriority?.color}>
                 {currentPriority?.label}
@@ -606,7 +606,7 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
           </Tabs>
 
           {/* Footer Actions */}
-          <div className="flex justify-between gap-2 px-6 py-4 border-t border-border shrink-0 bg-background">
+          <div className="flex justify-between items-center gap-3 px-6 py-4 border-t border-border/60 shrink-0 bg-card/80 backdrop-blur-sm">
             <div className="flex gap-2">
               <Button variant="destructive" size="sm" onClick={() => setShowDeleteDialog(true)}>
                 <Trash2 className="h-4 w-4 mr-1" />
