@@ -78,8 +78,8 @@ serve(async (req) => {
       <link>${baseUrl}/blog</link>
     </image>
     <copyright>© ${new Date().getFullYear()} WillFlow. Todos os direitos reservados.</copyright>
-    <managingEditor>blog@willflow.pt (WillFlow)</managingEditor>
-    <webMaster>tech@willflow.pt (WillFlow)</webMaster>
+    <managingEditor>blog@willflow.app (WillFlow)</managingEditor>
+    <webMaster>tech@willflow.app (WillFlow)</webMaster>
     <category>Technology</category>
     <category>Business</category>
     <category>Photography</category>
