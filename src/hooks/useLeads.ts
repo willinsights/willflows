@@ -267,6 +267,28 @@ export function useLeads() {
     }
   };
 
+  const deleteMultipleLeads = async (leadIds: string[]) => {
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({ is_active: false })
+        .in('id', leadIds);
+
+      if (error) throw error;
+
+      setLeads(prev => prev.filter(l => !leadIds.includes(l.id)));
+      toast({ title: `${leadIds.length} leads eliminados com sucesso` });
+      return true;
+    } catch (error) {
+      toast({
+        title: 'Erro ao eliminar leads',
+        description: handleDatabaseError('deleteMultipleLeads', error),
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
   return {
     leads,
     leadsByStatus,
@@ -277,6 +299,7 @@ export function useLeads() {
     updateLastContact,
     setNextFollowUp,
     deleteLead,
+    deleteMultipleLeads,
     refresh: fetchLeads,
   };
 }

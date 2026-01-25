@@ -14,7 +14,8 @@ import type { Lead } from '@/hooks/useLeads';
 interface DeleteLeadModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  lead: Lead | null;
+  lead?: Lead | null;
+  leads?: Lead[];
   onConfirm: () => Promise<void>;
 }
 
@@ -22,6 +23,7 @@ export function DeleteLeadModal({
   open,
   onOpenChange,
   lead,
+  leads,
   onConfirm,
 }: DeleteLeadModalProps) {
   const [deleting, setDeleting] = useState(false);
@@ -33,7 +35,10 @@ export function DeleteLeadModal({
     onOpenChange(false);
   };
 
-  if (!lead) return null;
+  const isBulk = leads && leads.length > 0;
+  const count = isBulk ? leads.length : 1;
+
+  if (!lead && !isBulk) return null;
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -41,11 +46,30 @@ export function DeleteLeadModal({
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Eliminar Lead?
+            {isBulk ? `Eliminar ${count} Leads?` : 'Eliminar Lead?'}
           </AlertDialogTitle>
           <AlertDialogDescription className="text-left">
-            Esta ação é irreversível. O lead <strong>"{lead.name}"</strong> será
-            removido permanentemente do sistema.
+            {isBulk ? (
+              <>
+                Esta ação é irreversível. Os <strong>{count} leads selecionados</strong> serão
+                removidos permanentemente do sistema.
+                {count <= 5 && (
+                  <ul className="mt-3 space-y-1 text-sm">
+                    {leads.map((l) => (
+                      <li key={l.id} className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-destructive" />
+                        {l.name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            ) : (
+              <>
+                Esta ação é irreversível. O lead <strong>"{lead?.name}"</strong> será
+                removido permanentemente do sistema.
+              </>
+            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -61,7 +85,7 @@ export function DeleteLeadModal({
             onClick={handleConfirm}
             disabled={deleting}
           >
-            {deleting ? 'Eliminando...' : 'Eliminar'}
+            {deleting ? 'Eliminando...' : isBulk ? `Eliminar ${count}` : 'Eliminar'}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

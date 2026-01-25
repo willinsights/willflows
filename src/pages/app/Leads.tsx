@@ -10,7 +10,9 @@ import {
   Search,
   Filter,
   LayoutGrid,
-  List
+  List,
+  Trash2,
+  CheckSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useLeads, LEAD_STATUS_CONFIG, LEAD_SOURCES, type Lead, type LeadStatus } from '@/hooks/useLeads';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { LeadKanban } from '@/components/leads/LeadKanban';
@@ -35,7 +38,7 @@ import { ClientDetailsModal } from '@/components/clients/ClientDetailsModal';
 import { cn } from '@/lib/utils';
 
 export default function Leads() {
-  const { leads, leadsByStatus, loading, pipelineMetrics, updateLeadStatus, deleteLead, refresh } = useLeads();
+  const { leads, leadsByStatus, loading, pipelineMetrics, updateLeadStatus, deleteLead, deleteMultipleLeads, refresh } = useLeads();
   const { currentWorkspace } = useWorkspace();
   
   const [view, setView] = useState<'kanban' | 'list'>('kanban');
@@ -46,6 +49,10 @@ export default function Leads() {
   const [markLostLead, setMarkLostLead] = useState<Lead | null>(null);
   const [deleteLeadModal, setDeleteLeadModal] = useState<Lead | null>(null);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  
+  // Bulk selection state
+  const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
   const currency = currentWorkspace?.currency || 'EUR';
 
@@ -122,6 +129,38 @@ export default function Leads() {
   const handleDeleteLead = async () => {
     if (!deleteLeadModal) return;
     await deleteLead(deleteLeadModal.id);
+  };
+
+  // Bulk selection handlers
+  const handleToggleSelect = (leadId: string) => {
+    setSelectedLeadIds(prev =>
+      prev.includes(leadId) ? prev.filter(id => id !== leadId) : [...prev, leadId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedLeadIds.length === filteredLeads.length) {
+      setSelectedLeadIds([]);
+    } else {
+      setSelectedLeadIds(filteredLeads.map(l => l.id));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    await deleteMultipleLeads(selectedLeadIds);
+    setSelectedLeadIds([]);
+    setShowBulkDeleteModal(false);
+  };
+
+  const selectedLeadsForBulk = useMemo(() => 
+    leads.filter(l => selectedLeadIds.includes(l.id)),
+    [leads, selectedLeadIds]
+  );
+
+  // Clear selection when switching views
+  const handleViewChange = (v: 'kanban' | 'list') => {
+    setSelectedLeadIds([]);
+    setView(v);
   };
 
   if (loading) {
@@ -230,7 +269,7 @@ export default function Leads() {
           </SelectContent>
         </Select>
 
-        <Tabs value={view} onValueChange={(v) => setView(v as 'kanban' | 'list')} className="ml-auto">
+        <Tabs value={view} onValueChange={(v) => handleViewChange(v as 'kanban' | 'list')} className="ml-auto">
           <TabsList>
             <TabsTrigger value="kanban" className="gap-1.5">
               <LayoutGrid className="h-4 w-4" />
@@ -243,6 +282,39 @@ export default function Leads() {
           </TabsList>
         </Tabs>
       </div>
+
+      {/* Bulk Action Bar */}
+      {view === 'list' && selectedLeadIds.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between p-3 rounded-xl bg-primary/10 border border-primary/20"
+        >
+          <div className="flex items-center gap-3">
+            <CheckSquare className="h-5 w-5 text-primary" />
+            <span className="font-medium">
+              {selectedLeadIds.length} lead{selectedLeadIds.length > 1 ? 's' : ''} selecionado{selectedLeadIds.length > 1 ? 's' : ''}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedLeadIds([])}
+            >
+              Limpar seleção
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowBulkDeleteModal(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Eliminar {selectedLeadIds.length}
+            </Button>
+          </div>
+        </motion.div>
+      )}
 
       {/* Content */}
       {view === 'kanban' ? (
@@ -282,9 +354,24 @@ export default function Leads() {
               </motion.div>
             ) : (
               <div className="space-y-2">
+                {/* Select All Header */}
+                <div className="flex items-center gap-3 px-4 py-2 border-b">
+                  <Checkbox
+                    checked={selectedLeadIds.length === filteredLeads.length && filteredLeads.length > 0}
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Selecionar todos"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {selectedLeadIds.length === filteredLeads.length 
+                      ? 'Desmarcar todos' 
+                      : `Selecionar todos (${filteredLeads.length})`}
+                  </span>
+                </div>
+                
                 {filteredLeads.map((lead, index) => {
                   const statusConfig = LEAD_STATUS_CONFIG[lead.lead_status || 'novo'];
                   const sourceLabel = LEAD_SOURCES.find(s => s.value === lead.lead_source)?.label;
+                  const isSelected = selectedLeadIds.includes(lead.id);
 
                   return (
                     <motion.div
@@ -292,41 +379,55 @@ export default function Leads() {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.02 }}
-                      onClick={() => setSelectedLead(lead)}
-                      className="flex items-center gap-4 p-4 rounded-xl border bg-card/50 hover:bg-card hover:shadow-md transition-all cursor-pointer"
+                      className={cn(
+                        "flex items-center gap-4 p-4 rounded-xl border bg-card/50 hover:bg-card hover:shadow-md transition-all cursor-pointer",
+                        isSelected && "bg-primary/5 border-primary/30"
+                      )}
                     >
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <span className="text-lg font-bold text-primary">
-                          {lead.name.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-medium truncate">{lead.name}</h4>
-                          <Badge
-                            variant="secondary"
-                            className={cn('text-xs', statusConfig.color)}
-                          >
-                            {statusConfig.label}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {lead.company || lead.email || 'Sem detalhes'}
-                        </p>
-                      </div>
-
-                      <div className="hidden sm:flex items-center gap-4">
-                        {sourceLabel && (
-                          <Badge variant="outline" className="text-xs">
-                            {sourceLabel}
-                          </Badge>
-                        )}
-                        {lead.estimated_value && lead.estimated_value > 0 && (
-                          <span className="text-sm font-medium text-emerald-600">
-                            {formatCurrency(lead.estimated_value)}
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => handleToggleSelect(lead.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={`Selecionar ${lead.name}`}
+                      />
+                      
+                      <div 
+                        className="flex items-center gap-4 flex-1 min-w-0"
+                        onClick={() => setSelectedLead(lead)}
+                      >
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <span className="text-lg font-bold text-primary">
+                            {lead.name.charAt(0).toUpperCase()}
                           </span>
-                        )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium truncate">{lead.name}</h4>
+                            <Badge
+                              variant="secondary"
+                              className={cn('text-xs', statusConfig.color)}
+                            >
+                              {statusConfig.label}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {lead.company || lead.email || 'Sem detalhes'}
+                          </p>
+                        </div>
+
+                        <div className="hidden sm:flex items-center gap-4">
+                          {sourceLabel && (
+                            <Badge variant="outline" className="text-xs">
+                              {sourceLabel}
+                            </Badge>
+                          )}
+                          {lead.estimated_value && lead.estimated_value > 0 && (
+                            <span className="text-sm font-medium text-emerald-600">
+                              {formatCurrency(lead.estimated_value)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </motion.div>
                   );
@@ -363,6 +464,14 @@ export default function Leads() {
         onOpenChange={(open) => !open && setDeleteLeadModal(null)}
         lead={deleteLeadModal}
         onConfirm={handleDeleteLead}
+      />
+
+      {/* Bulk Delete Modal */}
+      <DeleteLeadModal
+        open={showBulkDeleteModal}
+        onOpenChange={setShowBulkDeleteModal}
+        leads={selectedLeadsForBulk}
+        onConfirm={handleBulkDelete}
       />
 
       {selectedLead && (
