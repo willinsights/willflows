@@ -2,27 +2,34 @@ import { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useClients } from '@/hooks/useClients';
 import { appToast } from '@/hooks/useAppToast';
 
 const clientSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
-  company: z.string().optional(),
-  email: z.string().email('Email inválido').optional().or(z.literal('')),
+  company: z.string().min(2, 'Empresa é obrigatória'),
+  nif: z.string().min(1, 'Tax ID é obrigatório'),
+  address: z.string().min(5, 'Morada fiscal é obrigatória'),
+  postal_code: z.string().min(3, 'Código postal é obrigatório'),
+  country: z.string().min(2, 'País é obrigatório'),
+  email: z.string().email('Email inválido'),
   phone: z.string().optional(),
-  city: z.string().optional(),
-  notes: z.string().optional(),
 });
 
 type ClientFormData = z.infer<typeof clientSchema>;
@@ -46,10 +53,12 @@ export function CreateClientModal({
     defaultValues: {
       name: '',
       company: '',
+      nif: '',
+      address: '',
+      postal_code: '',
+      country: '',
       email: '',
       phone: '',
-      city: '',
-      notes: '',
     },
   });
 
@@ -58,11 +67,13 @@ export function CreateClientModal({
     
     const client = await createClient({
       name: data.name,
-      company: data.company || null,
-      email: data.email || null,
+      company: data.company,
+      nif: data.nif,
+      address: data.address,
+      postal_code: data.postal_code,
+      country: data.country,
+      email: data.email,
       phone: data.phone || null,
-      city: data.city || null,
-      notes: data.notes || null,
     });
 
     setLoading(false);
@@ -77,17 +88,18 @@ export function CreateClientModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Novo Cliente</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          {/* Nome */}
           <div className="space-y-2">
             <Label htmlFor="name">Nome *</Label>
             <Input
               id="name"
-              placeholder="Nome do cliente"
+              placeholder="Nome do contacto"
               {...form.register('name')}
             />
             {form.formState.errors.name && (
@@ -97,52 +109,117 @@ export function CreateClientModal({
             )}
           </div>
 
+          {/* Empresa */}
           <div className="space-y-2">
-            <Label htmlFor="company">Empresa</Label>
+            <Label htmlFor="company">Nome da Empresa *</Label>
             <Input
               id="company"
               placeholder="Nome da empresa"
               {...form.register('company')}
             />
+            {form.formState.errors.company && (
+              <p className="text-sm text-destructive">
+                {form.formState.errors.company.message}
+              </p>
+            )}
           </div>
 
+          {/* Tax ID com Tooltip */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="nif">Tax ID *</Label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p>Número fiscal do país (ex.: NIF, VAT, CNPJ, CPF, EIN…)</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <Input
+              id="nif"
+              placeholder="Ex: 123456789"
+              {...form.register('nif')}
+            />
+            {form.formState.errors.nif && (
+              <p className="text-sm text-destructive">
+                {form.formState.errors.nif.message}
+              </p>
+            )}
+          </div>
+
+          {/* Morada Fiscal */}
+          <div className="space-y-2">
+            <Label htmlFor="address">Morada Fiscal *</Label>
+            <Input
+              id="address"
+              placeholder="Rua, número, andar..."
+              {...form.register('address')}
+            />
+            {form.formState.errors.address && (
+              <p className="text-sm text-destructive">
+                {form.formState.errors.address.message}
+              </p>
+            )}
+          </div>
+
+          {/* Código Postal e País */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="postal_code">Código Postal *</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="email@exemplo.pt"
-                {...form.register('email')}
+                id="postal_code"
+                placeholder="1000-001"
+                {...form.register('postal_code')}
               />
+              {form.formState.errors.postal_code && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.postal_code.message}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Telefone</Label>
+              <Label htmlFor="country">País *</Label>
               <Input
-                id="phone"
-                placeholder="+351 912 345 678"
-                {...form.register('phone')}
+                id="country"
+                placeholder="Portugal"
+                {...form.register('country')}
               />
+              {form.formState.errors.country && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.country.message}
+                </p>
+              )}
             </div>
           </div>
 
+          {/* Email de Faturação */}
           <div className="space-y-2">
-            <Label htmlFor="city">Cidade</Label>
+            <Label htmlFor="email">Email de Faturação *</Label>
             <Input
-              id="city"
-              placeholder="Lisboa"
-              {...form.register('city')}
+              id="email"
+              type="email"
+              placeholder="faturacao@empresa.pt"
+              {...form.register('email')}
             />
+            {form.formState.errors.email && (
+              <p className="text-sm text-destructive">
+                {form.formState.errors.email.message}
+              </p>
+            )}
           </div>
 
+          {/* Telefone */}
           <div className="space-y-2">
-            <Label htmlFor="notes">Notas</Label>
-            <Textarea
-              id="notes"
-              placeholder="Observações..."
-              {...form.register('notes')}
-              rows={2}
+            <Label htmlFor="phone">Contacto Telefónico</Label>
+            <Input
+              id="phone"
+              placeholder="+351 912 345 678"
+              {...form.register('phone')}
             />
           </div>
 
