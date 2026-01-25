@@ -1,0 +1,329 @@
+import { useState } from 'react';
+import { Helmet } from 'react-helmet-async';
+import { Plus, FileText, FileCode, Send, Eye, CheckCircle, Search, Filter, LayoutGrid, List } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useContracts, CONTRACT_STATUS_LABELS, type Contract, type ContractStatus } from '@/hooks/useContracts';
+import { useContractTemplates, type ContractTemplate } from '@/hooks/useContractTemplates';
+import { CreateContractModal } from '@/components/contracts/CreateContractModal';
+import { CreateTemplateModal } from '@/components/contracts/CreateTemplateModal';
+import { ContractCard } from '@/components/contracts/ContractCard';
+import { ContractViewModal } from '@/components/contracts/ContractViewModal';
+import { toast } from 'sonner';
+
+export default function Contratos() {
+  const { contracts, loading, metrics, sendContract, cancelContract, deleteContract, refresh } = useContracts();
+  const { templates, loading: loadingTemplates, deleteTemplate, duplicateTemplate } = useContractTemplates();
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<ContractStatus | 'all'>('all');
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<ContractTemplate | null>(null);
+
+  // Filter contracts
+  const filteredContracts = contracts.filter(contract => {
+    const matchesSearch = !searchQuery || 
+      contract.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      contract.client?.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || contract.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleViewContract = (contract: Contract) => {
+    setSelectedContract(contract);
+    setViewModalOpen(true);
+  };
+
+  const handleSendContract = async (contract: Contract) => {
+    await sendContract(contract.id);
+    refresh();
+  };
+
+  const handleCancelContract = async (contract: Contract) => {
+    if (confirm('Tem a certeza que pretende cancelar este contrato?')) {
+      await cancelContract(contract.id);
+      refresh();
+    }
+  };
+
+  const handleDeleteContract = async (contract: Contract) => {
+    if (confirm('Tem a certeza que pretende eliminar este contrato? Esta ação é irreversível.')) {
+      await deleteContract(contract.id);
+    }
+  };
+
+  const handleEditTemplate = (template: ContractTemplate) => {
+    setEditingTemplate(template);
+    setTemplateModalOpen(true);
+  };
+
+  const handleDeleteTemplate = async (templateId: string) => {
+    if (confirm('Tem a certeza que pretende eliminar este template?')) {
+      await deleteTemplate(templateId);
+    }
+  };
+
+  const handleDuplicateTemplate = async (templateId: string) => {
+    await duplicateTemplate(templateId);
+    toast.success('Template duplicado com sucesso!');
+  };
+
+  return (
+    <>
+      <Helmet>
+        <title>Contratos | WillFlow</title>
+      </Helmet>
+
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">Contratos</h1>
+            <p className="text-muted-foreground">
+              Gestão de contratos e assinaturas digitais
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => {
+              setEditingTemplate(null);
+              setTemplateModalOpen(true);
+            }}>
+              <FileCode className="h-4 w-4 mr-2" />
+              Novo Template
+            </Button>
+            <Button className="gradient-primary" onClick={() => setCreateModalOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Contrato
+            </Button>
+          </div>
+        </div>
+
+        {/* Metrics */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="p-4 rounded-xl bg-card/80 backdrop-blur-sm border">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <FileText className="h-4 w-4" />
+              <span className="text-sm">Rascunhos</span>
+            </div>
+            <p className="text-2xl font-bold">{metrics.draft}</p>
+          </div>
+          <div className="p-4 rounded-xl bg-card/80 backdrop-blur-sm border">
+            <div className="flex items-center gap-2 text-blue-600 mb-1">
+              <Send className="h-4 w-4" />
+              <span className="text-sm">Enviados</span>
+            </div>
+            <p className="text-2xl font-bold">{metrics.sent}</p>
+          </div>
+          <div className="p-4 rounded-xl bg-card/80 backdrop-blur-sm border">
+            <div className="flex items-center gap-2 text-amber-600 mb-1">
+              <Eye className="h-4 w-4" />
+              <span className="text-sm">Visualizados</span>
+            </div>
+            <p className="text-2xl font-bold">{metrics.viewed}</p>
+          </div>
+          <div className="p-4 rounded-xl bg-card/80 backdrop-blur-sm border">
+            <div className="flex items-center gap-2 text-emerald-600 mb-1">
+              <CheckCircle className="h-4 w-4" />
+              <span className="text-sm">Assinados</span>
+            </div>
+            <p className="text-2xl font-bold">{metrics.signed}</p>
+          </div>
+          <div className="p-4 rounded-xl bg-card/80 backdrop-blur-sm border">
+            <div className="text-muted-foreground text-sm mb-1">Valor Assinado</div>
+            <p className="text-2xl font-bold text-emerald-600">
+              {new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(metrics.totalValue)}
+            </p>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <Tabs defaultValue="contracts" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="contracts">
+              <FileText className="h-4 w-4 mr-2" />
+              Contratos ({contracts.length})
+            </TabsTrigger>
+            <TabsTrigger value="templates">
+              <FileCode className="h-4 w-4 mr-2" />
+              Templates ({templates.length})
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Contracts Tab */}
+          <TabsContent value="contracts" className="space-y-4">
+            {/* Filters */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Pesquisar contratos..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val as ContractStatus | 'all')}>
+                <SelectTrigger className="w-[180px]">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {Object.entries(CONTRACT_STATUS_LABELS).map(([value, { label }]) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Contracts List */}
+            {loading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => (
+                  <Skeleton key={i} className="h-24 w-full rounded-xl" />
+                ))}
+              </div>
+            ) : filteredContracts.length === 0 ? (
+              <div className="text-center py-12">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                <h3 className="font-medium text-lg mb-1">
+                  {searchQuery || statusFilter !== 'all' ? 'Nenhum contrato encontrado' : 'Sem contratos'}
+                </h3>
+                <p className="text-muted-foreground text-sm mb-4">
+                  {searchQuery || statusFilter !== 'all' 
+                    ? 'Tente ajustar os filtros de pesquisa'
+                    : 'Crie o seu primeiro contrato para começar'}
+                </p>
+                {!searchQuery && statusFilter === 'all' && (
+                  <Button onClick={() => setCreateModalOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Novo Contrato
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredContracts.map(contract => (
+                  <ContractCard
+                    key={contract.id}
+                    contract={contract}
+                    onView={handleViewContract}
+                    onSend={handleSendContract}
+                    onCancel={handleCancelContract}
+                    onDelete={handleDeleteContract}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Templates Tab */}
+          <TabsContent value="templates" className="space-y-4">
+            {loadingTemplates ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[1, 2, 3].map(i => (
+                  <Skeleton key={i} className="h-40 w-full rounded-xl" />
+                ))}
+              </div>
+            ) : templates.length === 0 ? (
+              <div className="text-center py-12">
+                <FileCode className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                <h3 className="font-medium text-lg mb-1">Sem templates</h3>
+                <p className="text-muted-foreground text-sm mb-4">
+                  Crie templates reutilizáveis para os seus contratos
+                </p>
+                <Button onClick={() => {
+                  setEditingTemplate(null);
+                  setTemplateModalOpen(true);
+                }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Template
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {templates.map(template => (
+                  <div
+                    key={template.id}
+                    className="p-4 rounded-xl border bg-card/80 backdrop-blur-sm hover:shadow-md transition-all group"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <h3 className="font-medium">{template.name}</h3>
+                        {template.category && (
+                          <Badge variant="outline" className="mt-1 text-xs">
+                            {template.category}
+                          </Badge>
+                        )}
+                      </div>
+                      {template.is_default && (
+                        <Badge className="bg-primary/20 text-primary">Padrão</Badge>
+                      )}
+                    </div>
+                    {template.description && (
+                      <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                        {template.description}
+                      </p>
+                    )}
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button size="sm" variant="outline" onClick={() => handleEditTemplate(template)}>
+                        Editar
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => handleDuplicateTemplate(template.id)}>
+                        Duplicar
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        className="text-destructive"
+                        onClick={() => handleDeleteTemplate(template.id)}
+                      >
+                        Eliminar
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* Modals */}
+      <CreateContractModal
+        open={createModalOpen}
+        onOpenChange={setCreateModalOpen}
+        onSuccess={() => refresh()}
+      />
+
+      <CreateTemplateModal
+        open={templateModalOpen}
+        onOpenChange={(open) => {
+          setTemplateModalOpen(open);
+          if (!open) setEditingTemplate(null);
+        }}
+        editTemplate={editingTemplate}
+      />
+
+      <ContractViewModal
+        open={viewModalOpen}
+        onOpenChange={setViewModalOpen}
+        contract={selectedContract}
+        onSend={handleSendContract}
+      />
+    </>
+  );
+}

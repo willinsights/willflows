@@ -638,6 +638,192 @@ export type Database = {
           },
         ]
       }
+      contract_templates: {
+        Row: {
+          category: string | null
+          content: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          placeholders: Json | null
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          category?: string | null
+          content: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          placeholders?: Json | null
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          category?: string | null
+          content?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          placeholders?: Json | null
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_templates_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_views: {
+        Row: {
+          contract_id: string
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+          viewed_at: string | null
+        }
+        Insert: {
+          contract_id: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          viewed_at?: string | null
+        }
+        Update: {
+          contract_id?: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_views_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contracts: {
+        Row: {
+          client_id: string
+          client_signature_data: string | null
+          client_signed_ip: string | null
+          client_signed_name: string | null
+          client_signed_user_agent: string | null
+          content: string
+          created_at: string | null
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          payment_terms: string | null
+          project_id: string | null
+          sent_at: string | null
+          signature_token: string | null
+          signed_at: string | null
+          status: Database["public"]["Enums"]["contract_status"]
+          template_id: string | null
+          title: string
+          total_value: number | null
+          updated_at: string | null
+          viewed_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          client_id: string
+          client_signature_data?: string | null
+          client_signed_ip?: string | null
+          client_signed_name?: string | null
+          client_signed_user_agent?: string | null
+          content: string
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          payment_terms?: string | null
+          project_id?: string | null
+          sent_at?: string | null
+          signature_token?: string | null
+          signed_at?: string | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          template_id?: string | null
+          title: string
+          total_value?: number | null
+          updated_at?: string | null
+          viewed_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          client_id?: string
+          client_signature_data?: string | null
+          client_signed_ip?: string | null
+          client_signed_name?: string | null
+          client_signed_user_agent?: string | null
+          content?: string
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          payment_terms?: string | null
+          project_id?: string | null
+          sent_at?: string | null
+          signature_token?: string | null
+          signed_at?: string | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          template_id?: string | null
+          title?: string
+          total_value?: number | null
+          updated_at?: string | null
+          viewed_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "contract_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_members: {
         Row: {
           conversation_id: string
@@ -2859,6 +3045,13 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "editor" | "captacao" | "freelancer" | "visualizador"
+      contract_status:
+        | "draft"
+        | "sent"
+        | "viewed"
+        | "signed"
+        | "expired"
+        | "cancelled"
       conversation_type: "channel" | "project" | "dm"
       country_region: "PT" | "BR"
       followup_status: "open" | "done"
@@ -3005,6 +3198,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "editor", "captacao", "freelancer", "visualizador"],
+      contract_status: [
+        "draft",
+        "sent",
+        "viewed",
+        "signed",
+        "expired",
+        "cancelled",
+      ],
       conversation_type: ["channel", "project", "dm"],
       country_region: ["PT", "BR"],
       followup_status: ["open", "done"],
