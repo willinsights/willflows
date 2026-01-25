@@ -289,6 +289,53 @@ export function useLeads() {
     }
   };
 
+  const importLeads = async (leadsData: {
+    name: string;
+    email?: string;
+    phone?: string;
+    company?: string;
+    lead_source?: string;
+    estimated_value?: number;
+    notes?: string;
+  }[]) => {
+    if (!currentWorkspace) return { success: 0, failed: leadsData.length };
+
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .insert(
+          leadsData.map(lead => ({
+            ...lead,
+            workspace_id: currentWorkspace.id,
+            lead_status: 'novo' as LeadStatus,
+          }))
+        )
+        .select();
+
+      if (error) throw error;
+
+      const insertedLeads = (data || []) as Lead[];
+      setLeads(prev => [...insertedLeads, ...prev]);
+
+      const successCount = insertedLeads.length;
+      const failedCount = leadsData.length - successCount;
+
+      toast({
+        title: `${successCount} lead${successCount !== 1 ? 's' : ''} importado${successCount !== 1 ? 's' : ''} com sucesso`,
+        description: failedCount > 0 ? `${failedCount} falharam` : undefined,
+      });
+
+      return { success: successCount, failed: failedCount };
+    } catch (error) {
+      toast({
+        title: 'Erro ao importar leads',
+        description: handleDatabaseError('importLeads', error),
+        variant: 'destructive',
+      });
+      return { success: 0, failed: leadsData.length };
+    }
+  };
+
   return {
     leads,
     leadsByStatus,
@@ -300,6 +347,7 @@ export function useLeads() {
     setNextFollowUp,
     deleteLead,
     deleteMultipleLeads,
+    importLeads,
     refresh: fetchLeads,
   };
 }

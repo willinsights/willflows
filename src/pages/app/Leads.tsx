@@ -12,7 +12,8 @@ import {
   LayoutGrid,
   List,
   Trash2,
-  CheckSquare
+  CheckSquare,
+  Upload
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,17 +35,19 @@ import { CreateLeadModal } from '@/components/leads/CreateLeadModal';
 import { ConvertLeadModal } from '@/components/leads/ConvertLeadModal';
 import { MarkLostModal } from '@/components/leads/MarkLostModal';
 import { DeleteLeadModal } from '@/components/leads/DeleteLeadModal';
+import { ImportLeadsModal } from '@/components/leads/ImportLeadsModal';
 import { ClientDetailsModal } from '@/components/clients/ClientDetailsModal';
 import { cn } from '@/lib/utils';
 
 export default function Leads() {
-  const { leads, leadsByStatus, loading, pipelineMetrics, updateLeadStatus, deleteLead, deleteMultipleLeads, refresh } = useLeads();
+  const { leads, leadsByStatus, loading, pipelineMetrics, updateLeadStatus, deleteLead, deleteMultipleLeads, importLeads, refresh } = useLeads();
   const { currentWorkspace } = useWorkspace();
   
   const [view, setView] = useState<'kanban' | 'list'>('kanban');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterSource, setFilterSource] = useState<string>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [convertLead, setConvertLead] = useState<Lead | null>(null);
   const [markLostLead, setMarkLostLead] = useState<Lead | null>(null);
   const [deleteLeadModal, setDeleteLeadModal] = useState<Lead | null>(null);
@@ -182,12 +185,17 @@ export default function Leads() {
           </h1>
           <p className="text-muted-foreground">Pipeline de captação e qualificação</p>
         </div>
-        <Button className="gradient-primary" onClick={() => setShowCreateModal(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Lead
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setShowImportModal(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Importar
+          </Button>
+          <Button className="gradient-primary" onClick={() => setShowCreateModal(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Lead
+          </Button>
+        </div>
       </div>
-
       {/* Metrics Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="glass-card">
@@ -443,6 +451,13 @@ export default function Leads() {
         open={showCreateModal}
         onOpenChange={setShowCreateModal}
         onSuccess={refresh}
+      />
+
+      <ImportLeadsModal
+        open={showImportModal}
+        onOpenChange={setShowImportModal}
+        existingLeads={leads}
+        onImport={importLeads}
       />
 
       <ConvertLeadModal
