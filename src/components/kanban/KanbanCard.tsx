@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { cn } from '@/lib/utils';
 import type { ProjectWithClient } from '@/hooks/useKanban';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
+import { KanbanChatIndicator } from './KanbanChatIndicator';
 
 interface KanbanCardProps {
   project: ProjectWithClient;
@@ -101,7 +102,7 @@ function KanbanCardComponent({ project, onClick, style: externalStyle }: KanbanC
         <Grip className="h-3 w-3 text-muted-foreground" />
       </div>
 
-      {/* Header: Type + Priority */}
+      {/* Header: Type + Priority + Chat */}
       <div className="flex items-center gap-1 mb-1">
         <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 gap-0.5 font-normal">
           <TypeIcon className="h-2.5 w-2.5" />
@@ -112,9 +113,12 @@ function KanbanCardComponent({ project, onClick, style: externalStyle }: KanbanC
             {priorityInfo.label}
           </Badge>
         )}
-        {isOverdue && (
-          <AlertTriangle className="h-3 w-3 text-destructive ml-auto" />
-        )}
+        <div className="ml-auto flex items-center gap-1">
+          <KanbanChatIndicator projectId={project.id} />
+          {isOverdue && (
+            <AlertTriangle className="h-3 w-3 text-destructive" />
+          )}
+        </div>
       </div>
 
       {/* Project Name */}
