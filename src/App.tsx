@@ -76,6 +76,8 @@ const Faturacao = lazy(() => import("./pages/app/Faturacao"));
 const Planos = lazy(() => import("./pages/app/Planos"));
 const Chat = lazy(() => import("./pages/app/Chat"));
 const Leads = lazy(() => import("./pages/app/Leads"));
+const Contratos = lazy(() => import("./pages/app/Contratos"));
+const ContractSign = lazy(() => import("./pages/public/ContractSign"));
 
 // Admin pages (new /admin route)
 const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
@@ -132,6 +134,7 @@ const App = () => (
                     <Route path="/para-agencias" element={<ParaAgencias />} />
                     <Route path="/para-produtoras" element={<ParaProdutoras />} />
                     <Route path="/contato" element={<Contact />} />
+                    <Route path="/contrato/:token" element={<ContractSign />} />
                     <Route path="/vs" element={<ComparisonsHub />} />
                     <Route path="/vs/asana" element={<VsAsana />} />
                     <Route path="/vs/clickup" element={<VsClickUp />} />
@@ -183,6 +186,7 @@ const App = () => (
                       <Route path="media" element={<Media />} />
                       <Route path="clientes" element={<Clientes />} />
                       <Route path="leads" element={<Leads />} />
+                      <Route path="contratos" element={<Contratos />} />
                       <Route path="calendario" element={<Calendario />} />
                       <Route path="pagamentos" element={<Pagamentos />} />
                       <Route path="relatorios" element={<Relatorios />} />
