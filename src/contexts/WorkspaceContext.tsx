@@ -111,7 +111,7 @@ function setCachedWorkspace(userId: string, workspace: Workspace, membership: Wo
       workspace, 
       membership, 
       allWorkspaces,
-      cachedAt: Date.now() // Adicionar timestamp
+      cachedAt: Date.now()
     }));
   } catch {
     // Ignore cache errors
@@ -124,6 +124,41 @@ function clearCachedWorkspace() {
   } catch {
     // Ignore cache errors
   }
+}
+
+// CRITICAL: Função síncrona para inicialização lazy do estado
+// Isto garante que o cache é lido ANTES do primeiro render
+function getInitialStateFromCache(): {
+  workspace: Workspace | null;
+  membership: WorkspaceMember | null;
+  allWorkspaces: WorkspaceWithRole[];
+  hasValidCache: boolean;
+  cachedUserId: string | null;
+} {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const data = JSON.parse(cached) as CachedWorkspaceData;
+      if (data.workspace && data.membership) {
+        return {
+          workspace: data.workspace,
+          membership: data.membership,
+          allWorkspaces: data.allWorkspaces || [],
+          hasValidCache: true,
+          cachedUserId: data.userId,
+        };
+      }
+    }
+  } catch {
+    // Ignore
+  }
+  return {
+    workspace: null,
+    membership: null,
+    allWorkspaces: [],
+    hasValidCache: false,
+    cachedUserId: null,
+  };
 }
 
 function getLastWorkspaceId(): string | null {
@@ -168,21 +203,31 @@ function clearWorkspaceSwitchHandoff() {
 }
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  // CRITICAL: Lazy state initialization - lê cache SINCRONAMENTE antes do primeiro render
+  // Isto elimina completamente o flash do onboarding pois o estado já vem preenchido
+  const [initialCache] = useState(() => getInitialStateFromCache());
+  
   // Manage our own auth state to avoid circular dependency with AuthContext
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [workspace, setWorkspace] = useState<Workspace | null>(null);
-  const [membership, setMembership] = useState<WorkspaceMember | null>(null);
-  const [allWorkspaces, setAllWorkspaces] = useState<WorkspaceWithRole[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // CRITICAL: Se temos cache válido, começar com os dados do cache
+  const [workspace, setWorkspace] = useState<Workspace | null>(initialCache.workspace);
+  const [membership, setMembership] = useState<WorkspaceMember | null>(initialCache.membership);
+  const [allWorkspaces, setAllWorkspaces] = useState<WorkspaceWithRole[]>(initialCache.allWorkspaces);
+  
+  // CRITICAL: Se temos cache, começar com loading=false para evitar flash
+  const [loading, setLoading] = useState(!initialCache.hasValidCache);
   const [fetchError, setFetchError] = useState(false);
   
   // Refs to prevent infinite loops
   const isFetchingRef = useRef(false);
   const lastErrorTimeRef = useRef(0);
   const retryCountRef = useRef(0);
-  const hasFetchedRef = useRef(false);
-  const currentUserIdRef = useRef<string | null>(null);
+  // Se temos cache, marcar como já fetched para não fazer fetch desnecessário
+  const hasFetchedRef = useRef(initialCache.hasValidCache);
+  const currentUserIdRef = useRef<string | null>(initialCache.cachedUserId);
+  const initialCacheUserIdRef = useRef<string | null>(initialCache.cachedUserId);
 
   // Listen to auth state changes directly from supabase
   useEffect(() => {
@@ -217,8 +262,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // IMPORTANTE: Limpar cache antigo PRIMEIRO para garantir que nenhum dado stale persiste
-      clearCachedWorkspace();
+      // NOTA: NÃO limpar cache aqui - vamos sobrescrever diretamente
+      // Isso evita race condition onde cache está vazio durante o reload
       
       // Fetch the membership for this workspace
       const { data: membershipData, error } = await supabase
@@ -445,33 +490,53 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [user, fetchError]);
 
   useEffect(() => {
+    // CRITICAL: Verificar se o user do auth corresponde ao user do cache
+    // Se não corresponder, precisamos limpar e fazer refetch
+    const cacheUserMismatch = initialCacheUserIdRef.current && user?.id && initialCacheUserIdRef.current !== user.id;
+    
     // Reset if user changed
     if (user?.id !== currentUserIdRef.current) {
-      hasFetchedRef.current = false;
-      retryCountRef.current = 0;
+      // Só resetar hasFetchedRef se realmente mudou de user (não no primeiro load)
+      if (currentUserIdRef.current !== null || cacheUserMismatch) {
+        hasFetchedRef.current = false;
+        retryCountRef.current = 0;
+      }
       currentUserIdRef.current = user?.id || null;
     }
 
     if (user) {
-      // Try to use cache first for faster initial load
+      // Verificar se o cache inicial era de outro user
+      if (cacheUserMismatch) {
+        // Limpar dados do user anterior
+        clearCachedWorkspace();
+        localStorage.removeItem(LAST_WORKSPACE_KEY);
+        setWorkspace(null);
+        setMembership(null);
+        setAllWorkspaces([]);
+        initialCacheUserIdRef.current = null;
+      }
+      
+      // Verificar cache atual
       const cached = getCachedWorkspace();
       const cacheIsValid = cached && cached.userId === user.id && isCacheValid(cached);
       
-      // Only use cache if it belongs to the current user
-      if (cached && cached.userId === user.id) {
+      // Se já temos dados do cache inicial do mesmo user, não precisamos fazer nada
+      if (initialCache.hasValidCache && initialCache.cachedUserId === user.id && !hasFetchedRef.current) {
+        hasFetchedRef.current = true;
+        setLoading(false);
+        return;
+      }
+      
+      // Only use fresh cache if it belongs to the current user
+      if (cached && cached.userId === user.id && !hasFetchedRef.current) {
         setWorkspace(cached.workspace);
         setMembership(cached.membership);
         setAllWorkspaces(cached.allWorkspaces || []);
         setLoading(false);
         
-        // Se o cache é válido e recente, marcar como já fetched para evitar re-fetch
-        if (cacheIsValid && !hasFetchedRef.current) {
+        if (cacheIsValid) {
           hasFetchedRef.current = true;
         }
-      } else if (cached && cached.userId !== user.id) {
-        // Different user - clear the stale cache
-        clearCachedWorkspace();
-        localStorage.removeItem(LAST_WORKSPACE_KEY);
       }
       
       // Fetch se: não temos cache válido OU cache expirou
@@ -486,8 +551,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       clearCachedWorkspace();
       localStorage.removeItem(LAST_WORKSPACE_KEY);
+      initialCacheUserIdRef.current = null;
     }
-  }, [user, refreshWorkspace]);
+  }, [user, refreshWorkspace, initialCache]);
 
   const isAdmin = membership?.role === 'admin';
   const canEdit = ['admin', 'editor', 'captacao'].includes(membership?.role || '');
