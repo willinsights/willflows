@@ -146,7 +146,7 @@ export function ChatSidebar({
                 <ChevronRight className="h-3.5 w-3.5" />
               )}
             </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-0.5">
+            <CollapsibleContent className="space-y-0.5 overflow-hidden">
               {projectChats.length === 0 ? (
                 <p className="px-4 py-3 text-sm text-muted-foreground">
                   Nenhum projeto com chat
@@ -197,7 +197,7 @@ export function ChatSidebar({
                 </Button>
               )}
             </div>
-            <CollapsibleContent className="space-y-0.5">
+            <CollapsibleContent className="space-y-0.5 overflow-hidden">
               {channels.length === 0 ? (
                 <div className="px-4 py-4 text-center">
                   <p className="text-sm text-muted-foreground mb-3">
@@ -256,7 +256,7 @@ export function ChatSidebar({
                 <span className="text-xs font-medium">Nova</span>
               </Button>
             </div>
-            <CollapsibleContent className="space-y-0.5">
+            <CollapsibleContent className="space-y-0.5 overflow-hidden">
               {dms.length === 0 ? (
                 <div className="px-4 py-6 text-center">
                   <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
