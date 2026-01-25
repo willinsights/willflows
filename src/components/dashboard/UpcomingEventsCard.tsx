@@ -57,7 +57,7 @@ export function UpcomingEventsCard({ events, loading }: UpcomingEventsCardProps)
             <div className="p-1.5 rounded-md bg-primary/10">
               <Calendar className="h-4 w-4 text-primary" />
             </div>
-            Próximos Eventos
+            Próximos Compromissos
           </CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4">

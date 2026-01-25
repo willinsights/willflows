@@ -138,13 +138,14 @@ export function useKanban(phase: KanbanPhase) {
 
       if (columnsError) throw columnsError;
 
-      // Fetch projects for this phase
+      // Fetch projects for this phase (exclude reuniões - they only appear in calendar)
       const columnField = phase === 'captacao' ? 'captacao_column_id' : 'edicao_column_id';
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select('*, clients(name)')
         .eq('workspace_id', currentWorkspace.id)
-        .eq('current_phase', phase);
+        .eq('current_phase', phase)
+        .neq('item_type', 'reuniao'); // P1.7: Reuniões só aparecem no calendário
 
       if (projectsError) throw projectsError;
 

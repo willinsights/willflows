@@ -1160,10 +1160,11 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                 <ProjectChecklistTab
                   checklists={checklists}
                   setChecklists={setChecklists}
+                  tasks={tasks}
                   projectId={project.id}
-                  taskId={firstTaskId}
                   workspaceId={project.workspace_id}
                   currentPhase={project.current_phase}
+                  itemType={(project.item_type as 'projeto_captacao' | 'projeto_edicao' | 'projeto_completo' | 'reuniao') || 'projeto_completo'}
                 />
               </TabsContent>
 
