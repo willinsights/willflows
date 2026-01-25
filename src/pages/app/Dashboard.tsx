@@ -85,6 +85,9 @@ export default function Dashboard() {
       item_type: null,
       custos_extras: null,
       custos_extras_payment_status: null,
+      client_payment_status: null,
+      client_payment_due_date: null,
+      client_paid_at: null,
     };
     setSelectedProject(projectForModal);
     setIsModalOpen(true);

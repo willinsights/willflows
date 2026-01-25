@@ -1667,6 +1667,9 @@ export type Database = {
           category: Database["public"]["Enums"]["project_category"]
           city: string | null
           client_id: string | null
+          client_paid_at: string | null
+          client_payment_due_date: string | null
+          client_payment_status: string | null
           country: string | null
           created_at: string
           created_by: string | null
@@ -1708,6 +1711,9 @@ export type Database = {
           category?: Database["public"]["Enums"]["project_category"]
           city?: string | null
           client_id?: string | null
+          client_paid_at?: string | null
+          client_payment_due_date?: string | null
+          client_payment_status?: string | null
           country?: string | null
           created_at?: string
           created_by?: string | null
@@ -1749,6 +1755,9 @@ export type Database = {
           category?: Database["public"]["Enums"]["project_category"]
           city?: string | null
           client_id?: string | null
+          client_paid_at?: string | null
+          client_payment_due_date?: string | null
+          client_payment_status?: string | null
           country?: string | null
           created_at?: string
           created_by?: string | null
