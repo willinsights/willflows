@@ -211,23 +211,24 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   
-  // CRITICAL: Se temos cache válido, começar com os dados do cache
-  const [workspace, setWorkspace] = useState<Workspace | null>(initialCache.workspace);
-  const [membership, setMembership] = useState<WorkspaceMember | null>(initialCache.membership);
-  const [allWorkspaces, setAllWorkspaces] = useState<WorkspaceWithRole[]>(initialCache.allWorkspaces);
+  // NOTA: NÃO usar dados do cache inicial até confirmar que pertence ao user atual
+  // O useEffect vai aplicar os dados depois de verificar o userId
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [membership, setMembership] = useState<WorkspaceMember | null>(null);
+  const [allWorkspaces, setAllWorkspaces] = useState<WorkspaceWithRole[]>([]);
   
-  // CRITICAL: Se temos cache, começar com loading=false para evitar flash
-  const [loading, setLoading] = useState(!initialCache.hasValidCache);
+  // Começar com loading=true, o useEffect vai mudar para false após verificar cache
+  const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
   
   // Refs to prevent infinite loops
   const isFetchingRef = useRef(false);
   const lastErrorTimeRef = useRef(0);
   const retryCountRef = useRef(0);
-  // Se temos cache, marcar como já fetched para não fazer fetch desnecessário
-  const hasFetchedRef = useRef(initialCache.hasValidCache);
-  const currentUserIdRef = useRef<string | null>(initialCache.cachedUserId);
-  const initialCacheUserIdRef = useRef<string | null>(initialCache.cachedUserId);
+  const hasFetchedRef = useRef(false);
+  const currentUserIdRef = useRef<string | null>(null);
+  // Guardar cache inicial para usar depois de verificar user
+  const initialCacheRef = useRef(initialCache);
 
   // Listen to auth state changes directly from supabase
   useEffect(() => {
@@ -492,7 +493,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // CRITICAL: Verificar se o user do auth corresponde ao user do cache
     // Se não corresponder, precisamos limpar e fazer refetch
-    const cacheUserMismatch = initialCacheUserIdRef.current && user?.id && initialCacheUserIdRef.current !== user.id;
+    const cachedUserId = initialCacheRef.current.cachedUserId;
+    const cacheUserMismatch = cachedUserId && user?.id && cachedUserId !== user.id;
     
     // Reset if user changed
     if (user?.id !== currentUserIdRef.current) {
@@ -513,15 +515,27 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setWorkspace(null);
         setMembership(null);
         setAllWorkspaces([]);
-        initialCacheUserIdRef.current = null;
+        // Resetar o ref do cache inicial
+        initialCacheRef.current = {
+          workspace: null,
+          membership: null,
+          allWorkspaces: [],
+          hasValidCache: false,
+          cachedUserId: null,
+        };
       }
       
       // Verificar cache atual
       const cached = getCachedWorkspace();
       const cacheIsValid = cached && cached.userId === user.id && isCacheValid(cached);
       
-      // Se já temos dados do cache inicial do mesmo user, não precisamos fazer nada
-      if (initialCache.hasValidCache && initialCache.cachedUserId === user.id && !hasFetchedRef.current) {
+      // Se temos dados do cache inicial do MESMO user, aplicar e marcar como fetched
+      const initialCacheData = initialCacheRef.current;
+      if (initialCacheData.hasValidCache && initialCacheData.cachedUserId === user.id && !hasFetchedRef.current) {
+        // Aplicar dados do cache inicial agora que confirmamos o user
+        setWorkspace(initialCacheData.workspace);
+        setMembership(initialCacheData.membership);
+        setAllWorkspaces(initialCacheData.allWorkspaces);
         hasFetchedRef.current = true;
         setLoading(false);
         return;
@@ -551,9 +565,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       clearCachedWorkspace();
       localStorage.removeItem(LAST_WORKSPACE_KEY);
-      initialCacheUserIdRef.current = null;
     }
-  }, [user, refreshWorkspace, initialCache]);
+  }, [user, refreshWorkspace]);
 
   const isAdmin = membership?.role === 'admin';
   const canEdit = ['admin', 'editor', 'captacao'].includes(membership?.role || '');
