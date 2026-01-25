@@ -194,7 +194,7 @@ export function ChatLayout({ selectedConversationId }: ChatLayoutProps) {
 
       {/* Right Panel - Context */}
       {showContextPanel && activeConversationId && (
-        <div className="w-80 lg:w-96 border-l border-border/60 bg-card/80 backdrop-blur-sm overflow-hidden">
+        <div className="w-96 xl:w-[420px] border-l border-border/60 bg-card/80 backdrop-blur-sm overflow-y-auto overflow-x-hidden">
           <ChatContextPanel
             conversationId={activeConversationId}
             onClose={() => setShowContextPanel(false)}
