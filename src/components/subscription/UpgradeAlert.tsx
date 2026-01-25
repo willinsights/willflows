@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, forwardRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Crown, Sparkles, ArrowRight, X } from 'lucide-react';
+import { Lock, Crown, Sparkles, ArrowRight } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -45,7 +45,7 @@ const PLAN_COLORS: Record<SubscriptionPlan, string> = {
   studio: 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-400',
 };
 
-export function UpgradeAlert({
+export const UpgradeAlert = forwardRef<HTMLDivElement, UpgradeAlertProps>(function UpgradeAlert({
   isOpen,
   onClose,
   feature,
@@ -55,7 +55,7 @@ export function UpgradeAlert({
   currentUsage,
   limit,
   alternativeAction,
-}: UpgradeAlertProps) {
+}, ref) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { currentWorkspace } = useWorkspace();
@@ -199,4 +199,4 @@ export function UpgradeAlert({
       </DialogContent>
     </Dialog>
   );
-}
+});
