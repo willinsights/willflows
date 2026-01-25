@@ -1,10 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, subDays, startOfYear, endOfYear } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, startOfYear } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import {
   BarChart3,
-  Calendar,
   TrendingUp,
   Users,
   Award,
@@ -14,11 +13,13 @@ import {
   Crown,
   FolderKanban,
   CalendarDays,
+  UserCircle,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -28,6 +29,7 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import {
   BarChart,
@@ -48,34 +50,48 @@ import {
 } from 'recharts';
 import { useProjects } from '@/hooks/useProjects';
 import { useClients } from '@/hooks/useClients';
-import { usePayments } from '@/hooks/usePayments';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useFeatureGate } from '@/components/subscription/FeatureGate';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 type PeriodType = '1M' | '3M' | '6M' | '12M' | 'YTD' | 'custom';
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--info))', 'hsl(var(--destructive))'];
 
+interface CollaboratorData {
+  userId: string;
+  name: string;
+  avatarUrl: string | null;
+  totalValue: number;
+  projectCount: number;
+  phases: string[];
+  isExternal: boolean;
+}
+
 export default function Relatorios() {
   const navigate = useNavigate();
   const { projects } = useProjects();
   const { clients } = useClients();
-  const { payments } = usePayments();
   const { currentWorkspace } = useWorkspace();
   const { canViewReports } = useFinancialPermissions();
   const { hasAccess: canExportPdf, requireFeature: requirePdfExport, UpgradeAlertComponent } = useFeatureGate('exportPdf');
   const { hasAccess: canExportExcel, requireFeature: requireExcelExport } = useFeatureGate('exportExcel');
   
-  // Period state - improved with more options
+  // Period state
   const [periodType, setPeriodType] = useState<PeriodType>('6M');
   const [customDateRange, setCustomDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
     from: undefined,
     to: undefined,
   });
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  // Top Collaborators data
+  const [collaboratorsData, setCollaboratorsData] = useState<CollaboratorData[]>([]);
 
   const currency = currentWorkspace?.currency || 'EUR';
 
@@ -119,7 +135,81 @@ export default function Relatorios() {
     return Math.max(1, Math.ceil(diffDays / 30));
   }, [dateRange]);
 
-  // Calculate monthly revenue data - USAR delivered_at para projetos entregues
+  // Fetch collaborators data
+  useEffect(() => {
+    const fetchCollaborators = async () => {
+      if (!currentWorkspace?.id) return;
+
+      const projectIds = projects.map(p => p.id);
+      if (projectIds.length === 0) {
+        setCollaboratorsData([]);
+        return;
+      }
+
+      const { data: teamData } = await supabase
+        .from('project_team')
+        .select(`
+          user_id,
+          external_name,
+          is_external,
+          payment_amount,
+          phase,
+          project_id,
+          profiles:user_id (
+            full_name,
+            avatar_url
+          )
+        `)
+        .in('project_id', projectIds);
+
+      if (!teamData) {
+        setCollaboratorsData([]);
+        return;
+      }
+
+      // Aggregate by collaborator (user_id or external_name)
+      const collaboratorStats: Record<string, CollaboratorData> = {};
+
+      teamData.forEach((entry: any) => {
+        const isExternal = entry.is_external || !entry.user_id;
+        const key = isExternal ? `ext_${entry.external_name}` : entry.user_id;
+        const name = isExternal 
+          ? entry.external_name 
+          : (entry.profiles?.full_name || 'Desconhecido');
+        const avatarUrl = isExternal ? null : entry.profiles?.avatar_url;
+
+        if (!collaboratorStats[key]) {
+          collaboratorStats[key] = {
+            userId: key,
+            name,
+            avatarUrl,
+            totalValue: 0,
+            projectCount: 0,
+            phases: [],
+            isExternal,
+          };
+        }
+
+        collaboratorStats[key].totalValue += entry.payment_amount || 0;
+        if (!collaboratorStats[key].phases.includes(entry.phase)) {
+          collaboratorStats[key].phases.push(entry.phase);
+        }
+        // Count unique projects
+        collaboratorStats[key].projectCount += 1;
+      });
+
+      // Sort by total value and take top 10
+      const sorted = Object.values(collaboratorStats)
+        .sort((a, b) => b.totalValue - a.totalValue)
+        .slice(0, 10);
+
+      setCollaboratorsData(sorted);
+    };
+
+    fetchCollaborators();
+  }, [projects, currentWorkspace?.id]);
+
+  // Calculate monthly revenue data
   const monthlyData = useMemo(() => {
     const months = [];
     
@@ -128,10 +218,8 @@ export default function Relatorios() {
       const start = startOfMonth(date);
       const end = endOfMonth(date);
       
-      // Skip months before start date
       if (end < dateRange.start) continue;
       
-      // Filtrar apenas projetos ENTREGUES no período (usar delivered_at)
       const monthProjects = projects.filter(p => {
         if (!p.is_delivered || !p.delivered_at) return false;
         const delivered = new Date(p.delivered_at);
@@ -139,7 +227,6 @@ export default function Relatorios() {
       });
       
       const revenue = monthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
-      // Incluir TODOS os custos: captação + edição + extras
       const costs = monthProjects.reduce((sum, p) => 
         sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
       
@@ -207,11 +294,10 @@ export default function Relatorios() {
     return Object.entries(priorities).map(([name, value]) => ({ name, value }));
   }, [projects]);
 
-  // Summary metrics - Apenas projetos ENTREGUES para métricas financeiras
+  // Summary metrics
   const summaryMetrics = useMemo(() => {
     const deliveredProjects = projects.filter(p => p.is_delivered);
     const totalRevenue = deliveredProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
-    // Incluir TODOS os custos: captação + edição + extras
     const totalCosts = deliveredProjects.reduce((sum, p) => 
       sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
     const avgProjectValue = deliveredProjects.length > 0 ? totalRevenue / deliveredProjects.length : 0;
@@ -228,9 +314,8 @@ export default function Relatorios() {
     };
   }, [projects, clients]);
 
-  // Export functions - improved with more data
+  // Export functions
   const handleExportExcel = () => {
-    // Prepare CSV data with enhanced columns
     const headers = ['Mês', 'Receita (€)', 'Custos (€)', 'Lucro (€)', 'Margem (%)', 'Projetos'];
     const rows = monthlyData.map(m => [
       m.fullMonth,
@@ -241,14 +326,13 @@ export default function Relatorios() {
       m.projetos,
     ]);
 
-    // Add totals row
     const totalReceita = monthlyData.reduce((sum, m) => sum + m.receita, 0);
     const totalCustos = monthlyData.reduce((sum, m) => sum + m.custos, 0);
     const totalLucro = monthlyData.reduce((sum, m) => sum + m.lucro, 0);
     const avgMargin = totalReceita > 0 ? ((totalLucro / totalReceita) * 100) : 0;
     const totalProjetos = monthlyData.reduce((sum, m) => sum + m.projetos, 0);
     
-    rows.push(['', '', '', '', '', '']); // Empty row
+    rows.push(['', '', '', '', '', '']);
     rows.push(['TOTAL', totalReceita.toFixed(2), totalCustos.toFixed(2), totalLucro.toFixed(2), avgMargin.toFixed(1), totalProjetos]);
 
     const csvContent = [
@@ -260,7 +344,6 @@ export default function Relatorios() {
       ...rows.map(row => row.toString().split(',').join(';'))
     ].join('\n');
 
-    // Add BOM for Excel to recognize UTF-8
     const bom = '\uFEFF';
     const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -274,14 +357,12 @@ export default function Relatorios() {
   };
 
   const handleExportPDF = () => {
-    // Calculate period totals for PDF
     const totalReceita = monthlyData.reduce((sum, m) => sum + m.receita, 0);
     const totalCustos = monthlyData.reduce((sum, m) => sum + m.custos, 0);
     const totalLucro = monthlyData.reduce((sum, m) => sum + m.lucro, 0);
     const avgMargin = totalReceita > 0 ? ((totalLucro / totalReceita) * 100) : 0;
     const totalProjetos = monthlyData.reduce((sum, m) => sum + m.projetos, 0);
     
-    // For PDF, we'll create a printable version
     const printContent = `
       <html>
         <head>
@@ -388,7 +469,7 @@ export default function Relatorios() {
     }
   };
 
-  // Apenas admins têm acesso a relatórios financeiros
+  // Restricted access
   if (!canViewReports) {
     return (
       <div className="p-6">
@@ -403,10 +484,8 @@ export default function Relatorios() {
     );
   }
 
-  // Estado vazio - sem projetos
-  const hasNoData = projects.length === 0;
-
-  if (hasNoData) {
+  // Empty state
+  if (projects.length === 0) {
     return (
       <div className="p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
@@ -588,124 +667,351 @@ export default function Relatorios() {
         </Card>
       </div>
 
-      {/* Charts */}
-      <Tabs defaultValue="evolucao">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
-          <TabsTrigger value="evolucao">Evolução</TabsTrigger>
-          <TabsTrigger value="receita">Receita vs Custos</TabsTrigger>
-          <TabsTrigger value="clientes">Top Clientes</TabsTrigger>
-          <TabsTrigger value="projetos">Projetos</TabsTrigger>
-        </TabsList>
-
-        {/* Evolução Financeira Tab - NOVO gráfico principal */}
-        <TabsContent value="evolucao" className="space-y-6">
-          <Card className="glass-card">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                  Evolução Financeira Mensal
-                </CardTitle>
-                <div className="text-sm text-muted-foreground">
-                  {format(dateRange.start, "MMM yy", { locale: pt })} - {format(dateRange.end, "MMM yy", { locale: pt })}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[400px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={monthlyData}>
-                    <defs>
-                      <linearGradient id="colorReceita" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="colorLucro" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis 
-                      dataKey="month" 
-                      stroke="hsl(var(--muted-foreground))"
-                      tick={{ fontSize: 12 }}
-                    />
-                    <YAxis 
-                      stroke="hsl(var(--muted-foreground))" 
-                      tickFormatter={(v) => formatCurrency(v)}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <RechartsTooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                      formatter={(value: number, name: string) => [formatCurrency(value), name]}
-                      labelFormatter={(label) => {
-                        const item = monthlyData.find(m => m.month === label);
-                        return item?.fullMonth || label;
-                      }}
-                    />
-                    <Legend />
-                    <Area 
-                      type="monotone" 
-                      dataKey="receita" 
-                      name="Receita" 
-                      stroke="hsl(var(--success))" 
-                      strokeWidth={2}
-                      fillOpacity={1}
-                      fill="url(#colorReceita)"
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="lucro" 
-                      name="Lucro" 
-                      stroke="hsl(var(--primary))" 
-                      strokeWidth={2}
-                      fillOpacity={1}
-                      fill="url(#colorLucro)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-              
-              {/* Summary below chart */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-4 border-t">
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">Total Receita</p>
-                  <p className="text-lg font-bold text-success">
-                    {formatCurrency(monthlyData.reduce((sum, m) => sum + m.receita, 0))}
-                  </p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">Total Custos</p>
-                  <p className="text-lg font-bold text-destructive">
-                    {formatCurrency(monthlyData.reduce((sum, m) => sum + m.custos, 0))}
-                  </p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">Total Lucro</p>
-                  <p className="text-lg font-bold text-primary">
-                    {formatCurrency(monthlyData.reduce((sum, m) => sum + m.lucro, 0))}
-                  </p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">Projetos Entregues</p>
-                  <p className="text-lg font-bold">
-                    {monthlyData.reduce((sum, m) => sum + m.projetos, 0)}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      {/* Section 1: Financial Evolution */}
+      <Card className="glass-card">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Evolução Financeira Mensal
+            </CardTitle>
+            <div className="text-sm text-muted-foreground">
+              {format(dateRange.start, "MMM yy", { locale: pt })} - {format(dateRange.end, "MMM yy", { locale: pt })}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[350px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={monthlyData}>
+                <defs>
+                  <linearGradient id="colorReceita" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="colorLucro" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis 
+                  dataKey="month" 
+                  stroke="hsl(var(--muted-foreground))"
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis 
+                  stroke="hsl(var(--muted-foreground))" 
+                  tickFormatter={(v) => formatCurrency(v)}
+                  tick={{ fontSize: 12 }}
+                />
+                <RechartsTooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                  }}
+                  formatter={(value: number, name: string) => [formatCurrency(value), name]}
+                  labelFormatter={(label) => {
+                    const item = monthlyData.find(m => m.month === label);
+                    return item?.fullMonth || label;
+                  }}
+                />
+                <Legend />
+                <Area 
+                  type="monotone" 
+                  dataKey="receita" 
+                  name="Receita" 
+                  stroke="hsl(var(--success))" 
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorReceita)"
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="lucro" 
+                  name="Lucro" 
+                  stroke="hsl(var(--primary))" 
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorLucro)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
           
-          {/* Tabela de dados mensais */}
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle className="text-base">Detalhes Mensais</CardTitle>
+          {/* Summary below chart */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-4 border-t">
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">Total Receita</p>
+              <p className="text-lg font-bold text-success">
+                {formatCurrency(monthlyData.reduce((sum, m) => sum + m.receita, 0))}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">Total Custos</p>
+              <p className="text-lg font-bold text-destructive">
+                {formatCurrency(monthlyData.reduce((sum, m) => sum + m.custos, 0))}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">Total Lucro</p>
+              <p className="text-lg font-bold text-primary">
+                {formatCurrency(monthlyData.reduce((sum, m) => sum + m.lucro, 0))}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">Projetos Entregues</p>
+              <p className="text-lg font-bold">
+                {monthlyData.reduce((sum, m) => sum + m.projetos, 0)}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 2: Revenue vs Costs */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <Card className="glass-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Receita, Custos e Lucro por Mês</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => formatCurrency(v)} tick={{ fontSize: 11 }} />
+                  <RechartsTooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                    formatter={(value: number) => formatCurrency(value)}
+                  />
+                  <Legend />
+                  <Bar dataKey="receita" name="Receita" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="custos" name="Custos" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="lucro" name="Lucro" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Tendência do Lucro</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => formatCurrency(v)} tick={{ fontSize: 11 }} />
+                  <RechartsTooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                    formatter={(value: number) => formatCurrency(value)}
+                  />
+                  <Line type="monotone" dataKey="lucro" name="Lucro" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: 'hsl(var(--primary))' }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Section 3: Top Rankings */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Top Clients */}
+        <Card className="glass-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Users className="h-4 w-4 text-success" />
+              Top 10 Clientes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {topClients.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                Nenhum dado de clientes disponível
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {topClients.map((client, index) => (
+                  <motion.div
+                    key={client.name}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="flex items-center gap-3"
+                  >
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-success/10 text-success font-bold text-xs">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="font-medium text-sm truncate">{client.name}</p>
+                        <span className="font-bold text-success text-sm ml-2">{formatCurrency(client.revenue)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{client.projects} projeto(s)</span>
+                        <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-success rounded-full"
+                            style={{ width: `${(client.revenue / (topClients[0]?.revenue || 1)) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Top Collaborators */}
+        <Card className="glass-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <UserCircle className="h-4 w-4 text-primary" />
+              Top 10 Colaboradores
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {collaboratorsData.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                Nenhum dado de colaboradores disponível
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {collaboratorsData.map((collab, index) => (
+                  <motion.div
+                    key={collab.userId}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="flex items-center gap-3"
+                  >
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary font-bold text-xs">
+                      {index + 1}
+                    </div>
+                    <Avatar className="h-7 w-7">
+                      <AvatarImage src={collab.avatarUrl || undefined} />
+                      <AvatarFallback className="text-xs">
+                        {collab.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-medium text-sm truncate">{collab.name}</p>
+                          {collab.isExternal && (
+                            <Badge variant="outline" className="text-[10px] px-1 py-0">Ext</Badge>
+                          )}
+                        </div>
+                        <span className="font-bold text-primary text-sm ml-2">{formatCurrency(collab.totalValue)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{collab.projectCount} atrib.</span>
+                        <div className="flex gap-1">
+                          {collab.phases.includes('captacao') && (
+                            <Badge variant="secondary" className="text-[9px] px-1 py-0">CAP</Badge>
+                          )}
+                          {collab.phases.includes('edicao') && (
+                            <Badge variant="secondary" className="text-[9px] px-1 py-0">EDI</Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Projects Distribution */}
+        <Card className="glass-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FolderKanban className="h-4 w-4 text-warning" />
+              Distribuição de Projetos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[150px] mb-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={projectsByStatus}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={60}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {projectsByStatus.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip 
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-2">
+              {projectsByStatus.map((status, index) => (
+                <div key={status.name} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: status.color }} />
+                    <span>{status.name}</span>
+                  </div>
+                  <span className="font-medium">{status.value}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 pt-4 border-t">
+              <p className="text-xs text-muted-foreground mb-2">Por Prioridade (Ativos)</p>
+              <div className="grid grid-cols-2 gap-2">
+                {projectsByPriority.map((priority) => (
+                  <div key={priority.name} className="flex items-center justify-between text-xs">
+                    <span className="capitalize">{priority.name}</span>
+                    <Badge variant="secondary" className="text-xs">{priority.value}</Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Section 4: Monthly Details (Collapsible) */}
+      <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <Card className="glass-card">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Detalhes Mensais</CardTitle>
+                {detailsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </div>
             </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -738,173 +1044,9 @@ export default function Relatorios() {
                 </table>
               </div>
             </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Receita Tab - Bar chart comparativo */}
-        <TabsContent value="receita" className="space-y-6">
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>Receita, Custos e Lucro por Mês</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[400px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
-                    <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => formatCurrency(v)} />
-                    <RechartsTooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                      formatter={(value: number) => formatCurrency(value)}
-                    />
-                    <Legend />
-                    <Bar dataKey="receita" name="Receita" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="custos" name="Custos" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="lucro" name="Lucro" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>Tendência do Lucro</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={monthlyData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
-                    <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => formatCurrency(v)} />
-                    <RechartsTooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                      formatter={(value: number) => formatCurrency(value)}
-                    />
-                    <Line type="monotone" dataKey="lucro" name="Lucro" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: 'hsl(var(--primary))' }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Top Clientes Tab */}
-        <TabsContent value="clientes">
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>Top 10 Clientes por Receita</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {topClients.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhum dado de clientes disponível
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {topClients.map((client, index) => (
-                    <motion.div
-                      key={client.name}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="flex items-center gap-4"
-                    >
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">
-                        {index + 1}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="font-medium">{client.name}</p>
-                          <span className="font-bold text-success">{formatCurrency(client.revenue)}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm text-muted-foreground">
-                          <span>{client.projects} projeto(s)</span>
-                          <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-primary rounded-full"
-                              style={{ width: `${(client.revenue / (topClients[0]?.revenue || 1)) * 100}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Projetos Tab */}
-        <TabsContent value="projetos" className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle>Projetos por Fase</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={projectsByStatus}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={100}
-                        paddingAngle={5}
-                        dataKey="value"
-                        label={({ name, value }) => `${name}: ${value}`}
-                      >
-                        {projectsByStatus.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle>Projetos por Prioridade</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={projectsByPriority} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis type="number" stroke="hsl(var(--muted-foreground))" />
-                      <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" />
-                      <RechartsTooltip
-                        contentStyle={{
-                          backgroundColor: 'hsl(var(--card))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px',
-                        }}
-                      />
-                      <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
     </div>
   );
 }
