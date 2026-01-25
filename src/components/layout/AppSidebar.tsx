@@ -62,14 +62,24 @@ const navSections: NavSection[] = [
     items: [
       { icon: LayoutDashboard, label: 'Dashboard', path: '/app' },
       { icon: MessageSquare, label: 'Chat', path: '/app/chat' },
+      { icon: Calendar, label: 'Calendário', path: '/app/calendario' },
     ],
   },
   {
-    title: 'PROJETOS',
+    title: 'COMERCIAL',
+    items: [
+      { icon: Target, label: 'Leads', path: '/app/leads' },
+      { icon: Users, label: 'Clientes', path: '/app/clientes' },
+      { icon: FileText, label: 'Contratos', path: '/app/contratos' },
+    ],
+  },
+  {
+    title: 'PRODUÇÃO',
     items: [
       { icon: Video, label: 'Captação', path: '/app/captacao' },
       { icon: Film, label: 'Edição', path: '/app/edicao' },
       { icon: CheckCircle2, label: 'Finalizados', path: '/app/finalizados' },
+      { icon: Upload, label: 'Media', path: '/app/media' },
     ],
   },
   {
@@ -80,24 +90,9 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    title: 'FERRAMENTAS',
+    title: 'GESTÃO',
     items: [
-      { icon: Calendar, label: 'Calendário', path: '/app/calendario' },
-      { icon: Upload, label: 'Media', path: '/app/media' },
-    ],
-  },
-  {
-    title: 'CRM',
-    items: [
-      { icon: Target, label: 'Leads', path: '/app/leads' },
-      { icon: Users, label: 'Clientes', path: '/app/clientes' },
-      { icon: FileText, label: 'Contratos', path: '/app/contratos' },
       { icon: UserCog, label: 'Equipa', path: '/app/equipa' },
-    ],
-  },
-  {
-    title: 'SISTEMA',
-    items: [
       { icon: Settings, label: 'Configurações', path: '/app/configuracoes' },
       { icon: Crown, label: 'Planos', path: '/app/planos', adminOnly: true },
     ],
