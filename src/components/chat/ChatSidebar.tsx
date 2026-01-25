@@ -187,11 +187,13 @@ export function ChatSidebar({
               {isAdmin && (
                 <Button
                   variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 hover:bg-primary/10 hover:text-primary"
+                  size="sm"
+                  className="h-7 px-2 hover:bg-primary/10 hover:text-primary gap-1"
                   onClick={() => setShowCreateChannel(true)}
+                  title="Criar novo canal"
                 >
-                  <Plus className="h-3.5 w-3.5" />
+                  <Plus className="h-4 w-4" />
+                  <span className="text-xs">Novo</span>
                 </Button>
               )}
             </div>
@@ -245,11 +247,13 @@ export function ChatSidebar({
               </CollapsibleTrigger>
               <Button
                 variant="ghost"
-                size="icon"
-                className="h-6 w-6 hover:bg-primary/10 hover:text-primary"
+                size="sm"
+                className="h-7 px-2 hover:bg-primary/10 hover:text-primary gap-1"
                 onClick={() => setShowCreateDM(true)}
+                title="Iniciar conversa privada"
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-4 w-4" />
+                <span className="text-xs">Nova</span>
               </Button>
             </div>
             <CollapsibleContent className="space-y-0.5">
