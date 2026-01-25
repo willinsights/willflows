@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CreateProjectModal } from '@/components/projects/CreateProjectModal';
-import { ProjectDetailsModal } from '@/components/projects/ProjectDetailsModal';
+import { ProjectDetailsSheet } from '@/components/projects/ProjectDetailsSheet';
 import { TrialBadge } from '@/components/dashboard/TrialBadge';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
@@ -355,7 +355,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
 
       <AccountModal open={accountModalOpen} onOpenChange={setAccountModalOpen} initialTab={accountModalInitialTab} />
 
-      <ProjectDetailsModal
+      <ProjectDetailsSheet
         open={projectModalOpen}
         onOpenChange={setProjectModalOpen}
         project={selectedProject}

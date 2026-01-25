@@ -20,7 +20,7 @@ import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
-import { ProjectDetailsModal } from '@/components/projects/ProjectDetailsModal';
+import { ProjectDetailsSheet } from '@/components/projects/ProjectDetailsSheet';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 const typeIcons: Record<string, any> = {
@@ -565,8 +565,8 @@ export default function Finalizados() {
           </>}
       </div>
 
-      {/* Project Details Modal */}
-      {selectedProject && <ProjectDetailsModal project={selectedProject} open={!!selectedProjectId} onOpenChange={open => !open && setSelectedProjectId(null)} onUpdate={() => {}} />}
+      {/* Project Details Sheet */}
+      {selectedProject && <ProjectDetailsSheet project={selectedProject} open={!!selectedProjectId} onOpenChange={open => !open && setSelectedProjectId(null)} onUpdate={() => {}} />}
 
       {/* Upgrade Alert */}
       <UpgradeAlert isOpen={upgradeAlert.isOpen} onClose={closeUpgradeAlert} feature={upgradeAlert.feature} requiredPlan={upgradeAlert.requiredPlan} />

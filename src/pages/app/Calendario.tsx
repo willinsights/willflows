@@ -32,7 +32,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFilteredProjects, ProjectWithClient } from '@/hooks/useFilteredProjects';
 import { useCalendarEvents } from '@/hooks/useCalendarEvents';
-import { ProjectDetailsModal } from '@/components/projects/ProjectDetailsModal';
+import { ProjectDetailsSheet } from '@/components/projects/ProjectDetailsSheet';
 import { CreateEventModal } from '@/components/calendar/CreateEventModal';
 import { DraggableCalendarItem, CalendarItem, getTypeColor, getTypeLabel } from '@/components/calendar/DraggableCalendarItem';
 import { DroppableCalendarSlot } from '@/components/calendar/DroppableCalendarSlot';
@@ -752,9 +752,9 @@ export default function Calendario() {
         </DialogContent>
       </Dialog>
 
-      {/* Project Details Modal */}
+      {/* Project Details Sheet */}
       {selectedProject && (
-        <ProjectDetailsModal
+        <ProjectDetailsSheet
           open={showProjectDetails}
           onOpenChange={setShowProjectDetails}
           project={selectedProject}

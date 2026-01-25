@@ -15,7 +15,7 @@ import { useProductTour } from '@/hooks/useProductTour';
 import { useDashboardMetrics, UrgentProject } from '@/hooks/useDashboardMetrics';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
-import { ProjectDetailsModal } from '@/components/projects/ProjectDetailsModal';
+import { ProjectDetailsSheet } from '@/components/projects/ProjectDetailsSheet';
 import type { ProjectWithClient } from '@/hooks/useKanban';
 
 export default function Dashboard() {
@@ -164,8 +164,8 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Project Details Modal */}
-      <ProjectDetailsModal
+      {/* Project Details Sheet */}
+      <ProjectDetailsSheet
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         project={selectedProject}
