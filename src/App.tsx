@@ -75,6 +75,7 @@ const Equipa = lazy(() => import("./pages/app/Equipa"));
 const Faturacao = lazy(() => import("./pages/app/Faturacao"));
 const Planos = lazy(() => import("./pages/app/Planos"));
 const Chat = lazy(() => import("./pages/app/Chat"));
+const Leads = lazy(() => import("./pages/app/Leads"));
 
 // Admin pages (new /admin route)
 const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
@@ -181,6 +182,7 @@ const App = () => (
                       <Route path="finalizados" element={<Finalizados />} />
                       <Route path="media" element={<Media />} />
                       <Route path="clientes" element={<Clientes />} />
+                      <Route path="leads" element={<Leads />} />
                       <Route path="calendario" element={<Calendario />} />
                       <Route path="pagamentos" element={<Pagamentos />} />
                       <Route path="relatorios" element={<Relatorios />} />
