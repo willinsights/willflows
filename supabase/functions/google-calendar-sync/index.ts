@@ -69,17 +69,29 @@ function ensureValidEndTime(startTime: string, endTime: string): string {
   return endTime;
 }
 
-// Refresh access token if expired
-async function refreshTokenIfNeeded(connection: any, supabaseAdmin: any): Promise<string> {
+// Refresh access token if expired (now uses encrypted tokens)
+async function refreshTokenIfNeeded(connection: any, supabaseAdmin: any, userId: string): Promise<string> {
   const now = new Date();
   const expiresAt = new Date(connection.token_expires_at);
   
+  // Decrypt the access token
+  const { data: decryptedAccessToken } = await supabaseAdmin.rpc('decrypt_oauth_token', {
+    _encrypted_token: connection.access_token_encrypted,
+    _user_id: userId
+  });
+  
   // Refresh if expires in less than 5 minutes
   if (expiresAt.getTime() - now.getTime() > 5 * 60 * 1000) {
-    return connection.access_token;
+    return decryptedAccessToken;
   }
 
   console.log('Refreshing access token...');
+  
+  // Decrypt refresh token
+  const { data: decryptedRefreshToken } = await supabaseAdmin.rpc('decrypt_oauth_token', {
+    _encrypted_token: connection.refresh_token_encrypted,
+    _user_id: userId
+  });
   
   const response = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -87,7 +99,7 @@ async function refreshTokenIfNeeded(connection: any, supabaseAdmin: any): Promis
     body: new URLSearchParams({
       client_id: GOOGLE_CLIENT_ID,
       client_secret: GOOGLE_CLIENT_SECRET,
-      refresh_token: connection.refresh_token,
+      refresh_token: decryptedRefreshToken,
       grant_type: 'refresh_token',
     }),
   });
@@ -100,10 +112,17 @@ async function refreshTokenIfNeeded(connection: any, supabaseAdmin: any): Promis
 
   const newExpiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
 
+  // Encrypt the new access token
+  const { data: encryptedNewToken } = await supabaseAdmin.rpc('encrypt_oauth_token', {
+    _token: tokens.access_token,
+    _user_id: userId
+  });
+
   await supabaseAdmin
     .from('google_calendar_connections')
     .update({
-      access_token: tokens.access_token,
+      access_token_encrypted: encryptedNewToken,
+      access_token: null, // Clear any plain text
       token_expires_at: newExpiresAt,
     })
     .eq('id', connection.id);
@@ -289,8 +308,8 @@ serve(async (req) => {
       });
     }
 
-    // Refresh token if needed
-    const accessToken = await refreshTokenIfNeeded(connection, supabaseAdmin);
+    // Refresh token if needed (now passes userId for decryption)
+    const accessToken = await refreshTokenIfNeeded(connection, supabaseAdmin, userId);
 
     // Action: Full sync
     if (action === 'sync') {
