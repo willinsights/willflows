@@ -2,6 +2,19 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Camera, Film, Video, Calendar as CalendarIcon, ExternalLink, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+
+// Google Meet icon SVG
+const GoogleMeetIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+    <path d="M10 8l6 4-6 4V8z"/>
+  </svg>
+);
 
 const typeIcons: Record<string, any> = {
   fotografia: Camera,
@@ -50,6 +63,11 @@ export function getTypeLabel(type: CalendarItem['type']) {
   }
 }
 
+function isGoogleMeetUrl(url?: string): boolean {
+  if (!url) return false;
+  return url.includes('meet.google.com') || url.includes('hangouts.google.com');
+}
+
 export function DraggableCalendarItem({ 
   item, 
   onClick, 
@@ -70,6 +88,7 @@ export function DraggableCalendarItem({
   } : undefined;
 
   const TypeIcon = item.projectType ? typeIcons[item.projectType] : CalendarIcon;
+  const isMeetLink = isGoogleMeetUrl(item.meetUrl);
 
   if (variant === 'compact') {
     return (
@@ -98,6 +117,28 @@ export function DraggableCalendarItem({
           <svg className="h-3 w-3 flex-shrink-0 opacity-70" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c5.51 0 10-4.48 10-10S17.51 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
           </svg>
+        )}
+        {item.meetUrl && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <a
+                href={item.meetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex-shrink-0 hover:opacity-80"
+              >
+                {isMeetLink ? (
+                  <GoogleMeetIcon className="h-3 w-3" />
+                ) : (
+                  <Video className="h-3 w-3" />
+                )}
+              </a>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              {isMeetLink ? 'Entrar no Google Meet' : 'Abrir videochamada'}
+            </TooltipContent>
+          </Tooltip>
         )}
         <span className="truncate">
           {item.time && <span className="font-medium">{item.time} </span>}
@@ -154,15 +195,26 @@ export function DraggableCalendarItem({
         )}
       </div>
       {item.meetUrl && (
-        <a
-          href={item.meetUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="flex-shrink-0"
-        >
-          <ExternalLink className="h-4 w-4" />
-        </a>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <a
+              href={item.meetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="flex-shrink-0 p-1.5 rounded-md hover:bg-white/20 transition-colors"
+            >
+              {isMeetLink ? (
+                <GoogleMeetIcon className="h-5 w-5" />
+              ) : (
+                <ExternalLink className="h-4 w-4" />
+              )}
+            </a>
+          </TooltipTrigger>
+          <TooltipContent side="left">
+            {isMeetLink ? 'Entrar no Google Meet' : 'Abrir videochamada'}
+          </TooltipContent>
+        </Tooltip>
       )}
     </div>
   );

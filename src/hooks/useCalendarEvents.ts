@@ -126,7 +126,10 @@ export function useCalendarEvents() {
     return true;
   });
 
-  const createEvent = async (event: Omit<CalendarEventInsert, 'workspace_id'>) => {
+  const createEvent = async (
+    event: Omit<CalendarEventInsert, 'workspace_id'>,
+    options?: { autoCreateMeet?: boolean }
+  ) => {
     if (!currentWorkspace) return null;
 
     // Validate event data
@@ -144,6 +147,54 @@ export function useCalendarEvents() {
       return null;
     }
 
+    let meetUrl = event.video_call_url ?? null;
+    let googleEventId: string | null = null;
+
+    // Create Google Meet if requested
+    if (options?.autoCreateMeet) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const response = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-google-meet`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`,
+                'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              },
+              body: JSON.stringify({
+                workspaceId: currentWorkspace.id,
+                title: validation.data.title,
+                startAt: validation.data.start_at,
+                endAt: validation.data.end_at,
+                description: validation.data.description,
+              }),
+            }
+          );
+
+          const result = await response.json();
+          
+          if (result.success && result.meetUrl) {
+            meetUrl = result.meetUrl;
+            googleEventId = result.googleEventId;
+            logger.info('Created Google Meet:', meetUrl);
+          } else if (result.error) {
+            logger.error('Failed to create Google Meet:', result.error);
+            toast({
+              title: 'Aviso',
+              description: 'Não foi possível criar o Google Meet. O evento será criado sem link.',
+              variant: 'destructive',
+            });
+          }
+        }
+      } catch (error) {
+        logger.error('Error creating Google Meet:', error);
+        // Continue with event creation even if Meet fails
+      }
+    }
+
     try {
       const insertData: CalendarEventInsert = {
         title: validation.data.title,
@@ -154,9 +205,10 @@ export function useCalendarEvents() {
         all_day: validation.data.all_day ?? false,
         location: validation.data.location ?? null,
         event_type: validation.data.event_type ?? 'meeting',
-        video_call_url: validation.data.video_call_url ?? null,
+        video_call_url: meetUrl,
         project_id: validation.data.project_id ?? null,
         task_id: validation.data.task_id ?? null,
+        google_event_id: googleEventId,
       };
 
       const { data, error } = await supabase
@@ -167,7 +219,10 @@ export function useCalendarEvents() {
 
       if (error) throw error;
 
-      toast({ title: 'Evento criado com sucesso' });
+      const successMessage = meetUrl 
+        ? 'Evento criado com Google Meet' 
+        : 'Evento criado com sucesso';
+      toast({ title: successMessage });
       // Don't update state here - realtime will handle it
       return data;
     } catch (error) {
