@@ -25,6 +25,7 @@ import {
   ExternalLink,
   MessageSquare,
   Target,
+  FileText,
 } from 'lucide-react';
 import { useTotalUnreadMessages } from '@/hooks/useTotalUnreadMessages';
 import { cn } from '@/lib/utils';
@@ -90,6 +91,7 @@ const navSections: NavSection[] = [
     items: [
       { icon: Target, label: 'Leads', path: '/app/leads' },
       { icon: Users, label: 'Clientes', path: '/app/clientes' },
+      { icon: FileText, label: 'Contratos', path: '/app/contratos' },
       { icon: UserCog, label: 'Equipa', path: '/app/equipa' },
     ],
   },
