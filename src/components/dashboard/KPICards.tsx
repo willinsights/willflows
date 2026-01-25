@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
@@ -63,6 +64,7 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
       cardClass: 'hover:border-primary/30',
       valueClass: '',
       delay: 0.03,
+      tooltip: 'Projetos na fase de captação que ainda não foram finalizados',
     },
     {
       label: 'Em Edição',
@@ -73,6 +75,7 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
       cardClass: 'hover:border-primary/30',
       valueClass: '',
       delay: 0.06,
+      tooltip: 'Projetos na fase de edição que ainda não foram finalizados',
     },
     {
       label: 'Entregues (mês)',
@@ -84,6 +87,7 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
       valueClass: '',
       change: metrics.entreguesChange,
       delay: 0.09,
+      tooltip: 'Projetos finalizados e entregues neste mês',
     },
   ];
 
@@ -170,13 +174,8 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-      {kpiData.map((kpi) => (
-        <motion.div
-          key={kpi.label}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: kpi.delay }}
-        >
+      {kpiData.map((kpi) => {
+        const cardContent = (
           <Card className={cn('metric-card', kpi.cardClass)}>
             <CardContent className="p-3">
               <div className="flex items-center gap-2">
@@ -206,8 +205,30 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
               </p>
             </CardContent>
           </Card>
-        </motion.div>
-      ))}
+        );
+
+        return (
+          <motion.div
+            key={kpi.label}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: kpi.delay }}
+          >
+            {'tooltip' in kpi && kpi.tooltip ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  {cardContent}
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[200px]">
+                  <p className="text-xs">{kpi.tooltip}</p>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              cardContent
+            )}
+          </motion.div>
+        );
+      })}
     </div>
   );
 }

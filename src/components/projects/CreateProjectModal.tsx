@@ -868,11 +868,11 @@ export function CreateProjectModal({
 
               <Separator />
 
-              {/* Notes */}
+              {/* Description */}
               <div className="space-y-2">
-                <Label>Notas</Label>
+                <Label>Descrição</Label>
                 <Textarea
-                  placeholder="Observações sobre o projeto..."
+                  placeholder="Descrição do projeto..."
                   {...form.register('notes')}
                   rows={3}
                 />
