@@ -30,6 +30,7 @@ interface LeadKanbanProps {
   onScheduleFollowUp: (lead: Lead) => void;
   onConvert: (lead: Lead) => void;
   onMarkLost: (lead: Lead) => void;
+  onDelete: (lead: Lead) => void;
   formatCurrency: (value: number) => string;
 }
 
@@ -94,6 +95,7 @@ export function LeadKanban({
   onScheduleFollowUp,
   onConvert,
   onMarkLost,
+  onDelete,
   formatCurrency,
 }: LeadKanbanProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -167,6 +169,7 @@ export function LeadKanban({
                   onScheduleFollowUp={onScheduleFollowUp}
                   onConvert={onConvert}
                   onMarkLost={onMarkLost}
+                  onDelete={onDelete}
                   formatCurrency={formatCurrency}
                 />
               ))}

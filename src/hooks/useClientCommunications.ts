@@ -14,6 +14,7 @@ export interface ClientCommunication {
   contact_date: string;
   created_at: string;
   created_by: string | null;
+  meet_url: string | null;
 }
 
 export interface ClientCommunicationInsert {
@@ -22,6 +23,7 @@ export interface ClientCommunicationInsert {
   subject: string;
   description?: string;
   contact_date?: string;
+  meet_url?: string;
 }
 
 export function useClientCommunications(clientId: string | null) {

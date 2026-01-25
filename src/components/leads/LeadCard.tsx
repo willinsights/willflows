@@ -33,6 +33,7 @@ interface LeadCardProps {
   onScheduleFollowUp?: (lead: Lead) => void;
   onConvert?: (lead: Lead) => void;
   onMarkLost?: (lead: Lead) => void;
+  onDelete?: (lead: Lead) => void;
   formatCurrency: (value: number) => string;
 }
 
@@ -43,6 +44,7 @@ export function LeadCard({
   onScheduleFollowUp,
   onConvert,
   onMarkLost,
+  onDelete,
   formatCurrency,
 }: LeadCardProps) {
   const {
@@ -119,6 +121,10 @@ export function LeadCard({
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onMarkLost?.(lead)} className="text-destructive">
               Marcar como Perdido
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onDelete?.(lead)} className="text-destructive">
+              Apagar Lead
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
