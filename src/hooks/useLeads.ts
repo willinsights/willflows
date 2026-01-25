@@ -245,6 +245,28 @@ export function useLeads() {
     };
   }, [leads]);
 
+  const deleteLead = async (leadId: string) => {
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({ is_active: false })
+        .eq('id', leadId);
+
+      if (error) throw error;
+
+      setLeads(prev => prev.filter(l => l.id !== leadId));
+      toast({ title: 'Lead eliminado com sucesso' });
+      return true;
+    } catch (error) {
+      toast({
+        title: 'Erro ao eliminar lead',
+        description: handleDatabaseError('deleteLead', error),
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
   return {
     leads,
     leadsByStatus,
@@ -254,6 +276,7 @@ export function useLeads() {
     updateLeadStatus,
     updateLastContact,
     setNextFollowUp,
+    deleteLead,
     refresh: fetchLeads,
   };
 }

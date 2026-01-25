@@ -252,6 +252,7 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
     subject: string;
     description?: string;
     contact_date: string;
+    meet_url?: string;
   }) => {
     if (!client) return false;
     const result = await createCommunication({
@@ -637,6 +638,18 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
                                     <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                                       {typeInfo.label}
                                     </Badge>
+                                    {comm.meet_url && (
+                                      <a
+                                        href={comm.meet_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                                      >
+                                        <Video className="h-3 w-3" />
+                                        Meet
+                                      </a>
+                                    )}
                                   </div>
                                   {comm.description && (
                                     <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">

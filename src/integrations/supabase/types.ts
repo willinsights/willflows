@@ -467,6 +467,7 @@ export type Database = {
           created_by: string | null
           description: string | null
           id: string
+          meet_url: string | null
           subject: string
           type: string
           workspace_id: string
@@ -478,6 +479,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          meet_url?: string | null
           subject: string
           type?: string
           workspace_id: string
@@ -489,6 +491,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          meet_url?: string | null
           subject?: string
           type?: string
           workspace_id?: string

@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { CalendarIcon, Phone, Mail, Users, MessageSquare } from 'lucide-react';
+import { CalendarIcon, Phone, Mail, Users, MessageSquare, Video, ExternalLink } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -35,6 +39,7 @@ interface CreateCommunicationModalProps {
     subject: string;
     description?: string;
     contact_date: string;
+    meet_url?: string;
   }) => Promise<boolean>;
 }
 
@@ -50,6 +55,9 @@ export function CreateCommunicationModal({
   onOpenChange,
   onSubmit,
 }: CreateCommunicationModalProps) {
+  const { currentWorkspace } = useWorkspace();
+  const { connection: googleConnection } = useGoogleCalendar();
+  
   const [type, setType] = useState('call');
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
@@ -59,6 +67,8 @@ export function CreateCommunicationModal({
     return `${now.getHours().toString().padStart(2, '0')}:${Math.floor(now.getMinutes() / 30) * 30 === 0 ? '00' : '30'}`;
   });
   const [loading, setLoading] = useState(false);
+  const [autoCreateMeet, setAutoCreateMeet] = useState(false);
+  const [creatingMeet, setCreatingMeet] = useState(false);
 
   // Gerar opções de hora (intervalos de 30 minutos)
   const timeOptions = Array.from({ length: 24 }, (_, h) => [
@@ -77,11 +87,42 @@ export function CreateCommunicationModal({
     const [hours, minutes] = time.split(':').map(Number);
     contactDateTime.setHours(hours, minutes, 0, 0);
     
+    // Calcular end time (1 hora depois por padrão)
+    const endDateTime = new Date(contactDateTime);
+    endDateTime.setHours(endDateTime.getHours() + 1);
+    
+    let meetUrl: string | undefined;
+    
+    // Criar Google Meet se solicitado
+    if (type === 'meeting' && autoCreateMeet && currentWorkspace?.id) {
+      setCreatingMeet(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('create-google-meet', {
+          body: {
+            workspaceId: currentWorkspace.id,
+            title: `Reunião: ${subject.trim()}`,
+            startAt: contactDateTime.toISOString(),
+            endAt: endDateTime.toISOString(),
+            description: description.trim() || undefined,
+          },
+        });
+        
+        if (!error && data?.meetUrl) {
+          meetUrl = data.meetUrl;
+        }
+      } catch (err) {
+        console.error('Error creating Google Meet:', err);
+      } finally {
+        setCreatingMeet(false);
+      }
+    }
+    
     const success = await onSubmit({
       type,
       subject: subject.trim(),
       description: description.trim() || undefined,
       contact_date: contactDateTime.toISOString(),
+      meet_url: meetUrl,
     });
 
     if (success) {
@@ -90,6 +131,7 @@ export function CreateCommunicationModal({
       setDescription('');
       setDate(new Date());
       setTime(`${new Date().getHours().toString().padStart(2, '0')}:00`);
+      setAutoCreateMeet(false);
       onOpenChange(false);
     }
     setLoading(false);
@@ -178,6 +220,30 @@ export function CreateCommunicationModal({
             </div>
           </div>
 
+          {/* Google Meet Toggle */}
+          {type === 'meeting' && googleConnection?.is_connected && (
+            <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center gap-2">
+                <Video className="h-4 w-4 text-blue-600" />
+                <Label htmlFor="auto-meet" className="cursor-pointer text-sm">
+                  Criar Google Meet automaticamente
+                </Label>
+              </div>
+              <Switch
+                id="auto-meet"
+                checked={autoCreateMeet}
+                onCheckedChange={setAutoCreateMeet}
+              />
+            </div>
+          )}
+          
+          {type === 'meeting' && !googleConnection?.is_connected && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <ExternalLink className="h-3 w-3" />
+              Conecte o Google Calendar nas definições para criar links Meet automaticamente
+            </p>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="description">Descrição</Label>
             <Textarea
@@ -197,8 +263,8 @@ export function CreateCommunicationModal({
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading || !subject.trim()}>
-              {loading ? 'Guardando...' : 'Guardar'}
+            <Button type="submit" disabled={loading || creatingMeet || !subject.trim()}>
+              {creatingMeet ? 'Criando Meet...' : loading ? 'Guardando...' : 'Guardar'}
             </Button>
           </div>
         </form>

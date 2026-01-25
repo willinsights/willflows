@@ -30,11 +30,12 @@ import { LeadKanban } from '@/components/leads/LeadKanban';
 import { CreateLeadModal } from '@/components/leads/CreateLeadModal';
 import { ConvertLeadModal } from '@/components/leads/ConvertLeadModal';
 import { MarkLostModal } from '@/components/leads/MarkLostModal';
+import { DeleteLeadModal } from '@/components/leads/DeleteLeadModal';
 import { ClientDetailsModal } from '@/components/clients/ClientDetailsModal';
 import { cn } from '@/lib/utils';
 
 export default function Leads() {
-  const { leads, leadsByStatus, loading, pipelineMetrics, updateLeadStatus, refresh } = useLeads();
+  const { leads, leadsByStatus, loading, pipelineMetrics, updateLeadStatus, deleteLead, refresh } = useLeads();
   const { currentWorkspace } = useWorkspace();
   
   const [view, setView] = useState<'kanban' | 'list'>('kanban');
@@ -43,6 +44,7 @@ export default function Leads() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [convertLead, setConvertLead] = useState<Lead | null>(null);
   const [markLostLead, setMarkLostLead] = useState<Lead | null>(null);
+  const [deleteLeadModal, setDeleteLeadModal] = useState<Lead | null>(null);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
   const currency = currentWorkspace?.currency || 'EUR';
@@ -115,6 +117,11 @@ export default function Leads() {
   const handleScheduleFollowUp = (lead: Lead) => {
     // Could open a date picker modal
     setSelectedLead(lead);
+  };
+
+  const handleDeleteLead = async () => {
+    if (!deleteLeadModal) return;
+    await deleteLead(deleteLeadModal.id);
   };
 
   if (loading) {
@@ -247,6 +254,7 @@ export default function Leads() {
           onScheduleFollowUp={handleScheduleFollowUp}
           onConvert={setConvertLead}
           onMarkLost={setMarkLostLead}
+          onDelete={setDeleteLeadModal}
           formatCurrency={formatCurrency}
         />
       ) : (
@@ -348,6 +356,13 @@ export default function Leads() {
         onOpenChange={(open) => !open && setMarkLostLead(null)}
         lead={markLostLead}
         onSuccess={refresh}
+      />
+
+      <DeleteLeadModal
+        open={!!deleteLeadModal}
+        onOpenChange={(open) => !open && setDeleteLeadModal(null)}
+        lead={deleteLeadModal}
+        onConfirm={handleDeleteLead}
       />
 
       {selectedLead && (
