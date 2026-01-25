@@ -142,7 +142,14 @@ export default function Pagamentos() {
 
   // Calculate monthly forecasts including collaborators and extra costs
   const monthlyForecast = useMemo(() => {
-    const receivable = monthPayments.filter(p => p.is_receivable && p.status !== 'pago').reduce((sum, p) => sum + p.amount, 0);
+    // Total receivable (ALL statuses)
+    const totalReceivable = monthPayments.filter(p => p.is_receivable).reduce((sum, p) => sum + p.amount, 0);
+    // Already received (status = pago)
+    const alreadyReceived = monthPayments.filter(p => p.is_receivable && p.status === 'pago').reduce((sum, p) => sum + p.amount, 0);
+    // Pending receivable (status !== pago)
+    const pendingReceivable = monthPayments.filter(p => p.is_receivable && p.status !== 'pago').reduce((sum, p) => sum + p.amount, 0);
+    
+    // Payable amounts (non-receivable payments)
     const payable = monthPayments.filter(p => !p.is_receivable && p.status !== 'pago').reduce((sum, p) => sum + p.amount, 0);
     
     // Team payments by phase
@@ -164,14 +171,17 @@ export default function Pagamentos() {
     const totalPayable = payable + teamTotal + custosExtras;
     
     return { 
-      receivable, 
+      totalReceivable,
+      alreadyReceived,
+      pendingReceivable,
+      receivable: pendingReceivable, // Keep backward compatibility
       payable, 
       teamTotal,
       teamCaptacao,
       teamEdicao,
       custosExtras,
       totalPayable,
-      net: receivable - totalPayable 
+      net: pendingReceivable - totalPayable 
     };
   }, [monthPayments, typedTeamPayments, projectCosts]);
 
@@ -224,7 +234,10 @@ export default function Pagamentos() {
 
   // Forecast summary for export
   const forecastSummary = useMemo(() => ({
-    receivable: formatCurrency(monthlyForecast.receivable),
+    totalReceivable: formatCurrency(monthlyForecast.totalReceivable),
+    alreadyReceived: formatCurrency(monthlyForecast.alreadyReceived),
+    pendingReceivable: formatCurrency(monthlyForecast.pendingReceivable),
+    receivable: formatCurrency(monthlyForecast.pendingReceivable),
     totalPayable: formatCurrency(monthlyForecast.totalPayable),
     net: formatCurrency(monthlyForecast.net),
     teamTotal: formatCurrency(monthlyForecast.teamTotal),
@@ -411,31 +424,62 @@ export default function Pagamentos() {
             />
           </div>
 
-          {/* Monthly Forecast */}
-          <div className="grid md:grid-cols-3 gap-4">
+          {/* Monthly Financial Summary */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* Total Receivable */}
             <Card className="glass-card border-success/20">
-              <CardContent className="p-6 text-center">
-                <p className="text-sm text-muted-foreground mb-2">Previsão de Entrada</p>
-                <p className="text-3xl font-bold text-success">{formatCurrency(monthlyForecast.receivable)}</p>
-                <p className="text-xs text-muted-foreground/70 mt-1">Pagamentos de clientes</p>
+              <CardContent className="p-4 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Receita Total</p>
+                <p className="text-2xl font-bold text-success">{formatCurrency(monthlyForecast.totalReceivable)}</p>
+                <p className="text-[10px] text-muted-foreground/70 mt-1">Todos os pagamentos</p>
               </CardContent>
             </Card>
+            
+            {/* Already Received */}
+            <Card className="glass-card border-success/30 bg-success/5">
+              <CardContent className="p-4 text-center">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <CheckCircle2 className="h-3 w-3 text-success" />
+                  <p className="text-xs text-muted-foreground">Já Recebido</p>
+                </div>
+                <p className="text-2xl font-bold text-success/80">{formatCurrency(monthlyForecast.alreadyReceived)}</p>
+                <p className="text-[10px] text-muted-foreground/70 mt-1">Status: Pago</p>
+              </CardContent>
+            </Card>
+            
+            {/* Pending Receivable */}
+            <Card className="glass-card border-warning/20">
+              <CardContent className="p-4 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Por Receber</p>
+                <p className="text-2xl font-bold text-warning">{formatCurrency(monthlyForecast.pendingReceivable)}</p>
+                <p className="text-[10px] text-muted-foreground/70 mt-1">Pendentes + Vencidos</p>
+              </CardContent>
+            </Card>
+            
+            {/* Total Payable */}
             <Card className="glass-card border-destructive/20">
-              <CardContent className="p-6 text-center">
-                <p className="text-sm text-muted-foreground mb-2">Previsão de Saída</p>
-                <p className="text-3xl font-bold text-destructive">{formatCurrency(monthlyForecast.totalPayable)}</p>
-                <p className="text-xs text-muted-foreground/70 mt-1">Colaboradores + Custos</p>
-              </CardContent>
-            </Card>
-            <Card className="glass-card border-primary/20">
-              <CardContent className="p-6 text-center">
-                <p className="text-sm text-muted-foreground mb-2">Saldo Previsto</p>
-                <p className={cn('text-3xl font-bold', monthlyForecast.net >= 0 ? 'text-success' : 'text-destructive')}>
-                  {formatCurrency(monthlyForecast.net)}
-                </p>
+              <CardContent className="p-4 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Total a Pagar</p>
+                <p className="text-2xl font-bold text-destructive">{formatCurrency(monthlyForecast.totalPayable)}</p>
+                <p className="text-[10px] text-muted-foreground/70 mt-1">Colaboradores + Custos</p>
               </CardContent>
             </Card>
           </div>
+          
+          {/* Net Balance Card */}
+          <Card className="glass-card border-primary/20">
+            <CardContent className="py-4 px-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Saldo Líquido Previsto</p>
+                  <p className="text-xs text-muted-foreground/70">Por Receber - Total a Pagar</p>
+                </div>
+                <p className={cn('text-3xl font-bold', monthlyForecast.net >= 0 ? 'text-success' : 'text-destructive')}>
+                  {monthlyForecast.net >= 0 ? '+' : ''}{formatCurrency(monthlyForecast.net)}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Empty State for Month */}
           {monthPayments.length === 0 && (
