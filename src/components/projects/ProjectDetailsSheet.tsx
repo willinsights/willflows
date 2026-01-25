@@ -796,31 +796,6 @@ function EditModeContent({
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>Tipo de Mídia</Label>
-          <Select value={editForm.type} onValueChange={(value) => setEditForm((prev: any) => ({ ...prev, type: value }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {typeOptions.map(opt => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  <div className="flex items-center gap-2"><opt.icon className="h-4 w-4" />{opt.label}</div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Categoria</Label>
-          <Select value={editForm.category} onValueChange={(value) => setEditForm((prev: any) => ({ ...prev, category: value }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {categoryOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
           <Label>Prioridade</Label>
           <Select value={editForm.priority} onValueChange={(value) => setEditForm((prev: any) => ({ ...prev, priority: value }))}>
             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -833,7 +808,7 @@ function EditModeContent({
 
       {categories.length > 0 && (
         <div className="space-y-2">
-          <Label>Categoria Personalizada</Label>
+          <Label>Categoria</Label>
           <Select value={editForm.custom_category_id || "__none__"} onValueChange={(value) => setEditForm((prev: any) => ({ ...prev, custom_category_id: value === "__none__" ? "" : value }))}>
             <SelectTrigger><SelectValue placeholder="Selecionar categoria" /></SelectTrigger>
             <SelectContent>
