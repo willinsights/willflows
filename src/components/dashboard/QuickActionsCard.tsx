@@ -14,17 +14,20 @@ export function QuickActionsCard() {
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const { createEvent } = useCalendarEvents();
 
-  const handleCreateEvent = async (eventData: {
-    title: string;
-    description?: string;
-    start_at: string;
-    end_at?: string;
-    all_day: boolean;
-    location?: string;
-    event_type: string;
-    video_call_url?: string;
-    is_private?: boolean;
-  }) => {
+  const handleCreateEvent = async (
+    eventData: {
+      title: string;
+      description?: string;
+      start_at: string;
+      end_at?: string;
+      all_day: boolean;
+      location?: string;
+      event_type: string;
+      video_call_url?: string;
+      is_private?: boolean;
+    },
+    options?: { autoCreateMeet?: boolean }
+  ) => {
     try {
       const result = await createEvent({
         title: eventData.title,
@@ -36,9 +39,12 @@ export function QuickActionsCard() {
         event_type: eventData.event_type,
         video_call_url: eventData.video_call_url || null,
         is_private: eventData.is_private || false,
-      });
+      }, options);
       if (result) {
-        toast.success('Evento criado com sucesso!');
+        const message = options?.autoCreateMeet 
+          ? 'Evento criado com Google Meet!' 
+          : 'Evento criado com sucesso!';
+        toast.success(message);
         setEventModalOpen(false);
       }
       return result;
