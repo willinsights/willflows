@@ -15,6 +15,7 @@ import {
   Users,
   Package,
   Lock,
+  Euro,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -564,7 +565,7 @@ export default function Pagamentos() {
           </Card>
 
           {/* Empty State for Month */}
-          {monthPayments.length === 0 && (
+          {monthPayments.length === 0 && monthProjectRevenue.length === 0 && (
             <Card className="glass-card">
               <CardContent className="py-12">
                 <div className="flex flex-col items-center justify-center text-center">
@@ -575,6 +576,48 @@ export default function Pagamentos() {
                   <p className="text-muted-foreground text-sm max-w-sm">
                     Não há pagamentos registados para {format(currentMonth, 'MMMM yyyy', { locale: pt })}. Os pagamentos serão exibidos quando tiver projetos com valores definidos.
                   </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Project Revenue Section */}
+          {monthProjectRevenue.length > 0 && (
+            <Card className="glass-card">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Euro className="h-5 w-5 text-success" />
+                  Receita de Clientes (Preço Projeto)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {monthProjectRevenue.map(project => (
+                    <div
+                      key={project.id}
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-success/10">
+                          <TrendingUp className="h-5 w-5 text-success" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{project.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {project.clients?.name || 'Cliente'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Badge variant="outline" className={cn(statusColors[project.client_payment_status || 'pendente'])}>
+                          {statusLabels[project.client_payment_status || 'pendente']}
+                        </Badge>
+                        <span className="font-medium text-success">
+                          +{formatCurrency(project.agreed_value || 0)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -638,17 +681,13 @@ export default function Pagamentos() {
             </Card>
           )}
 
-          {/* Month Payments */}
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle className="text-lg">Movimentos do Mês</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {monthPayments.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhum pagamento previsto para este mês
-                </p>
-              ) : (
+          {/* Other Month Payments */}
+          {monthPayments.length > 0 && (
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="text-lg">Outros Movimentos</CardTitle>
+              </CardHeader>
+              <CardContent>
                 <div className="space-y-3">
                   {monthPayments.map(payment => (
                     <div
@@ -687,9 +726,9 @@ export default function Pagamentos() {
                     </div>
                   ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Receita de Projetos (Preço Cliente) Tab */}
