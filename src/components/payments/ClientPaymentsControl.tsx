@@ -4,6 +4,8 @@ import { pt } from 'date-fns/locale';
 import { TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { usePagination } from '@/hooks/usePagination';
+import { ListPagination } from '@/components/ui/list-pagination';
 import {
   Select,
   SelectContent,
@@ -84,6 +86,12 @@ export function ClientPaymentsControl({
     });
   }, [clientPayments, filters]);
 
+  // Pagination
+  const pagination = usePagination({
+    items: filteredPayments,
+    itemsPerPage: 50,
+  });
+
   const totalPending = useMemo(() => {
     return filteredPayments
       .filter(p => p.status !== 'pago')
@@ -139,60 +147,77 @@ export function ClientPaymentsControl({
         )}
       </CardHeader>
       <CardContent>
-        {filteredPayments.length === 0 ? (
+        {pagination.totalItems === 0 ? (
           <p className="text-center text-muted-foreground py-8">
             Nenhum pagamento de cliente encontrado
           </p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[80px] min-w-[80px]">ID</TableHead>
-                <TableHead className="min-w-[150px]">Projeto</TableHead>
-                <TableHead className="min-w-[120px]">Cliente</TableHead>
-                <TableHead className="min-w-[100px]">Vencimento</TableHead>
-                <TableHead className="min-w-[130px]">Status</TableHead>
-                <TableHead className="text-right min-w-[100px]">Valor</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredPayments.map(payment => (
-                <TableRow key={payment.id}>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {getProjectCode(payment.project_id) || '-'}
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {payment.description || payment.projects?.name || 'Pagamento'}
-                  </TableCell>
-                  <TableCell>{payment.clients?.name || '-'}</TableCell>
-                  <TableCell>
-                    {payment.due_date
-                      ? format(new Date(payment.due_date), 'dd/MM/yyyy', { locale: pt })
-                      : '-'}
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      value={payment.status}
-                      onValueChange={(newStatus) => onStatusChange(payment.id, newStatus)}
-                    >
-                      <SelectTrigger className={cn('w-[130px]', statusColors[payment.status])}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pendente">Pendente</SelectItem>
-                        <SelectItem value="pago">Pago</SelectItem>
-                        <SelectItem value="vencido">Vencido</SelectItem>
-                        <SelectItem value="cancelado">Cancelado</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell className="text-right font-medium text-success">
-                    +{formatCurrency(payment.amount)}
-                  </TableCell>
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[80px] min-w-[80px]">ID</TableHead>
+                  <TableHead className="min-w-[150px]">Projeto</TableHead>
+                  <TableHead className="min-w-[120px]">Cliente</TableHead>
+                  <TableHead className="min-w-[100px]">Vencimento</TableHead>
+                  <TableHead className="min-w-[130px]">Status</TableHead>
+                  <TableHead className="text-right min-w-[100px]">Valor</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {pagination.paginatedItems.map(payment => (
+                  <TableRow key={payment.id}>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {getProjectCode(payment.project_id) || '-'}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {payment.description || payment.projects?.name || 'Pagamento'}
+                    </TableCell>
+                    <TableCell>{payment.clients?.name || '-'}</TableCell>
+                    <TableCell>
+                      {payment.due_date
+                        ? format(new Date(payment.due_date), 'dd/MM/yyyy', { locale: pt })
+                        : '-'}
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={payment.status}
+                        onValueChange={(newStatus) => onStatusChange(payment.id, newStatus)}
+                      >
+                        <SelectTrigger className={cn('w-[130px]', statusColors[payment.status])}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pendente">Pendente</SelectItem>
+                          <SelectItem value="pago">Pago</SelectItem>
+                          <SelectItem value="vencido">Vencido</SelectItem>
+                          <SelectItem value="cancelado">Cancelado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-success">
+                      +{formatCurrency(payment.amount)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            
+            <ListPagination
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.totalItems}
+              startIndex={pagination.startIndex}
+              endIndex={pagination.endIndex}
+              hasNextPage={pagination.hasNextPage}
+              hasPreviousPage={pagination.hasPreviousPage}
+              onPageChange={pagination.goToPage}
+              onNextPage={pagination.goToNextPage}
+              onPreviousPage={pagination.goToPreviousPage}
+              onFirstPage={pagination.goToFirstPage}
+              onLastPage={pagination.goToLastPage}
+            />
+          </>
         )}
       </CardContent>
     </Card>

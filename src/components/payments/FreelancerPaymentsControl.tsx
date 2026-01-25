@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 import { Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { usePagination } from '@/hooks/usePagination';
+import { ListPagination } from '@/components/ui/list-pagination';
 import {
   Select,
   SelectContent,
@@ -101,6 +103,12 @@ export function FreelancerPaymentsControl({
     });
   }, [teamPayments, filters]);
 
+  // Pagination
+  const pagination = usePagination({
+    items: filteredPayments,
+    itemsPerPage: 50,
+  });
+
   const totalPending = useMemo(() => {
     return filteredPayments
       .filter(tp => tp.payment_status !== 'pago')
@@ -148,62 +156,79 @@ export function FreelancerPaymentsControl({
         )}
       </CardHeader>
       <CardContent>
-        {filteredPayments.length === 0 ? (
+        {pagination.totalItems === 0 ? (
           <p className="text-center text-muted-foreground py-8">
             Nenhum pagamento a colaborador encontrado
           </p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[80px] min-w-[80px]">ID</TableHead>
-                <TableHead className="min-w-[150px]">Projeto</TableHead>
-                <TableHead className="min-w-[120px]">Colaborador</TableHead>
-                <TableHead className="min-w-[90px]">Fase</TableHead>
-                <TableHead className="min-w-[130px]">Status</TableHead>
-                <TableHead className="text-right min-w-[100px]">Valor</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredPayments.map(tp => (
-                <TableRow key={tp.id}>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {getProjectCode(tp.project_id)}
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {getProjectName(tp.project_id)}
-                  </TableCell>
-                  <TableCell>
-                    {getMemberName(tp.user_id)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={tp.phase === 'captacao' ? 'bg-blue-500/10 text-blue-500' : 'bg-purple-500/10 text-purple-500'}>
-                      {tp.phase === 'captacao' ? 'Captação' : 'Edição'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      value={tp.payment_status}
-                      onValueChange={(newStatus) => onStatusChange(tp.id, newStatus)}
-                    >
-                      <SelectTrigger className={cn('w-[130px]', statusColors[tp.payment_status] || statusColors.pendente)}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pendente">Pendente</SelectItem>
-                        <SelectItem value="pago">Pago</SelectItem>
-                        <SelectItem value="vencido">Vencido</SelectItem>
-                        <SelectItem value="cancelado">Cancelado</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell className="text-right font-medium text-destructive">
-                    -{formatCurrency(tp.payment_amount || 0)}
-                  </TableCell>
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[80px] min-w-[80px]">ID</TableHead>
+                  <TableHead className="min-w-[150px]">Projeto</TableHead>
+                  <TableHead className="min-w-[120px]">Colaborador</TableHead>
+                  <TableHead className="min-w-[90px]">Fase</TableHead>
+                  <TableHead className="min-w-[130px]">Status</TableHead>
+                  <TableHead className="text-right min-w-[100px]">Valor</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {pagination.paginatedItems.map(tp => (
+                  <TableRow key={tp.id}>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {getProjectCode(tp.project_id)}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {getProjectName(tp.project_id)}
+                    </TableCell>
+                    <TableCell>
+                      {getMemberName(tp.user_id)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={tp.phase === 'captacao' ? 'bg-blue-500/10 text-blue-500' : 'bg-purple-500/10 text-purple-500'}>
+                        {tp.phase === 'captacao' ? 'Captação' : 'Edição'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={tp.payment_status}
+                        onValueChange={(newStatus) => onStatusChange(tp.id, newStatus)}
+                      >
+                        <SelectTrigger className={cn('w-[130px]', statusColors[tp.payment_status] || statusColors.pendente)}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pendente">Pendente</SelectItem>
+                          <SelectItem value="pago">Pago</SelectItem>
+                          <SelectItem value="vencido">Vencido</SelectItem>
+                          <SelectItem value="cancelado">Cancelado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-destructive">
+                      -{formatCurrency(tp.payment_amount || 0)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            
+            <ListPagination
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.totalItems}
+              startIndex={pagination.startIndex}
+              endIndex={pagination.endIndex}
+              hasNextPage={pagination.hasNextPage}
+              hasPreviousPage={pagination.hasPreviousPage}
+              onPageChange={pagination.goToPage}
+              onNextPage={pagination.goToNextPage}
+              onPreviousPage={pagination.goToPreviousPage}
+              onFirstPage={pagination.goToFirstPage}
+              onLastPage={pagination.goToLastPage}
+            />
+          </>
         )}
       </CardContent>
     </Card>

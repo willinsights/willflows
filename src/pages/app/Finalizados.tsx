@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Filter, Calendar as CalendarIcon, Download, FileText, Camera, Film, Video, Eye, X, Users, Lock } from 'lucide-react';
 import { format, isWithinInterval, parseISO } from 'date-fns';
+import { usePagination } from '@/hooks/usePagination';
+import { ListPagination } from '@/components/ui/list-pagination';
 import { pt } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -196,6 +198,12 @@ export default function Finalizados() {
       return dateB - dateA; // Mais recentes primeiro
     });
   }, [projects, searchQuery, filterClient, filterType, filterResponsavel, filterPhase, projectTeams, startDate, endDate]);
+
+  // Pagination
+  const pagination = usePagination({
+    items: completedProjects,
+    itemsPerPage: 50,
+  });
 
   // Get unique team members who have worked on finished projects
   const teamMembersInProjects = useMemo(() => {
@@ -452,7 +460,7 @@ export default function Finalizados() {
       </div>
 
       {/* Projects Table */}
-      {completedProjects.length === 0 ? <motion.div initial={{
+      {pagination.totalItems === 0 ? <motion.div initial={{
       opacity: 0,
       y: 20
     }} animate={{
@@ -480,7 +488,7 @@ export default function Finalizados() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {completedProjects.map((project, index) => {
+              {pagination.paginatedItems.map((project, index) => {
             const TypeIcon = typeIcons[project.type] || Camera;
             const team = projectTeams[project.id] || {
               captacao: [],
@@ -537,6 +545,24 @@ export default function Finalizados() {
           })}
             </TableBody>
           </Table>
+          
+          {/* Pagination Controls */}
+          <div className="p-4 border-t">
+            <ListPagination
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.totalItems}
+              startIndex={pagination.startIndex}
+              endIndex={pagination.endIndex}
+              hasNextPage={pagination.hasNextPage}
+              hasPreviousPage={pagination.hasPreviousPage}
+              onPageChange={pagination.goToPage}
+              onNextPage={pagination.goToNextPage}
+              onPreviousPage={pagination.goToPreviousPage}
+              onFirstPage={pagination.goToFirstPage}
+              onLastPage={pagination.goToLastPage}
+            />
+          </div>
         </Card>}
 
       {/* Summary Cards - Valores financeiros apenas para admin */}

@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { usePagination } from '@/hooks/usePagination';
+import { ListPagination } from '@/components/ui/list-pagination';
 import { 
   Plus, 
   Search, 
@@ -196,6 +198,12 @@ export default function Clientes() {
     return filtered;
   }, [clients, searchQuery, filterStatus, sortBy, clientStats]);
 
+  // Pagination
+  const pagination = usePagination({
+    items: filteredClients,
+    itemsPerPage: 50,
+  });
+
   const selectedClientData = selectedClient ? clients.find(c => c.id === selectedClient) : null;
   const selectedClientProjects = selectedClient ? projects.filter(p => p.client_id === selectedClient) : [];
 
@@ -258,7 +266,7 @@ export default function Clientes() {
         </Select>
 
         <span className="text-sm text-muted-foreground ml-auto">
-          {filteredClients.length} cliente{filteredClients.length !== 1 ? 's' : ''}
+          {pagination.totalItems} cliente{pagination.totalItems !== 1 ? 's' : ''}
         </span>
       </div>
 
@@ -365,7 +373,7 @@ export default function Clientes() {
           <CardTitle className="text-lg">Lista de Clientes</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          {filteredClients.length === 0 ? (
+          {pagination.totalItems === 0 ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -387,7 +395,7 @@ export default function Clientes() {
             </motion.div>
           ) : (
             <div className="space-y-3">
-              {filteredClients.map((client, index) => {
+              {pagination.paginatedItems.map((client, index) => {
                 const stats = clientStats[client.id] || { activeProjects: 0, completedProjects: 0, totalRevenue: 0, recentProjects: [] };
                 const totalProjects = stats.activeProjects + stats.completedProjects;
                 const progressPercent = totalProjects > 0 ? (stats.completedProjects / totalProjects) * 100 : 0;
@@ -520,6 +528,22 @@ export default function Clientes() {
               })}
             </div>
           )}
+          
+          {/* Pagination Controls */}
+          <ListPagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            hasNextPage={pagination.hasNextPage}
+            hasPreviousPage={pagination.hasPreviousPage}
+            onPageChange={pagination.goToPage}
+            onNextPage={pagination.goToNextPage}
+            onPreviousPage={pagination.goToPreviousPage}
+            onFirstPage={pagination.goToFirstPage}
+            onLastPage={pagination.goToLastPage}
+          />
         </CardContent>
       </Card>
 
