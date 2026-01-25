@@ -134,7 +134,7 @@ export function ChatLayout({ selectedConversationId }: ChatLayoutProps) {
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-background">
       {/* Left Sidebar - Conversations */}
-      <div className="w-72 border-r border-border flex flex-col bg-card">
+      <div className="w-80 lg:w-96 border-r border-border/60 flex flex-col bg-card/80 backdrop-blur-sm">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <div className="flex items-center gap-2">
             <MessageCircle className="h-5 w-5 text-primary" />
