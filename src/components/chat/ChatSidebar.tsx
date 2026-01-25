@@ -172,7 +172,7 @@ export function ChatSidebar({
             onOpenChange={() => toggleSection('channels')}
           >
             <div className="flex items-center justify-between px-4 py-2">
-              <CollapsibleTrigger className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors">
+              <CollapsibleTrigger className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors flex-1">
                 <Hash className="h-3.5 w-3.5" />
                 Canais
                 <span className="text-[10px] font-normal bg-muted px-1.5 py-0.5 rounded-full">
@@ -186,14 +186,14 @@ export function ChatSidebar({
               </CollapsibleTrigger>
               {isAdmin && (
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  className="h-7 px-2 hover:bg-primary/10 hover:text-primary gap-1"
+                  className="h-7 px-2.5 gap-1.5 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50 shrink-0"
                   onClick={() => setShowCreateChannel(true)}
                   title="Criar novo canal"
                 >
                   <Plus className="h-4 w-4" />
-                  <span className="text-xs">Novo</span>
+                  <span className="text-xs font-medium">Novo</span>
                 </Button>
               )}
             </div>
@@ -233,7 +233,7 @@ export function ChatSidebar({
             onOpenChange={() => toggleSection('dms')}
           >
             <div className="flex items-center justify-between px-4 py-2">
-              <CollapsibleTrigger className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors">
+              <CollapsibleTrigger className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors flex-1">
                 <User className="h-3.5 w-3.5" />
                 Mensagens
                 <span className="text-[10px] font-normal bg-muted px-1.5 py-0.5 rounded-full">
@@ -246,14 +246,14 @@ export function ChatSidebar({
                 )}
               </CollapsibleTrigger>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="h-7 px-2 hover:bg-primary/10 hover:text-primary gap-1"
+                className="h-7 px-2.5 gap-1.5 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50 shrink-0"
                 onClick={() => setShowCreateDM(true)}
                 title="Iniciar conversa privada"
               >
                 <Plus className="h-4 w-4" />
-                <span className="text-xs">Nova</span>
+                <span className="text-xs font-medium">Nova</span>
               </Button>
             </div>
             <CollapsibleContent className="space-y-0.5">
