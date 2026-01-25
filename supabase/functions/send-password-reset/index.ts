@@ -158,7 +158,7 @@ const handler = async (req: Request): Promise<Response> => {
       logStep("Reset link generated successfully");
     } else {
       // Validate reset link is from trusted domains (only if provided externally)
-      const allowedDomains = ['willflow.app', 'www.willflow.app', 'willflow.pt', 'www.willflow.pt', 'localhost', 'lovable.app'];
+      const allowedDomains = ['willflow.app', 'www.willflow.app', 'localhost', 'lovable.app'];
       try {
         const linkUrl = new URL(finalResetLink);
         const isAllowed = allowedDomains.some(domain => 
