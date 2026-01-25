@@ -55,6 +55,7 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const hasMarkedAsReadRef = useRef<string | null>(null);
 
   const conversation = conversations.find((c) => c.id === conversationId);
 
@@ -111,6 +112,10 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
     // Wait for messages to load before marking as read
     if (isLoading) return;
     
+    // Prevent multiple mark-as-read calls for the same conversation session
+    const cacheKey = `${conversationId}-${messages.length}`;
+    if (hasMarkedAsReadRef.current === cacheKey) return;
+    
     const markConversationAsRead = async () => {
       // Use last message timestamp instead of client time to avoid clock skew issues
       const lastMessageAt = messages.length > 0 ? messages[messages.length - 1]?.created_at : null;
@@ -118,7 +123,23 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
       
       logger.debug('markConversationAsRead:', { conversationId, userId: user.id, readTimestamp, messageCount: messages.length });
       
-      // Upsert membership to ensure it exists (for public channels user may not have membership yet)
+      // Cancel any pending queries BEFORE making changes to prevent race conditions
+      await queryClient.cancelQueries({ queryKey: ['conversations', workspace.id] });
+      
+      // Optimistic update FIRST: immediately set unread_count to 0 in cache
+      queryClient.setQueryData(
+        ['conversations', workspace.id],
+        (oldData: typeof conversations | undefined) => {
+          if (!oldData) return oldData;
+          return oldData.map(conv => 
+            conv.id === conversationId 
+              ? { ...conv, unread_count: 0 }
+              : conv
+          );
+        }
+      );
+      
+      // Now upsert to server
       const { error: upsertError } = await supabase
         .from('conversation_members')
         .upsert(
@@ -140,29 +161,19 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
       }
       
       logger.debug('markConversationAsRead: upsert successful');
+      hasMarkedAsReadRef.current = cacheKey;
       
-      // Cancel any pending queries to prevent stale data from overwriting
-      await queryClient.cancelQueries({ queryKey: ['conversations', workspace.id] });
-      
-      // Optimistic update: immediately set unread_count to 0 in cache
-      queryClient.setQueryData(
-        ['conversations', workspace.id],
-        (oldData: typeof conversations | undefined) => {
-          if (!oldData) return oldData;
-          return oldData.map(conv => 
-            conv.id === conversationId 
-              ? { ...conv, unread_count: 0 }
-              : conv
-          );
-        }
-      );
-      
-      // Also invalidate to ensure consistency with backend
-      queryClient.invalidateQueries({ queryKey: ['conversations', workspace.id] });
+      // Real-time subscription will handle syncing - no need to invalidate here
+      // This prevents race conditions where invalidate fetches stale data
     };
     
     markConversationAsRead();
   }, [conversationId, user?.id, workspace?.id, messages, isLoading, queryClient]);
+  
+  // Reset the ref when conversation changes
+  useEffect(() => {
+    hasMarkedAsReadRef.current = null;
+  }, [conversationId]);
 
   // Auto-scroll to bottom on initial load and new messages
   useEffect(() => {
