@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
               .eq('user_id', pushUser.user_id)
               .eq('entity_type', 'calendar_event')
               .eq('entity_id', event.id)
-              .eq('type', 'event_reminder')
+              .eq('type', 'info')
               .single();
 
             if (!existing) {
@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
                 workspace_id: event.workspace_id,
                 title: 'Evento próximo',
                 message: `${event.title} - ${formattedDate} às ${formattedTime}`,
-                type: 'event_reminder',
+                type: 'info',
                 entity_type: 'calendar_event',
                 entity_id: event.id,
               });
@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
               .eq('user_id', pushUser.user_id)
               .eq('entity_type', 'project')
               .eq('entity_id', project.id)
-              .eq('type', 'deadline_reminder')
+              .eq('type', 'warning')
               .single();
 
             if (!existing) {
@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
                 workspace_id: project.workspace_id,
                 title: 'Prazo de entrega próximo',
                 message: `${project.name} - Entrega: ${formattedDate}`,
-                type: 'deadline_reminder',
+                type: 'warning',
                 entity_type: 'project',
                 entity_id: project.id,
               });
