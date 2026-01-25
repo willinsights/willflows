@@ -86,10 +86,68 @@ export function useCategories() {
     }
   };
 
+  const updateCategory = async (id: string, name: string, color: string) => {
+    if (!currentWorkspace) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .update({ name, color })
+        .eq('id', id)
+        .eq('workspace_id', currentWorkspace.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({ title: 'Categoria atualizada com sucesso' });
+      setCategories(prev => 
+        prev.map(c => c.id === id ? data : c).sort((a, b) => a.name.localeCompare(b.name))
+      );
+      return data;
+    } catch (error: any) {
+      logger.error('Error updating category:', error);
+      toast({
+        title: 'Erro ao atualizar categoria',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return null;
+    }
+  };
+
+  const deleteCategory = async (id: string) => {
+    if (!currentWorkspace) return false;
+
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .delete()
+        .eq('id', id)
+        .eq('workspace_id', currentWorkspace.id);
+
+      if (error) throw error;
+
+      toast({ title: 'Categoria eliminada com sucesso' });
+      setCategories(prev => prev.filter(c => c.id !== id));
+      return true;
+    } catch (error: any) {
+      logger.error('Error deleting category:', error);
+      toast({
+        title: 'Erro ao eliminar categoria',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
   return {
     categories,
     loading,
     createCategory,
+    updateCategory,
+    deleteCategory,
     refresh: fetchCategories,
   };
 }

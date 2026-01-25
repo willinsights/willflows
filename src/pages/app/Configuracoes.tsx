@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Settings, User, Users, Shield, Palette, Loader2, Database as DatabaseIcon, Clock, Trash2, RefreshCw, X, Calendar, Video, Film, AlertTriangle, LogOut, Camera, HelpCircle } from 'lucide-react';
+import { Settings, User, Users, Shield, Palette, Loader2, Database as DatabaseIcon, Clock, Trash2, RefreshCw, X, Calendar, Video, Film, AlertTriangle, LogOut, Camera, HelpCircle, Tags } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -45,6 +45,7 @@ import { PermissionsMatrix } from '@/components/settings/PermissionsMatrix';
 import { PushNotificationSettings } from '@/components/settings/PushNotificationSettings';
 import { DeleteWorkspaceModal } from '@/components/workspace/DeleteWorkspaceModal';
 import { LeaveWorkspaceModal } from '@/components/workspace/LeaveWorkspaceModal';
+import { CategoryManagement } from '@/components/categories/CategoryManagement';
 import { useProductTour } from '@/hooks/useProductTour';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import type { Database } from '@/integrations/supabase/types';
@@ -95,6 +96,7 @@ export default function Configuracoes() {
   const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
   const [deleteAccountConfirmText, setDeleteAccountConfirmText] = useState('');
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
 
   // Check if user is admin or guest in current workspace
   const isGuestMember = currentWorkspace && !isAdmin;
@@ -623,6 +625,24 @@ export default function Configuracoes() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Categories Management */}
+            {isAdmin && (
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Tags className="h-5 w-5" />
+                    Categorias
+                  </CardTitle>
+                  <CardDescription>Gerir categorias personalizadas para projetos</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button variant="outline" onClick={() => setCategoryModalOpen(true)}>
+                    Gerir Categorias
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Danger Zone */}
             <Card className="glass-card border-destructive/20">
@@ -1198,6 +1218,12 @@ export default function Configuracoes() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Category Management Modal */}
+      <CategoryManagement 
+        open={categoryModalOpen} 
+        onOpenChange={setCategoryModalOpen} 
+      />
     </div>
   );
 }
