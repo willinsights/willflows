@@ -28,9 +28,11 @@ import {
 import { InviteMemberForm } from '@/components/team/InviteMemberForm';
 import { TeamMemberRow } from '@/components/team/TeamMemberRow';
 import { PendingInviteRow } from '@/components/team/PendingInviteRow';
+import { AccessDenied } from '@/components/ui/access-denied';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useWorkspaceInvitations } from '@/hooks/useWorkspaceInvitations';
 import { useRoleLabels, DEFAULT_ROLE_LABELS } from '@/hooks/useRoleLabels';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -42,6 +44,13 @@ type AppRole = Database['public']['Enums']['app_role'];
 const ALL_ROLES: AppRole[] = ['admin', 'editor', 'captacao', 'freelancer', 'visualizador'];
 
 export default function Equipa() {
+  const { canViewTeam } = useFinancialPermissions();
+  
+  // Block access for collaborators
+  if (!canViewTeam) {
+    return <AccessDenied description="Apenas administradores e editores podem aceder à gestão de Equipa." />;
+  }
+
   const { user } = useAuth();
   const { isAdmin } = useWorkspace();
   const { members, loading: membersLoading, refresh: refreshMembers } = useWorkspaceMembers();

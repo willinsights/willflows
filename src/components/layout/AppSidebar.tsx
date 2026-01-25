@@ -36,6 +36,9 @@ import { TrialBadge } from '@/components/dashboard/TrialBadge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
+import type { Database } from '@/integrations/supabase/types';
+
+type AppRole = Database['public']['Enums']['app_role'];
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -49,6 +52,8 @@ interface NavItem {
   label: string;
   path: string;
   adminOnly?: boolean;
+  /** Roles allowed to see this item. If undefined, all roles can see it */
+  allowedRoles?: AppRole[];
 }
 
 interface NavSection {
@@ -68,9 +73,9 @@ const navSections: NavSection[] = [
   {
     title: 'COMERCIAL',
     items: [
-      { icon: Target, label: 'Leads', path: '/app/leads' },
-      { icon: Users, label: 'Clientes', path: '/app/clientes' },
-      { icon: FileText, label: 'Contratos', path: '/app/contratos' },
+      { icon: Target, label: 'Leads', path: '/app/leads', allowedRoles: ['admin', 'editor', 'captacao'] },
+      { icon: Users, label: 'Clientes', path: '/app/clientes', allowedRoles: ['admin', 'editor', 'captacao'] },
+      { icon: FileText, label: 'Contratos', path: '/app/contratos', allowedRoles: ['admin', 'editor'] },
     ],
   },
   {
@@ -86,13 +91,13 @@ const navSections: NavSection[] = [
     title: 'FINANÇAS',
     items: [
       { icon: Euro, label: 'Pagamentos', path: '/app/pagamentos' },
-      { icon: BarChart3, label: 'Relatórios', path: '/app/relatorios' },
+      { icon: BarChart3, label: 'Relatórios', path: '/app/relatorios', allowedRoles: ['admin'] },
     ],
   },
   {
     title: 'GESTÃO',
     items: [
-      { icon: UserCog, label: 'Equipa', path: '/app/equipa' },
+      { icon: UserCog, label: 'Equipa', path: '/app/equipa', allowedRoles: ['admin', 'editor'] },
       { icon: Settings, label: 'Configurações', path: '/app/configuracoes' },
       { icon: Crown, label: 'Planos', path: '/app/planos', adminOnly: true },
     ],
@@ -111,17 +116,25 @@ export function AppSidebar({ collapsed, onToggle, isMobile, autoCollapseOnNav = 
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isAdmin } = useWorkspace();
+  const { isAdmin, membership } = useWorkspace();
   const { isSuperAdmin } = useSuperAdmin();
   const { totalUnread } = useTotalUnreadMessages();
+  const userRole = membership?.role as AppRole | undefined;
+  
   // Add super admin section only if user is super admin
   const baseSections = isSuperAdmin ? [...navSections, superAdminSection] : navSections;
   
-  // Filter out admin-only items for non-admins
+  // Filter out items based on role permissions
   const sections = baseSections.map(section => ({
     ...section,
-    items: section.items.filter(item => !item.adminOnly || isAdmin)
-  }));
+    items: section.items.filter(item => {
+      // Check adminOnly flag
+      if (item.adminOnly && !isAdmin) return false;
+      // Check allowedRoles if defined
+      if (item.allowedRoles && userRole && !item.allowedRoles.includes(userRole)) return false;
+      return true;
+    })
+  })).filter(section => section.items.length > 0); // Remove empty sections
 
   const isActive = (path: string) => {
     if (path === '/app') {

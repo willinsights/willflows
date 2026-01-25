@@ -37,10 +37,18 @@ import { MarkLostModal } from '@/components/leads/MarkLostModal';
 import { DeleteLeadModal } from '@/components/leads/DeleteLeadModal';
 import { ImportLeadsModal } from '@/components/leads/ImportLeadsModal';
 import { ClientDetailsModal } from '@/components/clients/ClientDetailsModal';
+import { AccessDenied } from '@/components/ui/access-denied';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { cn } from '@/lib/utils';
 
 export default function Leads() {
+  const { canViewLeads } = useFinancialPermissions();
   const { leads, leadsByStatus, loading, pipelineMetrics, updateLeadStatus, deleteLead, deleteMultipleLeads, importLeads, refresh } = useLeads();
+
+  // Block access for collaborators
+  if (!canViewLeads) {
+    return <AccessDenied description="Apenas administradores, editores e captação podem aceder aos Leads." />;
+  }
   const { currentWorkspace } = useWorkspace();
   
   const [view, setView] = useState<'kanban' | 'list'>('kanban');
