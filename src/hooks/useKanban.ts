@@ -460,6 +460,7 @@ export function useKanban(phase: KanbanPhase) {
 
     const columnField = phase === 'captacao' ? 'captacao_column_id' : 'edicao_column_id';
     const targetColumn = columns.find(c => c.id === targetColumnId);
+    const sourceColumn = columns.find(c => c.projects.some(p => p.id === projectId));
     const project = columns.flatMap(c => c.projects).find(p => p.id === projectId);
     
     logger.debug('[moveProject]', {
@@ -467,8 +468,64 @@ export function useKanban(phase: KanbanPhase) {
       targetColumnId,
       phase,
       item_type: (project as any)?.item_type,
-      is_final: targetColumn?.is_final
+      source_is_final: sourceColumn?.is_final,
+      target_is_final: targetColumn?.is_final,
+      is_delivered: project?.is_delivered
     });
+    
+    // P0.3: Reabrir projeto automaticamente ao arrastar de coluna final para ativa
+    if (project?.is_delivered && sourceColumn?.is_final && targetColumn && !targetColumn.is_final) {
+      logger.debug('[moveProject] Reopening delivered project...');
+      
+      // Call reopen_project RPC
+      const { data: reopenResult, error: reopenError } = await supabase.rpc('reopen_project', {
+        p_project_id: projectId
+      });
+      
+      if (reopenError) {
+        toast({
+          title: 'Erro ao reabrir projeto',
+          description: handleDatabaseError('reopenProject', reopenError),
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      const result = reopenResult as { success: boolean; reason?: string; new_column_id?: string } | null;
+      if (!result?.success) {
+        toast({
+          title: 'Não foi possível reabrir',
+          description: result?.reason || 'Erro desconhecido',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      // After reopen, move to target column
+      localUpdateTimestampRef.current = Date.now();
+      
+      const { error: moveError } = await supabase
+        .from('projects')
+        .update({ 
+          [columnField]: targetColumnId, 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', projectId);
+      
+      if (moveError) {
+        toast({
+          title: 'Erro ao mover projeto',
+          description: handleDatabaseError('moveProject', moveError),
+          variant: 'destructive',
+        });
+        fetchColumns();
+        return;
+      }
+      
+      toast({ title: 'Projeto reaberto com sucesso!' });
+      fetchColumns();
+      return;
+    }
     
     // Check if moving to final column - use backend RPC for validation
     if (targetColumn?.is_final && project) {
