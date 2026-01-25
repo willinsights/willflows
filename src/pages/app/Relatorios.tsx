@@ -135,13 +135,14 @@ export default function Relatorios() {
     return Math.max(1, Math.ceil(diffDays / 30));
   }, [dateRange]);
 
-  // Fetch collaborators data
+  // Fetch collaborators data - only from DELIVERED projects
   useEffect(() => {
     const fetchCollaborators = async () => {
       if (!currentWorkspace?.id) return;
 
-      const projectIds = projects.map(p => p.id);
-      if (projectIds.length === 0) {
+      // Filter only delivered projects
+      const deliveredProjectIds = projects.filter(p => p.is_delivered).map(p => p.id);
+      if (deliveredProjectIds.length === 0) {
         setCollaboratorsData([]);
         return;
       }
@@ -160,7 +161,7 @@ export default function Relatorios() {
             avatar_url
           )
         `)
-        .in('project_id', projectIds);
+        .in('project_id', deliveredProjectIds);
 
       if (!teamData) {
         setCollaboratorsData([]);
@@ -168,7 +169,7 @@ export default function Relatorios() {
       }
 
       // Aggregate by collaborator (user_id or external_name)
-      const collaboratorStats: Record<string, CollaboratorData> = {};
+      const collaboratorStats: Record<string, CollaboratorData & { projectIds: Set<string> }> = {};
 
       teamData.forEach((entry: any) => {
         const isExternal = entry.is_external || !entry.user_id;
@@ -187,6 +188,7 @@ export default function Relatorios() {
             projectCount: 0,
             phases: [],
             isExternal,
+            projectIds: new Set(),
           };
         }
 
@@ -194,12 +196,16 @@ export default function Relatorios() {
         if (!collaboratorStats[key].phases.includes(entry.phase)) {
           collaboratorStats[key].phases.push(entry.phase);
         }
-        // Count unique projects
-        collaboratorStats[key].projectCount += 1;
+        // Track unique delivered projects
+        collaboratorStats[key].projectIds.add(entry.project_id);
       });
 
-      // Sort by total value and take top 10
+      // Convert projectIds Set to count and sort by total value
       const sorted = Object.values(collaboratorStats)
+        .map(({ projectIds, ...rest }) => ({
+          ...rest,
+          projectCount: projectIds.size, // Unique delivered projects count
+        }))
         .sort((a, b) => b.totalValue - a.totalValue)
         .slice(0, 10);
 
@@ -921,7 +927,7 @@ export default function Relatorios() {
                         <span className="font-bold text-primary text-sm ml-2">{formatCurrency(collab.totalValue)}</span>
                       </div>
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{collab.projectCount} atrib.</span>
+                        <span>{collab.projectCount} projeto{collab.projectCount !== 1 ? 's' : ''} finalizado{collab.projectCount !== 1 ? 's' : ''}</span>
                         <div className="flex gap-1">
                           {collab.phases.includes('captacao') && (
                             <Badge variant="secondary" className="text-[9px] px-1 py-0">CAP</Badge>
