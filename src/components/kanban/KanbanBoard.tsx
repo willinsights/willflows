@@ -19,7 +19,7 @@ import { KanbanColumn } from './KanbanColumn';
 import { KanbanCard } from './KanbanCard';
 import { KanbanFilters, KanbanFilterState } from './KanbanFilters';
 import { CreateProjectModal } from '@/components/projects/CreateProjectModal';
-import { ProjectDetailsModal } from '@/components/projects/ProjectDetailsModal';
+import { ProjectDetailsSheet } from '@/components/projects/ProjectDetailsSheet';
 import { ChecklistPendingAlert } from '@/components/projects/ChecklistPendingAlert';
 import { useKanban, KanbanPhase, ProjectWithClient } from '@/hooks/useKanban';
 import { useCategories } from '@/hooks/useCategories';
@@ -355,8 +355,8 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
         phase={phase}
       />
 
-      {/* Project Details Modal */}
-      <ProjectDetailsModal
+      {/* Project Details Sheet */}
+      <ProjectDetailsSheet
         open={!!selectedProjectId}
         onOpenChange={(open) => !open && setSelectedProjectId(null)}
         project={selectedProject}
