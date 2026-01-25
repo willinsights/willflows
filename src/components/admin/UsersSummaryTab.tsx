@@ -285,21 +285,24 @@ export function UsersSummaryTab() {
     let data: any[] = [];
     let filename = '';
     let headers: string[] = [];
+    let title = '';
 
     switch (type) {
       case 'owners':
+        title = 'Donos de Workspace';
         headers = ['Email', 'Nome', 'Workspace', 'Membros', 'Plano', 'Criado em'];
         data = summary.workspaceOwners.map(o => [
           o.email,
           o.fullName || '',
           o.workspaceName,
           o.totalMembers,
-          o.plan || 'N/A',
+          o.plan || 'Trial',
           format(new Date(o.createdAt), 'dd/MM/yyyy', { locale: pt })
         ]);
         filename = 'donos-workspace.csv';
         break;
       case 'collaborators':
+        title = 'Colaboradores';
         headers = ['Email', 'Nome', 'Role', 'Workspace', 'Dono', 'Adicionado em'];
         data = summary.collaborators.map(c => [
           c.email,
@@ -312,6 +315,7 @@ export function UsersSummaryTab() {
         filename = 'colaboradores.csv';
         break;
       case 'invites':
+        title = 'Convites Pendentes';
         headers = ['Email', 'Workspace', 'Role', 'Convidado por', 'Data', 'Status'];
         data = summary.pendingInvites.map(i => [
           i.email,
@@ -324,6 +328,7 @@ export function UsersSummaryTab() {
         filename = 'convites-pendentes.csv';
         break;
       case 'waitlist':
+        title = 'Waitlist Sem Conta';
         headers = ['Email', 'Nome', 'Empresa', 'Origem', 'Inscrito em', 'Convite Enviado'];
         data = summary.waitlistWithoutAccount.map(w => [
           w.email,
@@ -337,10 +342,22 @@ export function UsersSummaryTab() {
         break;
     }
 
-    const csvContent = [
-      headers.join(','),
-      ...data.map(row => row.map((cell: any) => `"${cell}"`).join(','))
-    ].join('\n');
+    // BOM para UTF-8 (Excel PT compatibility)
+    let csvContent = '\ufeff';
+    
+    // Professional header
+    csvContent += `"${title}"\n`;
+    csvContent += `"WillFlow Admin Export"\n`;
+    csvContent += `"Exportado: ${format(new Date(), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}"\n`;
+    csvContent += `"Total: ${data.length} registos"\n\n`;
+    
+    // Headers with semicolon separator
+    csvContent += headers.map(h => `"${h}"`).join(';') + '\n';
+    
+    // Data rows with semicolon separator
+    data.forEach(row => {
+      csvContent += row.map((cell: any) => `"${cell}"`).join(';') + '\n';
+    });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');

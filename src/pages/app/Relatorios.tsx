@@ -92,6 +92,13 @@ export default function Relatorios() {
 
   // Top Collaborators data
   const [collaboratorsData, setCollaboratorsData] = useState<CollaboratorData[]>([]);
+  
+  // Team payments data for accurate cost calculations
+  const [teamPaymentsData, setTeamPaymentsData] = useState<Array<{
+    project_id: string;
+    phase: string;
+    payment_amount: number | null;
+  }>>([]);
 
   const currency = currentWorkspace?.currency || 'EUR';
 
@@ -134,6 +141,28 @@ export default function Relatorios() {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return Math.max(1, Math.ceil(diffDays / 30));
   }, [dateRange]);
+
+  // Fetch team payments data for accurate cost calculations
+  useEffect(() => {
+    const fetchTeamPayments = async () => {
+      if (!currentWorkspace?.id) return;
+      
+      const deliveredProjectIds = projects.filter(p => p.is_delivered).map(p => p.id);
+      if (deliveredProjectIds.length === 0) {
+        setTeamPaymentsData([]);
+        return;
+      }
+      
+      const { data } = await supabase
+        .from('project_team')
+        .select('project_id, phase, payment_amount')
+        .in('project_id', deliveredProjectIds);
+      
+      setTeamPaymentsData(data || []);
+    };
+    
+    fetchTeamPayments();
+  }, [projects, currentWorkspace?.id]);
 
   // Fetch collaborators data - only from DELIVERED projects
   useEffect(() => {
@@ -215,7 +244,7 @@ export default function Relatorios() {
     fetchCollaborators();
   }, [projects, currentWorkspace?.id]);
 
-  // Calculate monthly revenue data
+  // Calculate monthly revenue data - using project_team.payment_amount as source of truth for team costs
   const monthlyData = useMemo(() => {
     const months = [];
     
@@ -233,8 +262,17 @@ export default function Relatorios() {
       });
       
       const revenue = monthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
-      const costs = monthProjects.reduce((sum, p) => 
-        sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
+      
+      // Calculate costs from project_team.payment_amount (source of truth)
+      const monthProjectIds = monthProjects.map(p => p.id);
+      const teamCosts = teamPaymentsData
+        .filter(tp => monthProjectIds.includes(tp.project_id))
+        .reduce((sum, tp) => sum + (tp.payment_amount || 0), 0);
+      
+      // Extra costs come from project table
+      const extraCosts = monthProjects.reduce((sum, p) => sum + (p.custos_extras || 0), 0);
+      
+      const costs = teamCosts + extraCosts;
       
       months.push({
         month: format(date, 'MMM yy', { locale: pt }),
@@ -248,7 +286,7 @@ export default function Relatorios() {
     }
     
     return months;
-  }, [projects, dateRange, periodMonths]);
+  }, [projects, dateRange, periodMonths, teamPaymentsData]);
 
   // Top clients by revenue
   const topClients = useMemo(() => {
@@ -300,12 +338,22 @@ export default function Relatorios() {
     return Object.entries(priorities).map(([name, value]) => ({ name, value }));
   }, [projects]);
 
-  // Summary metrics
+  // Summary metrics - using project_team.payment_amount as source of truth for team costs
   const summaryMetrics = useMemo(() => {
     const deliveredProjects = projects.filter(p => p.is_delivered);
+    const deliveredProjectIds = deliveredProjects.map(p => p.id);
+    
     const totalRevenue = deliveredProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
-    const totalCosts = deliveredProjects.reduce((sum, p) => 
-      sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
+    
+    // Team costs from project_team.payment_amount (source of truth)
+    const totalTeamCosts = teamPaymentsData
+      .filter(tp => deliveredProjectIds.includes(tp.project_id))
+      .reduce((sum, tp) => sum + (tp.payment_amount || 0), 0);
+    
+    // Extra costs from projects
+    const totalExtraCosts = deliveredProjects.reduce((sum, p) => sum + (p.custos_extras || 0), 0);
+    
+    const totalCosts = totalTeamCosts + totalExtraCosts;
     const avgProjectValue = deliveredProjects.length > 0 ? totalRevenue / deliveredProjects.length : 0;
     
     return {
@@ -318,19 +366,34 @@ export default function Relatorios() {
       deliveredProjects: deliveredProjects.length,
       activeClients: clients.filter(c => c.is_active).length,
     };
-  }, [projects, clients]);
+  }, [projects, clients, teamPaymentsData]);
 
   // Export functions
   const handleExportExcel = () => {
-    const headers = ['Mês', 'Receita (€)', 'Custos (€)', 'Lucro (€)', 'Margem (%)', 'Projetos'];
-    const rows = monthlyData.map(m => [
-      m.fullMonth,
-      m.receita.toFixed(2),
-      m.custos.toFixed(2),
-      m.lucro.toFixed(2),
-      m.margin.toFixed(1),
-      m.projetos,
-    ]);
+    // BOM para UTF-8 (Excel PT compatibility)
+    let csvContent = '\ufeff';
+    
+    // Professional header
+    csvContent += `"Relatório Financeiro"\n`;
+    csvContent += `"${currentWorkspace?.name || 'WillFlow'}"\n`;
+    csvContent += `"Período: ${format(dateRange.start, "d MMM yyyy", { locale: pt })} - ${format(dateRange.end, "d MMM yyyy", { locale: pt })}"\n`;
+    csvContent += `"Exportado: ${format(new Date(), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}"\n\n`;
+    
+    // Monthly data section
+    csvContent += `"EVOLUÇÃO MENSAL"\n`;
+    const headers = ['Mês', 'Receita', 'Custos', 'Lucro', 'Margem (%)', 'Projetos'];
+    csvContent += headers.map(h => `"${h}"`).join(';') + '\n';
+    
+    monthlyData.forEach(m => {
+      csvContent += [
+        `"${m.fullMonth}"`,
+        `"${formatCurrency(m.receita)}"`,
+        `"${formatCurrency(m.custos)}"`,
+        `"${formatCurrency(m.lucro)}"`,
+        `"${m.margin.toFixed(1)}%"`,
+        `"${m.projetos}"`
+      ].join(';') + '\n';
+    });
 
     const totalReceita = monthlyData.reduce((sum, m) => sum + m.receita, 0);
     const totalCustos = monthlyData.reduce((sum, m) => sum + m.custos, 0);
@@ -338,20 +401,30 @@ export default function Relatorios() {
     const avgMargin = totalReceita > 0 ? ((totalLucro / totalReceita) * 100) : 0;
     const totalProjetos = monthlyData.reduce((sum, m) => sum + m.projetos, 0);
     
-    rows.push(['', '', '', '', '', '']);
-    rows.push(['TOTAL', totalReceita.toFixed(2), totalCustos.toFixed(2), totalLucro.toFixed(2), avgMargin.toFixed(1), totalProjetos]);
+    csvContent += [
+      `"TOTAL"`,
+      `"${formatCurrency(totalReceita)}"`,
+      `"${formatCurrency(totalCustos)}"`,
+      `"${formatCurrency(totalLucro)}"`,
+      `"${avgMargin.toFixed(1)}%"`,
+      `"${totalProjetos}"`
+    ].join(';') + '\n';
+    
+    // Top Clients section
+    csvContent += `\n"TOP 10 CLIENTES POR RECEITA"\n`;
+    csvContent += `"#";"Cliente";"Receita";"Projetos"\n`;
+    topClients.forEach((client, i) => {
+      csvContent += `"${i + 1}";"${client.name}";"${formatCurrency(client.revenue)}";"${client.projects}"\n`;
+    });
+    
+    // Top Collaborators section
+    csvContent += `\n"TOP 10 COLABORADORES"\n`;
+    csvContent += `"#";"Colaborador";"Total Ganho";"Projetos Finalizados"\n`;
+    collaboratorsData.forEach((collab, i) => {
+      csvContent += `"${i + 1}";"${collab.name}";"${formatCurrency(collab.totalValue)}";"${collab.projectCount}"\n`;
+    });
 
-    const csvContent = [
-      `Relatório Financeiro - ${currentWorkspace?.name || 'Workspace'}`,
-      `Período: ${format(dateRange.start, "d MMM yyyy", { locale: pt })} - ${format(dateRange.end, "d MMM yyyy", { locale: pt })}`,
-      `Gerado em: ${format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: pt })}`,
-      '',
-      headers.join(';'),
-      ...rows.map(row => row.toString().split(',').join(';'))
-    ].join('\n');
-
-    const bom = '\uFEFF';
-    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -372,96 +445,143 @@ export default function Relatorios() {
     const printContent = `
       <html>
         <head>
-          <title>Relatório Financeiro - ${currentWorkspace?.name || 'Workspace'}</title>
+          <title>Relatório Financeiro - ${currentWorkspace?.name || 'WillFlow'}</title>
           <style>
-            body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333; }
-            h1 { color: #6b21a8; margin-bottom: 10px; }
-            h2 { color: #6b21a8; margin-top: 30px; margin-bottom: 15px; font-size: 18px; }
-            .subtitle { color: #666; margin-bottom: 30px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #e5e5e5; padding: 12px; text-align: right; }
-            th { background-color: #f8f4ff; font-weight: 600; color: #6b21a8; }
-            th:first-child, td:first-child { text-align: left; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #1a1a1a; background: #fff; }
+            .header { border-left: 4px solid #8224e3; padding-left: 20px; margin-bottom: 30px; }
+            .header h1 { color: #8224e3; font-size: 28px; margin-bottom: 8px; }
+            .header .workspace-name { color: #666; font-size: 16px; margin-bottom: 4px; }
+            .header .date { color: #999; font-size: 12px; }
+            .stats-bar { display: flex; gap: 20px; margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, #f8f4ff 0%, #f0e8ff 100%); border-radius: 12px; flex-wrap: wrap; }
+            .stat-item { flex: 1; min-width: 120px; }
+            .stat-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+            .stat-value { font-size: 22px; font-weight: 700; color: #1a1a1a; }
+            .stat-value.success { color: #16a34a; }
+            .stat-value.negative { color: #dc2626; }
+            .stat-value.primary { color: #8224e3; }
+            h2 { color: #8224e3; margin-top: 30px; margin-bottom: 15px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+            th, td { border: 1px solid #e5e5e5; padding: 10px 8px; text-align: left; }
+            th { background: #8224e3; color: white; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
+            th.right, td.right { text-align: right; }
             tr:nth-child(even) { background-color: #fafafa; }
+            tr:hover { background-color: #f5f0ff; }
             tr.total { background-color: #f8f4ff; font-weight: bold; }
-            .header { margin-bottom: 30px; border-bottom: 2px solid #6b21a8; padding-bottom: 20px; }
-            .summary { display: flex; gap: 20px; margin-bottom: 30px; flex-wrap: wrap; }
-            .summary-card { padding: 20px; background: linear-gradient(135deg, #f8f4ff 0%, #f0e8ff 100%); border-radius: 12px; flex: 1; min-width: 150px; }
-            .summary-label { font-size: 12px; color: #666; margin-bottom: 5px; }
-            .summary-value { font-size: 24px; font-weight: bold; color: #6b21a8; }
             .positive { color: #16a34a; }
             .negative { color: #dc2626; }
-            .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e5e5; font-size: 12px; color: #999; }
-            @media print { body { padding: 20px; } }
+            .rankings { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px; }
+            .ranking-card { background: #fafafa; border-radius: 12px; padding: 20px; }
+            .ranking-card h3 { color: #8224e3; font-size: 14px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+            .ranking-list { list-style: none; }
+            .ranking-list li { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e5e5; font-size: 12px; }
+            .ranking-list li:last-child { border-bottom: none; }
+            .ranking-list .name { font-weight: 500; }
+            .ranking-list .value { font-weight: 600; }
+            .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e5e5; display: flex; justify-content: space-between; align-items: center; }
+            .footer-brand { color: #8224e3; font-weight: 600; font-size: 14px; }
+            .footer-date { color: #999; font-size: 11px; }
+            @media print { 
+              body { padding: 20px; } 
+              .stats-bar, .rankings { break-inside: avoid; }
+            }
           </style>
         </head>
         <body>
           <div class="header">
-            <h1>Relatório Financeiro</h1>
-            <p class="subtitle">${currentWorkspace?.name || 'Workspace'}</p>
-            <p><strong>Período:</strong> ${format(dateRange.start, "d 'de' MMMM 'de' yyyy", { locale: pt })} - ${format(dateRange.end, "d 'de' MMMM 'de' yyyy", { locale: pt })}</p>
+            <h1>📊 Relatório Financeiro</h1>
+            <p class="workspace-name">${currentWorkspace?.name || 'WillFlow'}</p>
+            <p class="date">Período: ${format(dateRange.start, "d 'de' MMMM 'de' yyyy", { locale: pt })} - ${format(dateRange.end, "d 'de' MMMM 'de' yyyy", { locale: pt })}</p>
           </div>
           
-          <h2>Resumo do Período</h2>
-          <div class="summary">
-            <div class="summary-card">
-              <div class="summary-label">Receita Total</div>
-              <div class="summary-value positive">${formatCurrency(totalReceita)}</div>
+          <div class="stats-bar">
+            <div class="stat-item">
+              <div class="stat-label">Receita Total</div>
+              <div class="stat-value success">${formatCurrency(totalReceita)}</div>
             </div>
-            <div class="summary-card">
-              <div class="summary-label">Custos Total</div>
-              <div class="summary-value negative">${formatCurrency(totalCustos)}</div>
+            <div class="stat-item">
+              <div class="stat-label">Custos Total</div>
+              <div class="stat-value negative">${formatCurrency(totalCustos)}</div>
             </div>
-            <div class="summary-card">
-              <div class="summary-label">Lucro</div>
-              <div class="summary-value">${formatCurrency(totalLucro)}</div>
+            <div class="stat-item">
+              <div class="stat-label">Lucro</div>
+              <div class="stat-value primary">${formatCurrency(totalLucro)}</div>
             </div>
-            <div class="summary-card">
-              <div class="summary-label">Margem Média</div>
-              <div class="summary-value">${avgMargin.toFixed(1)}%</div>
+            <div class="stat-item">
+              <div class="stat-label">Margem Média</div>
+              <div class="stat-value">${avgMargin.toFixed(1)}%</div>
             </div>
-            <div class="summary-card">
-              <div class="summary-label">Projetos Entregues</div>
-              <div class="summary-value">${totalProjetos}</div>
+            <div class="stat-item">
+              <div class="stat-label">Projetos Entregues</div>
+              <div class="stat-value">${totalProjetos}</div>
             </div>
           </div>
           
-          <h2>Evolução Mensal</h2>
+          <h2>📈 Evolução Mensal</h2>
           <table>
             <thead>
               <tr>
                 <th>Mês</th>
-                <th>Receita</th>
-                <th>Custos</th>
-                <th>Lucro</th>
-                <th>Margem</th>
-                <th>Projetos</th>
+                <th class="right">Receita</th>
+                <th class="right">Custos</th>
+                <th class="right">Lucro</th>
+                <th class="right">Margem</th>
+                <th class="right">Projetos</th>
               </tr>
             </thead>
             <tbody>
               ${monthlyData.map(m => `
                 <tr>
                   <td>${m.fullMonth}</td>
-                  <td class="positive">${formatCurrency(m.receita)}</td>
-                  <td class="negative">${formatCurrency(m.custos)}</td>
-                  <td>${formatCurrency(m.lucro)}</td>
-                  <td>${m.margin.toFixed(1)}%</td>
-                  <td>${m.projetos}</td>
+                  <td class="right positive">${formatCurrency(m.receita)}</td>
+                  <td class="right negative">${formatCurrency(m.custos)}</td>
+                  <td class="right">${formatCurrency(m.lucro)}</td>
+                  <td class="right">${m.margin.toFixed(1)}%</td>
+                  <td class="right">${m.projetos}</td>
                 </tr>
               `).join('')}
               <tr class="total">
                 <td>TOTAL</td>
-                <td class="positive">${formatCurrency(totalReceita)}</td>
-                <td class="negative">${formatCurrency(totalCustos)}</td>
-                <td>${formatCurrency(totalLucro)}</td>
-                <td>${avgMargin.toFixed(1)}%</td>
-                <td>${totalProjetos}</td>
+                <td class="right positive">${formatCurrency(totalReceita)}</td>
+                <td class="right negative">${formatCurrency(totalCustos)}</td>
+                <td class="right">${formatCurrency(totalLucro)}</td>
+                <td class="right">${avgMargin.toFixed(1)}%</td>
+                <td class="right">${totalProjetos}</td>
               </tr>
             </tbody>
           </table>
           
+          <div class="rankings">
+            <div class="ranking-card">
+              <h3>🏆 Top 10 Clientes por Receita</h3>
+              <ul class="ranking-list">
+                ${topClients.map((client, i) => `
+                  <li>
+                    <span class="name">${i + 1}. ${client.name}</span>
+                    <span class="value positive">${formatCurrency(client.revenue)}</span>
+                  </li>
+                `).join('')}
+                ${topClients.length === 0 ? '<li><span class="name">Sem dados</span></li>' : ''}
+              </ul>
+            </div>
+            
+            <div class="ranking-card">
+              <h3>👥 Top 10 Colaboradores</h3>
+              <ul class="ranking-list">
+                ${collaboratorsData.map((collab, i) => `
+                  <li>
+                    <span class="name">${i + 1}. ${collab.name}</span>
+                    <span class="value negative">${formatCurrency(collab.totalValue)}</span>
+                  </li>
+                `).join('')}
+                ${collaboratorsData.length === 0 ? '<li><span class="name">Sem dados</span></li>' : ''}
+              </ul>
+            </div>
+          </div>
+          
           <div class="footer">
-            Gerado em ${format(new Date(), "d 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })} • WillFlow
+            <span class="footer-brand">WillFlow</span>
+            <span class="footer-date">Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: pt })}</span>
           </div>
         </body>
       </html>

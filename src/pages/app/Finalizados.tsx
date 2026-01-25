@@ -224,18 +224,68 @@ export default function Finalizados() {
   };
   const exportToCSV = () => {
     if (completedProjects.length === 0) return;
-    const headers = ['Projeto', 'Código', 'Cliente', 'Tipo', 'Data de Entrega', 'Captação', 'Edição'];
-    const rows = completedProjects.map(project => {
-      const team = projectTeams[project.id] || {
-        captacao: [],
-        edicao: []
-      };
-      return [project.name, project.project_code || '', project.clients?.name || 'Sem cliente', typeLabels[project.type], project.delivered_at ? format(new Date(project.delivered_at), 'dd/MM/yyyy') : 'N/A', getTeamNames(team.captacao), getTeamNames(team.edicao)];
+    
+    // Build headers based on permissions
+    const headers = canViewAllFinancials 
+      ? ['Código', 'Projeto', 'Cliente', 'Tipo', 'Data de Entrega', 'Captação', 'Edição', 'Preço Cliente', 'Custos', 'Lucro']
+      : ['Código', 'Projeto', 'Cliente', 'Tipo', 'Data de Entrega', 'Captação', 'Edição'];
+    
+    // BOM para UTF-8 (Excel PT compatibility)
+    let csvContent = '\ufeff';
+    
+    // Professional header
+    csvContent += `"Projetos Finalizados"\n`;
+    csvContent += `"${currentWorkspace?.name || 'WillFlow'}"\n`;
+    csvContent += `"Exportado: ${format(new Date(), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}"\n`;
+    csvContent += `"Total: ${completedProjects.length} projetos"\n\n`;
+    
+    // Headers with semicolon
+    csvContent += headers.map(h => `"${h}"`).join(';') + '\n';
+    
+    // Data rows
+    let totalRevenue = 0;
+    let totalCosts = 0;
+    
+    completedProjects.forEach(project => {
+      const team = projectTeams[project.id] || { captacao: [], edicao: [] };
+      const custo = (project.custo_captacao || 0) + (project.custo_edicao || 0) + (project.custos_extras || 0);
+      const lucro = (project.agreed_value || 0) - custo;
+      
+      totalRevenue += (project.agreed_value || 0);
+      totalCosts += custo;
+      
+      const cells = [
+        project.project_code || project.id.slice(0, 8).toUpperCase(),
+        project.name,
+        project.clients?.name || 'Sem cliente',
+        typeLabels[project.type],
+        project.delivered_at ? format(new Date(project.delivered_at), 'dd/MM/yyyy') : 'N/A',
+        getTeamNames(team.captacao),
+        getTeamNames(team.edicao),
+      ];
+      
+      if (canViewAllFinancials) {
+        cells.push(formatCurrency(project.agreed_value || 0));
+        cells.push(formatCurrency(custo));
+        cells.push(formatCurrency(lucro));
+      }
+      
+      csvContent += cells.map(c => `"${c}"`).join(';') + '\n';
     });
-    const csvContent = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
-    const blob = new Blob([csvContent], {
-      type: 'text/csv;charset=utf-8;'
-    });
+    
+    // Totals section
+    csvContent += '\n';
+    if (canViewAllFinancials) {
+      csvContent += `"RESUMO"\n`;
+      csvContent += `"Total Projetos";"${completedProjects.length}"\n`;
+      csvContent += `"Receita Total";"${formatCurrency(totalRevenue)}"\n`;
+      csvContent += `"Custos Total";"${formatCurrency(totalCosts)}"\n`;
+      csvContent += `"Lucro Total";"${formatCurrency(totalRevenue - totalCosts)}"\n`;
+    } else {
+      csvContent += `"Total Projetos";"${completedProjects.length}"\n`;
+    }
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -243,66 +293,130 @@ export default function Finalizados() {
     link.click();
     URL.revokeObjectURL(url);
   };
+
   const exportToPDF = () => {
     if (completedProjects.length === 0) return;
     if (!checkFeature('exportPdf')) return;
 
-    // Create printable HTML
+    // Calculate totals
+    let totalRevenueVal = 0;
+    let totalCostsVal = 0;
+    completedProjects.forEach(project => {
+      totalRevenueVal += (project.agreed_value || 0);
+      totalCostsVal += (project.custo_captacao || 0) + (project.custo_edicao || 0) + (project.custos_extras || 0);
+    });
+    const totalProfit = totalRevenueVal - totalCostsVal;
+
+    // Create printable HTML with premium design
     const printContent = `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Projetos Finalizados</title>
+        <title>Projetos Finalizados - ${currentWorkspace?.name || 'WillFlow'}</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 20px; }
-          h1 { color: #333; margin-bottom: 20px; }
-          .summary { margin-bottom: 20px; padding: 10px; background: #f5f5f5; border-radius: 4px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background-color: #8224e3; color: white; }
-          tr:nth-child(even) { background-color: #f9f9f9; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #1a1a1a; background: #fff; }
+          .header { border-left: 4px solid #8224e3; padding-left: 20px; margin-bottom: 30px; }
+          .header h1 { color: #8224e3; font-size: 28px; margin-bottom: 8px; }
+          .header .workspace-name { color: #666; font-size: 16px; margin-bottom: 4px; }
+          .header .date { color: #999; font-size: 12px; }
+          .stats-bar { display: flex; gap: 20px; margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, #f8f4ff 0%, #f0e8ff 100%); border-radius: 12px; flex-wrap: wrap; }
+          .stat-item { flex: 1; min-width: 120px; }
+          .stat-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+          .stat-value { font-size: 22px; font-weight: 700; color: #1a1a1a; }
+          .stat-value.success { color: #16a34a; }
+          .stat-value.primary { color: #8224e3; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
+          th, td { border: 1px solid #e5e5e5; padding: 10px 8px; text-align: left; }
+          th { background: #8224e3; color: white; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
+          th.right, td.right { text-align: right; }
+          tr:nth-child(even) { background-color: #fafafa; }
+          tr:hover { background-color: #f5f0ff; }
+          .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e5e5; display: flex; justify-content: space-between; align-items: center; }
+          .footer-brand { color: #8224e3; font-weight: 600; font-size: 14px; }
+          .footer-date { color: #999; font-size: 11px; }
+          .positive { color: #16a34a; }
+          .negative { color: #dc2626; }
+          @media print { 
+            body { padding: 20px; } 
+            .stats-bar { break-inside: avoid; }
+          }
         </style>
       </head>
       <body>
-        <h1>Projetos Finalizados</h1>
-        <div class="summary">
-          <strong>Total de Projetos:</strong> ${completedProjects.length}
+        <div class="header">
+          <h1>📋 Projetos Finalizados</h1>
+          <p class="workspace-name">${currentWorkspace?.name || 'WillFlow'}</p>
+          <p class="date">${format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: pt })}</p>
         </div>
+        
+        <div class="stats-bar">
+          <div class="stat-item">
+            <div class="stat-label">Total Projetos</div>
+            <div class="stat-value primary">${completedProjects.length}</div>
+          </div>
+          ${canViewAllFinancials ? `
+          <div class="stat-item">
+            <div class="stat-label">Receita Total</div>
+            <div class="stat-value success">${formatCurrency(totalRevenueVal)}</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Custos Total</div>
+            <div class="stat-value negative">${formatCurrency(totalCostsVal)}</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Lucro Total</div>
+            <div class="stat-value">${formatCurrency(totalProfit)}</div>
+          </div>
+          ` : ''}
+        </div>
+        
         <table>
           <thead>
             <tr>
-              <th>Projeto</th>
               <th>Código</th>
+              <th>Projeto</th>
               <th>Cliente</th>
               <th>Tipo</th>
-              <th>Data de Entrega</th>
+              <th>Data Entrega</th>
               <th>Captação</th>
               <th>Edição</th>
+              ${canViewAllFinancials ? '<th class="right">Preço</th><th class="right">Custos</th><th class="right">Lucro</th>' : ''}
             </tr>
           </thead>
           <tbody>
             ${completedProjects.map(project => {
-      const team = projectTeams[project.id] || {
-        captacao: [],
-        edicao: []
-      };
-      return `
+              const team = projectTeams[project.id] || { captacao: [], edicao: [] };
+              const custo = (project.custo_captacao || 0) + (project.custo_edicao || 0) + (project.custos_extras || 0);
+              const lucro = (project.agreed_value || 0) - custo;
+              return `
               <tr>
+                <td>${project.project_code || project.id.slice(0, 8).toUpperCase()}</td>
                 <td>${project.name}</td>
-                <td>${project.project_code || '-'}</td>
                 <td>${project.clients?.name || 'Sem cliente'}</td>
                 <td>${typeLabels[project.type]}</td>
                 <td>${project.delivered_at ? format(new Date(project.delivered_at), 'dd/MM/yyyy') : 'N/A'}</td>
                 <td>${getTeamNames(team.captacao)}</td>
                 <td>${getTeamNames(team.edicao)}</td>
+                ${canViewAllFinancials ? `
+                <td class="right positive">${formatCurrency(project.agreed_value || 0)}</td>
+                <td class="right negative">${formatCurrency(custo)}</td>
+                <td class="right">${formatCurrency(lucro)}</td>
+                ` : ''}
               </tr>
             `;
-    }).join('')}
+            }).join('')}
           </tbody>
         </table>
+        
+        <div class="footer">
+          <span class="footer-brand">WillFlow</span>
+          <span class="footer-date">Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: pt })}</span>
+        </div>
       </body>
       </html>
     `;
+    
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(printContent);
