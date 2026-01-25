@@ -557,12 +557,19 @@ export type Database = {
           address: string | null
           city: string | null
           company: string | null
+          converted_at: string | null
           country: string | null
           created_at: string
           email: string | null
+          estimated_value: number | null
           id: string
           is_active: boolean
+          last_contact_at: string | null
+          lead_source: string | null
+          lead_status: Database["public"]["Enums"]["lead_status"] | null
+          lost_reason: string | null
           name: string
+          next_follow_up: string | null
           nif: string | null
           notes: string | null
           phone: string | null
@@ -575,12 +582,19 @@ export type Database = {
           address?: string | null
           city?: string | null
           company?: string | null
+          converted_at?: string | null
           country?: string | null
           created_at?: string
           email?: string | null
+          estimated_value?: number | null
           id?: string
           is_active?: boolean
+          last_contact_at?: string | null
+          lead_source?: string | null
+          lead_status?: Database["public"]["Enums"]["lead_status"] | null
+          lost_reason?: string | null
           name: string
+          next_follow_up?: string | null
           nif?: string | null
           notes?: string | null
           phone?: string | null
@@ -593,12 +607,19 @@ export type Database = {
           address?: string | null
           city?: string | null
           company?: string | null
+          converted_at?: string | null
           country?: string | null
           created_at?: string
           email?: string | null
+          estimated_value?: number | null
           id?: string
           is_active?: boolean
+          last_contact_at?: string | null
+          lead_source?: string | null
+          lead_status?: Database["public"]["Enums"]["lead_status"] | null
+          lost_reason?: string | null
           name?: string
+          next_follow_up?: string | null
           nif?: string | null
           notes?: string | null
           phone?: string | null
@@ -2842,6 +2863,14 @@ export type Database = {
       country_region: "PT" | "BR"
       followup_status: "open" | "done"
       kanban_phase: "captacao" | "edicao"
+      lead_status:
+        | "novo"
+        | "contactado"
+        | "qualificado"
+        | "proposta"
+        | "negociacao"
+        | "ganho"
+        | "perdido"
       message_type: "text" | "post" | "system"
       payment_status: "pendente" | "pago" | "vencido" | "cancelado"
       priority_level: "baixa" | "media" | "alta" | "urgente"
@@ -2980,6 +3009,15 @@ export const Constants = {
       country_region: ["PT", "BR"],
       followup_status: ["open", "done"],
       kanban_phase: ["captacao", "edicao"],
+      lead_status: [
+        "novo",
+        "contactado",
+        "qualificado",
+        "proposta",
+        "negociacao",
+        "ganho",
+        "perdido",
+      ],
       message_type: ["text", "post", "system"],
       payment_status: ["pendente", "pago", "vencido", "cancelado"],
       priority_level: ["baixa", "media", "alta", "urgente"],

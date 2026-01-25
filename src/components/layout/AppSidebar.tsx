@@ -24,6 +24,7 @@ import {
   Crown,
   ExternalLink,
   MessageSquare,
+  Target,
 } from 'lucide-react';
 import { useTotalUnreadMessages } from '@/hooks/useTotalUnreadMessages';
 import { cn } from '@/lib/utils';
@@ -85,8 +86,9 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    title: 'GESTÃO',
+    title: 'CRM',
     items: [
+      { icon: Target, label: 'Leads', path: '/app/leads' },
       { icon: Users, label: 'Clientes', path: '/app/clientes' },
       { icon: UserCog, label: 'Equipa', path: '/app/equipa' },
     ],
