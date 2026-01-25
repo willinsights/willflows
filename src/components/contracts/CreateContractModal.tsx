@@ -243,14 +243,14 @@ export function CreateContractModal({
             <div className="space-y-2">
               <Label>Projeto (opcional)</Label>
               <Select
-                value={formData.project_id}
-                onValueChange={val => setFormData(prev => ({ ...prev, project_id: val }))}
+                value={formData.project_id || 'none'}
+                onValueChange={val => setFormData(prev => ({ ...prev, project_id: val === 'none' ? '' : val }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Associar a projeto..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum</SelectItem>
+                  <SelectItem value="none">Nenhum</SelectItem>
                   {projects.map(project => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}
