@@ -19,10 +19,18 @@ import { CreateContractModal } from '@/components/contracts/CreateContractModal'
 import { CreateTemplateModal } from '@/components/contracts/CreateTemplateModal';
 import { ContractCard } from '@/components/contracts/ContractCard';
 import { ContractViewModal } from '@/components/contracts/ContractViewModal';
+import { AccessDenied } from '@/components/ui/access-denied';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { toast } from 'sonner';
 
 export default function Contratos() {
+  const { canViewContracts } = useFinancialPermissions();
   const { contracts, loading, metrics, sendContract, cancelContract, deleteContract, refresh } = useContracts();
+
+  // Block access for collaborators
+  if (!canViewContracts) {
+    return <AccessDenied description="Apenas administradores e editores podem aceder aos Contratos." />;
+  }
   const { templates, loading: loadingTemplates, deleteTemplate, duplicateTemplate } = useContractTemplates();
 
   const [searchQuery, setSearchQuery] = useState('');

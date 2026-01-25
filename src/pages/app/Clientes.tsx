@@ -44,13 +44,19 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { CreateClientModal } from '@/components/clients/CreateClientModal';
 import { ClientDetailsModal } from '@/components/clients/ClientDetailsModal';
+import { AccessDenied } from '@/components/ui/access-denied';
 import { cn } from '@/lib/utils';
 
 export default function Clientes() {
+  const { canViewClients, canViewAllFinancials } = useFinancialPermissions();
   const { clients, loading, deleteClient, updateClient, refresh } = useClients();
   const { projects } = useProjects();
   const { currentWorkspace } = useWorkspace();
-  const { canViewAllFinancials } = useFinancialPermissions();
+
+  // Block access for collaborators
+  if (!canViewClients) {
+    return <AccessDenied description="Apenas administradores, editores e captação podem aceder aos Clientes." />;
+  }
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);

@@ -55,6 +55,7 @@ import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useFeatureGate } from '@/components/subscription/FeatureGate';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { EmptyState } from '@/components/ui/empty-state';
+import { AccessDenied } from '@/components/ui/access-denied';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -74,11 +75,17 @@ interface CollaboratorData {
 }
 
 export default function Relatorios() {
+  const { canViewReports } = useFinancialPermissions();
+  
+  // Block access for non-admins
+  if (!canViewReports) {
+    return <AccessDenied description="Apenas administradores podem aceder aos Relatórios financeiros." />;
+  }
+
   const navigate = useNavigate();
   const { projects } = useProjects();
   const { clients } = useClients();
   const { currentWorkspace } = useWorkspace();
-  const { canViewReports } = useFinancialPermissions();
   const { hasAccess: canExportPdf, requireFeature: requirePdfExport, UpgradeAlertComponent } = useFeatureGate('exportPdf');
   const { hasAccess: canExportExcel, requireFeature: requireExcelExport } = useFeatureGate('exportExcel');
   
