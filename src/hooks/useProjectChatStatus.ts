@@ -3,33 +3,33 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
 
-interface TaskChatStatus {
+interface ProjectChatStatus {
   hasChat: boolean;
   conversationId: string | null;
   unreadCount: number;
   isLoading: boolean;
 }
 
-export function useTaskChatStatus(taskId: string | undefined): TaskChatStatus {
+export function useProjectChatStatus(projectId: string | undefined): ProjectChatStatus {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['task-chat-status', taskId, user?.id],
+    queryKey: ['project-chat-status', projectId, user?.id],
     queryFn: async () => {
-      if (!taskId || !user?.id) return null;
+      if (!projectId || !user?.id) return null;
 
-      // Get conversation_id from message_task_links
-      const { data: links } = await supabase
-        .from('message_task_links')
-        .select('message_id, messages!inner(conversation_id)')
-        .eq('task_id', taskId)
-        .limit(1);
+      // Get project conversation
+      const { data: conversation } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('type', 'project')
+        .maybeSingle();
 
-      if (!links || links.length === 0) return null;
+      if (!conversation) return null;
 
-      const conversationId = (links[0].messages as any)?.conversation_id;
-      if (!conversationId) return null;
+      const conversationId = conversation.id;
 
       // Get user's last_read_at
       const { data: membership } = await supabase
@@ -55,7 +55,7 @@ export function useTaskChatStatus(taskId: string | undefined): TaskChatStatus {
         unreadCount: count || 0
       };
     },
-    enabled: !!taskId && !!user?.id,
+    enabled: !!projectId && !!user?.id,
     staleTime: 30000,
   });
 
@@ -64,7 +64,7 @@ export function useTaskChatStatus(taskId: string | undefined): TaskChatStatus {
     if (!data?.conversationId || !user?.id) return;
 
     const channel = supabase
-      .channel(`task-chat-${taskId}`)
+      .channel(`project-chat-${projectId}`)
       .on(
         'postgres_changes',
         {
@@ -74,8 +74,7 @@ export function useTaskChatStatus(taskId: string | undefined): TaskChatStatus {
           filter: `conversation_id=eq.${data.conversationId}`,
         },
         () => {
-          // Invalidate to refetch unread count
-          queryClient.invalidateQueries({ queryKey: ['task-chat-status', taskId, user.id] });
+          queryClient.invalidateQueries({ queryKey: ['project-chat-status', projectId, user.id] });
         }
       )
       .on(
@@ -87,9 +86,8 @@ export function useTaskChatStatus(taskId: string | undefined): TaskChatStatus {
           filter: `conversation_id=eq.${data.conversationId}`,
         },
         (payload) => {
-          // Check if it's current user's last_read_at update
           if ((payload.new as any).user_id === user.id) {
-            queryClient.invalidateQueries({ queryKey: ['task-chat-status', taskId, user.id] });
+            queryClient.invalidateQueries({ queryKey: ['project-chat-status', projectId, user.id] });
           }
         }
       )
@@ -98,7 +96,7 @@ export function useTaskChatStatus(taskId: string | undefined): TaskChatStatus {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [data?.conversationId, taskId, user?.id, queryClient]);
+  }, [data?.conversationId, projectId, user?.id, queryClient]);
 
   const hasChat = !!data?.conversationId;
   const conversationId = data?.conversationId || null;
