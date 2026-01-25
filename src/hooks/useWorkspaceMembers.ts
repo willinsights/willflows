@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { logger } from '@/lib/logger';
+import type { Database } from '@/integrations/supabase/types';
+
+type AppRole = Database['public']['Enums']['app_role'];
 
 export interface WorkspaceMember {
   id: string;
@@ -14,20 +17,34 @@ export interface WorkspaceMember {
   is_active: boolean;
 }
 
+export interface PendingInvitation {
+  id: string;
+  invitation_id: string;
+  email_masked: string | null;
+  role: AppRole;
+  expires_at: string;
+  is_pending: true;
+}
+
+export type SelectableMember = WorkspaceMember | PendingInvitation;
+
 export function useWorkspaceMembers() {
   const { currentWorkspace } = useWorkspace();
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchMembers = useCallback(async () => {
     if (!currentWorkspace?.id) {
       setMembers([]);
+      setPendingInvitations([]);
       setLoading(false);
       return;
     }
 
     setLoading(true);
     
+    // Fetch active members
     const { data, error } = await supabase
       .from('workspace_members')
       .select(`
@@ -61,6 +78,29 @@ export function useWorkspaceMembers() {
       }));
       setMembers(formattedMembers);
     }
+
+    // Fetch pending invitations
+    const { data: invitationsData, error: invitationsError } = await supabase
+      .from('workspace_invitations')
+      .select('id, email_masked, role, expires_at')
+      .eq('workspace_id', currentWorkspace.id)
+      .is('accepted_at', null)
+      .gt('expires_at', new Date().toISOString());
+
+    if (invitationsError) {
+      logger.error('Error fetching pending invitations:', invitationsError);
+      setPendingInvitations([]);
+    } else {
+      const formattedInvitations: PendingInvitation[] = (invitationsData || []).map((inv: any) => ({
+        id: `inv_${inv.id}`,
+        invitation_id: inv.id,
+        email_masked: inv.email_masked,
+        role: inv.role,
+        expires_at: inv.expires_at,
+        is_pending: true as const,
+      }));
+      setPendingInvitations(formattedInvitations);
+    }
     
     setLoading(false);
   }, [currentWorkspace?.id]);
@@ -69,5 +109,10 @@ export function useWorkspaceMembers() {
     fetchMembers();
   }, [fetchMembers]);
 
-  return { members, loading, refresh: fetchMembers };
+  return { 
+    members, 
+    pendingInvitations,
+    loading, 
+    refresh: fetchMembers 
+  };
 }

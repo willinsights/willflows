@@ -1781,32 +1781,48 @@ export type Database = {
       project_team: {
         Row: {
           created_at: string
+          external_name: string | null
           id: string
+          invitation_id: string | null
+          is_external: boolean | null
           payment_amount: number | null
           payment_status: Database["public"]["Enums"]["payment_status"]
           phase: Database["public"]["Enums"]["kanban_phase"]
           project_id: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
+          external_name?: string | null
           id?: string
+          invitation_id?: string | null
+          is_external?: boolean | null
           payment_amount?: number | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           phase: Database["public"]["Enums"]["kanban_phase"]
           project_id: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
+          external_name?: string | null
           id?: string
+          invitation_id?: string | null
+          is_external?: boolean | null
           payment_amount?: number | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           phase?: Database["public"]["Enums"]["kanban_phase"]
           project_id?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "project_team_invitation_id_fkey"
+            columns: ["invitation_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_invitations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_team_project_id_fkey"
             columns: ["project_id"]

@@ -35,7 +35,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useProjects } from '@/hooks/useProjects';
 import { useClients } from '@/hooks/useClients';
 import { useCategories } from '@/hooks/useCategories';
-import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
+import { useWorkspaceMembers, type PendingInvitation } from '@/hooks/useWorkspaceMembers';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { cn } from '@/lib/utils';
@@ -101,7 +101,7 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
   const { duplicateProject } = useProjects();
   const { clients } = useClients();
   const { categories } = useCategories();
-  const { members: workspaceMembers } = useWorkspaceMembers();
+  const { members: workspaceMembers, pendingInvitations } = useWorkspaceMembers();
   const { isAdmin } = useWorkspace();
   const { canViewOwnFinancials } = useFinancialPermissions();
   const { projectChats, createProjectChat } = useConversations();
@@ -220,8 +220,15 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
       
       setProjectTeam(teamData || []);
       
-      const captacaoMembers = (teamData || []).filter(t => t.phase === 'captacao').map(t => t.user_id);
-      const edicaoMembers = (teamData || []).filter(t => t.phase === 'edicao').map(t => t.user_id);
+      // Map both user_id and invitation_id to selection IDs
+      const captacaoMembers = (teamData || [])
+        .filter(t => t.phase === 'captacao')
+        .map(t => t.user_id ? t.user_id : t.invitation_id ? `inv_${t.invitation_id}` : null)
+        .filter(Boolean) as string[];
+      const edicaoMembers = (teamData || [])
+        .filter(t => t.phase === 'edicao')
+        .map(t => t.user_id ? t.user_id : t.invitation_id ? `inv_${t.invitation_id}` : null)
+        .filter(Boolean) as string[];
       setResponsaveisCaptacao(captacaoMembers);
       setResponsaveisEdicao(edicaoMembers);
     } catch (error) {
@@ -268,20 +275,30 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
 
       const { data: existingTeam } = await supabase
         .from('project_team')
-        .select('user_id, phase, payment_amount, payment_status')
+        .select('user_id, invitation_id, phase, payment_amount, payment_status')
         .eq('project_id', project.id);
 
+      // Count all members (users + invitations) for payment calculation
+      const captacaoCount = responsaveisCaptacao.length;
+      const edicaoCount = responsaveisEdicao.length;
+      
       const custoCaptacaoTotal = editForm.custo_captacao || 0;
       const custoEdicaoTotal = editForm.custo_edicao || 0;
-      const valorPorCaptador = responsaveisCaptacao.length > 0 
-        ? custoCaptacaoTotal / responsaveisCaptacao.length 
+      const valorPorCaptador = captacaoCount > 0 
+        ? custoCaptacaoTotal / captacaoCount 
         : 0;
-      const valorPorEditor = responsaveisEdicao.length > 0 
-        ? custoEdicaoTotal / responsaveisEdicao.length 
+      const valorPorEditor = edicaoCount > 0 
+        ? custoEdicaoTotal / edicaoCount 
         : 0;
 
-      const getPaymentData = (userId: string, phase: string, autoValue: number) => {
-        const existing = existingTeam?.find(t => t.user_id === userId && t.phase === phase);
+      const getPaymentData = (memberId: string, phase: string, autoValue: number) => {
+        const isInvitation = memberId.startsWith('inv_');
+        const existing = existingTeam?.find(t => {
+          if (isInvitation) {
+            return t.invitation_id === memberId.replace('inv_', '') && t.phase === phase;
+          }
+          return t.user_id === memberId && t.phase === phase;
+        });
         if (existing && existing.payment_amount !== null) {
           return { 
             payment_amount: existing.payment_amount, 
@@ -294,21 +311,25 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
       await supabase.from('project_team').delete().eq('project_id', project.id);
 
       const teamMembers = [
-        ...responsaveisCaptacao.map(userId => {
-          const paymentData = getPaymentData(userId, 'captacao', valorPorCaptador);
+        ...responsaveisCaptacao.map(memberId => {
+          const isInvitation = memberId.startsWith('inv_');
+          const paymentData = getPaymentData(memberId, 'captacao', valorPorCaptador);
           return {
             project_id: project.id,
-            user_id: userId,
+            user_id: isInvitation ? null : memberId,
+            invitation_id: isInvitation ? memberId.replace('inv_', '') : null,
             phase: 'captacao' as const,
             payment_amount: paymentData.payment_amount,
             payment_status: paymentData.payment_status as 'pendente' | 'pago' | 'vencido' | 'cancelado',
           };
         }),
-        ...responsaveisEdicao.map(userId => {
-          const paymentData = getPaymentData(userId, 'edicao', valorPorEditor);
+        ...responsaveisEdicao.map(memberId => {
+          const isInvitation = memberId.startsWith('inv_');
+          const paymentData = getPaymentData(memberId, 'edicao', valorPorEditor);
           return {
             project_id: project.id,
-            user_id: userId,
+            user_id: isInvitation ? null : memberId,
+            invitation_id: isInvitation ? memberId.replace('inv_', '') : null,
             phase: 'edicao' as const,
             payment_amount: paymentData.payment_amount,
             payment_status: paymentData.payment_status as 'pendente' | 'pago' | 'vencido' | 'cancelado',
@@ -317,7 +338,7 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
       ];
 
       if (teamMembers.length > 0) {
-        await supabase.from('project_team').insert(teamMembers);
+        await supabase.from('project_team').insert(teamMembers as any);
       }
       
       toast({ title: 'Projeto atualizado com sucesso' });
@@ -537,6 +558,7 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
                     clients={clients}
                     categories={categories}
                     workspaceMembers={workspaceMembers}
+                    pendingInvitations={pendingInvitations}
                     responsaveisCaptacao={responsaveisCaptacao}
                     setResponsaveisCaptacao={setResponsaveisCaptacao}
                     responsaveisEdicao={responsaveisEdicao}
@@ -746,6 +768,7 @@ interface EditModeContentProps {
   clients: any[];
   categories: any[];
   workspaceMembers: any[];
+  pendingInvitations: PendingInvitation[];
   responsaveisCaptacao: string[];
   setResponsaveisCaptacao: React.Dispatch<React.SetStateAction<string[]>>;
   responsaveisEdicao: string[];
@@ -758,6 +781,7 @@ function EditModeContent({
   clients,
   categories,
   workspaceMembers,
+  pendingInvitations,
   responsaveisCaptacao,
   setResponsaveisCaptacao,
   responsaveisEdicao,
@@ -893,12 +917,14 @@ function EditModeContent({
             selectedMembers={responsaveisCaptacao}
             setSelectedMembers={setResponsaveisCaptacao}
             workspaceMembers={workspaceMembers}
+            pendingInvitations={pendingInvitations}
           />
           <TeamMemberSelector
             label="Responsáveis Edição"
             selectedMembers={responsaveisEdicao}
             setSelectedMembers={setResponsaveisEdicao}
             workspaceMembers={workspaceMembers}
+            pendingInvitations={pendingInvitations}
           />
         </div>
       </div>
@@ -918,9 +944,22 @@ interface TeamMemberSelectorProps {
   selectedMembers: string[];
   setSelectedMembers: React.Dispatch<React.SetStateAction<string[]>>;
   workspaceMembers: any[];
+  pendingInvitations: PendingInvitation[];
 }
 
-function TeamMemberSelector({ label, selectedMembers, setSelectedMembers, workspaceMembers }: TeamMemberSelectorProps) {
+function TeamMemberSelector({ label, selectedMembers, setSelectedMembers, workspaceMembers, pendingInvitations }: TeamMemberSelectorProps) {
+  // Get display name for a member ID (could be user_id or inv_invitationId)
+  const getMemberDisplay = (memberId: string) => {
+    if (memberId.startsWith('inv_')) {
+      const invitation = pendingInvitations.find(inv => inv.id === memberId);
+      return invitation?.email_masked || 'Convite pendente';
+    }
+    const member = workspaceMembers.find((m: any) => m.user_id === memberId);
+    return member?.full_name || member?.email || memberId;
+  };
+
+  const isInvitation = (memberId: string) => memberId.startsWith('inv_');
+
   return (
     <div className="space-y-2">
       <Label className="flex items-center gap-2">
@@ -932,49 +971,94 @@ function TeamMemberSelector({ label, selectedMembers, setSelectedMembers, worksp
           <Button type="button" variant="outline" className="w-full justify-start text-left font-normal min-h-[40px] h-auto">
             {selectedMembers.length > 0 ? (
               <div className="flex flex-wrap gap-1">
-                {selectedMembers.map(userId => {
-                  const member = workspaceMembers.find((m: any) => m.user_id === userId);
-                  return member ? (
-                    <Badge key={userId} variant="secondary" className="text-xs">
-                      {member.full_name || member.email}
-                    </Badge>
-                  ) : null;
-                })}
+                {selectedMembers.map(memberId => (
+                  <Badge 
+                    key={memberId} 
+                    variant={isInvitation(memberId) ? "outline" : "secondary"} 
+                    className={cn("text-xs", isInvitation(memberId) && "border-dashed border-amber-500/50 text-amber-600 dark:text-amber-400")}
+                  >
+                    {getMemberDisplay(memberId)}
+                    {isInvitation(memberId) && <span className="ml-1 text-[10px]">⏳</span>}
+                  </Badge>
+                ))}
               </div>
             ) : (
               <span className="text-muted-foreground">Selecionar responsáveis...</span>
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[280px] p-2" align="start">
+        <PopoverContent className="w-[300px] p-2 max-h-[350px] overflow-y-auto" align="start">
           <div className="space-y-1">
-            {workspaceMembers.length === 0 ? (
-              <p className="text-sm text-muted-foreground p-2">Nenhum membro encontrado</p>
-            ) : (
-              workspaceMembers.map((member: any) => (
-                <div
-                  key={member.user_id}
-                  className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
-                  onClick={() => {
-                    setSelectedMembers(prev =>
-                      prev.includes(member.user_id)
-                        ? prev.filter(id => id !== member.user_id)
-                        : [...prev, member.user_id]
-                    );
-                  }}
-                >
-                  <Checkbox checked={selectedMembers.includes(member.user_id)} onCheckedChange={() => {}} className="pointer-events-none" />
-                  <Avatar className="h-6 w-6">
-                    <AvatarImage src={member.avatar_url || undefined} />
-                    <AvatarFallback className="text-xs">{(member.full_name || member.email).slice(0, 2).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col flex-1 min-w-0">
-                    <span className="text-sm font-medium truncate">{member.full_name || member.email}</span>
-                    <span className="text-xs text-muted-foreground capitalize">{member.role}</span>
+            {/* Active Members */}
+            {workspaceMembers.length > 0 && (
+              <>
+                {workspaceMembers.map((member: any) => (
+                  <div
+                    key={member.user_id}
+                    className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer"
+                    onClick={() => {
+                      setSelectedMembers(prev =>
+                        prev.includes(member.user_id)
+                          ? prev.filter(id => id !== member.user_id)
+                          : [...prev, member.user_id]
+                      );
+                    }}
+                  >
+                    <Checkbox checked={selectedMembers.includes(member.user_id)} onCheckedChange={() => {}} className="pointer-events-none" />
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={member.avatar_url || undefined} />
+                      <AvatarFallback className="text-xs">{(member.full_name || member.email).slice(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <span className="text-sm font-medium truncate">{member.full_name || member.email}</span>
+                      <span className="text-xs text-muted-foreground capitalize">{member.role}</span>
+                    </div>
+                    {selectedMembers.includes(member.user_id) && <Check className="h-4 w-4 text-primary" />}
                   </div>
-                  {selectedMembers.includes(member.user_id) && <Check className="h-4 w-4 text-primary" />}
+                ))}
+              </>
+            )}
+            
+            {/* Pending Invitations */}
+            {pendingInvitations.length > 0 && (
+              <>
+                <div className="flex items-center gap-2 px-2 pt-3 pb-1">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Convites Pendentes</span>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-500/50 text-amber-600 dark:text-amber-400">
+                    {pendingInvitations.length}
+                  </Badge>
                 </div>
-              ))
+                {pendingInvitations.map((invitation) => (
+                  <div
+                    key={invitation.id}
+                    className="flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer border-l-2 border-amber-500/30"
+                    onClick={() => {
+                      setSelectedMembers(prev =>
+                        prev.includes(invitation.id)
+                          ? prev.filter(id => id !== invitation.id)
+                          : [...prev, invitation.id]
+                      );
+                    }}
+                  >
+                    <Checkbox checked={selectedMembers.includes(invitation.id)} onCheckedChange={() => {}} className="pointer-events-none" />
+                    <Avatar className="h-6 w-6 bg-amber-500/10">
+                      <AvatarFallback className="text-xs text-amber-600 dark:text-amber-400">✉</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <span className="text-sm font-medium truncate">{invitation.email_masked || 'Email oculto'}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground capitalize">{invitation.role}</span>
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400">• Pendente</span>
+                      </div>
+                    </div>
+                    {selectedMembers.includes(invitation.id) && <Check className="h-4 w-4 text-primary" />}
+                  </div>
+                ))}
+              </>
+            )}
+            
+            {workspaceMembers.length === 0 && pendingInvitations.length === 0 && (
+              <p className="text-sm text-muted-foreground p-2">Nenhum membro ou convite encontrado</p>
             )}
           </div>
         </PopoverContent>
