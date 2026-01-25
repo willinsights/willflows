@@ -873,6 +873,7 @@ export type Database = {
       google_calendar_connections: {
         Row: {
           access_token: string | null
+          access_token_encrypted: string | null
           calendar_id: string | null
           created_at: string
           id: string
@@ -880,6 +881,7 @@ export type Database = {
           is_connected: boolean | null
           last_sync_at: string | null
           refresh_token: string | null
+          refresh_token_encrypted: string | null
           sync_deliveries: boolean | null
           sync_error: string | null
           sync_events: boolean | null
@@ -892,6 +894,7 @@ export type Database = {
         }
         Insert: {
           access_token?: string | null
+          access_token_encrypted?: string | null
           calendar_id?: string | null
           created_at?: string
           id?: string
@@ -899,6 +902,7 @@ export type Database = {
           is_connected?: boolean | null
           last_sync_at?: string | null
           refresh_token?: string | null
+          refresh_token_encrypted?: string | null
           sync_deliveries?: boolean | null
           sync_error?: string | null
           sync_events?: boolean | null
@@ -911,6 +915,7 @@ export type Database = {
         }
         Update: {
           access_token?: string | null
+          access_token_encrypted?: string | null
           calendar_id?: string | null
           created_at?: string
           id?: string
@@ -918,6 +923,7 @@ export type Database = {
           is_connected?: boolean | null
           last_sync_at?: string | null
           refresh_token?: string | null
+          refresh_token_encrypted?: string | null
           sync_deliveries?: boolean | null
           sync_error?: string | null
           sync_events?: boolean | null
@@ -2678,6 +2684,10 @@ export type Database = {
         }
         Returns: string
       }
+      decrypt_oauth_token: {
+        Args: { _encrypted_token: string; _user_id: string }
+        Returns: string
+      }
       deliver_project: {
         Args: {
           p_phase: string
@@ -2685,6 +2695,10 @@ export type Database = {
           p_target_column_id: string
         }
         Returns: Json
+      }
+      encrypt_oauth_token: {
+        Args: { _token: string; _user_id: string }
+        Returns: string
       }
       get_invitation_by_token: {
         Args: { _token: string }

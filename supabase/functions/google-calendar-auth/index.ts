@@ -116,14 +116,27 @@ serve(async (req) => {
 
       const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
 
-      // Upsert connection
+      // Encrypt tokens before storing using database function
+      const { data: encryptedAccess } = await supabaseAdmin.rpc('encrypt_oauth_token', {
+        _token: tokens.access_token,
+        _user_id: userId
+      });
+      
+      const { data: encryptedRefresh } = await supabaseAdmin.rpc('encrypt_oauth_token', {
+        _token: tokens.refresh_token,
+        _user_id: userId
+      });
+
+      // Upsert connection with encrypted tokens
       const { error: upsertError } = await supabaseAdmin
         .from('google_calendar_connections')
         .upsert({
           user_id: userId,
           workspace_id: workspaceId,
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
+          access_token_encrypted: encryptedAccess,
+          refresh_token_encrypted: encryptedRefresh,
+          access_token: null,  // Clear plain text
+          refresh_token: null, // Clear plain text
           token_expires_at: expiresAt,
           is_connected: true,
           sync_error: null,
@@ -201,19 +214,27 @@ serve(async (req) => {
     if (action === 'disconnect') {
       const { workspaceId } = await req.json();
 
-      // Get connection to revoke token
+      // Get connection and decrypt token to revoke it
       const { data: connection } = await supabaseAdmin
         .from('google_calendar_connections')
-        .select('access_token')
+        .select('access_token_encrypted')
         .eq('user_id', userId)
         .eq('workspace_id', workspaceId)
         .single();
 
-      if (connection?.access_token) {
-        // Revoke token
-        await fetch(`https://oauth2.googleapis.com/revoke?token=${connection.access_token}`, {
-          method: 'POST',
+      if (connection?.access_token_encrypted) {
+        // Decrypt token for revocation
+        const { data: decryptedToken } = await supabaseAdmin.rpc('decrypt_oauth_token', {
+          _encrypted_token: connection.access_token_encrypted,
+          _user_id: userId
         });
+        
+        if (decryptedToken) {
+          // Revoke token
+          await fetch(`https://oauth2.googleapis.com/revoke?token=${decryptedToken}`, {
+            method: 'POST',
+          });
+        }
       }
 
       // Delete connection
