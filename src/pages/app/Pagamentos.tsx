@@ -34,6 +34,7 @@ import { ClientPaymentsControl } from '@/components/payments/ClientPaymentsContr
 import { FreelancerPaymentsControl, type ProjectTeamPayment } from '@/components/payments/FreelancerPaymentsControl';
 import { PaymentExportButtons } from '@/components/payments/PaymentExportButtons';
 import { ExtraCostsPaymentsControl, type ProjectCustoExtra } from '@/components/payments/ExtraCostsPaymentsControl';
+import { ProjectRevenueControl, type ProjectRevenue } from '@/components/payments/ProjectRevenueControl';
 import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -74,6 +75,9 @@ export default function Pagamentos() {
   // Fetch all project costs (not just pending)
   const [allProjectCosts, setAllProjectCosts] = useState<ProjectCustoExtra[]>([]);
 
+  // Project revenue data (Preço Cliente)
+  const [projectRevenue, setProjectRevenue] = useState<ProjectRevenue[]>([]);
+
   const currency = currentWorkspace?.currency || 'EUR';
 
   const formatCurrency = (value: number) => {
@@ -83,7 +87,7 @@ export default function Pagamentos() {
     }).format(value);
   };
 
-  // Fetch project extra costs
+  // Fetch project extra costs and revenue data
   useEffect(() => {
     const fetchAdditionalData = async () => {
       if (!currentWorkspace?.id) return;
@@ -110,12 +114,36 @@ export default function Pagamentos() {
       if (allCostsData) {
         setAllProjectCosts(allCostsData as ProjectCustoExtra[]);
       }
+
+      // Fetch projects with agreed_value for revenue (Preço Cliente)
+      const { data: revenueData } = await supabase
+        .from('projects')
+        .select('id, name, project_code, agreed_value, client_payment_status, client_payment_due_date, client_id, delivery_date, clients(name)')
+        .eq('workspace_id', currentWorkspace.id)
+        .gt('agreed_value', 0);
+      
+      if (revenueData) {
+        setProjectRevenue(revenueData as ProjectRevenue[]);
+      }
     };
     
     fetchAdditionalData();
   }, [currentWorkspace?.id]);
 
-  // Filter payments for the current month view
+  // Filter projects for current month view (by delivery_date or client_payment_due_date)
+  const monthProjectRevenue = useMemo(() => {
+    const start = startOfMonth(currentMonth);
+    const end = endOfMonth(currentMonth);
+    
+    return projectRevenue.filter(project => {
+      const dateToCheck = project.client_payment_due_date || project.delivery_date;
+      if (!dateToCheck) return false;
+      const date = new Date(dateToCheck);
+      return isWithinInterval(date, { start, end });
+    });
+  }, [projectRevenue, currentMonth]);
+
+  // Filter payments for the current month view (for non-client payments)
   // Non-admins only see their own payments (where collaborator_id matches userId)
   const monthPayments = useMemo(() => {
     const start = startOfMonth(currentMonth);
@@ -140,16 +168,22 @@ export default function Pagamentos() {
   // Cast teamPayments to the correct type
   const typedTeamPayments = teamPayments as ProjectTeamPayment[];
 
-  // Calculate monthly forecasts including collaborators and extra costs
+  // Calculate monthly forecasts using PROJECT REVENUE (agreed_value) as main income source
   const monthlyForecast = useMemo(() => {
-    // Total receivable (ALL statuses)
-    const totalReceivable = monthPayments.filter(p => p.is_receivable).reduce((sum, p) => sum + p.amount, 0);
+    // === REVENUE FROM PROJECTS (Preço Cliente) ===
+    // Total revenue from projects (ALL statuses)
+    const totalReceivable = monthProjectRevenue.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
     // Already received (status = pago)
-    const alreadyReceived = monthPayments.filter(p => p.is_receivable && p.status === 'pago').reduce((sum, p) => sum + p.amount, 0);
-    // Pending receivable (status !== pago)
-    const pendingReceivable = monthPayments.filter(p => p.is_receivable && p.status !== 'pago').reduce((sum, p) => sum + p.amount, 0);
+    const alreadyReceived = monthProjectRevenue
+      .filter(p => p.client_payment_status === 'pago')
+      .reduce((sum, p) => sum + (p.agreed_value || 0), 0);
+    // Pending revenue (status !== pago)
+    const pendingReceivable = monthProjectRevenue
+      .filter(p => p.client_payment_status !== 'pago')
+      .reduce((sum, p) => sum + (p.agreed_value || 0), 0);
     
-    // Payable amounts (non-receivable payments)
+    // === EXPENSES ===
+    // Payable amounts from payments table (non-receivable)
     const payable = monthPayments.filter(p => !p.is_receivable && p.status !== 'pago').reduce((sum, p) => sum + p.amount, 0);
     
     // Team payments by phase
@@ -183,7 +217,23 @@ export default function Pagamentos() {
       totalPayable,
       net: pendingReceivable - totalPayable 
     };
-  }, [monthPayments, typedTeamPayments, projectCosts]);
+  }, [monthProjectRevenue, monthPayments, typedTeamPayments, projectCosts]);
+
+  // Calculate total receivable and payable for summary cards (all time, not just current month)
+  const totalRevenueFromProjects = useMemo(() => {
+    const total = projectRevenue.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
+    const received = projectRevenue
+      .filter(p => p.client_payment_status === 'pago')
+      .reduce((sum, p) => sum + (p.agreed_value || 0), 0);
+    const pending = projectRevenue
+      .filter(p => p.client_payment_status !== 'pago')
+      .reduce((sum, p) => sum + (p.agreed_value || 0), 0);
+    const overdue = projectRevenue
+      .filter(p => p.client_payment_status === 'vencido')
+      .length;
+    
+    return { total, received, pending, overdue };
+  }, [projectRevenue]);
 
   // Calculate total payable including team and extra costs for summary
   const totalPayableWithExtras = useMemo(() => {
@@ -268,7 +318,7 @@ export default function Pagamentos() {
     // Refresh data
     const { data: costsData } = await supabase
       .from('projects')
-      .select('id, name, custos_extras, custos_extras_payment_status')
+      .select('id, name, project_code, custos_extras, custos_extras_payment_status')
       .eq('workspace_id', currentWorkspace?.id)
       .gt('custos_extras', 0);
     
@@ -279,6 +329,38 @@ export default function Pagamentos() {
         c.custos_extras_payment_status === 'vencido' || 
         c.custos_extras_payment_status === null
       ) as ProjectCustoExtra[]);
+    }
+    
+    queryClient.invalidateQueries({ queryKey: ['projects'] });
+  };
+
+  // Handle project revenue (Preço Cliente) status change
+  const handleProjectRevenueStatusChange = async (projectId: string, newStatus: string) => {
+    const updates: Record<string, unknown> = {
+      client_payment_status: newStatus,
+    };
+    
+    // If marking as paid, record the timestamp
+    if (newStatus === 'pago') {
+      updates.client_paid_at = new Date().toISOString();
+    } else {
+      updates.client_paid_at = null;
+    }
+    
+    await supabase
+      .from('projects')
+      .update(updates)
+      .eq('id', projectId);
+    
+    // Refresh revenue data
+    const { data: revenueData } = await supabase
+      .from('projects')
+      .select('id, name, project_code, agreed_value, client_payment_status, client_payment_due_date, client_id, delivery_date, clients(name)')
+      .eq('workspace_id', currentWorkspace?.id)
+      .gt('agreed_value', 0);
+    
+    if (revenueData) {
+      setProjectRevenue(revenueData as ProjectRevenue[]);
     }
     
     queryClient.invalidateQueries({ queryKey: ['projects'] });
@@ -336,17 +418,17 @@ export default function Pagamentos() {
         </div>
       </div>
 
-      {/* Summary Cards - Only for admins */}
+      {/* Summary Cards - Only for admins - Using Project Revenue */}
       {canViewAllFinancials && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="glass-card">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <TrendingUp className="h-5 w-5 text-success" />
-                <span className="text-2xl font-bold text-success">{formatCurrency(summaries.totalReceivable)}</span>
+                <span className="text-2xl font-bold text-success">{formatCurrency(totalRevenueFromProjects.pending)}</span>
               </div>
               <p className="text-sm text-muted-foreground mt-1">A Receber</p>
-              <p className="text-xs text-muted-foreground/70">Total pendente</p>
+              <p className="text-xs text-muted-foreground/70">Preço Cliente pendente</p>
             </CardContent>
           </Card>
           <Card className="glass-card">
@@ -363,7 +445,7 @@ export default function Pagamentos() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <CheckCircle2 className="h-5 w-5 text-success" />
-                <span className="text-2xl font-bold">{formatCurrency(summaries.totalReceived)}</span>
+                <span className="text-2xl font-bold">{formatCurrency(totalRevenueFromProjects.received)}</span>
               </div>
               <p className="text-sm text-muted-foreground mt-1">Recebido</p>
               <p className="text-xs text-muted-foreground/70">Total recebido</p>
@@ -373,7 +455,7 @@ export default function Pagamentos() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <AlertCircle className="h-5 w-5 text-warning" />
-                <span className="text-2xl font-bold">{summaries.overdue}</span>
+                <span className="text-2xl font-bold">{totalRevenueFromProjects.overdue}</span>
               </div>
               <p className="text-sm text-muted-foreground mt-1">Vencidos</p>
               <p className="text-xs text-muted-foreground/70">Pagamentos atrasados</p>
@@ -610,13 +692,12 @@ export default function Pagamentos() {
           </Card>
         </TabsContent>
 
-        {/* Pagamentos Clientes Tab */}
+        {/* Receita de Projetos (Preço Cliente) Tab */}
         <TabsContent value="clientes" className="space-y-6">
-          <ClientPaymentsControl
-            payments={payments}
+          <ProjectRevenueControl
+            projects={projectRevenue}
             clients={clientsList}
-            projects={projectsList}
-            onStatusChange={handleClientStatusChange}
+            onStatusChange={handleProjectRevenueStatusChange}
             formatCurrency={formatCurrency}
           />
         </TabsContent>
