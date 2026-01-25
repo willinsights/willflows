@@ -1,10 +1,9 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, subDays, startOfYear, endOfYear } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import {
   BarChart3,
-  Download,
   Calendar,
   TrendingUp,
   Users,
@@ -14,6 +13,7 @@ import {
   Lock,
   Crown,
   FolderKanban,
+  CalendarDays,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +26,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 import {
   BarChart,
   Bar,
@@ -39,6 +42,9 @@ import {
   PieChart,
   Pie,
   Cell,
+  Legend,
+  Area,
+  AreaChart,
 } from 'recharts';
 import { useProjects } from '@/hooks/useProjects';
 import { useClients } from '@/hooks/useClients';
@@ -50,6 +56,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { EmptyState } from '@/components/ui/empty-state';
 import { useNavigate } from 'react-router-dom';
 
+type PeriodType = '1M' | '3M' | '6M' | '12M' | 'YTD' | 'custom';
+
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--info))', 'hsl(var(--destructive))'];
 
 export default function Relatorios() {
@@ -60,7 +68,14 @@ export default function Relatorios() {
   const { currentWorkspace } = useWorkspace();
   const { canViewReports } = useFinancialPermissions();
   const { hasAccess: canExportPdf, requireFeature: requirePdfExport, UpgradeAlertComponent } = useFeatureGate('exportPdf');
-  const [period, setPeriod] = useState('6');
+  const { hasAccess: canExportExcel, requireFeature: requireExcelExport } = useFeatureGate('exportExcel');
+  
+  // Period state - improved with more options
+  const [periodType, setPeriodType] = useState<PeriodType>('6M');
+  const [customDateRange, setCustomDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
+    from: undefined,
+    to: undefined,
+  });
 
   const currency = currentWorkspace?.currency || 'EUR';
 
@@ -73,15 +88,48 @@ export default function Relatorios() {
     }).format(value);
   };
 
+  // Calculate date range based on period type
+  const dateRange = useMemo(() => {
+    const now = new Date();
+    switch (periodType) {
+      case '1M':
+        return { start: subMonths(now, 1), end: now };
+      case '3M':
+        return { start: subMonths(now, 3), end: now };
+      case '6M':
+        return { start: subMonths(now, 6), end: now };
+      case '12M':
+        return { start: subMonths(now, 12), end: now };
+      case 'YTD':
+        return { start: startOfYear(now), end: now };
+      case 'custom':
+        return { 
+          start: customDateRange.from || subMonths(now, 6), 
+          end: customDateRange.to || now 
+        };
+      default:
+        return { start: subMonths(now, 6), end: now };
+    }
+  }, [periodType, customDateRange]);
+
+  // Calculate number of months between dates
+  const periodMonths = useMemo(() => {
+    const diffTime = Math.abs(dateRange.end.getTime() - dateRange.start.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(1, Math.ceil(diffDays / 30));
+  }, [dateRange]);
+
   // Calculate monthly revenue data - USAR delivered_at para projetos entregues
   const monthlyData = useMemo(() => {
     const months = [];
-    const periodMonths = parseInt(period);
     
     for (let i = periodMonths - 1; i >= 0; i--) {
-      const date = subMonths(new Date(), i);
+      const date = subMonths(dateRange.end, i);
       const start = startOfMonth(date);
       const end = endOfMonth(date);
+      
+      // Skip months before start date
+      if (end < dateRange.start) continue;
       
       // Filtrar apenas projetos ENTREGUES no período (usar delivered_at)
       const monthProjects = projects.filter(p => {
@@ -96,16 +144,18 @@ export default function Relatorios() {
         sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
       
       months.push({
-        month: format(date, 'MMM', { locale: pt }),
+        month: format(date, 'MMM yy', { locale: pt }),
+        fullMonth: format(date, 'MMMM yyyy', { locale: pt }),
         receita: revenue,
         custos: costs,
         lucro: revenue - costs,
+        margin: revenue > 0 ? ((revenue - costs) / revenue * 100) : 0,
         projetos: monthProjects.length,
       });
     }
     
     return months;
-  }, [projects, period]);
+  }, [projects, dateRange, periodMonths]);
 
   // Top clients by revenue
   const topClients = useMemo(() => {
@@ -178,21 +228,36 @@ export default function Relatorios() {
     };
   }, [projects, clients]);
 
-  // Export functions
+  // Export functions - improved with more data
   const handleExportExcel = () => {
-    // Prepare CSV data
-    const headers = ['Mês', 'Receita', 'Custos', 'Lucro', 'Projetos'];
+    // Prepare CSV data with enhanced columns
+    const headers = ['Mês', 'Receita (€)', 'Custos (€)', 'Lucro (€)', 'Margem (%)', 'Projetos'];
     const rows = monthlyData.map(m => [
-      m.month,
-      m.receita,
-      m.custos,
-      m.lucro,
+      m.fullMonth,
+      m.receita.toFixed(2),
+      m.custos.toFixed(2),
+      m.lucro.toFixed(2),
+      m.margin.toFixed(1),
       m.projetos,
     ]);
 
+    // Add totals row
+    const totalReceita = monthlyData.reduce((sum, m) => sum + m.receita, 0);
+    const totalCustos = monthlyData.reduce((sum, m) => sum + m.custos, 0);
+    const totalLucro = monthlyData.reduce((sum, m) => sum + m.lucro, 0);
+    const avgMargin = totalReceita > 0 ? ((totalLucro / totalReceita) * 100) : 0;
+    const totalProjetos = monthlyData.reduce((sum, m) => sum + m.projetos, 0);
+    
+    rows.push(['', '', '', '', '', '']); // Empty row
+    rows.push(['TOTAL', totalReceita.toFixed(2), totalCustos.toFixed(2), totalLucro.toFixed(2), avgMargin.toFixed(1), totalProjetos]);
+
     const csvContent = [
+      `Relatório Financeiro - ${currentWorkspace?.name || 'Workspace'}`,
+      `Período: ${format(dateRange.start, "d MMM yyyy", { locale: pt })} - ${format(dateRange.end, "d MMM yyyy", { locale: pt })}`,
+      `Gerado em: ${format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: pt })}`,
+      '',
       headers.join(';'),
-      ...rows.map(row => row.join(';'))
+      ...rows.map(row => row.toString().split(',').join(';'))
     ].join('\n');
 
     // Add BOM for Excel to recognize UTF-8
@@ -209,45 +274,71 @@ export default function Relatorios() {
   };
 
   const handleExportPDF = () => {
+    // Calculate period totals for PDF
+    const totalReceita = monthlyData.reduce((sum, m) => sum + m.receita, 0);
+    const totalCustos = monthlyData.reduce((sum, m) => sum + m.custos, 0);
+    const totalLucro = monthlyData.reduce((sum, m) => sum + m.lucro, 0);
+    const avgMargin = totalReceita > 0 ? ((totalLucro / totalReceita) * 100) : 0;
+    const totalProjetos = monthlyData.reduce((sum, m) => sum + m.projetos, 0);
+    
     // For PDF, we'll create a printable version
     const printContent = `
       <html>
         <head>
-          <title>Relatório Financeiro - ${format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: pt })}</title>
+          <title>Relatório Financeiro - ${currentWorkspace?.name || 'Workspace'}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { color: #333; margin-bottom: 20px; }
+            body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333; }
+            h1 { color: #6b21a8; margin-bottom: 10px; }
+            h2 { color: #6b21a8; margin-top: 30px; margin-bottom: 15px; font-size: 18px; }
+            .subtitle { color: #666; margin-bottom: 30px; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-            th { background-color: #f5f5f5; font-weight: bold; }
+            th, td { border: 1px solid #e5e5e5; padding: 12px; text-align: right; }
+            th { background-color: #f8f4ff; font-weight: 600; color: #6b21a8; }
+            th:first-child, td:first-child { text-align: left; }
             tr:nth-child(even) { background-color: #fafafa; }
-            .header { margin-bottom: 30px; }
-            .summary { display: flex; gap: 20px; margin-bottom: 30px; }
-            .summary-card { padding: 15px; background: #f5f5f5; border-radius: 8px; }
-            .summary-label { font-size: 12px; color: #666; }
-            .summary-value { font-size: 24px; font-weight: bold; }
+            tr.total { background-color: #f8f4ff; font-weight: bold; }
+            .header { margin-bottom: 30px; border-bottom: 2px solid #6b21a8; padding-bottom: 20px; }
+            .summary { display: flex; gap: 20px; margin-bottom: 30px; flex-wrap: wrap; }
+            .summary-card { padding: 20px; background: linear-gradient(135deg, #f8f4ff 0%, #f0e8ff 100%); border-radius: 12px; flex: 1; min-width: 150px; }
+            .summary-label { font-size: 12px; color: #666; margin-bottom: 5px; }
+            .summary-value { font-size: 24px; font-weight: bold; color: #6b21a8; }
+            .positive { color: #16a34a; }
+            .negative { color: #dc2626; }
+            .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e5e5; font-size: 12px; color: #999; }
+            @media print { body { padding: 20px; } }
           </style>
         </head>
         <body>
           <div class="header">
             <h1>Relatório Financeiro</h1>
-            <p>Período: Últimos ${period} meses</p>
-            <p>Gerado em: ${format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: pt })}</p>
+            <p class="subtitle">${currentWorkspace?.name || 'Workspace'}</p>
+            <p><strong>Período:</strong> ${format(dateRange.start, "d 'de' MMMM 'de' yyyy", { locale: pt })} - ${format(dateRange.end, "d 'de' MMMM 'de' yyyy", { locale: pt })}</p>
           </div>
+          
+          <h2>Resumo do Período</h2>
           <div class="summary">
             <div class="summary-card">
               <div class="summary-label">Receita Total</div>
-              <div class="summary-value">${formatCurrency(summaryMetrics.totalRevenue)}</div>
+              <div class="summary-value positive">${formatCurrency(totalReceita)}</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">Custos Total</div>
+              <div class="summary-value negative">${formatCurrency(totalCustos)}</div>
             </div>
             <div class="summary-card">
               <div class="summary-label">Lucro</div>
-              <div class="summary-value">${formatCurrency(summaryMetrics.profit)}</div>
+              <div class="summary-value">${formatCurrency(totalLucro)}</div>
             </div>
             <div class="summary-card">
-              <div class="summary-label">Margem</div>
-              <div class="summary-value">${summaryMetrics.margin.toFixed(1)}%</div>
+              <div class="summary-label">Margem Média</div>
+              <div class="summary-value">${avgMargin.toFixed(1)}%</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">Projetos Entregues</div>
+              <div class="summary-value">${totalProjetos}</div>
             </div>
           </div>
+          
           <h2>Evolução Mensal</h2>
           <table>
             <thead>
@@ -256,21 +347,35 @@ export default function Relatorios() {
                 <th>Receita</th>
                 <th>Custos</th>
                 <th>Lucro</th>
+                <th>Margem</th>
                 <th>Projetos</th>
               </tr>
             </thead>
             <tbody>
               ${monthlyData.map(m => `
                 <tr>
-                  <td>${m.month}</td>
-                  <td>${formatCurrency(m.receita)}</td>
-                  <td>${formatCurrency(m.custos)}</td>
+                  <td>${m.fullMonth}</td>
+                  <td class="positive">${formatCurrency(m.receita)}</td>
+                  <td class="negative">${formatCurrency(m.custos)}</td>
                   <td>${formatCurrency(m.lucro)}</td>
+                  <td>${m.margin.toFixed(1)}%</td>
                   <td>${m.projetos}</td>
                 </tr>
               `).join('')}
+              <tr class="total">
+                <td>TOTAL</td>
+                <td class="positive">${formatCurrency(totalReceita)}</td>
+                <td class="negative">${formatCurrency(totalCustos)}</td>
+                <td>${formatCurrency(totalLucro)}</td>
+                <td>${avgMargin.toFixed(1)}%</td>
+                <td>${totalProjetos}</td>
+              </tr>
             </tbody>
           </table>
+          
+          <div class="footer">
+            Gerado em ${format(new Date(), "d 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })} • WillFlow
+          </div>
         </body>
       </html>
     `;
@@ -332,24 +437,86 @@ export default function Relatorios() {
           <h1 className="text-2xl font-bold">Relatórios</h1>
           <p className="text-muted-foreground">Análises e métricas do seu negócio</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-[160px]">
-              <Calendar className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Período" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="3">Últimos 3 meses</SelectItem>
-              <SelectItem value="6">Últimos 6 meses</SelectItem>
-              <SelectItem value="12">Último ano</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={handleExportExcel}>
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            Excel
-          </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Period Selector */}
+          <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
+            {(['1M', '3M', '6M', '12M', 'YTD'] as PeriodType[]).map((p) => (
+              <Button
+                key={p}
+                variant={periodType === p ? 'default' : 'ghost'}
+                size="sm"
+                className={cn(
+                  "h-8 px-3",
+                  periodType === p && "bg-primary text-primary-foreground"
+                )}
+                onClick={() => setPeriodType(p)}
+              >
+                {p === 'YTD' ? 'YTD' : p}
+              </Button>
+            ))}
+          </div>
+          
+          {/* Custom Date Range */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant={periodType === 'custom' ? 'default' : 'outline'}
+                size="sm"
+                className={cn("h-8 gap-2", periodType === 'custom' && "bg-primary text-primary-foreground")}
+                onClick={() => setPeriodType('custom')}
+              >
+                <CalendarDays className="h-4 w-4" />
+                {periodType === 'custom' && customDateRange.from && customDateRange.to
+                  ? `${format(customDateRange.from, 'dd/MM')} - ${format(customDateRange.to, 'dd/MM')}`
+                  : 'Personalizado'
+                }
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <CalendarComponent
+                mode="range"
+                selected={{ from: customDateRange.from, to: customDateRange.to }}
+                onSelect={(range) => {
+                  setCustomDateRange({ from: range?.from, to: range?.to });
+                  if (range?.from && range?.to) {
+                    setPeriodType('custom');
+                  }
+                }}
+                numberOfMonths={2}
+                className="pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+          
+          {/* Export Buttons */}
+          {canExportExcel ? (
+            <Button variant="outline" size="sm" onClick={handleExportExcel} className="h-8">
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Excel
+            </Button>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => requireExcelExport(handleExportExcel)}
+                    className="h-8 gap-2"
+                  >
+                    <Lock className="h-4 w-4" />
+                    <Crown className="h-3 w-3 text-primary" />
+                    Excel
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Disponível no plano Pro</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           {canExportPdf ? (
-            <Button variant="outline" onClick={handleExportPDF}>
+            <Button variant="outline" size="sm" onClick={handleExportPDF} className="h-8">
               <FileText className="h-4 w-4 mr-2" />
               PDF
             </Button>
@@ -359,8 +526,9 @@ export default function Relatorios() {
                 <TooltipTrigger asChild>
                   <Button 
                     variant="outline" 
+                    size="sm"
                     onClick={() => requirePdfExport(handleExportPDF)}
-                    className="gap-2"
+                    className="h-8 gap-2"
                   >
                     <Lock className="h-4 w-4" />
                     <Crown className="h-3 w-3 text-primary" />
@@ -421,18 +589,163 @@ export default function Relatorios() {
       </div>
 
       {/* Charts */}
-      <Tabs defaultValue="receita">
-        <TabsList>
-          <TabsTrigger value="receita">Evolução Financeira</TabsTrigger>
+      <Tabs defaultValue="evolucao">
+        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+          <TabsTrigger value="evolucao">Evolução</TabsTrigger>
+          <TabsTrigger value="receita">Receita vs Custos</TabsTrigger>
           <TabsTrigger value="clientes">Top Clientes</TabsTrigger>
           <TabsTrigger value="projetos">Projetos</TabsTrigger>
         </TabsList>
 
-        {/* Receita Tab */}
+        {/* Evolução Financeira Tab - NOVO gráfico principal */}
+        <TabsContent value="evolucao" className="space-y-6">
+          <Card className="glass-card">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                  Evolução Financeira Mensal
+                </CardTitle>
+                <div className="text-sm text-muted-foreground">
+                  {format(dateRange.start, "MMM yy", { locale: pt })} - {format(dateRange.end, "MMM yy", { locale: pt })}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[400px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={monthlyData}>
+                    <defs>
+                      <linearGradient id="colorReceita" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="colorLucro" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis 
+                      dataKey="month" 
+                      stroke="hsl(var(--muted-foreground))"
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis 
+                      stroke="hsl(var(--muted-foreground))" 
+                      tickFormatter={(v) => formatCurrency(v)}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <RechartsTooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                      formatter={(value: number, name: string) => [formatCurrency(value), name]}
+                      labelFormatter={(label) => {
+                        const item = monthlyData.find(m => m.month === label);
+                        return item?.fullMonth || label;
+                      }}
+                    />
+                    <Legend />
+                    <Area 
+                      type="monotone" 
+                      dataKey="receita" 
+                      name="Receita" 
+                      stroke="hsl(var(--success))" 
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorReceita)"
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="lucro" 
+                      name="Lucro" 
+                      stroke="hsl(var(--primary))" 
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorLucro)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+              
+              {/* Summary below chart */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-4 border-t">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">Total Receita</p>
+                  <p className="text-lg font-bold text-success">
+                    {formatCurrency(monthlyData.reduce((sum, m) => sum + m.receita, 0))}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">Total Custos</p>
+                  <p className="text-lg font-bold text-destructive">
+                    {formatCurrency(monthlyData.reduce((sum, m) => sum + m.custos, 0))}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">Total Lucro</p>
+                  <p className="text-lg font-bold text-primary">
+                    {formatCurrency(monthlyData.reduce((sum, m) => sum + m.lucro, 0))}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">Projetos Entregues</p>
+                  <p className="text-lg font-bold">
+                    {monthlyData.reduce((sum, m) => sum + m.projetos, 0)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Tabela de dados mensais */}
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="text-base">Detalhes Mensais</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2 px-3 font-medium text-muted-foreground">Mês</th>
+                      <th className="text-right py-2 px-3 font-medium text-muted-foreground">Receita</th>
+                      <th className="text-right py-2 px-3 font-medium text-muted-foreground">Custos</th>
+                      <th className="text-right py-2 px-3 font-medium text-muted-foreground">Lucro</th>
+                      <th className="text-right py-2 px-3 font-medium text-muted-foreground">Margem</th>
+                      <th className="text-right py-2 px-3 font-medium text-muted-foreground">Projetos</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthlyData.map((m, idx) => (
+                      <tr key={idx} className="border-b border-border/50 hover:bg-muted/50">
+                        <td className="py-2 px-3 font-medium">{m.fullMonth}</td>
+                        <td className="py-2 px-3 text-right text-success">{formatCurrency(m.receita)}</td>
+                        <td className="py-2 px-3 text-right text-destructive">{formatCurrency(m.custos)}</td>
+                        <td className="py-2 px-3 text-right font-medium">{formatCurrency(m.lucro)}</td>
+                        <td className="py-2 px-3 text-right">
+                          <Badge variant={m.margin >= 30 ? "default" : m.margin >= 15 ? "secondary" : "destructive"}>
+                            {m.margin.toFixed(1)}%
+                          </Badge>
+                        </td>
+                        <td className="py-2 px-3 text-right">{m.projetos}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Receita Tab - Bar chart comparativo */}
         <TabsContent value="receita" className="space-y-6">
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle>Receita e Lucro por Mês</CardTitle>
+              <CardTitle>Receita, Custos e Lucro por Mês</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-[400px]">
@@ -449,6 +762,7 @@ export default function Relatorios() {
                       }}
                       formatter={(value: number) => formatCurrency(value)}
                     />
+                    <Legend />
                     <Bar dataKey="receita" name="Receita" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="custos" name="Custos" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="lucro" name="Lucro" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
@@ -460,7 +774,7 @@ export default function Relatorios() {
 
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle>Evolução do Lucro</CardTitle>
+              <CardTitle>Tendência do Lucro</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-[300px]">
@@ -477,7 +791,7 @@ export default function Relatorios() {
                       }}
                       formatter={(value: number) => formatCurrency(value)}
                     />
-                    <Line type="monotone" dataKey="lucro" name="Lucro" stroke="hsl(var(--primary))" strokeWidth={2} />
+                    <Line type="monotone" dataKey="lucro" name="Lucro" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: 'hsl(var(--primary))' }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
