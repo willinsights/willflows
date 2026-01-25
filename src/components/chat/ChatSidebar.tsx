@@ -366,7 +366,7 @@ function ConversationItem({
   return (
     <div
       className={cn(
-        'group flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-left',
+        'group flex items-center gap-3 w-full max-w-full px-4 py-2.5 rounded-xl text-left',
         'transition-all duration-200 cursor-pointer overflow-hidden',
         'hover:bg-muted/60 hover:shadow-sm hover:-translate-x-0.5',
         isActive && 'bg-primary/10 hover:bg-primary/15 shadow-sm border-l-2 border-primary'
@@ -376,9 +376,9 @@ function ConversationItem({
       {getIcon()}
       
       <div className="flex-1 min-w-0 overflow-hidden">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 min-w-0">
           <span className={cn(
-            'font-medium text-sm truncate',
+            'font-medium text-sm truncate block max-w-[180px]',
             isActive && 'text-primary'
           )}>
             {displayName}
