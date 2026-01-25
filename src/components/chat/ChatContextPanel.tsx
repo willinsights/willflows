@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Select,
   SelectContent,
@@ -60,6 +61,8 @@ import {
   Music,
   UserPlus,
   Loader2,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -137,6 +140,21 @@ export function ChatContextPanel({
   const [channelName, setChannelName] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [memberToAdd, setMemberToAdd] = useState<string>('');
+
+  // State for collapsible sections (compact mode)
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    details: true,
+    financial: true,
+    team: false,
+    tasks: true,
+    links: false,
+    files: false,
+    members: false,
+  });
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
   const conversation = conversations.find((c) => c.id === conversationId);
   const isProjectChat = conversation?.type === 'project';
@@ -435,14 +453,22 @@ export function ChatContextPanel({
               </div>
             )}
 
-            {/* Members */}
+            {/* Members - Collapsible */}
             {members.length > 0 && (
-              <div>
-                <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Membros ({members.length})
-                </h4>
-                <div className="space-y-2">
+              <Collapsible open={expandedSections.members} onOpenChange={() => toggleSection('members')}>
+                <CollapsibleTrigger className="flex items-center justify-between w-full group">
+                  <h4 className="text-sm font-medium flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Membros ({members.length})
+                  </h4>
+                  {expandedSections.members ? (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform" />
+                  )}
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3">
+                  <div className="space-y-2">
                     {members.map((member: any) => {
                       const memberIsOnline = isOnline(member.user_id);
                       return (
@@ -479,8 +505,9 @@ export function ChatContextPanel({
                         </div>
                       );
                     })}
-                </div>
-              </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             )}
           </div>
         </ScrollArea>
@@ -705,170 +732,206 @@ export function ChatContextPanel({
                 </div>
               )}
 
-              {/* Project Team */}
-              <div>
-                <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Equipa do Projeto ({projectTeam.length})
-                </h4>
-                {loadingExtras ? (
-                  <div className="space-y-2">
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                ) : projectTeam.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nenhum membro na equipa</p>
-                ) : (
-                  <div className="space-y-2">
-                    {projectTeam.map((member) => (
-                      <div
-                        key={member.id}
-                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={member.profile?.avatar_url || undefined} />
-                          <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                            {(member.profile?.full_name || 'U').slice(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {member.profile?.full_name || 'Utilizador'}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {member.phase === 'captacao' ? 'Captação' : 'Edição'}
-                          </p>
+              {/* Project Team - Collapsible */}
+              <Collapsible open={expandedSections.team} onOpenChange={() => toggleSection('team')}>
+                <CollapsibleTrigger className="flex items-center justify-between w-full group">
+                  <h4 className="text-sm font-medium flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Equipa do Projeto ({projectTeam.length})
+                  </h4>
+                  {expandedSections.team ? (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform" />
+                  )}
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3">
+                  {loadingExtras ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-10 w-full" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                  ) : projectTeam.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum membro na equipa</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {projectTeam.map((member) => (
+                        <div
+                          key={member.id}
+                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                        >
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={member.profile?.avatar_url || undefined} />
+                            <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                              {(member.profile?.full_name || 'U').slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {member.profile?.full_name || 'Utilizador'}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {member.phase === 'captacao' ? 'Captação' : 'Edição'}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      ))}
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
 
-              {/* Open Tasks */}
-              <div>
-                <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-                  <CheckSquare className="h-4 w-4" />
-                  Tarefas Abertas ({openTasks.length})
-                </h4>
-                {loadingExtras ? (
-                  <div className="space-y-2">
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                ) : openTasks.length === 0 ? (
-                  <div className="p-3 rounded-lg border border-dashed border-border text-center">
-                    <p className="text-sm text-muted-foreground">
-                      Nenhuma tarefa pendente 🎉
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {openTasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className="p-2 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer"
-                        onClick={() => navigate(`/app/${project.current_phase}`, { state: { openTaskId: task.id } })}
-                      >
-                        <p className="text-sm font-medium truncate">{task.title}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline" className={`text-[10px] ${getPriorityColor(task.priority)}`}>
-                            {task.priority === 'alta' ? 'Alta' : task.priority === 'media' ? 'Média' : 'Baixa'}
-                          </Badge>
-                          {task.due_date && (
-                            <span className="text-[10px] text-muted-foreground">
-                              {format(new Date(task.due_date), "d MMM", { locale: pt })}
-                            </span>
-                          )}
+              {/* Open Tasks - Collapsible */}
+              <Collapsible open={expandedSections.tasks} onOpenChange={() => toggleSection('tasks')}>
+                <CollapsibleTrigger className="flex items-center justify-between w-full group">
+                  <h4 className="text-sm font-medium flex items-center gap-2">
+                    <CheckSquare className="h-4 w-4" />
+                    Tarefas Abertas ({openTasks.length})
+                  </h4>
+                  {expandedSections.tasks ? (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform" />
+                  )}
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3">
+                  {loadingExtras ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-10 w-full" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                  ) : openTasks.length === 0 ? (
+                    <div className="p-3 rounded-lg border border-dashed border-border text-center">
+                      <p className="text-sm text-muted-foreground">
+                        Nenhuma tarefa pendente 🎉
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {openTasks.map((task) => (
+                        <div
+                          key={task.id}
+                          className="p-2 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer"
+                          onClick={() => navigate(`/app/${project.current_phase}`, { state: { openTaskId: task.id } })}
+                        >
+                          <p className="text-sm font-medium truncate">{task.title}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="outline" className={`text-[10px] ${getPriorityColor(task.priority)}`}>
+                              {task.priority === 'alta' ? 'Alta' : task.priority === 'media' ? 'Média' : 'Baixa'}
+                            </Badge>
+                            {task.due_date && (
+                              <span className="text-[10px] text-muted-foreground">
+                                {format(new Date(task.due_date), "d MMM", { locale: pt })}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      ))}
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
 
-              {/* Shared Links */}
-              <div>
-                <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-                  <LinkIcon className="h-4 w-4" />
-                  Links Partilhados ({sharedLinks.length})
-                </h4>
-                {loadingExtras ? (
-                  <Skeleton className="h-16 w-full" />
-                ) : sharedLinks.length === 0 ? (
-                  <div className="p-3 rounded-lg border border-dashed border-border text-center">
-                    <p className="text-sm text-muted-foreground">
-                      Nenhum link partilhado
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {sharedLinks.map((link, index) => (
-                      <a
-                        key={index}
-                        href={link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-2 rounded-lg border border-border hover:bg-muted/50 transition-colors group"
-                      >
-                        <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
-                          <ExternalLink className="h-4 w-4 text-primary" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate group-hover:text-primary">
-                            {new URL(link.url).hostname}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground truncate">
-                            {link.userName} • {format(new Date(link.createdAt), "d MMM", { locale: pt })}
-                          </p>
-                        </div>
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {/* Shared Links - Collapsible */}
+              <Collapsible open={expandedSections.links} onOpenChange={() => toggleSection('links')}>
+                <CollapsibleTrigger className="flex items-center justify-between w-full group">
+                  <h4 className="text-sm font-medium flex items-center gap-2">
+                    <LinkIcon className="h-4 w-4" />
+                    Links Partilhados ({sharedLinks.length})
+                  </h4>
+                  {expandedSections.links ? (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform" />
+                  )}
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3">
+                  {loadingExtras ? (
+                    <Skeleton className="h-16 w-full" />
+                  ) : sharedLinks.length === 0 ? (
+                    <div className="p-3 rounded-lg border border-dashed border-border text-center">
+                      <p className="text-sm text-muted-foreground">
+                        Nenhum link partilhado
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {sharedLinks.map((link, index) => (
+                        <a
+                          key={index}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 p-2 rounded-lg border border-border hover:bg-muted/50 transition-colors group"
+                        >
+                          <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <ExternalLink className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate group-hover:text-primary">
+                              {new URL(link.url).hostname}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              {link.userName} • {format(new Date(link.createdAt), "d MMM", { locale: pt })}
+                            </p>
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
 
-              {/* Shared Files */}
-              <div>
-                <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  Ficheiros Partilhados ({sharedFiles.length})
-                </h4>
-                {loadingExtras ? (
-                  <Skeleton className="h-16 w-full" />
-                ) : sharedFiles.length === 0 ? (
-                  <div className="p-3 rounded-lg border border-dashed border-border text-center">
-                    <p className="text-sm text-muted-foreground">
-                      Nenhum ficheiro partilhado
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {sharedFiles.map((file) => (
-                      <a
-                        key={file.id}
-                        href={file.file_path}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-2 rounded-lg border border-border hover:bg-muted/50 transition-colors group"
-                      >
-                        <div className="h-8 w-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                          {getFileIcon(file.mime_type)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate group-hover:text-primary">
-                            {file.file_name}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground truncate">
-                            {formatFileSize(file.file_size)} • {file.userName}
-                          </p>
-                        </div>
-                        <Download className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {/* Shared Files - Collapsible */}
+              <Collapsible open={expandedSections.files} onOpenChange={() => toggleSection('files')}>
+                <CollapsibleTrigger className="flex items-center justify-between w-full group">
+                  <h4 className="text-sm font-medium flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Ficheiros Partilhados ({sharedFiles.length})
+                  </h4>
+                  {expandedSections.files ? (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform" />
+                  )}
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3">
+                  {loadingExtras ? (
+                    <Skeleton className="h-16 w-full" />
+                  ) : sharedFiles.length === 0 ? (
+                    <div className="p-3 rounded-lg border border-dashed border-border text-center">
+                      <p className="text-sm text-muted-foreground">
+                        Nenhum ficheiro partilhado
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {sharedFiles.map((file) => (
+                        <a
+                          key={file.id}
+                          href={file.file_path}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 p-2 rounded-lg border border-border hover:bg-muted/50 transition-colors group"
+                        >
+                          <div className="h-8 w-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                            {getFileIcon(file.mime_type)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate group-hover:text-primary">
+                              {file.file_name}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              {formatFileSize(file.file_size)} • {file.userName}
+                            </p>
+                          </div>
+                          <Download className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
 
               {/* Actions */}
               <div className="pt-4 pb-2">
