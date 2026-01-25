@@ -394,10 +394,10 @@ function ConversationItem({
         </div>
         
         {lastMessage && (
-          <p className="text-xs text-muted-foreground truncate mt-0.5 max-w-full">
+          <p className="text-xs text-muted-foreground truncate mt-0.5 max-w-[160px]">
             <span className="font-medium">{lastMessage.user_name}:</span>{' '}
-            {lastMessage.body.length > 25 
-              ? lastMessage.body.slice(0, 25) + '...' 
+            {lastMessage.body.length > 18 
+              ? lastMessage.body.slice(0, 18) + '...' 
               : lastMessage.body}
           </p>
         )}
