@@ -2964,6 +2964,7 @@ export type Database = {
           view_count: number
         }[]
       }
+      get_contract_by_token: { Args: { _token: string }; Returns: Json }
       get_daily_page_views: {
         Args: { days_back?: number }
         Returns: {
@@ -3067,8 +3068,14 @@ export type Database = {
         }
         Returns: string
       }
+      mark_contract_viewed: { Args: { _token: string }; Returns: Json }
       mask_email: { Args: { _email: string }; Returns: string }
       reopen_project: { Args: { p_project_id: string }; Returns: Json }
+      sign_contract_public: {
+        Args: { _signature_data: string; _signer_name: string; _token: string }
+        Returns: Json
+      }
+      validate_promo_code: { Args: { _code: string }; Returns: Json }
       verify_beta_token: {
         Args: { _token: string }
         Returns: {
