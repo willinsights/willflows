@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ChatSidebar } from './ChatSidebar';
 import { ChatFeed } from './ChatFeed';
@@ -13,19 +14,31 @@ import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { FeatureTeaser } from '@/components/subscription/FeatureTeaser';
+
 interface ChatLayoutProps {
   selectedConversationId?: string;
 }
 
 export function ChatLayout({ selectedConversationId }: ChatLayoutProps) {
   const isMobile = useIsMobile();
+  const [searchParams] = useSearchParams();
   const { preferences, updatePreferences, loading: prefsLoading } = usePushNotifications();
   const { canUseFeature } = usePlanFeatures();
   const hasChat = canUseFeature('chat');
   
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(
-    selectedConversationId || null
-  );
+  // Support query string for backward compatibility (?conversationId=... or ?c=...)
+  const queryConversationId = searchParams.get('conversationId') || searchParams.get('c');
+  const initialConversationId = selectedConversationId || queryConversationId || null;
+  
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(initialConversationId);
+  
+  // Sync activeConversationId when prop or query changes
+  useEffect(() => {
+    const newId = selectedConversationId || queryConversationId || null;
+    if (newId && newId !== activeConversationId) {
+      setActiveConversationId(newId);
+    }
+  }, [selectedConversationId, queryConversationId]);
   const [showContextPanel, setShowContextPanel] = useState(!isMobile);
   const [showFollowUpInbox, setShowFollowUpInbox] = useState(false);
   const [mobileView, setMobileView] = useState<'sidebar' | 'chat'>('sidebar');

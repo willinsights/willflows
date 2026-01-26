@@ -31,7 +31,7 @@ export function TaskChatIndicator({ taskId, onOpenChat }: TaskChatIndicatorProps
     if (onOpenChat) {
       onOpenChat();
     }
-    navigate(`/app/chat?conversationId=${conversationId}`);
+    navigate(`/app/chat/${conversationId}`);
   };
 
   return (

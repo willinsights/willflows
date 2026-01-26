@@ -139,28 +139,46 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
         }
       );
       
-      // Now upsert to server
-      const { error: upsertError } = await supabase
+      // Check if already a member, then UPDATE or INSERT accordingly
+      // This avoids RLS issues with upsert when policies are separated by operation
+      const { data: existingMember } = await supabase
         .from('conversation_members')
-        .upsert(
-          { 
+        .select('id')
+        .eq('conversation_id', conversationId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (existingMember) {
+        // Already a member - just update last_read_at
+        const { error: updateError } = await supabase
+          .from('conversation_members')
+          .update({ last_read_at: readTimestamp })
+          .eq('conversation_id', conversationId)
+          .eq('user_id', user.id);
+        
+        if (updateError) {
+          logger.error('Failed to update last_read_at:', updateError.code, updateError.message);
+          return;
+        }
+        logger.debug('markConversationAsRead: updated existing membership');
+      } else {
+        // Not a member - insert as new member
+        const { error: insertError } = await supabase
+          .from('conversation_members')
+          .insert({ 
             conversation_id: conversationId, 
             user_id: user.id, 
             role: 'member',
+            is_active: true,
             last_read_at: readTimestamp 
-          },
-          { 
-            onConflict: 'conversation_id,user_id',
-            ignoreDuplicates: false 
-          }
-        );
-      
-      if (upsertError) {
-        logger.error('Failed to upsert conversation membership:', upsertError.code, upsertError.message);
-        return;
+          });
+        
+        if (insertError) {
+          logger.error('Failed to insert membership:', insertError.code, insertError.message);
+          return;
+        }
+        logger.debug('markConversationAsRead: inserted new membership');
       }
-      
-      logger.debug('markConversationAsRead: upsert successful');
       hasMarkedAsReadRef.current = cacheKey;
       
       // Real-time subscription will handle syncing - no need to invalidate here
