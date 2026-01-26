@@ -3041,6 +3041,10 @@ export type Database = {
         Args: { check_user_id: string }
         Returns: boolean
       }
+      is_project_chat_in_user_workspace: {
+        Args: { p_conversation_id: string; p_user_id: string }
+        Returns: boolean
+      }
       is_public_channel_in_user_workspace: {
         Args: { p_conversation_id: string; p_user_id: string }
         Returns: boolean

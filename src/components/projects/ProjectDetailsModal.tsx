@@ -532,13 +532,16 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
       }
       
       // Ativar o chat para este utilizador (torna visível na página Chat)
-      await supabase
-        .from('conversation_members')
-        .upsert({
-          conversation_id: conversationId,
-          user_id: user.id,
-          is_active: true,
-        }, { onConflict: 'conversation_id,user_id' });
+      const { error: memberError } = await supabase.from('conversation_members').upsert({
+        conversation_id: conversationId,
+        user_id: user.id,
+        role: 'member',
+        is_active: true,
+      }, { onConflict: 'conversation_id,user_id' });
+      
+      if (memberError) {
+        console.error('[Chat] Error activating membership:', memberError);
+      }
       
       onOpenChange(false);
       navigate(`/app/chat/${conversationId}`);

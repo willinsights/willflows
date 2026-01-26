@@ -493,11 +493,16 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
         conversationId = newConversation.id;
       }
       
-      await supabase.from('conversation_members').upsert({
+      const { error: memberError } = await supabase.from('conversation_members').upsert({
         conversation_id: conversationId,
         user_id: user.id,
+        role: 'member',
         is_active: true,
       }, { onConflict: 'conversation_id,user_id' });
+      
+      if (memberError) {
+        console.error('[Chat] Error activating membership:', memberError);
+      }
       
       onOpenChange(false);
       navigate(`/app/chat/${conversationId}`);
