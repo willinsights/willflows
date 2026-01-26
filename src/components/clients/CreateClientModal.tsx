@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, forwardRef } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -40,11 +40,12 @@ interface CreateClientModalProps {
   onSuccess?: (client: any) => void;
 }
 
-export function CreateClientModal({
-  open,
-  onOpenChange,
-  onSuccess,
-}: CreateClientModalProps) {
+export const CreateClientModal = forwardRef<HTMLDivElement, CreateClientModalProps>(
+  function CreateClientModal({
+    open,
+    onOpenChange,
+    onSuccess,
+  }, ref) {
   const { createClient } = useClients();
   const [loading, setLoading] = useState(false);
 
@@ -88,7 +89,7 @@ export function CreateClientModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent ref={ref} className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Novo Cliente</DialogTitle>
         </DialogHeader>
@@ -244,4 +245,4 @@ export function CreateClientModal({
       </DialogContent>
     </Dialog>
   );
-}
+});

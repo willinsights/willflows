@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import type { DashboardMetrics } from '@/hooks/useDashboardMetrics';
+import { Coins } from 'lucide-react';
 
 interface KPICardsProps {
   metrics: DashboardMetrics;
@@ -51,7 +52,7 @@ function ChangeIndicator({
 
 export function KPICards({ metrics, loading }: KPICardsProps) {
   const { formatCurrency } = useCurrentWorkspace();
-  const { canViewAllFinancials } = useFinancialPermissions();
+  const { canViewAllFinancials, isCollaborator } = useFinancialPermissions();
 
   // Base KPI data (always visible)
   const baseKpiData = [
@@ -130,8 +131,22 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
       change: metrics.lucroChange,
       delay: 0.18,
     },
+  ] : isCollaborator ? [
+    // For collaborators: show personal earnings instead of locked cards
+    {
+      label: 'Meus Ganhos (mês)',
+      value: formatCurrency(metrics.meusGanhos ?? 0),
+      icon: Coins,
+      iconColor: 'text-success',
+      bgColor: 'bg-success/10',
+      cardClass: 'hover:border-success/30',
+      valueClass: 'text-success text-lg',
+      isCurrency: true,
+      delay: 0.12,
+      tooltip: 'Valor dos seus pagamentos este mês',
+    },
   ] : [
-    // Placeholder cards for non-admins
+    // Placeholder cards for non-admins (editor, captacao)
     {
       label: 'Receita (mês)',
       value: '---',

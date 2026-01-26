@@ -20,7 +20,7 @@ import type { ProjectWithClient } from '@/hooks/useKanban';
 
 export default function Dashboard() {
   const { currentWorkspace } = useWorkspace();
-  const { canViewAllFinancials } = useFinancialPermissions();
+  const { canViewAllFinancials, isCollaborator } = useFinancialPermissions();
   const [currentTime, setCurrentTime] = useState(new Date());
   const { showTour, completeTour, skipTour } = useProductTour();
   const { 
@@ -117,23 +117,25 @@ export default function Dashboard() {
       {/* KPIs Row */}
       <KPICards metrics={metrics} loading={loading} />
 
-      {/* Charts Row - Financial (with tabs) + Monthly Goals */}
-      <div className="grid lg:grid-cols-2 gap-3">
-        <FinancialChart 
-          monthlyData={monthlyData} 
-          annualComparison={annualComparison}
-          loading={loading}
-          currentYearLabel={String(currentYear)}
-          previousYearLabel={String(currentYear - 1)}
-        />
-        {canViewAllFinancials && (
-          <MonthlyGoalsCard 
-            currentRevenue={metrics.receita}
-            currentProjectsDelivered={metrics.entregues}
+      {/* Charts Row - Financial (with tabs) + Monthly Goals - Hidden for collaborators */}
+      {!isCollaborator && (
+        <div className="grid lg:grid-cols-2 gap-3">
+          <FinancialChart 
+            monthlyData={monthlyData} 
+            annualComparison={annualComparison}
             loading={loading}
+            currentYearLabel={String(currentYear)}
+            previousYearLabel={String(currentYear - 1)}
           />
-        )}
-      </div>
+          {canViewAllFinancials && (
+            <MonthlyGoalsCard 
+              currentRevenue={metrics.receita}
+              currentProjectsDelivered={metrics.entregues}
+              loading={loading}
+            />
+          )}
+        </div>
+      )}
 
       {/* Projects and Events Row */}
       <div className="grid lg:grid-cols-2 gap-3">
@@ -149,18 +151,20 @@ export default function Dashboard() {
       </div>
 
       {/* Bottom Row - Performance, Payments, Activity */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className={`grid gap-3 ${canViewAllFinancials ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-2'}`}>
         {canViewAllFinancials && (
           <PerformanceMetricsCard 
             metrics={performanceMetrics} 
             loading={loading}
           />
         )}
-        <PendingPaymentsList 
-          payments={pendingPaymentItems}
-          totalAmount={metrics.pendingPayments}
-          loading={loading}
-        />
+        {!isCollaborator && (
+          <PendingPaymentsList 
+            payments={pendingPaymentItems}
+            totalAmount={metrics.pendingPayments}
+            loading={loading}
+          />
+        )}
         <RecentActivityCard 
           recentActivity={recentActivity} 
           loading={loading}

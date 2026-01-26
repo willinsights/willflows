@@ -61,7 +61,7 @@ export default function Pagamentos() {
   const { clients } = useClients();
   const { currentWorkspace } = useWorkspace();
   const { members } = useWorkspaceMembers();
-  const { canViewAllFinancials, canViewOwnFinancials, userId, userRole } = useFinancialPermissions();
+  const { canViewAllFinancials, canViewOwnFinancials, userId, userRole, isCollaborator } = useFinancialPermissions();
   const { hasFeatureAccess, checkFeature, upgradeAlert, closeUpgradeAlert, getFeatureInfo, getUpgradePlan } = usePlanFeatures();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('previsao');
@@ -465,11 +465,11 @@ export default function Pagamentos() {
         </div>
       )}
 
-      {/* Tabs - Limit tabs for non-admins */}
+      {/* Tabs - Limit tabs for collaborators */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="previsao">
-            {canViewAllFinancials ? 'Previsão' : 'Meus Pagamentos'}
+            {isCollaborator ? 'Meus Pagamentos' : canViewAllFinancials ? 'Previsão' : 'Resumo'}
           </TabsTrigger>
           {canViewAllFinancials && (
             <>
@@ -484,28 +484,39 @@ export default function Pagamentos() {
           )}
         </TabsList>
 
-        {/* Previsão Tab */}
+        {/* Previsão Tab - For collaborators, show simplified "My Payments" view */}
         <TabsContent value="previsao" className="space-y-6">
-          {/* Month Navigator with Export */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" className="min-w-[140px]">
-                {format(currentMonth, 'MMMM yyyy', { locale: pt })}
-              </Button>
-              <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-            <PaymentExportButtons
-              data={previsaoExportData}
-              filename={`previsao-${format(currentMonth, 'yyyy-MM')}`}
-              type="previsao"
-              forecastSummary={forecastSummary}
+          {isCollaborator ? (
+            // Collaborator-specific: show only their payments from project_team
+            <FreelancerPaymentsControl
+              teamPayments={typedTeamPayments.filter(tp => tp.user_id === userId)}
+              onStatusChange={handleFreelancerStatusChange}
+              formatCurrency={formatCurrency}
+              members={membersList}
+              projects={projectsList}
             />
-          </div>
+          ) : (
+            <>
+              {/* Month Navigator with Export */}
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" className="min-w-[140px]">
+                    {format(currentMonth, 'MMMM yyyy', { locale: pt })}
+                  </Button>
+                  <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+                <PaymentExportButtons
+                  data={previsaoExportData}
+                  filename={`previsao-${format(currentMonth, 'yyyy-MM')}`}
+                  type="previsao"
+                  forecastSummary={forecastSummary}
+                />
+              </div>
 
           {/* Monthly Financial Summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -728,6 +739,8 @@ export default function Pagamentos() {
                 </div>
               </CardContent>
             </Card>
+          )}
+            </>
           )}
         </TabsContent>
 
