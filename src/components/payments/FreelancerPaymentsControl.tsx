@@ -64,6 +64,8 @@ interface FreelancerPaymentsControlProps {
   onStatusChange: (teamId: string, newStatus: string) => Promise<void>;
   formatCurrency: (value: number) => string;
   workspaceName?: string;
+  /** If true, only show payments for this specific user ID */
+  filterByUserId?: string | null;
 }
 
 export function FreelancerPaymentsControl({
@@ -73,6 +75,7 @@ export function FreelancerPaymentsControl({
   onStatusChange,
   formatCurrency,
   workspaceName = 'WillFlow',
+  filterByUserId,
 }: FreelancerPaymentsControlProps) {
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: null,
@@ -81,6 +84,14 @@ export function FreelancerPaymentsControl({
     memberId: null,
     status: null,
   });
+  
+  // If filterByUserId is provided, filter team payments to only show that user's payments
+  const baseTeamPayments = useMemo(() => {
+    if (filterByUserId) {
+      return teamPayments.filter(tp => tp.user_id === filterByUserId);
+    }
+    return teamPayments;
+  }, [teamPayments, filterByUserId]);
 
   const getMemberName = (userId: string) => {
     const member = members.find(m => m.user_id === userId);
@@ -98,12 +109,12 @@ export function FreelancerPaymentsControl({
   };
 
   const filteredPayments = useMemo(() => {
-    return teamPayments.filter(tp => {
+    return baseTeamPayments.filter(tp => {
       if (filters.memberId && tp.user_id !== filters.memberId) return false;
       if (filters.status && tp.payment_status !== filters.status) return false;
       return true;
     });
-  }, [teamPayments, filters]);
+  }, [baseTeamPayments, filters]);
 
   // Pagination
   const pagination = usePagination({
