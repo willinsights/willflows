@@ -199,9 +199,9 @@ function KanbanCardComponent({ project, onClick, style: externalStyle }: KanbanC
                 return (
                     <Tooltip key={member.user_id}>
                     <TooltipTrigger asChild>
-                      <Avatar className="h-5 w-5 border border-background">
+                      <Avatar className="h-[30px] w-[30px] border border-background">
                         <AvatarImage src={member.profile?.avatar_url || undefined} />
-                        <AvatarFallback className="text-[7px] bg-primary/10 text-primary">
+                        <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
                           {initials}
                         </AvatarFallback>
                       </Avatar>
@@ -219,8 +219,8 @@ function KanbanCardComponent({ project, onClick, style: externalStyle }: KanbanC
               {remainingCount > 0 && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Avatar className="h-5 w-5 border border-background">
-                      <AvatarFallback className="text-[7px] bg-muted text-muted-foreground">
+                    <Avatar className="h-[30px] w-[30px] border border-background">
+                      <AvatarFallback className="text-[9px] bg-muted text-muted-foreground">
                         +{remainingCount}
                       </AvatarFallback>
                     </Avatar>
