@@ -61,7 +61,7 @@ export default function Pagamentos() {
   const { clients } = useClients();
   const { currentWorkspace } = useWorkspace();
   const { members } = useWorkspaceMembers();
-  const { canViewAllFinancials, canViewOwnFinancials, userId, userRole, isCollaborator } = useFinancialPermissions();
+  const { canViewAllFinancials, canViewOwnFinancials, userId, userRole, isCollaborator, isLoading: permissionsLoading } = useFinancialPermissions();
   const { hasFeatureAccess, checkFeature, upgradeAlert, closeUpgradeAlert, getFeatureInfo, getUpgradePlan } = usePlanFeatures();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('previsao');
@@ -382,7 +382,7 @@ export default function Pagamentos() {
     return projects.map(p => ({ id: p.id, name: p.name, project_code: p.project_code }));
   }, [projects]);
 
-  if (loading) {
+  if (loading || permissionsLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -469,7 +469,7 @@ export default function Pagamentos() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="previsao">
-            {isCollaborator ? 'Meus Pagamentos' : canViewAllFinancials ? 'Previsão' : 'Resumo'}
+            {!canViewAllFinancials ? 'Meus Pagamentos' : 'Previsão'}
           </TabsTrigger>
           {canViewAllFinancials && (
             <>
@@ -484,9 +484,9 @@ export default function Pagamentos() {
           )}
         </TabsList>
 
-        {/* Previsão Tab - For collaborators, show simplified "My Payments" view */}
+        {/* Previsão Tab - For users without global financials, show simplified "My Payments" view */}
         <TabsContent value="previsao" className="space-y-6">
-          {isCollaborator ? (
+          {!canViewAllFinancials ? (
             // Collaborator-specific: show only their payments from project_team
             <FreelancerPaymentsControl
               teamPayments={typedTeamPayments}
