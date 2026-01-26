@@ -15,14 +15,25 @@ import { useProductTour } from '@/hooks/useProductTour';
 import { useDashboardMetrics, UrgentProject } from '@/hooks/useDashboardMetrics';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { ProjectDetailsSheet } from '@/components/projects/ProjectDetailsSheet';
 import type { ProjectWithClient } from '@/hooks/useKanban';
+
+// Mobile-specific components
+import { MobileKPICarousel } from '@/components/mobile/MobileKPICarousel';
+import { MobileFinancialSummary } from '@/components/mobile/MobileFinancialSummary';
+import { MobileGoalsSummary } from '@/components/mobile/MobileGoalsSummary';
+import { MobileUrgentProjects } from '@/components/mobile/MobileUrgentProjects';
+import { MobileUpcomingEvents } from '@/components/mobile/MobileUpcomingEvents';
+import { MobilePendingPayments } from '@/components/mobile/MobilePendingPayments';
+import { MobileRecentActivity } from '@/components/mobile/MobileRecentActivity';
 
 export default function Dashboard() {
   const { currentWorkspace } = useWorkspace();
   const { canViewAllFinancials, isCollaborator } = useFinancialPermissions();
   const [currentTime, setCurrentTime] = useState(new Date());
   const { showTour, completeTour, skipTour } = useProductTour();
+  const isMobile = useIsMobile();
   const { 
     metrics, 
     performanceMetrics,
@@ -98,6 +109,86 @@ export default function Dashboard() {
     return () => clearInterval(timer);
   }, []);
 
+  // Mobile Dashboard Layout
+  if (isMobile) {
+    return (
+      <div className="p-4 space-y-4 pb-24">
+        {/* Product Tour */}
+        {showTour && (
+          <ProductTour onComplete={completeTour} onSkip={skipTour} />
+        )}
+
+        {/* Trial Banner */}
+        <TrialBanner />
+        
+        {/* Header */}
+        <DashboardHeader currentTime={currentTime} />
+
+        {/* KPIs Carousel */}
+        <MobileKPICarousel metrics={metrics} loading={loading} />
+
+        {/* Collapsible Charts - Hidden for collaborators */}
+        {!isCollaborator && canViewAllFinancials && (
+          <>
+            <MobileFinancialSummary
+              monthlyData={monthlyData}
+              annualComparison={annualComparison}
+              loading={loading}
+              currentYearLabel={String(currentYear)}
+              previousYearLabel={String(currentYear - 1)}
+            />
+            <MobileGoalsSummary
+              currentRevenue={metrics.receita}
+              currentProjectsDelivered={metrics.entregues}
+              loading={loading}
+            />
+          </>
+        )}
+
+        {/* Urgent Projects */}
+        <MobileUrgentProjects
+          urgentProjects={urgentProjects}
+          loading={loading}
+          onProjectClick={handleProjectClick}
+          maxItems={3}
+        />
+
+        {/* Upcoming Events */}
+        <MobileUpcomingEvents
+          events={upcomingEvents}
+          loading={loading}
+          maxItems={3}
+        />
+
+        {/* Pending Payments - Hidden for collaborators */}
+        {!isCollaborator && canViewAllFinancials && (
+          <MobilePendingPayments
+            payments={pendingPaymentItems}
+            totalAmount={metrics.pendingPayments}
+            loading={loading}
+            maxItems={3}
+          />
+        )}
+
+        {/* Recent Activity */}
+        <MobileRecentActivity
+          recentActivity={recentActivity}
+          loading={loading}
+          maxItems={4}
+        />
+
+        {/* Project Details Sheet */}
+        <ProjectDetailsSheet
+          open={isModalOpen}
+          onOpenChange={setIsModalOpen}
+          project={selectedProject}
+          onUpdate={refresh}
+        />
+      </div>
+    );
+  }
+
+  // Desktop Dashboard Layout
   return (
     <div className="p-3 md:p-4 space-y-3 md:space-y-4 max-w-[1400px] mx-auto">
       {/* Product Tour */}
