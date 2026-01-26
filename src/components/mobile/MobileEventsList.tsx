@@ -113,7 +113,7 @@ export function MobileEventsList({ events, loading, maxItems = 5 }: MobileEvents
                   isHighlight && "ring-1 ring-primary/30"
                 )}
               >
-                <CardContent className="p-3">
+                <CardContent className="p-4">
                   <div className="flex items-start gap-3">
                     {/* Date Badge */}
                     <div className={cn(

@@ -42,20 +42,16 @@ export function MobileAppHeader() {
       <motion.header
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="sticky top-0 z-40 h-14 bg-card/95 backdrop-blur-md border-b border-border/60 px-4 flex items-center justify-between gap-3 safe-area-top"
+        className="sticky top-0 z-40 h-14 bg-card/95 backdrop-blur-md border-b border-border/60 px-4 flex items-center gap-3 safe-area-top"
       >
-        {/* Left: Logo */}
-        <div className="flex items-center gap-2">
-          <Logo iconOnly className="h-8 w-8" />
-        </div>
-
-        {/* Center: Workspace Selector */}
-        <div className="flex-1 flex justify-center max-w-[200px]">
+        {/* Left: Logo + Workspace Selector */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <Logo iconOnly className="h-8 w-8 shrink-0" />
           <WorkspaceSelector />
         </div>
 
         {/* Right: Search + Notifications */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           <Button
             variant="ghost"
             size="icon"

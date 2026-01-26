@@ -153,7 +153,7 @@ export function MobileKPICarousel({ metrics, loading }: MobileKPICarouselProps) 
       {showLeftArrow && (
         <button
           onClick={() => scroll('left')}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-card/90 backdrop-blur-sm rounded-full shadow-md flex items-center justify-center"
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-card/90 backdrop-blur-sm rounded-full shadow-md flex items-center justify-center"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
@@ -163,7 +163,7 @@ export function MobileKPICarousel({ metrics, loading }: MobileKPICarouselProps) 
       {showRightArrow && (
         <button
           onClick={() => scroll('right')}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-card/90 backdrop-blur-sm rounded-full shadow-md flex items-center justify-center"
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-card/90 backdrop-blur-sm rounded-full shadow-md flex items-center justify-center"
         >
           <ChevronRight className="h-5 w-5" />
         </button>
@@ -173,7 +173,7 @@ export function MobileKPICarousel({ metrics, loading }: MobileKPICarouselProps) 
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 px-1 -mx-1 snap-x snap-mandatory"
+        className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 snap-x snap-mandatory"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {kpiData.map((kpi, index) => (
@@ -184,9 +184,9 @@ export function MobileKPICarousel({ metrics, loading }: MobileKPICarouselProps) 
             transition={{ delay: index * 0.05 }}
             className="snap-start shrink-0"
           >
-            <Card className="w-[130px] bg-card/80 backdrop-blur-sm border-border/60">
-              <CardContent className="p-3">
-                <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center mb-2', kpi.bgColor)}>
+            <Card className="w-[140px] bg-card/80 backdrop-blur-sm border-border/60">
+              <CardContent className="p-4">
+                <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center mb-2', kpi.bgColor)}>
                   <kpi.icon className={cn('h-5 w-5', kpi.iconColor)} />
                 </div>
                 {loading ? (

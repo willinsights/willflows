@@ -106,7 +106,7 @@ export function MobileBottomNav() {
     <>
       {/* Bottom Navigation Bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border safe-area-bottom">
-        <div className="flex items-center justify-around h-16 px-2">
+        <div className="flex items-center justify-around h-[72px] px-4">
           {mainNavItems.map((item, index) => {
             const Icon = item.icon;
             const active = isActive(item.path);
@@ -117,7 +117,7 @@ export function MobileBottomNav() {
                 <button
                   key="fab"
                   onClick={() => handleNavClick(item, index)}
-                  className="relative -mt-6 flex items-center justify-center w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 active:scale-95 transition-transform"
+                  className="relative -mt-6 flex items-center justify-center w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 active:scale-95 transition-transform z-10"
                   aria-label="Criar projeto"
                 >
                   <Plus className="h-7 w-7" />
@@ -168,20 +168,20 @@ export function MobileBottomNav() {
 
       {/* Full Menu Sheet */}
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-        <SheetContent side="bottom" className="h-[85vh] rounded-t-3xl p-0">
-          <SheetHeader className="px-6 pt-6 pb-4">
+        <SheetContent side="bottom" className="h-[85vh] rounded-t-3xl p-0 z-[60]">
+          <SheetHeader className="px-5 pt-8 pb-4">
             <div className="flex items-center justify-between">
               <SheetTitle className="text-xl font-bold">Menu</SheetTitle>
               <button 
                 onClick={() => setMenuOpen(false)}
-                className="p-2 rounded-full hover:bg-muted transition-colors"
+                className="p-2 rounded-full hover:bg-muted transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
           </SheetHeader>
           
-          <ScrollArea className="h-[calc(85vh-80px)] px-6">
+          <ScrollArea className="h-[calc(85vh-88px)] px-5">
             <div className="space-y-6 pb-8">
               {menuSections.map((section) => {
                 // Filter items based on permissions

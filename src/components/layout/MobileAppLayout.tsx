@@ -98,7 +98,7 @@ export function MobileAppLayout() {
       <MobileAppHeader />
 
       {/* Main Content with bottom padding for nav bar */}
-      <main className={`flex-1 overflow-auto pb-20 ${fetchError ? 'pt-14' : ''}`}>
+      <main className={`flex-1 overflow-auto pb-24 px-4 ${fetchError ? 'pt-16' : ''}`}>
         <ErrorBoundary>
           <Outlet />
         </ErrorBoundary>
