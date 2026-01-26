@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { handleDatabaseError } from '@/lib/error-handler';
 import { kanbanColumnSchema, kanbanColumnUpdateSchema, validateWithSchema } from '@/lib/validation-schemas';
 import { logger } from '@/lib/logger';
@@ -62,15 +63,16 @@ function debounce<T extends (...args: unknown[]) => void>(fn: T, delay: number):
 }
 
 export function useKanban(phase: KanbanPhase) {
-  const { currentWorkspace, fetchError, membership } = useWorkspace();
+  const { currentWorkspace, fetchError } = useWorkspace();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { canViewAllProjects, isLoading: permissionsLoading } = useFinancialPermissions();
   const [columns, setColumns] = useState<KanbanColumnWithProjects[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingAlert, setPendingAlert] = useState<PendingAlertState>(initialPendingAlert);
   
-  // Check if user is a collaborator (non-admin) - they only see projects they're assigned to
-  const isCollaborator = membership?.role !== 'admin';
+  // Check if user should see only their projects (based on dynamic permissions)
+  const isCollaborator = !canViewAllProjects;
   const userId = user?.id;
   
   // Refs to prevent duplicate fetches and track local updates

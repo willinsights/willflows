@@ -36,9 +36,7 @@ import { TrialBadge } from '@/components/dashboard/TrialBadge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
-import type { Database } from '@/integrations/supabase/types';
-
-type AppRole = Database['public']['Enums']['app_role'];
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -52,8 +50,8 @@ interface NavItem {
   label: string;
   path: string;
   adminOnly?: boolean;
-  /** Roles allowed to see this item. If undefined, all roles can see it */
-  allowedRoles?: AppRole[];
+  /** Permission key to check for visibility */
+  permissionKey?: string;
 }
 
 interface NavSection {
@@ -73,9 +71,9 @@ const navSections: NavSection[] = [
   {
     title: 'COMERCIAL',
     items: [
-      { icon: Target, label: 'Leads', path: '/app/leads', allowedRoles: ['admin'] },
-      { icon: Users, label: 'Clientes', path: '/app/clientes', allowedRoles: ['admin'] },
-      { icon: FileText, label: 'Contratos', path: '/app/contratos', allowedRoles: ['admin'] },
+      { icon: Target, label: 'Leads', path: '/app/leads', permissionKey: 'visibility.leads' },
+      { icon: Users, label: 'Clientes', path: '/app/clientes', permissionKey: 'clients.view' },
+      { icon: FileText, label: 'Contratos', path: '/app/contratos', permissionKey: 'visibility.contracts' },
     ],
   },
   {
@@ -91,13 +89,13 @@ const navSections: NavSection[] = [
     title: 'FINANÇAS',
     items: [
       { icon: Euro, label: 'Pagamentos', path: '/app/pagamentos' },
-      { icon: BarChart3, label: 'Relatórios', path: '/app/relatorios', allowedRoles: ['admin'] },
+      { icon: BarChart3, label: 'Relatórios', path: '/app/relatorios', permissionKey: 'reports.view' },
     ],
   },
   {
     title: 'GESTÃO',
     items: [
-      { icon: UserCog, label: 'Equipa', path: '/app/equipa', allowedRoles: ['admin'] },
+      { icon: UserCog, label: 'Equipa', path: '/app/equipa', permissionKey: 'team.view' },
       { icon: Settings, label: 'Configurações', path: '/app/configuracoes' },
       { icon: Crown, label: 'Planos', path: '/app/planos', adminOnly: true },
     ],
@@ -116,24 +114,44 @@ export function AppSidebar({ collapsed, onToggle, isMobile, autoCollapseOnNav = 
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isAdmin, membership } = useWorkspace();
+  const { isAdmin } = useWorkspace();
   const { isSuperAdmin } = useSuperAdmin();
   const { totalUnread } = useTotalUnreadMessages();
-  const userRole = membership?.role as AppRole | undefined;
+  const { 
+    canViewLeads, 
+    canViewClients, 
+    canViewContracts, 
+    canViewTeam, 
+    canViewReports,
+    userRole 
+  } = useFinancialPermissions();
   
   // Add super admin section only if user is super admin
   const baseSections = isSuperAdmin ? [...navSections, superAdminSection] : navSections;
   
+  // Check if item should be visible based on permissions
+  const shouldShowItem = (item: NavItem): boolean => {
+    // Check adminOnly flag
+    if (item.adminOnly && !isAdmin) return false;
+    
+    // Check permission key if defined
+    if (item.permissionKey) {
+      switch (item.permissionKey) {
+        case 'visibility.leads': return canViewLeads;
+        case 'clients.view': return canViewClients;
+        case 'visibility.contracts': return canViewContracts;
+        case 'team.view': return canViewTeam;
+        case 'reports.view': return canViewReports;
+        default: return true;
+      }
+    }
+    return true;
+  };
+  
   // Filter out items based on role permissions
   const sections = baseSections.map(section => ({
     ...section,
-    items: section.items.filter(item => {
-      // Check adminOnly flag
-      if (item.adminOnly && !isAdmin) return false;
-      // Check allowedRoles if defined
-      if (item.allowedRoles && userRole && !item.allowedRoles.includes(userRole)) return false;
-      return true;
-    })
+    items: section.items.filter(shouldShowItem)
   })).filter(section => section.items.length > 0); // Remove empty sections
 
   const isActive = (path: string) => {

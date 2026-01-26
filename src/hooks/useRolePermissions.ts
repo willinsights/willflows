@@ -41,6 +41,14 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
   { key: 'payments.manage', name: 'Gerir pagamentos', description: 'Criar e editar pagamentos', category: 'Pagamentos' },
   // Relatórios
   { key: 'reports.view', name: 'Ver relatórios', description: 'Aceder a relatórios e métricas', category: 'Relatórios' },
+  // Visibilidade (nova categoria)
+  { key: 'visibility.leads', name: 'Ver Leads', description: 'Aceder à página de Leads', category: 'Visibilidade' },
+  { key: 'visibility.contracts', name: 'Ver Contratos', description: 'Aceder à página de Contratos', category: 'Visibilidade' },
+  { key: 'visibility.all_projects', name: 'Ver Todos os Projetos', description: 'Ver todos os projetos (se desativado, vê apenas os seus)', category: 'Visibilidade' },
+  // Dashboard (nova categoria)
+  { key: 'dashboard.view_global_financials', name: 'Ver Financeiro Global', description: 'Ver receita, custos e lucro total', category: 'Dashboard' },
+  { key: 'dashboard.view_own_earnings', name: 'Ver Meus Ganhos', description: 'Ver os próprios ganhos no dashboard', category: 'Dashboard' },
+  { key: 'dashboard.view_performance', name: 'Ver Métricas de Desempenho', description: 'Ver gráficos de performance', category: 'Dashboard' },
 ];
 
 export const ALL_ROLES: AppRole[] = ['admin', 'editor', 'captacao', 'freelancer', 'visualizador'];
@@ -59,15 +67,25 @@ const DEFAULT_PERMISSIONS: Record<AppRole, string[]> = {
   editor: [
     'projects.view', 'projects.create', 'projects.edit',
     'clients.view', 'clients.create', 'clients.edit', 'clients.view_financials',
-    'team.view', 'payments.view', 'payments.manage', 'reports.view'
+    'team.view', 'payments.view', 'payments.manage', 'reports.view',
+    'visibility.leads', 'visibility.contracts', 'visibility.all_projects',
+    'dashboard.view_global_financials', 'dashboard.view_performance'
   ],
   captacao: [
     'projects.view', 'projects.edit',
     'clients.view', 'clients.create', 'clients.edit',
-    'team.view'
+    'team.view',
+    'visibility.leads',
+    'dashboard.view_own_earnings'
   ],
-  freelancer: ['projects.view', 'team.view'],
-  visualizador: ['projects.view', 'clients.view', 'team.view', 'reports.view'],
+  freelancer: [
+    'projects.view', 'team.view',
+    'dashboard.view_own_earnings'
+  ],
+  visualizador: [
+    'projects.view', 'clients.view', 'team.view', 'reports.view',
+    'dashboard.view_own_earnings', 'dashboard.view_performance'
+  ],
 };
 
 export function useRolePermissions() {

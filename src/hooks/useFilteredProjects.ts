@@ -75,16 +75,16 @@ export function useFilteredProjects() {
     }
   }, [currentWorkspace?.id, fetchError, fetchData]);
 
-  // Filter projects based on user role
+  // Filter projects based on dynamic permissions
   const projects = useMemo(() => {
-    // Admin vê tudo
-    if (userRole === 'admin') {
+    // If user can view all projects (admin or has visibility.all_projects permission)
+    if (canViewAllFinancials || userRole === 'admin') {
       return allProjects;
     }
     
-    // Todos os outros roles (Editor/Captação/Freelancer/Visualizador) vêem apenas projetos onde estão na equipa
+    // All other users see only projects where they are in the team
     return allProjects.filter(project => userProjectIds.has(project.id));
-  }, [allProjects, userProjectIds, userRole]);
+  }, [allProjects, userProjectIds, canViewAllFinancials, userRole]);
 
   return {
     projects,

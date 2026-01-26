@@ -389,7 +389,9 @@ export function PermissionsMatrix() {
               <p className="font-medium text-info">Notas sobre permissões:</p>
               <ul className="text-muted-foreground space-y-1 list-disc list-inside">
                 <li>Admin tem sempre todas as permissões ativas por padrão</li>
-                <li>Freelancers só visualizam projetos/tarefas atribuídos e ganhos próprios</li>
+                <li><strong>Visibilidade:</strong> Controla o acesso às páginas (Leads, Contratos, etc.) e se vê todos os projetos</li>
+                <li><strong>Dashboard:</strong> Define se o utilizador vê métricas financeiras globais ou apenas "Meus Ganhos"</li>
+                <li>Freelancers por padrão só visualizam projetos atribuídos e os seus ganhos</li>
                 <li>As alterações são aplicadas imediatamente após guardar</li>
               </ul>
             </div>

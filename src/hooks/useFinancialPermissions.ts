@@ -1,19 +1,20 @@
 import { useMemo } from 'react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRolePermissions } from './useRolePermissions';
 
 export interface FinancialPermissions {
-  /** Admin only - sees all financial values (revenue, costs, profit, all payments) */
+  /** Admin only (or with dashboard.view_global_financials) - sees all financial values */
   canViewAllFinancials: boolean;
-  /** Admin/Editor/Captação/Freelancer - sees own payments only */
+  /** Can see own earnings (Meus Ganhos) */
   canViewOwnFinancials: boolean;
   /** Can manage/create payments */
   canManagePayments: boolean;
   /** Can view reports page */
   canViewReports: boolean;
-  /** Admin only - can see client emails and phones */
+  /** Can see client emails and phones */
   canViewClientContacts: boolean;
-  /** Admin only - can see team member emails and phones */
+  /** Can see team member emails and phones */
   canViewTeamContacts: boolean;
   /** Can view Leads page */
   canViewLeads: boolean;
@@ -23,7 +24,11 @@ export interface FinancialPermissions {
   canViewContracts: boolean;
   /** Can view Team page */
   canViewTeam: boolean;
-  /** Is the user a collaborator (freelancer) */
+  /** Can view all projects (not filtered) */
+  canViewAllProjects: boolean;
+  /** Can view performance metrics */
+  canViewPerformance: boolean;
+  /** Is the user a collaborator (restricted view) */
   isCollaborator: boolean;
   /** Current user's role */
   userRole: string | null;
@@ -34,55 +39,51 @@ export interface FinancialPermissions {
 }
 
 /**
- * Hook centralizado para permissões financeiras e de contacto
+ * Hook centralizado para permissões financeiras e de visibilidade
  * 
- * Regras de permissão:
- * - Admin: Vê TUDO (todos os valores financeiros e contactos)
- * - Editor/Captação: Vêem leads, clientes, projectos completos
- * - Freelancer: Vê apenas projectos onde participa e os seus pagamentos
- * - Visualizador: Não vê valores financeiros nem contactos
+ * Agora usa permissões dinâmicas da tabela workspace_role_permissions,
+ * permitindo que o admin do workspace configure o acesso de cada role.
  */
 export function useFinancialPermissions(): FinancialPermissions {
   const { membership, loading: workspaceLoading } = useWorkspace();
   const { user } = useAuth();
+  const { permissions, loading: permissionsLoading } = useRolePermissions();
 
   return useMemo(() => {
     const role = membership?.role || null;
     const userId = user?.id || null;
-    const isLoading = workspaceLoading;
+    const isLoading = workspaceLoading || permissionsLoading;
 
-    // Identificar se é colaborador (qualquer role que não seja admin)
-    const isCollaborator = role !== 'admin' && role !== null;
+    // Função auxiliar para verificar permissão dinâmica
+    const hasPermission = (key: string): boolean => {
+      if (!role) return false;
+      if (role === 'admin') return true;
+      const perm = permissions.find(
+        p => p.role === role && p.permission_key === key
+      );
+      return perm?.enabled ?? false;
+    };
 
-    // Admin vê tudo
-    const canViewAllFinancials = role === 'admin';
+    // Permissões baseadas na tabela
+    const canViewAllFinancials = hasPermission('dashboard.view_global_financials');
+    const canViewOwnFinancials = hasPermission('dashboard.view_own_earnings') || role !== null;
+    const canManagePayments = hasPermission('payments.manage');
+    const canViewReports = hasPermission('reports.view');
+    const canViewPerformance = hasPermission('dashboard.view_performance');
+    
+    // Visibilidade de páginas
+    const canViewLeads = hasPermission('visibility.leads') || (hasPermission('clients.view') && role === 'admin');
+    const canViewClients = hasPermission('clients.view');
+    const canViewContracts = hasPermission('visibility.contracts');
+    const canViewTeam = hasPermission('team.view');
+    const canViewAllProjects = hasPermission('visibility.all_projects');
 
-    // Todos os roles autenticados vêem os seus próprios pagamentos
-    const canViewOwnFinancials = role !== null;
-
-    // Apenas Admin pode gerir pagamentos
-    const canManagePayments = role === 'admin';
-
-    // Apenas Admin pode ver relatórios financeiros
-    const canViewReports = role === 'admin';
-
-    // Apenas Admin pode ver contactos de clientes (email, telefone)
+    // Contactos - apenas admin por padrão (segurança)
     const canViewClientContacts = role === 'admin';
-
-    // Apenas Admin pode ver contactos da equipa (email, telefone)
     const canViewTeamContacts = role === 'admin';
 
-    // Apenas Admin pode ver Leads
-    const canViewLeads = role === 'admin';
-
-    // Apenas Admin pode ver Clientes
-    const canViewClients = role === 'admin';
-
-    // Apenas Admin pode ver Contratos
-    const canViewContracts = role === 'admin';
-
-    // Apenas Admin pode ver Equipa
-    const canViewTeam = role === 'admin';
+    // Identificar se é colaborador (não tem visão global)
+    const isCollaborator = !canViewAllProjects && role !== null;
 
     return {
       canViewAllFinancials,
@@ -95,10 +96,12 @@ export function useFinancialPermissions(): FinancialPermissions {
       canViewClients,
       canViewContracts,
       canViewTeam,
+      canViewAllProjects,
+      canViewPerformance,
       isCollaborator,
       userRole: role,
       userId,
       isLoading,
     };
-  }, [membership?.role, user?.id, workspaceLoading]);
+  }, [membership?.role, user?.id, workspaceLoading, permissionsLoading, permissions]);
 }
