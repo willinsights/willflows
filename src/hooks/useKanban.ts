@@ -69,8 +69,8 @@ export function useKanban(phase: KanbanPhase) {
   const [loading, setLoading] = useState(true);
   const [pendingAlert, setPendingAlert] = useState<PendingAlertState>(initialPendingAlert);
   
-  // Check if user is a collaborator (freelancer) - they only see projects they're assigned to
-  const isCollaborator = membership?.role === 'freelancer';
+  // Check if user is a collaborator (non-admin) - they only see projects they're assigned to
+  const isCollaborator = membership?.role !== 'admin';
   const userId = user?.id;
   
   // Refs to prevent duplicate fetches and track local updates

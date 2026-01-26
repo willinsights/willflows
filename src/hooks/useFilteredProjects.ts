@@ -78,18 +78,13 @@ export function useFilteredProjects() {
   // Filter projects based on user role
   const projects = useMemo(() => {
     // Admin vê tudo
-    if (canViewAllFinancials) {
+    if (userRole === 'admin') {
       return allProjects;
     }
     
-    // Visualizador vê todos os projetos (mas sem valores financeiros - tratado noutro sítio)
-    if (userRole === 'visualizador') {
-      return allProjects;
-    }
-    
-    // Editor/Captação/Freelancer vêem apenas projetos onde estão na equipa
+    // Todos os outros roles (Editor/Captação/Freelancer/Visualizador) vêem apenas projetos onde estão na equipa
     return allProjects.filter(project => userProjectIds.has(project.id));
-  }, [allProjects, userProjectIds, canViewAllFinancials, userRole]);
+  }, [allProjects, userProjectIds, userRole]);
 
   return {
     projects,
