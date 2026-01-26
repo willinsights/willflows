@@ -110,9 +110,9 @@ export function TeamMemberRow({
       <TableRow className={cn(isCurrentUser && 'bg-primary/5')}>
         <TableCell>
           <div className="flex items-center gap-3">
-            <Avatar className="h-9 w-9">
+            <Avatar className="h-[30px] w-[30px]">
               <AvatarImage src={member.avatar_url || undefined} />
-              <AvatarFallback className="bg-primary/10 text-primary text-sm">
+              <AvatarFallback className="bg-primary/10 text-primary text-xs">
                 {getInitials(member.full_name, member.email)}
               </AvatarFallback>
             </Avatar>

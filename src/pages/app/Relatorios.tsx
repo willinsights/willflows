@@ -1037,7 +1037,7 @@ export default function Relatorios() {
                     <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary font-bold text-xs">
                       {index + 1}
                     </div>
-                    <Avatar className="h-7 w-7">
+                    <Avatar className="h-[30px] w-[30px]">
                       <AvatarImage src={collab.avatarUrl || undefined} />
                       <AvatarFallback className="text-xs">
                         {collab.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}

@@ -333,7 +333,7 @@ export function TaskModal({
                         : selectedMember.email?.[0]?.toUpperCase() || '?';
                       return (
                         <div className="flex items-center gap-2">
-                          <Avatar className="h-7 w-7">
+                          <Avatar className="h-[30px] w-[30px]">
                             <AvatarImage src={selectedMember.avatar_url || undefined} />
                             <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
                               {initials}
