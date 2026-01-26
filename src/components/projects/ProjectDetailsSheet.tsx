@@ -1005,9 +1005,9 @@ function TeamMemberSelector({ label, selectedMembers, setSelectedMembers, worksp
                     }}
                   >
                     <Checkbox checked={selectedMembers.includes(member.user_id)} onCheckedChange={() => {}} className="pointer-events-none" />
-                    <Avatar className="h-6 w-6">
+                    <Avatar className="h-[30px] w-[30px]">
                       <AvatarImage src={member.avatar_url || undefined} />
-                      <AvatarFallback className="text-xs">{(member.full_name || member.email).slice(0, 2).toUpperCase()}</AvatarFallback>
+                      <AvatarFallback className="text-[10px]">{(member.full_name || member.email).slice(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col flex-1 min-w-0">
                       <span className="text-sm font-medium truncate">{member.full_name || member.email}</span>
@@ -1041,8 +1041,8 @@ function TeamMemberSelector({ label, selectedMembers, setSelectedMembers, worksp
                     }}
                   >
                     <Checkbox checked={selectedMembers.includes(invitation.id)} onCheckedChange={() => {}} className="pointer-events-none" />
-                    <Avatar className="h-6 w-6 bg-amber-500/10">
-                      <AvatarFallback className="text-xs text-amber-600 dark:text-amber-400">✉</AvatarFallback>
+                    <Avatar className="h-[30px] w-[30px] bg-amber-500/10">
+                      <AvatarFallback className="text-[10px] text-amber-600 dark:text-amber-400">✉</AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col flex-1 min-w-0">
                       <span className="text-sm font-medium truncate">{invitation.email_masked || 'Email oculto'}</span>
@@ -1180,9 +1180,9 @@ function AvatarGroup({ userIds, members }: { userIds: string[]; members: any[] }
         {userIds.slice(0, 3).map(userId => {
           const member = members.find((m: any) => m.user_id === userId);
           return member ? (
-            <Avatar key={userId} className="h-5 w-5 border border-background">
+            <Avatar key={userId} className="h-[30px] w-[30px] border border-background">
               <AvatarImage src={member.avatar_url || undefined} />
-              <AvatarFallback className="text-[8px]">{(member.full_name || member.email).slice(0, 2).toUpperCase()}</AvatarFallback>
+              <AvatarFallback className="text-[10px]">{(member.full_name || member.email).slice(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
           ) : null;
         })}
