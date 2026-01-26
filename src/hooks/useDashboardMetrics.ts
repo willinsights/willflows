@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { startOfMonth, endOfMonth, subMonths, format, differenceInDays, startOfDay, formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { logger } from '@/lib/logger';
@@ -19,6 +20,8 @@ export interface DashboardMetrics {
   custosChange: number | null;
   lucroChange: number | null;
   entreguesChange: number | null;
+  // Personal earnings for collaborators
+  meusGanhos: number;
 }
 
 export interface PerformanceMetrics {
@@ -83,7 +86,8 @@ export interface PendingPaymentItem {
 }
 
 export function useDashboardMetrics() {
-  const { currentWorkspace, fetchError } = useWorkspace();
+  const { currentWorkspace, fetchError, membership } = useWorkspace();
+  const { user } = useAuth();
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     captacao: 0,
     edicao: 0,
@@ -97,6 +101,7 @@ export function useDashboardMetrics() {
     custosChange: null,
     lucroChange: null,
     entreguesChange: null,
+    meusGanhos: 0,
   });
   const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics>({
     deliveryRate: 0,
@@ -223,6 +228,22 @@ export function useDashboardMetrics() {
       
       setPendingPaymentItems(paymentItems);
 
+      // Calculate personal earnings for collaborators (meusGanhos)
+      let meusGanhos = 0;
+      if (user?.id && membership?.role === 'freelancer') {
+        const { data: myTeamPayments } = await supabase
+          .from('project_team')
+          .select('payment_amount, payment_status, projects!inner(created_at, workspace_id)')
+          .eq('user_id', user.id)
+          .eq('projects.workspace_id', currentWorkspace.id);
+        
+        // Sum payments for current month
+        meusGanhos = myTeamPayments?.filter(tp => {
+          const projectCreatedAt = new Date((tp.projects as any).created_at);
+          return projectCreatedAt >= currentMonthStart && projectCreatedAt <= currentMonthEnd;
+        }).reduce((sum, tp) => sum + (tp.payment_amount || 0), 0) || 0;
+      }
+
       setMetrics({
         captacao,
         edicao,
@@ -236,6 +257,7 @@ export function useDashboardMetrics() {
         custosChange,
         lucroChange,
         entreguesChange,
+        meusGanhos,
       });
 
       // Calculate PERFORMANCE METRICS (last 6 months)
@@ -444,6 +466,7 @@ export function useDashboardMetrics() {
         custosChange: null,
         lucroChange: null,
         entreguesChange: null,
+        meusGanhos: 0,
       });
       setPerformanceMetrics({
         deliveryRate: 0,
