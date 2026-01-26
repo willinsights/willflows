@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Loader2, CalendarIcon, User, FolderOpen, ListChecks } from 'lucide-react';
 import { TaskChatIndicator } from './TaskChatIndicator';
 import {
@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useProjects } from '@/hooks/useProjects';
 import { supabase } from '@/integrations/supabase/client';
@@ -322,15 +323,58 @@ export function TaskModal({
             </Label>
             <Select value={assigneeId} onValueChange={setAssigneeId}>
               <SelectTrigger>
-                <SelectValue placeholder="Selecionar membro" />
+                <SelectValue placeholder="Selecionar membro">
+                  {assigneeId && assigneeId !== '__unassigned__' ? (
+                    (() => {
+                      const selectedMember = members.find(m => m.user_id === assigneeId);
+                      if (!selectedMember) return 'Selecionar membro';
+                      const initials = selectedMember.full_name
+                        ? selectedMember.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                        : selectedMember.email?.[0]?.toUpperCase() || '?';
+                      return (
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-5 w-5">
+                            <AvatarImage src={selectedMember.avatar_url || undefined} />
+                            <AvatarFallback className="text-[8px] bg-primary/10 text-primary">
+                              {initials}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span>{selectedMember.full_name || selectedMember.email}</span>
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    'Selecionar membro'
+                  )}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__unassigned__">Sem atribuição</SelectItem>
-                {members.map((member) => (
-                  <SelectItem key={member.user_id} value={member.user_id}>
-                    {member.full_name || 'Membro'}
-                  </SelectItem>
-                ))}
+                <SelectItem value="__unassigned__">
+                  <div className="flex items-center gap-2">
+                    <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center">
+                      <User className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                    <span>Sem atribuição</span>
+                  </div>
+                </SelectItem>
+                {members.map((member) => {
+                  const initials = member.full_name
+                    ? member.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                    : member.email?.[0]?.toUpperCase() || '?';
+                  return (
+                    <SelectItem key={member.user_id} value={member.user_id}>
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-5 w-5">
+                          <AvatarImage src={member.avatar_url || undefined} />
+                          <AvatarFallback className="text-[8px] bg-primary/10 text-primary">
+                            {initials}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span>{member.full_name || member.email}</span>
+                      </div>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
