@@ -1,106 +1,175 @@
 
-## Plano de Correção: Editor vê dados financeiros globais na página de Pagamentos
+
+## Plano de Correção: Erros ao Criar/Gerir Chats de Tarefas e Projetos
 
 ### Problema Identificado
 
-O utilizador `willdesign7@gmail.com` (editor) consegue ver os valores financeiros globais na página de Pagamentos, mesmo com a permissão "Ver Financeiro Global" (`dashboard.view_global_financials`) **desativada**.
+Através da análise dos logs de Postgres, foram encontrados múltiplos erros:
+```
+"new row violates row-level security policy for table conversation_members"
+```
 
-**Causa raiz**: A página de Pagamentos usa `isCollaborator` para decidir entre a vista completa ou simplificada, mas essa variável é calculada com base em `canViewAllProjects`, e **não** em `canViewAllFinancials`.
+**Causa raiz**: A política RLS de INSERT na tabela `conversation_members` é demasiado restritiva para chats de projeto. Atualmente apenas permite:
+1. Utilizadores com permissão de gestão (admin/editor do workspace OU criador da conversa)
+2. OU auto-join em canais públicos (mas chats de projeto **não são** canais públicos)
 
-Configuração atual do Editor:
-- `visibility.all_projects` = **true** (pode ver todos os projetos)
-- `dashboard.view_global_financials` = **false** (NÃO deve ver valores globais)
+Isto significa que utilizadores com roles como `captacao`, `freelancer`, ou `visualizador` não conseguem:
+- Ativar o seu chat de projeto (upsert `is_active = true`)
+- Ser adicionados como membros de conversas de projeto pelo frontend
 
-Como `canViewAllProjects = true`, então `isCollaborator = false`, e o editor vê a vista de admin com todos os valores financeiros do workspace.
+---
 
 ### Correção Necessária
 
-#### Ficheiro: `src/pages/app/Pagamentos.tsx`
+#### 1. Atualizar a Política RLS de INSERT em `conversation_members`
 
-A condição para mostrar a vista simplificada vs completa deve usar `canViewAllFinancials` e não `isCollaborator`:
+A política deve permitir que **membros da equipa do projeto** possam juntar-se aos chats de projeto correspondentes, mesmo que não sejam admin/editor.
 
-**Antes (linha 489):**
-```typescript
-{isCollaborator ? (
-  // Collaborator-specific: show only their payments from project_team
-  <FreelancerPaymentsControl ... />
-) : (
-  // Shows full view
-)}
+**Política atual:**
+```sql
+can_manage_conversation_members(conversation_id, auth.uid()) 
+OR 
+(user_id = auth.uid() AND is_public_channel_in_user_workspace(conversation_id, auth.uid()))
 ```
 
-**Depois:**
-```typescript
-{!canViewAllFinancials ? (
-  // Restricted view: show only user's own payments
-  <FreelancerPaymentsControl ... />
-) : (
-  // Admin/Full view: shows all workspace financials
-)}
+**Política proposta:**
+```sql
+-- Condição 1: Admin/editor do workspace ou criador da conversa
+can_manage_conversation_members(conversation_id, auth.uid())
+OR
+-- Condição 2: Auto-join em canais públicos
+(user_id = auth.uid() AND is_public_channel_in_user_workspace(conversation_id, auth.uid()))
+OR
+-- Condição 3 (NOVA): Membro do workspace pode juntar-se a si próprio em chats de projeto do workspace
+(user_id = auth.uid() AND is_project_chat_in_user_workspace(conversation_id, auth.uid()))
 ```
 
-Também precisamos:
-1. Adicionar `isLoading` do hook `useFinancialPermissions` 
-2. Aguardar que as permissões carreguem antes de mostrar conteúdo
-3. Garantir que a verificação dos tabs também use `canViewAllFinancials`
+#### 2. Criar Nova Função Auxiliar
 
-### Áreas Afetadas
-
-| Linha | Alteração |
-|-------|-----------|
-| 64 | Adicionar `isLoading: permissionsLoading` do hook |
-| 385-391 | Aguardar `permissionsLoading` antes de mostrar conteúdo |
-| 472 | Label do tab (usar `!canViewAllFinancials` em vez de `isCollaborator`) |
-| 489 | Condição principal (usar `!canViewAllFinancials` em vez de `isCollaborator`) |
-
-### Detalhes Técnicos
-
-```typescript
-// Linha 64 - adicionar permissionsLoading
-const { canViewAllFinancials, canViewOwnFinancials, userId, userRole, isCollaborator, isLoading: permissionsLoading } = useFinancialPermissions();
-
-// Linha 385 - aguardar permissões
-if (loading || permissionsLoading) {
-  return (
-    <div className="flex items-center justify-center h-64">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-    </div>
+```sql
+CREATE OR REPLACE FUNCTION public.is_project_chat_in_user_workspace(
+  p_conversation_id uuid, 
+  p_user_id uuid
+)
+RETURNS boolean
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM conversations c
+    JOIN workspace_members wm ON wm.workspace_id = c.workspace_id
+    WHERE c.id = p_conversation_id
+    AND c.type = 'project'
+    AND wm.user_id = p_user_id
+    AND wm.is_active = true
   );
-}
-
-// Linha 472 - label do tab
-<TabsTrigger value="previsao">
-  {!canViewAllFinancials ? 'Meus Pagamentos' : 'Previsão'}
-</TabsTrigger>
-
-// Linha 489 - condição principal
-{!canViewAllFinancials ? (
-  <FreelancerPaymentsControl
-    teamPayments={typedTeamPayments}
-    onStatusChange={handleFreelancerStatusChange}
-    formatCurrency={formatCurrency}
-    members={membersList}
-    projects={projectsList}
-    filterByUserId={userId}
-  />
-) : (
-  // Vista completa com dados do workspace
-)}
+$$;
 ```
+
+#### 3. Atualizar a Política RLS
+
+```sql
+DROP POLICY IF EXISTS "Users can add conversation members" ON conversation_members;
+
+CREATE POLICY "Users can add conversation members"
+ON conversation_members
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  can_manage_conversation_members(conversation_id, auth.uid())
+  OR
+  (user_id = auth.uid() AND is_public_channel_in_user_workspace(conversation_id, auth.uid()))
+  OR
+  (user_id = auth.uid() AND is_project_chat_in_user_workspace(conversation_id, auth.uid()))
+);
+```
+
+---
+
+### Correção Adicional: Problema de UPDATE
+
+Também é necessário verificar a política de UPDATE para garantir que o utilizador pode atualizar o seu próprio `is_active`:
+
+**Política atual de UPDATE:**
+```sql
+qual: (user_id = auth.uid())
+with_check: (user_id = auth.uid())
+```
+
+Esta está correta - o utilizador pode atualizar a sua própria membership. No entanto, o **upsert pode estar a tentar INSERT** quando o utilizador ainda não é membro.
+
+---
+
+### Correção no Frontend: Adicionar Tratamento de Erros
+
+Para evitar erros silenciosos, melhorar o tratamento nos modais:
+
+**Ficheiro: `src/components/projects/ProjectDetailsSheet.tsx` (linhas 496-501)**
+
+```typescript
+// Antes:
+await supabase.from('conversation_members').upsert({
+  conversation_id: conversationId,
+  user_id: user.id,
+  is_active: true,
+}, { onConflict: 'conversation_id,user_id' });
+
+// Depois (com tratamento de erro e role):
+const { error: memberError } = await supabase.from('conversation_members').upsert({
+  conversation_id: conversationId,
+  user_id: user.id,
+  role: 'member',
+  is_active: true,
+}, { onConflict: 'conversation_id,user_id' });
+
+if (memberError) {
+  console.error('[Chat] Error activating membership:', memberError);
+  // Continuar mesmo com erro - pode já estar como membro via trigger
+}
+```
+
+**Ficheiro: `src/components/projects/ProjectDetailsModal.tsx` (linhas 535-541)**
+
+Mesma alteração para garantir consistência.
+
+---
+
+### Correção de Atualização em Tempo Real
+
+Para garantir que as conversas aparecem imediatamente, adicionar invalidação mais agressiva:
+
+**Ficheiro: `src/hooks/useConversations.ts`**
+
+Na mutation `createProjectChat` (linha 468-471), adicionar:
+
+```typescript
+onSuccess: () => {
+  // Invalidar queries relacionadas imediatamente
+  queryClient.invalidateQueries({ queryKey: ['conversations', workspace?.id] });
+  queryClient.invalidateQueries({ queryKey: ['project-chat-status'] });
+  queryClient.invalidateQueries({ queryKey: ['task-chat-status'] });
+},
+```
+
+---
+
+### Resumo das Alterações
+
+| Tipo | Ficheiro/Área | Descrição |
+|------|---------------|-----------|
+| **SQL** | Nova função | `is_project_chat_in_user_workspace` |
+| **SQL** | Política RLS | Atualizar INSERT policy em `conversation_members` |
+| **Frontend** | `ProjectDetailsSheet.tsx` | Adicionar `role` ao upsert e tratamento de erro |
+| **Frontend** | `ProjectDetailsModal.tsx` | Mesma correção |
+| **Frontend** | `useConversations.ts` | Invalidar queries adicionais após criar chat |
 
 ### Impacto
 
-- **Baixo risco**: Apenas altera a lógica de verificação de permissões
-- **Ficheiros afetados**: 1 ficheiro (`src/pages/app/Pagamentos.tsx`)
-- **Sem alterações de base de dados**: O problema é puramente frontend
+- **Médio risco**: Alteração de política RLS afeta segurança, mas a nova condição é restritiva (apenas auto-join em projeto do próprio workspace)
+- **Ficheiros afetados**: 3 ficheiros frontend + 1 migração SQL
 - **Resultado esperado**: 
-  - Editor com `canViewAllFinancials = false` verá apenas "Meus Pagamentos"
-  - Editor com `canViewAllFinancials = true` verá toda a informação financeira
+  - Todos os membros do workspace podem aceder a chats de projeto
+  - Conversas aparecem imediatamente após criação
+  - Sem erros de RLS ao abrir chat
 
-### Verificação
-
-Após a correção, confirmar:
-1. O editor `willdesign7@gmail.com` vê apenas "Meus Pagamentos" (os seus próprios pagamentos)
-2. Quando a permissão "Ver Financeiro Global" é ativada, o editor pode ver todos os valores
-3. Admin continua a ver tudo normalmente
-4. Outros roles funcionam conforme as suas permissões
