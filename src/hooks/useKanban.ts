@@ -235,11 +235,12 @@ export function useKanban(phase: KanbanPhase) {
           }
         }
 
-        // Fetch team members with profiles
+        // Fetch team members with profiles (only those with user_id, not pending invitations)
         const { data: teamData } = await supabase
           .from('project_team')
           .select('project_id, user_id, phase')
-          .in('project_id', projectIds);
+          .in('project_id', projectIds)
+          .not('user_id', 'is', null);
 
         if (teamData && teamData.length > 0) {
           // Get unique user IDs
