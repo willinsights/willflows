@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, RefreshCw, X } from 'lucide-react';
 import { AppSidebar } from './AppSidebar';
 import { AppHeader } from './AppHeader';
+import { MobileAppLayout } from './MobileAppLayout';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useWorkspaceSubscription } from '@/hooks/useWorkspaceSubscription';
@@ -30,14 +31,24 @@ type ClickDebugInfo = {
 };
 
 export function AppLayout() {
+  const isMobile = useIsMobile();
+
+  // Use dedicated mobile layout for mobile devices
+  if (isMobile) {
+    return <MobileAppLayout />;
+  }
+
+  // Desktop layout
+  return <DesktopAppLayout />;
+}
+
+function DesktopAppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebar-collapsed');
     return saved === 'true';
   });
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [retryCooldown, setRetryCooldown] = useState(false);
-  const isMobile = useIsMobile();
   const { fetchError, refreshWorkspaces } = useWorkspace();
   const { isWorkspaceExpired } = useWorkspaceSubscription();
   const { isSuperAdmin } = useSuperAdmin();
@@ -86,13 +97,9 @@ export function AppLayout() {
   }, [debugEnabled]);
 
   const toggleSidebar = () => {
-    if (isMobile) {
-      setMobileSidebarOpen(!mobileSidebarOpen);
-    } else {
-      const newState = !sidebarCollapsed;
-      setSidebarCollapsed(newState);
-      localStorage.setItem('sidebar-collapsed', String(newState));
-    }
+    const newState = !sidebarCollapsed;
+    setSidebarCollapsed(newState);
+    localStorage.setItem('sidebar-collapsed', String(newState));
   };
 
   const handleRetry = async () => {
@@ -136,6 +143,7 @@ export function AppLayout() {
         {/* Third purple spot - center for depth */}
         <div className="absolute top-1/2 left-1/4 w-[500px] h-[500px] bg-primary/[0.02] dark:bg-primary/25 rounded-full blur-[100px]" />
       </div>
+
       {debugEnabled && debugPanelOpen && (
         <div className="fixed bottom-4 left-4 z-[200] w-[340px] rounded-lg border bg-card text-card-foreground shadow-lg">
           <div className="flex items-center justify-between border-b px-3 py-2">
@@ -209,48 +217,18 @@ export function AppLayout() {
       </AnimatePresence>
 
       {/* Desktop Sidebar */}
-      {!isMobile && (
-        <motion.aside
-          initial={false}
-          animate={{ width: sidebarCollapsed ? 80 : 260 }}
-          transition={{ duration: 0.2, ease: 'easeInOut' }}
-          className="hidden md:flex flex-col border-r border-sidebar-border bg-sidebar"
-        >
-          <AppSidebar 
-            collapsed={sidebarCollapsed} 
-            onToggle={toggleSidebar}
-            autoCollapseOnNav={preferences?.sidebar_auto_collapse ?? (localStorage.getItem('pref-sidebar-auto-collapse') !== 'false')}
-          />
-        </motion.aside>
-      )}
-
-      {/* Mobile Sidebar Overlay */}
-      <AnimatePresence>
-        {isMobile && mobileSidebarOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setMobileSidebarOpen(false)}
-              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
-            />
-            <motion.aside
-              initial={{ x: -280 }}
-              animate={{ x: 0 }}
-              exit={{ x: -280 }}
-              transition={{ duration: 0.2, ease: 'easeInOut' }}
-              className="fixed left-0 top-0 bottom-0 w-[280px] z-50 flex flex-col border-r border-sidebar-border bg-sidebar"
-            >
-              <AppSidebar 
-                collapsed={false} 
-                onToggle={() => setMobileSidebarOpen(false)}
-                isMobile
-              />
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+      <motion.aside
+        initial={false}
+        animate={{ width: sidebarCollapsed ? 80 : 260 }}
+        transition={{ duration: 0.2, ease: 'easeInOut' }}
+        className="hidden md:flex flex-col border-r border-sidebar-border bg-sidebar"
+      >
+        <AppSidebar 
+          collapsed={sidebarCollapsed} 
+          onToggle={toggleSidebar}
+          autoCollapseOnNav={preferences?.sidebar_auto_collapse ?? (localStorage.getItem('pref-sidebar-auto-collapse') !== 'false')}
+        />
+      </motion.aside>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
