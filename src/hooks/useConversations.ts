@@ -469,6 +469,8 @@ export function useConversations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversations', workspace?.id] });
+      queryClient.invalidateQueries({ queryKey: ['project-chat-status'] });
+      queryClient.invalidateQueries({ queryKey: ['task-chat-status'] });
     },
     onError: (error: Error) => {
       const errorDetails = isChatDebugEnabled() 
