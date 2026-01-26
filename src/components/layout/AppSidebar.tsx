@@ -73,9 +73,9 @@ const navSections: NavSection[] = [
   {
     title: 'COMERCIAL',
     items: [
-      { icon: Target, label: 'Leads', path: '/app/leads', allowedRoles: ['admin', 'editor', 'captacao'] },
-      { icon: Users, label: 'Clientes', path: '/app/clientes', allowedRoles: ['admin', 'editor', 'captacao'] },
-      { icon: FileText, label: 'Contratos', path: '/app/contratos', allowedRoles: ['admin', 'editor'] },
+      { icon: Target, label: 'Leads', path: '/app/leads', allowedRoles: ['admin'] },
+      { icon: Users, label: 'Clientes', path: '/app/clientes', allowedRoles: ['admin'] },
+      { icon: FileText, label: 'Contratos', path: '/app/contratos', allowedRoles: ['admin'] },
     ],
   },
   {
@@ -97,7 +97,7 @@ const navSections: NavSection[] = [
   {
     title: 'GESTÃO',
     items: [
-      { icon: UserCog, label: 'Equipa', path: '/app/equipa', allowedRoles: ['admin', 'editor'] },
+      { icon: UserCog, label: 'Equipa', path: '/app/equipa', allowedRoles: ['admin'] },
       { icon: Settings, label: 'Configurações', path: '/app/configuracoes' },
       { icon: Crown, label: 'Planos', path: '/app/planos', adminOnly: true },
     ],

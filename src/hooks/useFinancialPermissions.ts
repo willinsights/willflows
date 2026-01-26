@@ -51,14 +51,14 @@ export function useFinancialPermissions(): FinancialPermissions {
     const userId = user?.id || null;
     const isLoading = workspaceLoading;
 
-    // Identificar se é colaborador (freelancer)
-    const isCollaborator = role === 'freelancer';
+    // Identificar se é colaborador (qualquer role que não seja admin)
+    const isCollaborator = role !== 'admin' && role !== null;
 
     // Admin vê tudo
     const canViewAllFinancials = role === 'admin';
 
-    // Admin, Editor, Captação, Freelancer vêem os seus próprios pagamentos
-    const canViewOwnFinancials = ['admin', 'editor', 'captacao', 'freelancer'].includes(role || '');
+    // Todos os roles autenticados vêem os seus próprios pagamentos
+    const canViewOwnFinancials = role !== null;
 
     // Apenas Admin pode gerir pagamentos
     const canManagePayments = role === 'admin';
@@ -72,17 +72,17 @@ export function useFinancialPermissions(): FinancialPermissions {
     // Apenas Admin pode ver contactos da equipa (email, telefone)
     const canViewTeamContacts = role === 'admin';
 
-    // Leads: Admin, Editor, Captação (não freelancer/visualizador)
-    const canViewLeads = ['admin', 'editor', 'captacao'].includes(role || '');
+    // Apenas Admin pode ver Leads
+    const canViewLeads = role === 'admin';
 
-    // Clientes: Admin, Editor, Captação (não freelancer/visualizador)
-    const canViewClients = ['admin', 'editor', 'captacao'].includes(role || '');
+    // Apenas Admin pode ver Clientes
+    const canViewClients = role === 'admin';
 
-    // Contratos: Admin, Editor (não captação/freelancer/visualizador)
-    const canViewContracts = ['admin', 'editor'].includes(role || '');
+    // Apenas Admin pode ver Contratos
+    const canViewContracts = role === 'admin';
 
-    // Equipa: Admin, Editor (não captação/freelancer/visualizador)
-    const canViewTeam = ['admin', 'editor'].includes(role || '');
+    // Apenas Admin pode ver Equipa
+    const canViewTeam = role === 'admin';
 
     return {
       canViewAllFinancials,

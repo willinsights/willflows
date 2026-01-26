@@ -27,8 +27,8 @@ export function useProjects() {
   const isFetchingRef = useRef(false);
   const lastFetchedWorkspaceIdRef = useRef<string | null>(null);
   
-  // Check if user is a collaborator (freelancer) - they only see projects they're assigned to
-  const isCollaborator = membership?.role === 'freelancer';
+  // Check if user is a collaborator (non-admin) - they only see projects they're assigned to
+  const isCollaborator = membership?.role !== 'admin';
   const userId = user?.id;
 
   const fetchProjects = useCallback(async () => {
