@@ -44,13 +44,8 @@ type AppRole = Database['public']['Enums']['app_role'];
 const ALL_ROLES: AppRole[] = ['admin', 'editor', 'captacao', 'freelancer', 'visualizador'];
 
 export default function Equipa() {
+  // All hooks must be called first, before any conditional returns
   const { canViewTeam } = useFinancialPermissions();
-  
-  // Block access for collaborators
-  if (!canViewTeam) {
-    return <AccessDenied description="Apenas administradores e editores podem aceder à gestão de Equipa." />;
-  }
-
   const { user } = useAuth();
   const { isAdmin } = useWorkspace();
   const { members, loading: membersLoading, refresh: refreshMembers } = useWorkspaceMembers();
@@ -67,6 +62,11 @@ export default function Equipa() {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+
+  // Block access for collaborators - after all hooks are called
+  if (!canViewTeam) {
+    return <AccessDenied description="Apenas administradores e editores podem aceder à gestão de Equipa." />;
+  }
 
   // Stats
   const totalMembers = members.length;
