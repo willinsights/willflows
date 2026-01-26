@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Camera,
@@ -8,8 +8,6 @@ import {
   TrendingDown,
   Wallet,
   Lock,
-  ChevronLeft,
-  ChevronRight,
   Coins,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,6 +21,9 @@ interface MobileKPICarouselProps {
   metrics: DashboardMetrics;
   loading: boolean;
 }
+
+const CARD_WIDTH = 140;
+const CARD_GAP = 12;
 
 function ChangeIndicator({ 
   change, 
@@ -55,8 +56,7 @@ export function MobileKPICarousel({ metrics, loading }: MobileKPICarouselProps) 
   const { formatCurrency } = useCurrentWorkspace();
   const { canViewAllFinancials, canViewOwnFinancials } = useFinancialPermissions();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [showLeftArrow, setShowLeftArrow] = useState(false);
-  const [showRightArrow, setShowRightArrow] = useState(true);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   // Base KPI data (always visible)
   const baseKpiData = [
@@ -131,49 +131,37 @@ export function MobileKPICarousel({ metrics, loading }: MobileKPICarouselProps) 
 
   const kpiData = [...baseKpiData, ...financialKpiData];
 
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     if (!scrollRef.current) return;
-    const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
-    setShowLeftArrow(scrollLeft > 10);
-    setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 10);
-  };
+    const { scrollLeft } = scrollRef.current;
+    const cardFullWidth = CARD_WIDTH + CARD_GAP;
+    const newIndex = Math.round(scrollLeft / cardFullWidth);
+    setActiveIndex(Math.max(0, Math.min(newIndex, kpiData.length - 1)));
+  }, [kpiData.length]);
 
-  const scroll = (direction: 'left' | 'right') => {
+  useEffect(() => {
+    const scrollEl = scrollRef.current;
+    if (!scrollEl) return;
+    
+    scrollEl.addEventListener('scroll', handleScroll, { passive: true });
+    return () => scrollEl.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
+
+  const scrollToIndex = (index: number) => {
     if (!scrollRef.current) return;
-    const scrollAmount = 140;
-    scrollRef.current.scrollBy({
-      left: direction === 'left' ? -scrollAmount : scrollAmount,
+    const cardFullWidth = CARD_WIDTH + CARD_GAP;
+    scrollRef.current.scrollTo({
+      left: index * cardFullWidth,
       behavior: 'smooth',
     });
   };
 
   return (
-    <div className="relative">
-      {/* Left Arrow */}
-      {showLeftArrow && (
-        <button
-          onClick={() => scroll('left')}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-card/90 backdrop-blur-sm rounded-full shadow-md flex items-center justify-center"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-      )}
-
-      {/* Right Arrow */}
-      {showRightArrow && (
-        <button
-          onClick={() => scroll('right')}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-card/90 backdrop-blur-sm rounded-full shadow-md flex items-center justify-center"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
-      )}
-
+    <div className="space-y-3">
       {/* Scrollable Container */}
       <div
         ref={scrollRef}
-        onScroll={handleScroll}
-        className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 snap-x snap-mandatory"
+        className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 snap-x snap-mandatory -mx-4 px-4"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {kpiData.map((kpi, index) => (
@@ -184,7 +172,13 @@ export function MobileKPICarousel({ metrics, loading }: MobileKPICarouselProps) 
             transition={{ delay: index * 0.05 }}
             className="snap-start shrink-0"
           >
-            <Card className="w-[140px] bg-card/80 backdrop-blur-sm border-border/60">
+            <Card 
+              className={cn(
+                'bg-card/80 backdrop-blur-sm border-border/60 transition-all duration-200',
+                activeIndex === index && 'ring-2 ring-primary/20'
+              )}
+              style={{ width: CARD_WIDTH }}
+            >
               <CardContent className="p-4">
                 <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center mb-2', kpi.bgColor)}>
                   <kpi.icon className={cn('h-5 w-5', kpi.iconColor)} />
@@ -211,15 +205,19 @@ export function MobileKPICarousel({ metrics, loading }: MobileKPICarouselProps) 
         ))}
       </div>
 
-      {/* Scroll Indicator Dots */}
-      <div className="flex justify-center gap-1.5 mt-2">
+      {/* Interactive Scroll Indicator Dots */}
+      <div className="flex justify-center gap-1.5">
         {kpiData.map((_, index) => (
-          <div
+          <button
             key={index}
+            onClick={() => scrollToIndex(index)}
             className={cn(
-              "w-1.5 h-1.5 rounded-full transition-colors",
-              index === 0 ? "bg-primary" : "bg-muted-foreground/30"
+              "w-2 h-2 rounded-full transition-all duration-200",
+              activeIndex === index 
+                ? "bg-primary w-4" 
+                : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
             )}
+            aria-label={`Go to KPI ${index + 1}`}
           />
         ))}
       </div>
