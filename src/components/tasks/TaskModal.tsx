@@ -364,9 +364,9 @@ export function TaskModal({
                   return (
                     <SelectItem key={member.user_id} value={member.user_id}>
                       <div className="flex items-center gap-2">
-                        <Avatar className="h-5 w-5">
+                        <Avatar className="h-[30px] w-[30px]">
                           <AvatarImage src={member.avatar_url || undefined} />
-                          <AvatarFallback className="text-[8px] bg-primary/10 text-primary">
+                          <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
                             {initials}
                           </AvatarFallback>
                         </Avatar>
