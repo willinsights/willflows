@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { FileText, CheckCircle, AlertCircle, Loader2, Building2 } from 'lucide-react';
@@ -11,6 +11,7 @@ import { SignaturePad } from '@/components/contracts/SignaturePad';
 import { usePublicContract } from '@/hooks/useContracts';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import DOMPurify from 'dompurify';
 
 export default function ContractSign() {
   const { token } = useParams<{ token: string }>();
@@ -149,11 +150,17 @@ export default function ContractSign() {
             </div>
           </div>
 
-          {/* Contract Content */}
+          {/* Contract Content - Sanitized for XSS prevention */}
           <div className="p-6 rounded-xl bg-white border shadow-sm">
-            <div className="prose prose-sm max-w-none whitespace-pre-wrap">
-              {contract.content}
-            </div>
+            <div 
+              className="prose prose-sm max-w-none whitespace-pre-wrap"
+              dangerouslySetInnerHTML={{ 
+                __html: DOMPurify.sanitize(contract.content, {
+                  ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'span'],
+                  ALLOWED_ATTR: ['class']
+                })
+              }}
+            />
           </div>
 
           {/* Payment Terms */}
