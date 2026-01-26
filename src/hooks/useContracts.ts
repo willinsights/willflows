@@ -318,7 +318,48 @@ export function useContracts() {
   };
 }
 
-// Hook for public contract signing
+// RPC result types for secure contract access
+interface GetContractByTokenResult {
+  found: boolean;
+  error?: string;
+  contract?: {
+    id: string;
+    workspace_id: string;
+    client_id: string;
+    project_id: string | null;
+    title: string;
+    content: string;
+    status: ContractStatus;
+    sent_at: string | null;
+    viewed_at: string | null;
+    signed_at: string | null;
+    expires_at: string | null;
+    signature_token: string;
+    client_signature_data: string | null;
+    client_signed_name: string | null;
+    client_signed_ip: string | null;
+    client_signed_user_agent: string | null;
+    total_value: number | null;
+    payment_terms: string | null;
+    created_at: string;
+    updated_at: string;
+    template_id: string | null;
+    created_by: string | null;
+  };
+  client?: {
+    id: string;
+    name: string;
+    company: string | null;
+    email: string | null;
+  };
+}
+
+interface SignContractResult {
+  success: boolean;
+  error?: string;
+}
+
+// Hook for public contract signing - uses secure RPC functions
 export function usePublicContract(token: string | undefined) {
   const [contract, setContract] = useState<Contract | null>(null);
   const [loading, setLoading] = useState(true);
@@ -333,63 +374,69 @@ export function usePublicContract(token: string | undefined) {
 
     const fetchContract = async () => {
       try {
-        const { data, error: fetchError } = await supabase
-          .from('contracts')
-          .select(`
-            *,
-            client:clients(id, name, company, email)
-          `)
-          .eq('signature_token', token)
-          .maybeSingle();
+        // Use secure RPC function to fetch contract by exact token match
+        const { data: rpcResult, error: rpcError } = await supabase
+          .rpc('get_contract_by_token', { _token: token });
 
-        if (fetchError) throw fetchError;
-        if (!data) {
+        if (rpcError) throw rpcError;
+        
+        const result = rpcResult as unknown as GetContractByTokenResult;
+        
+        if (!result || !result.found) {
           setError('Contrato não encontrado');
           return;
         }
 
+        const contractData = result.contract!;
+        const clientData = result.client;
+
+        // Construct contract object
+        const fetchedContract: Contract = {
+          ...contractData,
+          client: clientData ? {
+            id: clientData.id,
+            name: clientData.name,
+            company: clientData.company,
+            email: clientData.email,
+          } : undefined,
+        };
+
         // Check if already signed
-        if (data.status === 'signed') {
-          setContract(data as Contract);
+        if (fetchedContract.status === 'signed') {
+          setContract(fetchedContract);
           return;
         }
 
         // Check if expired
-        if (data.expires_at && new Date(data.expires_at) < new Date()) {
+        if (fetchedContract.expires_at && new Date(fetchedContract.expires_at) < new Date()) {
           setError('Este contrato expirou');
           return;
         }
 
         // Check if cancelled
-        if (data.status === 'cancelled') {
+        if (fetchedContract.status === 'cancelled') {
           setError('Este contrato foi cancelado');
           return;
         }
 
-        // Log view if not already viewed
-        if (data.status === 'sent') {
-          await supabase
-            .from('contracts')
-            .update({
-              status: 'viewed',
-              viewed_at: new Date().toISOString(),
-            })
-            .eq('id', data.id);
-
+        // Mark as viewed using secure RPC if not already viewed
+        if (fetchedContract.status === 'sent') {
+          await supabase.rpc('mark_contract_viewed', { _token: token });
+          
           // Log the view
           await supabase
             .from('contract_views')
             .insert({
-              contract_id: data.id,
-              ip_address: null, // Would need server-side to get real IP
+              contract_id: fetchedContract.id,
+              ip_address: null,
               user_agent: navigator.userAgent,
             });
 
-          data.status = 'viewed';
-          data.viewed_at = new Date().toISOString();
+          fetchedContract.status = 'viewed';
+          fetchedContract.viewed_at = new Date().toISOString();
         }
 
-        setContract(data as Contract);
+        setContract(fetchedContract);
       } catch (err) {
         logger.error('Error fetching public contract:', err);
         setError('Erro ao carregar contrato');
@@ -402,21 +449,25 @@ export function usePublicContract(token: string | undefined) {
   }, [token]);
 
   const signContract = async (signatureName: string, signatureData: string) => {
-    if (!contract) return false;
+    if (!contract || !token) return false;
 
     try {
-      const { error: updateError } = await supabase
-        .from('contracts')
-        .update({
-          status: 'signed',
-          signed_at: new Date().toISOString(),
-          client_signed_name: signatureName,
-          client_signature_data: signatureData,
-          client_signed_user_agent: navigator.userAgent,
-        })
-        .eq('id', contract.id);
+      // Use secure RPC function to sign contract
+      const { data: rpcResult, error: signError } = await supabase
+        .rpc('sign_contract_public', { 
+          _token: token, 
+          _signer_name: signatureName, 
+          _signature_data: signatureData 
+        });
 
-      if (updateError) throw updateError;
+      if (signError) throw signError;
+      
+      const result = rpcResult as unknown as SignContractResult;
+      
+      if (!result || !result.success) {
+        logger.error('Contract signing failed:', result?.error);
+        return false;
+      }
 
       setContract(prev => prev ? {
         ...prev,
