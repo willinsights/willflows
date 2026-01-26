@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { handleDatabaseError } from '@/lib/error-handler';
 import { kanbanColumnSchema, kanbanColumnUpdateSchema, validateWithSchema } from '@/lib/validation-schemas';
@@ -61,11 +62,16 @@ function debounce<T extends (...args: unknown[]) => void>(fn: T, delay: number):
 }
 
 export function useKanban(phase: KanbanPhase) {
-  const { currentWorkspace, fetchError } = useWorkspace();
+  const { currentWorkspace, fetchError, membership } = useWorkspace();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [columns, setColumns] = useState<KanbanColumnWithProjects[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingAlert, setPendingAlert] = useState<PendingAlertState>(initialPendingAlert);
+  
+  // Check if user is a collaborator (freelancer) - they only see projects they're assigned to
+  const isCollaborator = membership?.role === 'freelancer';
+  const userId = user?.id;
   
   // Refs to prevent duplicate fetches and track local updates
   const isFetchingRef = useRef(false);
@@ -140,12 +146,38 @@ export function useKanban(phase: KanbanPhase) {
 
       // Fetch projects for this phase (exclude reuniões - they only appear in calendar)
       const columnField = phase === 'captacao' ? 'captacao_column_id' : 'edicao_column_id';
-      const { data: projectsData, error: projectsError } = await supabase
+      
+      // For freelancers, first get project IDs they're assigned to
+      let assignedProjectIds: string[] | null = null;
+      if (isCollaborator && userId) {
+        const { data: assignedProjects } = await supabase
+          .from('project_team')
+          .select('project_id')
+          .eq('user_id', userId);
+        assignedProjectIds = assignedProjects?.map(p => p.project_id) || [];
+      }
+      
+      let projectsQuery = supabase
         .from('projects')
         .select('*, clients(name)')
         .eq('workspace_id', currentWorkspace.id)
         .eq('current_phase', phase)
         .neq('item_type', 'reuniao'); // P1.7: Reuniões só aparecem no calendário
+      
+      // Filter by assigned projects for collaborators
+      if (isCollaborator && assignedProjectIds !== null) {
+        if (assignedProjectIds.length === 0) {
+          // No assigned projects - return empty columns
+          const columnsWithProjects: KanbanColumnWithProjects[] = (columnsData || []).map(column => ({
+            ...column,
+            projects: [],
+          }));
+          return columnsWithProjects;
+        }
+        projectsQuery = projectsQuery.in('id', assignedProjectIds);
+      }
+      
+      const { data: projectsData, error: projectsError } = await projectsQuery;
 
       if (projectsError) throw projectsError;
 

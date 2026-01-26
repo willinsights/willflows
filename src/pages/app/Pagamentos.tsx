@@ -489,11 +489,12 @@ export default function Pagamentos() {
           {isCollaborator ? (
             // Collaborator-specific: show only their payments from project_team
             <FreelancerPaymentsControl
-              teamPayments={typedTeamPayments.filter(tp => tp.user_id === userId)}
+              teamPayments={typedTeamPayments}
               onStatusChange={handleFreelancerStatusChange}
               formatCurrency={formatCurrency}
               members={membersList}
               projects={projectsList}
+              filterByUserId={userId}
             />
           ) : (
             <>

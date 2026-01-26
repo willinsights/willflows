@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { handleDatabaseError } from '@/lib/error-handler';
 import { projectSchema, projectUpdateSchema, validateWithSchema } from '@/lib/validation-schemas';
@@ -16,7 +17,8 @@ export interface ProjectWithClient extends Project {
 }
 
 export function useProjects() {
-  const { currentWorkspace, fetchError } = useWorkspace();
+  const { currentWorkspace, fetchError, membership } = useWorkspace();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [projects, setProjects] = useState<ProjectWithClient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +26,10 @@ export function useProjects() {
   // Refs to prevent duplicate fetches
   const isFetchingRef = useRef(false);
   const lastFetchedWorkspaceIdRef = useRef<string | null>(null);
+  
+  // Check if user is a collaborator (freelancer) - they only see projects they're assigned to
+  const isCollaborator = membership?.role === 'freelancer';
+  const userId = user?.id;
 
   const fetchProjects = useCallback(async () => {
     if (!currentWorkspace?.id || fetchError) return;
@@ -33,11 +39,35 @@ export function useProjects() {
       isFetchingRef.current = true;
       setLoading(true);
       
-      const { data, error } = await supabase
+      // For freelancers, first get project IDs they're assigned to
+      let assignedProjectIds: string[] | null = null;
+      if (isCollaborator && userId) {
+        const { data: assignedProjects } = await supabase
+          .from('project_team')
+          .select('project_id')
+          .eq('user_id', userId);
+        assignedProjectIds = assignedProjects?.map(p => p.project_id) || [];
+        
+        // If no assigned projects, return empty array
+        if (assignedProjectIds.length === 0) {
+          setProjects([]);
+          lastFetchedWorkspaceIdRef.current = currentWorkspace.id;
+          return;
+        }
+      }
+      
+      let query = supabase
         .from('projects')
         .select('*, clients(name)')
         .eq('workspace_id', currentWorkspace.id)
         .order('created_at', { ascending: false });
+      
+      // Filter by assigned projects for collaborators
+      if (isCollaborator && assignedProjectIds !== null) {
+        query = query.in('id', assignedProjectIds);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setProjects(data || []);
@@ -48,7 +78,7 @@ export function useProjects() {
       isFetchingRef.current = false;
       setLoading(false);
     }
-  }, [currentWorkspace?.id, fetchError]);
+  }, [currentWorkspace?.id, fetchError, isCollaborator, userId]);
 
   useEffect(() => {
     // Only fetch if workspace ID changed
