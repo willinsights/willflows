@@ -52,7 +52,11 @@ function ChangeIndicator({
 
 export function KPICards({ metrics, loading }: KPICardsProps) {
   const { formatCurrency } = useCurrentWorkspace();
-  const { canViewAllFinancials, isCollaborator } = useFinancialPermissions();
+  const { 
+    canViewAllFinancials, 
+    isCollaborator,
+    canViewOwnFinancials 
+  } = useFinancialPermissions();
 
   // Base KPI data (always visible)
   const baseKpiData = [
@@ -131,8 +135,8 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
       change: metrics.lucroChange,
       delay: 0.18,
     },
-  ] : isCollaborator ? [
-    // For collaborators: show personal earnings instead of locked cards
+  ] : canViewOwnFinancials ? [
+    // For users with 'dashboard.view_own_earnings' permission: show personal earnings
     {
       label: 'Meus Ganhos (mês)',
       value: formatCurrency(metrics.meusGanhos ?? 0),
