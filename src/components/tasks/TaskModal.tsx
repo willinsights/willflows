@@ -333,9 +333,9 @@ export function TaskModal({
                         : selectedMember.email?.[0]?.toUpperCase() || '?';
                       return (
                         <div className="flex items-center gap-2">
-                          <Avatar className="h-5 w-5">
+                          <Avatar className="h-7 w-7">
                             <AvatarImage src={selectedMember.avatar_url || undefined} />
-                            <AvatarFallback className="text-[8px] bg-primary/10 text-primary">
+                            <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
                               {initials}
                             </AvatarFallback>
                           </Avatar>
