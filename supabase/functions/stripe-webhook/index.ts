@@ -15,11 +15,43 @@ const PRODUCT_TO_PLAN: Record<string, string> = {
 };
 
 // Helper logging function for debugging - only logs when DEBUG=true
+// Security: Sanitizes PII and sensitive data before logging
 const DEBUG = Deno.env.get("DEBUG") === "true";
+
+// Sanitize sensitive fields from log output to prevent PII leakage
+const sanitizeForLogging = (details: any): any => {
+  if (!details || typeof details !== 'object') return details;
+  
+  const sanitized = { ...details };
+  
+  // Fully redact sensitive fields
+  const sensitiveFields = ['email', 'vatId', 'customer_tax_id', 'customerEmail'];
+  sensitiveFields.forEach(field => {
+    if (sanitized[field]) {
+      sanitized[field] = '[REDACTED]';
+    }
+  });
+  
+  // Truncate IDs for correlation while hiding full value
+  const idFields = ['customerId', 'subscriptionId', 'invoiceId', 'sessionId', 'userId'];
+  idFields.forEach(field => {
+    if (sanitized[field] && typeof sanitized[field] === 'string') {
+      sanitized[field] = sanitized[field].substring(0, 12) + '...';
+    }
+  });
+  
+  // Redact metadata which may contain user data
+  if (sanitized.metadata) {
+    sanitized.metadata = '[REDACTED]';
+  }
+  
+  return sanitized;
+};
 
 const logStep = (step: string, details?: any) => {
   if (!DEBUG) return;
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  const sanitized = sanitizeForLogging(details);
+  const detailsStr = sanitized ? ` - ${JSON.stringify(sanitized)}` : '';
   console.log(`[STRIPE-WEBHOOK] ${step}${detailsStr}`);
 };
 
