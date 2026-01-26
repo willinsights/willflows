@@ -20,14 +20,14 @@ export interface ProjectWithClient extends Project {
 export function useFilteredProjects() {
   const { currentWorkspace, fetchError } = useWorkspace();
   const { user } = useAuth();
-  const { canViewAllFinancials, userRole } = useFinancialPermissions();
+  const { canViewAllFinancials, userRole, isLoading: permissionsLoading, canViewAllProjects } = useFinancialPermissions();
   
   const [allProjects, setAllProjects] = useState<ProjectWithClient[]>([]);
   const [userProjectIds, setUserProjectIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   
   const isFetchingRef = useRef(false);
-  const lastFetchedWorkspaceIdRef = useRef<string | null>(null);
+  const lastFetchedKeyRef = useRef<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!currentWorkspace?.id || !user?.id || fetchError) return;
@@ -58,7 +58,7 @@ export function useFilteredProjects() {
       const projectIds = new Set((teamData || []).map(t => t.project_id));
       setUserProjectIds(projectIds);
       
-      lastFetchedWorkspaceIdRef.current = currentWorkspace.id;
+      lastFetchedKeyRef.current = currentWorkspace.id;
     } catch (error) {
       console.error('Error fetching filtered projects:', error);
     } finally {
@@ -68,23 +68,28 @@ export function useFilteredProjects() {
   }, [currentWorkspace?.id, user?.id, fetchError]);
 
   useEffect(() => {
-    if (currentWorkspace?.id && currentWorkspace.id !== lastFetchedWorkspaceIdRef.current && !fetchError) {
+    // Wait for permissions to load before fetching
+    if (permissionsLoading) return;
+    
+    const fetchKey = `${currentWorkspace?.id}-${canViewAllProjects}`;
+    if (currentWorkspace?.id && fetchKey !== lastFetchedKeyRef.current && !fetchError) {
       fetchData();
+      lastFetchedKeyRef.current = fetchKey;
     } else if (!currentWorkspace) {
       setLoading(false);
     }
-  }, [currentWorkspace?.id, fetchError, fetchData]);
+  }, [currentWorkspace?.id, fetchError, fetchData, permissionsLoading, canViewAllProjects]);
 
   // Filter projects based on dynamic permissions
   const projects = useMemo(() => {
     // If user can view all projects (admin or has visibility.all_projects permission)
-    if (canViewAllFinancials || userRole === 'admin') {
+    if (canViewAllProjects || userRole === 'admin') {
       return allProjects;
     }
     
     // All other users see only projects where they are in the team
     return allProjects.filter(project => userProjectIds.has(project.id));
-  }, [allProjects, userProjectIds, canViewAllFinancials, userRole]);
+  }, [allProjects, userProjectIds, canViewAllProjects, userRole]);
 
   return {
     projects,

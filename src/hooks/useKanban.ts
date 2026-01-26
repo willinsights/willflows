@@ -315,7 +315,7 @@ export function useKanban(phase: KanbanPhase) {
     } finally {
       isFetchingRef.current = false;
     }
-  }, [currentWorkspace?.id, phase, fetchError, toast]);
+  }, [currentWorkspace?.id, phase, fetchError, toast, isCollaborator, userId]);
 
   // Full fetch with loading state - for initial load
   const fetchColumns = useCallback(async () => {
@@ -348,14 +348,17 @@ export function useKanban(phase: KanbanPhase) {
   );
 
   useEffect(() => {
-    const fetchKey = `${currentWorkspace?.id}-${phase}`;
-    // Only fetch if key changed
+    // Wait for permissions to load before fetching
+    if (permissionsLoading) return;
+    
+    const fetchKey = `${currentWorkspace?.id}-${phase}-${isCollaborator}`;
+    // Only fetch if key changed (includes permission state)
     if (currentWorkspace?.id && fetchKey !== lastFetchedKeyRef.current && !fetchError) {
       fetchColumns();
     } else if (!currentWorkspace) {
       setLoading(false);
     }
-  }, [currentWorkspace?.id, phase, fetchError, fetchColumns]);
+  }, [currentWorkspace?.id, phase, fetchError, fetchColumns, permissionsLoading, isCollaborator]);
 
   // Realtime subscription for Kanban updates
   useEffect(() => {
