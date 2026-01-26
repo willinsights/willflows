@@ -1,78 +1,31 @@
 
+## Plano Completo: Correção de Erros no Chat de Tarefas e Projetos
 
-## Plano de Correção: Erros ao Criar/Gerir Chats de Tarefas e Projetos
+### Diagnóstico Confirmado
 
-### Problema Identificado
+O erro `"new row violates row-level security policy for table conversation_members"` acontece em **ChatFeed.tsx** na função `markConversationAsRead` ao tentar fazer **upsert** de membership.
 
-Através da análise dos logs de Postgres, foram encontrados múltiplos erros:
-```
-"new row violates row-level security policy for table conversation_members"
-```
+**Causa Raiz**: A política RLS `"Users can add conversation members"` é do tipo **ALL** mas só tem `WITH CHECK` definido, sem `USING`. Quando o upsert detecta conflito (utilizador já é membro) e tenta UPDATE, falha porque:
+- UPDATE precisa de `USING` para filtrar linhas a atualizar
+- A política não tem `USING` (é NULL)
+- Resultado: UPDATE é bloqueado pelo RLS
 
-**Causa raiz**: A política RLS de INSERT na tabela `conversation_members` é demasiado restritiva para chats de projeto. Atualmente apenas permite:
-1. Utilizadores com permissão de gestão (admin/editor do workspace OU criador da conversa)
-2. OU auto-join em canais públicos (mas chats de projeto **não são** canais públicos)
-
-Isto significa que utilizadores com roles como `captacao`, `freelancer`, ou `visualizador` não conseguem:
-- Ativar o seu chat de projeto (upsert `is_active = true`)
-- Ser adicionados como membros de conversas de projeto pelo frontend
+### Correções Necessárias
 
 ---
 
-### Correção Necessária
+#### 1. Reestruturar Políticas RLS de `conversation_members`
 
-#### 1. Atualizar a Política RLS de INSERT em `conversation_members`
+Separar a política ALL em políticas específicas:
 
-A política deve permitir que **membros da equipa do projeto** possam juntar-se aos chats de projeto correspondentes, mesmo que não sejam admin/editor.
-
-**Política atual:**
-```sql
-can_manage_conversation_members(conversation_id, auth.uid()) 
-OR 
-(user_id = auth.uid() AND is_public_channel_in_user_workspace(conversation_id, auth.uid()))
-```
-
-**Política proposta:**
-```sql
--- Condição 1: Admin/editor do workspace ou criador da conversa
-can_manage_conversation_members(conversation_id, auth.uid())
-OR
--- Condição 2: Auto-join em canais públicos
-(user_id = auth.uid() AND is_public_channel_in_user_workspace(conversation_id, auth.uid()))
-OR
--- Condição 3 (NOVA): Membro do workspace pode juntar-se a si próprio em chats de projeto do workspace
-(user_id = auth.uid() AND is_project_chat_in_user_workspace(conversation_id, auth.uid()))
-```
-
-#### 2. Criar Nova Função Auxiliar
-
-```sql
-CREATE OR REPLACE FUNCTION public.is_project_chat_in_user_workspace(
-  p_conversation_id uuid, 
-  p_user_id uuid
-)
-RETURNS boolean
-LANGUAGE sql
-STABLE SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM conversations c
-    JOIN workspace_members wm ON wm.workspace_id = c.workspace_id
-    WHERE c.id = p_conversation_id
-    AND c.type = 'project'
-    AND wm.user_id = p_user_id
-    AND wm.is_active = true
-  );
-$$;
-```
-
-#### 3. Atualizar a Política RLS
-
+**A. Remover política problemática**
 ```sql
 DROP POLICY IF EXISTS "Users can add conversation members" ON conversation_members;
+```
 
-CREATE POLICY "Users can add conversation members"
+**B. Criar política específica para INSERT**
+```sql
+CREATE POLICY "Users can insert conversation members"
 ON conversation_members
 FOR INSERT
 TO authenticated
@@ -85,91 +38,209 @@ WITH CHECK (
 );
 ```
 
----
+**C. Expandir política de UPDATE existente**
 
-### Correção Adicional: Problema de UPDATE
+A política atual `"Users can update own membership"` só permite atualizar própria membership (`user_id = auth.uid()`), mas é restritiva demais. Precisa também permitir:
+- Admins/Editors a atualizar qualquer membro do seu workspace
 
-Também é necessário verificar a política de UPDATE para garantir que o utilizador pode atualizar o seu próprio `is_active`:
-
-**Política atual de UPDATE:**
 ```sql
-qual: (user_id = auth.uid())
-with_check: (user_id = auth.uid())
+DROP POLICY IF EXISTS "Users can update own membership" ON conversation_members;
+
+CREATE POLICY "Users can update conversation membership"
+ON conversation_members
+FOR UPDATE
+TO authenticated
+USING (
+  user_id = auth.uid() 
+  OR 
+  can_manage_conversation_members(conversation_id, auth.uid())
+)
+WITH CHECK (
+  user_id = auth.uid() 
+  OR 
+  can_manage_conversation_members(conversation_id, auth.uid())
+);
 ```
 
-Esta está correta - o utilizador pode atualizar a sua própria membership. No entanto, o **upsert pode estar a tentar INSERT** quando o utilizador ainda não é membro.
-
 ---
 
-### Correção no Frontend: Adicionar Tratamento de Erros
+#### 2. Corrigir ChatFeed.tsx - Separar UPDATE de INSERT
 
-Para evitar erros silenciosos, melhorar o tratamento nos modais:
+O upsert pode ser problemático com RLS. Melhor estratégia: verificar se já é membro e usar UPDATE direto, só usando INSERT se não for membro.
 
-**Ficheiro: `src/components/projects/ProjectDetailsSheet.tsx` (linhas 496-501)**
+**Ficheiro: `src/components/chat/ChatFeed.tsx` (linhas 142-167)**
 
 ```typescript
-// Antes:
-await supabase.from('conversation_members').upsert({
-  conversation_id: conversationId,
-  user_id: user.id,
-  is_active: true,
-}, { onConflict: 'conversation_id,user_id' });
+// Antes: upsert que causa problemas
+const { error: upsertError } = await supabase
+  .from('conversation_members')
+  .upsert(...)
 
-// Depois (com tratamento de erro e role):
-const { error: memberError } = await supabase.from('conversation_members').upsert({
-  conversation_id: conversationId,
-  user_id: user.id,
-  role: 'member',
-  is_active: true,
-}, { onConflict: 'conversation_id,user_id' });
+// Depois: verificar existência e usar operação apropriada
+const { data: existingMember } = await supabase
+  .from('conversation_members')
+  .select('id')
+  .eq('conversation_id', conversationId)
+  .eq('user_id', user.id)
+  .maybeSingle();
 
-if (memberError) {
-  console.error('[Chat] Error activating membership:', memberError);
-  // Continuar mesmo com erro - pode já estar como membro via trigger
+if (existingMember) {
+  // Já é membro - apenas atualizar last_read_at
+  const { error: updateError } = await supabase
+    .from('conversation_members')
+    .update({ last_read_at: readTimestamp })
+    .eq('conversation_id', conversationId)
+    .eq('user_id', user.id);
+    
+  if (updateError) {
+    logger.error('Failed to update last_read_at:', updateError.code, updateError.message);
+    return;
+  }
+} else {
+  // Não é membro - inserir como novo membro
+  const { error: insertError } = await supabase
+    .from('conversation_members')
+    .insert({ 
+      conversation_id: conversationId, 
+      user_id: user.id, 
+      role: 'member',
+      is_active: true,
+      last_read_at: readTimestamp 
+    });
+    
+  if (insertError) {
+    logger.error('Failed to insert membership:', insertError.code, insertError.message);
+    return;
+  }
 }
 ```
 
-**Ficheiro: `src/components/projects/ProjectDetailsModal.tsx` (linhas 535-541)**
-
-Mesma alteração para garantir consistência.
-
 ---
 
-### Correção de Atualização em Tempo Real
+#### 3. Corrigir Navegação do TaskChatIndicator
 
-Para garantir que as conversas aparecem imediatamente, adicionar invalidação mais agressiva:
+O link atual usa `/app/chat?conversationId=UUID` mas o router espera `/app/chat/:conversationId`.
 
-**Ficheiro: `src/hooks/useConversations.ts`**
-
-Na mutation `createProjectChat` (linha 468-471), adicionar:
+**Ficheiro: `src/components/tasks/TaskChatIndicator.tsx` (linha 34)**
 
 ```typescript
-onSuccess: () => {
-  // Invalidar queries relacionadas imediatamente
-  queryClient.invalidateQueries({ queryKey: ['conversations', workspace?.id] });
-  queryClient.invalidateQueries({ queryKey: ['project-chat-status'] });
-  queryClient.invalidateQueries({ queryKey: ['task-chat-status'] });
-},
+// Antes:
+navigate(`/app/chat?conversationId=${conversationId}`);
+
+// Depois:
+navigate(`/app/chat/${conversationId}`);
 ```
 
 ---
 
-### Resumo das Alterações
+#### 4. Corrigir ChatLayout para Aceitar Query String (Compatibilidade)
+
+Para manter compatibilidade com links antigos:
+
+**Ficheiro: `src/components/chat/ChatLayout.tsx` (adicionar lógica)**
+
+```typescript
+import { useSearchParams } from 'react-router-dom';
+
+// No início do componente:
+const [searchParams] = useSearchParams();
+const queryConversationId = searchParams.get('conversationId') || searchParams.get('c');
+
+const [activeConversationId, setActiveConversationId] = useState<string | null>(
+  selectedConversationId || queryConversationId || null
+);
+```
+
+---
+
+#### 5. Corrigir Chat.tsx para Passar Query Param
+
+**Ficheiro: `src/pages/app/Chat.tsx`**
+
+```typescript
+import { useParams, useSearchParams } from 'react-router-dom';
+import { ChatLayout } from '@/components/chat/ChatLayout';
+
+export default function Chat() {
+  const { conversationId } = useParams<{ conversationId?: string }>();
+  const [searchParams] = useSearchParams();
+  const queryConversationId = searchParams.get('conversationId') || searchParams.get('c');
+  
+  // Prioridade: path param > query param
+  const selectedId = conversationId || queryConversationId || undefined;
+
+  return <ChatLayout selectedConversationId={selectedId} />;
+}
+```
+
+---
+
+### Detalhes Técnicos
+
+**Migração SQL Completa:**
+
+```sql
+-- 1. Remover política problemática (ALL sem USING)
+DROP POLICY IF EXISTS "Users can add conversation members" ON conversation_members;
+
+-- 2. Criar política específica para INSERT
+CREATE POLICY "Users can insert conversation members"
+ON conversation_members
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  can_manage_conversation_members(conversation_id, auth.uid())
+  OR
+  (user_id = auth.uid() AND is_public_channel_in_user_workspace(conversation_id, auth.uid()))
+  OR
+  (user_id = auth.uid() AND is_project_chat_in_user_workspace(conversation_id, auth.uid()))
+);
+
+-- 3. Substituir política de UPDATE para ser mais flexível
+DROP POLICY IF EXISTS "Users can update own membership" ON conversation_members;
+
+CREATE POLICY "Users can update conversation membership"
+ON conversation_members
+FOR UPDATE
+TO authenticated
+USING (
+  user_id = auth.uid() 
+  OR 
+  can_manage_conversation_members(conversation_id, auth.uid())
+)
+WITH CHECK (
+  user_id = auth.uid() 
+  OR 
+  can_manage_conversation_members(conversation_id, auth.uid())
+);
+```
+
+---
+
+### Resumo de Ficheiros a Alterar
 
 | Tipo | Ficheiro/Área | Descrição |
 |------|---------------|-----------|
-| **SQL** | Nova função | `is_project_chat_in_user_workspace` |
-| **SQL** | Política RLS | Atualizar INSERT policy em `conversation_members` |
-| **Frontend** | `ProjectDetailsSheet.tsx` | Adicionar `role` ao upsert e tratamento de erro |
-| **Frontend** | `ProjectDetailsModal.tsx` | Mesma correção |
-| **Frontend** | `useConversations.ts` | Invalidar queries adicionais após criar chat |
+| **SQL** | Migration | Reestruturar políticas RLS (separar INSERT de UPDATE) |
+| **Frontend** | `ChatFeed.tsx` | Substituir upsert por check + update/insert |
+| **Frontend** | `TaskChatIndicator.tsx` | Corrigir URL de navegação |
+| **Frontend** | `Chat.tsx` | Suportar query params |
+| **Frontend** | `ChatLayout.tsx` | Aceitar conversationId de query string |
 
 ### Impacto
 
-- **Médio risco**: Alteração de política RLS afeta segurança, mas a nova condição é restritiva (apenas auto-join em projeto do próprio workspace)
-- **Ficheiros afetados**: 3 ficheiros frontend + 1 migração SQL
+- **Risco médio**: Alteração de políticas RLS requer teste cuidadoso
+- **Ficheiros afetados**: 4 ficheiros frontend + 1 migração SQL
 - **Resultado esperado**: 
-  - Todos os membros do workspace podem aceder a chats de projeto
-  - Conversas aparecem imediatamente após criação
-  - Sem erros de RLS ao abrir chat
+  - Chat de tarefa abre sem erros de permissão
+  - Mensagens são marcadas como lidas corretamente
+  - Navegação funciona tanto por path como query string
+  - Admins/Editors podem gerir membros de conversas
 
+### Verificação Pós-Implementação
+
+1. Abrir chat de tarefa como admin → deve funcionar sem erros
+2. Abrir chat de tarefa como editor → deve funcionar sem erros
+3. Enviar mensagem no chat → deve aparecer em tempo real
+4. Verificar unread count → deve atualizar corretamente
+5. Testar com utilizador que nunca esteve no chat → deve ser adicionado automaticamente
