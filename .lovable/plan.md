@@ -1,120 +1,63 @@
 
-# Sprint 2: Correções de SEO e Bugs
+# Plano: Ativar Reordenação de Colunas no Kanban
 
-## Problemas Identificados
+## Resumo
+Adicionar a funcionalidade de arrastar e soltar (drag-and-drop) para reordenar colunas no Kanban, mantendo a coluna final "Entregue" sempre fixa na última posição.
 
-### 1. AggregateRating Inconsistente (P1.4)
-**Localização:**
-- `index.html:177-181` → `"ratingValue": "4.8", "ratingCount": "127"`
-- `Landing.tsx:250-255` → `"ratingValue": "5", "ratingCount": "1"`
+## O Que Já Existe
+A função `reorderColumns` já está implementada no `useKanban` e inclui:
+- Validação para impedir mover a coluna final
+- Validação para impedir mover colunas para depois da coluna final
+- Atualização otimista da UI
+- Persistência das novas posições na base de dados
 
-**Problema:** Dados conflitantes de avaliação no Schema.org. O Google pode penalizar por dados estruturados contraditórios.
+## Alterações Necessárias
 
-**Solução:** Remover o AggregateRating de ambos os ficheiros até termos reviews verificáveis reais. É uma prática recomendada pelo Google não fabricar dados de avaliação.
+### 1. KanbanBoard.tsx
+- Adicionar contexto de drag-and-drop para colunas (separado do de projetos)
+- Usar `@dnd-kit/sortable` para tornar as colunas arrastáveis
+- Distinguir entre arrastar projetos e arrastar colunas
+- Chamar `reorderColumns` quando uma coluna é movida
 
----
+### 2. KanbanColumn.tsx
+- Tornar a coluna arrastável usando `useSortable`
+- Adicionar handle de arrasto no cabeçalho da coluna
+- Desativar arrasto para colunas finais (`is_final`)
+- Adicionar feedback visual durante o arrasto
 
-### 2. Imagem OG em Falta (P1.5)
-**Localização:**
-- `index.html:57` → `<meta property="og:image" content="https://willflow.app/og-image.png" />`
-- `public/` → Não existe ficheiro `og-image.png`
+## Detalhes Técnicos
 
-**Problema:** Quando alguém partilha o WillFlow no Facebook, LinkedIn, WhatsApp, etc., a imagem não aparece ou mostra uma genérica.
-
-**Solução:** Usar uma das screenshots existentes como fallback temporário até criar uma OG image dedicada (1200x630px).
-
----
-
-### 3. AggregateOffer Inconsistente
-**Localização:**
-- `index.html:171-175` → `"lowPrice": "14", "highPrice": "32"`
-- `Landing.tsx:243-248` → `"lowPrice": "0", "highPrice": "99"`
-
-**Problema:** Preços diferentes entre os dois ficheiros.
-
-**Solução:** Unificar com os valores reais dos planos.
-
----
-
-## Plano de Implementação
-
-### Ficheiro 1: `index.html`
-1. **Atualizar referência OG image** para usar screenshot existente
-2. **Corrigir AggregateOffer** com preços corretos (14-32 EUR)
-3. **Remover AggregateRating** até termos dados reais
-
-### Ficheiro 2: `Landing.tsx`
-1. **Corrigir AggregateOffer** para coincidir com `index.html`
-2. **Remover AggregateRating** fabricado
-3. Manter consistência com dados do `index.html`
-
----
-
-## Mudanças Técnicas
-
-### `index.html`
-```diff
-- <meta property="og:image" content="https://willflow.app/og-image.png" />
-+ <meta property="og:image" content="https://willflow.app/screenshots/screenshot-dashboard-dark-full.png" />
-
-  "offers": {
-    "@type": "AggregateOffer",
-    "priceCurrency": "EUR",
-    "lowPrice": "14",
--   "highPrice": "32",
-+   "highPrice": "49",
-    "offerCount": "3"
-  },
-- "aggregateRating": {
--   "@type": "AggregateRating",
--   "ratingValue": "4.8",
--   "ratingCount": "127"
-- },
+### Estratégia de Implementação
+```text
++------------------+     +------------------+     +------------------+
+|   Coluna A       |     |   Coluna B       |     |   Entregue      |
+|   (arrastável)   | <-> |   (arrastável)   |     |   (FIXA)        |
++------------------+     +------------------+     +------------------+
 ```
 
-### `Landing.tsx`
-```diff
-  "offers": {
-    "@type": "AggregateOffer",
-    "priceCurrency": "EUR",
--   "lowPrice": "0",
--   "highPrice": "99",
-+   "lowPrice": "14",
-+   "highPrice": "49",
-    "offerCount": "3"
-  },
-- "aggregateRating": {
--   "@type": "AggregateRating",
--   "ratingValue": "5",
--   "ratingCount": "1",
--   "bestRating": "5"
-- },
-```
+### Modificações no KanbanBoard.tsx
+1. Importar `horizontalListSortingStrategy` e `SortableContext`
+2. Envolver as colunas num `SortableContext` horizontal
+3. Criar handler `handleColumnDragEnd` que:
+   - Identifica se o item arrastado é coluna ou projeto
+   - Chama `reorderColumns(sourceIndex, destIndex)` para colunas
+4. Adicionar `DragOverlay` para colunas
 
----
+### Modificações no KanbanColumn.tsx
+1. Usar `useSortable` em vez de apenas `useDroppable`
+2. Adicionar prop `isDraggable` baseada em `!column.is_final`
+3. Aplicar transforms do sortable ao container
+4. Adicionar ícone de arrasto (GripVertical) no cabeçalho
+5. Cursor `grab/grabbing` para feedback visual
 
-## Impacto Esperado
+### Distinção entre Projetos e Colunas
+- IDs de colunas: prefixados com `column-` ou verificados contra lista de column IDs
+- IDs de projetos: UUIDs existentes
+- No `handleDragEnd`, verificar se `active.id` corresponde a coluna ou projeto
 
-| Métrica | Antes | Depois |
-|---------|-------|--------|
-| Schema.org Validation | ❌ Inconsistente | ✅ Consistente |
-| OG Image | ❌ 404 Error | ✅ Screenshot funcional |
-| Rich Results | ❌ Potencial penalização | ✅ Dados válidos |
-| Social Sharing | ❌ Sem preview | ✅ Preview visual |
-
----
-
-## Próximos Passos (Sprint 3)
-
-Após estas correções:
-- Criar imagem OG dedicada 1200x630px com branding
-- Implementar Google Consent Mode v2 completo
-- Corrigir tabela de subprocessadores em Privacy.tsx
-- Adicionar aria-labels para acessibilidade
-
----
-
-## Estimativa
-- **Tempo:** 15 minutos
-- **Risco:** Baixo (apenas metadados)
-- **Rollback:** Fácil (git revert)
+## Resultado Esperado
+- Colunas podem ser arrastadas horizontalmente
+- Coluna "Entregue" permanece sempre na última posição
+- Arrastar uma coluna para depois de "Entregue" é bloqueado com toast
+- Projetos continuam a ser arrastados entre colunas normalmente
+- Feedback visual durante o arrasto de colunas
