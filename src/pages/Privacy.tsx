@@ -226,31 +226,71 @@ export default function Privacy() {
                 <h2 className="text-xl font-bold">{section.title}</h2>
               </div>
               <div className="prose prose-sm dark:prose-invert max-w-none">
-                {section.content.split('\n').map((paragraph, i) => {
-                  if (paragraph.startsWith('|')) {
-                    // Simple table rendering
-                    return null; // Skip table rows for now, render separately
-                  }
-                  if (paragraph.startsWith('•')) {
-                    return (
-                      <p key={i} className="text-muted-foreground ml-4">
-                        {paragraph}
-                      </p>
-                    );
-                  }
-                  if (paragraph.startsWith('**') && paragraph.endsWith('**')) {
-                    return (
-                      <p key={i} className="font-semibold text-foreground mt-4">
-                        {paragraph.replace(/\*\*/g, '')}
-                      </p>
-                    );
-                  }
+                {(() => {
+                  const lines = section.content.split('\n');
+                  const tableLines = lines.filter(line => line.startsWith('|'));
+                  const textLines = lines.filter(line => !line.startsWith('|'));
+                  
                   return (
-                    <p key={i} className="text-muted-foreground">
-                      {paragraph.replace(/\*\*(.*?)\*\*/g, '$1')}
-                    </p>
+                    <>
+                      {textLines.map((paragraph, i) => {
+                        if (paragraph.startsWith('•')) {
+                          return (
+                            <p key={i} className="text-muted-foreground ml-4">
+                              {paragraph}
+                            </p>
+                          );
+                        }
+                        if (paragraph.startsWith('**') && paragraph.endsWith('**')) {
+                          return (
+                            <p key={i} className="font-semibold text-foreground mt-4">
+                              {paragraph.replace(/\*\*/g, '')}
+                            </p>
+                          );
+                        }
+                        if (paragraph.startsWith('*') && !paragraph.startsWith('**')) {
+                          return (
+                            <p key={i} className="text-sm text-muted-foreground italic">
+                              {paragraph.replace(/^\*/, '')}
+                            </p>
+                          );
+                        }
+                        return (
+                          <p key={i} className="text-muted-foreground">
+                            {paragraph.replace(/\*\*(.*?)\*\*/g, '$1')}
+                          </p>
+                        );
+                      })}
+                      
+                      {tableLines.length > 2 && (
+                        <div className="overflow-x-auto mt-4">
+                          <table className="w-full text-sm border-collapse">
+                            <thead>
+                              <tr className="border-b border-border">
+                                {tableLines[0].split('|').filter(Boolean).map((cell, j) => (
+                                  <th key={j} className="text-left py-2 px-3 font-medium text-foreground">
+                                    {cell.trim()}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {tableLines.slice(2).map((row, rowIndex) => (
+                                <tr key={rowIndex} className="border-b border-border/50">
+                                  {row.split('|').filter(Boolean).map((cell, cellIndex) => (
+                                    <td key={cellIndex} className="py-2 px-3 text-muted-foreground">
+                                      {cell.trim()}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </>
                   );
-                })}
+                })()}
               </div>
             </motion.div>
           ))}

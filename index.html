@@ -4,9 +4,33 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
-    <!-- Google tag (gtag.js) - Google Ads - Deferred for performance -->
+    <!-- Google Consent Mode v2 - Default denied until user consent -->
     <script>
-      // Defer non-critical analytics until after page load
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      window.gtag = gtag;
+      
+      // Consent Mode v2: Default all to denied
+      gtag('consent', 'default', {
+        'ad_storage': 'denied',
+        'ad_user_data': 'denied',
+        'ad_personalization': 'denied',
+        'analytics_storage': 'denied',
+        'wait_for_update': 500
+      });
+      
+      // Set region-specific defaults (stricter for EU)
+      gtag('consent', 'default', {
+        'ad_storage': 'denied',
+        'ad_user_data': 'denied', 
+        'ad_personalization': 'denied',
+        'analytics_storage': 'denied',
+        'region': ['PT', 'ES', 'FR', 'DE', 'IT', 'BR']
+      });
+    </script>
+    
+    <!-- Google tag (gtag.js) - Deferred for performance -->
+    <script>
       window.addEventListener('load', function() {
         var script = document.createElement('script');
         script.src = 'https://www.googletagmanager.com/gtag/js?id=AW-10883570283';
@@ -14,9 +38,6 @@
         document.head.appendChild(script);
         
         script.onload = function() {
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          window.gtag = gtag;
           gtag('js', new Date());
           gtag('config', 'AW-10883570283');
         };

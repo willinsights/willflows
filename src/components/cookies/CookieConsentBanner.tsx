@@ -51,13 +51,33 @@ export function CookieConsentBanner() {
   };
 
   const enableAnalytics = () => {
-    // Initialize analytics
+    // Update Google Consent Mode v2 to granted
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('consent', 'update', {
+        'ad_storage': 'granted',
+        'ad_user_data': 'granted',
+        'ad_personalization': 'granted',
+        'analytics_storage': 'granted'
+      });
+    }
   };
 
   const disableAnalytics = () => {
+    // Update Google Consent Mode v2 to denied
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('consent', 'update', {
+        'ad_storage': 'denied',
+        'ad_user_data': 'denied',
+        'ad_personalization': 'denied',
+        'analytics_storage': 'denied'
+      });
+    }
+    
+    // Clean up existing cookies
     document.cookie.split(';').forEach((cookie) => {
       const name = cookie.split('=')[0].trim();
-      if (name.startsWith('_ga') || name.startsWith('_gid')) {
+      if (name.startsWith('_ga') || name.startsWith('_gid') || name.startsWith('_gcl')) {
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.willflow.app`;
         document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
       }
     });
