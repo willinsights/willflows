@@ -5,37 +5,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Utilizadores a MANTER
-const KEEP_EMAILS = [
-  // Super Admin
-  'willdesign7@gmail.com',
-  // Clientes reais
-  'moraisdanobrega@gmail.com',      // José Morais
-  'pedro.nobre@phormulagroup.com',  // Pedro Nobre
-  'pablosouza7101997@gmail.com',    // Pablo Souza
-  'juniomedialab@gmail.com',        // Júnio Cunha
-  'lukasalmeida1500@gmail.com',     // Lucas Almeida
-  // Contas de teste internas
-  'starter@test.willflow.local',
-  'pro@test.willflow.local',
-  'studio@test.willflow.local',
-  'editor+starter@test.willflow.local',
-  'editor+pro@test.willflow.local',
-  'editor+studio@test.willflow.local',
-];
+// Test account email pattern
+const TEST_EMAIL_PATTERN = '@test.willflow.local';
 
-// Workspaces a MANTER (por slug)
+// Workspaces a MANTER (por slug) - test workspaces only
 const KEEP_WORKSPACE_SLUGS = [
-  // Workspaces de teste
   'test-starter',
   'test-pro',
   'test-studio',
-  // Workspaces dos clientes reais
-  'estudio-jose-mkjvd4zl',
-  'estudio-pedro-mkjl1tga',
-  'estudio-pablo-mkhhls73',
-  'estudio-junio-mkhgxys8',
-  'estudio-lucas-mkbr2k7l',
 ];
 
 Deno.serve(async (req) => {
@@ -83,6 +60,47 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Fetch protected accounts from database
+    const { data: protectedAccounts, error: protectedError } = await supabaseAdmin
+      .from('protected_accounts')
+      .select('email');
+
+    if (protectedError) {
+      console.error('Error fetching protected accounts:', protectedError);
+      return new Response(JSON.stringify({ error: 'Erro ao obter contas protegidas' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Build list of protected emails from database + test accounts pattern
+    const protectedEmails = protectedAccounts?.map(a => a.email) || [];
+    
+    // Helper function to check if email is protected
+    const isProtectedEmail = (email: string): boolean => {
+      return protectedEmails.includes(email) || email.includes(TEST_EMAIL_PATTERN);
+    };
+
+    // Fetch workspaces linked to protected users to also protect those workspaces
+    const { data: protectedUserWorkspaces } = await supabaseAdmin
+      .from('workspace_members')
+      .select(`
+        workspace:workspaces(id, slug)
+      `)
+      .in('user_id', 
+        await supabaseAdmin
+          .from('profiles')
+          .select('id')
+          .in('email', protectedEmails)
+          .then(r => r.data?.map(p => p.id) || [])
+      )
+      .eq('role', 'admin');
+
+    const protectedWorkspaceSlugs = new Set([
+      ...KEEP_WORKSPACE_SLUGS,
+      ...(protectedUserWorkspaces?.map(w => (w.workspace as any)?.slug).filter(Boolean) || [])
+    ]);
+
     const { action } = await req.json();
 
     if (action === 'preview') {
@@ -91,15 +109,15 @@ Deno.serve(async (req) => {
         .from('profiles')
         .select('id, email, full_name, is_internal_test');
 
-      const usersToKeep = allUsers?.filter(u => KEEP_EMAILS.includes(u.email)) || [];
-      const usersToDelete = allUsers?.filter(u => !KEEP_EMAILS.includes(u.email)) || [];
+      const usersToKeep = allUsers?.filter(u => isProtectedEmail(u.email)) || [];
+      const usersToDelete = allUsers?.filter(u => !isProtectedEmail(u.email)) || [];
 
       const { data: allWorkspaces } = await supabaseAdmin
         .from('workspaces')
         .select('id, name, slug');
 
-      const workspacesToKeep = allWorkspaces?.filter(w => KEEP_WORKSPACE_SLUGS.includes(w.slug)) || [];
-      const workspacesToDelete = allWorkspaces?.filter(w => !KEEP_WORKSPACE_SLUGS.includes(w.slug)) || [];
+      const workspacesToKeep = allWorkspaces?.filter(w => protectedWorkspaceSlugs.has(w.slug)) || [];
+      const workspacesToDelete = allWorkspaces?.filter(w => !protectedWorkspaceSlugs.has(w.slug)) || [];
 
       const { count: waitlistCount } = await supabaseAdmin
         .from('beta_waitlist')
@@ -119,6 +137,7 @@ Deno.serve(async (req) => {
         usersToDelete,
         workspacesToKeep,
         workspacesToDelete,
+        protectedEmails, // Show which emails are protected
         countsToDelete: {
           waitlist: waitlistCount || 0,
           betaTokens: betaTokensCount || 0,
@@ -175,7 +194,7 @@ Deno.serve(async (req) => {
         .from('workspaces')
         .select('id, slug, name');
 
-      const workspacesToDelete = allWorkspaces?.filter(w => !KEEP_WORKSPACE_SLUGS.includes(w.slug)) || [];
+      const workspacesToDelete = allWorkspaces?.filter(w => !protectedWorkspaceSlugs.has(w.slug)) || [];
       console.log(`Found ${workspacesToDelete.length} workspaces to delete`);
 
       // 5. Delete workspaces (CASCADE handles related data)
@@ -204,7 +223,7 @@ Deno.serve(async (req) => {
         .from('profiles')
         .select('id, email');
 
-      const usersToDelete = allUsers?.filter(u => !KEEP_EMAILS.includes(u.email)) || [];
+      const usersToDelete = allUsers?.filter(u => !isProtectedEmail(u.email)) || [];
       console.log(`Found ${usersToDelete.length} users to delete`);
 
       // 7. Delete users via Auth Admin API

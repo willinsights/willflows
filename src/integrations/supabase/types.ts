@@ -2089,6 +2089,30 @@ export type Database = {
         }
         Relationships: []
       }
+      protected_accounts: {
+        Row: {
+          email: string
+          id: string
+          protected_at: string | null
+          protected_by: string | null
+          reason: string | null
+        }
+        Insert: {
+          email: string
+          id?: string
+          protected_at?: string | null
+          protected_by?: string | null
+          reason?: string | null
+        }
+        Update: {
+          email?: string
+          id?: string
+          protected_at?: string | null
+          protected_by?: string | null
+          reason?: string | null
+        }
+        Relationships: []
+      }
       stripe_webhook_log: {
         Row: {
           created_at: string | null
@@ -2212,16 +2236,19 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          is_protected: boolean | null
           user_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
+          is_protected?: boolean | null
           user_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
+          is_protected?: boolean | null
           user_id?: string
         }
         Relationships: []
@@ -3045,6 +3072,7 @@ export type Database = {
         Args: { p_conversation_id: string; p_user_id: string }
         Returns: boolean
       }
+      is_protected_account: { Args: { _email: string }; Returns: boolean }
       is_public_channel_in_user_workspace: {
         Args: { p_conversation_id: string; p_user_id: string }
         Returns: boolean
@@ -3076,7 +3104,13 @@ export type Database = {
       mask_email: { Args: { _email: string }; Returns: string }
       reopen_project: { Args: { p_project_id: string }; Returns: Json }
       sign_contract_public: {
-        Args: { _signature_data: string; _signer_name: string; _token: string }
+        Args: {
+          _ip_address?: string
+          _signature_data: string
+          _signer_name: string
+          _token: string
+          _user_agent?: string
+        }
         Returns: Json
       }
       validate_promo_code: { Args: { _code: string }; Returns: Json }
