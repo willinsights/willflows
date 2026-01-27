@@ -243,15 +243,9 @@ export default function Landing() {
             "offers": {
               "@type": "AggregateOffer",
               "priceCurrency": "EUR",
-              "lowPrice": "0",
-              "highPrice": "99",
+              "lowPrice": "14",
+              "highPrice": "49",
               "offerCount": "3"
-            },
-            "aggregateRating": {
-              "@type": "AggregateRating",
-              "ratingValue": "5",
-              "ratingCount": "1",
-              "bestRating": "5"
             },
             "creator": {
               "@type": "Organization",
