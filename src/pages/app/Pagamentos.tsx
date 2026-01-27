@@ -132,13 +132,21 @@ export default function Pagamentos() {
   }, [currentWorkspace?.id]);
 
   // Filter projects for current month view (by delivery_date or client_payment_due_date)
+  // Projects WITHOUT a due date show in current month only (as "undated/pending scheduling")
   const monthProjectRevenue = useMemo(() => {
     const start = startOfMonth(currentMonth);
     const end = endOfMonth(currentMonth);
+    const now = new Date();
+    const isCurrentMonthView = isWithinInterval(now, { start, end });
     
     return projectRevenue.filter(project => {
       const dateToCheck = project.client_payment_due_date || project.delivery_date;
-      if (!dateToCheck) return false;
+      
+      // If no date, show in current month view (fallback for undated projects)
+      if (!dateToCheck) {
+        return isCurrentMonthView;
+      }
+      
       const date = new Date(dateToCheck);
       return isWithinInterval(date, { start, end });
     });
