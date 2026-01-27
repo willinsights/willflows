@@ -34,6 +34,7 @@ import { useFilteredProjects, ProjectWithClient } from '@/hooks/useFilteredProje
 import { useCalendarEvents } from '@/hooks/useCalendarEvents';
 import { ProjectDetailsSheet } from '@/components/projects/ProjectDetailsSheet';
 import { CreateEventModal } from '@/components/calendar/CreateEventModal';
+import { EventDetailsModal } from '@/components/calendar/EventDetailsModal';
 import { DraggableCalendarItem, CalendarItem, getTypeColor, getTypeLabel } from '@/components/calendar/DraggableCalendarItem';
 import { DroppableCalendarSlot } from '@/components/calendar/DroppableCalendarSlot';
 import { useToast } from '@/hooks/use-toast';
@@ -47,6 +48,20 @@ const typeIcons: Record<string, any> = {
   foto_video: Video,
 };
 
+// Type for event details
+interface CalendarEventDetails {
+  id: string;
+  title: string;
+  startAt: Date;
+  endAt: Date | null;
+  location: string | null;
+  eventType: string;
+  projectName?: string;
+  description?: string | null;
+  videoCallUrl?: string | null;
+  allDay?: boolean;
+}
+
 export default function Calendario() {
   const { projects, refresh } = useFilteredProjects();
   const updateProject = async (id: string, updates: any) => {
@@ -56,7 +71,7 @@ export default function Calendario() {
       .eq('id', id);
     if (!error) refresh();
   };
-  const { events, createEvent, refresh: refreshEvents, sourceFilter, setSourceFilter } = useCalendarEvents();
+  const { events, createEvent, updateEvent, refresh: refreshEvents, sourceFilter, setSourceFilter } = useCalendarEvents();
   const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
@@ -64,6 +79,8 @@ export default function Calendario() {
   const [selectedProject, setSelectedProject] = useState<ProjectWithClient | null>(null);
   const [showProjectDetails, setShowProjectDetails] = useState(false);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
+  const [showEventDetails, setShowEventDetails] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEventDetails | null>(null);
   const [newEventDate, setNewEventDate] = useState<Date | undefined>();
   const [newEventHour, setNewEventHour] = useState<number | undefined>();
   const [activeItem, setActiveItem] = useState<CalendarItem | null>(null);
@@ -223,14 +240,41 @@ export default function Calendario() {
     refresh();
   }, [updateProject, refresh, toast]);
 
-  // Handle item click to open project details
+  // Handle item click to open project details or event details
   const handleItemClick = (item: CalendarItem, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (item.projectId) {
+    
+    // If it's a project-based item (shoot, delivery, or meeting from project)
+    if (item.projectId && (item.type === 'shoot' || item.type === 'delivery')) {
       const project = projects.find(p => p.id === item.projectId);
       if (project) {
         setSelectedProject(project);
         setShowProjectDetails(true);
+        setSelectedDate(null);
+      }
+      return;
+    }
+    
+    // If it's an event or meeting from calendar_events table
+    if (item.type === 'event' || item.type === 'meeting') {
+      // Find the event in the events array
+      const eventId = item.id.replace('event-', '');
+      const event = events.find(e => e.id === eventId);
+      
+      if (event) {
+        setSelectedEvent({
+          id: event.id,
+          title: event.title,
+          startAt: new Date(event.start_at),
+          endAt: event.end_at ? new Date(event.end_at) : null,
+          location: event.location,
+          eventType: event.event_type,
+          projectName: event.projects?.name,
+          description: event.description,
+          videoCallUrl: event.video_call_url,
+          allDay: event.all_day,
+        });
+        setShowEventDetails(true);
         setSelectedDate(null);
       }
     }
@@ -260,6 +304,42 @@ export default function Calendario() {
       refreshEvents();
     }
     return result;
+  };
+
+  // Handle edit from details modal - open create modal in edit mode
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  
+  const handleEditEvent = (eventDetails: CalendarEventDetails) => {
+    // Find the full event data
+    const event = events.find(e => e.id === eventDetails.id);
+    if (event) {
+      // Set the event to edit and open create modal
+      setEditingEventId(event.id);
+      setNewEventDate(new Date(event.start_at));
+      const hour = new Date(event.start_at).getHours();
+      setNewEventHour(hour);
+      setShowCreateEvent(true);
+    }
+  };
+
+  // Handle event update
+  const handleUpdateEvent = async (eventData: {
+    title: string;
+    description?: string;
+    start_at: string;
+    end_at?: string;
+    all_day: boolean;
+    location?: string;
+    event_type: string;
+    video_call_url?: string;
+  }) => {
+    if (editingEventId) {
+      await updateEvent(editingEventId, eventData);
+      setEditingEventId(null);
+      refreshEvents();
+      return { id: editingEventId } as any;
+    }
+    return handleCreateEvent(eventData);
   };
 
   // Navigation handlers based on view mode
@@ -768,10 +848,22 @@ export default function Calendario() {
       {/* Create Event Modal */}
       <CreateEventModal
         open={showCreateEvent}
-        onOpenChange={setShowCreateEvent}
-        onSubmit={handleCreateEvent}
+        onOpenChange={(open) => {
+          setShowCreateEvent(open);
+          if (!open) setEditingEventId(null);
+        }}
+        onSubmit={handleUpdateEvent}
         initialDate={newEventDate}
         initialHour={newEventHour}
+        editingEvent={editingEventId ? events.find(e => e.id === editingEventId) : undefined}
+      />
+
+      {/* Event Details Modal */}
+      <EventDetailsModal
+        event={selectedEvent}
+        open={showEventDetails}
+        onOpenChange={setShowEventDetails}
+        onEdit={handleEditEvent}
       />
     </div>
   );

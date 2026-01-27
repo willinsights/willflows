@@ -10,6 +10,7 @@ import {
   ExternalLink,
   Camera,
   Users,
+  Pencil,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -47,6 +48,7 @@ interface EventDetailsModalProps {
   event: EventDetails | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onEdit?: (event: EventDetails) => void;
 }
 
 const eventTypeConfig: Record<string, { icon: typeof CalendarIcon; label: string; color: string }> = {
@@ -65,7 +67,7 @@ function isGoogleMeetUrl(url?: string | null): boolean {
   return url.includes('meet.google.com') || url.includes('hangouts.google.com');
 }
 
-export function EventDetailsModal({ event, open, onOpenChange }: EventDetailsModalProps) {
+export function EventDetailsModal({ event, open, onOpenChange, onEdit }: EventDetailsModalProps) {
   if (!event) return null;
 
   const config = eventTypeConfig[event.eventType] || eventTypeConfig.outro;
@@ -177,7 +179,20 @@ export function EventDetailsModal({ event, open, onOpenChange }: EventDetailsMod
           )}
         </div>
 
-        <div className="flex justify-end mt-6">
+        <div className="flex justify-end gap-2 mt-6">
+          {onEdit && !event.isGoogleImport && (
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                onEdit(event);
+                onOpenChange(false);
+              }}
+              className="gap-2"
+            >
+              <Pencil className="h-4 w-4" />
+              Editar
+            </Button>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Fechar
           </Button>

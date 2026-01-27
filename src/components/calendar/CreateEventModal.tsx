@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
+import type { CalendarEventWithProject } from '@/hooks/useCalendarEvents';
 
 // Google Meet icon SVG
 const GoogleMeetIcon = ({ className }: { className?: string }) => (
@@ -37,7 +38,7 @@ const GoogleMeetIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-interface CreateEventModalProps {
+export interface CreateEventModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (event: {
@@ -53,6 +54,7 @@ interface CreateEventModalProps {
   }, options?: { autoCreateMeet?: boolean }) => Promise<any>;
   initialDate?: Date;
   initialHour?: number;
+  editingEvent?: CalendarEventWithProject;
 }
 
 export function CreateEventModal({
@@ -61,6 +63,7 @@ export function CreateEventModal({
   onSubmit,
   initialDate,
   initialHour,
+  editingEvent,
 }: CreateEventModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [title, setTitle] = useState('');
@@ -81,6 +84,35 @@ export function CreateEventModal({
 
   const { connection, loading: loadingConnection } = useGoogleCalendar();
   const isGoogleConnected = connection?.is_connected;
+
+  const isEditMode = !!editingEvent;
+
+  // Populate form when editing
+  useEffect(() => {
+    if (editingEvent && open) {
+      setTitle(editingEvent.title);
+      setDescription(editingEvent.description || '');
+      setDate(new Date(editingEvent.start_at));
+      setAllDay(editingEvent.all_day);
+      setLocation(editingEvent.location || '');
+      setEventType(editingEvent.event_type);
+      setVideoCallUrl(editingEvent.video_call_url || '');
+      setIsPrivate(editingEvent.is_private);
+      
+      const startDate = new Date(editingEvent.start_at);
+      setStartTime(`${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`);
+      
+      if (editingEvent.end_at) {
+        const endDate = new Date(editingEvent.end_at);
+        setEndTime(`${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`);
+      }
+    } else if (!editingEvent && open) {
+      // Reset for new event
+      setDate(initialDate || new Date());
+      setStartTime(initialHour ? `${initialHour.toString().padStart(2, '0')}:00` : '09:00');
+      setEndTime(initialHour ? `${(initialHour + 1).toString().padStart(2, '0')}:00` : '10:00');
+    }
+  }, [editingEvent, open, initialDate, initialHour]);
 
   // Reset autoCreateMeet when event type changes
   useEffect(() => {
@@ -155,7 +187,7 @@ export function CreateEventModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarIcon className="h-5 w-5 text-primary" />
-            Novo Evento
+            {isEditMode ? 'Editar Evento' : 'Novo Evento'}
           </DialogTitle>
         </DialogHeader>
 
@@ -366,10 +398,10 @@ export function CreateEventModal({
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {autoCreateMeet ? 'A criar Meet...' : 'A criar...'}
+                  {autoCreateMeet ? 'A criar Meet...' : isEditMode ? 'A guardar...' : 'A criar...'}
                 </>
               ) : (
-                'Criar Evento'
+                isEditMode ? 'Guardar Alterações' : 'Criar Evento'
               )}
             </Button>
           </DialogFooter>
