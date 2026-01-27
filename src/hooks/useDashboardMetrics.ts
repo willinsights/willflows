@@ -205,31 +205,57 @@ export function useDashboardMetrics() {
         ? Math.round(((entregues - entreguesPrevious) / entreguesPrevious) * 100)
         : null;
 
-      // Fetch pending payments with details - ordered from oldest to newest (ascending)
-      const { data: paymentsData } = await supabase
-        .from('payments')
-        .select('id, amount, description, due_date, client_id, project_id, clients(name), projects(name)')
+      // Fetch pending client payments from PROJECTS (source of truth for client payment tracking)
+      // Ordered from oldest to newest by due date; if due date is missing, fallback to delivered/created date.
+      const { data: pendingProjectsData } = await supabase
+        .from('projects')
+        .select(
+          [
+            'id',
+            'name',
+            'agreed_value',
+            'client_payment_status',
+            'client_payment_due_date',
+            'delivered_at',
+            'created_at',
+            'client_id',
+            'clients(name)',
+          ].join(',')
+        )
         .eq('workspace_id', currentWorkspace.id)
-        .eq('is_receivable', true)
-        .eq('status', 'pendente')
-        .order('due_date', { ascending: true, nullsFirst: true })
-        .limit(10);
+        .in('client_payment_status', ['pendente', 'vencido'])
+        .order('client_payment_due_date', { ascending: true, nullsFirst: true })
+        .limit(1000);
 
-      const pendingPayments = paymentsData?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
-      const pendingPaymentsCount = paymentsData?.length || 0;
-      
-      // Map to PendingPaymentItem format
-      const paymentItems: PendingPaymentItem[] = paymentsData?.map(p => ({
-        id: p.id,
-        description: p.description,
-        amount: p.amount,
-        dueDate: p.due_date,
-        clientName: (p.clients as any)?.name || null,
-        projectName: (p.projects as any)?.name || null,
-        isOverdue: p.due_date ? new Date(p.due_date) < new Date() : false,
-      })) || [];
-      
-      setPendingPaymentItems(paymentItems);
+      const normalizedItems: PendingPaymentItem[] = (pendingProjectsData || []).map((p: any) => {
+        const fallbackDate = p.delivered_at || p.created_at || null;
+        const dueDate = p.client_payment_due_date || (fallbackDate ? String(fallbackDate).slice(0, 10) : null);
+        const isOverdue =
+          p.client_payment_status === 'vencido' ||
+          (dueDate ? new Date(dueDate) < new Date() : false);
+
+        return {
+          id: p.id,
+          description: p.name ? `Pagamento do projeto: ${p.name}` : 'Pagamento do projeto',
+          amount: Number(p.agreed_value || 0),
+          dueDate,
+          clientName: (p.clients as any)?.name || null,
+          projectName: p.name || null,
+          isOverdue,
+        };
+      });
+
+      // Stable sort: oldest first using dueDate (or delivered/created fallback above)
+      const sortedItems = normalizedItems.sort((a, b) => {
+        const aTime = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+        const bTime = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+        return aTime - bTime;
+      });
+
+      // List shows a subset; totals use full dataset
+      setPendingPaymentItems(sortedItems.slice(0, 50));
+      const pendingPayments = sortedItems.reduce((sum, p) => sum + (p.amount || 0), 0);
+      const pendingPaymentsCount = sortedItems.length;
 
       // Calculate personal earnings for collaborators (meusGanhos)
       let meusGanhos = 0;
