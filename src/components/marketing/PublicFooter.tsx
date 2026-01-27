@@ -1,3 +1,4 @@
+import React, { forwardRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Logo } from '@/components/ui/logo';
 
@@ -32,9 +33,10 @@ const footerLinks = {
   ],
 };
 
-export function PublicFooter() {
-  return (
-    <footer className="py-16 px-4 border-t border-border bg-muted/30">
+export const PublicFooter = forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
+  function PublicFooter(props, ref) {
+    return (
+      <footer ref={ref} {...props} className="py-16 px-4 border-t border-border bg-muted/30">
       <div className="container mx-auto">
         <div className="grid grid-cols-2 md:grid-cols-6 gap-8 mb-12">
           {/* Brand */}
@@ -127,5 +129,6 @@ export function PublicFooter() {
         </div>
       </div>
     </footer>
-  );
-}
+    );
+  }
+);

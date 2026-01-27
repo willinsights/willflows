@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo, forwardRef } from 'react';
 import { Link } from 'react-router-dom';
 import { X, Sparkles, ArrowRight, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -46,7 +46,7 @@ const TimeBlock = memo(function TimeBlock({ value, label }: { value: number; lab
   );
 });
 
-export const LaunchBannerOptimized = memo(function LaunchBannerOptimized({ variant = 'floating' }: LaunchBannerProps) {
+export const LaunchBannerOptimized = memo(forwardRef<HTMLDivElement, LaunchBannerProps>(function LaunchBannerOptimized({ variant = 'floating' }, ref) {
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(calculateTimeLeft);
   const [isDismissed, setIsDismissed] = useState(true); // Start hidden
   const [isVisible, setIsVisible] = useState(false);
@@ -140,7 +140,7 @@ export const LaunchBannerOptimized = memo(function LaunchBannerOptimized({ varia
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:bottom-6 z-50 md:max-w-md animate-in slide-in-from-bottom-4 fade-in duration-300">
+    <div ref={ref} className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:bottom-6 z-50 md:max-w-md animate-in slide-in-from-bottom-4 fade-in duration-300">
       <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-primary via-primary/90 to-[hsl(280,80%,50%)] p-4 md:p-5 shadow-2xl shadow-primary/30">
         {/* Static background - no animation for performance */}
         <div className="absolute inset-0 opacity-30">
@@ -198,4 +198,4 @@ export const LaunchBannerOptimized = memo(function LaunchBannerOptimized({ varia
       </div>
     </div>
   );
-});
+}));
