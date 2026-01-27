@@ -403,7 +403,7 @@ function ConversationItem({
         )}
       </div>
 
-      {conversation.unread_count && conversation.unread_count > 0 && (
+      {typeof conversation.unread_count === 'number' && conversation.unread_count > 0 && (
         <span className="bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shrink-0">
           {conversation.unread_count > 99 ? '99+' : conversation.unread_count}
         </span>
