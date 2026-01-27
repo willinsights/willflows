@@ -205,14 +205,14 @@ export function useDashboardMetrics() {
         ? Math.round(((entregues - entreguesPrevious) / entreguesPrevious) * 100)
         : null;
 
-      // Fetch pending payments with details
+      // Fetch pending payments with details - ordered from oldest to newest (ascending)
       const { data: paymentsData } = await supabase
         .from('payments')
         .select('id, amount, description, due_date, client_id, project_id, clients(name), projects(name)')
         .eq('workspace_id', currentWorkspace.id)
         .eq('is_receivable', true)
         .eq('status', 'pendente')
-        .order('due_date', { ascending: true, nullsFirst: false })
+        .order('due_date', { ascending: true, nullsFirst: true })
         .limit(10);
 
       const pendingPayments = paymentsData?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
