@@ -686,16 +686,20 @@ function ResetBillingSubTab() {
               <AlertTriangle className="h-4 w-4 text-amber-500" />
               Contas Protegidas (não serão afetadas):
             </p>
-            <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-              <li>willdesign7@gmail.com (Super Admin)</li>
-              <li>geral@willflow.app</li>
-              <li>moraisdanobrega@gmail.com</li>
-              <li>pedro.nobre@phormulagroup.com</li>
-              <li>pablosouza7101997@gmail.com</li>
-              <li>juniomedialab@gmail.com</li>
-              <li>lukasalmeida1500@gmail.com</li>
-              <li>Contas de teste (*@test.willflow.local)</li>
-            </ul>
+            {resetPreview?.protectedEmails ? (
+              <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                {resetPreview.protectedEmails.map((email: string) => (
+                  <li key={email}>{email}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground text-xs">
+                Clique em "Pré-visualizar" para ver a lista de contas protegidas configuradas na base de dados.
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground mt-2">
+              <em>+ Contas de teste (*@test.willflow.local)</em>
+            </p>
           </div>
 
           <Button 

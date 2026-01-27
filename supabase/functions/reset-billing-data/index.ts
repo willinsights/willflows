@@ -5,11 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Protected emails that won't be affected (only Super Admins)
-const PROTECTED_EMAILS = [
-  'geral@willflow.app',      // Super Admin principal - plano Studio permanente
-  'willdesign7@gmail.com',   // Super Admin secundário
-];
+// Test account email pattern
+const TEST_EMAIL_PATTERN = '@test.willflow.local';
 
 interface PreviewResult {
   subscriptionsToReset: number;
@@ -71,7 +68,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    logStep('User authenticated', { userId: user.id, email: user.email });
+    logStep('User authenticated', { userId: user.id });
 
     // Check if user is system admin
     const { data: adminCheck, error: adminError } = await supabaseAdmin
@@ -90,21 +87,39 @@ Deno.serve(async (req) => {
 
     logStep('Super admin verified');
 
+    // Fetch protected accounts from database
+    const { data: protectedAccounts, error: protectedError } = await supabaseAdmin
+      .from('protected_accounts')
+      .select('email');
+
+    if (protectedError) {
+      logStep('Error fetching protected accounts', { error: protectedError.message });
+      throw new Error('Failed to fetch protected accounts');
+    }
+
+    // Build list of protected emails from database
+    const protectedEmailsFromDB = (protectedAccounts || []).map(a => a.email);
+    logStep('Protected emails loaded from DB', { count: protectedEmailsFromDB.length });
+
     const { action } = await req.json();
 
     if (action === 'preview') {
       logStep('Generating preview');
 
-      // Get protected user IDs
+      // Get protected user IDs (from DB + test accounts)
       const { data: protectedProfiles } = await supabaseAdmin
         .from('profiles')
-        .select('id, email')
-        .or(
-          `email.in.(${PROTECTED_EMAILS.join(',')}),email.like.%@test.willflow.local`
-        );
+        .select('id, email');
 
-      const protectedUserIds = (protectedProfiles || []).map(p => p.id);
-      const protectedEmailsList = (protectedProfiles || []).map(p => p.email);
+      const allProfiles = protectedProfiles || [];
+      
+      // Filter to get protected profiles (in DB list OR matches test pattern)
+      const protectedProfilesList = allProfiles.filter(p => 
+        protectedEmailsFromDB.includes(p.email) || p.email.includes(TEST_EMAIL_PATTERN)
+      );
+
+      const protectedUserIds = protectedProfilesList.map(p => p.id);
+      const protectedEmailsList = protectedProfilesList.map(p => p.email);
 
       logStep('Protected users found', { count: protectedUserIds.length });
 
@@ -147,22 +162,26 @@ Deno.serve(async (req) => {
     if (action === 'execute') {
       logStep('Executing billing reset');
 
-      // Get protected user IDs
+      // Get protected user IDs (from DB + test accounts)
       const { data: protectedProfiles } = await supabaseAdmin
         .from('profiles')
-        .select('id, email')
-        .or(
-          `email.in.(${PROTECTED_EMAILS.join(',')}),email.like.%@test.willflow.local`
-        );
+        .select('id, email');
 
-      const protectedUserIds = (protectedProfiles || []).map(p => p.id);
-      logStep('Protected users', { ids: protectedUserIds });
+      const allProfiles = protectedProfiles || [];
+      
+      // Filter to get protected profiles
+      const protectedProfilesList = allProfiles.filter(p => 
+        protectedEmailsFromDB.includes(p.email) || p.email.includes(TEST_EMAIL_PATTERN)
+      );
+
+      const protectedUserIds = protectedProfilesList.map(p => p.id);
+      logStep('Protected users', { count: protectedUserIds.length });
 
       // 1. Delete all invoices
       const { count: invoicesDeleted } = await supabaseAdmin
         .from('subscription_invoices')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Trick to delete all
+        .neq('id', '00000000-0000-0000-0000-000000000000');
 
       logStep('Invoices deleted', { count: invoicesDeleted });
 
@@ -214,7 +233,7 @@ Deno.serve(async (req) => {
 
       logStep('Subscriptions reset', { count: subscriptionsReset });
 
-      // Log admin action
+      // Log admin action (sanitize - don't log actual emails)
       await supabaseAdmin.from('admin_audit_log').insert({
         admin_user_id: user.id,
         action: 'reset_billing_data',
@@ -224,7 +243,7 @@ Deno.serve(async (req) => {
           subscriptionsReset,
           invoicesDeleted: invoicesDeleted || 0,
           webhooksDeleted: webhooksDeleted || 0,
-          protectedUsers: protectedUserIds.length,
+          protectedUsersCount: protectedUserIds.length,
         },
       });
 
