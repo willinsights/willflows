@@ -67,6 +67,9 @@ export interface UpcomingEvent {
   location: string | null;
   eventType: string;
   projectName?: string;
+  description?: string | null;
+  videoCallUrl?: string | null;
+  allDay?: boolean;
 }
 
 export interface AnnualComparisonData {
@@ -375,7 +378,7 @@ export function useDashboardMetrics() {
       
       const { data: eventsData } = await supabase
         .from('calendar_events')
-        .select('id, title, start_at, end_at, location, event_type, project_id, projects(name)')
+        .select('id, title, start_at, end_at, location, event_type, project_id, description, video_call_url, all_day, projects(name)')
         .eq('workspace_id', currentWorkspace.id)
         .gte('start_at', todayStart.toISOString())
         .lte('start_at', nextWeekDate.toISOString())
@@ -391,6 +394,9 @@ export function useDashboardMetrics() {
           location: e.location,
           eventType: e.event_type,
           projectName: (e.projects as any)?.name,
+          description: e.description,
+          videoCallUrl: e.video_call_url,
+          allDay: e.all_day,
         })) || []
       );
 
