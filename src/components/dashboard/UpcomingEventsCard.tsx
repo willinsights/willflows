@@ -8,7 +8,7 @@ import { format, isToday, isTomorrow } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { EventDetailsModal, EventDetails } from '@/components/calendar/EventDetailsModal';
-
+import { EditEventModal } from '@/components/calendar/EditEventModal';
 export interface UpcomingEvent {
   id: string;
   title: string;
@@ -25,6 +25,7 @@ export interface UpcomingEvent {
 interface UpcomingEventsCardProps {
   events: UpcomingEvent[];
   loading: boolean;
+  onRefresh?: () => void;
 }
 
 const eventTypeIcons: Record<string, typeof Calendar> = {
@@ -44,9 +45,11 @@ function formatEventDate(date: Date): string {
   return format(date, "EEE, d MMM", { locale: pt });
 }
 
-export function UpcomingEventsCard({ events, loading }: UpcomingEventsCardProps) {
+export function UpcomingEventsCard({ events, loading, onRefresh }: UpcomingEventsCardProps) {
   const [selectedEvent, setSelectedEvent] = useState<EventDetails | null>(null);
   const [showEventDetails, setShowEventDetails] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<EventDetails | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const handleEventClick = (event: UpcomingEvent) => {
     setSelectedEvent({
@@ -62,6 +65,18 @@ export function UpcomingEventsCard({ events, loading }: UpcomingEventsCardProps)
       allDay: event.allDay,
     });
     setShowEventDetails(true);
+  };
+
+  const handleEditEvent = (event: EventDetails) => {
+    setShowEventDetails(false);
+    setEditingEvent(event);
+    setShowEditModal(true);
+  };
+
+  const handleEditSuccess = () => {
+    setShowEditModal(false);
+    setEditingEvent(null);
+    onRefresh?.();
   };
 
   return (
@@ -157,6 +172,14 @@ export function UpcomingEventsCard({ events, loading }: UpcomingEventsCardProps)
         event={selectedEvent}
         open={showEventDetails}
         onOpenChange={setShowEventDetails}
+        onEdit={handleEditEvent}
+      />
+
+      <EditEventModal
+        open={showEditModal}
+        onOpenChange={setShowEditModal}
+        event={editingEvent}
+        onSuccess={handleEditSuccess}
       />
     </>
   );

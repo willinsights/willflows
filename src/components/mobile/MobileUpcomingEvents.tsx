@@ -11,11 +11,13 @@ import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import type { UpcomingEvent } from '@/components/dashboard/UpcomingEventsCard';
 import { EventDetailsModal, EventDetails } from '@/components/calendar/EventDetailsModal';
+import { EditEventModal } from '@/components/calendar/EditEventModal';
 
 interface MobileUpcomingEventsProps {
   events: UpcomingEvent[];
   loading: boolean;
   maxItems?: number;
+  onRefresh?: () => void;
 }
 
 const eventTypeIcons: Record<string, typeof Calendar> = {
@@ -39,6 +41,7 @@ export function MobileUpcomingEvents({
   events, 
   loading,
   maxItems = 3,
+  onRefresh,
 }: MobileUpcomingEventsProps) {
   const navigate = useNavigate();
   const displayedEvents = events.slice(0, maxItems);
@@ -46,6 +49,8 @@ export function MobileUpcomingEvents({
   
   const [selectedEvent, setSelectedEvent] = useState<EventDetails | null>(null);
   const [showEventDetails, setShowEventDetails] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<EventDetails | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const handleEventClick = (event: UpcomingEvent) => {
     setSelectedEvent({
@@ -61,6 +66,18 @@ export function MobileUpcomingEvents({
       allDay: event.allDay,
     });
     setShowEventDetails(true);
+  };
+
+  const handleEditEvent = (event: EventDetails) => {
+    setShowEventDetails(false);
+    setEditingEvent(event);
+    setShowEditModal(true);
+  };
+
+  const handleEditSuccess = () => {
+    setShowEditModal(false);
+    setEditingEvent(null);
+    onRefresh?.();
   };
 
   return (
@@ -170,6 +187,14 @@ export function MobileUpcomingEvents({
         event={selectedEvent}
         open={showEventDetails}
         onOpenChange={setShowEventDetails}
+        onEdit={handleEditEvent}
+      />
+
+      <EditEventModal
+        open={showEditModal}
+        onOpenChange={setShowEditModal}
+        event={editingEvent}
+        onSuccess={handleEditSuccess}
       />
     </>
   );
