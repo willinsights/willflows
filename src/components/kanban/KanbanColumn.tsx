@@ -1,8 +1,10 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Plus, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Plus, MoreHorizontal, Pencil, Trash2, GripVertical } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +40,8 @@ interface KanbanColumnProps {
   onAddProject: (columnId: string) => void;
   onProjectClick: (projectId: string) => void;
   isOver?: boolean;
+  isDragging?: boolean;
+  isOverlay?: boolean;
 }
 
 const colorOptions = [
@@ -58,7 +62,7 @@ const OVERSCAN_COUNT = 3;
 // Minimum projects to enable virtualization
 const VIRTUALIZATION_THRESHOLD = 10;
 
-export function KanbanColumn({ column, onUpdateColumn, onDeleteColumn, onAddProject, onProjectClick }: KanbanColumnProps) {
+export function KanbanColumn({ column, onUpdateColumn, onDeleteColumn, onAddProject, onProjectClick, isDragging, isOverlay }: KanbanColumnProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(column.name);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -66,9 +70,33 @@ export function KanbanColumn({ column, onUpdateColumn, onDeleteColumn, onAddProj
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const { setNodeRef, isOver } = useDroppable({
+  // Sortable for column reordering (disabled for final columns)
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setSortableNodeRef,
+    transform,
+    transition,
+  } = useSortable({
+    id: column.id,
+    disabled: column.is_final || isOverlay,
+  });
+
+  // Droppable for receiving projects
+  const { setNodeRef: setDroppableNodeRef, isOver } = useDroppable({
     id: column.id,
   });
+
+  // Combine refs for the column container
+  const setNodeRef = useCallback((node: HTMLDivElement | null) => {
+    setSortableNodeRef(node);
+  }, [setSortableNodeRef]);
+
+  // Transform style for dragging
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
 
   // Memoize project IDs for SortableContext
   const projectIds = useMemo(() => column.projects.map(p => p.id), [column.projects]);
@@ -166,17 +194,33 @@ export function KanbanColumn({ column, onUpdateColumn, onDeleteColumn, onAddProj
   return (
     <>
       <div
+        ref={setNodeRef}
+        style={style}
         className={cn(
           'flex flex-col w-[240px] rounded-lg transition-all duration-200',
           'backdrop-blur-sm',
           column.is_final ? 'bg-success/5' : 'bg-muted/30',
           isOver && 'bg-primary/10 ring-2 ring-primary/40 shadow-lg shadow-primary/10 scale-[1.01]',
-          'hover:shadow-md hover:shadow-black/5'
+          'hover:shadow-md hover:shadow-black/5',
+          isDragging && 'opacity-50',
+          isOverlay && 'shadow-2xl ring-2 ring-primary/60'
         )}
       >
         {/* Column Header - Compact */}
         <div className="flex items-center justify-between px-2 py-1.5 border-b border-border/40">
           <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            {/* Drag handle - only for non-final columns */}
+            {!column.is_final && !isOverlay && (
+              <button
+                {...attributes}
+                {...listeners}
+                className="cursor-grab active:cursor-grabbing p-0.5 -ml-1 rounded hover:bg-muted/50 transition-colors touch-none"
+                title="Arrastar coluna"
+              >
+                <GripVertical className="h-3 w-3 text-muted-foreground" />
+              </button>
+            )}
+            
             <Popover open={showColorPicker} onOpenChange={setShowColorPicker}>
               <PopoverTrigger asChild>
                 <button
@@ -261,7 +305,7 @@ export function KanbanColumn({ column, onUpdateColumn, onDeleteColumn, onAddProj
         {/* Column Content - Virtualized */}
         <div
           ref={(node) => {
-            setNodeRef(node);
+            setDroppableNodeRef(node);
             if (node) {
               scrollContainerRef.current = node;
             }

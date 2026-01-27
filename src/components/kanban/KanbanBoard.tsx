@@ -11,6 +11,11 @@ import {
   closestCenter,
   DragOverEvent,
 } from '@dnd-kit/core';
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable';
 import { motion } from 'framer-motion';
 import { Plus, Search, Loader2 } from 'lucide-react';
 import { isToday, isThisWeek, isThisMonth, isPast } from 'date-fns';
@@ -47,7 +52,7 @@ interface PendingAlertData {
 }
 
 export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
-  const { columns, loading, moveProject, updateColumn, addColumn, deleteColumn, refresh, silentRefresh, pendingAlert, clearPendingAlert } = useKanban(phase);
+  const { columns, loading, moveProject, updateColumn, addColumn, deleteColumn, reorderColumns, refresh, silentRefresh, pendingAlert, clearPendingAlert } = useKanban(phase);
   const { categories } = useCategories();
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<KanbanFilterState>(defaultFilters);
@@ -56,6 +61,10 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
   const [activeProject, setActiveProject] = useState<ProjectWithClient | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
+
+  // Column IDs for distinguishing column vs project drags
+  const columnIds = useMemo(() => columns.map(c => c.id), [columns]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -72,10 +81,18 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
   );
 
   const handleDragStart = (event: DragStartEvent) => {
-    const projectId = event.active.id as string;
+    const activeId = event.active.id as string;
+    
+    // Check if dragging a column
+    if (columnIds.includes(activeId)) {
+      setActiveColumnId(activeId);
+      return;
+    }
+    
+    // Otherwise it's a project
     const project = columns
       .flatMap(c => c.projects)
-      .find(p => p.id === projectId);
+      .find(p => p.id === activeId);
     
     if (project) {
       setActiveProject(project);
@@ -89,13 +106,31 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    const activeId = active.id as string;
+    
+    // Reset drag states
     setActiveProject(null);
+    setActiveColumnId(null);
     setOverId(null);
 
     if (!over) return;
 
-    const projectId = active.id as string;
-    let targetColumnId = over.id as string;
+    const overId = over.id as string;
+
+    // Handle column reordering
+    if (columnIds.includes(activeId)) {
+      const sourceIndex = columns.findIndex(c => c.id === activeId);
+      const targetIndex = columns.findIndex(c => c.id === overId);
+      
+      if (sourceIndex !== -1 && targetIndex !== -1 && sourceIndex !== targetIndex) {
+        reorderColumns(sourceIndex, targetIndex);
+      }
+      return;
+    }
+
+    // Handle project movement
+    const projectId = activeId;
+    let targetColumnId = overId;
 
     // Check if dropped on another project, find its column
     const isProject = columns.some(c => c.projects.some(p => p.id === targetColumnId));
@@ -116,6 +151,12 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
       }
     }
   };
+
+  // Get active column for overlay
+  const activeColumn = useMemo(() => {
+    if (!activeColumnId) return null;
+    return columns.find(c => c.id === activeColumnId) || null;
+  }, [activeColumnId, columns]);
 
   const handleAddProject = useCallback((columnId: string) => {
     setSelectedColumnId(columnId);
@@ -307,46 +348,57 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-2 h-full min-w-max">
-            {filteredColumns.map((column, index) => (
-              <motion.div
-                key={column.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.02 }}
-              >
+          <SortableContext
+            items={columnIds}
+            strategy={horizontalListSortingStrategy}
+          >
+            <div className="flex gap-2 h-full min-w-max">
+              {filteredColumns.map((column, index) => (
                 <KanbanColumn
+                  key={column.id}
                   column={column}
                   onUpdateColumn={updateColumn}
                   onDeleteColumn={deleteColumn}
                   onAddProject={handleAddProject}
                   onProjectClick={handleProjectClick}
                   isOver={overId === column.id}
+                  isDragging={activeColumnId === column.id}
                 />
-              </motion.div>
-            ))}
+              ))}
 
-            {/* Add Column Button */}
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: filteredColumns.length * 0.02 }}
-            >
-              <Button
-                variant="outline"
-                className="h-8 w-[240px] border-dashed text-[11px]"
-                onClick={() => addColumn('Nova Coluna')}
+              {/* Add Column Button */}
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: filteredColumns.length * 0.02 }}
               >
-                <Plus className="h-3 w-3 mr-1" />
-                Adicionar Coluna
-              </Button>
-            </motion.div>
-          </div>
+                <Button
+                  variant="outline"
+                  className="h-8 w-[240px] border-dashed text-[11px]"
+                  onClick={() => addColumn('Nova Coluna')}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Adicionar Coluna
+                </Button>
+              </motion.div>
+            </div>
+          </SortableContext>
 
-          <DragOverlay>
+          <DragOverlay dropAnimation={null}>
             {activeProject && (
               <div className="w-[220px] rotate-1 opacity-90">
                 <KanbanCard project={activeProject} />
+              </div>
+            )}
+            {activeColumn && (
+              <div className="w-[240px] opacity-80 rotate-1">
+                <KanbanColumn
+                  column={activeColumn}
+                  onUpdateColumn={() => {}}
+                  onAddProject={() => {}}
+                  onProjectClick={() => {}}
+                  isOverlay
+                />
               </div>
             )}
           </DragOverlay>
