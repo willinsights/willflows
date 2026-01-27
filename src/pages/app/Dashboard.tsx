@@ -158,6 +158,7 @@ export default function Dashboard() {
           events={upcomingEvents}
           loading={loading}
           maxItems={3}
+          onRefresh={refresh}
         />
 
         {/* Pending Payments - Hidden for collaborators */}
@@ -238,6 +239,7 @@ export default function Dashboard() {
         <UpcomingEventsCard 
           events={upcomingEvents} 
           loading={loading}
+          onRefresh={refresh}
         />
       </div>
 
