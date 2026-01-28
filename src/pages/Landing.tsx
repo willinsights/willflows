@@ -1,4 +1,4 @@
-import { useState, memo, useCallback } from 'react';
+import { useState, memo, forwardRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { trackCtaClick } from '@/lib/google-ads';
@@ -158,47 +158,46 @@ import {
   type Currency,
 } from '@/lib/plans';
 
-// Memoized mobile screenshot card for performance
-// Memoized mobile screenshot card with optimized loading
-const MobileScreenshotCard = memo(function MobileScreenshotCard({ 
-  src, 
-  alt, 
-  index,
-  onClick 
-}: { 
-  src: string; 
-  alt: string; 
+// Memoized mobile screenshot card with forwardRef for AnimatePresence compatibility
+interface MobileScreenshotCardProps {
+  src: string;
+  alt: string;
   index: number;
   onClick: () => void;
-}) {
-  // First card is priority (LCP candidate on mobile)
-  const isPriority = index === 0;
-  
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-label={`Ver ${alt} em detalhe`}
-      className="flex-shrink-0 snap-center first:ml-4 last:mr-4 cursor-pointer animate-in fade-in slide-in-from-right-4"
-      style={{ animationDelay: `${0.3 + index * 0.1}s` }}
-      onClick={onClick}
-      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onClick()}
-    >
-      <div className="w-64 sm:w-72 rounded-xl overflow-hidden shadow-xl shadow-black/30 border border-white/10">
-        <img 
-          src={src} 
-          alt={alt}
-          width={288}
-          height={187}
-          loading={isPriority ? 'eager' : 'lazy'}
-          decoding="async"
-          fetchPriority={isPriority ? 'high' : 'auto'}
-          className="w-full h-auto"
-        />
+}
+
+const MobileScreenshotCard = memo(forwardRef<HTMLDivElement, MobileScreenshotCardProps>(
+  function MobileScreenshotCard({ src, alt, index, onClick }, ref) {
+    // First card is priority (LCP candidate on mobile)
+    const isPriority = index === 0;
+    
+    return (
+      <div
+        ref={ref}
+        role="button"
+        tabIndex={0}
+        aria-label={`Ver ${alt} em detalhe`}
+        className="flex-shrink-0 snap-center first:ml-4 last:mr-4 cursor-pointer animate-in fade-in slide-in-from-right-4"
+        style={{ animationDelay: `${0.3 + index * 0.1}s` }}
+        onClick={onClick}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onClick()}
+      >
+        <div className="w-64 sm:w-72 rounded-xl overflow-hidden shadow-xl shadow-black/30 border border-white/10">
+          <img 
+            src={src} 
+            alt={alt}
+            width={288}
+            height={187}
+            loading={isPriority ? 'eager' : 'lazy'}
+            decoding="async"
+            fetchPriority={isPriority ? 'high' : 'auto'}
+            className="w-full h-auto"
+          />
+        </div>
       </div>
-    </div>
-  );
-});
+    );
+  }
+));
 
 export default function Landing() {
   const [showBRL, setShowBRL] = useState(false);
