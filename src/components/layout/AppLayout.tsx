@@ -16,6 +16,7 @@ import { useTrialWarning } from '@/hooks/useTrialWarning';
 import { FeedbackButton } from '@/components/feedback/FeedbackButton';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { useChatNotifications } from '@/hooks/useChatNotifications';
+import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 
 const RETRY_COOLDOWN_MS = 5000; // 5 seconds cooldown between retries
@@ -62,6 +63,9 @@ function DesktopAppLayout() {
 
   // Enable global chat notifications (sound + push)
   useChatNotifications();
+  
+  // Enable realtime notifications for projects, tasks, and events
+  useRealtimeNotifications();
 
   // User preferences for sidebar behavior
   const { preferences } = useUserPreferences();

@@ -13,6 +13,7 @@ import { useTrialWarning } from '@/hooks/useTrialWarning';
 import { FeedbackButton } from '@/components/feedback/FeedbackButton';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { useChatNotifications } from '@/hooks/useChatNotifications';
+import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
 import { useRef, useState } from 'react';
 
 const RETRY_COOLDOWN_MS = 5000;
@@ -29,6 +30,7 @@ export function MobileAppLayout() {
 
   useTrialWarning();
   useChatNotifications();
+  useRealtimeNotifications();
 
   const handleRetry = async () => {
     const now = Date.now();
