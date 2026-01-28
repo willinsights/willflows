@@ -1,7 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+
+// VAPID Public Key - must match the one in backend
+const VAPID_PUBLIC_KEY = 'BA4VtBEgZsjDJwmspoLg-p64rPZ-Y40z646qqAC3ZhPRHWJxYooRMLGRK73hPvPGViZX9VbjgdAmmFLVDXAV_FU';
 
 interface PushPreferences {
   push_enabled: boolean;
@@ -17,9 +20,28 @@ interface UsePushNotificationsReturn {
   permission: NotificationPermission | 'unsupported';
   preferences: PushPreferences | null;
   loading: boolean;
+  isSubscribed: boolean;
   requestPermission: () => Promise<boolean>;
   updatePreferences: (prefs: Partial<PushPreferences>) => Promise<void>;
   sendLocalNotification: (title: string, options?: NotificationOptions) => void;
+  subscribeToPush: () => Promise<boolean>;
+  unsubscribeFromPush: () => Promise<void>;
+}
+
+// Convert base64 string to Uint8Array for VAPID key
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+  
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
 }
 
 export function usePushNotifications(): UsePushNotificationsReturn {
@@ -27,8 +49,37 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default');
   const [preferences, setPreferences] = useState<PushPreferences | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const swRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
 
-  const isSupported = typeof window !== 'undefined' && 'Notification' in window;
+  const isSupported = typeof window !== 'undefined' && 
+    'Notification' in window && 
+    'serviceWorker' in navigator && 
+    'PushManager' in window;
+
+  // Register push service worker
+  useEffect(() => {
+    if (!isSupported) return;
+
+    const registerPushSW = async () => {
+      try {
+        // Register the push-specific service worker
+        const registration = await navigator.serviceWorker.register('/sw-push.js', {
+          scope: '/'
+        });
+        swRegistrationRef.current = registration;
+        console.log('[Push] Service Worker registered:', registration.scope);
+
+        // Check if already subscribed
+        const subscription = await registration.pushManager.getSubscription();
+        setIsSubscribed(!!subscription);
+      } catch (error) {
+        console.error('[Push] SW registration failed:', error);
+      }
+    };
+
+    registerPushSW();
+  }, [isSupported]);
 
   // Check current permission status
   useEffect(() => {
@@ -37,6 +88,23 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     } else {
       setPermission('unsupported');
     }
+  }, [isSupported]);
+
+  // Listen for subscription change messages from SW
+  useEffect(() => {
+    if (!isSupported) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'PUSH_SUBSCRIPTION_CHANGED') {
+        console.log('[Push] Subscription changed, re-subscribing...');
+        subscribeToPush();
+      }
+    };
+
+    navigator.serviceWorker.addEventListener('message', handleMessage);
+    return () => {
+      navigator.serviceWorker.removeEventListener('message', handleMessage);
+    };
   }, [isSupported]);
 
   // Fetch user preferences from database
@@ -50,7 +118,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       try {
         const { data, error } = await supabase
           .from('user_push_preferences')
-          .select('push_enabled, events_enabled, deadlines_enabled, advance_hours, messages_enabled, sound_enabled')
+          .select('push_enabled, events_enabled, deadlines_enabled, advance_hours, messages_enabled, sound_enabled, push_subscription')
           .eq('user_id', user.id)
           .maybeSingle();
 
@@ -65,6 +133,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
             messages_enabled: data.messages_enabled ?? true,
             sound_enabled: data.sound_enabled ?? true,
           });
+          setIsSubscribed(!!data.push_subscription);
         } else {
           // Default preferences
           setPreferences({
@@ -86,6 +155,100 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     fetchPreferences();
   }, [user?.id]);
 
+  // Subscribe to push notifications
+  const subscribeToPush = useCallback(async (): Promise<boolean> => {
+    if (!isSupported || !user?.id) {
+      return false;
+    }
+
+    try {
+      // Wait for service worker to be ready
+      const registration = await navigator.serviceWorker.ready;
+      swRegistrationRef.current = registration;
+
+      // Check existing subscription
+      let subscription = await registration.pushManager.getSubscription();
+      
+      if (!subscription) {
+        // Subscribe to push - use ArrayBuffer directly
+        const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: applicationServerKey.buffer as ArrayBuffer,
+        });
+        console.log('[Push] New subscription created');
+      }
+
+      // Save subscription to database
+      const subscriptionJSON = subscription.toJSON();
+      
+      // First try to update existing record
+      const { data: existing } = await supabase
+        .from('user_push_preferences')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from('user_push_preferences')
+          .update({
+            push_subscription: JSON.parse(JSON.stringify(subscriptionJSON)),
+            push_enabled: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', user.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('user_push_preferences')
+          .insert([{
+            user_id: user.id,
+            push_subscription: JSON.parse(JSON.stringify(subscriptionJSON)),
+            push_enabled: true,
+          }]);
+        if (error) throw error;
+      }
+
+      setIsSubscribed(true);
+      console.log('[Push] Subscription saved to database');
+      return true;
+    } catch (error) {
+      console.error('[Push] Subscription error:', error);
+      toast.error('Erro ao ativar notificações push');
+      return false;
+    }
+  }, [isSupported, user?.id]);
+
+  // Unsubscribe from push
+  const unsubscribeFromPush = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      
+      if (subscription) {
+        await subscription.unsubscribe();
+      }
+
+      // Remove subscription from database
+      await supabase
+        .from('user_push_preferences')
+        .update({
+          push_subscription: null,
+          push_enabled: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id);
+
+      setIsSubscribed(false);
+      console.log('[Push] Unsubscribed successfully');
+    } catch (error) {
+      console.error('[Push] Unsubscribe error:', error);
+    }
+  }, [user?.id]);
+
   // Request notification permission
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (!isSupported) {
@@ -98,8 +261,12 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       setPermission(result);
 
       if (result === 'granted') {
-        toast.success('Notificações push ativadas!');
-        return true;
+        // Auto-subscribe when permission granted
+        const subscribed = await subscribeToPush();
+        if (subscribed) {
+          toast.success('Notificações push ativadas!');
+        }
+        return subscribed;
       } else if (result === 'denied') {
         toast.error('Permissão para notificações foi negada');
         return false;
@@ -110,7 +277,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       toast.error('Erro ao pedir permissão para notificações');
       return false;
     }
-  }, [isSupported]);
+  }, [isSupported, subscribeToPush]);
 
   // Update preferences in database
   const updatePreferences = useCallback(async (prefs: Partial<PushPreferences>) => {
@@ -118,11 +285,32 @@ export function usePushNotifications(): UsePushNotificationsReturn {
 
     const newPrefs = { ...preferences, ...prefs };
     
+    // If enabling push, ensure subscription exists
+    if (prefs.push_enabled === true && !isSubscribed) {
+      const subscribed = await subscribeToPush();
+      if (!subscribed) {
+        toast.error('Não foi possível ativar notificações push');
+        return;
+      }
+    }
+    
+    // If disabling push, remove subscription
+    if (prefs.push_enabled === false && isSubscribed) {
+      await unsubscribeFromPush();
+    }
+    
     try {
+      // First check if record exists
+      const { data: existing } = await supabase
+        .from('user_push_preferences')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (existing) {
         const { error } = await supabase
           .from('user_push_preferences')
-          .upsert({
-            user_id: user.id,
+          .update({
             push_enabled: newPrefs.push_enabled,
             events_enabled: newPrefs.events_enabled,
             deadlines_enabled: newPrefs.deadlines_enabled,
@@ -130,11 +318,23 @@ export function usePushNotifications(): UsePushNotificationsReturn {
             messages_enabled: newPrefs.messages_enabled,
             sound_enabled: newPrefs.sound_enabled,
             updated_at: new Date().toISOString(),
-          }, {
-          onConflict: 'user_id'
-        });
-
-      if (error) throw error;
+          })
+          .eq('user_id', user.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('user_push_preferences')
+          .insert([{
+            user_id: user.id,
+            push_enabled: newPrefs.push_enabled,
+            events_enabled: newPrefs.events_enabled,
+            deadlines_enabled: newPrefs.deadlines_enabled,
+            advance_hours: newPrefs.advance_hours,
+            messages_enabled: newPrefs.messages_enabled,
+            sound_enabled: newPrefs.sound_enabled,
+          }]);
+        if (error) throw error;
+      }
 
       setPreferences(newPrefs as PushPreferences);
       toast.success('Preferências atualizadas');
@@ -142,7 +342,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       console.error('Error updating preferences:', error);
       toast.error('Erro ao guardar preferências');
     }
-  }, [user?.id, preferences]);
+  }, [user?.id, preferences, isSubscribed, subscribeToPush, unsubscribeFromPush]);
 
   // Send a local notification
   const sendLocalNotification = useCallback((title: string, options?: NotificationOptions) => {
@@ -172,8 +372,11 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     permission,
     preferences,
     loading,
+    isSubscribed,
     requestPermission,
     updatePreferences,
     sendLocalNotification,
+    subscribeToPush,
+    unsubscribeFromPush,
   };
 }

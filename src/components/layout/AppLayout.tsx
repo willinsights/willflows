@@ -18,6 +18,7 @@ import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { useChatNotifications } from '@/hooks/useChatNotifications';
 import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { useGlobalBadge } from '@/hooks/useGlobalBadge';
 
 const RETRY_COOLDOWN_MS = 5000; // 5 seconds cooldown between retries
 
@@ -66,6 +67,9 @@ function DesktopAppLayout() {
   
   // Enable realtime notifications for projects, tasks, and events
   useRealtimeNotifications();
+
+  // Enable PWA badge for unread notifications
+  useGlobalBadge();
 
   // User preferences for sidebar behavior
   const { preferences } = useUserPreferences();

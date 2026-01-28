@@ -1,12 +1,14 @@
-import { Bell, BellOff, Calendar, Clock, AlertTriangle, MessageSquare, Volume2 } from 'lucide-react';
+import { Bell, BellOff, Calendar, Clock, AlertTriangle, MessageSquare, Volume2, Smartphone } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { Skeleton } from '@/components/ui/skeleton';
+import { isBadgeSupported } from '@/hooks/usePWABadge';
 
 export function PushNotificationSettings() {
   const {
@@ -14,6 +16,7 @@ export function PushNotificationSettings() {
     permission,
     preferences,
     loading,
+    isSubscribed,
     requestPermission,
     updatePreferences,
   } = usePushNotifications();
@@ -57,15 +60,24 @@ export function PushNotificationSettings() {
   const needsPermission = permission !== 'granted';
   const isDenied = permission === 'denied';
 
+  const badgeSupported = isBadgeSupported();
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bell className="h-5 w-5" />
           Notificações Push
+          {isSubscribed && (
+            <Badge variant="secondary" className="text-xs">
+              <Smartphone className="h-3 w-3 mr-1" />
+              Ativo
+            </Badge>
+          )}
         </CardTitle>
         <CardDescription>
           Receba alertas sobre eventos próximos e prazos de entrega
+          {badgeSupported && " • O ícone da app mostra o número de notificações não lidas"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -81,7 +93,7 @@ export function PushNotificationSettings() {
             <div className="space-y-1">
               <p className="font-medium">Ativar notificações</p>
               <p className="text-sm text-muted-foreground">
-                Permita notificações para receber alertas
+                Permita notificações para receber alertas mesmo quando o app está fechado
               </p>
             </div>
             <Button onClick={requestPermission}>
