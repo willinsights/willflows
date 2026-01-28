@@ -7,7 +7,7 @@ import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
-
+import * as XLSX from 'xlsx';
 export interface ExportData {
   id?: string;
   projeto: string;
@@ -135,7 +135,7 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
     });
   };
 
-  const exportToCSV = () => {
+  const exportToExcel = () => {
     if (data.length === 0 && !forecastSummary) {
       toast({
         title: 'Sem dados',
@@ -147,78 +147,88 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
 
     const labels = getColumnLabels();
     const keys = getRelevantKeys();
-    const headers = keys.map(k => labels[k]);
+    const totals = calculateTotals();
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
     
-    // BOM for UTF-8
-    let csvContent = '\ufeff';
-    
-    // Add professional header
-    csvContent += `"${reportTitle}"\n`;
-    csvContent += `"${workspaceName}"\n`;
-    csvContent += `"Exportado: ${currentDateTime}"\n`;
-    csvContent += `"Total: ${data.length} registos"\n\n`;
+    // Build the data array for the sheet
+    const sheetData: (string | number)[][] = [];
+
+    // Add header section
+    sheetData.push([reportTitle]);
+    sheetData.push([workspaceName]);
+    sheetData.push([`Exportado: ${currentDateTime}`]);
+    sheetData.push([`Total: ${data.length} registos`]);
+    sheetData.push([]); // Empty row
 
     // Add forecast summary for previsao type
     if (type === 'previsao' && forecastSummary) {
-      csvContent += `"RESUMO FINANCEIRO"\n`;
-      csvContent += `"Previsão de Entrada";"${forecastSummary.receivable}"\n`;
-      csvContent += `"Previsão de Saída";"${forecastSummary.totalPayable}"\n`;
-      csvContent += `"Saldo Previsto";"${forecastSummary.net}"\n\n`;
+      sheetData.push(['RESUMO FINANCEIRO']);
+      sheetData.push(['Previsão de Entrada', forecastSummary.receivable]);
+      sheetData.push(['Previsão de Saída', forecastSummary.totalPayable]);
+      sheetData.push(['Saldo Previsto', forecastSummary.net]);
+      sheetData.push([]);
       
       if (forecastSummary.teamTotal || forecastSummary.custosExtras || forecastSummary.payable) {
-        csvContent += `"DETALHES DE SAÍDAS"\n`;
+        sheetData.push(['DETALHES DE SAÍDAS']);
         if (forecastSummary.teamTotal && forecastSummary.teamTotal !== '0') {
-          csvContent += `"A Pagar Colaboradores";"${forecastSummary.teamTotal}"\n`;
-          if (forecastSummary.teamCaptacao) csvContent += `"  - Captação";"${forecastSummary.teamCaptacao}"\n`;
-          if (forecastSummary.teamEdicao) csvContent += `"  - Edição";"${forecastSummary.teamEdicao}"\n`;
+          sheetData.push(['A Pagar Colaboradores', forecastSummary.teamTotal]);
+          if (forecastSummary.teamCaptacao) sheetData.push(['  - Captação', forecastSummary.teamCaptacao]);
+          if (forecastSummary.teamEdicao) sheetData.push(['  - Edição', forecastSummary.teamEdicao]);
         }
         if (forecastSummary.custosExtras && forecastSummary.custosExtras !== '0') {
-          csvContent += `"Custos Extras";"${forecastSummary.custosExtras}"\n`;
+          sheetData.push(['Custos Extras', forecastSummary.custosExtras]);
         }
         if (forecastSummary.payable && forecastSummary.payable !== '0') {
-          csvContent += `"Outros Pagamentos";"${forecastSummary.payable}"\n`;
+          sheetData.push(['Outros Pagamentos', forecastSummary.payable]);
         }
-        csvContent += '\n';
+        sheetData.push([]);
       }
       
-      csvContent += `"MOVIMENTOS DO MÊS"\n`;
+      sheetData.push(['MOVIMENTOS DO MÊS']);
     }
 
-    // Add data headers and rows
-    csvContent += headers.map(h => `"${h}"`).join(';') + '\n';
+    // Add column headers
+    const headers = keys.map(k => labels[k]);
+    sheetData.push(headers);
     
+    // Add data rows
     data.forEach(row => {
       const cells = keys.map(key => {
         const value = row[key as keyof ExportData] || '-';
-        const escaped = String(value).replace(/"/g, '""');
-        return `"${escaped}"`;
+        return String(value);
       });
-      csvContent += cells.join(';') + '\n';
+      sheetData.push(cells);
     });
 
-    // Calculate and add totals
-    const totals = calculateTotals();
-    csvContent += '\n"TOTAIS"\n';
+    // Add totals section
+    sheetData.push([]);
+    sheetData.push(['TOTAIS']);
     if (type === 'clients') {
-      csvContent += `"Total Pago";"${formatCurrencyValue(totals.pago)}"\n`;
-      csvContent += `"Total Pendente";"${formatCurrencyValue(totals.pendente)}"\n`;
-      csvContent += `"Total Vencido";"${formatCurrencyValue(totals.vencido)}"\n`;
+      sheetData.push(['Total Pago', formatCurrencyValue(totals.pago)]);
+      sheetData.push(['Total Pendente', formatCurrencyValue(totals.pendente)]);
+      sheetData.push(['Total Vencido', formatCurrencyValue(totals.vencido)]);
     }
-    csvContent += `"Total Geral";"${formatCurrencyValue(totals.total)}"\n`;
+    sheetData.push(['Total Geral', formatCurrencyValue(totals.total)]);
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `${filename}-${currentDateFile}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    // Create worksheet from data
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+    // Set column widths
+    const colWidths = keys.map((_, index) => ({ wch: index === 0 ? 15 : 25 }));
+    ws['!cols'] = colWidths;
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Dados');
+
+    // Generate and download the file
+    const excelFilename = `${filename}-${currentDateFile}.xlsx`;
+    XLSX.writeFile(wb, excelFilename);
 
     toast({
       title: 'Exportado com sucesso',
-      description: `Ficheiro ${filename}.csv exportado com ${data.length} registos`,
+      description: `Ficheiro ${excelFilename} exportado com ${data.length} registos`,
     });
   };
 
@@ -624,7 +634,7 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
       checkFeature('exportExcel');
       return;
     }
-    exportToCSV();
+    exportToExcel();
   };
 
   const handlePdfClick = () => {
