@@ -2056,6 +2056,45 @@ export type Database = {
           },
         ]
       }
+      promo_code_redemptions: {
+        Row: {
+          id: string
+          promo_code_id: string
+          redeemed_at: string
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          id?: string
+          promo_code_id: string
+          redeemed_at?: string
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          id?: string
+          promo_code_id?: string
+          redeemed_at?: string
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_code_redemptions_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_code_redemptions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       promo_codes: {
         Row: {
           code: string
@@ -3102,6 +3141,10 @@ export type Database = {
       }
       mark_contract_viewed: { Args: { _token: string }; Returns: Json }
       mask_email: { Args: { _email: string }; Returns: string }
+      record_promo_redemption: {
+        Args: { _promo_code_id: string; _workspace_id?: string }
+        Returns: boolean
+      }
       reopen_project: { Args: { p_project_id: string }; Returns: Json }
       sign_contract_public: {
         Args: {
