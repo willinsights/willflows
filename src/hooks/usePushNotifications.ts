@@ -51,35 +51,73 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   const [loading, setLoading] = useState(true);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const swRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
+  const subscribeToPushRef = useRef<(() => Promise<boolean>) | null>(null);
 
   const isSupported = typeof window !== 'undefined' && 
     'Notification' in window && 
     'serviceWorker' in navigator && 
     'PushManager' in window;
 
+  // IMPORTANT:
+  // We must NOT register a second Service Worker with the same scope ("/") as the main PWA SW,
+  // otherwise the browser will keep swapping registrations (causing controllerchange/reloads).
+  // We register the push SW under a dedicated scope.
+  const PUSH_SW_SCOPE = '/push/';
+
+  const getOrRegisterPushSW = useCallback(async (): Promise<ServiceWorkerRegistration | null> => {
+    if (!isSupported) return null;
+    // Avoid registering during dev to prevent HMR quirks.
+    if (import.meta.env.DEV) return null;
+
+    try {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      const existing = registrations.find((r) => r.active?.scriptURL?.endsWith('/sw-push.js'));
+      if (existing) {
+        // If an older version was registered on scope "/", unregister it to avoid scope conflicts.
+        // (registration.scope is a full URL like "https://domain/" or "https://domain/push/")
+        const scopePath = (() => {
+          try {
+            return new URL(existing.scope).pathname;
+          } catch {
+            return '';
+          }
+        })();
+
+        if (scopePath === '/') {
+          await existing.unregister();
+        } else {
+          return existing;
+        }
+      }
+
+      const registration = await navigator.serviceWorker.register('/sw-push.js', {
+        scope: PUSH_SW_SCOPE,
+      });
+      return registration;
+    } catch (error) {
+      console.error('[Push] SW registration failed:', error);
+      return null;
+    }
+  }, [isSupported]);
+
   // Register push service worker
   useEffect(() => {
     if (!isSupported) return;
 
     const registerPushSW = async () => {
-      try {
-        // Register the push-specific service worker
-        const registration = await navigator.serviceWorker.register('/sw-push.js', {
-          scope: '/'
-        });
-        swRegistrationRef.current = registration;
-        console.log('[Push] Service Worker registered:', registration.scope);
+      const registration = await getOrRegisterPushSW();
+      if (!registration) return;
 
-        // Check if already subscribed
-        const subscription = await registration.pushManager.getSubscription();
-        setIsSubscribed(!!subscription);
-      } catch (error) {
-        console.error('[Push] SW registration failed:', error);
-      }
+      swRegistrationRef.current = registration;
+      console.log('[Push] Service Worker registered:', registration.scope);
+
+      // Check if already subscribed
+      const subscription = await registration.pushManager.getSubscription();
+      setIsSubscribed(!!subscription);
     };
 
     registerPushSW();
-  }, [isSupported]);
+  }, [isSupported, getOrRegisterPushSW]);
 
   // Check current permission status
   useEffect(() => {
@@ -97,7 +135,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'PUSH_SUBSCRIPTION_CHANGED') {
         console.log('[Push] Subscription changed, re-subscribing...');
-        subscribeToPush();
+        subscribeToPushRef.current?.();
       }
     };
 
@@ -162,8 +200,11 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     }
 
     try {
-      // Wait for service worker to be ready
-      const registration = await navigator.serviceWorker.ready;
+      const registration = (await getOrRegisterPushSW()) ?? swRegistrationRef.current;
+      if (!registration) {
+        toast.error('Não foi possível preparar o Service Worker');
+        return false;
+      }
       swRegistrationRef.current = registration;
 
       // Check existing subscription
@@ -218,14 +259,20 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       toast.error('Erro ao ativar notificações push');
       return false;
     }
-  }, [isSupported, user?.id]);
+  }, [isSupported, user?.id, getOrRegisterPushSW]);
+
+  // Keep latest subscribe fn available for SW message handler without re-binding listeners
+  useEffect(() => {
+    subscribeToPushRef.current = subscribeToPush;
+  }, [subscribeToPush]);
 
   // Unsubscribe from push
   const unsubscribeFromPush = useCallback(async () => {
     if (!user?.id) return;
 
     try {
-      const registration = await navigator.serviceWorker.ready;
+      const registration = (await getOrRegisterPushSW()) ?? swRegistrationRef.current;
+      if (!registration) return;
       const subscription = await registration.pushManager.getSubscription();
       
       if (subscription) {
@@ -247,7 +294,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     } catch (error) {
       console.error('[Push] Unsubscribe error:', error);
     }
-  }, [user?.id]);
+  }, [user?.id, getOrRegisterPushSW]);
 
   // Request notification permission
   const requestPermission = useCallback(async (): Promise<boolean> => {
