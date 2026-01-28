@@ -278,18 +278,39 @@ export default function Pagamentos() {
       .reduce((sum, p) => sum + (p.agreed_value || 0), 0);
   }, [invoiceableProjects, selectedProjects]);
 
-  // Export data for previsão tab
+  // Export data for previsão tab - includes both project revenue and payments
   const previsaoExportData = useMemo(() => {
-    return monthPayments.map(payment => ({
+    // 1. Project Revenue (Receita de Clientes)
+    const revenueData = monthProjectRevenue.map(project => ({
+      id: project.project_code || project.id.slice(0, 8).toUpperCase(),
+      projeto: project.name,
+      contraparte: project.clients?.name || 'Cliente',
+      tipo: 'Receita Cliente',
+      vencimento: project.client_payment_due_date 
+        ? format(new Date(project.client_payment_due_date), 'dd/MM/yyyy', { locale: pt })
+        : project.delivery_date
+          ? format(new Date(project.delivery_date), 'dd/MM/yyyy', { locale: pt })
+          : '-',
+      status: statusLabels[project.client_payment_status || 'pendente'],
+      valor: `+${formatCurrency(project.agreed_value || 0)}`,
+    }));
+
+    // 2. Other Payments
+    const paymentsData = monthPayments.map(payment => ({
+      id: payment.id.slice(0, 8).toUpperCase(),
       projeto: payment.description || payment.projects?.name || 'Pagamento',
       contraparte: payment.clients?.name || payment.freelancer_name || 'N/A',
+      tipo: payment.is_receivable ? 'Outro Recebimento' : 'Pagamento',
       vencimento: payment.due_date 
         ? format(new Date(payment.due_date), 'dd/MM/yyyy', { locale: pt })
         : '-',
       status: statusLabels[payment.status] || payment.status,
       valor: `${payment.is_receivable ? '+' : '-'}${formatCurrency(payment.amount)}`,
     }));
-  }, [monthPayments, formatCurrency]);
+
+    // Combine both arrays
+    return [...revenueData, ...paymentsData];
+  }, [monthProjectRevenue, monthPayments, formatCurrency]);
 
   // Forecast summary for export
   const forecastSummary = useMemo(() => ({
