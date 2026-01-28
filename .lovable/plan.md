@@ -1,63 +1,95 @@
 
-# Plano: Ativar Reordenação de Colunas no Kanban
+# Plano: Incluir "Receita de Clientes (Preço Projeto)" no Export da Previsão
 
-## Resumo
-Adicionar a funcionalidade de arrastar e soltar (drag-and-drop) para reordenar colunas no Kanban, mantendo a coluna final "Entregue" sempre fixa na última posição.
+## Problema Identificado
 
-## O Que Já Existe
-A função `reorderColumns` já está implementada no `useKanban` e inclui:
-- Validação para impedir mover a coluna final
-- Validação para impedir mover colunas para depois da coluna final
-- Atualização otimista da UI
-- Persistência das novas posições na base de dados
+O export no tab "Previsão" da página de Pagamentos **não inclui os dados de Receita de Clientes (Preço Projeto)**. 
 
-## Alterações Necessárias
+### Análise Técnica
 
-### 1. KanbanBoard.tsx
-- Adicionar contexto de drag-and-drop para colunas (separado do de projetos)
-- Usar `@dnd-kit/sortable` para tornar as colunas arrastáveis
-- Distinguir entre arrastar projetos e arrastar colunas
-- Chamar `reorderColumns` quando uma coluna é movida
+A UI mostra dois tipos de dados na Previsão mensal:
+1. **Receita de Clientes (Preço Projeto)** - dados de `monthProjectRevenue` (projetos com `agreed_value`)
+2. **Outros Movimentos** - dados de `monthPayments` (tabela payments)
 
-### 2. KanbanColumn.tsx
-- Tornar a coluna arrastável usando `useSortable`
-- Adicionar handle de arrasto no cabeçalho da coluna
-- Desativar arrasto para colunas finais (`is_final`)
-- Adicionar feedback visual durante o arrasto
+Contudo, o `previsaoExportData` (linhas 282-292) apenas mapeia `monthPayments`:
 
-## Detalhes Técnicos
-
-### Estratégia de Implementação
 ```text
-+------------------+     +------------------+     +------------------+
-|   Coluna A       |     |   Coluna B       |     |   Entregue      |
-|   (arrastável)   | <-> |   (arrastável)   |     |   (FIXA)        |
-+------------------+     +------------------+     +------------------+
+previsaoExportData = monthPayments.map(...)  // ← Falta monthProjectRevenue!
 ```
 
-### Modificações no KanbanBoard.tsx
-1. Importar `horizontalListSortingStrategy` e `SortableContext`
-2. Envolver as colunas num `SortableContext` horizontal
-3. Criar handler `handleColumnDragEnd` que:
-   - Identifica se o item arrastado é coluna ou projeto
-   - Chama `reorderColumns(sourceIndex, destIndex)` para colunas
-4. Adicionar `DragOverlay` para colunas
+Resultado: ao exportar CSV/PDF na Previsão, os projetos com "Preço Cliente" são ignorados.
 
-### Modificações no KanbanColumn.tsx
-1. Usar `useSortable` em vez de apenas `useDroppable`
-2. Adicionar prop `isDraggable` baseada em `!column.is_final`
-3. Aplicar transforms do sortable ao container
-4. Adicionar ícone de arrasto (GripVertical) no cabeçalho
-5. Cursor `grab/grabbing` para feedback visual
+---
 
-### Distinção entre Projetos e Colunas
-- IDs de colunas: prefixados com `column-` ou verificados contra lista de column IDs
-- IDs de projetos: UUIDs existentes
-- No `handleDragEnd`, verificar se `active.id` corresponde a coluna ou projeto
+## Solução Proposta
+
+Combinar `monthProjectRevenue` + `monthPayments` num único array de export, distinguindo-os pelo campo `tipo`:
+
+### Alteração no ficheiro `src/pages/app/Pagamentos.tsx`
+
+Modificar o `previsaoExportData` (linhas 282-292) para incluir ambas as fontes de dados:
+
+```text
+const previsaoExportData = useMemo(() => {
+  // 1. Project Revenue (Receita de Clientes)
+  const revenueData = monthProjectRevenue.map(project => ({
+    id: project.project_code || project.id.slice(0, 8).toUpperCase(),
+    projeto: project.name,
+    contraparte: project.clients?.name || 'Cliente',
+    tipo: 'Receita Cliente',
+    vencimento: project.client_payment_due_date 
+      ? format(new Date(project.client_payment_due_date), 'dd/MM/yyyy', { locale: pt })
+      : project.delivery_date
+        ? format(new Date(project.delivery_date), 'dd/MM/yyyy', { locale: pt })
+        : '-',
+    status: statusLabels[project.client_payment_status || 'pendente'],
+    valor: `+${formatCurrency(project.agreed_value || 0)}`,
+  }));
+
+  // 2. Other Payments
+  const paymentsData = monthPayments.map(payment => ({
+    id: payment.id.slice(0, 8).toUpperCase(),
+    projeto: payment.description || payment.projects?.name || 'Pagamento',
+    contraparte: payment.clients?.name || payment.freelancer_name || 'N/A',
+    tipo: payment.is_receivable ? 'Outro Recebimento' : 'Pagamento',
+    vencimento: payment.due_date 
+      ? format(new Date(payment.due_date), 'dd/MM/yyyy', { locale: pt })
+      : '-',
+    status: statusLabels[payment.status] || payment.status,
+    valor: `${payment.is_receivable ? '+' : '-'}${formatCurrency(payment.amount)}`,
+  }));
+
+  // Combinar ambos os arrays
+  return [...revenueData, ...paymentsData];
+}, [monthProjectRevenue, monthPayments, formatCurrency]);
+```
+
+---
 
 ## Resultado Esperado
-- Colunas podem ser arrastadas horizontalmente
-- Coluna "Entregue" permanece sempre na última posição
-- Arrastar uma coluna para depois de "Entregue" é bloqueado com toast
-- Projetos continuam a ser arrastados entre colunas normalmente
-- Feedback visual durante o arrasto de colunas
+
+| Antes | Depois |
+|-------|--------|
+| Export só mostra "Outros Movimentos" | Export inclui todos os dados visíveis na UI |
+| "Receita de Clientes" não aparecia | Projetos com Preço Cliente são listados |
+| Resumo do mês incompleto | Export alinhado com os totais apresentados |
+
+---
+
+## Ficheiros a Alterar
+
+| Ficheiro | Alteração |
+|----------|-----------|
+| `src/pages/app/Pagamentos.tsx` | Atualizar `previsaoExportData` para combinar `monthProjectRevenue` + `monthPayments` |
+
+---
+
+## Detalhes de Implementação
+
+1. **Campo `tipo` adicionado**: Permite distinguir entre "Receita Cliente", "Outro Recebimento" e "Pagamento" no export
+2. **Campo `id` incluído**: Código do projeto ou ID parcial para referência
+3. **Ordem dos dados**: Receitas de projetos primeiro, depois outros movimentos
+4. **Formatação consistente**: Valores positivos com `+`, negativos com `-`
+5. **Dependências atualizadas**: `useMemo` agora também observa `monthProjectRevenue`
+
+Esta alteração garante que o export PDF/Excel da Previsão reflete exatamente o que o utilizador vê na interface.
