@@ -72,7 +72,7 @@ function isWorkspaceActive(workspace: WorkspaceWithRole): boolean {
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 const CACHE_KEY = 'willflow_workspace_cache';
-const LAST_WORKSPACE_KEY = 'willflow_last_workspace_id';
+const LAST_WORKSPACE_KEY_PREFIX = 'willflow_last_workspace_';
 const SWITCH_HANDOFF_KEY = 'willflow_workspace_switch_to';
 const FETCH_COOLDOWN_MS = 30000;
 const MAX_RETRIES = 3;
@@ -161,17 +161,18 @@ function getInitialStateFromCache(): {
   };
 }
 
-function getLastWorkspaceId(): string | null {
+function getLastWorkspaceId(userId?: string): string | null {
+  if (!userId) return null;
   try {
-    return localStorage.getItem(LAST_WORKSPACE_KEY);
+    return localStorage.getItem(`${LAST_WORKSPACE_KEY_PREFIX}${userId}`);
   } catch {
     return null;
   }
 }
 
-function setLastWorkspaceId(workspaceId: string) {
+function setLastWorkspaceId(userId: string, workspaceId: string) {
   try {
-    localStorage.setItem(LAST_WORKSPACE_KEY, workspaceId);
+    localStorage.setItem(`${LAST_WORKSPACE_KEY_PREFIX}${userId}`, workspaceId);
   } catch {
     // Ignore
   }
@@ -303,7 +304,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       };
 
       // IMPORTANTE: Guardar no localStorage PRIMEIRO antes de atualizar estado
-      setLastWorkspaceId(workspaceId);
+      setLastWorkspaceId(user.id, workspaceId);
       setCachedWorkspace(user.id, ws, mem, allWorkspaces);
       
       // Reset hasFetchedRef para forçar refetch após reload
@@ -396,11 +397,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
       // Determine which workspace to use - priority order:
       // 1. sessionStorage handoff (from explicit workspace switch)
-      // 2. localStorage last workspace id
+      // 2. localStorage last workspace id (per user)
       // 3. First admin workspace
       // 4. First workspace in list
       const handoffWorkspaceId = getWorkspaceSwitchHandoff();
-      const lastWorkspaceId = getLastWorkspaceId();
+      const lastWorkspaceId = getLastWorkspaceId(user.id);
       let selectedMembership = membershipsData[0]; // Default to first
 
       // Priority 1: Check for explicit switch handoff
@@ -409,7 +410,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         if (found) {
           selectedMembership = found;
           // Apply to localStorage and clear handoff
-          setLastWorkspaceId(handoffWorkspaceId);
+          setLastWorkspaceId(user.id, handoffWorkspaceId);
         }
         // Always clear handoff after reading, even if workspace not found
         clearWorkspaceSwitchHandoff();
@@ -420,8 +421,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         if (found) {
           selectedMembership = found;
         } else {
-          // Last workspace ID is stale - clear it
-          localStorage.removeItem(LAST_WORKSPACE_KEY);
+          // Last workspace ID is stale for this user - ignore (don't clear, might be valid for other sessions)
         }
       }
       // Priority 3: If no last workspace, prefer admin workspaces first
@@ -444,7 +444,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         
         setWorkspace(ws);
         setMembership(mem);
-        setLastWorkspaceId(ws.id);
+        setLastWorkspaceId(user.id, ws.id);
         setCachedWorkspace(user.id, ws, mem, workspacesWithRoles);
         setFetchError(false);
         hasFetchedRef.current = true;
@@ -509,9 +509,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (user) {
       // Verificar se o cache inicial era de outro user
       if (cacheUserMismatch) {
-        // Limpar dados do user anterior
+        // Limpar dados do user anterior (mas não o lastWorkspaceId do user antigo)
         clearCachedWorkspace();
-        localStorage.removeItem(LAST_WORKSPACE_KEY);
+        // Note: We don't clear lastWorkspaceId here because it's now per-user
         setWorkspace(null);
         setMembership(null);
         setAllWorkspaces([]);
@@ -558,13 +558,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         refreshWorkspace();
       }
     } else {
-      // No user - clear everything
+      // No user - clear everything except per-user lastWorkspaceId (preserved for next login)
       setWorkspace(null);
       setMembership(null);
       setAllWorkspaces([]);
       setLoading(false);
       clearCachedWorkspace();
-      localStorage.removeItem(LAST_WORKSPACE_KEY);
+      // Note: We intentionally do NOT clear lastWorkspaceId here
+      // Each user has their own key, so it persists across logout/login
     }
   }, [user, refreshWorkspace]);
 
