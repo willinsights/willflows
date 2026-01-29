@@ -1,14 +1,10 @@
 import { useRef, useState, useCallback, forwardRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Upload, Video, X, AlertCircle, Loader2, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { Upload, Video, X, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useVideoVersions } from '@/hooks/useVideoVersions';
 import { useWorkspaceStorage } from '@/hooks/useWorkspaceStorage';
-import { useVideoCompression } from '@/hooks/useVideoCompression';
-import { useFFmpegContext } from '@/contexts/FFmpegContext';
 
 interface VideoVersionUploadProps {
   projectId: string;
@@ -24,26 +20,10 @@ export const VideoVersionUpload = forwardRef<HTMLDivElement, VideoVersionUploadP
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [enableCompression, setEnableCompression] = useState(true);
-  const [compressionComplete, setCompressionComplete] = useState(false);
-  const [compressionSavings, setCompressionSavings] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
   const { uploadVersion, uploading, uploadProgress } = useVideoVersions(projectId, workspaceId);
   const { storage } = useWorkspaceStorage();
-  const { 
-    compressVideo, 
-    compressing, 
-    loading: compressionLoading, 
-    cancelCompression, 
-    progress: compressionProgress, 
-    error: compressionError,
-  } = useVideoCompression();
-  
-  const { isolationStatus, isEngineReady } = useFFmpegContext();
-
-  // Check if compression is available
-  const isCompressionAvailable = isolationStatus === 'isolated';
 
   const validateFile = (file: File): string | null => {
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -67,13 +47,6 @@ export const VideoVersionUpload = forwardRef<HTMLDivElement, VideoVersionUploadP
     }
     setError(null);
     setSelectedFile(file);
-    setCompressionComplete(false);
-    setCompressionSavings(null);
-    
-    // If compression not available, disable it
-    if (!isCompressionAvailable) {
-      setEnableCompression(false);
-    }
   };
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -94,7 +67,7 @@ export const VideoVersionUpload = forwardRef<HTMLDivElement, VideoVersionUploadP
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFile(e.dataTransfer.files[0]);
     }
-  }, [storage, isCompressionAvailable]);
+  }, [storage]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -106,34 +79,12 @@ export const VideoVersionUpload = forwardRef<HTMLDivElement, VideoVersionUploadP
     if (!selectedFile) return;
 
     try {
-      let fileToUpload = selectedFile;
-
-      // Compress if enabled and not already compressed
-      if (enableCompression && isCompressionAvailable && !compressionComplete) {
-        try {
-          console.log('[Upload] Starting compression...');
-          const result = await compressVideo(selectedFile);
-          fileToUpload = result.file;
-          setCompressionSavings(result.savings);
-          setCompressionComplete(true);
-          console.log('[Upload] Compression complete, savings:', result.savings, '%');
-        } catch (compErr: any) {
-          // If compression fails, show error and proceed with original file
-          console.error('[Upload] Compression failed:', compErr);
-          setError(`Compressão falhou: ${compErr.message}. A enviar ficheiro original.`);
-          // Continue with original file
-        }
-      }
-
-      console.log('[Upload] Uploading file:', fileToUpload.name, 'Size:', fileToUpload.size);
       await uploadVersion({
-        file: fileToUpload,
+        file: selectedFile,
         workspaceId,
         projectId,
       });
       setSelectedFile(null);
-      setCompressionComplete(false);
-      setCompressionSavings(null);
       onUploadComplete?.();
     } catch (error) {
       // Error toast is handled in hook
@@ -221,7 +172,7 @@ export const VideoVersionUpload = forwardRef<HTMLDivElement, VideoVersionUploadP
       )}
 
       {/* Selected file */}
-      {selectedFile && !uploading && !compressing && (
+      {selectedFile && !uploading && (
         <div className="space-y-3">
           <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
             <Video className="h-5 w-5 text-primary" />
@@ -229,87 +180,16 @@ export const VideoVersionUpload = forwardRef<HTMLDivElement, VideoVersionUploadP
               <p className="truncate font-medium">{selectedFile.name}</p>
               <p className="text-sm text-muted-foreground">
                 {formatFileSize(selectedFile.size)}
-                {compressionComplete && compressionSavings !== null && compressionSavings > 0 && (
-                  <span className="ml-2 text-green-600">
-                    <CheckCircle2 className="inline h-3 w-3 mr-1" />
-                    Comprimido (-{compressionSavings}%)
-                  </span>
-                )}
               </p>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => {
-              setSelectedFile(null);
-              setCompressionComplete(false);
-              setCompressionSavings(null);
-            }}>
+            <Button variant="ghost" size="icon" onClick={() => setSelectedFile(null)}>
               <X className="h-4 w-4" />
             </Button>
           </div>
 
-          {/* Compression toggle */}
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <div className="space-y-0.5">
-              <Label htmlFor="compression" className="text-sm font-medium">
-                Comprimir vídeo
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                {isCompressionAvailable 
-                  ? 'Reduz o tamanho do ficheiro antes de enviar'
-                  : 'Compressão não disponível neste navegador'
-                }
-              </p>
-              {!isCompressionAvailable && (
-                <p className="text-xs text-amber-600 flex items-center gap-1">
-                  <ShieldAlert className="h-3 w-3" />
-                  Ative a compressão no indicador acima
-                </p>
-              )}
-            </div>
-            <Switch
-              id="compression"
-              checked={enableCompression && isCompressionAvailable}
-              onCheckedChange={setEnableCompression}
-              disabled={!isCompressionAvailable}
-            />
-          </div>
-
           <Button onClick={handleUpload} className="w-full">
-            {enableCompression && isCompressionAvailable ? 'Comprimir e Carregar' : 'Carregar'}
+            Carregar
           </Button>
-        </div>
-      )}
-
-       {/* Compression progress */}
-       {(compressionLoading || compressing) && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-               {compressionLoading ? 'A preparar compressor (download ~31MB)...' : 'A comprimir vídeo...'}
-            </span>
-             <span>{compressionLoading ? '—' : `${compressionProgress}%`}</span>
-          </div>
-           <Progress value={compressionLoading ? 12 : compressionProgress} className="bg-muted" />
-          <p className="text-xs text-muted-foreground">
-             {compressionLoading
-               ? 'A primeira vez pode demorar (o browser precisa de descarregar o motor de compressão).'
-               : 'Isto pode demorar alguns minutos dependendo do tamanho do vídeo.'}
-          </p>
-       <Button
-             type="button"
-             variant="destructive"
-             className="w-full"
-             onClick={() => {
-               cancelCompression();
-               setSelectedFile(null);
-               setCompressionComplete(false);
-               setCompressionSavings(null);
-               setError('Compressão cancelada. Motor será recarregado automaticamente na próxima tentativa.');
-             }}
-           >
-             <X className="h-4 w-4 mr-2" />
-             Cancelar compressão
-           </Button>
         </div>
       )}
 

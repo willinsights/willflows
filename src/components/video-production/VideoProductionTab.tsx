@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Video, MessageSquare, CheckCircle2, Upload, Link, Layers } from 'lucide-react';
+import { Video, MessageSquare, CheckCircle2, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { VideoPlayer } from './VideoPlayer';
@@ -13,13 +12,11 @@ import { CommentInputModal } from './CommentInputModal';
 import { ApprovalButton } from './ApprovalButton';
 import { ApprovalShareLink } from './ApprovalShareLink';
 import { StorageUsageBar } from './StorageUsageBar';
-import { FFmpegStatusIndicator } from './FFmpegStatusIndicator';
 
 import { useVideoVersions, VideoVersion } from '@/hooks/useVideoVersions';
 import { useVideoComments } from '@/hooks/useVideoComments';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { FeatureTeaser } from '@/components/subscription/FeatureTeaser';
-import { FFmpegProvider, useFFmpegContext, useOptionalFFmpegContext } from '@/contexts/FFmpegContext';
 
 interface VideoProductionTabProps {
   projectId: string;
@@ -46,32 +43,12 @@ export function VideoProductionTab({
   }
 
   return (
-    <VideoProductionTabProviderGuard
+    <VideoProductionTabContent
       projectId={projectId}
       workspaceId={workspaceId}
       className={className}
     />
   );
-}
-
-function VideoProductionTabProviderGuard({
-  projectId,
-  workspaceId,
-  className,
-}: VideoProductionTabProps) {
-  const ctx = useOptionalFFmpegContext();
-
-  // Safety net: in rare cases (e.g. portal/subtree rendering outside the expected tree),
-  // the context might be missing. Wrap locally to avoid crashing the tab.
-  if (!ctx) {
-    return (
-      <FFmpegProvider>
-        <VideoProductionTabContent projectId={projectId} workspaceId={workspaceId} className={className} />
-      </FFmpegProvider>
-    );
-  }
-
-  return <VideoProductionTabContent projectId={projectId} workspaceId={workspaceId} className={className} />;
 }
 
 function VideoProductionTabContent({
@@ -91,17 +68,6 @@ function VideoProductionTabContent({
   const videoPlayerRef = useRef<{ seekTo: (time: number) => void }>(null);
   
   const { addComment } = useVideoComments(selectedVersion?.id || null);
-  
-  // Preload FFmpeg when entering video production
-  const { preload, isLoaded } = useFFmpegContext();
-  
-  useEffect(() => {
-    // Start preloading FFmpeg engine in background
-    if (!isLoaded) {
-      console.log('[VideoProductionTab] Starting FFmpeg preload...');
-      preload();
-    }
-  }, [preload, isLoaded]);
 
   // Auto-select latest version
   useEffect(() => {
@@ -155,11 +121,8 @@ function VideoProductionTabContent({
 
   return (
     <div className={cn("space-y-6", className)}>
-      {/* Storage usage bar + FFmpeg status */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <StorageUsageBar showUpgradeButton />
-        <FFmpegStatusIndicator className="shrink-0" />
-      </div>
+      {/* Storage usage bar */}
+      <StorageUsageBar showUpgradeButton />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main content - Video Player */}
