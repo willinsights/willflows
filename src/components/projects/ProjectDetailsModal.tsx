@@ -1190,6 +1190,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                   checklists={checklists}
                   setChecklists={setChecklists}
                   tasks={tasks}
+                  setTasks={setTasks}
                   projectId={project.id}
                   workspaceId={project.workspace_id}
                   currentPhase={project.current_phase}
@@ -1263,7 +1264,12 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                   ) : (
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label>Selecionar tarefa</Label>
+                        <div className="flex items-center justify-between">
+                          <Label>Selecionar tarefa</Label>
+                          <Button type="button" variant="outline" size="sm" onClick={fetchRelatedData}>
+                            Atualizar
+                          </Button>
+                        </div>
                         <Select
                           value={selectedVideoTaskId || undefined}
                           onValueChange={(v) => setSelectedVideoTaskId(v)}
