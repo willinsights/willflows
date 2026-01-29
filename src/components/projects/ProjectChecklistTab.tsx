@@ -36,6 +36,7 @@ interface ProjectChecklistTabProps {
   checklists: TaskChecklist[];
   setChecklists: React.Dispatch<React.SetStateAction<TaskChecklist[]>>;
   tasks: Task[];
+  setTasks?: React.Dispatch<React.SetStateAction<Task[]>>;
   projectId: string;
   workspaceId: string;
   currentPhase: 'captacao' | 'edicao';
@@ -159,6 +160,7 @@ interface PhaseChecklistSectionProps {
   taskIds: string[];
   projectId: string;
   workspaceId: string;
+  onTaskCreated?: (task: Task) => void;
   onChecklistsChange: (updater: (prev: TaskChecklist[]) => TaskChecklist[]) => void;
   defaultOpen?: boolean;
 }
@@ -170,6 +172,7 @@ function PhaseChecklistSection({
   taskIds,
   projectId,
   workspaceId,
+  onTaskCreated,
   onChecklistsChange,
   defaultOpen = true,
 }: PhaseChecklistSectionProps) {
@@ -241,6 +244,9 @@ function PhaseChecklistSection({
         toast({ title: 'Erro ao criar tarefa', variant: 'destructive' });
         return;
       }
+
+      // Keep parent task list in sync (so the Produção dropdown updates immediately)
+      onTaskCreated?.(newTask as Task);
       targetTaskId = newTask.id;
     }
 
@@ -490,6 +496,7 @@ export function ProjectChecklistTab({
   checklists, 
   setChecklists, 
   tasks,
+  setTasks,
   projectId,
   workspaceId,
   currentPhase,
@@ -532,6 +539,9 @@ export function ProjectChecklistTab({
           taskIds={captacaoTaskIds}
           projectId={projectId}
           workspaceId={workspaceId}
+          onTaskCreated={(task) =>
+            setTasks?.((prev) => (prev.some((t) => t.id === task.id) ? prev : [...prev, task]))
+          }
           onChecklistsChange={setChecklists}
           defaultOpen={currentPhase === 'captacao'}
         />
@@ -545,6 +555,9 @@ export function ProjectChecklistTab({
           taskIds={edicaoTaskIds}
           projectId={projectId}
           workspaceId={workspaceId}
+          onTaskCreated={(task) =>
+            setTasks?.((prev) => (prev.some((t) => t.id === task.id) ? prev : [...prev, task]))
+          }
           onChecklistsChange={setChecklists}
           defaultOpen={currentPhase === 'edicao'}
         />
