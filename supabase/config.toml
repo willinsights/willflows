@@ -105,3 +105,6 @@ verify_jwt = false
 
 [functions.stream-get-status]
 verify_jwt = false
+
+[functions.stream-update-video]
+verify_jwt = false
