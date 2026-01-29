@@ -40,6 +40,7 @@ export function VideoPlayer({
   const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const hideControlsTimeout = useRef<NodeJS.Timeout>();
 
   const togglePlay = useCallback(() => {
@@ -62,7 +63,26 @@ export function VideoPlayer({
     if (videoRef.current) {
       setDuration(videoRef.current.duration);
       setIsLoading(false);
+      setLoadError(null);
     }
+  }, []);
+
+  const handleLoadedData = useCallback(() => {
+    // Some browsers fire loadeddata/canplay even when loadedmetadata is flaky for cross-origin media
+    setIsLoading(false);
+    setLoadError(null);
+  }, []);
+
+  const handleVideoError = useCallback(() => {
+    const video = videoRef.current;
+    // Provide a friendly, actionable message
+    const mediaError = video?.error;
+    const message = mediaError
+      ? `Falha ao carregar o vídeo (código ${mediaError.code}).`
+      : 'Falha ao carregar o vídeo.';
+    setIsLoading(false);
+    setIsPlaying(false);
+    setLoadError(message);
   }, []);
 
   const handleSeek = useCallback((value: number[]) => {
@@ -142,14 +162,40 @@ export function VideoPlayer({
     video.addEventListener('pause', handlePause);
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('loadeddata', handleLoadedData);
+    video.addEventListener('canplay', handleLoadedData);
+    video.addEventListener('error', handleVideoError);
 
     return () => {
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('loadeddata', handleLoadedData);
+      video.removeEventListener('canplay', handleLoadedData);
+      video.removeEventListener('error', handleVideoError);
     };
-  }, [handleTimeUpdate, handleLoadedMetadata]);
+  }, [handleTimeUpdate, handleLoadedMetadata, handleLoadedData, handleVideoError]);
+
+  // Reset loading state when src changes
+  useEffect(() => {
+    const video = videoRef.current;
+    setIsLoading(true);
+    setLoadError(null);
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+
+    // Ensure the element reloads the new source
+    if (video) {
+      try {
+        video.pause();
+        video.load();
+      } catch {
+        // no-op
+      }
+    }
+  }, [src]);
 
   // Calculate comment markers positions
   const commentMarkers = comments.map(comment => ({
@@ -180,8 +226,16 @@ export function VideoPlayer({
         </div>
       )}
 
+      {/* Error state */}
+      {!isLoading && loadError && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 px-6 text-center">
+          <p className="text-sm text-white/90">{loadError}</p>
+          <p className="mt-2 text-xs text-white/70">Tenta clicar em “Atualizar” ou recarregar a página.</p>
+        </div>
+      )}
+
       {/* Play button overlay */}
-      {!isPlaying && !isLoading && (
+      {!isPlaying && !isLoading && !loadError && (
         <button
           className="absolute inset-0 flex items-center justify-center bg-black/20 transition-opacity"
           onClick={togglePlay}
