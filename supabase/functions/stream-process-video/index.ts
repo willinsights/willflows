@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { AwsClient } from "https://esm.sh/aws4fetch@1.0.20";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,6 +11,38 @@ const logStep = (step: string, details?: Record<string, unknown>) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[STREAM-PROCESS-VIDEO] ${step}${detailsStr}`);
 };
+
+// Generate a signed R2 URL for reading the file
+async function generateSignedR2Url(
+  accountId: string,
+  accessKeyId: string,
+  secretAccessKey: string,
+  bucket: string,
+  key: string,
+  expiresIn: number = 3600
+): Promise<string> {
+  const r2 = new AwsClient({
+    accessKeyId,
+    secretAccessKey,
+    region: "auto",
+    service: "s3",
+  });
+
+  const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
+  const url = new URL(`/${bucket}/${key}`, endpoint);
+  url.searchParams.set('X-Amz-Expires', String(expiresIn));
+
+  const signedRequest = await r2.sign(
+    new Request(url.toString(), {
+      method: 'GET',
+    }),
+    {
+      aws: { signQuery: true },
+    }
+  );
+
+  return signedRequest.url.toString();
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -23,11 +56,17 @@ serve(async (req) => {
     const accountId = Deno.env.get("CLOUDFLARE_ACCOUNT_ID");
     const streamToken = Deno.env.get("CLOUDFLARE_STREAM_TOKEN");
     const bucketName = Deno.env.get("CLOUDFLARE_R2_BUCKET");
+    const r2AccessKeyId = Deno.env.get("CLOUDFLARE_R2_ACCESS_KEY_ID");
+    const r2SecretAccessKey = Deno.env.get("CLOUDFLARE_R2_SECRET_ACCESS_KEY");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!accountId || !streamToken || !bucketName) {
       throw new Error("Missing Cloudflare configuration");
+    }
+
+    if (!r2AccessKeyId || !r2SecretAccessKey) {
+      throw new Error("Missing R2 credentials for signed URL generation");
     }
 
     if (!supabaseUrl || !supabaseServiceKey) {
@@ -119,12 +158,19 @@ serve(async (req) => {
 
     logStep("Version record created", { versionId: versionData.id });
 
-    // Submit video to Cloudflare Stream from R2
-    // Using the "copy from URL" approach with R2 bucket URL
-    const r2Url = `https://${bucketName}.${accountId}.r2.cloudflarestorage.com/${key}`;
+    // Generate signed R2 URL for Stream to fetch the video
+    const signedR2Url = await generateSignedR2Url(
+      accountId,
+      r2AccessKeyId,
+      r2SecretAccessKey,
+      bucketName,
+      key,
+      3600 // 1 hour expiry
+    );
     
-    logStep("Submitting to Cloudflare Stream", { r2Url });
+    logStep("Generated signed R2 URL for Stream");
 
+    // Submit video to Cloudflare Stream using the signed URL
     const streamResponse = await fetch(
       `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/copy`,
       {
@@ -134,7 +180,7 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          url: r2Url,
+          url: signedR2Url,
           meta: {
             name: fileName,
             workspaceId,
