@@ -36,21 +36,21 @@ export interface VideoApprovalToken {
 }
 
 interface ApproveVideoInput {
-  taskId: string;
+  projectId: string;
   videoVersionId: string;
   workspaceId: string;
   notes?: string;
 }
 
 interface ApproveVideoAsClientInput {
-  taskId: string;
+  projectId: string;
   videoVersionId: string;
   workspaceId: string;
   clientName: string;
   notes?: string;
 }
 
-export function useVideoApproval(taskId: string | null) {
+export function useVideoApproval(projectId: string | null) {
   const [approvals, setApprovals] = useState<VideoApproval[]>([]);
   const [token, setToken] = useState<VideoApprovalToken | null>(null);
   const [loading, setLoading] = useState(false);
@@ -58,7 +58,7 @@ export function useVideoApproval(taskId: string | null) {
   const { user } = useAuth();
 
   const fetchApprovals = useCallback(async () => {
-    if (!taskId) return;
+    if (!projectId) return;
 
     setLoading(true);
     try {
@@ -68,7 +68,7 @@ export function useVideoApproval(taskId: string | null) {
           *,
           video_version:video_versions(version_number)
         `)
-        .eq('task_id', taskId)
+        .eq('project_id', projectId)
         .order('approved_at', { ascending: false });
 
       if (error) throw error;
@@ -78,16 +78,16 @@ export function useVideoApproval(taskId: string | null) {
     } finally {
       setLoading(false);
     }
-  }, [taskId]);
+  }, [projectId]);
 
   const fetchToken = useCallback(async () => {
-    if (!taskId) return;
+    if (!projectId) return;
 
     try {
       const { data, error } = await supabase
         .from('video_approval_tokens')
         .select('*')
-        .eq('task_id', taskId)
+        .eq('project_id', projectId)
         .eq('is_active', true)
         .maybeSingle();
 
@@ -96,7 +96,7 @@ export function useVideoApproval(taskId: string | null) {
     } catch (error: any) {
       console.error('Error fetching approval token:', error);
     }
-  }, [taskId]);
+  }, [projectId]);
 
   useEffect(() => {
     fetchApprovals();
@@ -105,17 +105,17 @@ export function useVideoApproval(taskId: string | null) {
 
   // Realtime subscription for approvals
   useEffect(() => {
-    if (!taskId) return;
+    if (!projectId) return;
 
     const channel = supabase
-      .channel(`video_approvals:${taskId}`)
+      .channel(`video_approvals:${projectId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'video_approvals',
-          filter: `task_id=eq.${taskId}`,
+          filter: `project_id=eq.${projectId}`,
         },
         () => {
           fetchApprovals();
@@ -126,7 +126,7 @@ export function useVideoApproval(taskId: string | null) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [taskId, fetchApprovals]);
+  }, [projectId, fetchApprovals]);
 
   const approveVideo = async (input: ApproveVideoInput) => {
     if (!user) throw new Error('User not authenticated');
@@ -135,7 +135,7 @@ export function useVideoApproval(taskId: string | null) {
       const { error } = await supabase
         .from('video_approvals')
         .insert({
-          task_id: input.taskId,
+          project_id: input.projectId,
           video_version_id: input.videoVersionId,
           workspace_id: input.workspaceId,
           approved_by_user_id: user.id,
@@ -162,7 +162,7 @@ export function useVideoApproval(taskId: string | null) {
       const { error } = await supabase
         .from('video_approvals')
         .insert({
-          task_id: input.taskId,
+          project_id: input.projectId,
           video_version_id: input.videoVersionId,
           workspace_id: input.workspaceId,
           approved_by_client: true,
@@ -180,14 +180,14 @@ export function useVideoApproval(taskId: string | null) {
   };
 
   const generateToken = async (workspaceId: string, clientName?: string, clientEmail?: string, expiresInDays?: number) => {
-    if (!taskId || !user) throw new Error('Missing required data');
+    if (!projectId || !user) throw new Error('Missing required data');
 
     try {
       // Deactivate existing tokens
       await supabase
         .from('video_approval_tokens')
         .update({ is_active: false })
-        .eq('task_id', taskId);
+        .eq('project_id', projectId);
 
       // Create new token
       const expiresAt = expiresInDays
@@ -197,7 +197,7 @@ export function useVideoApproval(taskId: string | null) {
       const { data, error } = await supabase
         .from('video_approval_tokens')
         .insert({
-          task_id: taskId,
+          project_id: projectId,
           workspace_id: workspaceId,
           client_name: clientName || null,
           client_email: clientEmail || null,

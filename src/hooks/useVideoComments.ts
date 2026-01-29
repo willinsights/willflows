@@ -29,7 +29,7 @@ export interface VideoComment {
 
 interface CreateCommentInput {
   videoVersionId: string;
-  taskId: string;
+  projectId: string;
   workspaceId: string;
   timestampSeconds: number;
   body: string;
@@ -38,7 +38,7 @@ interface CreateCommentInput {
 
 interface CreateClientCommentInput {
   videoVersionId: string;
-  taskId: string;
+  projectId: string;
   workspaceId: string;
   timestampSeconds: number;
   body: string;
@@ -119,7 +119,7 @@ export function useVideoComments(videoVersionId: string | null) {
         .from('video_comments')
         .insert({
           video_version_id: input.videoVersionId,
-          task_id: input.taskId,
+          project_id: input.projectId,
           workspace_id: input.workspaceId,
           timestamp_seconds: input.timestampSeconds,
           body: input.body,
@@ -149,7 +149,7 @@ export function useVideoComments(videoVersionId: string | null) {
         .from('video_comments')
         .insert({
           video_version_id: input.videoVersionId,
-          task_id: input.taskId,
+          project_id: input.projectId,
           workspace_id: input.workspaceId,
           timestamp_seconds: input.timestampSeconds,
           body: input.body,

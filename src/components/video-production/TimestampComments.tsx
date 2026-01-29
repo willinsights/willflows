@@ -16,7 +16,7 @@ import { formatDuration } from '@/lib/duration-utils';
 
 interface TimestampCommentsProps {
   videoVersionId: string;
-  taskId: string;
+  projectId: string;
   workspaceId: string;
   onSeekTo?: (timestampSeconds: number) => void;
   className?: string;
@@ -24,7 +24,7 @@ interface TimestampCommentsProps {
 
 export function TimestampComments({
   videoVersionId,
-  taskId,
+  projectId,
   workspaceId,
   onSeekTo,
   className

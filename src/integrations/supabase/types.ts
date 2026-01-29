@@ -2711,7 +2711,8 @@ export type Database = {
           expires_at: string | null
           id: string
           is_active: boolean
-          task_id: string
+          project_id: string | null
+          task_id: string | null
           token: string
           token_hash: string | null
           workspace_id: string
@@ -2724,7 +2725,8 @@ export type Database = {
           expires_at?: string | null
           id?: string
           is_active?: boolean
-          task_id: string
+          project_id?: string | null
+          task_id?: string | null
           token?: string
           token_hash?: string | null
           workspace_id: string
@@ -2737,12 +2739,20 @@ export type Database = {
           expires_at?: string | null
           id?: string
           is_active?: boolean
-          task_id?: string
+          project_id?: string | null
+          task_id?: string | null
           token?: string
           token_hash?: string | null
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "video_approval_tokens_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "video_approval_tokens_task_id_fkey"
             columns: ["task_id"]
@@ -2767,7 +2777,8 @@ export type Database = {
           client_name: string | null
           id: string
           notes: string | null
-          task_id: string
+          project_id: string | null
+          task_id: string | null
           video_version_id: string
           workspace_id: string
         }
@@ -2778,7 +2789,8 @@ export type Database = {
           client_name?: string | null
           id?: string
           notes?: string | null
-          task_id: string
+          project_id?: string | null
+          task_id?: string | null
           video_version_id: string
           workspace_id: string
         }
@@ -2789,11 +2801,19 @@ export type Database = {
           client_name?: string | null
           id?: string
           notes?: string | null
-          task_id?: string
+          project_id?: string | null
+          task_id?: string | null
           video_version_id?: string
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "video_approvals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "video_approvals_task_id_fkey"
             columns: ["task_id"]
@@ -2826,10 +2846,11 @@ export type Database = {
           id: string
           is_client_comment: boolean
           parent_id: string | null
+          project_id: string | null
           resolved_at: string | null
           resolved_by: string | null
           status: string
-          task_id: string
+          task_id: string | null
           timestamp_seconds: number
           video_version_id: string
           workspace_id: string
@@ -2842,10 +2863,11 @@ export type Database = {
           id?: string
           is_client_comment?: boolean
           parent_id?: string | null
+          project_id?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
           status?: string
-          task_id: string
+          task_id?: string | null
           timestamp_seconds?: number
           video_version_id: string
           workspace_id: string
@@ -2858,10 +2880,11 @@ export type Database = {
           id?: string
           is_client_comment?: boolean
           parent_id?: string | null
+          project_id?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
           status?: string
-          task_id?: string
+          task_id?: string | null
           timestamp_seconds?: number
           video_version_id?: string
           workspace_id?: string
@@ -2872,6 +2895,13 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "video_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_comments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
           {
@@ -3059,7 +3089,7 @@ export type Database = {
           id: string
           mime_type: string | null
           project_id: string
-          task_id: string
+          task_id: string | null
           thumbnail_path: string | null
           uploaded_by: string | null
           version_number: number
@@ -3074,7 +3104,7 @@ export type Database = {
           id?: string
           mime_type?: string | null
           project_id: string
-          task_id: string
+          task_id?: string | null
           thumbnail_path?: string | null
           uploaded_by?: string | null
           version_number?: number
@@ -3089,7 +3119,7 @@ export type Database = {
           id?: string
           mime_type?: string | null
           project_id?: string
-          task_id?: string
+          task_id?: string | null
           thumbnail_path?: string | null
           uploaded_by?: string | null
           version_number?: number
