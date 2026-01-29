@@ -56,8 +56,8 @@ serve(async (req) => {
     const accountId = Deno.env.get("CLOUDFLARE_ACCOUNT_ID");
     const streamToken = Deno.env.get("CLOUDFLARE_STREAM_TOKEN");
     const bucketName = Deno.env.get("CLOUDFLARE_R2_BUCKET");
-    const r2AccessKeyId = Deno.env.get("CLOUDFLARE_R2_ACCESS_KEY_ID");
-    const r2SecretAccessKey = Deno.env.get("CLOUDFLARE_R2_SECRET_ACCESS_KEY");
+    const r2AccessKeyId = Deno.env.get("CLOUDFLARE_R2_ACCESS_KEY");
+    const r2SecretAccessKey = Deno.env.get("CLOUDFLARE_R2_SECRET_KEY");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
