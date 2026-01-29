@@ -39,6 +39,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
+import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { cn } from '@/lib/utils';
 import type { ProjectWithClient } from '@/hooks/useKanban';
 import type { Tables } from '@/integrations/supabase/types';
@@ -49,6 +50,7 @@ import { ProjectTimelineTab } from './ProjectTimelineTab';
 import { ChecklistPendingAlert } from './ChecklistPendingAlert';
 import { useConversations } from '@/hooks/useConversations';
 import { useAuth } from '@/contexts/AuthContext';
+import { VideoProductionTab } from '@/components/video-production/VideoProductionTab';
 
 type Task = Tables<'tasks'>;
 type TaskChecklist = Tables<'task_checklists'>;
@@ -106,6 +108,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
   const { members: workspaceMembers } = useWorkspaceMembers();
   const { isAdmin } = useWorkspace();
   const { canViewOwnFinancials } = useFinancialPermissions();
+  const { hasFeatureAccess, loading: planLoading } = usePlanFeatures();
   const { projectChats, createProjectChat } = useConversations();
   const { user } = useAuth();
   const [openingChat, setOpeningChat] = useState(false);
@@ -117,6 +120,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
   const [duplicateName, setDuplicateName] = useState('');
   const [duplicating, setDuplicating] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [selectedVideoTaskId, setSelectedVideoTaskId] = useState<string | null>(null);
   const [checklists, setChecklists] = useState<TaskChecklist[]>([]);
   const [mediaLinks, setMediaLinks] = useState<MediaLink[]>([]);
   const [projectTeam, setProjectTeam] = useState<ProjectTeam[]>([]);
@@ -184,6 +188,16 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
       setIsEditing(false);
     }
   }, [project, open]);
+
+  // Keep a stable default task selected for the video production tab
+  useEffect(() => {
+    if (!open) return;
+    if (tasks.length === 0) {
+      setSelectedVideoTaskId(null);
+      return;
+    }
+    setSelectedVideoTaskId((prev) => (prev && tasks.some((t) => t.id === prev) ? prev : tasks[0].id));
+  }, [open, tasks]);
 
   const fetchRelatedData = async () => {
     if (!project) return;
@@ -566,6 +580,8 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
   const totalChecklists = checklists.length;
   const currentPriority = priorityOptions.find(p => p.value === (isEditing ? editForm.priority : project.priority));
   const profit = (editForm.agreed_value || 0) - (editForm.custo_captacao || 0) - (editForm.custo_edicao || 0);
+  const showVideoProductionTab = tasks.length > 0;
+  const canUseVideoProductionTab = !planLoading && hasFeatureAccess('videoApproval');
 
   return (
     <>
@@ -590,12 +606,20 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
           </DialogHeader>
 
           <Tabs defaultValue="details" className="w-full">
-            <TabsList className={cn("grid w-full mb-4", canViewOwnFinancials ? "grid-cols-5" : "grid-cols-4")}>
+            <TabsList
+              className={cn(
+                "grid w-full mb-4",
+                showVideoProductionTab
+                  ? (canViewOwnFinancials ? "grid-cols-6" : "grid-cols-5")
+                  : (canViewOwnFinancials ? "grid-cols-5" : "grid-cols-4")
+              )}
+            >
               <TabsTrigger value="details">Detalhes</TabsTrigger>
               <TabsTrigger value="checklist">Checklist</TabsTrigger>
               <TabsTrigger value="timeline">Timeline</TabsTrigger>
               <TabsTrigger value="media">Links</TabsTrigger>
               {canViewOwnFinancials && <TabsTrigger value="financial">Financeiro</TabsTrigger>}
+              {showVideoProductionTab && <TabsTrigger value="video">Produção</TabsTrigger>}
             </TabsList>
 
             <ScrollArea className="h-[calc(90vh-280px)]">
@@ -1217,6 +1241,51 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                   onTeamPaymentUpdate={fetchRelatedData}
                 />
               </TabsContent>
+
+              {showVideoProductionTab && (
+                <TabsContent value="video" className="space-y-4 pr-4">
+                  {planLoading ? (
+                    <div className="flex items-center justify-center py-10">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                    </div>
+                  ) : !canUseVideoProductionTab ? (
+                    <VideoProductionTab
+                      taskId={selectedVideoTaskId || tasks[0].id}
+                      projectId={project.id}
+                      workspaceId={project.workspace_id}
+                    />
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Selecionar tarefa</Label>
+                        <Select
+                          value={selectedVideoTaskId || undefined}
+                          onValueChange={(v) => setSelectedVideoTaskId(v)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecionar tarefa" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {tasks.map((t) => (
+                              <SelectItem key={t.id} value={t.id}>
+                                {t.title}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {selectedVideoTaskId && (
+                        <VideoProductionTab
+                          taskId={selectedVideoTaskId}
+                          projectId={project.id}
+                          workspaceId={project.workspace_id}
+                        />
+                      )}
+                    </div>
+                  )}
+                </TabsContent>
+              )}
             </ScrollArea>
           </Tabs>
 
