@@ -1,151 +1,347 @@
 
+# Plano: Modulo Avancado de Producao e Aprovacao de Videos
 
-# Plano: Nova Aba "Timeline" - Estrutura de Video com Templates
+## Resumo Executivo
 
-## Resumo
-
-Vou criar uma nova aba "Timeline" nos detalhes do projeto que permite definir a **estrutura do video final** com segmentos de tempo. Esta funcionalidade serve como guia para editores saberem exatamente quanto tempo cada secao do video deve ter.
-
-A grande diferenca em relacao ao prompt original e que **nao focaremos em status de progresso** (Not Started, In Progress, etc.), mas sim em:
-
-1. **Definir a estrutura do video** - Segmentos como "Introducao (5s)", "Objecto (4-6s)", "Acao (20s)"
-2. **Templates reutilizaveis** - Guardar estruturas para usar em projetos futuros
-3. **Flexibilidade** - Segmentos podem ter duracao fixa (5s) ou intervalo (4-6s)
+Este modulo transforma o WillFlow numa plataforma completa de producao e aprovacao de videos, exclusiva para o plano Studio. Inclui upload de versoes, comentarios por timestamp, aprovacao formal do cliente, gestao de storage por workspace, e monetizacao via Stripe.
 
 ---
 
-## Exemplo de Uso
+## Fase 1: Fundacao de Dados e Storage
 
-Um utilizador define esta estrutura para um video de hotel:
+### 1.1 Novas Tabelas de Base de Dados
 
-| Segmento | Duracao |
-|----------|---------|
-| Introducao (contexto) | 5 segundos |
-| Objecto | 4 a 6 segundos |
-| Intervenientes | 4 segundos |
-| Acao | 20 segundos |
-| Detalhes | 12 segundos |
-| Drones | 8 a 12 segundos |
-
-Depois pode guardar isto como template "Video Hotel Standard" para reutilizar em projetos semelhantes.
-
----
-
-## Estrutura de Dados
-
-### Tabela: `video_structures`
-
-Armazena estruturas de segmentos de video por projeto.
+**Tabela: `video_versions`** (versoes de video por tarefa)
 
 | Coluna | Tipo | Descricao |
 |--------|------|-----------|
 | id | uuid | Identificador unico |
-| project_id | uuid | Referencia ao projeto |
-| workspace_id | uuid | Referencia ao workspace |
-| name | text | Nome do segmento (ex: "Introducao") |
-| description | text | Descricao opcional |
-| min_duration_seconds | integer | Duracao minima em segundos |
-| max_duration_seconds | integer | Duracao maxima (se for intervalo) |
-| position | integer | Ordem na timeline |
-| notes | text | Notas opcionais |
-| created_by | uuid | Quem criou |
-| created_at | timestamp | Data de criacao |
-| updated_at | timestamp | Data de atualizacao |
+| task_id | uuid | FK para tasks |
+| workspace_id | uuid | FK para workspaces |
+| project_id | uuid | FK para projects |
+| version_number | integer | V1, V2, V3... |
+| file_path | text | Caminho no storage |
+| file_name | text | Nome original do ficheiro |
+| file_size_bytes | bigint | Tamanho em bytes (para contagem de storage) |
+| duration_seconds | integer | Duracao do video |
+| mime_type | text | Tipo do ficheiro |
+| thumbnail_path | text | Thumbnail gerado |
+| uploaded_by | uuid | Quem fez upload |
+| created_at | timestamp | Data de upload |
 
-### Tabela: `video_structure_templates`
-
-Armazena templates reutilizaveis de estrutura.
+**Tabela: `video_comments`** (comentarios por timestamp)
 
 | Coluna | Tipo | Descricao |
 |--------|------|-----------|
 | id | uuid | Identificador unico |
-| workspace_id | uuid | Referencia ao workspace |
-| name | text | Nome do template (ex: "Video Hotel") |
-| description | text | Descricao opcional |
-| segments | jsonb | Array com os segmentos |
-| is_default | boolean | Se e o template padrao |
-| created_by | uuid | Quem criou |
+| video_version_id | uuid | FK para video_versions |
+| task_id | uuid | FK para tasks |
+| workspace_id | uuid | FK para workspaces |
+| timestamp_seconds | decimal | Momento exato do comentario |
+| body | text | Texto do comentario |
+| status | text | 'open', 'resolved' |
+| is_client_comment | boolean | Se e do cliente externo |
+| client_name | text | Nome do cliente (se externo) |
+| author_id | uuid | Autor interno (se nao cliente) |
+| parent_id | uuid | Para respostas |
+| resolved_by | uuid | Quem resolveu |
+| resolved_at | timestamp | Quando resolveu |
 | created_at | timestamp | Data de criacao |
-| updated_at | timestamp | Data de atualizacao |
+
+**Tabela: `video_approvals`** (historico de aprovacoes)
+
+| Coluna | Tipo | Descricao |
+|--------|------|-----------|
+| id | uuid | Identificador unico |
+| task_id | uuid | FK para tasks |
+| video_version_id | uuid | Versao aprovada |
+| approved_by_client | boolean | Se foi o cliente |
+| client_name | text | Nome do cliente |
+| approved_by_user_id | uuid | Membro interno |
+| approved_at | timestamp | Data/hora da aprovacao |
+| notes | text | Observacoes |
+
+**Tabela: `video_approval_tokens`** (links unicos para clientes)
+
+| Coluna | Tipo | Descricao |
+|--------|------|-----------|
+| id | uuid | Identificador unico |
+| task_id | uuid | FK para tasks |
+| token | text | Token seguro unico |
+| token_hash | text | Hash para lookup |
+| client_email | text | Email do cliente (opcional) |
+| client_name | text | Nome do cliente |
+| expires_at | timestamp | Expiracao automatica |
+| is_active | boolean | Se o link esta ativo |
+| created_by | uuid | Quem criou o link |
+| created_at | timestamp | Data de criacao |
+
+**Tabela: `workspace_storage`** (controlo de storage por workspace)
+
+| Coluna | Tipo | Descricao |
+|--------|------|-----------|
+| id | uuid | Identificador unico |
+| workspace_id | uuid | FK para workspaces |
+| storage_used_bytes | bigint | Bytes usados |
+| storage_limit_bytes | bigint | Limite total |
+| base_storage_bytes | bigint | Storage do plano (10GB Studio) |
+| extra_storage_bytes | bigint | Storage extra comprado |
+| stripe_addon_subscription_id | text | ID da subscription do addon |
+| addon_tier | text | '50gb', '100gb', '250gb' ou null |
+| last_calculated_at | timestamp | Ultima atualizacao |
+
+**Tabela: `video_retention_queue`** (fila de limpeza automatica)
+
+| Coluna | Tipo | Descricao |
+|--------|------|-----------|
+| id | uuid | Identificador unico |
+| task_id | uuid | FK para tasks |
+| workspace_id | uuid | FK para workspaces |
+| retention_days | integer | Dias a manter |
+| scheduled_deletion_at | timestamp | Data agendada |
+| status | text | 'pending', 'notified', 'deleted', 'cancelled' |
+| notified_at | timestamp | Quando o admin foi notificado |
+
+### 1.2 Storage Bucket
+
+Criar bucket `video-versions`:
+- Privado (acesso via signed URLs)
+- Limite de tamanho por ficheiro: 5GB
+- Tipos permitidos: video/mp4, video/quicktime, video/webm
 
 ---
 
-## Componentes Visuais
+## Fase 2: Feature Gating (Plano Studio)
 
-### 1. Cabecalho da Timeline
+### 2.1 Atualizar `src/lib/plans.ts`
 
-- Titulo "Timeline" com icone de video
-- Botao "+ Adicionar Segmento" (primario)
-- Dropdown "Aplicar Template" com templates disponiveis
-- Botao "Guardar como Template" (secundario)
+Adicionar nova feature key `videoApproval`:
 
-### 2. Overview de Duracao
-
-- Duracao total estimada (ex: "53-65 segundos")
-- Numero de segmentos
-- Badge indicando se ha template aplicado
-
-### 3. Timeline Visual Horizontal
-
-- Linha do tempo horizontal ocupando toda a largura
-- Segmentos como blocos coloridos proporcionais a duracao
-- Cada segmento mostra:
-  - Nome (ex: "Introducao")
-  - Duracao (ex: "5s" ou "4-6s")
-- Cores seguem a paleta WillFlow (violeta primario, tons de cinza)
-- Marcadores de tempo na parte inferior
-
-### 4. Lista de Segmentos (alternativa mobile)
-
-- Em ecras pequenos, lista vertical em vez de timeline horizontal
-- Cards arrastáveis para reordenar
-- Mesma informacao que a timeline
-
----
-
-## Fluxo de Interacao
-
-```text
-Usuario abre detalhes do projeto
-        |
-        v
-Clica na aba "Timeline"
-        |
-        v
-Ve timeline vazia ou com segmentos
-        |
-        +---> "Aplicar Template"
-        |            |
-        |            v
-        |     Lista de templates do workspace
-        |     Seleciona um -> Segmentos carregados
-        |
-        +---> "+ Adicionar Segmento"
-        |            |
-        |            v
-        |     Modal com campos:
-        |     - Nome (obrigatorio)
-        |     - Descricao
-        |     - Duracao minima (segundos)
-        |     - Duracao maxima (opcional)
-        |     - Notas
-        |            |
-        |            v
-        |     Valida e adiciona
-        |
-        +---> Clica em segmento
-        |            |
-        |            v
-        |     Popover com detalhes
-        |     Botoes Editar / Apagar
-        |
-        +---> "Guardar como Template"
-                     |
-                     v
-              Modal pede nome do template
-              Salva e fica disponivel
-              para outros projetos
+```typescript
+// Adicionar a FEATURES em plans.ts
+{ key: 'videoApproval', name: 'Aprovacao de Video', value: true, included: true, category: 'core' }
+// Apenas no plano Studio - nao incluir em Starter/Pro
 ```
+
+### 2.2 Atualizar `src/hooks/usePlanFeatures.ts`
+
+Adicionar `videoApproval` ao tipo FeatureKey e descricoes.
+
+### 2.3 Componente `VideoApprovalFeatureGate`
+
+Wrapper que mostra FeatureTeaser para planos Starter/Pro.
+
+---
+
+## Fase 3: Integracao na Tarefa
+
+### 3.1 Modificar `TaskModal.tsx`
+
+Adicionar nova aba "Producao de Video" que mostra:
+- Timeline/estrutura do video (reutilizar video_structures existente)
+- Upload de versoes
+- Player de video
+- Comentarios por timestamp
+- Botao de aprovacao
+
+### 3.2 Novos Componentes
+
+**`src/components/video-production/VideoProductionTab.tsx`**
+- Componente principal da aba
+
+**`src/components/video-production/VideoVersionUpload.tsx`**
+- Drag-and-drop para upload
+- Progresso de upload
+- Validacao de formato e tamanho
+- Verificacao de limite de storage
+
+**`src/components/video-production/VideoVersionsList.tsx`**
+- Lista de versoes (V1, V2...)
+- Toggle A/B entre versoes
+- Data, autor, tamanho
+
+**`src/components/video-production/VideoPlayer.tsx`**
+- Player nativo HTML5
+- Controlos customizados
+- Marcadores de comentarios na timeline do player
+- Botao "Comentar aqui" que pausa e abre modal
+
+**`src/components/video-production/TimestampComments.tsx`**
+- Lista de comentarios
+- Filtro por status (abertos/resolvidos)
+- Click num comentario salta para o timestamp no player
+- Respostas em thread
+
+**`src/components/video-production/CommentInputModal.tsx`**
+- Modal para adicionar comentario
+- Mostra o timestamp atual
+- Opcao de converter em subtarefa
+
+**`src/components/video-production/ApprovalButton.tsx`**
+- Botao de aprovacao formal
+- Confirmacao com assinatura simples
+- Registo de quem aprovou e quando
+
+**`src/components/video-production/ApprovalShareLink.tsx`**
+- Gerar link unico para cliente
+- Mostrar link existente
+- Opcao de expirar/regenerar
+
+---
+
+## Fase 4: Pagina Publica de Aprovacao
+
+### 4.1 Nova Rota `/video-approval/:token`
+
+**`src/pages/public/VideoApproval.tsx`**
+
+Pagina publica (sem login) que permite:
+- Ver todas as versoes
+- Alternar entre versoes (toggle A/B)
+- Comentar por timestamp
+- Aprovar formalmente
+
+Elementos:
+- Header com nome do projeto/tarefa
+- Dropdown de versoes
+- Player de video fullwidth
+- Lista de comentarios (cliente pode adicionar)
+- Estrutura de referencia (se existir)
+- Botao "Aprovar" proeminente
+
+### 4.2 RPC Seguro para Acesso Publico
+
+Criar funcao `get_video_approval_by_token` que:
+- Valida o token
+- Retorna dados da tarefa, versoes e comentarios
+- Nao expoe dados sensíveis
+
+---
+
+## Fase 5: Gestao de Storage
+
+### 5.1 Hook `useWorkspaceStorage.ts`
+
+```typescript
+interface WorkspaceStorage {
+  usedBytes: number;
+  limitBytes: number;
+  usedGB: number;
+  limitGB: number;
+  percentUsed: number;
+  isFull: boolean;
+  isNearLimit: boolean; // >80%
+  addonTier: string | null;
+  canUpload: (fileSizeBytes: number) => boolean;
+}
+```
+
+### 5.2 Componente `StorageUsageBar.tsx`
+
+Barra visual com:
+- Uso atual vs limite
+- Cor conforme nivel (verde/amarelo/vermelho)
+- Botao "Adicionar armazenamento"
+
+### 5.3 Componente `StorageManagementCard.tsx`
+
+Para pagina de Configuracoes/Planos:
+- Uso detalhado
+- Top 5 projetos que mais consomem
+- Botao para limpar videos antigos
+- Upgrade de storage
+
+---
+
+## Fase 6: Stripe - Storage Add-ons
+
+### 6.1 Criar Produtos no Stripe
+
+3 produtos de storage extra:
+- +50 GB: 9 EUR/mes
+- +100 GB: 15 EUR/mes
+- +250 GB: 29 EUR/mes
+
+### 6.2 Edge Function `create-storage-addon-checkout`
+
+Cria sessao de checkout para addon de storage:
+- Apenas para workspaces no plano Studio
+- Modo subscription
+- Metadata com workspace_id e tier
+
+### 6.3 Atualizar `stripe-webhook`
+
+Processar eventos de addon:
+- `checkout.session.completed`: ativar storage extra
+- `customer.subscription.updated`: ajustar tier
+- `customer.subscription.deleted`: remover storage extra
+
+### 6.4 Edge Function `cancel-storage-addon`
+
+Cancela o addon de storage extra.
+
+---
+
+## Fase 7: Retencao e Limpeza Automatica
+
+### 7.1 Trigger de Retencao
+
+Quando tarefa muda para 'Aprovado' ou 'Concluido':
+- Inserir registo em `video_retention_queue`
+- Prazo configuravel (default 14 dias)
+
+### 7.2 Edge Function `cleanup-expired-videos` (Cron)
+
+Executar diariamente:
+1. Buscar videos com `scheduled_deletion_at <= now()`
+2. Para cada:
+   - Apagar ficheiros do storage
+   - Atualizar `workspace_storage.storage_used_bytes`
+   - Invalidar tokens de aprovacao
+   - Manter historico textual
+3. Notificar admin 3 dias antes
+
+### 7.3 Notificacao de Expiracao
+
+Edge Function `notify-video-expiration`:
+- Email ao admin do workspace
+- Push notification
+- Lista de videos que serao apagados
+
+---
+
+## Fase 8: Seguranca
+
+### 8.1 RLS Policies
+
+**video_versions**:
+- SELECT: Membros do workspace
+- INSERT: Roles admin, editor (se plano Studio)
+- DELETE: Admin ou criador
+
+**video_comments**:
+- SELECT: Membros do workspace OU cliente com token valido
+- INSERT: Membros OU cliente com token
+- UPDATE status: Membros do workspace
+
+**video_approval_tokens**:
+- SELECT: Admin do workspace OU detentor do token
+- INSERT: Admin
+- UPDATE: Admin
+
+### 8.2 Signed URLs para Videos
+
+Todos os acessos a ficheiros via signed URLs:
+- Expiracao curta (1 hora)
+- Validacao de token em pagina publica
+
+### 8.3 Auditoria
+
+Log de todas as acoes:
+- Upload de versao
+- Comentario
+- Aprovacao
+- Geracao de link
 
 ---
 
@@ -153,17 +349,26 @@ Ve timeline vazia ou com segmentos
 
 | Ficheiro | Descricao |
 |----------|-----------|
-| `src/components/projects/ProjectTimelineTab.tsx` | Componente principal da aba |
-| `src/components/projects/timeline/TimelineSegment.tsx` | Segmento visual na timeline |
-| `src/components/projects/timeline/TimelineOverview.tsx` | Resumo de duracao |
-| `src/components/projects/timeline/AddSegmentModal.tsx` | Modal para adicionar segmento |
-| `src/components/projects/timeline/EditSegmentModal.tsx` | Modal para editar segmento |
-| `src/components/projects/timeline/SegmentPopover.tsx` | Popover de detalhes |
-| `src/components/projects/timeline/ApplyTemplateDropdown.tsx` | Dropdown de templates |
-| `src/components/projects/timeline/SaveTemplateModal.tsx` | Modal para guardar template |
-| `src/hooks/useVideoStructure.ts` | Hook para CRUD de segmentos |
-| `src/hooks/useVideoStructureTemplates.ts` | Hook para CRUD de templates |
-| `src/lib/duration-utils.ts` | Funcoes utilitarias para duracoes |
+| `src/components/video-production/VideoProductionTab.tsx` | Tab principal |
+| `src/components/video-production/VideoVersionUpload.tsx` | Upload com drag-drop |
+| `src/components/video-production/VideoVersionsList.tsx` | Lista de versoes |
+| `src/components/video-production/VideoPlayer.tsx` | Player customizado |
+| `src/components/video-production/TimestampComments.tsx` | Comentarios por tempo |
+| `src/components/video-production/CommentInputModal.tsx` | Modal de comentario |
+| `src/components/video-production/ApprovalButton.tsx` | Botao de aprovar |
+| `src/components/video-production/ApprovalShareLink.tsx` | Gerar/gerir link |
+| `src/components/video-production/StorageUsageBar.tsx` | Barra de storage |
+| `src/components/video-production/StorageManagementCard.tsx` | Card de gestao |
+| `src/components/video-production/VersionCompare.tsx` | Comparacao A/B |
+| `src/hooks/useVideoVersions.ts` | CRUD de versoes |
+| `src/hooks/useVideoComments.ts` | CRUD de comentarios |
+| `src/hooks/useVideoApproval.ts` | Logica de aprovacao |
+| `src/hooks/useWorkspaceStorage.ts` | Gestao de storage |
+| `src/hooks/usePublicVideoApproval.ts` | Acesso publico |
+| `src/pages/public/VideoApproval.tsx` | Pagina publica |
+| `supabase/functions/create-storage-addon-checkout/index.ts` | Checkout addon |
+| `supabase/functions/cleanup-expired-videos/index.ts` | Limpeza cron |
+| `supabase/functions/notify-video-expiration/index.ts` | Notificacoes |
 
 ---
 
@@ -171,113 +376,110 @@ Ve timeline vazia ou com segmentos
 
 | Ficheiro | Alteracao |
 |----------|-----------|
-| `src/components/projects/ProjectDetailsSheet.tsx` | Adicionar nova aba "Timeline" no TabsList |
-| `src/components/projects/ProjectDetailsModal.tsx` | Mesmas alteracoes para consistencia |
+| `src/lib/plans.ts` | Adicionar feature 'videoApproval' |
+| `src/hooks/usePlanFeatures.ts` | Nova FeatureKey |
+| `src/components/tasks/TaskModal.tsx` | Adicionar aba 'Producao' |
+| `src/App.tsx` | Nova rota publica /video-approval/:token |
+| `supabase/functions/stripe-webhook/index.ts` | Processar addons |
+| `src/pages/app/Planos.tsx` | Secao de storage addons |
+| `src/pages/app/Configuracoes.tsx` | Gestao de storage |
 
 ---
 
-## Adaptacoes ao Estilo WillFlow
+## Diagrama de Fluxo
 
-Em vez das cores do prompt original, usarei:
+```text
+CRIACAO DO VIDEO
+================
 
-- **Primary Violet** (#5B4AE4) para elementos de destaque
-- **Muted** para segmentos sem cor especial
-- **Glassmorphism** para modais e popovers
-- **Transicoes suaves** com Framer Motion
-- **Sombras premium** do design system existente
-
----
-
-## Responsividade
-
-- **Desktop**: Timeline horizontal completa com marcadores de tempo
-- **Tablet**: Timeline com scroll horizontal
-- **Mobile**: Lista vertical de segmentos em cards arrastaveis
-
----
-
-## Secao Tecnica
-
-### Funcoes de Duracao
-
-```typescript
-// Formatar segundos para display legivel
-formatDuration(seconds: number): string
-// Retorna "5s" ou "1m 30s"
-
-// Formatar intervalo de duracao
-formatDurationRange(min: number, max: number | null): string
-// Retorna "5s" ou "4-6s"
-
-// Calcular duracao total de segmentos
-calculateTotalDuration(segments: VideoStructure[]): { min: number; max: number }
-
-// Calcular largura percentual do segmento
-calculateSegmentWidth(segment: VideoStructure, totalMax: number): number
-
-// Gerar marcadores de tempo para a timeline
-generateTimeMarkers(totalSeconds: number, count: number): string[]
+Editor recebe tarefa
+        |
+        v
+Cria/edita estrutura de video (Timeline)
+        |
+        v
+Faz upload da V1
+        |
+        v
+Gera link de aprovacao para cliente
+        |
+        v
+Cliente acede ao link (sem login)
+        |
+        v
+Cliente ve video, comenta por timestamp
+        |
+        v
+Comentarios aparecem na tarefa (realtime)
+        |
+        v
+Editor faz correcoes, sobe V2
+        |
+        v
+Cliente alterna entre V1/V2
+        |
+        v
+Cliente aprova V2
+        |
+        v
+Tarefa muda para "Aprovado"
+        |
+        v
+Timer de retencao inicia (14 dias)
+        |
+        v
+Admin notificado 3 dias antes
+        |
+        v
+Videos apagados, storage libertado
 ```
-
-### Hook useVideoStructure
-
-```typescript
-interface UseVideoStructure {
-  segments: VideoStructure[];
-  loading: boolean;
-  addSegment: (data: CreateSegmentInput) => Promise<void>;
-  updateSegment: (id: string, data: UpdateSegmentInput) => Promise<void>;
-  deleteSegment: (id: string) => Promise<void>;
-  reorderSegments: (segments: VideoStructure[]) => Promise<void>;
-  applyTemplate: (templateId: string) => Promise<void>;
-  clearAll: () => Promise<void>;
-}
-```
-
-### Hook useVideoStructureTemplates
-
-```typescript
-interface UseVideoStructureTemplates {
-  templates: VideoStructureTemplate[];
-  loading: boolean;
-  createTemplate: (name: string, description?: string) => Promise<void>;
-  deleteTemplate: (id: string) => Promise<void>;
-  updateTemplate: (id: string, data: UpdateTemplateInput) => Promise<void>;
-}
-```
-
-### Migracao SQL
-
-- Criar tabela `video_structures`
-- Criar tabela `video_structure_templates`
-- Adicionar indices para `project_id` e `workspace_id`
-- Habilitar realtime para atualizacoes em tempo real
-- Configurar politicas RLS
-
-### Politicas RLS
-
-**video_structures**:
-- SELECT: Membros do workspace podem visualizar
-- INSERT: Roles admin, editor, captacao podem criar
-- UPDATE: Criador ou admin podem editar
-- DELETE: Criador ou admin podem apagar
-
-**video_structure_templates**:
-- SELECT: Membros do workspace podem visualizar
-- INSERT: Admin pode criar
-- UPDATE: Criador ou admin podem editar
-- DELETE: Criador ou admin podem apagar
 
 ---
 
 ## Ordem de Implementacao
 
-1. Criar migracao das tabelas `video_structures` e `video_structure_templates`
-2. Criar funcoes utilitarias de duracao
-3. Criar hooks `useVideoStructure` e `useVideoStructureTemplates`
-4. Criar componentes de timeline (segmento, overview, etc.)
-5. Criar modais de adicionar/editar segmentos
-6. Criar componentes de templates (dropdown, modal guardar)
-7. Integrar nova aba nos detalhes do projeto
-8. Testar funcionalidade completa
+**Sprint 1 - Base (3-4 dias)**
+1. Migracao: tabelas + bucket + RLS
+2. Feature gating no plano Studio
+3. Hook useWorkspaceStorage
 
+**Sprint 2 - Upload e Player (2-3 dias)**
+4. Componentes de upload e lista de versoes
+5. VideoPlayer com timeline
+6. Integracao na TaskModal
+
+**Sprint 3 - Comentarios (2 dias)**
+7. Sistema de comentarios por timestamp
+8. Threads de resposta
+9. Marcacao resolved
+
+**Sprint 4 - Aprovacao (2 dias)**
+10. Link publico e pagina de aprovacao
+11. Fluxo de aprovacao formal
+12. Integracao com status da tarefa
+
+**Sprint 5 - Storage e Billing (2 dias)**
+13. Stripe addons de storage
+14. Webhook updates
+15. UI de gestao de storage
+
+**Sprint 6 - Retencao (1-2 dias)**
+16. Sistema de retencao
+17. Cron de limpeza
+18. Notificacoes
+
+---
+
+## Consideracoes Importantes
+
+1. **Limite de 5GB por ficheiro**: Videos 4K podem ultrapassar, considerar compressao server-side futura
+
+2. **Thumbnails**: Gerar automaticamente via edge function ou aceitar upload manual inicial
+
+3. **Streaming vs Download**: Usar video HTML5 nativo com signed URLs (sem HLS/DASH inicialmente)
+
+4. **Mobile**: Player responsivo, interface de comentarios adaptada
+
+5. **Offline**: Nao suportado - requere conexao para ver videos
+
+6. **Comparacao lado-a-lado**: Fase futura - toggle A/B e implementado agora
