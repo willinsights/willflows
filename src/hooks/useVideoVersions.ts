@@ -342,10 +342,10 @@ export function useVideoVersions(
     return null;
   }, []);
 
-  // Legacy: Get signed URL for Supabase Storage videos
-  const getSignedUrl = async (filePath: string): Promise<string | null> => {
-    // Skip R2 paths
-    if (filePath.startsWith('r2://')) {
+  // Legacy: Get signed URL for Supabase Storage videos - memoized to prevent infinite loops
+  const getSignedUrl = useCallback(async (filePath: string): Promise<string | null> => {
+    // Skip R2 paths or empty paths
+    if (!filePath || filePath.startsWith('r2://')) {
       return null;
     }
     
@@ -360,7 +360,7 @@ export function useVideoVersions(
       console.error('Error getting signed URL:', error);
       return null;
     }
-  };
+  }, []);
 
   // Helper to check if version is using Cloudflare
   const isCloudflareVersion = useCallback((version: VideoVersion): boolean => {

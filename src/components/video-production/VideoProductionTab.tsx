@@ -54,10 +54,11 @@ function VideoProductionTabContent({
   projectId,
   className,
 }: VideoProductionTabProps) {
-  const { versions, loading, deleteVersion, getSignedUrl } = useVideoVersions(taskId, workspaceId);
+  const { versions, loading, deleteVersion, getSignedUrl, isProcessing } = useVideoVersions(taskId, workspaceId);
   const [selectedVersion, setSelectedVersion] = useState<VideoVersion | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [loadingUrl, setLoadingUrl] = useState(false);
+  const [isVersionProcessing, setIsVersionProcessing] = useState(false);
   
   // Comment modal state
   const [showCommentModal, setShowCommentModal] = useState(false);
@@ -75,22 +76,44 @@ function VideoProductionTabContent({
     }
   }, [versions, selectedVersion]);
 
-  // Load video URL when version changes
+  // Load video URL when version changes - handles both Cloudflare and legacy Supabase
   useEffect(() => {
     const loadVideoUrl = async () => {
       if (!selectedVersion) {
         setVideoUrl(null);
+        setIsVersionProcessing(false);
         return;
       }
 
+      // Check if version is still processing (Cloudflare)
+      if (isProcessing(selectedVersion)) {
+        setVideoUrl(null);
+        setIsVersionProcessing(true);
+        setLoadingUrl(false);
+        return;
+      }
+      setIsVersionProcessing(false);
+
+      // Priority 1: Cloudflare Stream (new uploads) - uses iframe, no URL needed
+      if (selectedVersion.cloudflare_stream_uid) {
+        setVideoUrl(null);
+        setLoadingUrl(false);
+        return;
+      }
+
+      // Priority 2: Legacy Supabase Storage (old uploads)
       setLoadingUrl(true);
-      const url = await getSignedUrl(selectedVersion.file_path);
-      setVideoUrl(url);
+      try {
+        const url = await getSignedUrl(selectedVersion.file_path);
+        setVideoUrl(url);
+      } catch {
+        setVideoUrl(null);
+      }
       setLoadingUrl(false);
     };
 
     loadVideoUrl();
-  }, [selectedVersion, getSignedUrl]);
+  }, [selectedVersion?.id, selectedVersion?.stream_status, selectedVersion?.cloudflare_stream_uid, getSignedUrl, isProcessing]);
 
   const handleSelectVersion = (version: VideoVersion) => {
     setSelectedVersion(version);
@@ -128,11 +151,19 @@ function VideoProductionTabContent({
         {/* Main content - Video Player */}
         <div className="lg:col-span-2 space-y-4">
           {/* Video Player */}
-          {selectedVersion && videoUrl ? (
+          {selectedVersion && (selectedVersion.cloudflare_stream_uid || videoUrl) ? (
             <VideoPlayer
               ref={videoPlayerRef}
-              src={videoUrl}
+              src={videoUrl || undefined}
+              streamUid={selectedVersion.cloudflare_stream_uid}
+              isProcessing={isVersionProcessing}
               onAddComment={handleAddComment}
+              className="aspect-video w-full"
+            />
+          ) : isVersionProcessing ? (
+            <VideoPlayer
+              ref={videoPlayerRef}
+              isProcessing={true}
               className="aspect-video w-full"
             />
           ) : loadingUrl ? (

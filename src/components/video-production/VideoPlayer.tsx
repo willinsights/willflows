@@ -17,7 +17,7 @@ import { VideoComment } from '@/hooks/useVideoComments';
 import { formatDuration } from '@/lib/duration-utils';
 
 interface VideoPlayerProps {
-  src: string;
+  src?: string;
   streamUid?: string | null;
   isProcessing?: boolean;
   comments?: VideoComment[];
