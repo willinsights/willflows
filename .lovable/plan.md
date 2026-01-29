@@ -1,64 +1,54 @@
 
-# Plano: Usar HLS Direto em vez de iframe Cloudflare Stream
+# Plano: Corrigir Video Existente e HLS Playback
 
-## Problema
-O iframe do Cloudflare Stream continua bloqueado (`customer-y2wrascmexrvzepp.cloudflarestream.com recusou estabelecer ligação`) porque o vídeo existente foi processado com `allowedOrigins: ["*"]` - que o Cloudflare não aceita como wildcard.
+## Problema Identificado
+O vídeo existente (`uid: 067e920919ea6eedca72b8203c65c874`) foi processado com `allowedOrigins: ["*"]`, que o Cloudflare Stream não aceita. Isto bloqueia os pedidos HLS com CORS, resultando no erro "código 4" (`MEDIA_ERR_SRC_NOT_SUPPORTED`).
 
-A alteração na edge function só afeta **novos uploads**. Os vídeos já processados mantêm as restrições antigas.
+A alteração na edge function `stream-process-video` só afeta **novos uploads**. Os vídeos já processados mantêm as restrições antigas.
 
-## Solução
-Alterar o `VideoPlayer` para usar **HLS playback direto** via `hls.js` em vez de iframe. Esta abordagem:
-- Funciona sem restrições de domínio
-- Oferece controlos nativos customizáveis
-- Funciona nativamente em Safari (sem hls.js)
-- Resolve o problema para vídeos existentes e futuros
+## Solucao
 
-## Alterações
+### Passo 1: Criar Edge Function para Atualizar Videos Existentes
+Criar uma nova edge function `stream-update-video` que permite atualizar as configuracoes de videos existentes no Cloudflare Stream, removendo as restricoes de `allowedOrigins`.
 
-### 1. Adicionar dependência hls.js
-Instalar `hls.js` para suporte HLS em browsers que não suportam nativamente (Chrome, Firefox, Edge).
-
-### 2. Atualizar VideoPlayer.tsx
-Modificar o componente para:
-- Detetar se o browser suporta HLS nativo (Safari) ou precisa de hls.js
-- Converter `streamUid` para URL HLS: `https://customer-{hash}.cloudflarestream.com/{uid}/manifest/video.m3u8`
-- Usar elemento `<video>` nativo com controlos customizados (já existentes)
-- Remover lógica de iframe para Cloudflare Stream
-
-### 3. Atualizar VideoProductionTab.tsx
-Garantir que passa o URL HLS correto ao player quando disponível.
-
-## Benefícios
-- Resolve o bloqueio de iframe imediatamente
-- Funciona para vídeos existentes sem alterações no Cloudflare Dashboard
-- Mantém controlos nativos (seek, volume, fullscreen)
-- Permite comentários por timestamp (funcionalidade existente)
-- Compatível com todos os browsers modernos
-
-## Detalhes Técnicos
-
-### Estrutura HLS URL
 ```text
-https://customer-{hash}.cloudflarestream.com/{streamUid}/manifest/video.m3u8
+POST /stream-update-video
+Body: { "streamUid": "067e920919ea6eedca72b8203c65c874", "allowedOrigins": [] }
 ```
 
-O `{hash}` é extraído da variável de ambiente `VITE_CLOUDFLARE_CUSTOMER_HASH` ou do `stream_playback_url` guardado na base de dados.
+### Passo 2: Chamar a Edge Function para Corrigir o Video
+Apos criar a edge function, chamar automaticamente ou manualmente para corrigir o video existente.
 
-### Lógica de Playback
+### Passo 3: Adicionar Botao de "Reprocessar" na UI (Opcional)
+Adicionar um botao na lista de versoes que permite reprocessar/atualizar configuracoes de videos com problemas.
+
+## Ficheiros a Criar/Modificar
+
+### 1. Nova Edge Function: `supabase/functions/stream-update-video/index.ts`
 ```text
-if (Safari ou browser com suporte nativo HLS) {
-  video.src = hlsUrl  // Nativo
-} else if (Hls.isSupported()) {
-  hls.loadSource(hlsUrl)
-  hls.attachMedia(videoElement)
-} else {
-  // Fallback: erro ou iframe como último recurso
+- Receber streamUid e novas configuracoes (allowedOrigins)
+- Chamar PATCH /accounts/{accountId}/stream/{streamUid}
+- Atualizar registo na base de dados se necessario
+```
+
+## Detalhes Tecnicos
+
+### Cloudflare Stream API
+Para atualizar um video existente:
+```text
+PATCH https://api.cloudflare.com/client/v4/accounts/{account_id}/stream/{video_uid}
+Body: {
+  "allowedOrigins": []  // Array vazio remove restricoes
 }
 ```
 
-### Ficheiros a Modificar
-1. `package.json` - adicionar `hls.js`
-2. `src/components/video-production/VideoPlayer.tsx` - implementar HLS
-3. `src/components/video-production/VideoProductionTab.tsx` - passar URL HLS
-4. `src/hooks/useVideoVersions.ts` - atualizar `getPlaybackUrl` para gerar HLS URL
+### Video a Corrigir
+- Stream UID: `067e920919ea6eedca72b8203c65c874`
+- Status atual: `ready`
+- Problema: `allowedOrigins: ["*"]` invalido
 
+### Resultado Esperado
+Apos remover as restricoes de `allowedOrigins`, o HLS playback via `hls.js` funcionara corretamente porque:
+1. O browser podera fazer fetch do manifest `.m3u8`
+2. Os segmentos de video `.ts` serao carregados sem CORS errors
+3. O VideoPlayer mostrara o video normalmente
