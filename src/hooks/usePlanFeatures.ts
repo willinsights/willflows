@@ -137,9 +137,12 @@ export interface UpgradeAlertState {
 }
 
 export function usePlanFeatures() {
-  const { subscription, limits, loading, isOwner, canManageSubscription } = useWorkspaceSubscription();
+  const { subscription, limits, loading: workspaceLoading, isOwner, canManageSubscription } = useWorkspaceSubscription();
   const { workspace } = useWorkspace();
-  const { isSuperAdmin } = useSuperAdmin();
+  const { isSuperAdmin, loading: superAdminLoading } = useSuperAdmin();
+  
+  // Combined loading state - we need both to be ready
+  const loading = workspaceLoading || superAdminLoading;
   
   // Fetch workspace usage counts
   const { data: usage = { workspaces: 0, users: 0, projects: 0, clients: 0 } } = useQuery({

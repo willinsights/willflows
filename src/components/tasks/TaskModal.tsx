@@ -70,7 +70,7 @@ export function TaskModal({
   const { projects } = useProjects();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { hasFeatureAccess } = usePlanFeatures();
+  const { hasFeatureAccess, loading: planLoading } = usePlanFeatures();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -83,7 +83,8 @@ export function TaskModal({
   const [activeTab, setActiveTab] = useState('details');
 
   const isEditing = !!task;
-  const hasVideoApproval = hasFeatureAccess('videoApproval');
+  // Wait for plan features to load before checking video approval access
+  const hasVideoApproval = !planLoading && hasFeatureAccess('videoApproval');
 
   // Active projects for selection
   const activeProjects = projects.filter(
