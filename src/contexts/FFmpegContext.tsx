@@ -173,10 +173,24 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
             }
 
             console.log('[FFmpeg Context] Loading engine...');
-            await ffmpeg.load({
+            
+            // Add timeout specifically for ffmpeg.load() - it can hang indefinitely
+            const loadPromise = ffmpeg.load({
               coreURL,
               wasmURL,
             });
+            
+            const loadTimeoutMs = 60_000; // 60 seconds for load
+            const loadTimeoutPromise = new Promise<never>((_, reject) => {
+              const timeoutId = setTimeout(() => {
+                reject(new Error('Timeout ao inicializar motor (60s)'));
+              }, loadTimeoutMs);
+              
+              // Clear timeout if aborted
+              signal.addEventListener('abort', () => clearTimeout(timeoutId));
+            });
+            
+            await Promise.race([loadPromise, loadTimeoutPromise]);
 
             loaded = true;
             break;
