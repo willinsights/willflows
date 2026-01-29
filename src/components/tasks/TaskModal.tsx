@@ -231,7 +231,8 @@ export function TaskModal({
   };
 
   // Determine modal size based on active tab
-  const modalSize = activeTab === 'production' ? 'max-w-5xl' : 'sm:max-w-[500px]';
+  // Wider default for better readability; even wider for production tab
+  const modalSize = activeTab === 'production' ? 'max-w-6xl' : 'sm:max-w-xl md:max-w-2xl';
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
