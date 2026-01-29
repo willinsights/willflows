@@ -5,7 +5,7 @@ import { Separator } from '@/components/ui/separator';
 import { Video, MessageSquare, CheckCircle2, Upload, Link, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-import { VideoPlayer } from './VideoPlayer';
+import { VideoPlayer, VideoPlayerRef } from './VideoPlayer';
 import { VideoVersionUpload } from './VideoVersionUpload';
 import { VideoVersionsList } from './VideoVersionsList';
 import { TimestampComments } from './TimestampComments';
@@ -63,7 +63,8 @@ function VideoProductionTabContent({
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [commentTimestamp, setCommentTimestamp] = useState(0);
   
-  const videoPlayerRef = useRef<{ seekTo: (time: number) => void }>(null);
+  // Ref for VideoPlayer to expose seekTo method
+  const videoPlayerRef = useRef<VideoPlayerRef>(null);
   
   const { addComment } = useVideoComments(selectedVersion?.id || null);
 
@@ -113,8 +114,9 @@ function VideoProductionTabContent({
   };
 
   const handleSeekToTimestamp = useCallback((timestamp: number) => {
-    // This would need a ref to the video player
-    // For now, we can pass it down
+    if (videoPlayerRef.current) {
+      videoPlayerRef.current.seekTo(timestamp);
+    }
   }, []);
 
   return (
@@ -128,6 +130,7 @@ function VideoProductionTabContent({
           {/* Video Player */}
           {selectedVersion && videoUrl ? (
             <VideoPlayer
+              ref={videoPlayerRef}
               src={videoUrl}
               onAddComment={handleAddComment}
               className="aspect-video w-full"
