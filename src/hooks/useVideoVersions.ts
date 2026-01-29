@@ -27,7 +27,11 @@ interface UploadVideoInput {
   projectId: string;
 }
 
-export function useVideoVersions(taskId: string | null, workspaceId: string | null) {
+export function useVideoVersions(
+  taskId: string | null, 
+  workspaceId: string | null,
+  projectId?: string | null
+) {
   const [versions, setVersions] = useState<VideoVersion[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -37,15 +41,24 @@ export function useVideoVersions(taskId: string | null, workspaceId: string | nu
   const { storage, addStorageUsed, removeStorageUsed } = useWorkspaceStorage();
 
   const fetchVersions = useCallback(async () => {
-    if (!taskId) return;
+    // Need either taskId or projectId to fetch
+    if (!taskId && !projectId) return;
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('video_versions')
         .select('*')
-        .eq('task_id', taskId)
         .order('version_number', { ascending: false });
+
+      // Filter by taskId if available, otherwise by projectId
+      if (taskId) {
+        query = query.eq('task_id', taskId);
+      } else if (projectId) {
+        query = query.eq('project_id', projectId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setVersions(data as VideoVersion[]);
@@ -54,7 +67,7 @@ export function useVideoVersions(taskId: string | null, workspaceId: string | nu
     } finally {
       setLoading(false);
     }
-  }, [taskId]);
+  }, [taskId, projectId]);
 
   useEffect(() => {
     fetchVersions();
@@ -62,17 +75,21 @@ export function useVideoVersions(taskId: string | null, workspaceId: string | nu
 
   // Realtime subscription
   useEffect(() => {
-    if (!taskId) return;
+    // Need either taskId or projectId for subscription
+    if (!taskId && !projectId) return;
+
+    const filterColumn = taskId ? 'task_id' : 'project_id';
+    const filterValue = taskId || projectId;
 
     const channel = supabase
-      .channel(`video_versions:${taskId}`)
+      .channel(`video_versions:${filterValue}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'video_versions',
-          filter: `task_id=eq.${taskId}`,
+          filter: `${filterColumn}=eq.${filterValue}`,
         },
         () => {
           fetchVersions();
@@ -83,7 +100,7 @@ export function useVideoVersions(taskId: string | null, workspaceId: string | nu
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [taskId, fetchVersions]);
+  }, [taskId, projectId, fetchVersions]);
 
   const uploadVersion = async ({ file, taskId, workspaceId, projectId }: UploadVideoInput) => {
     if (!user) throw new Error('User not authenticated');

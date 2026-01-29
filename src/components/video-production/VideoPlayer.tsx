@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { 
@@ -23,13 +23,20 @@ interface VideoPlayerProps {
   className?: string;
 }
 
-export function VideoPlayer({ 
+export interface VideoPlayerRef {
+  seekTo: (time: number) => void;
+  getCurrentTime: () => number;
+  pause: () => void;
+  play: () => void;
+}
+
+export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({ 
   src, 
   comments = [], 
   onCommentClick, 
   onAddComment,
   className 
-}: VideoPlayerProps) {
+}, ref) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -42,6 +49,29 @@ export function VideoPlayer({
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const hideControlsTimeout = useRef<NodeJS.Timeout>();
+
+  // Expose methods via ref
+  useImperativeHandle(ref, () => ({
+    seekTo: (time: number) => {
+      if (videoRef.current) {
+        videoRef.current.currentTime = time;
+        setCurrentTime(time);
+      }
+    },
+    getCurrentTime: () => currentTime,
+    pause: () => {
+      if (videoRef.current) {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      }
+    },
+    play: () => {
+      if (videoRef.current) {
+        videoRef.current.play();
+        setIsPlaying(true);
+      }
+    },
+  }), [currentTime]);
 
   const togglePlay = useCallback(() => {
     if (!videoRef.current) return;
@@ -338,4 +368,6 @@ export function VideoPlayer({
       </div>
     </div>
   );
-}
+});
+
+VideoPlayer.displayName = 'VideoPlayer';

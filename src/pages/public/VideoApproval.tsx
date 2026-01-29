@@ -51,6 +51,8 @@ interface VideoVersion {
   duration_seconds: number | null;
   created_at: string;
   workspace_id: string;
+  task_id: string | null;
+  project_id: string | null;
 }
 
 interface VideoComment {
@@ -78,6 +80,8 @@ interface ApprovalData {
     notes: string | null;
   } | null;
   client_name: string | null;
+  workspace_id: string;
+  signed_urls: Record<string, string>;
 }
 
 export default function VideoApproval() {
@@ -87,7 +91,6 @@ export default function VideoApproval() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<ApprovalData | null>(null);
-  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
 
   // Player state
   const [selectedVersionId, setSelectedVersionId] = useState<string>('');
@@ -111,115 +114,69 @@ export default function VideoApproval() {
   const [approvalNotes, setApprovalNotes] = useState('');
   const [submittingApproval, setSubmittingApproval] = useState(false);
 
-  // Fetch data
-  useEffect(() => {
+  // Fetch data using edge function
+  const fetchApprovalData = useCallback(async () => {
     if (!token) {
       setError('Token inválido');
       setLoading(false);
       return;
     }
 
-    fetchApprovalData();
-  }, [token]);
-
-  const fetchApprovalData = async () => {
     try {
-      // Validate token and get data
-      const { data: tokenData, error: tokenError } = await supabase
-        .from('video_approval_tokens')
-        .select('*, task:tasks(id, title, project:projects(name))')
-        .eq('token', token)
-        .eq('is_active', true)
-        .maybeSingle();
+      setLoading(true);
+      
+      const { data: responseData, error: fetchError } = await supabase.functions.invoke(
+        'get-video-approval-data',
+        {
+          body: null,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          method: 'GET',
+        }
+      );
 
-      if (tokenError) throw tokenError;
-      if (!tokenData) {
-        setError('Link de aprovação inválido ou expirado');
-        setLoading(false);
-        return;
+      // Fallback: use query params for GET
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-video-approval-data?token=${encodeURIComponent(token)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erro ao carregar dados');
       }
 
-      // Check expiration
-      if (tokenData.expires_at && new Date(tokenData.expires_at) < new Date()) {
-        setError('Este link de aprovação expirou');
-        setLoading(false);
-        return;
-      }
-
-      // Fetch versions
-      const { data: versions, error: versionsError } = await supabase
-        .from('video_versions')
-        .select('*')
-        .eq('task_id', tokenData.task_id)
-        .order('version_number', { ascending: false });
-
-      if (versionsError) throw versionsError;
-
-      // Fetch comments
-      const { data: comments, error: commentsError } = await supabase
-        .from('video_comments')
-        .select('*')
-        .eq('task_id', tokenData.task_id)
-        .is('parent_id', null)
-        .order('timestamp_seconds', { ascending: true });
-
-      if (commentsError) throw commentsError;
-
-      // Check if already approved
-      const { data: approval } = await supabase
-        .from('video_approvals')
-        .select('*')
-        .eq('task_id', tokenData.task_id)
-        .order('approved_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      const approvalData: ApprovalData = {
-        task: {
-          id: tokenData.task_id,
-          title: (tokenData.task as any)?.title || 'Vídeo',
-          project_name: (tokenData.task as any)?.project?.name || '',
-        },
-        versions: versions || [],
-        comments: (comments || []) as VideoComment[],
-        approval: approval ? {
-          approved_at: approval.approved_at,
-          client_name: approval.client_name,
-          notes: approval.notes,
-        } : null,
-        client_name: tokenData.client_name,
-      };
+      const approvalData: ApprovalData = await response.json();
 
       setData(approvalData);
-      setClientName(tokenData.client_name || '');
+      setClientName(approvalData.client_name || '');
 
       // Set initial version
-      if (versions && versions.length > 0) {
-        setSelectedVersionId(versions[0].id);
-        if (versions.length > 1) {
-          setCompareVersionId(versions[1].id);
+      if (approvalData.versions.length > 0) {
+        setSelectedVersionId(approvalData.versions[0].id);
+        if (approvalData.versions.length > 1) {
+          setCompareVersionId(approvalData.versions[1].id);
         }
       }
-
-      // Generate signed URLs for all versions
-      const urls: Record<string, string> = {};
-      for (const version of versions || []) {
-        const { data: urlData } = await supabase.storage
-          .from('video-versions')
-          .createSignedUrl(version.file_path, 3600);
-        if (urlData?.signedUrl) {
-          urls[version.id] = urlData.signedUrl;
-        }
-      }
-      setSignedUrls(urls);
 
       setLoading(false);
     } catch (err: any) {
       console.error('Error fetching approval data:', err);
-      setError('Erro ao carregar dados de aprovação');
+      setError(err.message || 'Erro ao carregar dados de aprovação');
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    fetchApprovalData();
+  }, [fetchApprovalData]);
 
   // Player controls
   const togglePlay = () => {
@@ -286,64 +243,83 @@ export default function VideoApproval() {
     }
   };
 
-  // Submit comment
+  // Submit comment via edge function
   const handleSubmitComment = async () => {
-    if (!commentText.trim() || !clientName.trim() || !data) return;
+    if (!commentText.trim() || !clientName.trim() || !data || !token) return;
 
     setSubmittingComment(true);
     try {
-      const { error } = await supabase
-        .from('video_comments')
-        .insert({
-          video_version_id: selectedVersionId,
-          task_id: data.task.id,
-          workspace_id: data.versions.find(v => v.id === selectedVersionId)?.workspace_id,
-          timestamp_seconds: Math.floor(commentTimestamp),
-          body: commentText.trim(),
-          is_client_comment: true,
-          client_name: clientName.trim(),
-          status: 'open',
-        });
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-video-feedback`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({
+            type: 'comment',
+            token,
+            video_version_id: selectedVersionId,
+            timestamp_seconds: Math.floor(commentTimestamp),
+            body: commentText.trim(),
+            client_name: clientName.trim(),
+          }),
+        }
+      );
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erro ao enviar comentário');
+      }
 
-      // Refresh comments
+      // Refresh data to show new comment
       await fetchApprovalData();
       setCommentText('');
       setShowCommentModal(false);
     } catch (err: any) {
       console.error('Error submitting comment:', err);
+      alert(err.message || 'Erro ao enviar comentário');
     } finally {
       setSubmittingComment(false);
     }
   };
 
-  // Submit approval
+  // Submit approval via edge function
   const handleSubmitApproval = async () => {
-    if (!approvalName.trim() || !data) return;
+    if (!approvalName.trim() || !data || !token) return;
 
     setSubmittingApproval(true);
     try {
-      const selectedVersion = data.versions.find(v => v.id === selectedVersionId);
-      
-      const { error } = await supabase
-        .from('video_approvals')
-        .insert({
-          task_id: data.task.id,
-          video_version_id: selectedVersionId,
-          workspace_id: selectedVersion?.workspace_id,
-          approved_by_client: true,
-          client_name: approvalName.trim(),
-          notes: approvalNotes.trim() || null,
-        });
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-video-feedback`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({
+            type: 'approval',
+            token,
+            video_version_id: selectedVersionId,
+            client_name: approvalName.trim(),
+            notes: approvalNotes.trim() || undefined,
+          }),
+        }
+      );
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erro ao aprovar vídeo');
+      }
 
-      // Refresh data
+      // Refresh data to show approval
       await fetchApprovalData();
       setShowApprovalModal(false);
     } catch (err: any) {
       console.error('Error submitting approval:', err);
+      alert(err.message || 'Erro ao aprovar vídeo');
     } finally {
       setSubmittingApproval(false);
     }
@@ -422,7 +398,7 @@ export default function VideoApproval() {
   }
 
   const selectedVersion = data.versions.find(v => v.id === selectedVersionId);
-  const videoUrl = signedUrls[selectedVersionId];
+  const videoUrl = data.signed_urls[selectedVersionId];
 
   return (
     <div className="min-h-screen bg-background">
