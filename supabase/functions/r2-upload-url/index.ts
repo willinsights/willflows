@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { S3Client, PutObjectCommand } from "https://esm.sh/@aws-sdk/client-s3@3.709.0";
-import { getSignedUrl } from "https://esm.sh/@aws-sdk/s3-request-presigner@3.709.0";
+import { AwsClient } from "https://esm.sh/aws4fetch@1.0.18";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,6 +11,46 @@ const logStep = (step: string, details?: Record<string, unknown>) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[R2-UPLOAD-URL] ${step}${detailsStr}`);
 };
+
+// Generate presigned URL using aws4fetch (Deno-compatible)
+async function generateR2PresignedUrl(
+  accountId: string,
+  accessKeyId: string,
+  secretAccessKey: string,
+  bucket: string,
+  key: string,
+  contentType: string,
+  expiresIn: number = 3600
+): Promise<string> {
+  const r2 = new AwsClient({
+    accessKeyId,
+    secretAccessKey,
+    service: 's3',
+    region: 'auto',
+  });
+
+  const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
+  const url = new URL(`/${bucket}/${key}`, endpoint);
+  
+  // AWS4 Signature V4 query parameters
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
+  const dateStamp = amzDate.slice(0, 8);
+  
+  url.searchParams.set('X-Amz-Algorithm', 'AWS4-HMAC-SHA256');
+  url.searchParams.set('X-Amz-Credential', `${accessKeyId}/${dateStamp}/auto/s3/aws4_request`);
+  url.searchParams.set('X-Amz-Date', amzDate);
+  url.searchParams.set('X-Amz-Expires', String(expiresIn));
+  url.searchParams.set('X-Amz-SignedHeaders', 'host');
+
+  const signed = await r2.sign(url.toString(), {
+    method: 'PUT',
+    headers: { 'Content-Type': contentType },
+    aws: { signQuery: true },
+  });
+
+  return signed.url;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -143,27 +182,16 @@ serve(async (req) => {
 
     logStep("Generating presigned URL", { key: uniqueKey, fileSize, mimeType });
 
-    // Create S3 client for R2
-    const s3Client = new S3Client({
-      region: "auto",
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
-    });
-
-    // Generate presigned URL for PUT request
-    const command = new PutObjectCommand({
-      Bucket: bucketName,
-      Key: uniqueKey,
-      ContentType: mimeType || "video/mp4",
-      ContentLength: fileSize,
-    });
-
-    const presignedUrl = await getSignedUrl(s3Client, command, { 
-      expiresIn: 3600 // 1 hour
-    });
+    // Generate presigned URL using aws4fetch
+    const presignedUrl = await generateR2PresignedUrl(
+      accountId,
+      accessKeyId,
+      secretAccessKey,
+      bucketName,
+      uniqueKey,
+      mimeType || "video/mp4",
+      3600
+    );
 
     logStep("Presigned URL generated successfully");
 
