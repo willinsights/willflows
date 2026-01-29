@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2, CalendarIcon, User, FolderOpen, ListChecks } from 'lucide-react';
+import { Loader2, CalendarIcon, User, FolderOpen, ListChecks, Film, Settings2 } from 'lucide-react';
 import { TaskChatIndicator } from './TaskChatIndicator';
 import {
   Dialog,
@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -29,6 +30,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { usePlanFeatures } from '@/hooks/usePlanFeatures';
+import { VideoProductionTab } from '@/components/video-production/VideoProductionTab';
 
 type PriorityLevel = 'baixa' | 'media' | 'alta' | 'urgente';
 
@@ -38,6 +41,7 @@ interface Task {
   description?: string | null;
   phase: 'captacao' | 'edicao';
   project_id: string;
+  workspace_id?: string;
   due_date?: string | null;
   is_completed: boolean;
   priority?: PriorityLevel | null;
@@ -66,6 +70,7 @@ export function TaskModal({
   const { projects } = useProjects();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { hasFeatureAccess } = usePlanFeatures();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -75,8 +80,10 @@ export function TaskModal({
   const [dueDate, setDueDate] = useState('');
   const [priority, setPriority] = useState<PriorityLevel>('media');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState('details');
 
   const isEditing = !!task;
+  const hasVideoApproval = hasFeatureAccess('videoApproval');
 
   // Active projects for selection
   const activeProjects = projects.filter(
@@ -103,6 +110,7 @@ export function TaskModal({
         setDueDate('');
         setPriority('media');
         setAssigneeId('__unassigned__');
+        setActiveTab('details');
       }
     }
   }, [open, task, defaultPhase, initialProjectId]);
@@ -221,9 +229,12 @@ export function TaskModal({
     }
   };
 
+  // Determine modal size based on active tab
+  const modalSize = activeTab === 'production' ? 'max-w-5xl' : 'sm:max-w-[500px]';
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className={modalSize}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ListChecks className="h-5 w-5 text-primary" />
@@ -236,193 +247,323 @@ export function TaskModal({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Chat Indicator - only show when editing */}
-          {isEditing && task?.id && (
-            <TaskChatIndicator 
-              taskId={task.id} 
-              onOpenChat={() => onOpenChange(false)} 
-            />
-          )}
+        {isEditing && hasVideoApproval ? (
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="details" className="flex items-center gap-2">
+                <Settings2 className="h-4 w-4" />
+                Detalhes
+              </TabsTrigger>
+              <TabsTrigger value="production" className="flex items-center gap-2">
+                <Film className="h-4 w-4" />
+                Produção
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Task Title */}
-          <div className="space-y-2">
-            <Label htmlFor="task-title">Título *</Label>
-            <Input
-              id="task-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Ex: Corrigir cor do céu"
-              autoFocus
-            />
-          </div>
+            <TabsContent value="details" className="mt-4">
+              <TaskDetailsForm
+                title={title}
+                setTitle={setTitle}
+                description={description}
+                setDescription={setDescription}
+                phase={phase}
+                setPhase={setPhase}
+                projectId={projectId}
+                setProjectId={setProjectId}
+                assigneeId={assigneeId}
+                setAssigneeId={setAssigneeId}
+                dueDate={dueDate}
+                setDueDate={setDueDate}
+                priority={priority}
+                setPriority={setPriority}
+                isSubmitting={isSubmitting}
+                isEditing={isEditing}
+                task={task}
+                initialProjectId={initialProjectId}
+                activeProjects={activeProjects}
+                members={members}
+                onSubmit={handleSubmit}
+                onClose={handleClose}
+              />
+            </TabsContent>
 
-          {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="task-description">Descrição</Label>
-            <Textarea
-              id="task-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Detalhes adicionais sobre a tarefa..."
-              rows={3}
-            />
-          </div>
-
-          {/* Phase Selection */}
-          <div className="space-y-2">
-            <Label>Fase</Label>
-            <RadioGroup
-              value={phase}
-              onValueChange={(v) => setPhase(v as 'captacao' | 'edicao')}
-              className="flex gap-4"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="captacao" id="phase-captacao" />
-                <Label htmlFor="phase-captacao" className="cursor-pointer">
-                  Captação
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="edicao" id="phase-edicao" />
-                <Label htmlFor="phase-edicao" className="cursor-pointer">
-                  Edição
-                </Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          {/* Project Selection - Only show if not pre-selected */}
-          {!initialProjectId && (
-            <div className="space-y-2">
-              <Label htmlFor="project" className="flex items-center gap-2">
-                <FolderOpen className="h-4 w-4" />
-                Projeto *
-              </Label>
-              <Select value={projectId} onValueChange={setProjectId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecionar projeto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {activeProjects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.project_code ? `${project.project_code} - ` : ''}
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Assignee */}
-          <div className="space-y-2">
-            <Label htmlFor="assignee" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Atribuir a
-            </Label>
-            <Select value={assigneeId} onValueChange={setAssigneeId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecionar membro">
-                  {assigneeId && assigneeId !== '__unassigned__' ? (
-                    (() => {
-                      const selectedMember = members.find(m => m.user_id === assigneeId);
-                      if (!selectedMember) return 'Selecionar membro';
-                      const initials = selectedMember.full_name
-                        ? selectedMember.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-                        : selectedMember.email?.[0]?.toUpperCase() || '?';
-                      return (
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-[30px] w-[30px]">
-                            <AvatarImage src={selectedMember.avatar_url || undefined} />
-                            <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                              {initials}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span>{selectedMember.full_name || selectedMember.email}</span>
-                        </div>
-                      );
-                    })()
-                  ) : (
-                    'Selecionar membro'
-                  )}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__unassigned__">
-                  <div className="flex items-center gap-2">
-                    <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center">
-                      <User className="h-3 w-3 text-muted-foreground" />
-                    </div>
-                    <span>Sem atribuição</span>
-                  </div>
-                </SelectItem>
-                {members.map((member) => {
-                  const initials = member.full_name
-                    ? member.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-                    : member.email?.[0]?.toUpperCase() || '?';
-                  return (
-                    <SelectItem key={member.user_id} value={member.user_id}>
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-[30px] w-[30px]">
-                          <AvatarImage src={member.avatar_url || undefined} />
-                          <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                            {initials}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span>{member.full_name || member.email}</span>
-                      </div>
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Due Date */}
-          <div className="space-y-2">
-            <Label htmlFor="due-date" className="flex items-center gap-2">
-              <CalendarIcon className="h-4 w-4" />
-              Prazo
-            </Label>
-            <Input
-              id="due-date"
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-            />
-          </div>
-
-          {/* Priority */}
-          <div className="space-y-2">
-            <Label>Prioridade</Label>
-            <Select value={priority} onValueChange={(v) => setPriority(v as PriorityLevel)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecionar prioridade" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="baixa">Baixa</SelectItem>
-                <SelectItem value="media">Média</SelectItem>
-                <SelectItem value="alta">Alta</SelectItem>
-                <SelectItem value="urgente">Urgente</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={!title.trim() || !projectId || isSubmitting}
-            >
-              {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {isEditing ? 'Guardar' : 'Criar Tarefa'}
-            </Button>
-          </DialogFooter>
-        </form>
+            <TabsContent value="production" className="mt-4">
+              {task && currentWorkspace && (
+                <VideoProductionTab
+                  taskId={task.id}
+                  projectId={task.project_id}
+                  workspaceId={task.workspace_id || currentWorkspace.id}
+                />
+              )}
+            </TabsContent>
+          </Tabs>
+        ) : (
+          <TaskDetailsForm
+            title={title}
+            setTitle={setTitle}
+            description={description}
+            setDescription={setDescription}
+            phase={phase}
+            setPhase={setPhase}
+            projectId={projectId}
+            setProjectId={setProjectId}
+            assigneeId={assigneeId}
+            setAssigneeId={setAssigneeId}
+            dueDate={dueDate}
+            setDueDate={setDueDate}
+            priority={priority}
+            setPriority={setPriority}
+            isSubmitting={isSubmitting}
+            isEditing={isEditing}
+            task={task}
+            initialProjectId={initialProjectId}
+            activeProjects={activeProjects}
+            members={members}
+            onSubmit={handleSubmit}
+            onClose={handleClose}
+          />
+        )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+// Extracted form component for reuse
+interface TaskDetailsFormProps {
+  title: string;
+  setTitle: (v: string) => void;
+  description: string;
+  setDescription: (v: string) => void;
+  phase: 'captacao' | 'edicao';
+  setPhase: (v: 'captacao' | 'edicao') => void;
+  projectId: string;
+  setProjectId: (v: string) => void;
+  assigneeId: string;
+  setAssigneeId: (v: string) => void;
+  dueDate: string;
+  setDueDate: (v: string) => void;
+  priority: PriorityLevel;
+  setPriority: (v: PriorityLevel) => void;
+  isSubmitting: boolean;
+  isEditing: boolean;
+  task?: Task | null;
+  initialProjectId?: string;
+  activeProjects: any[];
+  members: any[];
+  onSubmit: (e: React.FormEvent) => void;
+  onClose: () => void;
+}
+
+function TaskDetailsForm({
+  title,
+  setTitle,
+  description,
+  setDescription,
+  phase,
+  setPhase,
+  projectId,
+  setProjectId,
+  assigneeId,
+  setAssigneeId,
+  dueDate,
+  setDueDate,
+  priority,
+  setPriority,
+  isSubmitting,
+  isEditing,
+  task,
+  initialProjectId,
+  activeProjects,
+  members,
+  onSubmit,
+  onClose,
+}: TaskDetailsFormProps) {
+  return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      {/* Chat Indicator - only show when editing */}
+      {isEditing && task?.id && (
+        <TaskChatIndicator 
+          taskId={task.id} 
+          onOpenChat={() => onClose()} 
+        />
+      )}
+
+      {/* Task Title */}
+      <div className="space-y-2">
+        <Label htmlFor="task-title">Título *</Label>
+        <Input
+          id="task-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Ex: Corrigir cor do céu"
+          autoFocus
+        />
+      </div>
+
+      {/* Description */}
+      <div className="space-y-2">
+        <Label htmlFor="task-description">Descrição</Label>
+        <Textarea
+          id="task-description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Detalhes adicionais sobre a tarefa..."
+          rows={3}
+        />
+      </div>
+
+      {/* Phase Selection */}
+      <div className="space-y-2">
+        <Label>Fase</Label>
+        <RadioGroup
+          value={phase}
+          onValueChange={(v) => setPhase(v as 'captacao' | 'edicao')}
+          className="flex gap-4"
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="captacao" id="phase-captacao" />
+            <Label htmlFor="phase-captacao" className="cursor-pointer">
+              Captação
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="edicao" id="phase-edicao" />
+            <Label htmlFor="phase-edicao" className="cursor-pointer">
+              Edição
+            </Label>
+          </div>
+        </RadioGroup>
+      </div>
+
+      {/* Project Selection - Only show if not pre-selected */}
+      {!initialProjectId && (
+        <div className="space-y-2">
+          <Label htmlFor="project" className="flex items-center gap-2">
+            <FolderOpen className="h-4 w-4" />
+            Projeto *
+          </Label>
+          <Select value={projectId} onValueChange={setProjectId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecionar projeto" />
+            </SelectTrigger>
+            <SelectContent>
+              {activeProjects.map((project) => (
+                <SelectItem key={project.id} value={project.id}>
+                  {project.project_code ? `${project.project_code} - ` : ''}
+                  {project.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Assignee */}
+      <div className="space-y-2">
+        <Label htmlFor="assignee" className="flex items-center gap-2">
+          <User className="h-4 w-4" />
+          Atribuir a
+        </Label>
+        <Select value={assigneeId} onValueChange={setAssigneeId}>
+          <SelectTrigger>
+            <SelectValue placeholder="Selecionar membro">
+              {assigneeId && assigneeId !== '__unassigned__' ? (
+                (() => {
+                  const selectedMember = members.find(m => m.user_id === assigneeId);
+                  if (!selectedMember) return 'Selecionar membro';
+                  const initials = selectedMember.full_name
+                    ? selectedMember.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+                    : selectedMember.email?.[0]?.toUpperCase() || '?';
+                  return (
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-[30px] w-[30px]">
+                        <AvatarImage src={selectedMember.avatar_url || undefined} />
+                        <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span>{selectedMember.full_name || selectedMember.email}</span>
+                    </div>
+                  );
+                })()
+              ) : (
+                'Selecionar membro'
+              )}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__unassigned__">
+              <div className="flex items-center gap-2">
+                <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center">
+                  <User className="h-3 w-3 text-muted-foreground" />
+                </div>
+                <span>Sem atribuição</span>
+              </div>
+            </SelectItem>
+            {members.map((member) => {
+              const initials = member.full_name
+                ? member.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+                : member.email?.[0]?.toUpperCase() || '?';
+              return (
+                <SelectItem key={member.user_id} value={member.user_id}>
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-[30px] w-[30px]">
+                      <AvatarImage src={member.avatar_url || undefined} />
+                      <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span>{member.full_name || member.email}</span>
+                  </div>
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Due Date */}
+      <div className="space-y-2">
+        <Label htmlFor="due-date" className="flex items-center gap-2">
+          <CalendarIcon className="h-4 w-4" />
+          Prazo
+        </Label>
+        <Input
+          id="due-date"
+          type="date"
+          value={dueDate}
+          onChange={(e) => setDueDate(e.target.value)}
+        />
+      </div>
+
+      {/* Priority */}
+      <div className="space-y-2">
+        <Label>Prioridade</Label>
+        <Select value={priority} onValueChange={(v) => setPriority(v as PriorityLevel)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Selecionar prioridade" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="baixa">Baixa</SelectItem>
+            <SelectItem value="media">Média</SelectItem>
+            <SelectItem value="alta">Alta</SelectItem>
+            <SelectItem value="urgente">Urgente</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+          Cancelar
+        </Button>
+        <Button
+          type="submit"
+          disabled={!title.trim() || !projectId || isSubmitting}
+        >
+          {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+          {isEditing ? 'Guardar' : 'Criar Tarefa'}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }
