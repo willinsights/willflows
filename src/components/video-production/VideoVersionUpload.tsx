@@ -3,11 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Upload, Video, X, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import { Upload, Video, X, AlertCircle, Loader2, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useVideoVersions } from '@/hooks/useVideoVersions';
 import { useWorkspaceStorage } from '@/hooks/useWorkspaceStorage';
 import { useVideoCompression } from '@/hooks/useVideoCompression';
+import { useFFmpegContext } from '@/contexts/FFmpegContext';
 
 interface VideoVersionUploadProps {
   projectId: string;
@@ -37,8 +38,12 @@ export const VideoVersionUpload = forwardRef<HTMLDivElement, VideoVersionUploadP
     cancelCompression, 
     progress: compressionProgress, 
     error: compressionError,
-    isEngineReady,
   } = useVideoCompression();
+  
+  const { isolationStatus, isEngineReady } = useFFmpegContext();
+
+  // Check if compression is available
+  const isCompressionAvailable = isolationStatus === 'isolated';
 
   const validateFile = (file: File): string | null => {
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -64,6 +69,11 @@ export const VideoVersionUpload = forwardRef<HTMLDivElement, VideoVersionUploadP
     setSelectedFile(file);
     setCompressionComplete(false);
     setCompressionSavings(null);
+    
+    // If compression not available, disable it
+    if (!isCompressionAvailable) {
+      setEnableCompression(false);
+    }
   };
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -84,7 +94,7 @@ export const VideoVersionUpload = forwardRef<HTMLDivElement, VideoVersionUploadP
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFile(e.dataTransfer.files[0]);
     }
-  }, [storage]);
+  }, [storage, isCompressionAvailable]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -99,7 +109,7 @@ export const VideoVersionUpload = forwardRef<HTMLDivElement, VideoVersionUploadP
       let fileToUpload = selectedFile;
 
       // Compress if enabled and not already compressed
-      if (enableCompression && !compressionComplete) {
+      if (enableCompression && isCompressionAvailable && !compressionComplete) {
         try {
           console.log('[Upload] Starting compression...');
           const result = await compressVideo(selectedFile);
@@ -243,18 +253,28 @@ export const VideoVersionUpload = forwardRef<HTMLDivElement, VideoVersionUploadP
                 Comprimir vídeo
               </Label>
               <p className="text-xs text-muted-foreground">
-                Reduz o tamanho do ficheiro antes de enviar
+                {isCompressionAvailable 
+                  ? 'Reduz o tamanho do ficheiro antes de enviar'
+                  : 'Compressão não disponível neste navegador'
+                }
               </p>
+              {!isCompressionAvailable && (
+                <p className="text-xs text-amber-600 flex items-center gap-1">
+                  <ShieldAlert className="h-3 w-3" />
+                  Ative a compressão no indicador acima
+                </p>
+              )}
             </div>
             <Switch
               id="compression"
-              checked={enableCompression}
+              checked={enableCompression && isCompressionAvailable}
               onCheckedChange={setEnableCompression}
+              disabled={!isCompressionAvailable}
             />
           </div>
 
           <Button onClick={handleUpload} className="w-full">
-            {enableCompression ? 'Comprimir e Carregar' : 'Carregar'}
+            {enableCompression && isCompressionAvailable ? 'Comprimir e Carregar' : 'Carregar'}
           </Button>
         </div>
       )}

@@ -1,5 +1,12 @@
-import React, { createContext, useContext, useRef, useState, useCallback } from 'react';
+import React, { createContext, useContext, useRef, useState, useCallback, useEffect } from 'react';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { 
+  isCrossOriginIsolated, 
+  isServiceWorkerSupported, 
+  ensureCrossOriginIsolated 
+} from '@/lib/coop-coep-service-worker';
+
+type IsolationStatus = 'checking' | 'isolated' | 'not-isolated' | 'unsupported' | 'activating';
 
 interface FFmpegContextValue {
   ffmpeg: FFmpeg | null;
@@ -10,6 +17,10 @@ interface FFmpegContextValue {
   preload: () => Promise<void>;
   cancelPreload: () => void;
   terminateEngine: () => void;
+  // New isolation-related state
+  isolationStatus: IsolationStatus;
+  isEngineReady: boolean;
+  enableIsolation: () => Promise<boolean>;
 }
 
 const FFmpegContext = createContext<FFmpegContextValue | null>(null);
@@ -59,10 +70,50 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadProgress, setLoadProgress] = useState(0);
+  const [isolationStatus, setIsolationStatus] = useState<IsolationStatus>('checking');
+  
   const loadingPromiseRef = useRef<Promise<void> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const totalTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Check isolation status on mount
+  useEffect(() => {
+    console.log('[FFmpeg Context] Checking isolation status...');
+    
+    if (isCrossOriginIsolated()) {
+      console.log('[FFmpeg Context] ✓ Already cross-origin isolated');
+      setIsolationStatus('isolated');
+    } else if (!isServiceWorkerSupported()) {
+      console.log('[FFmpeg Context] ✗ Service Workers not supported');
+      setIsolationStatus('unsupported');
+    } else {
+      console.log('[FFmpeg Context] Not isolated yet');
+      setIsolationStatus('not-isolated');
+    }
+  }, []);
+
+  const enableIsolation = useCallback(async (): Promise<boolean> => {
+    if (isCrossOriginIsolated()) {
+      setIsolationStatus('isolated');
+      return true;
+    }
+
+    setIsolationStatus('activating');
+    
+    try {
+      const success = await ensureCrossOriginIsolated();
+      // Note: if successful, the page will reload, so we won't reach here
+      if (!success) {
+        setIsolationStatus('unsupported');
+      }
+      return success;
+    } catch (err) {
+      console.error('[FFmpeg Context] Failed to enable isolation:', err);
+      setIsolationStatus('unsupported');
+      return false;
+    }
+  }, []);
 
   const cleanupLoading = useCallback(() => {
     if (progressIntervalRef.current) {
@@ -111,6 +162,13 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
   }, [terminateEngine]);
 
   const preload = useCallback(async () => {
+    // Check isolation status first
+    if (!isCrossOriginIsolated()) {
+      console.log('[FFmpeg Context] Not cross-origin isolated, cannot load FFmpeg');
+      setLoadError('Ambiente não está isolado. Clique em "Ativar Compressão" primeiro.');
+      return;
+    }
+
     // Already loaded
     if (isLoaded && ffmpegRef.current) {
       console.log('[FFmpeg Context] Already loaded, skipping');
@@ -175,7 +233,7 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
             console.log('[FFmpeg Context] Loading engine...');
             
             // Add timeout specifically for ffmpeg.load() - it can hang indefinitely
-            const loadPromise = ffmpeg.load({
+            const ffmpegLoadPromise = ffmpeg.load({
               coreURL,
               wasmURL,
             });
@@ -190,7 +248,7 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
               signal.addEventListener('abort', () => clearTimeout(timeoutId));
             });
             
-            await Promise.race([loadPromise, loadTimeoutPromise]);
+            await Promise.race([ffmpegLoadPromise, loadTimeoutPromise]);
 
             loaded = true;
             break;
@@ -254,6 +312,9 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isLoaded, cleanupLoading]);
 
+  // Derived state: engine is ready when isolated and loaded
+  const isEngineReady = isolationStatus === 'isolated' && isLoaded;
+
   const value: FFmpegContextValue = {
     ffmpeg: ffmpegRef.current,
     isLoaded,
@@ -263,6 +324,9 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
     preload,
     cancelPreload,
     terminateEngine,
+    isolationStatus,
+    isEngineReady,
+    enableIsolation,
   };
 
   return (
