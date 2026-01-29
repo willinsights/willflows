@@ -14,6 +14,18 @@ const PRODUCT_TO_PLAN: Record<string, string> = {
   'prod_Tl6rxTvnCICjTL': 'studio',
 };
 
+// Storage Addon Product IDs to tier mapping
+const STORAGE_ADDON_PRODUCTS: Record<string, { tier: '50gb' | '100gb' | '250gb'; bytes: number }> = {
+  'prod_TsfrcvSlClixZM': { tier: '50gb', bytes: 50 * 1024 * 1024 * 1024 },
+  'prod_TsfrGDXzlIOhaM': { tier: '100gb', bytes: 100 * 1024 * 1024 * 1024 },
+  'prod_TsfrRubX5bCWEh': { tier: '250gb', bytes: 250 * 1024 * 1024 * 1024 },
+};
+
+// Check if a product is a storage addon
+const isStorageAddon = (productId: string): boolean => {
+  return productId in STORAGE_ADDON_PRODUCTS;
+};
+
 // Helper logging function for debugging - only logs when DEBUG=true
 // Security: Sanitizes PII and sensitive data before logging
 const DEBUG = Deno.env.get("DEBUG") === "true";
@@ -203,6 +215,61 @@ serve(async (req) => {
           // Get subscription details to determine the plan
           const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
           const productId = subscription.items.data[0]?.price.product as string;
+          
+          // Check if this is a storage addon purchase
+          if (isStorageAddon(productId)) {
+            const workspaceId = session.metadata?.workspace_id;
+            if (!workspaceId) {
+              logStep("WARNING: Storage addon purchase without workspace_id");
+              break;
+            }
+            
+            const addonInfo = STORAGE_ADDON_PRODUCTS[productId];
+            logStep("Processing storage addon purchase", { 
+              workspaceId, 
+              tier: addonInfo.tier, 
+              bytes: addonInfo.bytes 
+            });
+            
+            // Update workspace_storage with the addon
+            const { data: existingStorage, error: storageError } = await supabaseClient
+              .from('workspace_storage')
+              .select('*')
+              .eq('workspace_id', workspaceId)
+              .single();
+            
+            if (existingStorage) {
+              // Update existing record
+              await supabaseClient
+                .from('workspace_storage')
+                .update({
+                  extra_storage_bytes: addonInfo.bytes,
+                  storage_limit_bytes: (existingStorage.base_storage_bytes || 10737418240) + addonInfo.bytes,
+                  addon_tier: addonInfo.tier,
+                  stripe_addon_subscription_id: session.subscription as string,
+                  last_calculated_at: new Date().toISOString(),
+                })
+                .eq('workspace_id', workspaceId);
+            } else {
+              // Insert new record
+              await supabaseClient
+                .from('workspace_storage')
+                .insert({
+                  workspace_id: workspaceId,
+                  storage_used_bytes: 0,
+                  base_storage_bytes: 10737418240, // 10GB
+                  extra_storage_bytes: addonInfo.bytes,
+                  storage_limit_bytes: 10737418240 + addonInfo.bytes,
+                  addon_tier: addonInfo.tier,
+                  stripe_addon_subscription_id: session.subscription as string,
+                });
+            }
+            
+            logStep("Storage addon activated", { workspaceId, tier: addonInfo.tier });
+            break;
+          }
+          
+          // Regular subscription plan purchase
           const plan = PRODUCT_TO_PLAN[productId] || 'starter';
           
           const currentPeriodEnd = subscription.current_period_end 
@@ -341,7 +408,38 @@ serve(async (req) => {
         });
 
         const customerId = subscription.customer as string;
+        const productId = subscription.items.data[0]?.price.product as string;
 
+        // Check if this is a storage addon cancellation
+        if (isStorageAddon(productId)) {
+          logStep("Processing storage addon cancellation");
+          
+          // Find and update the workspace storage
+          const { data: storageRecords } = await supabaseClient
+            .from('workspace_storage')
+            .select('workspace_id')
+            .eq('stripe_addon_subscription_id', subscription.id);
+          
+          if (storageRecords && storageRecords.length > 0) {
+            for (const record of storageRecords) {
+              await supabaseClient
+                .from('workspace_storage')
+                .update({
+                  extra_storage_bytes: 0,
+                  storage_limit_bytes: 10737418240, // Reset to base 10GB
+                  addon_tier: null,
+                  stripe_addon_subscription_id: null,
+                  last_calculated_at: new Date().toISOString(),
+                })
+                .eq('workspace_id', record.workspace_id);
+              
+              logStep("Storage addon removed", { workspaceId: record.workspace_id });
+            }
+          }
+          break;
+        }
+
+        // Regular subscription cancellation
         // Update user subscription
         const { data: userSub } = await supabaseClient
           .from('user_subscriptions')

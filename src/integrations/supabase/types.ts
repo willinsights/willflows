@@ -2932,7 +2932,7 @@ export type Database = {
           {
             foreignKeyName: "video_retention_queue_task_id_fkey"
             columns: ["task_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
