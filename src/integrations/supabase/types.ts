@@ -2702,6 +2702,249 @@ export type Database = {
         }
         Relationships: []
       }
+      video_approval_tokens: {
+        Row: {
+          client_email: string | null
+          client_name: string | null
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          task_id: string
+          token: string
+          token_hash: string | null
+          workspace_id: string
+        }
+        Insert: {
+          client_email?: string | null
+          client_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          task_id: string
+          token?: string
+          token_hash?: string | null
+          workspace_id: string
+        }
+        Update: {
+          client_email?: string | null
+          client_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          task_id?: string
+          token?: string
+          token_hash?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_approval_tokens_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_approval_tokens_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_approvals: {
+        Row: {
+          approved_at: string
+          approved_by_client: boolean
+          approved_by_user_id: string | null
+          client_name: string | null
+          id: string
+          notes: string | null
+          task_id: string
+          video_version_id: string
+          workspace_id: string
+        }
+        Insert: {
+          approved_at?: string
+          approved_by_client?: boolean
+          approved_by_user_id?: string | null
+          client_name?: string | null
+          id?: string
+          notes?: string | null
+          task_id: string
+          video_version_id: string
+          workspace_id: string
+        }
+        Update: {
+          approved_at?: string
+          approved_by_client?: boolean
+          approved_by_user_id?: string | null
+          client_name?: string | null
+          id?: string
+          notes?: string | null
+          task_id?: string
+          video_version_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_approvals_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_approvals_video_version_id_fkey"
+            columns: ["video_version_id"]
+            isOneToOne: false
+            referencedRelation: "video_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_approvals_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_comments: {
+        Row: {
+          author_id: string | null
+          body: string
+          client_name: string | null
+          created_at: string
+          id: string
+          is_client_comment: boolean
+          parent_id: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          task_id: string
+          timestamp_seconds: number
+          video_version_id: string
+          workspace_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          client_name?: string | null
+          created_at?: string
+          id?: string
+          is_client_comment?: boolean
+          parent_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          task_id: string
+          timestamp_seconds?: number
+          video_version_id: string
+          workspace_id: string
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          client_name?: string | null
+          created_at?: string
+          id?: string
+          is_client_comment?: boolean
+          parent_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          task_id?: string
+          timestamp_seconds?: number
+          video_version_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "video_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_comments_video_version_id_fkey"
+            columns: ["video_version_id"]
+            isOneToOne: false
+            referencedRelation: "video_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_comments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_retention_queue: {
+        Row: {
+          created_at: string
+          id: string
+          notified_at: string | null
+          retention_days: number
+          scheduled_deletion_at: string
+          status: string
+          task_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notified_at?: string | null
+          retention_days?: number
+          scheduled_deletion_at: string
+          status?: string
+          task_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notified_at?: string | null
+          retention_days?: number
+          scheduled_deletion_at?: string
+          status?: string
+          task_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_retention_queue_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_retention_queue_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       video_structure_templates: {
         Row: {
           created_at: string
@@ -2799,6 +3042,76 @@ export type Database = {
           },
           {
             foreignKeyName: "video_structures_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_versions: {
+        Row: {
+          created_at: string
+          duration_seconds: number | null
+          file_name: string
+          file_path: string
+          file_size_bytes: number
+          id: string
+          mime_type: string | null
+          project_id: string
+          task_id: string
+          thumbnail_path: string | null
+          uploaded_by: string | null
+          version_number: number
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number | null
+          file_name: string
+          file_path: string
+          file_size_bytes?: number
+          id?: string
+          mime_type?: string | null
+          project_id: string
+          task_id: string
+          thumbnail_path?: string | null
+          uploaded_by?: string | null
+          version_number?: number
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number | null
+          file_name?: string
+          file_path?: string
+          file_size_bytes?: number
+          id?: string
+          mime_type?: string | null
+          project_id?: string
+          task_id?: string
+          thumbnail_path?: string | null
+          uploaded_by?: string | null
+          version_number?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_versions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_versions_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_versions_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -3019,6 +3332,56 @@ export type Database = {
             foreignKeyName: "workspace_role_permissions_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_storage: {
+        Row: {
+          addon_tier: string | null
+          base_storage_bytes: number
+          created_at: string
+          extra_storage_bytes: number
+          id: string
+          last_calculated_at: string
+          storage_limit_bytes: number
+          storage_used_bytes: number
+          stripe_addon_subscription_id: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          addon_tier?: string | null
+          base_storage_bytes?: number
+          created_at?: string
+          extra_storage_bytes?: number
+          id?: string
+          last_calculated_at?: string
+          storage_limit_bytes?: number
+          storage_used_bytes?: number
+          stripe_addon_subscription_id?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          addon_tier?: string | null
+          base_storage_bytes?: number
+          created_at?: string
+          extra_storage_bytes?: number
+          id?: string
+          last_calculated_at?: string
+          storage_limit_bytes?: number
+          storage_used_bytes?: number
+          stripe_addon_subscription_id?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_storage_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
