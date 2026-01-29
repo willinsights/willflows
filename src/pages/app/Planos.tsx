@@ -32,6 +32,7 @@ import { format, differenceInDays, parseISO, isValid } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { PLANS as PLAN_INFO, getPriceId } from '@/lib/plans';
 import { cn } from '@/lib/utils';
+import { StorageManagementCard } from '@/components/video-production/StorageManagementCard';
 
 interface Invoice {
   id: string;
@@ -567,96 +568,103 @@ export default function Planos() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-6 md:grid-cols-2">
-                {/* Current Subscription */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-primary" />
-                      Subscrição Atual
-                    </CardTitle>
-                    <CardDescription>Detalhes do seu plano ativo</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {billingInfo.subscription ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Estado</span>
-                          <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            Ativo
-                          </Badge>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Plano</span>
-                          <span className="font-medium capitalize">
-                            {currentWorkspace?.subscription_plan || 'Starter'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Próxima faturação</span>
-                          <span className="font-medium">
-                            {formatDatePt(new Date(billingInfo.subscription.currentPeriodEnd * 1000), "d 'de' MMMM, yyyy")}
-                          </span>
-                        </div>
-                        {billingInfo.subscription.cancelAtPeriodEnd && (
-                          <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                            <p className="text-sm text-yellow-400">
-                              ⚠️ A subscrição será cancelada no final do período
-                            </p>
+              <>
+                <div className="grid gap-6 md:grid-cols-2">
+                  {/* Current Subscription */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary" />
+                        Subscrição Atual
+                      </CardTitle>
+                      <CardDescription>Detalhes do seu plano ativo</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {billingInfo.subscription ? (
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Estado</span>
+                            <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Ativo
+                            </Badge>
                           </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-center py-6">
-                        <p className="text-muted-foreground mb-3">Sem subscrição ativa</p>
-                        <Button size="sm" onClick={() => setActiveTab('planos')}>
-                          Escolher Plano
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Plano</span>
+                            <span className="font-medium capitalize">
+                              {currentWorkspace?.subscription_plan || 'Starter'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Próxima faturação</span>
+                            <span className="font-medium">
+                              {formatDatePt(new Date(billingInfo.subscription.currentPeriodEnd * 1000), "d 'de' MMMM, yyyy")}
+                            </span>
+                          </div>
+                          {billingInfo.subscription.cancelAtPeriodEnd && (
+                            <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                              <p className="text-sm text-yellow-400">
+                                ⚠️ A subscrição será cancelada no final do período
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center py-6">
+                          <p className="text-muted-foreground mb-3">Sem subscrição ativa</p>
+                          <Button size="sm" onClick={() => setActiveTab('planos')}>
+                            Escolher Plano
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
 
-                {/* Payment Method */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <CreditCard className="h-5 w-5 text-primary" />
-                      Método de Pagamento
-                    </CardTitle>
-                    <CardDescription>Cartão registado para pagamentos</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {billingInfo.paymentMethod ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg border">
-                          <div className="text-2xl">{getCardBrandIcon(billingInfo.paymentMethod.brand)}</div>
-                          <div>
-                            <p className="font-medium">•••• •••• •••• {billingInfo.paymentMethod.last4}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Expira {billingInfo.paymentMethod.expMonth.toString().padStart(2, '0')}/{billingInfo.paymentMethod.expYear}
-                            </p>
+                  {/* Payment Method */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <CreditCard className="h-5 w-5 text-primary" />
+                        Método de Pagamento
+                      </CardTitle>
+                      <CardDescription>Cartão registado para pagamentos</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {billingInfo.paymentMethod ? (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg border">
+                            <div className="text-2xl">{getCardBrandIcon(billingInfo.paymentMethod.brand)}</div>
+                            <div>
+                              <p className="font-medium">•••• •••• •••• {billingInfo.paymentMethod.last4}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Expira {billingInfo.paymentMethod.expMonth.toString().padStart(2, '0')}/{billingInfo.paymentMethod.expYear}
+                              </p>
+                            </div>
                           </div>
+                          <Button 
+                            variant="outline" 
+                            className="w-full" 
+                            onClick={handleManageSubscription}
+                            disabled={portalLoading}
+                          >
+                            Atualizar Cartão
+                          </Button>
                         </div>
-                        <Button 
-                          variant="outline" 
-                          className="w-full" 
-                          onClick={handleManageSubscription}
-                          disabled={portalLoading}
-                        >
-                          Atualizar Cartão
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="text-center py-6">
-                        <CreditCard className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
-                        <p className="text-muted-foreground">Nenhum cartão registado</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
+                      ) : (
+                        <div className="text-center py-6">
+                          <CreditCard className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
+                          <p className="text-muted-foreground">Nenhum cartão registado</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Storage Add-ons - Only for Studio plan */}
+                {currentPlan === 'studio' && (
+                  <StorageManagementCard />
+                )}
+              </>
             )}
           </TabsContent>
         )}
