@@ -22,11 +22,12 @@ export interface VideoVersion {
 
 interface UploadVideoInput {
   file: File;
+  taskId: string;
   workspaceId: string;
   projectId: string;
 }
 
-export function useVideoVersions(projectId: string | null, workspaceId: string | null) {
+export function useVideoVersions(taskId: string | null, workspaceId: string | null) {
   const [versions, setVersions] = useState<VideoVersion[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -36,14 +37,14 @@ export function useVideoVersions(projectId: string | null, workspaceId: string |
   const { storage, addStorageUsed, removeStorageUsed } = useWorkspaceStorage();
 
   const fetchVersions = useCallback(async () => {
-    if (!projectId) return;
+    if (!taskId) return;
 
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('video_versions')
         .select('*')
-        .eq('project_id', projectId)
+        .eq('task_id', taskId)
         .order('version_number', { ascending: false });
 
       if (error) throw error;
@@ -53,7 +54,7 @@ export function useVideoVersions(projectId: string | null, workspaceId: string |
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [taskId]);
 
   useEffect(() => {
     fetchVersions();
@@ -61,17 +62,17 @@ export function useVideoVersions(projectId: string | null, workspaceId: string |
 
   // Realtime subscription
   useEffect(() => {
-    if (!projectId) return;
+    if (!taskId) return;
 
     const channel = supabase
-      .channel(`video_versions:${projectId}`)
+      .channel(`video_versions:${taskId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'video_versions',
-          filter: `project_id=eq.${projectId}`,
+          filter: `task_id=eq.${taskId}`,
         },
         () => {
           fetchVersions();
@@ -82,9 +83,9 @@ export function useVideoVersions(projectId: string | null, workspaceId: string |
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [projectId, fetchVersions]);
+  }, [taskId, fetchVersions]);
 
-  const uploadVersion = async ({ file, workspaceId, projectId }: Omit<UploadVideoInput, 'taskId'>) => {
+  const uploadVersion = async ({ file, taskId, workspaceId, projectId }: UploadVideoInput) => {
     if (!user) throw new Error('User not authenticated');
 
     // Check storage limit
@@ -105,7 +106,7 @@ export function useVideoVersions(projectId: string | null, workspaceId: string |
       const { data: existingVersions } = await supabase
         .from('video_versions')
         .select('version_number')
-        .eq('project_id', projectId)
+        .eq('task_id', taskId)
         .order('version_number', { ascending: false })
         .limit(1);
 
@@ -114,7 +115,7 @@ export function useVideoVersions(projectId: string | null, workspaceId: string |
       // Generate file path
       const fileExt = file.name.split('.').pop();
       const fileName = `v${nextVersion}_${Date.now()}.${fileExt}`;
-      const filePath = `${workspaceId}/${projectId}/${fileName}`;
+      const filePath = `${workspaceId}/${taskId}/${fileName}`;
 
       // Upload to storage
       const { error: uploadError } = await supabase.storage
@@ -132,6 +133,7 @@ export function useVideoVersions(projectId: string | null, workspaceId: string |
       const { data: versionData, error: insertError } = await supabase
         .from('video_versions')
         .insert({
+          task_id: taskId,
           workspace_id: workspaceId,
           project_id: projectId,
           version_number: nextVersion,

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Video, MessageSquare, CheckCircle2, Layers } from 'lucide-react';
+import { Video, MessageSquare, CheckCircle2, Upload, Link, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { VideoPlayer } from './VideoPlayer';
@@ -19,14 +20,16 @@ import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { FeatureTeaser } from '@/components/subscription/FeatureTeaser';
 
 interface VideoProductionTabProps {
-  projectId: string;
+  taskId: string;
   workspaceId: string;
+  projectId: string;
   className?: string;
 }
 
 export function VideoProductionTab({
-  projectId,
+  taskId,
   workspaceId,
+  projectId,
   className,
 }: VideoProductionTabProps) {
   const { hasFeatureAccess } = usePlanFeatures();
@@ -42,21 +45,16 @@ export function VideoProductionTab({
     );
   }
 
-  return (
-    <VideoProductionTabContent
-      projectId={projectId}
-      workspaceId={workspaceId}
-      className={className}
-    />
-  );
+  return <VideoProductionTabContent taskId={taskId} workspaceId={workspaceId} projectId={projectId} className={className} />;
 }
 
 function VideoProductionTabContent({
-  projectId,
+  taskId,
   workspaceId,
+  projectId,
   className,
 }: VideoProductionTabProps) {
-  const { versions, loading, deleteVersion, getSignedUrl } = useVideoVersions(projectId, workspaceId);
+  const { versions, loading, deleteVersion, getSignedUrl } = useVideoVersions(taskId, workspaceId);
   const [selectedVersion, setSelectedVersion] = useState<VideoVersion | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [loadingUrl, setLoadingUrl] = useState(false);
@@ -107,7 +105,7 @@ function VideoProductionTabContent({
 
     await addComment({
       videoVersionId: selectedVersion.id,
-      projectId,
+      taskId,
       workspaceId,
       timestampSeconds: commentTimestamp,
       body,
@@ -147,8 +145,9 @@ function VideoProductionTabContent({
 
           {/* Upload area */}
           <VideoVersionUpload
-            projectId={projectId}
+            taskId={taskId}
             workspaceId={workspaceId}
+            projectId={projectId}
           />
 
           {/* Comments section */}
@@ -163,7 +162,7 @@ function VideoProductionTabContent({
               <CardContent>
                 <TimestampComments
                   videoVersionId={selectedVersion.id}
-                  projectId={projectId}
+                  taskId={taskId}
                   workspaceId={workspaceId}
                   onSeekTo={handleSeekToTimestamp}
                 />
@@ -202,7 +201,7 @@ function VideoProductionTabContent({
             </CardHeader>
             <CardContent className="space-y-4">
               <ApprovalButton
-                projectId={projectId}
+                taskId={taskId}
                 workspaceId={workspaceId}
                 videoVersionId={selectedVersion?.id || null}
                 versionNumber={selectedVersion?.version_number || null}
@@ -211,7 +210,7 @@ function VideoProductionTabContent({
               <Separator />
               
               <ApprovalShareLink
-                projectId={projectId}
+                taskId={taskId}
                 workspaceId={workspaceId}
               />
             </CardContent>

@@ -292,6 +292,7 @@ export function TaskModal({
             <TabsContent value="production" className="mt-4">
               {task && currentWorkspace && (
                 <VideoProductionTab
+                  taskId={task.id}
                   projectId={task.project_id}
                   workspaceId={task.workspace_id || currentWorkspace.id}
                 />

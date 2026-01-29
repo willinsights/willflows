@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, forwardRef } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Upload, Video, X, AlertCircle } from 'lucide-react';
@@ -7,22 +7,22 @@ import { useVideoVersions } from '@/hooks/useVideoVersions';
 import { useWorkspaceStorage } from '@/hooks/useWorkspaceStorage';
 
 interface VideoVersionUploadProps {
-  projectId: string;
+  taskId: string;
   workspaceId: string;
+  projectId: string;
   onUploadComplete?: () => void;
 }
 
 const ALLOWED_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo', 'video/x-matroska'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5GB
 
-export const VideoVersionUpload = forwardRef<HTMLDivElement, VideoVersionUploadProps>(
-  function VideoVersionUpload({ projectId, workspaceId, onUploadComplete }, ref) {
+export function VideoVersionUpload({ taskId, workspaceId, projectId, onUploadComplete }: VideoVersionUploadProps) {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
-  const { uploadVersion, uploading, uploadProgress } = useVideoVersions(projectId, workspaceId);
+  const { uploadVersion, uploading, uploadProgress } = useVideoVersions(taskId, workspaceId);
   const { storage } = useWorkspaceStorage();
 
   const validateFile = (file: File): string | null => {
@@ -81,6 +81,7 @@ export const VideoVersionUpload = forwardRef<HTMLDivElement, VideoVersionUploadP
     try {
       await uploadVersion({
         file: selectedFile,
+        taskId,
         workspaceId,
         projectId,
       });
@@ -88,7 +89,6 @@ export const VideoVersionUpload = forwardRef<HTMLDivElement, VideoVersionUploadP
       onUploadComplete?.();
     } catch (error) {
       // Error toast is handled in hook
-      console.error('[Upload] Upload failed:', error);
     }
   };
 
@@ -173,23 +173,16 @@ export const VideoVersionUpload = forwardRef<HTMLDivElement, VideoVersionUploadP
 
       {/* Selected file */}
       {selectedFile && !uploading && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-            <Video className="h-5 w-5 text-primary" />
-            <div className="flex-1 min-w-0">
-              <p className="truncate font-medium">{selectedFile.name}</p>
-              <p className="text-sm text-muted-foreground">
-                {formatFileSize(selectedFile.size)}
-              </p>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => setSelectedFile(null)}>
-              <X className="h-4 w-4" />
-            </Button>
+        <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
+          <Video className="h-5 w-5 text-primary" />
+          <div className="flex-1 min-w-0">
+            <p className="truncate font-medium">{selectedFile.name}</p>
+            <p className="text-sm text-muted-foreground">{formatFileSize(selectedFile.size)}</p>
           </div>
-
-          <Button onClick={handleUpload} className="w-full">
-            Carregar
+          <Button variant="ghost" size="icon" onClick={() => setSelectedFile(null)}>
+            <X className="h-4 w-4" />
           </Button>
+          <Button onClick={handleUpload}>Carregar</Button>
         </div>
       )}
 
@@ -205,4 +198,4 @@ export const VideoVersionUpload = forwardRef<HTMLDivElement, VideoVersionUploadP
       )}
     </div>
   );
-});
+}
