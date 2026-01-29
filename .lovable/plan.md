@@ -1,270 +1,154 @@
 
-# Análise Detalhada: Módulo de Upload e Aprovação de Vídeo
+# Plano de Implementação: Módulo de Vídeo com Cloudflare R2/Stream
 
-## Resumo Executivo
+## 🔐 Pré-requisito: Configurar Secrets do Cloudflare
 
-Após uma análise exaustiva do código e base de dados, identifiquei **6 problemas críticos** e **3 melhorias importantes** que afetam o funcionamento do módulo de produção de vídeo.
+Antes de avançar com o código, precisas adicionar as seguintes credenciais:
 
----
+| Secret | Descrição |
+|--------|-----------|
+| `CLOUDFLARE_ACCOUNT_ID` | ID da tua conta Cloudflare |
+| `CLOUDFLARE_R2_ACCESS_KEY` | Chave de acesso do R2 |
+| `CLOUDFLARE_R2_SECRET_KEY` | Chave secreta do R2 |
+| `CLOUDFLARE_R2_BUCKET` | Nome do bucket (ex: `willflow-videos`) |
+| `CLOUDFLARE_STREAM_TOKEN` | API Token do Cloudflare Stream |
 
-## Problemas Críticos Identificados
-
-### 🔴 1. Portal Público Sem Acesso a Dados (BLOQUEADOR)
-
-**Localização:** `src/pages/public/VideoApproval.tsx`
-
-**Problema:** A página pública de aprovação (`/video-approval/:token`) tenta aceder a tabelas protegidas por RLS usando o cliente Supabase sem autenticação. As políticas RLS exigem `is_workspace_member(auth.uid(), workspace_id)`, mas visitantes não estão autenticados.
-
-**Tabelas afetadas:**
-- `video_approval_tokens` - Não tem política para acesso público
-- `video_versions` - Não tem política para acesso público  
-- `video_comments` - Não tem política para acesso público via token
-- `video_approvals` - Não tem política para INSERT público via token
-- `tasks` e `projects` (joined) - Sem acesso público
-
-**Resultado:** Clientes veem "Link Inválido" mesmo com token válido.
-
-**Solução:** Criar uma Edge Function `get-video-approval-data` que:
-1. Valida o token
-2. Usa service role para buscar dados
-3. Gera signed URLs para os vídeos
-4. Retorna todos os dados necessários
+**Onde obter:**
+1. Acede a [dash.cloudflare.com](https://dash.cloudflare.com)
+2. R2 → Manage R2 API Tokens → Create API Token
+3. Stream → API Tokens
 
 ---
 
-### 🔴 2. Storage Bucket Privado Sem Política para Tokens
+## Fase 1: Edge Functions para Upload e Streaming
 
-**Localização:** Storage bucket `video-versions`
+### 1.1 Criar `r2-upload-url` Edge Function
 
-**Problema:** O bucket está configurado como `public: false`, e a política de SELECT exige que o utilizador seja membro do workspace:
+Gera URL assinada para upload direto ao R2:
+- Valida autenticação e workspace
+- Verifica limite de storage
+- Retorna presigned URL com expiração de 1h
+
+### 1.2 Criar `stream-process-video` Edge Function
+
+Após upload, submete ao Cloudflare Stream:
+- Cria video no Stream a partir do R2
+- Aguarda transcodificação
+- Guarda `stream_uid` na base de dados
+- Actualiza storage usado no workspace
+
+---
+
+## Fase 2: Migração de Base de Dados
+
+Adicionar colunas à tabela `video_versions`:
 
 ```sql
-SELECT ... WHERE is_workspace_member(auth.uid(), vv.workspace_id)
+ALTER TABLE public.video_versions 
+ADD COLUMN cloudflare_stream_uid TEXT,
+ADD COLUMN r2_key TEXT,
+ADD COLUMN stream_status TEXT DEFAULT 'pending',
+ADD COLUMN stream_playback_url TEXT;
 ```
 
-**Resultado:** Clientes não conseguem reproduzir vídeos no portal público.
+---
 
-**Solução:** A Edge Function deve gerar signed URLs com prazo curto (15-30 min) para os vídeos, contornando a necessidade de políticas públicas no storage.
+## Fase 3: Actualizar Hook de Upload
+
+Modificar `useVideoVersions.ts`:
+
+1. Obter presigned URL via `r2-upload-url`
+2. Upload direto ao R2 com XMLHttpRequest (progresso real)
+3. Chamar `stream-process-video` após upload
+4. Polling para verificar status de transcodificação
+
+```typescript
+// Novo fluxo
+const uploadVersion = async ({ file }) => {
+  // 1. Obter URL assinada
+  const { uploadUrl, key } = await supabase.functions.invoke('r2-upload-url', {...});
+  
+  // 2. Upload direto ao R2 com progresso
+  await uploadToR2(uploadUrl, file, setProgress);
+  
+  // 3. Processar no Stream
+  await supabase.functions.invoke('stream-process-video', { key, ... });
+};
+```
 
 ---
 
-### 🔴 3. Inserção de Comentários/Aprovações Públicos Falha
+## Fase 4: Actualizar Player de Vídeo
 
-**Localização:** `src/pages/public/VideoApproval.tsx` linhas 290-350
+Duas opções para o player Cloudflare Stream:
 
-**Problema:** O código tenta inserir `video_comments` e `video_approvals` diretamente, mas as políticas RLS exigem:
-- Para comentários: `author_id = auth.uid()` (mas cliente é anónimo)
-- Para aprovações: `is_workspace_member(auth.uid(), workspace_id)`
+**Opção A - Iframe (mais simples):**
+```html
+<iframe src="https://customer-{ACCOUNT}.cloudflarestream.com/{VIDEO_UID}/iframe" />
+```
 
-**Resultado:** Clientes não conseguem comentar nem aprovar vídeos.
+**Opção B - SDK React (mais controlo):**
+```tsx
+import { Stream } from '@cloudflare/stream-react';
+<Stream controls src={streamUid} />
+```
 
-**Solução:** Criar Edge Function `submit-video-feedback` que:
-1. Valida o token
-2. Usa service role para inserir comentários/aprovações
-3. Marca como `is_client_comment = true`
+Manter a API `seekTo` exposta via ref para comentários.
 
 ---
 
-### 🟡 4. Token Hash Não Gerado
+## Fase 5: Corrigir Política de Retenção
 
-**Localização:** Tabela `video_approval_tokens`
+**Regra actual:** 14 dias após `task.is_completed = true`
+**Regra nova:** 7 dias após `task.status = 'finalizada'`
 
-**Problema:** O campo `token_hash` está `NULL` para tokens existentes. Se houver trigger para hash (como em workspace_invitations), não está a funcionar para video_approval_tokens.
-
+Actualizar trigger SQL:
 ```sql
--- Resultado da query:
--- token_hash: <nil> para todos os tokens
-```
+-- Agendar apenas quando status = 'finalizada'
+IF NEW.status = 'finalizada' THEN
+  INSERT INTO video_retention_queue (
+    scheduled_deletion_at = NOW() + INTERVAL '7 days'
+  );
+END IF;
 
-**Impacto:** Menor se a validação usar token directo, mas é uma inconsistência de segurança.
-
-**Solução:** Verificar se existe trigger para hash e corrigir, ou remover coluna se não for usada.
-
----
-
-### 🟡 5. Inconsistência task_id vs project_id
-
-**Localização:** Múltiplos ficheiros
-
-**Problema:** O módulo foi inicialmente desenhado para tarefas (`task_id`), mas há uma transição para projectos (`project_id`). Alguns registos têm `task_id = NULL`:
-
-```sql
--- Dados existentes:
--- Alguns video_versions com task_id: NULL, project_id: preenchido
--- Alguns video_approval_tokens com task_id: NULL, project_id: preenchido
-```
-
-**Componentes afectados:**
-- `VideoProductionTab` recebe `taskId` mas alguns vídeos estão ao nível do projecto
-- `useVideoVersions` filtra por `task_id`
-- `VideoApproval.tsx` (público) assume sempre `task_id`
-
-**Solução:** Unificar o modelo para suportar ambos os cenários:
-1. Permitir filtrar por `project_id` quando `task_id` é null
-2. Actualizar queries para usar `COALESCE`
-
----
-
-### 🟡 6. Warnings do Linter de Segurança
-
-**Localização:** Base de dados
-
-**Problemas identificados:**
-1. **Function Search Path Mutable** - Funções sem `search_path` definido
-2. **RLS Policy Always True** (x3) - Políticas com `USING (true)` em operações sensíveis
-
-**Impacto:** Potenciais vulnerabilidades de segurança.
-
-**Solução:** Auditar e corrigir as políticas identificadas.
-
----
-
-## Melhorias Recomendadas
-
-### 📊 1. Progresso de Upload Mais Preciso
-
-**Localização:** `useVideoVersions.ts` linha 113
-
-**Problema:** O progresso de upload salta de 0% para 70% quando o ficheiro termina. Supabase JS SDK não expõe progresso de upload nativo.
-
-**Melhoria:** Implementar upload chunked ou usar XMLHttpRequest para progresso real.
-
----
-
-### 📊 2. Comparação A/B no Portal Público
-
-**Localização:** `src/pages/public/VideoApproval.tsx`
-
-**Estado:** O botão "Comparar" existe mas o segundo player não está implementado (linhas 458-467 apenas toggle, sem render do segundo vídeo).
-
-**Melhoria:** Completar a funcionalidade de side-by-side comparison.
-
----
-
-### 📊 3. Sincronização Player ↔ Comentários
-
-**Localização:** `VideoProductionTab.tsx` linha 106
-
-**Problema:** A função `handleSeekToTimestamp` está vazia - não passa a referência do player para os comentários.
-
-```typescript
-const handleSeekToTimestamp = useCallback((timestamp: number) => {
-  // This would need a ref to the video player
-  // For now, we can pass it down
-}, []);
-```
-
-**Melhoria:** Implementar `useImperativeHandle` no `VideoPlayer` para expor método `seekTo`.
-
----
-
-## Plano de Correção Técnica
-
-### Fase 1: Edge Functions para Acesso Público (Crítico)
-
-#### 1.1 Criar `supabase/functions/get-video-approval-data/index.ts`
-
-```typescript
-// Endpoint: GET /get-video-approval-data?token=xxx
-// 1. Valida token na tabela video_approval_tokens
-// 2. Verifica expiração
-// 3. Busca versões, comentários, aprovações
-// 4. Gera signed URLs para cada vídeo
-// 5. Retorna dados agregados
-```
-
-#### 1.2 Criar `supabase/functions/submit-video-feedback/index.ts`
-
-```typescript
-// Endpoint: POST /submit-video-feedback
-// Body: { token, type: 'comment'|'approval', data: {...} }
-// 1. Valida token
-// 2. Insere comentário ou aprovação com is_client_comment = true
-// 3. Retorna sucesso
-```
-
-#### 1.3 Actualizar `src/pages/public/VideoApproval.tsx`
-
-- Substituir queries directas por chamadas às edge functions
-- Usar signed URLs retornadas pela API
-- Submeter feedback via edge function
-
----
-
-### Fase 2: Correcções de Dados e Consistência
-
-#### 2.1 Suportar project_id quando task_id é null
-
-**Ficheiros:**
-- `useVideoVersions.ts` - Adicionar fallback para project_id
-- `useVideoApproval.ts` - Adicionar fallback para project_id
-- `useVideoComments.ts` - Actualizar queries
-
-#### 2.2 Limpar token_hash
-
-**SQL Migration:**
-```sql
--- Se não for usado, remover coluna ou deixar como está
--- Se for usado, criar trigger similar ao de workspace_invitations
+-- Cancelar se tarefa reaberta
+IF OLD.status = 'finalizada' AND NEW.status != 'finalizada' THEN
+  UPDATE video_retention_queue SET status = 'cancelled';
+END IF;
 ```
 
 ---
 
-### Fase 3: Melhorias de UX
+## Fase 6: Actualizar Edge Function de Cleanup
 
-#### 3.1 Implementar seekTo no VideoPlayer
-
-```typescript
-// VideoPlayer.tsx
-useImperativeHandle(ref, () => ({
-  seekTo: (time: number) => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = time;
-    }
-  }
-}));
-```
-
-#### 3.2 Conectar TimestampComments ao Player
-
-```typescript
-// VideoProductionTab.tsx
-const videoPlayerRef = useRef<{ seekTo: (time: number) => void }>(null);
-
-<VideoPlayer ref={videoPlayerRef} ... />
-<TimestampComments onSeekTo={(t) => videoPlayerRef.current?.seekTo(t)} />
-```
+Modificar `cleanup-expired-videos`:
+1. Deletar do Cloudflare R2 (em vez de Supabase Storage)
+2. Invalidar vídeo no Cloudflare Stream
+3. Limpar URLs mas manter metadados (comentários, aprovações)
 
 ---
+
+## Ficheiros a Criar
+
+| Ficheiro | Descrição |
+|----------|-----------|
+| `supabase/functions/r2-upload-url/index.ts` | Gerar presigned URL para R2 |
+| `supabase/functions/stream-process-video/index.ts` | Submeter ao Stream |
 
 ## Ficheiros a Modificar
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `supabase/functions/get-video-approval-data/index.ts` | **CRIAR** - Edge function para dados públicos |
-| `supabase/functions/submit-video-feedback/index.ts` | **CRIAR** - Edge function para feedback |
-| `src/pages/public/VideoApproval.tsx` | Usar edge functions em vez de queries directas |
-| `src/hooks/useVideoVersions.ts` | Suportar filtro por project_id |
-| `src/hooks/useVideoApproval.ts` | Suportar filtro por project_id |
-| `src/components/video-production/VideoPlayer.tsx` | Expor ref com seekTo |
-| `src/components/video-production/VideoProductionTab.tsx` | Conectar player aos comentários |
-| `supabase/config.toml` | Registar novas edge functions |
+| `src/hooks/useVideoVersions.ts` | Novo fluxo R2 + Stream |
+| `src/components/video-production/VideoPlayer.tsx` | Suporte Stream player |
+| `supabase/functions/cleanup-expired-videos/index.ts` | Deletar de R2/Stream |
+| `supabase/config.toml` | Registar novas functions |
 
 ---
 
-## Prioridade de Implementação
+## Próximos Passos
 
-1. **CRÍTICO** - Edge functions + actualização VideoApproval.tsx (corrige bloqueador)
-2. **ALTO** - Suporte project_id nos hooks (dados existentes)
-3. **MÉDIO** - SeekTo nos comentários (UX)
-4. **BAIXO** - Comparação A/B, progresso upload
-
----
-
-## Validação Após Implementação
-
-1. Abrir link público de aprovação - deve mostrar vídeo e permitir reprodução
-2. Adicionar comentário como cliente - deve aparecer na lista
-3. Aprovar vídeo como cliente - deve mostrar estado "Aprovado"
-4. Clicar em timestamp de comentário - player deve saltar para o momento
-5. Upload de novo vídeo - deve aparecer na lista de versões
+1. **Tu:** Configurar secrets do Cloudflare (clica no botão quando eu pedir)
+2. **Eu:** Criar Edge Functions + Migração SQL
+3. **Eu:** Actualizar hooks e componentes
+4. **Tu:** Testar upload e reprodução
