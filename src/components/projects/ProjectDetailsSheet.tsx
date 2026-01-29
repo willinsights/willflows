@@ -538,8 +538,9 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
   if (!project) return null;
 
   const currentPriority = priorityOptions.find(p => p.value === (isEditing ? editForm.priority : project.priority));
-  const showVideoProductionTab = tasks.length > 0;
   const canUseVideoProductionTab = !planLoading && hasFeatureAccess('videoApproval');
+  // Show the tab while loading (to avoid "it never appears" perception) and when the user can access it.
+  const showVideoProductionTab = planLoading || canUseVideoProductionTab;
 
   return (
     <>
@@ -671,11 +672,17 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                     </div>
                   ) : !canUseVideoProductionTab ? (
-                    <VideoProductionTab
-                      taskId={selectedVideoTaskId || tasks[0].id}
-                      projectId={project.id}
-                      workspaceId={project.workspace_id}
-                    />
+                    <div className="rounded-lg border border-border/60 bg-card/50 p-4">
+                      <p className="text-sm text-muted-foreground">
+                        A funcionalidade de Produção/Aprovação de vídeo não está disponível no seu plano atual.
+                      </p>
+                    </div>
+                  ) : tasks.length === 0 ? (
+                    <div className="rounded-lg border border-border/60 bg-card/50 p-4">
+                      <p className="text-sm text-muted-foreground">
+                        Para usar a Produção, crie pelo menos uma tarefa neste projeto.
+                      </p>
+                    </div>
                   ) : (
                     <div className="space-y-4">
                       <div className="space-y-2">

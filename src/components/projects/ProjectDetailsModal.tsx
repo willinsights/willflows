@@ -580,8 +580,8 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
   const totalChecklists = checklists.length;
   const currentPriority = priorityOptions.find(p => p.value === (isEditing ? editForm.priority : project.priority));
   const profit = (editForm.agreed_value || 0) - (editForm.custo_captacao || 0) - (editForm.custo_edicao || 0);
-  const showVideoProductionTab = tasks.length > 0;
   const canUseVideoProductionTab = !planLoading && hasFeatureAccess('videoApproval');
+  const showVideoProductionTab = planLoading || canUseVideoProductionTab;
 
   return (
     <>
@@ -1249,11 +1249,17 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                     </div>
                   ) : !canUseVideoProductionTab ? (
-                    <VideoProductionTab
-                      taskId={selectedVideoTaskId || tasks[0].id}
-                      projectId={project.id}
-                      workspaceId={project.workspace_id}
-                    />
+                    <div className="rounded-lg border border-border/60 bg-card/50 p-4">
+                      <p className="text-sm text-muted-foreground">
+                        A funcionalidade de Produção/Aprovação de vídeo não está disponível no seu plano atual.
+                      </p>
+                    </div>
+                  ) : tasks.length === 0 ? (
+                    <div className="rounded-lg border border-border/60 bg-card/50 p-4">
+                      <p className="text-sm text-muted-foreground">
+                        Para usar a Produção, crie pelo menos uma tarefa neste projeto.
+                      </p>
+                    </div>
                   ) : (
                     <div className="space-y-4">
                       <div className="space-y-2">
