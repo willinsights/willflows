@@ -29,7 +29,7 @@ export function VideoVersionUpload({ projectId, workspaceId, onUploadComplete }:
   
   const { uploadVersion, uploading, uploadProgress } = useVideoVersions(projectId, workspaceId);
   const { storage } = useWorkspaceStorage();
-  const { compressVideo, compressing, progress: compressionProgress, error: compressionError } = useVideoCompression();
+  const { compressVideo, compressing, loading: compressionLoading, cancelCompression, progress: compressionProgress, error: compressionError } = useVideoCompression();
 
   const validateFile = (file: File): string | null => {
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -250,20 +250,33 @@ export function VideoVersionUpload({ projectId, workspaceId, onUploadComplete }:
         </div>
       )}
 
-      {/* Compression progress */}
-      {compressing && (
+       {/* Compression progress */}
+       {(compressionLoading || compressing) && (
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" />
-              A comprimir vídeo...
+               {compressionLoading ? 'A preparar compressor (download ~31MB)...' : 'A comprimir vídeo...'}
             </span>
-            <span>{compressionProgress}%</span>
+             <span>{compressionLoading ? '—' : `${compressionProgress}%`}</span>
           </div>
-          <Progress value={compressionProgress} className="bg-muted" />
+           <Progress value={compressionLoading ? 12 : compressionProgress} className="bg-muted" />
           <p className="text-xs text-muted-foreground">
-            Isto pode demorar alguns minutos dependendo do tamanho do vídeo.
+             {compressionLoading
+               ? 'A primeira vez pode demorar (o browser precisa de descarregar o motor de compressão).'
+               : 'Isto pode demorar alguns minutos dependendo do tamanho do vídeo.'}
           </p>
+           <Button
+             type="button"
+             variant="ghost"
+             className="w-full"
+             onClick={() => {
+               cancelCompression();
+               setError('Compressão cancelada. Pode tentar novamente ou enviar sem compressão.');
+             }}
+           >
+             Cancelar compressão
+           </Button>
         </div>
       )}
 
