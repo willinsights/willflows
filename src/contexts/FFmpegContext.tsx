@@ -159,11 +159,10 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
           try {
             console.log('[FFmpeg Context] Downloading from CDN:', base);
 
-            // Download all 3 files: core, wasm, and worker
-            const [coreURL, wasmURL, workerURL] = await Promise.all([
+            // Download core and wasm files (UMD build doesn't need worker)
+            const [coreURL, wasmURL] = await Promise.all([
               toBlobURLWithTimeout(`${base}/ffmpeg-core.js`, 'text/javascript', FILE_TIMEOUT_MS, signal),
               toBlobURLWithTimeout(`${base}/ffmpeg-core.wasm`, 'application/wasm', FILE_TIMEOUT_MS, signal),
-              toBlobURLWithTimeout(`${base}/ffmpeg-core.worker.js`, 'text/javascript', FILE_TIMEOUT_MS, signal),
             ]);
 
             setLoadProgress(85);
@@ -173,11 +172,10 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
               throw new Error('Carregamento cancelado');
             }
 
-            console.log('[FFmpeg Context] Loading engine with worker...');
+            console.log('[FFmpeg Context] Loading engine...');
             await ffmpeg.load({
               coreURL,
               wasmURL,
-              workerURL,
             });
 
             loaded = true;
