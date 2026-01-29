@@ -96,7 +96,7 @@ export function VideoVersionsList({
               </div>
               
               <div className="min-w-0">
-                <p className="font-medium truncate">{version.file_name}</p>
+                <p className="font-medium line-clamp-2 break-all">{version.file_name}</p>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
                   <span className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
