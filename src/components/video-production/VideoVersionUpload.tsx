@@ -275,15 +275,19 @@ export const VideoVersionUpload = forwardRef<HTMLDivElement, VideoVersionUploadP
                ? 'A primeira vez pode demorar (o browser precisa de descarregar o motor de compressão).'
                : 'Isto pode demorar alguns minutos dependendo do tamanho do vídeo.'}
           </p>
-           <Button
+       <Button
              type="button"
-             variant="ghost"
+             variant="destructive"
              className="w-full"
              onClick={() => {
                cancelCompression();
-               setError('Compressão cancelada. Pode tentar novamente ou enviar sem compressão.');
+               setSelectedFile(null);
+               setCompressionComplete(false);
+               setCompressionSavings(null);
+               setError('Compressão cancelada. Motor será recarregado automaticamente na próxima tentativa.');
              }}
            >
+             <X className="h-4 w-4 mr-2" />
              Cancelar compressão
            </Button>
         </div>
