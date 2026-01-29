@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useRef, useState, useCallback } from 'react';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { toBlobURL } from '@ffmpeg/util';
 
 interface FFmpegContextValue {
   ffmpeg: FFmpeg | null;
@@ -9,6 +8,8 @@ interface FFmpegContextValue {
   loadError: string | null;
   loadProgress: number;
   preload: () => Promise<void>;
+  cancelPreload: () => void;
+  terminateEngine: () => void;
 }
 
 const FFmpegContext = createContext<FFmpegContextValue | null>(null);
@@ -20,10 +21,20 @@ const CDN_BASE_URLS = [
 ];
 
 const FILE_TIMEOUT_MS = 60_000; // 60s per file
+const TOTAL_TIMEOUT_MS = 180_000; // 3 minutes total
 
-async function toBlobURLWithTimeout(url: string, mimeType: string, timeoutMs: number): Promise<string> {
+async function toBlobURLWithTimeout(
+  url: string,
+  mimeType: string,
+  timeoutMs: number,
+  abortSignal?: AbortSignal
+): Promise<string> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  // Link external abort signal to our controller
+  const onExternalAbort = () => controller.abort();
+  abortSignal?.addEventListener('abort', onExternalAbort);
 
   try {
     const response = await fetch(url, { signal: controller.signal });
@@ -34,9 +45,11 @@ async function toBlobURLWithTimeout(url: string, mimeType: string, timeoutMs: nu
   } catch (err: any) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
-      throw new Error(`Timeout ao descarregar: ${url}`);
+      throw new Error(`Timeout ou cancelado: ${url}`);
     }
     throw err;
+  } finally {
+    abortSignal?.removeEventListener('abort', onExternalAbort);
   }
 }
 
@@ -47,6 +60,55 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadProgress, setLoadProgress] = useState(0);
   const loadingPromiseRef = useRef<Promise<void> | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const totalTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cleanupLoading = useCallback(() => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+    if (totalTimeoutRef.current) {
+      clearTimeout(totalTimeoutRef.current);
+      totalTimeoutRef.current = null;
+    }
+    abortControllerRef.current = null;
+    loadingPromiseRef.current = null;
+  }, []);
+
+  const terminateEngine = useCallback(() => {
+    console.log('[FFmpeg Context] Terminating engine...');
+    cleanupLoading();
+    
+    if (ffmpegRef.current) {
+      try {
+        ffmpegRef.current.terminate();
+      } catch (e) {
+        console.warn('[FFmpeg Context] Error during terminate:', e);
+      }
+      ffmpegRef.current = null;
+    }
+    
+    setIsLoaded(false);
+    setIsLoading(false);
+    setLoadProgress(0);
+    setLoadError(null);
+  }, [cleanupLoading]);
+
+  const cancelPreload = useCallback(() => {
+    console.log('[FFmpeg Context] Cancelling preload...');
+    
+    // Abort any ongoing downloads
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Terminate engine if partially loaded
+    terminateEngine();
+    
+    setLoadError('Carregamento cancelado pelo utilizador');
+  }, [terminateEngine]);
 
   const preload = useCallback(async () => {
     // Already loaded
@@ -66,15 +128,18 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
     setLoadError(null);
     setLoadProgress(0);
 
+    // Create abort controller for this load attempt
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     const loadPromise = (async () => {
       try {
         const ffmpeg = new FFmpeg();
         ffmpegRef.current = ffmpeg;
 
         // Track progress during loading
-        let progressInterval: ReturnType<typeof setInterval> | null = null;
-        progressInterval = setInterval(() => {
-          setLoadProgress(prev => Math.min(prev + 2, 85));
+        progressIntervalRef.current = setInterval(() => {
+          setLoadProgress(prev => Math.min(prev + 2, 80));
         }, 500);
 
         ffmpeg.on('log', ({ message }) => {
@@ -86,19 +151,33 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
         let loaded = false;
 
         for (const base of CDN_BASE_URLS) {
+          // Check if aborted before trying next CDN
+          if (signal.aborted) {
+            throw new Error('Carregamento cancelado');
+          }
+
           try {
             console.log('[FFmpeg Context] Downloading from CDN:', base);
 
-            const [coreURL, wasmURL] = await Promise.all([
-              toBlobURLWithTimeout(`${base}/ffmpeg-core.js`, 'text/javascript', FILE_TIMEOUT_MS),
-              toBlobURLWithTimeout(`${base}/ffmpeg-core.wasm`, 'application/wasm', FILE_TIMEOUT_MS),
+            // Download all 3 files: core, wasm, and worker
+            const [coreURL, wasmURL, workerURL] = await Promise.all([
+              toBlobURLWithTimeout(`${base}/ffmpeg-core.js`, 'text/javascript', FILE_TIMEOUT_MS, signal),
+              toBlobURLWithTimeout(`${base}/ffmpeg-core.wasm`, 'application/wasm', FILE_TIMEOUT_MS, signal),
+              toBlobURLWithTimeout(`${base}/ffmpeg-core.worker.js`, 'text/javascript', FILE_TIMEOUT_MS, signal),
             ]);
 
-            setLoadProgress(90);
+            setLoadProgress(85);
 
+            // Check abort before load
+            if (signal.aborted) {
+              throw new Error('Carregamento cancelado');
+            }
+
+            console.log('[FFmpeg Context] Loading engine with worker...');
             await ffmpeg.load({
               coreURL,
               wasmURL,
+              workerURL,
             });
 
             loaded = true;
@@ -106,6 +185,11 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
           } catch (e) {
             lastErr = e;
             console.warn('[FFmpeg Context] CDN failed, trying next...', e);
+            
+            // If aborted, don't try next CDN
+            if (signal.aborted || (e instanceof Error && e.message.includes('cancelado'))) {
+              throw e;
+            }
           }
         }
 
@@ -115,37 +199,48 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
             : new Error('Falha ao descarregar o motor de compressão');
         }
 
-        if (progressInterval) clearInterval(progressInterval);
+        cleanupLoading();
         setLoadProgress(100);
         setIsLoaded(true);
+        setIsLoading(false);
         console.log('[FFmpeg Context] ✓ Engine loaded and ready!');
 
       } catch (err: any) {
         console.error('[FFmpeg Context] Load failed:', err);
+        cleanupLoading();
         setLoadError(err.message || 'Falha ao carregar motor de compressão');
-        ffmpegRef.current = null;
-        throw err;
-      } finally {
         setIsLoading(false);
-        loadingPromiseRef.current = null;
+        setLoadProgress(0);
+        
+        // Clean up partial engine
+        if (ffmpegRef.current) {
+          try {
+            ffmpegRef.current.terminate();
+          } catch (_) {}
+          ffmpegRef.current = null;
+        }
+        
+        throw err;
       }
     })();
 
     loadingPromiseRef.current = loadPromise;
 
-    // Add timeout
-    const timeoutPromise = new Promise<void>((_, reject) => {
-      setTimeout(() => reject(new Error('Timeout ao carregar motor (3 min)')), 180_000);
-    });
+    // Add total timeout
+    totalTimeoutRef.current = setTimeout(() => {
+      if (abortControllerRef.current && !isLoaded) {
+        console.log('[FFmpeg Context] Total timeout reached, aborting...');
+        abortControllerRef.current.abort();
+      }
+    }, TOTAL_TIMEOUT_MS);
 
     try {
-      await Promise.race([loadPromise, timeoutPromise]);
+      await loadPromise;
     } catch (err: any) {
-      setLoadError(err.message);
-      setIsLoading(false);
-      loadingPromiseRef.current = null;
+      // Error already handled in loadPromise
+      console.log('[FFmpeg Context] Preload finished with error');
     }
-  }, [isLoaded]);
+  }, [isLoaded, cleanupLoading]);
 
   const value: FFmpegContextValue = {
     ffmpeg: ffmpegRef.current,
@@ -154,6 +249,8 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
     loadError,
     loadProgress,
     preload,
+    cancelPreload,
+    terminateEngine,
   };
 
   return (

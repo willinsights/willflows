@@ -1,5 +1,5 @@
 import { useFFmpegContext } from '@/contexts/FFmpegContext';
-import { CheckCircle2, Loader2, AlertCircle, Download } from 'lucide-react';
+import { CheckCircle2, Loader2, AlertCircle, Download, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
@@ -9,7 +9,7 @@ interface FFmpegStatusIndicatorProps {
 }
 
 export function FFmpegStatusIndicator({ className }: FFmpegStatusIndicatorProps) {
-  const { isLoaded, isLoading, loadError, loadProgress, preload } = useFFmpegContext();
+  const { isLoaded, isLoading, loadError, loadProgress, preload, cancelPreload } = useFFmpegContext();
 
   if (isLoaded) {
     return (
@@ -23,9 +23,20 @@ export function FFmpegStatusIndicator({ className }: FFmpegStatusIndicatorProps)
   if (isLoading) {
     return (
       <div className={cn("space-y-2", className)}>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span>A preparar motor de compressão ({loadProgress}%)</span>
+        <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
+          <span className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>A preparar motor de compressão ({loadProgress}%)</span>
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-xs"
+            onClick={cancelPreload}
+          >
+            <X className="h-3 w-3 mr-1" />
+            Cancelar
+          </Button>
         </div>
         <Progress value={loadProgress} className="h-1.5" />
         <p className="text-xs text-muted-foreground">
