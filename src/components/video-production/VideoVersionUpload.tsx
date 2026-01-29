@@ -10,16 +10,15 @@ import { useWorkspaceStorage } from '@/hooks/useWorkspaceStorage';
 import { useVideoCompression } from '@/hooks/useVideoCompression';
 
 interface VideoVersionUploadProps {
-  taskId: string;
-  workspaceId: string;
   projectId: string;
+  workspaceId: string;
   onUploadComplete?: () => void;
 }
 
 const ALLOWED_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo', 'video/x-matroska'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5GB
 
-export function VideoVersionUpload({ taskId, workspaceId, projectId, onUploadComplete }: VideoVersionUploadProps) {
+export function VideoVersionUpload({ projectId, workspaceId, onUploadComplete }: VideoVersionUploadProps) {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +27,7 @@ export function VideoVersionUpload({ taskId, workspaceId, projectId, onUploadCom
   const [compressionSavings, setCompressionSavings] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
-  const { uploadVersion, uploading, uploadProgress } = useVideoVersions(taskId, workspaceId);
+  const { uploadVersion, uploading, uploadProgress } = useVideoVersions(projectId, workspaceId);
   const { storage } = useWorkspaceStorage();
   const { compressVideo, compressing, progress: compressionProgress, error: compressionError } = useVideoCompression();
 
@@ -105,7 +104,6 @@ export function VideoVersionUpload({ taskId, workspaceId, projectId, onUploadCom
 
       await uploadVersion({
         file: fileToUpload,
-        taskId,
         workspaceId,
         projectId,
       });
