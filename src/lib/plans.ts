@@ -101,6 +101,41 @@ export const STRIPE_PRICES = {
   },
 } as const;
 
+// Storage Addon Price IDs - LIVE PRODUCTION
+export const STORAGE_ADDON_PRICES = {
+  '50gb': {
+    price_id: 'price_1SuuVQGr2lXbVyw9OybAtJ9i',
+    product_id: 'prod_TsfrcvSlClixZM',
+    bytes: 50 * 1024 * 1024 * 1024,
+    displayName: '+50 GB',
+    price: { eur: 9, brl: 49 },
+  },
+  '100gb': {
+    price_id: 'price_1SuuVRGr2lXbVyw92Mnlgzj0',
+    product_id: 'prod_TsfrGDXzlIOhaM',
+    bytes: 100 * 1024 * 1024 * 1024,
+    displayName: '+100 GB',
+    price: { eur: 15, brl: 79 },
+  },
+  '250gb': {
+    price_id: 'price_1SuuVSGr2lXbVyw9XhaYRv0T',
+    product_id: 'prod_TsfrRubX5bCWEh',
+    bytes: 250 * 1024 * 1024 * 1024,
+    displayName: '+250 GB',
+    price: { eur: 29, brl: 159 },
+  },
+} as const;
+
+export type StorageAddonTier = keyof typeof STORAGE_ADDON_PRICES;
+
+export function getStorageAddonPrice(tier: StorageAddonTier, currency: Currency): number {
+  return STORAGE_ADDON_PRICES[tier].price[currency];
+}
+
+export function getStorageAddonBytes(tier: StorageAddonTier): number {
+  return STORAGE_ADDON_PRICES[tier].bytes;
+}
+
 // Full plan information with CORRECT annual prices
 // Annual = monthly × 12 × 0.8 (20% discount)
 // Annual per month = monthly × 0.8 (for display "X/mês quando pago anualmente")
