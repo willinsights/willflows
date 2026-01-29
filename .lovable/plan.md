@@ -1,145 +1,283 @@
 
 
-# Plano: Notificações Push em Tempo Real (PWA Instalada)
+# Plano: Nova Aba "Timeline" - Estrutura de Video com Templates
 
-## Situação Atual
+## Resumo
 
-Analisei o sistema de notificações existente e identifiquei o que **já funciona** e o que **precisa ser melhorado**:
+Vou criar uma nova aba "Timeline" nos detalhes do projeto que permite definir a **estrutura do video final** com segmentos de tempo. Esta funcionalidade serve como guia para editores saberem exatamente quanto tempo cada secao do video deve ter.
 
-### ✅ O que já existe:
-1. **Notificações de Chat** (`useChatNotifications.ts`) - Recebe alertas em tempo real quando novas mensagens chegam
-2. **Sistema de Push Preferences** (`usePushNotifications.ts`) - Permite ativar/desativar notificações e configurar preferências
-3. **Edge Function `check-deadlines`** - Cron job que verifica prazos e eventos próximos (mas só cria na tabela `notifications`)
-4. **Real-time na tabela `notifications`** (`useNotifications.ts`) - Recebe novas notificações do backend e mostra toasts
-5. **PWA configurada** - O app pode ser instalado no telemóvel/computador
+A grande diferenca em relacao ao prompt original e que **nao focaremos em status de progresso** (Not Started, In Progress, etc.), mas sim em:
 
-### ⚠️ O que falta:
-O sistema de notificações de **deadlines e eventos** apenas cria registos na tabela `notifications` (via cron hourly). **Não envia notificações push nativas** para o dispositivo quando o app está fechado/em background.
-
-Para receber notificações push verdadeiras quando o app está instalado, é necessário:
-1. **Service Worker com Push API** - Para receber notificações mesmo com o app fechado
-2. **Push Subscription** - Registar o dispositivo para receber push
-3. **Backend que envia push** - Edge function que usa Web Push API para enviar notificações
+1. **Definir a estrutura do video** - Segmentos como "Introducao (5s)", "Objecto (4-6s)", "Acao (20s)"
+2. **Templates reutilizaveis** - Guardar estruturas para usar em projetos futuros
+3. **Flexibilidade** - Segmentos podem ter duracao fixa (5s) ou intervalo (4-6s)
 
 ---
 
-## Solução Proposta
+## Exemplo de Uso
 
-### Fase 1: Expandir Notificações de Projetos/Tarefas em Tempo Real
+Um utilizador define esta estrutura para um video de hotel:
 
-Criar um hook similar ao `useChatNotifications` para projetos e tarefas que:
-- Escuta mudanças em tempo real via Supabase Realtime
-- Envia notificações push nativas quando há atualizações relevantes
-- Funciona enquanto o app está aberto (foreground)
+| Segmento | Duracao |
+|----------|---------|
+| Introducao (contexto) | 5 segundos |
+| Objecto | 4 a 6 segundos |
+| Intervenientes | 4 segundos |
+| Acao | 20 segundos |
+| Detalhes | 12 segundos |
+| Drones | 8 a 12 segundos |
 
-### Fase 2: Push Notifications com Service Worker (Background)
-
-Para notificações quando o app está **fechado**:
-
-1. **Atualizar Service Worker** para suportar push events
-2. **Registar Push Subscription** no dispositivo
-3. **Guardar subscription** na tabela `user_push_preferences.push_subscription`
-4. **Edge Function** que envia Web Push (usando VAPID keys)
+Depois pode guardar isto como template "Video Hotel Standard" para reutilizar em projetos semelhantes.
 
 ---
 
-## Implementação Técnica
+## Estrutura de Dados
 
-### 1. Novo Hook: `useRealtimeNotifications.ts`
+### Tabela: `video_structures`
 
-Escuta mudanças em projetos, tarefas e eventos para notificar em tempo real:
+Armazena estruturas de segmentos de video por projeto.
+
+| Coluna | Tipo | Descricao |
+|--------|------|-----------|
+| id | uuid | Identificador unico |
+| project_id | uuid | Referencia ao projeto |
+| workspace_id | uuid | Referencia ao workspace |
+| name | text | Nome do segmento (ex: "Introducao") |
+| description | text | Descricao opcional |
+| min_duration_seconds | integer | Duracao minima em segundos |
+| max_duration_seconds | integer | Duracao maxima (se for intervalo) |
+| position | integer | Ordem na timeline |
+| notes | text | Notas opcionais |
+| created_by | uuid | Quem criou |
+| created_at | timestamp | Data de criacao |
+| updated_at | timestamp | Data de atualizacao |
+
+### Tabela: `video_structure_templates`
+
+Armazena templates reutilizaveis de estrutura.
+
+| Coluna | Tipo | Descricao |
+|--------|------|-----------|
+| id | uuid | Identificador unico |
+| workspace_id | uuid | Referencia ao workspace |
+| name | text | Nome do template (ex: "Video Hotel") |
+| description | text | Descricao opcional |
+| segments | jsonb | Array com os segmentos |
+| is_default | boolean | Se e o template padrao |
+| created_by | uuid | Quem criou |
+| created_at | timestamp | Data de criacao |
+| updated_at | timestamp | Data de atualizacao |
+
+---
+
+## Componentes Visuais
+
+### 1. Cabecalho da Timeline
+
+- Titulo "Timeline" com icone de video
+- Botao "+ Adicionar Segmento" (primario)
+- Dropdown "Aplicar Template" com templates disponiveis
+- Botao "Guardar como Template" (secundario)
+
+### 2. Overview de Duracao
+
+- Duracao total estimada (ex: "53-65 segundos")
+- Numero de segmentos
+- Badge indicando se ha template aplicado
+
+### 3. Timeline Visual Horizontal
+
+- Linha do tempo horizontal ocupando toda a largura
+- Segmentos como blocos coloridos proporcionais a duracao
+- Cada segmento mostra:
+  - Nome (ex: "Introducao")
+  - Duracao (ex: "5s" ou "4-6s")
+- Cores seguem a paleta WillFlow (violeta primario, tons de cinza)
+- Marcadores de tempo na parte inferior
+
+### 4. Lista de Segmentos (alternativa mobile)
+
+- Em ecras pequenos, lista vertical em vez de timeline horizontal
+- Cards arrastáveis para reordenar
+- Mesma informacao que a timeline
+
+---
+
+## Fluxo de Interacao
 
 ```text
-src/hooks/useRealtimeNotifications.ts
-├── Subscreve tabela 'projects' (mudanças de fase, entrega)
-├── Subscreve tabela 'tasks' (novas tarefas atribuídas)
-├── Subscreve tabela 'calendar_events' (novos eventos)
-└── Dispara sendLocalNotification() para cada evento relevante
-```
-
-### 2. Integrar no Layout
-
-Adicionar o hook ao `AppLayout.tsx` e `MobileAppLayout.tsx`:
-
-```text
-// AppLayout.tsx
-useChatNotifications();     // ← já existe
-useRealtimeNotifications(); // ← novo
-```
-
-### 3. Melhorar Push para Background (Opcional - Fase 2)
-
-Para push quando app fechado:
-
-| Componente | Descrição |
-|------------|-----------|
-| `public/sw-push.js` | Service Worker com evento `push` |
-| Edge Function `send-push` | Usa Web Push API com VAPID keys |
-| `user_push_preferences.push_subscription` | Guarda subscription do dispositivo |
-
-**Nota:** A Fase 2 requer configurar VAPID keys (chaves públicas/privadas para Web Push).
-
----
-
-## Ficheiros a Criar/Alterar
-
-| Ficheiro | Ação | Descrição |
-|----------|------|-----------|
-| `src/hooks/useRealtimeNotifications.ts` | **Criar** | Novo hook para notificações real-time de projetos/tarefas |
-| `src/components/layout/AppLayout.tsx` | **Alterar** | Importar e usar o novo hook |
-| `src/components/layout/MobileAppLayout.tsx` | **Alterar** | Importar e usar o novo hook |
-
----
-
-## Fluxo de Notificações (Após Implementação)
-
-```text
-┌──────────────────────────────────────────────────────────────┐
-│                    App Instalado (PWA)                       │
-├──────────────────────────────────────────────────────────────┤
-│                                                              │
-│  ┌─────────────┐    ┌─────────────────┐    ┌──────────────┐ │
-│  │  Supabase   │───▶│ Realtime Hook   │───▶│ Push Native  │ │
-│  │  Realtime   │    │ (foreground)    │    │ Notification │ │
-│  └─────────────┘    └─────────────────┘    └──────────────┘ │
-│         │                                                    │
-│         │  ┌─────────────────┐    ┌──────────────────────┐  │
-│         └─▶│ Tabela          │───▶│ Toast + Badge        │  │
-│            │ notifications   │    │ (NotificationCenter) │  │
-│            └─────────────────┘    └──────────────────────┘  │
-│                                                              │
-└──────────────────────────────────────────────────────────────┘
+Usuario abre detalhes do projeto
+        |
+        v
+Clica na aba "Timeline"
+        |
+        v
+Ve timeline vazia ou com segmentos
+        |
+        +---> "Aplicar Template"
+        |            |
+        |            v
+        |     Lista de templates do workspace
+        |     Seleciona um -> Segmentos carregados
+        |
+        +---> "+ Adicionar Segmento"
+        |            |
+        |            v
+        |     Modal com campos:
+        |     - Nome (obrigatorio)
+        |     - Descricao
+        |     - Duracao minima (segundos)
+        |     - Duracao maxima (opcional)
+        |     - Notas
+        |            |
+        |            v
+        |     Valida e adiciona
+        |
+        +---> Clica em segmento
+        |            |
+        |            v
+        |     Popover com detalhes
+        |     Botoes Editar / Apagar
+        |
+        +---> "Guardar como Template"
+                     |
+                     v
+              Modal pede nome do template
+              Salva e fica disponivel
+              para outros projetos
 ```
 
 ---
 
-## Tipos de Notificações Real-Time
+## Ficheiros a Criar
 
-| Evento | Descrição | Tipo |
-|--------|-----------|------|
-| Nova tarefa atribuída | Quando alguém te atribui uma tarefa | `info` |
-| Projeto avançou de fase | Projeto passou de captação para edição | `info` |
-| Projeto entregue | Projeto marcado como entregue | `success` |
-| Prazo próximo | Entrega em menos de 24h (via cron existente) | `warning` |
-| Nova mensagem | Chat de projeto/tarefa (já existe) | `info` |
-
----
-
-## Resultado Esperado
-
-Após implementação:
-
-- ✅ **App aberto**: Notificações push nativas + toast + som quando há novidades
-- ✅ **PWA instalada (foreground)**: Mesmo comportamento do app aberto
-- ✅ **Configurável**: Utilizador controla quais notificações receber nas Definições
-- ⚠️ **PWA em background**: Requer Fase 2 com Service Worker Push (implementação futura)
+| Ficheiro | Descricao |
+|----------|-----------|
+| `src/components/projects/ProjectTimelineTab.tsx` | Componente principal da aba |
+| `src/components/projects/timeline/TimelineSegment.tsx` | Segmento visual na timeline |
+| `src/components/projects/timeline/TimelineOverview.tsx` | Resumo de duracao |
+| `src/components/projects/timeline/AddSegmentModal.tsx` | Modal para adicionar segmento |
+| `src/components/projects/timeline/EditSegmentModal.tsx` | Modal para editar segmento |
+| `src/components/projects/timeline/SegmentPopover.tsx` | Popover de detalhes |
+| `src/components/projects/timeline/ApplyTemplateDropdown.tsx` | Dropdown de templates |
+| `src/components/projects/timeline/SaveTemplateModal.tsx` | Modal para guardar template |
+| `src/hooks/useVideoStructure.ts` | Hook para CRUD de segmentos |
+| `src/hooks/useVideoStructureTemplates.ts` | Hook para CRUD de templates |
+| `src/lib/duration-utils.ts` | Funcoes utilitarias para duracoes |
 
 ---
 
-## Notas Importantes
+## Ficheiros a Modificar
 
-1. **Compatibilidade**: Notificações push nativas funcionam no Chrome, Edge, Firefox e Safari (iOS 16.4+)
-2. **Permissão**: O utilizador precisa permitir notificações (já existe UI para isso em Definições)
-3. **PWA**: Para melhor experiência, o utilizador deve instalar o app (Add to Home Screen)
-4. **Background**: Notificações com app completamente fechado requerem implementação adicional com Web Push API
+| Ficheiro | Alteracao |
+|----------|-----------|
+| `src/components/projects/ProjectDetailsSheet.tsx` | Adicionar nova aba "Timeline" no TabsList |
+| `src/components/projects/ProjectDetailsModal.tsx` | Mesmas alteracoes para consistencia |
+
+---
+
+## Adaptacoes ao Estilo WillFlow
+
+Em vez das cores do prompt original, usarei:
+
+- **Primary Violet** (#5B4AE4) para elementos de destaque
+- **Muted** para segmentos sem cor especial
+- **Glassmorphism** para modais e popovers
+- **Transicoes suaves** com Framer Motion
+- **Sombras premium** do design system existente
+
+---
+
+## Responsividade
+
+- **Desktop**: Timeline horizontal completa com marcadores de tempo
+- **Tablet**: Timeline com scroll horizontal
+- **Mobile**: Lista vertical de segmentos em cards arrastaveis
+
+---
+
+## Secao Tecnica
+
+### Funcoes de Duracao
+
+```typescript
+// Formatar segundos para display legivel
+formatDuration(seconds: number): string
+// Retorna "5s" ou "1m 30s"
+
+// Formatar intervalo de duracao
+formatDurationRange(min: number, max: number | null): string
+// Retorna "5s" ou "4-6s"
+
+// Calcular duracao total de segmentos
+calculateTotalDuration(segments: VideoStructure[]): { min: number; max: number }
+
+// Calcular largura percentual do segmento
+calculateSegmentWidth(segment: VideoStructure, totalMax: number): number
+
+// Gerar marcadores de tempo para a timeline
+generateTimeMarkers(totalSeconds: number, count: number): string[]
+```
+
+### Hook useVideoStructure
+
+```typescript
+interface UseVideoStructure {
+  segments: VideoStructure[];
+  loading: boolean;
+  addSegment: (data: CreateSegmentInput) => Promise<void>;
+  updateSegment: (id: string, data: UpdateSegmentInput) => Promise<void>;
+  deleteSegment: (id: string) => Promise<void>;
+  reorderSegments: (segments: VideoStructure[]) => Promise<void>;
+  applyTemplate: (templateId: string) => Promise<void>;
+  clearAll: () => Promise<void>;
+}
+```
+
+### Hook useVideoStructureTemplates
+
+```typescript
+interface UseVideoStructureTemplates {
+  templates: VideoStructureTemplate[];
+  loading: boolean;
+  createTemplate: (name: string, description?: string) => Promise<void>;
+  deleteTemplate: (id: string) => Promise<void>;
+  updateTemplate: (id: string, data: UpdateTemplateInput) => Promise<void>;
+}
+```
+
+### Migracao SQL
+
+- Criar tabela `video_structures`
+- Criar tabela `video_structure_templates`
+- Adicionar indices para `project_id` e `workspace_id`
+- Habilitar realtime para atualizacoes em tempo real
+- Configurar politicas RLS
+
+### Politicas RLS
+
+**video_structures**:
+- SELECT: Membros do workspace podem visualizar
+- INSERT: Roles admin, editor, captacao podem criar
+- UPDATE: Criador ou admin podem editar
+- DELETE: Criador ou admin podem apagar
+
+**video_structure_templates**:
+- SELECT: Membros do workspace podem visualizar
+- INSERT: Admin pode criar
+- UPDATE: Criador ou admin podem editar
+- DELETE: Criador ou admin podem apagar
+
+---
+
+## Ordem de Implementacao
+
+1. Criar migracao das tabelas `video_structures` e `video_structure_templates`
+2. Criar funcoes utilitarias de duracao
+3. Criar hooks `useVideoStructure` e `useVideoStructureTemplates`
+4. Criar componentes de timeline (segmento, overview, etc.)
+5. Criar modais de adicionar/editar segmentos
+6. Criar componentes de templates (dropdown, modal guardar)
+7. Integrar nova aba nos detalhes do projeto
+8. Testar funcionalidade completa
 
