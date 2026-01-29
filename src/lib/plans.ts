@@ -214,6 +214,8 @@ export const PLANS: Record<PlanId, PlanInfo> = {
       { key: 'automations', name: 'Automações avançadas', value: true, included: true, category: 'core' },
       { key: 'permissions', name: 'Permissões avançadas', value: true, included: true, category: 'core' },
       { key: 'api', name: 'API & Webhooks', value: true, included: true, category: 'integration' },
+      { key: 'videoApproval', name: 'Aprovação de vídeo', value: true, included: true, category: 'core' },
+      { key: 'videoStorage', name: 'Armazenamento de vídeos', value: '10GB', included: true, category: 'limit' },
     ],
   },
 };

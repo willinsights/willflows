@@ -38,7 +38,9 @@ export type FeatureKey =
   | 'frameio'
   | 'automations'
   | 'permissions'
-  | 'api';
+  | 'api'
+  | 'videoApproval'
+  | 'videoStorage';
 
 export interface FeatureInfo {
   key: FeatureKey;
@@ -72,6 +74,8 @@ function buildFeatureInfo(): Record<FeatureKey, FeatureInfo> {
     automations: 'Fluxos de trabalho automatizados',
     permissions: 'Permissões avançadas por cargo',
     api: 'Acesso à API e Webhooks',
+    videoApproval: 'Aprovação de vídeo com comentários por timestamp',
+    videoStorage: 'Armazenamento de vídeos para aprovação',
   };
 
   const features: Partial<Record<FeatureKey, FeatureInfo>> = {};
