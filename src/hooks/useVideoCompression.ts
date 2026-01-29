@@ -1,0 +1,124 @@
+import { useState, useRef, useCallback } from 'react';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile, toBlobURL } from '@ffmpeg/util';
+
+interface CompressionResult {
+  file: File;
+  originalSize: number;
+  compressedSize: number;
+  savings: number;
+}
+
+export function useVideoCompression() {
+  const [progress, setProgress] = useState(0);
+  const [compressing, setCompressing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const ffmpegRef = useRef<FFmpeg | null>(null);
+  const loadedRef = useRef(false);
+
+  const loadFFmpeg = useCallback(async () => {
+    if (loadedRef.current && ffmpegRef.current) {
+      return ffmpegRef.current;
+    }
+
+    const ffmpeg = new FFmpeg();
+    ffmpegRef.current = ffmpeg;
+
+    ffmpeg.on('progress', ({ progress: p }) => {
+      setProgress(Math.round(p * 100));
+    });
+
+    // Load FFmpeg WASM from CDN
+    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+    });
+
+    loadedRef.current = true;
+    return ffmpeg;
+  }, []);
+
+  const compressVideo = useCallback(async (file: File): Promise<CompressionResult> => {
+    setCompressing(true);
+    setProgress(0);
+    setError(null);
+
+    try {
+      const ffmpeg = await loadFFmpeg();
+      const originalSize = file.size;
+
+      // Determine input extension
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'mp4';
+      const inputName = `input.${ext}`;
+      const outputName = 'output.mp4';
+
+      // Write input file
+      await ffmpeg.writeFile(inputName, await fetchFile(file));
+
+      // Compress with H.264 codec
+      // CRF 28 = good quality with good compression
+      // preset fast = balance between speed and compression
+      await ffmpeg.exec([
+        '-i', inputName,
+        '-c:v', 'libx264',
+        '-crf', '28',
+        '-preset', 'fast',
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        '-movflags', '+faststart', // Optimize for web streaming
+        outputName
+      ]);
+
+      // Read output
+      const data = await ffmpeg.readFile(outputName);
+      // Create a proper ArrayBuffer copy for Blob compatibility
+      const uint8Array = data as Uint8Array;
+      const arrayBuffer = new ArrayBuffer(uint8Array.length);
+      new Uint8Array(arrayBuffer).set(uint8Array);
+      const compressedBlob = new Blob([arrayBuffer], { type: 'video/mp4' });
+      const compressedSize = compressedBlob.size;
+
+      // Create new file with original name but .mp4 extension
+      const baseName = file.name.replace(/\.[^/.]+$/, '');
+      const compressedFile = new File([compressedBlob], `${baseName}.mp4`, { 
+        type: 'video/mp4' 
+      });
+
+      // Cleanup
+      await ffmpeg.deleteFile(inputName);
+      await ffmpeg.deleteFile(outputName);
+
+      const savings = Math.round((1 - compressedSize / originalSize) * 100);
+
+      return {
+        file: compressedFile,
+        originalSize,
+        compressedSize,
+        savings: Math.max(0, savings), // Don't show negative savings
+      };
+    } catch (err: any) {
+      const errorMessage = err.message || 'Erro ao comprimir vídeo';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setCompressing(false);
+    }
+  }, [loadFFmpeg]);
+
+  const cancelCompression = useCallback(() => {
+    if (ffmpegRef.current) {
+      // FFmpeg doesn't have a direct cancel, but we can reset state
+      setCompressing(false);
+      setProgress(0);
+    }
+  }, []);
+
+  return {
+    compressVideo,
+    cancelCompression,
+    progress,
+    compressing,
+    error,
+  };
+}

@@ -246,8 +246,9 @@ export function useVideoApproval(taskId: string | null) {
   };
 
   const getApprovalUrl = (token: string): string => {
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/video-approval/${token}`;
+    // Always use production domain for client-facing approval links
+    const productionUrl = 'https://willflow.app';
+    return `${productionUrl}/video-approval/${token}`;
   };
 
   // Check if video is approved (any version)

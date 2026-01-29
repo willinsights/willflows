@@ -1,10 +1,13 @@
 import { useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Upload, Video, X, AlertCircle } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Upload, Video, X, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useVideoVersions } from '@/hooks/useVideoVersions';
 import { useWorkspaceStorage } from '@/hooks/useWorkspaceStorage';
+import { useVideoCompression } from '@/hooks/useVideoCompression';
 
 interface VideoVersionUploadProps {
   taskId: string;
@@ -20,10 +23,14 @@ export function VideoVersionUpload({ taskId, workspaceId, projectId, onUploadCom
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [enableCompression, setEnableCompression] = useState(true);
+  const [compressionComplete, setCompressionComplete] = useState(false);
+  const [compressionSavings, setCompressionSavings] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
   const { uploadVersion, uploading, uploadProgress } = useVideoVersions(taskId, workspaceId);
   const { storage } = useWorkspaceStorage();
+  const { compressVideo, compressing, progress: compressionProgress, error: compressionError } = useVideoCompression();
 
   const validateFile = (file: File): string | null => {
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -47,6 +54,8 @@ export function VideoVersionUpload({ taskId, workspaceId, projectId, onUploadCom
     }
     setError(null);
     setSelectedFile(file);
+    setCompressionComplete(false);
+    setCompressionSavings(null);
   };
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -79,13 +88,30 @@ export function VideoVersionUpload({ taskId, workspaceId, projectId, onUploadCom
     if (!selectedFile) return;
 
     try {
+      let fileToUpload = selectedFile;
+
+      // Compress if enabled and not already compressed
+      if (enableCompression && !compressionComplete) {
+        try {
+          const result = await compressVideo(selectedFile);
+          fileToUpload = result.file;
+          setCompressionSavings(result.savings);
+          setCompressionComplete(true);
+        } catch (compErr) {
+          // If compression fails, proceed with original file
+          console.warn('Compression failed, uploading original:', compErr);
+        }
+      }
+
       await uploadVersion({
-        file: selectedFile,
+        file: fileToUpload,
         taskId,
         workspaceId,
         projectId,
       });
       setSelectedFile(null);
+      setCompressionComplete(false);
+      setCompressionSavings(null);
       onUploadComplete?.();
     } catch (error) {
       // Error toast is handled in hook
@@ -172,17 +198,68 @@ export function VideoVersionUpload({ taskId, workspaceId, projectId, onUploadCom
       )}
 
       {/* Selected file */}
-      {selectedFile && !uploading && (
-        <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-          <Video className="h-5 w-5 text-primary" />
-          <div className="flex-1 min-w-0">
-            <p className="truncate font-medium">{selectedFile.name}</p>
-            <p className="text-sm text-muted-foreground">{formatFileSize(selectedFile.size)}</p>
+      {selectedFile && !uploading && !compressing && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
+            <Video className="h-5 w-5 text-primary" />
+            <div className="flex-1 min-w-0">
+              <p className="truncate font-medium">{selectedFile.name}</p>
+              <p className="text-sm text-muted-foreground">
+                {formatFileSize(selectedFile.size)}
+                {compressionComplete && compressionSavings !== null && compressionSavings > 0 && (
+                  <span className="ml-2 text-green-600">
+                    <CheckCircle2 className="inline h-3 w-3 mr-1" />
+                    Comprimido (-{compressionSavings}%)
+                  </span>
+                )}
+              </p>
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => {
+              setSelectedFile(null);
+              setCompressionComplete(false);
+              setCompressionSavings(null);
+            }}>
+              <X className="h-4 w-4" />
+            </Button>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => setSelectedFile(null)}>
-            <X className="h-4 w-4" />
+
+          {/* Compression toggle */}
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div className="space-y-0.5">
+              <Label htmlFor="compression" className="text-sm font-medium">
+                Comprimir vídeo
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Reduz o tamanho do ficheiro antes de enviar
+              </p>
+            </div>
+            <Switch
+              id="compression"
+              checked={enableCompression}
+              onCheckedChange={setEnableCompression}
+            />
+          </div>
+
+          <Button onClick={handleUpload} className="w-full">
+            {enableCompression ? 'Comprimir e Carregar' : 'Carregar'}
           </Button>
-          <Button onClick={handleUpload}>Carregar</Button>
+        </div>
+      )}
+
+      {/* Compression progress */}
+      {compressing && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              A comprimir vídeo...
+            </span>
+            <span>{compressionProgress}%</span>
+          </div>
+          <Progress value={compressionProgress} className="bg-muted" />
+          <p className="text-xs text-muted-foreground">
+            Isto pode demorar alguns minutos dependendo do tamanho do vídeo.
+          </p>
         </div>
       )}
 
