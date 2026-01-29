@@ -96,3 +96,12 @@ verify_jwt = false
 
 [functions.submit-video-feedback]
 verify_jwt = false
+
+[functions.r2-upload-url]
+verify_jwt = false
+
+[functions.stream-process-video]
+verify_jwt = false
+
+[functions.stream-get-status]
+verify_jwt = false
