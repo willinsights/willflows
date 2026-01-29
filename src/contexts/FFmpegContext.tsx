@@ -84,10 +84,22 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
     if (isCrossOriginIsolated()) {
       console.log('[FFmpeg Context] ✓ Already cross-origin isolated');
       setIsolationStatus('isolated');
+      // Clear any pending reload flag
+      try { sessionStorage.removeItem('coop-coep-reload-pending'); } catch {}
     } else if (!isServiceWorkerSupported()) {
       console.log('[FFmpeg Context] ✗ Service Workers not supported');
       setIsolationStatus('unsupported');
     } else {
+      // Check if we already tried and failed (reload happened but still not isolated)
+      try {
+        if (sessionStorage.getItem('coop-coep-reload-pending')) {
+          console.log('[FFmpeg Context] ✗ SW reload attempted but isolation failed');
+          sessionStorage.removeItem('coop-coep-reload-pending');
+          setIsolationStatus('unsupported');
+          return;
+        }
+      } catch {}
+      
       console.log('[FFmpeg Context] Not isolated yet');
       setIsolationStatus('not-isolated');
     }
