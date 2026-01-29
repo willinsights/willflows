@@ -1,124 +1,242 @@
 
-# Plano: Correção do Motor de Compressão FFmpeg
+# Plano: Corrigir Motor de Compressão FFmpeg
 
-## Problema Identificado
+## Problema Raiz Identificado
 
-O motor de compressão falha com "Failed to fetch" / "HTTP 404" porque o código está a tentar descarregar um ficheiro que não existe:
-
-- **Ficheiros disponíveis** em `@ffmpeg/core@0.12.10/dist/umd/`:
-  - `ffmpeg-core.js` (existe)
-  - `ffmpeg-core.wasm` (existe)
-
-- **Ficheiro que NÃO existe**:
-  - `ffmpeg-core.worker.js` (404!)
-
-A documentação oficial do `@ffmpeg/ffmpeg@0.12` confirma que o build UMD single-threaded **não requer** workerURL. O `ffmpeg.load()` apenas precisa de `coreURL` e `wasmURL`.
-
----
-
-## Solução
-
-Remover a tentativa de descarregar `ffmpeg-core.worker.js` e usar apenas os dois ficheiros que existem (`coreURL` e `wasmURL`), seguindo a documentação oficial.
-
----
-
-## Alterações Técnicas
-
-### Ficheiro: `src/contexts/FFmpegContext.tsx`
-
-1. **Remover download do worker**: Alterar de 3 ficheiros para apenas 2:
-
-```text
-Antes:
-const [coreURL, wasmURL, workerURL] = await Promise.all([
-  toBlobURLWithTimeout(`${base}/ffmpeg-core.js`, ...),
-  toBlobURLWithTimeout(`${base}/ffmpeg-core.wasm`, ...),
-  toBlobURLWithTimeout(`${base}/ffmpeg-core.worker.js`, ...), // <- 404!
-]);
-
-Depois:
-const [coreURL, wasmURL] = await Promise.all([
-  toBlobURLWithTimeout(`${base}/ffmpeg-core.js`, ...),
-  toBlobURLWithTimeout(`${base}/ffmpeg-core.wasm`, ...),
-]);
+O motor FFmpeg.wasm requer **headers HTTP COOP/COEP** para funcionar:
+```
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
 ```
 
-2. **Remover workerURL do ffmpeg.load()**: Usar apenas `coreURL` e `wasmURL`:
+Estes headers são necessários para o `SharedArrayBuffer` funcionar, que é usado pelo worker interno do FFmpeg. **A Lovable não permite configurar estes headers** no servidor.
+
+Por isso, `ffmpeg.load()` fica pendido (não resolve nem rejeita) porque o worker interno não consegue inicializar.
+
+---
+
+## Solução Recomendada: Service Worker COOP/COEP
+
+A solução é usar um **Service Worker** que intercepta as respostas e adiciona os headers necessários. Esta técnica é documentada e usada por projetos como GitHub Pages.
+
+### Como Funciona
 
 ```text
-Antes:
-await ffmpeg.load({
-  coreURL,
-  wasmURL,
-  workerURL, // <- não existe no UMD build
+┌─────────────────┐      ┌──────────────────────┐      ┌──────────────┐
+│   Navegador     │ ──── │  Service Worker      │ ──── │   CDN        │
+│                 │      │  (adiciona headers)  │      │  (FFmpeg)    │
+└─────────────────┘      └──────────────────────┘      └──────────────┘
+                                    │
+                                    ▼
+                         Cross-Origin-Opener-Policy: same-origin
+                         Cross-Origin-Embedder-Policy: credentialless
+```
+
+### Passos de Implementação
+
+1. **Criar um Service Worker dedicado** (`public/coop-coep-worker.js`)
+   - Intercepta todas as respostas
+   - Adiciona headers COOP/COEP automaticamente
+   - Usa `credentialless` em vez de `require-corp` para evitar conflitos com recursos externos
+
+2. **Registar o Service Worker** antes de carregar FFmpeg
+   - Só ativa quando o utilizador entra na aba "Produção"
+   - Depois de registado, força um reload da página (apenas na primeira vez)
+
+3. **Atualizar FFmpegContext** para:
+   - Verificar se `crossOriginIsolated === true` antes de carregar
+   - Se não estiver isolado, registar o SW e recarregar
+   - Mostrar mensagem clara ao utilizador durante este processo
+
+4. **Melhorar fallback** quando isolamento não é possível:
+   - Mostrar mensagem explicativa
+   - Oferecer opção de enviar vídeo sem compressão
+
+---
+
+## Ficheiros a Criar/Modificar
+
+### 1. Criar: `public/coop-coep-worker.js`
+
+```javascript
+// Service Worker para adicionar headers COOP/COEP
+// Baseado em: https://github.com/nicololongo/sw-coep
+
+self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
+
+self.addEventListener("fetch", (e) => {
+  if (e.request.cache === "only-if-cached" && e.request.mode !== "same-origin") {
+    return;
+  }
+  
+  e.respondWith(
+    fetch(e.request)
+      .then((response) => {
+        if (response.status === 0) return response;
+        
+        const newHeaders = new Headers(response.headers);
+        newHeaders.set("Cross-Origin-Embedder-Policy", "credentialless");
+        newHeaders.set("Cross-Origin-Opener-Policy", "same-origin");
+        
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: newHeaders,
+        });
+      })
+      .catch((e) => console.error("[COOP-COEP SW] Fetch error:", e))
+  );
 });
-
-Depois:
-await ffmpeg.load({
-  coreURL,
-  wasmURL,
-});
 ```
 
-3. **Atualizar log de debug**: Remover referência ao worker nos logs.
+### 2. Criar: `src/lib/coop-coep-service-worker.ts`
+
+```typescript
+// Utilitário para registar e verificar o Service Worker COOP/COEP
+
+export async function ensureCrossOriginIsolated(): Promise<boolean> {
+  // Já está isolado
+  if (window.crossOriginIsolated) {
+    return true;
+  }
+  
+  // Verifica se SW é suportado
+  if (!("serviceWorker" in navigator)) {
+    console.warn("[COOP-COEP] Service Workers não suportados");
+    return false;
+  }
+  
+  try {
+    const registration = await navigator.serviceWorker.register("/coop-coep-worker.js");
+    await registration.update();
+    
+    // Esperar que o SW fique ativo
+    await new Promise<void>((resolve) => {
+      if (registration.active) {
+        resolve();
+      } else {
+        registration.addEventListener("updatefound", () => {
+          const newWorker = registration.installing || registration.waiting;
+          newWorker?.addEventListener("statechange", () => {
+            if (newWorker.state === "activated") resolve();
+          });
+        });
+      }
+    });
+    
+    // Recarregar página para aplicar headers
+    window.location.reload();
+    return true;
+  } catch (err) {
+    console.error("[COOP-COEP] Erro ao registar SW:", err);
+    return false;
+  }
+}
+
+export function isCrossOriginIsolated(): boolean {
+  return window.crossOriginIsolated === true;
+}
+```
+
+### 3. Modificar: `src/contexts/FFmpegContext.tsx`
+
+- Antes de chamar `ffmpeg.load()`, verificar `crossOriginIsolated`
+- Se não estiver isolado, tentar registar o Service Worker
+- Mostrar estado claro durante este processo
+
+### 4. Modificar: `src/components/video-production/FFmpegStatusIndicator.tsx`
+
+- Adicionar estado para "A preparar isolamento COOP/COEP..."
+- Mostrar mensagem se isolamento não for possível
+
+### 5. Modificar: `src/components/video-production/VideoVersionUpload.tsx`
+
+- Se o motor não estiver disponível, permitir upload sem compressão
+- Mostrar aviso explicativo
 
 ---
 
-## Diagrama de Fluxo Corrigido
+## Diagrama de Estados
 
 ```text
-+-------------------+
-|  Utilizador abre  |
-|  aba "Produção"   |
-+--------+----------+
-         |
-         v
-+-------------------+
-|  preload() é      |
-|  chamado          |
-+--------+----------+
-         |
-         v
-+-------------------+
-| Download CDN      |
-| (jsDelivr/unpkg)  |
-+--------+----------+
-         |
-    +----+----+
-    |         |
-    v         v
-+-------+ +--------+
-|.js    | |.wasm   |
-|(109KB)| |(31MB)  |
-+---+---+ +---+----+
-    |         |
-    +----+----+
-         |
-         v
-+-------------------+
-| ffmpeg.load({     |
-|   coreURL,        |
-|   wasmURL         |
-| })                |
-+--------+----------+
-         |
-         v
-+-------------------+
-| Motor pronto!     |
-| isLoaded = true   |
-+-------------------+
+┌────────────────────────┐
+│  Utilizador abre       │
+│  aba "Produção"        │
+└───────────┬────────────┘
+            │
+            ▼
+┌────────────────────────┐
+│ crossOriginIsolated?   │
+└───────────┬────────────┘
+            │
+     ┌──────┴──────┐
+     │             │
+   true          false
+     │             │
+     ▼             ▼
+┌─────────┐  ┌────────────────────┐
+│ Carregar│  │ Registar SW        │
+│ FFmpeg  │  │ COOP/COEP          │
+└────┬────┘  └─────────┬──────────┘
+     │                 │
+     ▼                 ▼
+┌─────────┐  ┌────────────────────┐
+│ Pronto! │  │ Recarregar página  │
+│         │  │ (uma vez)          │
+└─────────┘  └────────────────────┘
 ```
 
 ---
 
-## Impacto
+## Comportamento Esperado
 
-- **Mínimo**: Apenas uma linha de código a remover
-- **Sem regressões**: Esta é a forma documentada de usar o FFmpeg WASM
-- **Funcionalidade mantida**: A compressão de vídeo funcionará exatamente igual
+1. **Primeira visita** à aba Produção:
+   - Mostra "A preparar ambiente seguro..."
+   - Regista Service Worker
+   - Recarrega página automaticamente
+
+2. **Visitas subsequentes**:
+   - `crossOriginIsolated = true`
+   - Motor carrega normalmente
+   - Compressão funciona
+
+3. **Se SW falhar** (browser antigo, modo privado, etc.):
+   - Mostra aviso explicativo
+   - Oferece "Carregar sem compressão"
+   - Utilizador pode continuar a trabalhar
 
 ---
 
-## Próximos Passos
+## Riscos e Mitigações
 
-Após aprovar, farei a alteração no ficheiro `src/contexts/FFmpegContext.tsx`. O motor deverá carregar corretamente e mostrar "Motor de compressão pronto" em vez do erro atual.
+| Risco | Mitigação |
+|-------|-----------|
+| SW pode ser bloqueado em modo privado | Fallback para upload sem compressão |
+| Headers podem quebrar outros recursos | Usar `credentialless` em vez de `require-corp` |
+| Reload pode frustrar utilizador | Mostrar mensagem explicativa antes do reload |
+| PWA existente pode conflitar | Manter SWs separados (PWA vs COOP/COEP) |
+
+---
+
+## Alternativa: Compressão Server-Side
+
+Se a solução SW não funcionar em produção, podemos implementar uma Edge Function que comprime o vídeo no servidor. Mas isso tem custos:
+- Tempo de upload duplo (original + comprimido)
+- Limites de memória e timeout das Edge Functions
+- Complexidade adicional
+
+**Recomendação**: Tentar primeiro a solução Service Worker, que é mais simples e mantém a compressão no cliente.
+
+---
+
+## Checklist de Implementação
+
+1. Criar `public/coop-coep-worker.js`
+2. Criar `src/lib/coop-coep-service-worker.ts`
+3. Atualizar `FFmpegContext.tsx` com verificação de isolamento
+4. Atualizar `FFmpegStatusIndicator.tsx` com novos estados
+5. Atualizar `VideoVersionUpload.tsx` com fallback
+6. Testar em Chrome, Edge e Firefox
+7. Testar em modo privado (fallback)
+8. Verificar que PWA continua a funcionar
