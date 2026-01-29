@@ -45,6 +45,7 @@ import type { Tables } from '@/integrations/supabase/types';
 import { ProjectChecklistTab } from './ProjectChecklistTab';
 import { ProjectMediaTab } from './ProjectMediaTab';
 import { ProjectFinancialTab } from './ProjectFinancialTab';
+import { ProjectTimelineTab } from './ProjectTimelineTab';
 import { ChecklistPendingAlert } from './ChecklistPendingAlert';
 import { useConversations } from '@/hooks/useConversations';
 import { useAuth } from '@/contexts/AuthContext';
@@ -589,10 +590,11 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
           </DialogHeader>
 
           <Tabs defaultValue="details" className="w-full">
-            <TabsList className={cn("grid w-full mb-4", canViewOwnFinancials ? "grid-cols-4" : "grid-cols-3")}>
+            <TabsList className={cn("grid w-full mb-4", canViewOwnFinancials ? "grid-cols-5" : "grid-cols-4")}>
               <TabsTrigger value="details">Detalhes</TabsTrigger>
               <TabsTrigger value="checklist">Checklist</TabsTrigger>
-              <TabsTrigger value="media">Links e Pastas</TabsTrigger>
+              <TabsTrigger value="timeline">Timeline</TabsTrigger>
+              <TabsTrigger value="media">Links</TabsTrigger>
               {canViewOwnFinancials && <TabsTrigger value="financial">Financeiro</TabsTrigger>}
             </TabsList>
 
@@ -1168,6 +1170,14 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                   workspaceId={project.workspace_id}
                   currentPhase={project.current_phase}
                   itemType={(project.item_type as 'projeto_captacao' | 'projeto_edicao' | 'projeto_completo' | 'reuniao') || 'projeto_completo'}
+                />
+              </TabsContent>
+
+              {/* Timeline Tab */}
+              <TabsContent value="timeline" className="space-y-4 pr-4">
+                <ProjectTimelineTab
+                  projectId={project.id}
+                  workspaceId={project.workspace_id}
                 />
               </TabsContent>
 
