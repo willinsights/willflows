@@ -189,7 +189,6 @@ serve(async (req) => {
             versionId: versionData.id,
           },
           requireSignedURLs: false,
-          allowedOrigins: ["*"],
         }),
       }
     );
