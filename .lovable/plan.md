@@ -1,76 +1,64 @@
 
-# Plano: Corrigir Bloqueio do iframe Cloudflare Stream
+# Plano: Usar HLS Direto em vez de iframe Cloudflare Stream
 
-## Problema Identificado
-O vídeo foi processado com sucesso (`stream_status: ready`, `readyToStream: true`), mas o iframe do Cloudflare Stream está a ser bloqueado. A mensagem "iframe.cloudflarestream.com recusou estabelecer ligação" indica que o Cloudflare Stream está a rejeitar o embed por restrições de domínio.
+## Problema
+O iframe do Cloudflare Stream continua bloqueado (`customer-y2wrascmexrvzepp.cloudflarestream.com recusou estabelecer ligação`) porque o vídeo existente foi processado com `allowedOrigins: ["*"]` - que o Cloudflare não aceita como wildcard.
 
-## Causa Raiz
-Quando o vídeo foi submetido ao Stream via `/copy`, foi usado `allowedOrigins: ["*"]`, mas o Cloudflare Stream não aceita wildcards literais - é necessário especificar os domínios explicitamente, ou não definir restrições.
+A alteração na edge function só afeta **novos uploads**. Os vídeos já processados mantêm as restrições antigas.
 
-## Solucao
+## Solução
+Alterar o `VideoPlayer` para usar **HLS playback direto** via `hls.js` em vez de iframe. Esta abordagem:
+- Funciona sem restrições de domínio
+- Oferece controlos nativos customizáveis
+- Funciona nativamente em Safari (sem hls.js)
+- Resolve o problema para vídeos existentes e futuros
 
-### Passo 1: Atualizar a Edge Function `stream-process-video`
-Alterar a configuracao de `allowedOrigins` para incluir os dominios corretos:
+## Alterações
 
-```text
-allowedOrigins: [
-  "willflow.app",
-  "willflows.lovable.app",
-  "lovableproject.com"
-]
-```
+### 1. Adicionar dependência hls.js
+Instalar `hls.js` para suporte HLS em browsers que não suportam nativamente (Chrome, Firefox, Edge).
 
-Ou remover completamente o campo `allowedOrigins` para permitir embed de qualquer domínio (comportamento padrão).
+### 2. Atualizar VideoPlayer.tsx
+Modificar o componente para:
+- Detetar se o browser suporta HLS nativo (Safari) ou precisa de hls.js
+- Converter `streamUid` para URL HLS: `https://customer-{hash}.cloudflarestream.com/{uid}/manifest/video.m3u8`
+- Usar elemento `<video>` nativo com controlos customizados (já existentes)
+- Remover lógica de iframe para Cloudflare Stream
 
-### Passo 2: Atualizar Vídeos Existentes via API
-Para o vídeo já processado (uid: `1a69a6dafc25337b7716b4c1afe84f6c`), será necessário atualizar as configurações via API do Cloudflare Stream:
+### 3. Atualizar VideoProductionTab.tsx
+Garantir que passa o URL HLS correto ao player quando disponível.
 
-```text
-PATCH /accounts/{account_id}/stream/{video_uid}
-Body: { "allowedOrigins": [] }
-```
-
-Isto pode ser feito:
-- Manualmente no dashboard do Cloudflare
-- Ou criando uma edge function temporária para atualizar
-
-### Passo 3: Alternativa - Usar HLS em vez de iframe
-Se as restrições de domínio continuarem a causar problemas, podemos alterar o `VideoPlayer` para usar o URL HLS direto em vez do iframe:
-
-```text
-https://customer-{hash}.cloudflarestream.com/{uid}/manifest/video.m3u8
-```
-
-Isto requer adicionar suporte HLS ao player (usando hls.js ou video nativo em Safari).
-
-## Opções
-
-**Opção A (Recomendada)**: Remover `allowedOrigins` da edge function e atualizar o vídeo existente via dashboard Cloudflare
-
-**Opção B**: Usar HLS direto em vez de iframe para evitar restrições de CORS
+## Benefícios
+- Resolve o bloqueio de iframe imediatamente
+- Funciona para vídeos existentes sem alterações no Cloudflare Dashboard
+- Mantém controlos nativos (seek, volume, fullscreen)
+- Permite comentários por timestamp (funcionalidade existente)
+- Compatível com todos os browsers modernos
 
 ## Detalhes Técnicos
 
-### Alteracoes em `stream-process-video/index.ts`
-Linha 191-193: Mudar de:
-```javascript
-requireSignedURLs: false,
-allowedOrigins: ["*"],
-```
-Para:
-```javascript
-requireSignedURLs: false,
-// Remover allowedOrigins para permitir embed de qualquer origem
+### Estrutura HLS URL
+```text
+https://customer-{hash}.cloudflarestream.com/{streamUid}/manifest/video.m3u8
 ```
 
-### Video Existente
-O vídeo com UID `1a69a6dafc25337b7716b4c1afe84f6c` precisa de ser atualizado no dashboard do Cloudflare:
-1. Ir a Cloudflare Dashboard → Stream → Videos
-2. Selecionar o vídeo
-3. Em "Security", remover restrições de domínio ou adicionar os domínios corretos
+O `{hash}` é extraído da variável de ambiente `VITE_CLOUDFLARE_CUSTOMER_HASH` ou do `stream_playback_url` guardado na base de dados.
 
-### Dominios a adicionar (se necessario)
-- `willflow.app`
-- `*.willflow.app`
-- `*.lovableproject.com`
-- `willflows.lovable.app`
+### Lógica de Playback
+```text
+if (Safari ou browser com suporte nativo HLS) {
+  video.src = hlsUrl  // Nativo
+} else if (Hls.isSupported()) {
+  hls.loadSource(hlsUrl)
+  hls.attachMedia(videoElement)
+} else {
+  // Fallback: erro ou iframe como último recurso
+}
+```
+
+### Ficheiros a Modificar
+1. `package.json` - adicionar `hls.js`
+2. `src/components/video-production/VideoPlayer.tsx` - implementar HLS
+3. `src/components/video-production/VideoProductionTab.tsx` - passar URL HLS
+4. `src/hooks/useVideoVersions.ts` - atualizar `getPlaybackUrl` para gerar HLS URL
+
