@@ -94,9 +94,11 @@ function VideoProductionTabContent({
       }
       setIsVersionProcessing(false);
 
-      // Priority 1: Cloudflare Stream (new uploads) - uses iframe, no URL needed
+      // Priority 1: Cloudflare Stream (new uploads)
       if (selectedVersion.cloudflare_stream_uid) {
-        setVideoUrl(null);
+        // Pass the HLS URL so the player can derive the correct customer domain for the iframe embed.
+        // (Some environments block iframe.cloudflarestream.com, but customer-<hash>.cloudflarestream.com works.)
+        setVideoUrl(selectedVersion.stream_playback_url || null);
         setLoadingUrl(false);
         return;
       }

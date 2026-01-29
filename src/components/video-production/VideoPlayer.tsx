@@ -279,16 +279,40 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
 
   // Get iframe src for Cloudflare Stream
   const getIframeSrc = () => {
+    const extractCustomerBase = (url: string): string | null => {
+      try {
+        const u = new URL(url);
+        if (u.hostname.endsWith('cloudflarestream.com') && u.hostname.startsWith('customer-')) {
+          return `${u.protocol}//${u.hostname}`;
+        }
+        return null;
+      } catch {
+        return null;
+      }
+    };
+
+    // Prefer customer-<hash>.cloudflarestream.com embeds when we can infer the customer subdomain.
+    // This avoids environments where iframe.cloudflarestream.com is blocked.
     if (streamUid) {
+      const customerBase = src ? extractCustomerBase(src) : null;
+      if (customerBase) {
+        return `${customerBase}/${streamUid}/iframe`;
+      }
       return `https://iframe.cloudflarestream.com/${streamUid}`;
     }
+
     if (src && src.includes('cloudflarestream.com')) {
-      // Extract UID from URL and construct iframe URL
+      // Extract UID from URL
       const match = src.match(/cloudflarestream\.com\/([a-zA-Z0-9]+)/);
       if (match) {
+        const customerBase = extractCustomerBase(src);
+        if (customerBase) {
+          return `${customerBase}/${match[1]}/iframe`;
+        }
         return `https://iframe.cloudflarestream.com/${match[1]}`;
       }
     }
+
     return src;
   };
 
