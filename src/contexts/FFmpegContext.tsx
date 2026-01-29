@@ -13,7 +13,11 @@ interface FFmpegContextValue {
 
 const FFmpegContext = createContext<FFmpegContextValue | null>(null);
 
-const CDN_BASE_URL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
+// Some networks/ad-blockers block specific CDNs. Keep a small fallback list.
+const CDN_BASE_URLS = [
+  'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd',
+  'https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd',
+];
 
 export function FFmpegProvider({ children }: { children: React.ReactNode }) {
   const ffmpegRef = useRef<FFmpeg | null>(null);
@@ -47,7 +51,7 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
         ffmpegRef.current = ffmpeg;
 
         // Track progress during loading
-        let progressInterval: NodeJS.Timeout | null = null;
+        let progressInterval: ReturnType<typeof setInterval> | null = null;
         progressInterval = setInterval(() => {
           setLoadProgress(prev => Math.min(prev + 2, 90));
         }, 500);
@@ -56,22 +60,41 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
           console.log('[FFmpeg]', message);
         });
 
-        // Download and initialize FFmpeg
-        console.log('[FFmpeg Context] Downloading from CDN:', CDN_BASE_URL);
-        
-        const [coreURL, wasmURL, workerURL] = await Promise.all([
-          toBlobURL(`${CDN_BASE_URL}/ffmpeg-core.js`, 'text/javascript'),
-          toBlobURL(`${CDN_BASE_URL}/ffmpeg-core.wasm`, 'application/wasm'),
-          toBlobURL(`${CDN_BASE_URL}/ffmpeg-core.worker.js`, 'text/javascript'),
-        ]);
+        // Download and initialize FFmpeg (with CDN fallback)
+        let lastErr: unknown = null;
+        let loaded = false;
 
-        setLoadProgress(70);
+        for (const base of CDN_BASE_URLS) {
+          try {
+            console.log('[FFmpeg Context] Downloading from CDN:', base);
 
-        await ffmpeg.load({
-          coreURL,
-          wasmURL,
-          workerURL,
-        });
+            const [coreURL, wasmURL, workerURL] = await Promise.all([
+              toBlobURL(`${base}/ffmpeg-core.js`, 'text/javascript'),
+              toBlobURL(`${base}/ffmpeg-core.wasm`, 'application/wasm'),
+              toBlobURL(`${base}/ffmpeg-core.worker.js`, 'text/javascript'),
+            ]);
+
+            setLoadProgress(70);
+
+            await ffmpeg.load({
+              coreURL,
+              wasmURL,
+              workerURL,
+            });
+
+            loaded = true;
+            break;
+          } catch (e) {
+            lastErr = e;
+            console.warn('[FFmpeg Context] CDN failed, trying next...', e);
+          }
+        }
+
+        if (!loaded) {
+          throw lastErr instanceof Error
+            ? lastErr
+            : new Error('Falha ao descarregar o motor de compressão');
+        }
 
         if (progressInterval) clearInterval(progressInterval);
         setLoadProgress(100);
