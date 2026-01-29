@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Video, MessageSquare, CheckCircle2, Upload, Link, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 import { VideoPlayer, VideoPlayerRef } from './VideoPlayer';
 import { VideoVersionUpload } from './VideoVersionUpload';
@@ -54,11 +56,12 @@ function VideoProductionTabContent({
   projectId,
   className,
 }: VideoProductionTabProps) {
-  const { versions, loading, deleteVersion, getSignedUrl, isProcessing } = useVideoVersions(taskId, workspaceId);
+  const { versions, loading, deleteVersion, getSignedUrl, isProcessing, refetch } = useVideoVersions(taskId, workspaceId);
   const [selectedVersion, setSelectedVersion] = useState<VideoVersion | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [loadingUrl, setLoadingUrl] = useState(false);
   const [isVersionProcessing, setIsVersionProcessing] = useState(false);
+  const [isFixingVideo, setIsFixingVideo] = useState(false);
   
   // Comment modal state
   const [showCommentModal, setShowCommentModal] = useState(false);
@@ -143,6 +146,51 @@ function VideoProductionTabContent({
     }
   }, []);
 
+  // Fix video settings (remove allowedOrigins restrictions)
+  const handleFixVideo = useCallback(async (version: VideoVersion) => {
+    if (!version.cloudflare_stream_uid) {
+      toast.error('Este vídeo não tem um ID do Cloudflare Stream');
+      return;
+    }
+
+    setIsFixingVideo(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session?.access_token) {
+        throw new Error('Sessão não encontrada');
+      }
+
+      const response = await supabase.functions.invoke('stream-update-video', {
+        body: {
+          streamUid: version.cloudflare_stream_uid,
+          versionId: version.id,
+          allowedOrigins: [], // Remove all restrictions
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Erro ao atualizar vídeo');
+      }
+
+      toast.success('Configurações do vídeo corrigidas! A recarregar...');
+      
+      // Refresh versions to get updated data
+      await refetch();
+      
+      // Re-select the version to reload the video
+      const updatedVersion = versions.find(v => v.id === version.id);
+      if (updatedVersion) {
+        setSelectedVersion(null);
+        setTimeout(() => setSelectedVersion(updatedVersion), 100);
+      }
+    } catch (error) {
+      console.error('Error fixing video:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao corrigir vídeo');
+    } finally {
+      setIsFixingVideo(false);
+    }
+  }, [refetch, versions]);
+
   return (
     <div className={cn("space-y-6", className)}>
       {/* Storage usage bar */}
@@ -223,6 +271,8 @@ function VideoProductionTabContent({
                 selectedVersionId={selectedVersion?.id || null}
                 onSelectVersion={handleSelectVersion}
                 onDeleteVersion={deleteVersion}
+                onFixVideo={handleFixVideo}
+                isFixingVideo={isFixingVideo}
               />
             </CardContent>
           </Card>
