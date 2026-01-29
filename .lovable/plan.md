@@ -1,188 +1,138 @@
 
-# Plano de Melhorias: Link, UI e Compressão de Vídeo
+## Objetivo
+1) Cancelar imediatamente qualquer compressão em curso (e impedir que fique “presa”).
+2) Corrigir os erros atuais do motor (incluindo o “fica nos 90%”).
+3) Garantir que o projeto compila sem erros (incluindo PWA build) e que a aba “Produção” não crasha.
 
-## Resumo dos Problemas
+## Diagnóstico (o que está a acontecer agora)
+### 1) “Fica nos 90%”
+No `FFmpegContext.tsx`, o preload sobe para 85% por intervalo e depois força `setLoadProgress(90)` antes do `ffmpeg.load()`. Se o `ffmpeg.load()` fica pendurado (não resolve nem rejeita), a UI fica para sempre nos 90%.
 
-1. **Link de aprovação com domínio errado** — O link mostra `lovableproject.com` em vez de `willflow.app`
-2. **Nome do ficheiro a sair do card** — O texto longo não está a truncar nem a quebrar linha
-3. **Compressão de vídeo server-side** — Atualmente os vídeos são enviados sem compressão
+Causa provável: estamos a carregar **apenas** `ffmpeg-core.js` e `ffmpeg-core.wasm`, mas **não** estamos a fornecer o `workerURL`.  
+Pelo próprio tipo do FFmpeg (`@ffmpeg/ffmpeg`), ele “interact with ffmpeg web worker” e expõe `terminate()`. Na prática, muitos builds do core esperam o worker para inicializar corretamente; sem ele, o load pode ficar num limbo.
 
----
+### 2) “Cancelar compressão” atualmente não cancela de verdade
+Em `useVideoCompression.ts`, `cancelCompression()` só faz:
+- `setCompressing(false)`
+- `setProgress(0)`
 
-## 1. Corrigir URL do Link de Aprovação
+Mas **não interrompe** o `ffmpeg.exec()` em curso. Ou seja: mesmo que a UI “pare”, o worker pode continuar a processar e ficar preso, e depois o motor fica instável para próximas compressões.
 
-**Problema atual:**  
-O hook `useVideoApproval.ts` usa `window.location.origin` para gerar o link:
-```ts
-const getApprovalUrl = (token: string): string => {
-  const baseUrl = window.location.origin;
-  return `${baseUrl}/video-approval/${token}`;
-};
-```
-Isto funciona bem em produção, mas na preview mostra o domínio da preview (lovableproject.com).
+### 3) Erros anteriores de build (já identificados)
+O erro:
+> Missing "./dist/umd/ffmpeg-core.js" specifier in "@ffmpeg/core" package
 
-**Solução:**  
-Usar a **URL publicada** (`willflow.app`) como domínio fixo para os links de aprovação, garantindo que clientes sempre recebem o link correto.
+já foi causado por imports “bundled” para `@ffmpeg/core/dist/umd/...`. No diff mais recente, esses imports foram removidos (bom).  
+O plano vai manter a abordagem “CDN + timeouts” sem reintroduzir `@ffmpeg/core` como dependência.
 
-**Ficheiro a editar:**
-- `src/hooks/useVideoApproval.ts`
+## Solução proposta (mudanças a implementar)
+### A) Tornar o preload 100% confiável (não ficar preso)
+1) **Voltar a carregar também o worker** a partir da CDN:
+   - `ffmpeg-core.js`
+   - `ffmpeg-core.wasm`
+   - `ffmpeg-core.worker.js`
+2) Passar `workerURL` no `ffmpeg.load({ coreURL, wasmURL, workerURL })`.
+3) Melhorar o controlo de estado para não ficar “a meio”:
+   - Se falhar/timar out: marcar `loadError`, `isLoading=false`, `loadProgress=0` (ou manter em 0/—), e permitir “Tentar novamente”.
+4) Garantir que chamadas repetidas não criam múltiplos listeners/eventos.
 
-**Alteração:**
-```ts
-const getApprovalUrl = (token: string): string => {
-  // Usar sempre o domínio de produção para links de aprovação
-  const productionUrl = 'https://willflow.app';
-  return `${productionUrl}/video-approval/${token}`;
-};
-```
+**Arquivos alvo**
+- `src/contexts/FFmpegContext.tsx`
 
----
-
-## 2. Corrigir Overflow do Nome do Ficheiro
-
-**Problema atual:**  
-No componente `VideoVersionsList.tsx`, o nome do ficheiro usa apenas `truncate` mas o container não tem largura máxima definida:
-```tsx
-<p className="font-medium truncate">{version.file_name}</p>
-```
-
-**Solução:**  
-Adicionar constraints de largura e garantir quebra de texto adequada.
-
-**Ficheiro a editar:**
-- `src/components/video-production/VideoVersionsList.tsx`
-
-**Alteração:**
-```tsx
-<div className="min-w-0 flex-1">
-  <p className="font-medium text-sm break-all line-clamp-1" title={version.file_name}>
-    {version.file_name}
-  </p>
-  ...
-</div>
-```
-
-- `min-w-0 flex-1` — Garante que o elemento pode encolher
-- `break-all` — Permite quebrar strings longas sem espaços
-- `line-clamp-1` — Limita a 1 linha com ellipsis
-- `title` — Mostra o nome completo ao passar o rato
+**Notas técnicas**
+- Vamos manter `CDN_BASE_URLS` (jsDelivr → unpkg) e `toBlobURLWithTimeout` com `AbortController`.
+- Vamos garantir que o timeout global de 3 min realmente cancela a tentativa corrente (ver ponto C abaixo).
 
 ---
 
-## 3. Compressão de Vídeo Server-Side
+### B) Implementar cancelamento real de compressão (e “cancelar qualquer compressão actual”)
+1) Em `useVideoCompression.ts`, usar um `AbortController` para o job atual:
+   - Guardar `abortControllerRef` no hook.
+   - Ao iniciar `compressVideo`, criar `AbortController` e passar o `signal` para:
+     - `ffmpeg.writeFile(..., { signal })`
+     - `ffmpeg.exec(args, undefined, { signal })`
+     - `ffmpeg.readFile(..., ..., { signal })`
+     - `ffmpeg.deleteFile(..., { signal })`
+2) Em `cancelCompression()`:
+   - chamar `abortControllerRef.current?.abort()`
+   - e, para garantir “hard stop” quando necessário, chamar `ffmpeg.terminate()` (quando existir), porque a própria lib oferece isso e é a forma mais segura de parar tudo.
+3) Depois de `terminate()`:
+   - o motor precisa de `load()` novamente antes de voltar a comprimir.
+   - portanto, o hook deve:
+     - resetar estado local (progress/compressing)
+     - e opcionalmente chamar `preload()` de novo quando o utilizador tentar comprimir outra vez (ou deixar o preload automático do tab tratar disso).
 
-Esta é a funcionalidade mais complexa. Vou apresentar duas opções:
-
-### Opção A: Sem Compressão (Limitação Técnica)
-
-**Realidade técnica:** Edge Functions do Supabase/Deno têm limitações severas:
-- Timeout máximo de 60 segundos
-- Memória limitada (não suporta FFmpeg nativo)
-- Sem acesso a binários do sistema
-
-Para compressão real de vídeo (FFmpeg), seria necessário:
-- Um servidor dedicado (AWS Lambda com layers ou EC2)
-- Serviço externo (Cloudflare Stream, Mux, AWS MediaConvert)
-
-### Opção B: Compressão no Cliente (Recomendada para MVP)
-
-Usar a biblioteca `@ffmpeg/ffmpeg` (WebAssembly) para comprimir no browser antes do upload.
-
-**Vantagens:**
-- Funciona sem infraestrutura adicional
-- Reduz uso de storage
-- O utilizador vê progresso
-
-**Desvantagens:**
-- Mais lento (depende do dispositivo do utilizador)
-- Não funciona em dispositivos muito antigos
-
-**Implementação:**
-
-1. **Instalar dependência:**
-```bash
-npm install @ffmpeg/ffmpeg @ffmpeg/util
-```
-
-2. **Criar hook de compressão:**
-```text
-src/hooks/useVideoCompression.ts
-```
-
-```ts
-import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile, toBlobURL } from '@ffmpeg/util';
-
-export function useVideoCompression() {
-  const [progress, setProgress] = useState(0);
-  const [compressing, setCompressing] = useState(false);
-  
-  const compressVideo = async (file: File): Promise<File> => {
-    const ffmpeg = new FFmpeg();
-    
-    // Carregar FFmpeg WASM
-    await ffmpeg.load({
-      coreURL: await toBlobURL('/ffmpeg-core.js', 'text/javascript'),
-      wasmURL: await toBlobURL('/ffmpeg-core.wasm', 'application/wasm'),
-    });
-    
-    ffmpeg.on('progress', ({ progress }) => {
-      setProgress(Math.round(progress * 100));
-    });
-    
-    // Escrever ficheiro de input
-    await ffmpeg.writeFile('input.mp4', await fetchFile(file));
-    
-    // Comprimir (CRF 28 = boa qualidade com boa compressão)
-    await ffmpeg.exec([
-      '-i', 'input.mp4',
-      '-c:v', 'libx264',
-      '-crf', '28',
-      '-preset', 'fast',
-      '-c:a', 'aac',
-      '-b:a', '128k',
-      'output.mp4'
-    ]);
-    
-    // Ler resultado
-    const data = await ffmpeg.readFile('output.mp4');
-    return new File([data], file.name, { type: 'video/mp4' });
-  };
-  
-  return { compressVideo, progress, compressing };
-}
-```
-
-3. **Integrar no upload (`VideoUploader.tsx`):**
-- Adicionar checkbox "Comprimir vídeo antes de enviar"
-- Mostrar barra de progresso da compressão
-- Chamar `compressVideo()` antes do upload
-
-### Recomendação
-
-Para o MVP, **implementar a Opção B (compressão no cliente)**. É uma solução funcional que não requer infraestrutura adicional. No futuro, se necessário, pode-se migrar para um serviço de processamento de vídeo dedicado.
+**Arquivos alvo**
+- `src/hooks/useVideoCompression.ts`
+- (pequena integração) `src/components/video-production/VideoVersionUpload.tsx` para:
+  - ao clicar “Cancelar compressão”, além de setar mensagem, garantir que efetivamente aborta e “desbloqueia” o UI.
 
 ---
 
-## Resumo de Ficheiros a Editar
+### C) Cancelar também carregamentos (preload) em curso quando o utilizador manda cancelar
+O pedido do utilizador foi “cancela qualquer compressão actual”. Para ser completo, vamos também permitir cancelar o carregamento do motor caso esteja preso.
 
-| Ficheiro | Alteração |
-|----------|-----------|
-| `src/hooks/useVideoApproval.ts` | Usar domínio fixo `willflow.app` |
-| `src/components/video-production/VideoVersionsList.tsx` | Corrigir overflow do nome |
-| `src/hooks/useVideoCompression.ts` | **Novo** — Hook de compressão |
-| `src/components/video-production/VideoUploader.tsx` | Integrar compressão |
-| `package.json` | Adicionar `@ffmpeg/ffmpeg` |
+1) No `FFmpegContext.tsx`, manter um `AbortController` para downloads de core/wasm/worker e reutilizá-lo durante a tentativa.
+2) Expor no context uma função opcional, por exemplo `cancelPreload()` (ou `terminateEngine()`), que:
+   - aborta os downloads (se estiverem em curso)
+   - chama `ffmpegRef.current?.terminate()` se já existe worker
+   - reseta `isLoading`, `loadProgress`, `loadError` (ou mantém erro coerente)
+   - limpa `loadingPromiseRef`
+
+**Arquivos alvo**
+- `src/contexts/FFmpegContext.tsx`
+- `src/components/video-production/FFmpegStatusIndicator.tsx` (adicionar botão “Cancelar” quando `isLoading`)
 
 ---
 
-## Notas Técnicas
+### D) Remover bugs de listeners duplicados / vazamentos de eventos
+Hoje, `useVideoCompression` faz `ffmpeg.on('progress', ...)` em toda compressão, mas não faz `off`. Isso pode:
+- acumular listeners
+- causar updates duplicados
+- piorar performance
 
-**Compressão WebAssembly:**
-- O ficheiro `ffmpeg-core.wasm` (~31MB) é carregado apenas quando o utilizador opta por comprimir
-- A compressão de um vídeo de 100MB leva ~1-3 minutos dependendo do dispositivo
-- Fallback: se a compressão falhar, enviar o ficheiro original
+Vamos:
+1) Guardar a callback e chamar `ffmpeg.off('progress', cb)` no `finally`.
+2) Fazer o mesmo para outros listeners se necessário.
 
-**Domínio do link:**
-- A alteração usa o domínio de produção fixo para garantir que os links funcionam sempre
-- Se o projeto mudar de domínio, basta atualizar uma linha de código
+**Arquivos alvo**
+- `src/hooks/useVideoCompression.ts`
+
+---
+
+### E) Verificação de “Produção” não crasha e motor volta a funcionar
+1) Confirmar que `FFmpegProvider` está montado no topo (está em `src/App.tsx`) e manter o `ProviderGuard` como fallback.
+2) Validar que o preload automático em `VideoProductionTab.tsx` não chama `preload()` em loop:
+   - ele depende de `[preload, isLoaded]` e chama apenas quando `!isLoaded`, ok.
+3) Ajustar mensagens de erro para mostrar claramente:
+   - “download bloqueado/timeout”
+   - “motor terminou/cancelado”
+   - “tente novamente”
+
+**Arquivos alvo**
+- `src/components/video-production/VideoProductionTab.tsx`
+- `src/components/video-production/FFmpegStatusIndicator.tsx`
+
+## Como vamos testar (end-to-end)
+1) Abrir um projeto → aba “Produção”:
+   - observar o indicador: deve passar de “não carregado” → “a preparar” → “pronto”.
+2) Iniciar compressão com um vídeo pequeno (ex.: 20–50MB):
+   - confirmar progresso 0→100 e upload segue.
+3) Iniciar compressão com ficheiro maior e clicar “Cancelar compressão” a meio:
+   - confirmar que para rapidamente (não continua a consumir CPU)
+   - confirmar que nova tentativa de compressão volta a funcionar (recarregando o motor automaticamente).
+4) Simular rede lenta:
+   - confirmar que não fica preso nos 90%; deve dar timeout e permitir retry.
+5) Confirmar build:
+   - garantir que não há imports de `@ffmpeg/core/dist/umd/...` e que o build PWA não quebra.
+
+## Riscos / trade-offs
+- `ffmpeg.terminate()` é um “hard reset”; após cancelar, o motor precisa recarregar. Preferimos estabilidade (nunca ficar preso) a tentar “retomar” o mesmo worker.
+- Alguns ambientes com ad-blockers podem bloquear as CDNs; mantemos fallback e timeouts para dar erro útil em vez de ficar preso.
+
+## Checklist de implementação (ordem)
+1) Atualizar `FFmpegContext.tsx` para carregar `workerURL` e suportar cancelamento do preload.
+2) Atualizar `useVideoCompression.ts` com AbortController + `ffmpeg.exec(..., { signal })` e `ffmpeg.terminate()` no cancelamento.
+3) Atualizar `VideoVersionUpload.tsx` para usar o cancelamento real e melhorar UX ao cancelar.
+4) Atualizar `FFmpegStatusIndicator.tsx` para permitir “Cancelar” durante loading + “Tentar novamente”.
+5) Testes end-to-end na aba Produção (incluindo cancelar e tentar novamente).
