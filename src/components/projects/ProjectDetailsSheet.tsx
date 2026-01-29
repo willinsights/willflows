@@ -545,7 +545,7 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl lg:max-w-3xl p-0 flex flex-col">
+        <SheetContent side="right" className="w-full sm:max-w-[66vw] p-0 flex flex-col">
           <SheetHeader className="px-6 py-5 border-b border-border/60 shrink-0 bg-card/80 backdrop-blur-sm">
             <SheetTitle className="flex items-center justify-between pr-8">
               {isEditing ? (
