@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
+import Hls from 'hls.js';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { 
@@ -19,6 +20,7 @@ import { formatDuration } from '@/lib/duration-utils';
 interface VideoPlayerProps {
   src?: string;
   streamUid?: string | null;
+  hlsUrl?: string | null;
   isProcessing?: boolean;
   comments?: VideoComment[];
   onCommentClick?: (comment: VideoComment) => void;
@@ -33,9 +35,27 @@ export interface VideoPlayerRef {
   play: () => void;
 }
 
+// Extract customer hash from Cloudflare Stream playback URL
+function extractCustomerHash(url: string): string | null {
+  try {
+    const u = new URL(url);
+    // e.g., customer-y2wrascmexrvzepp.cloudflarestream.com
+    const match = u.hostname.match(/^customer-([a-z0-9]+)\.cloudflarestream\.com$/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+// Build HLS URL from streamUid and customer hash
+function buildHlsUrl(streamUid: string, customerHash: string): string {
+  return `https://customer-${customerHash}.cloudflarestream.com/${streamUid}/manifest/video.m3u8`;
+}
+
 export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({ 
   src, 
   streamUid,
+  hlsUrl,
   isProcessing = false,
   comments = [], 
   onCommentClick, 
@@ -43,7 +63,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   className 
 }, ref) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
   const [isPlaying, setIsPlaying] = useState(false);
@@ -54,62 +74,148 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   const [showControls, setShowControls] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [useIframe, setUseIframe] = useState(false);
   const hideControlsTimeout = useRef<NodeJS.Timeout>();
 
-  // Determine if we should use iframe (Cloudflare Stream) or native video
-  useEffect(() => {
-    if (streamUid && !src) {
-      setUseIframe(true);
-    } else if (src && src.includes('cloudflarestream.com')) {
-      setUseIframe(true);
-    } else {
-      setUseIframe(false);
+  // Determine the video source URL
+  const getVideoSource = useCallback((): { type: 'hls' | 'native' | 'none'; url: string | null } => {
+    // Priority 1: Direct HLS URL provided
+    if (hlsUrl) {
+      return { type: 'hls', url: hlsUrl };
     }
-  }, [src, streamUid]);
+
+    // Priority 2: Cloudflare Stream UID - build HLS URL
+    if (streamUid) {
+      // Try to extract customer hash from src (playback URL) or env var
+      let customerHash: string | null = null;
+      
+      if (src) {
+        customerHash = extractCustomerHash(src);
+      }
+      
+      if (!customerHash) {
+        customerHash = import.meta.env.VITE_CLOUDFLARE_CUSTOMER_HASH;
+      }
+
+      if (customerHash) {
+        return { type: 'hls', url: buildHlsUrl(streamUid, customerHash) };
+      }
+      
+      // Fallback: can't determine HLS URL
+      console.warn('Cannot determine Cloudflare customer hash for HLS playback');
+      return { type: 'none', url: null };
+    }
+
+    // Priority 3: Regular video URL (mp4, webm, etc.)
+    if (src) {
+      // Check if it's already an HLS manifest
+      if (src.includes('.m3u8')) {
+        return { type: 'hls', url: src };
+      }
+      return { type: 'native', url: src };
+    }
+
+    return { type: 'none', url: null };
+  }, [src, streamUid, hlsUrl]);
+
+  // Initialize HLS.js or native playback
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const source = getVideoSource();
+    
+    // Cleanup previous HLS instance
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+
+    if (source.type === 'none' || !source.url) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setLoadError(null);
+
+    if (source.type === 'hls') {
+      // Check if browser supports HLS natively (Safari)
+      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = source.url;
+        video.load();
+      } else if (Hls.isSupported()) {
+        // Use hls.js for other browsers
+        const hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: false,
+        });
+        
+        hls.loadSource(source.url);
+        hls.attachMedia(video);
+        
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          setIsLoading(false);
+        });
+        
+        hls.on(Hls.Events.ERROR, (_, data) => {
+          if (data.fatal) {
+            console.error('HLS fatal error:', data);
+            setLoadError('Falha ao carregar o vídeo. Tenta recarregar.');
+            setIsLoading(false);
+          }
+        });
+        
+        hlsRef.current = hls;
+      } else {
+        setLoadError('O teu browser não suporta reprodução de vídeo HLS.');
+        setIsLoading(false);
+      }
+    } else {
+      // Native video playback
+      video.src = source.url;
+      video.load();
+    }
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [getVideoSource]);
 
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
     seekTo: (time: number) => {
-      if (useIframe && iframeRef.current) {
-        // For iframe, we need to use postMessage
-        iframeRef.current.contentWindow?.postMessage({ type: 'seek', time }, '*');
-      } else if (videoRef.current) {
+      if (videoRef.current) {
         videoRef.current.currentTime = time;
         setCurrentTime(time);
       }
     },
     getCurrentTime: () => currentTime,
     pause: () => {
-      if (useIframe && iframeRef.current) {
-        iframeRef.current.contentWindow?.postMessage({ type: 'pause' }, '*');
-      } else if (videoRef.current) {
+      if (videoRef.current) {
         videoRef.current.pause();
       }
       setIsPlaying(false);
     },
     play: () => {
-      if (useIframe && iframeRef.current) {
-        iframeRef.current.contentWindow?.postMessage({ type: 'play' }, '*');
-      } else if (videoRef.current) {
+      if (videoRef.current) {
         videoRef.current.play();
       }
       setIsPlaying(true);
     },
-  }), [currentTime, useIframe]);
+  }), [currentTime]);
 
   const togglePlay = useCallback(() => {
-    if (useIframe && iframeRef.current) {
-      iframeRef.current.contentWindow?.postMessage({ type: isPlaying ? 'pause' : 'play' }, '*');
-      setIsPlaying(!isPlaying);
-    } else if (videoRef.current) {
+    if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause();
       } else {
         videoRef.current.play();
       }
     }
-  }, [isPlaying, useIframe]);
+  }, [isPlaying]);
 
   const handleTimeUpdate = useCallback(() => {
     if (videoRef.current) {
@@ -141,19 +247,12 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     setLoadError(message);
   }, []);
 
-  const handleIframeLoad = useCallback(() => {
-    setIsLoading(false);
-    setLoadError(null);
-  }, []);
-
   const handleSeek = useCallback((value: number[]) => {
-    if (useIframe && iframeRef.current) {
-      iframeRef.current.contentWindow?.postMessage({ type: 'seek', time: value[0] }, '*');
-    } else if (videoRef.current) {
+    if (videoRef.current) {
       videoRef.current.currentTime = value[0];
     }
     setCurrentTime(value[0]);
-  }, [useIframe]);
+  }, []);
 
   const handleVolumeChange = useCallback((value: number[]) => {
     if (videoRef.current) {
@@ -183,33 +282,26 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
 
   const skip = useCallback((seconds: number) => {
     const newTime = Math.max(0, Math.min(duration, currentTime + seconds));
-    if (useIframe && iframeRef.current) {
-      iframeRef.current.contentWindow?.postMessage({ type: 'seek', time: newTime }, '*');
-    } else if (videoRef.current) {
+    if (videoRef.current) {
       videoRef.current.currentTime = newTime;
     }
     setCurrentTime(newTime);
-  }, [duration, currentTime, useIframe]);
+  }, [duration, currentTime]);
 
   const handleAddComment = useCallback(() => {
     if (videoRef.current) {
       videoRef.current.pause();
     }
-    if (useIframe && iframeRef.current) {
-      iframeRef.current.contentWindow?.postMessage({ type: 'pause' }, '*');
-    }
     setIsPlaying(false);
     onAddComment?.(currentTime);
-  }, [currentTime, onAddComment, useIframe]);
+  }, [currentTime, onAddComment]);
 
   const seekToTimestamp = useCallback((timestamp: number) => {
-    if (useIframe && iframeRef.current) {
-      iframeRef.current.contentWindow?.postMessage({ type: 'seek', time: timestamp }, '*');
-    } else if (videoRef.current) {
+    if (videoRef.current) {
       videoRef.current.currentTime = timestamp;
     }
     setCurrentTime(timestamp);
-  }, [useIframe]);
+  }, []);
 
   // Show/hide controls on mouse movement
   const handleMouseMove = useCallback(() => {
@@ -224,10 +316,8 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     }
   }, [isPlaying]);
 
-  // Native video event listeners
+  // Video event listeners
   useEffect(() => {
-    if (useIframe) return;
-    
     const video = videoRef.current;
     if (!video) return;
 
@@ -251,70 +341,20 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       video.removeEventListener('canplay', handleLoadedData);
       video.removeEventListener('error', handleVideoError);
     };
-  }, [useIframe, handleTimeUpdate, handleLoadedMetadata, handleLoadedData, handleVideoError]);
+  }, [handleTimeUpdate, handleLoadedMetadata, handleLoadedData, handleVideoError]);
 
-  // Reset loading state when src changes
+  // Reset state when source changes
   useEffect(() => {
-    setIsLoading(true);
-    setLoadError(null);
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
-
-    if (!useIframe && videoRef.current) {
-      try {
-        videoRef.current.pause();
-        videoRef.current.load();
-      } catch {
-        // no-op
-      }
-    }
-  }, [src, streamUid, useIframe]);
+  }, [src, streamUid, hlsUrl]);
 
   // Calculate comment markers positions
   const commentMarkers = comments.map(comment => ({
     ...comment,
     position: duration > 0 ? (comment.timestamp_seconds / duration) * 100 : 0,
   }));
-
-  // Get iframe src for Cloudflare Stream
-  const getIframeSrc = () => {
-    const extractCustomerBase = (url: string): string | null => {
-      try {
-        const u = new URL(url);
-        if (u.hostname.endsWith('cloudflarestream.com') && u.hostname.startsWith('customer-')) {
-          return `${u.protocol}//${u.hostname}`;
-        }
-        return null;
-      } catch {
-        return null;
-      }
-    };
-
-    // Prefer customer-<hash>.cloudflarestream.com embeds when we can infer the customer subdomain.
-    // This avoids environments where iframe.cloudflarestream.com is blocked.
-    if (streamUid) {
-      const customerBase = src ? extractCustomerBase(src) : null;
-      if (customerBase) {
-        return `${customerBase}/${streamUid}/iframe`;
-      }
-      return `https://iframe.cloudflarestream.com/${streamUid}`;
-    }
-
-    if (src && src.includes('cloudflarestream.com')) {
-      // Extract UID from URL
-      const match = src.match(/cloudflarestream\.com\/([a-zA-Z0-9]+)/);
-      if (match) {
-        const customerBase = extractCustomerBase(src);
-        if (customerBase) {
-          return `${customerBase}/${match[1]}/iframe`;
-        }
-        return `https://iframe.cloudflarestream.com/${match[1]}`;
-      }
-    }
-
-    return src;
-  };
 
   // Processing state
   if (isProcessing) {
@@ -342,27 +382,15 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       onMouseMove={handleMouseMove}
       onMouseLeave={() => isPlaying && setShowControls(false)}
     >
-      {/* Cloudflare Stream iframe player */}
-      {useIframe ? (
-        <iframe
-          ref={iframeRef}
-          src={getIframeSrc()}
-          className="w-full h-full"
-          style={{ aspectRatio: '16/9', border: 'none' }}
-          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
-          allowFullScreen
-          onLoad={handleIframeLoad}
-        />
-      ) : (
-        /* Native video element */
-        <video
-          ref={videoRef}
-          src={src}
-          className="w-full h-full object-contain"
-          onClick={togglePlay}
-          preload="metadata"
-        />
-      )}
+      {/* Native video element with HLS support */}
+      <video
+        ref={videoRef}
+        className="w-full h-full object-contain"
+        onClick={togglePlay}
+        preload="metadata"
+        playsInline
+        style={{ aspectRatio: '16/9' }}
+      />
 
       {/* Loading spinner */}
       {isLoading && (
@@ -379,8 +407,8 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         </div>
       )}
 
-      {/* Play button overlay - only for native video */}
-      {!useIframe && !isPlaying && !isLoading && !loadError && (
+      {/* Play button overlay */}
+      {!isPlaying && !isLoading && !loadError && (
         <button
           className="absolute inset-0 flex items-center justify-center bg-black/20 transition-opacity"
           onClick={togglePlay}
@@ -391,98 +419,96 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         </button>
       )}
 
-      {/* Controls - only for native video */}
-      {!useIframe && (
-        <div 
-          className={cn(
-            "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity",
-            showControls ? "opacity-100" : "opacity-0"
-          )}
-        >
-          {/* Progress bar with comment markers */}
-          <div className="relative mb-3">
-            <Slider
-              value={[currentTime]}
-              max={duration || 100}
-              step={0.1}
-              onValueChange={handleSeek}
-              className="cursor-pointer"
+      {/* Controls */}
+      <div 
+        className={cn(
+          "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity",
+          showControls ? "opacity-100" : "opacity-0"
+        )}
+      >
+        {/* Progress bar with comment markers */}
+        <div className="relative mb-3">
+          <Slider
+            value={[currentTime]}
+            max={duration || 100}
+            step={0.1}
+            onValueChange={handleSeek}
+            className="cursor-pointer"
+          />
+          
+          {/* Comment markers */}
+          {commentMarkers.map((comment) => (
+            <button
+              key={comment.id}
+              className={cn(
+                "absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full transition-transform hover:scale-150",
+                comment.status === 'open' ? 'bg-warning' : 'bg-green-500'
+              )}
+              style={{ left: `${comment.position}%` }}
+              onClick={(e) => {
+                e.stopPropagation();
+                seekToTimestamp(comment.timestamp_seconds);
+                onCommentClick?.(comment);
+              }}
+              title={comment.body.substring(0, 50)}
             />
+          ))}
+        </div>
+
+        {/* Control buttons */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => skip(-10)} className="text-white hover:bg-white/20">
+              <SkipBack className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={togglePlay} className="text-white hover:bg-white/20">
+              {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => skip(10)} className="text-white hover:bg-white/20">
+              <SkipForward className="h-4 w-4" />
+            </Button>
             
-            {/* Comment markers */}
-            {commentMarkers.map((comment) => (
-              <button
-                key={comment.id}
-                className={cn(
-                  "absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full transition-transform hover:scale-150",
-                  comment.status === 'open' ? 'bg-warning' : 'bg-green-500'
-                )}
-                style={{ left: `${comment.position}%` }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  seekToTimestamp(comment.timestamp_seconds);
-                  onCommentClick?.(comment);
-                }}
-                title={comment.body.substring(0, 50)}
-              />
-            ))}
+            {/* Time display */}
+            <span className="text-sm text-white tabular-nums">
+              {formatDuration(currentTime)} / {formatDuration(duration)}
+            </span>
           </div>
 
-          {/* Control buttons */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {/* Add comment button */}
+            {onAddComment && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleAddComment}
+                className="text-white hover:bg-white/20"
+              >
+                <MessageSquare className="h-4 w-4 mr-1" />
+                Comentar
+              </Button>
+            )}
+
+            {/* Volume */}
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={() => skip(-10)} className="text-white hover:bg-white/20">
-                <SkipBack className="h-4 w-4" />
+              <Button variant="ghost" size="icon" onClick={toggleMute} className="text-white hover:bg-white/20">
+                {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
               </Button>
-              <Button variant="ghost" size="icon" onClick={togglePlay} className="text-white hover:bg-white/20">
-                {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-              </Button>
-              <Button variant="ghost" size="icon" onClick={() => skip(10)} className="text-white hover:bg-white/20">
-                <SkipForward className="h-4 w-4" />
-              </Button>
-              
-              {/* Time display */}
-              <span className="text-sm text-white tabular-nums">
-                {formatDuration(currentTime)} / {formatDuration(duration)}
-              </span>
+              <Slider
+                value={[isMuted ? 0 : volume]}
+                max={1}
+                step={0.1}
+                onValueChange={handleVolumeChange}
+                className="w-20"
+              />
             </div>
 
-            <div className="flex items-center gap-2">
-              {/* Add comment button */}
-              {onAddComment && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={handleAddComment}
-                  className="text-white hover:bg-white/20"
-                >
-                  <MessageSquare className="h-4 w-4 mr-1" />
-                  Comentar
-                </Button>
-              )}
-
-              {/* Volume */}
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={toggleMute} className="text-white hover:bg-white/20">
-                  {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                </Button>
-                <Slider
-                  value={[isMuted ? 0 : volume]}
-                  max={1}
-                  step={0.1}
-                  onValueChange={handleVolumeChange}
-                  className="w-20"
-                />
-              </div>
-
-              {/* Fullscreen */}
-              <Button variant="ghost" size="icon" onClick={handleFullscreen} className="text-white hover:bg-white/20">
-                <Maximize className="h-4 w-4" />
-              </Button>
-            </div>
+            {/* Fullscreen */}
+            <Button variant="ghost" size="icon" onClick={handleFullscreen} className="text-white hover:bg-white/20">
+              <Maximize className="h-4 w-4" />
+            </Button>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 });

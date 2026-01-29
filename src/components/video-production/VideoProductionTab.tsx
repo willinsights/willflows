@@ -94,10 +94,9 @@ function VideoProductionTabContent({
       }
       setIsVersionProcessing(false);
 
-      // Priority 1: Cloudflare Stream (new uploads)
+      // Priority 1: Cloudflare Stream (new uploads) - use HLS directly
       if (selectedVersion.cloudflare_stream_uid) {
-        // Pass the HLS URL so the player can derive the correct customer domain for the iframe embed.
-        // (Some environments block iframe.cloudflarestream.com, but customer-<hash>.cloudflarestream.com works.)
+        // Pass the playback URL which contains the customer hash needed for HLS
         setVideoUrl(selectedVersion.stream_playback_url || null);
         setLoadingUrl(false);
         return;
@@ -157,7 +156,8 @@ function VideoProductionTabContent({
             <VideoPlayer
               ref={videoPlayerRef}
               src={videoUrl || undefined}
-              streamUid={selectedVersion.cloudflare_stream_uid}
+              streamUid={selectedVersion.cloudflare_stream_uid || undefined}
+              hlsUrl={selectedVersion.stream_playback_url || undefined}
               isProcessing={isVersionProcessing}
               onAddComment={handleAddComment}
               className="aspect-video w-full"
