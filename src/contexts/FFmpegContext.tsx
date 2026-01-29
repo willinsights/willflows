@@ -2,6 +2,12 @@ import React, { createContext, useContext, useRef, useState, useCallback, useEff
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { toBlobURL } from '@ffmpeg/util';
 
+// Bundled (same-origin) fallback. This avoids ad-blockers/CDNs and CORS edge cases.
+// Vite will serve these assets from the app origin.
+import bundledCoreURL from '@ffmpeg/core/dist/umd/ffmpeg-core.js?url';
+import bundledWasmURL from '@ffmpeg/core/dist/umd/ffmpeg-core.wasm?url';
+import bundledWorkerURL from '@ffmpeg/core/dist/umd/ffmpeg-core.worker.js?url';
+
 interface FFmpegContextValue {
   ffmpeg: FFmpeg | null;
   isLoaded: boolean;
@@ -18,6 +24,15 @@ const CDN_BASE_URLS = [
   'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd',
   'https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd',
 ];
+
+const FILE_TIMEOUT_MS = 45_000;
+
+async function toBlobURLWithTimeout(url: string, mimeType: string, timeoutMs: number) {
+  const timeout = new Promise<string>((_, reject) => {
+    setTimeout(() => reject(new Error(`Timeout ao descarregar: ${url}`)), timeoutMs);
+  });
+  return Promise.race([toBlobURL(url, mimeType), timeout]);
+}
 
 export function FFmpegProvider({ children }: { children: React.ReactNode }) {
   const ffmpegRef = useRef<FFmpeg | null>(null);
@@ -60,7 +75,22 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
           console.log('[FFmpeg]', message);
         });
 
-        // Download and initialize FFmpeg (with CDN fallback)
+        // 1) Try bundled (same-origin) assets first (most reliable)
+        try {
+          console.log('[FFmpeg Context] Loading bundled core (same-origin)...');
+          setLoadProgress(70);
+
+          await ffmpeg.load({
+            coreURL: bundledCoreURL,
+            wasmURL: bundledWasmURL,
+            workerURL: bundledWorkerURL,
+          });
+
+          console.log('[FFmpeg Context] ✓ Bundled engine loaded');
+        } catch (bundledErr) {
+          console.warn('[FFmpeg Context] Bundled load failed, falling back to CDN...', bundledErr);
+
+          // 2) Download and initialize FFmpeg (with CDN fallback)
         let lastErr: unknown = null;
         let loaded = false;
 
@@ -69,9 +99,9 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
             console.log('[FFmpeg Context] Downloading from CDN:', base);
 
             const [coreURL, wasmURL, workerURL] = await Promise.all([
-              toBlobURL(`${base}/ffmpeg-core.js`, 'text/javascript'),
-              toBlobURL(`${base}/ffmpeg-core.wasm`, 'application/wasm'),
-              toBlobURL(`${base}/ffmpeg-core.worker.js`, 'text/javascript'),
+              toBlobURLWithTimeout(`${base}/ffmpeg-core.js`, 'text/javascript', FILE_TIMEOUT_MS),
+              toBlobURLWithTimeout(`${base}/ffmpeg-core.wasm`, 'application/wasm', FILE_TIMEOUT_MS),
+              toBlobURLWithTimeout(`${base}/ffmpeg-core.worker.js`, 'text/javascript', FILE_TIMEOUT_MS),
             ]);
 
             setLoadProgress(70);
@@ -94,6 +124,7 @@ export function FFmpegProvider({ children }: { children: React.ReactNode }) {
           throw lastErr instanceof Error
             ? lastErr
             : new Error('Falha ao descarregar o motor de compressão');
+        }
         }
 
         if (progressInterval) clearInterval(progressInterval);
