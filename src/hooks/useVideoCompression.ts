@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback } from 'react';
-import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile, toBlobURL } from '@ffmpeg/util';
+import { useState, useCallback } from 'react';
+import { fetchFile } from '@ffmpeg/util';
+import { useFFmpegContext } from '@/contexts/FFmpegContext';
 
 interface CompressionResult {
   file: File;
@@ -10,65 +10,10 @@ interface CompressionResult {
 }
 
 export function useVideoCompression() {
+  const { ffmpeg, isLoaded, isLoading, loadError, preload } = useFFmpegContext();
   const [progress, setProgress] = useState(0);
   const [compressing, setCompressing] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const ffmpegRef = useRef<FFmpeg | null>(null);
-  const loadedRef = useRef(false);
-
-  const loadFFmpeg = useCallback(async () => {
-    if (loadedRef.current && ffmpegRef.current) {
-      return ffmpegRef.current;
-    }
-
-    const ffmpeg = new FFmpeg();
-    ffmpegRef.current = ffmpeg;
-
-    setLoading(true);
-
-    ffmpeg.on('progress', ({ progress: p }) => {
-      setProgress(Math.round(p * 100));
-    });
-
-    ffmpeg.on('log', ({ message }) => {
-      console.log('[FFmpeg]', message);
-    });
-
-    // Load FFmpeg WASM from CDN. First load can take a while (~31MB wasm).
-    // Using UMD build to avoid COOP/COEP (SharedArrayBuffer) requirements.
-    // Ref docs example: https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd
-    const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
-    
-    try {
-      const loadPromise = (async () => {
-        await ffmpeg.load({
-          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-          // Some browsers/environments need the worker explicitly.
-          workerURL: await toBlobURL(`${baseURL}/ffmpeg-core.worker.js`, 'text/javascript'),
-        });
-      })();
-
-      // Prevent hanging forever on slow/blocked CDN.
-      const timeoutMs = 180_000; // 3 minutes
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout ao carregar o compressor (3 min).')), timeoutMs)
-      );
-
-      await Promise.race([loadPromise, timeoutPromise]);
-
-      loadedRef.current = true;
-      console.log('[FFmpeg] Loaded successfully');
-    } catch (loadError: any) {
-      console.error('[FFmpeg] Failed to load:', loadError);
-      throw new Error(`Não foi possível carregar o compressor: ${loadError.message}`);
-    } finally {
-      setLoading(false);
-    }
-
-    return ffmpeg;
-  }, []);
 
   const compressVideo = useCallback(async (file: File): Promise<CompressionResult> => {
     setCompressing(true);
@@ -78,8 +23,23 @@ export function useVideoCompression() {
     try {
       console.log('[Compression] Starting for file:', file.name, 'Size:', file.size);
       
-      const ffmpeg = await loadFFmpeg();
+      // Ensure FFmpeg is loaded
+      if (!isLoaded || !ffmpeg) {
+        console.log('[Compression] FFmpeg not ready, loading...');
+        await preload();
+      }
+
+      // Check again after preload
+      if (!ffmpeg) {
+        throw new Error('Motor de compressão não disponível');
+      }
+
       const originalSize = file.size;
+
+      // Setup progress listener
+      ffmpeg.on('progress', ({ progress: p }) => {
+        setProgress(Math.round(p * 100));
+      });
 
       // Determine input extension
       const ext = file.name.split('.').pop()?.toLowerCase() || 'mp4';
@@ -152,15 +112,11 @@ export function useVideoCompression() {
     } finally {
       setCompressing(false);
     }
-  }, [loadFFmpeg]);
+  }, [ffmpeg, isLoaded, preload]);
 
   const cancelCompression = useCallback(() => {
-    if (ffmpegRef.current) {
-      // FFmpeg doesn't have a direct cancel, but we can reset state
-      setCompressing(false);
-      setLoading(false);
-      setProgress(0);
-    }
+    setCompressing(false);
+    setProgress(0);
   }, []);
 
   return {
@@ -168,7 +124,11 @@ export function useVideoCompression() {
     cancelCompression,
     progress,
     compressing,
-    loading,
+    // From context
+    loading: isLoading,
+    isEngineReady: isLoaded,
+    engineError: loadError,
+    preloadEngine: preload,
     error,
   };
 }

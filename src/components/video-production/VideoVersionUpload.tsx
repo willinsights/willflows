@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, forwardRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
@@ -18,7 +18,8 @@ interface VideoVersionUploadProps {
 const ALLOWED_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo', 'video/x-matroska'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5GB
 
-export function VideoVersionUpload({ projectId, workspaceId, onUploadComplete }: VideoVersionUploadProps) {
+export const VideoVersionUpload = forwardRef<HTMLDivElement, VideoVersionUploadProps>(
+  function VideoVersionUpload({ projectId, workspaceId, onUploadComplete }, ref) {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +30,15 @@ export function VideoVersionUpload({ projectId, workspaceId, onUploadComplete }:
   
   const { uploadVersion, uploading, uploadProgress } = useVideoVersions(projectId, workspaceId);
   const { storage } = useWorkspaceStorage();
-  const { compressVideo, compressing, loading: compressionLoading, cancelCompression, progress: compressionProgress, error: compressionError } = useVideoCompression();
+  const { 
+    compressVideo, 
+    compressing, 
+    loading: compressionLoading, 
+    cancelCompression, 
+    progress: compressionProgress, 
+    error: compressionError,
+    isEngineReady,
+  } = useVideoCompression();
 
   const validateFile = (file: File): string | null => {
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -292,4 +301,4 @@ export function VideoVersionUpload({ projectId, workspaceId, onUploadComplete }:
       )}
     </div>
   );
-}
+});
