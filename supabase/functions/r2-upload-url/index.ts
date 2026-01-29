@@ -31,25 +31,24 @@ async function generateR2PresignedUrl(
 
   const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
   const url = new URL(`/${bucket}/${key}`, endpoint);
-  
-  // AWS4 Signature V4 query parameters
-  const now = new Date();
-  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
-  const dateStamp = amzDate.slice(0, 8);
-  
-  url.searchParams.set('X-Amz-Algorithm', 'AWS4-HMAC-SHA256');
-  url.searchParams.set('X-Amz-Credential', `${accessKeyId}/${dateStamp}/auto/s3/aws4_request`);
-  url.searchParams.set('X-Amz-Date', amzDate);
+
+  // Let aws4fetch generate *all* AWS SigV4 query params.
+  // Only set expiry explicitly (Cloudflare R2 docs pattern).
   url.searchParams.set('X-Amz-Expires', String(expiresIn));
-  url.searchParams.set('X-Amz-SignedHeaders', 'host');
 
-  const signed = await r2.sign(url.toString(), {
-    method: 'PUT',
-    headers: { 'Content-Type': contentType },
-    aws: { signQuery: true },
-  });
+  const signedRequest = await r2.sign(
+    new Request(url.toString(), {
+      method: 'PUT',
+      headers: {
+        'Content-Type': contentType,
+      },
+    }),
+    {
+      aws: { signQuery: true },
+    }
+  );
 
-  return signed.url;
+  return signedRequest.url.toString();
 }
 
 serve(async (req) => {

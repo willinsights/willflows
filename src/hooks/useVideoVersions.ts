@@ -115,6 +115,7 @@ export function useVideoVersions(
   ): Promise<void> => {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
+      xhr.timeout = 30 * 60 * 1000; // 30 min
       
       xhr.upload.addEventListener('progress', (event) => {
         if (event.lengthComputable) {
@@ -127,12 +128,21 @@ export function useVideoVersions(
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve();
         } else {
-          reject(new Error(`Upload failed with status ${xhr.status}`));
+          const details = xhr.responseText ? ` - ${xhr.responseText.slice(0, 500)}` : '';
+          reject(new Error(`Upload failed (status ${xhr.status})${details}`));
         }
       });
 
       xhr.addEventListener('error', () => {
-        reject(new Error('Upload failed'));
+        // status 0 is common for CORS/network errors
+        const msg = xhr.status === 0
+          ? 'Upload falhou (erro de rede/CORS). Verifica se o bucket R2 permite PUT (CORS) a partir do domínio da app.'
+          : `Upload failed (status ${xhr.status})`;
+        reject(new Error(msg));
+      });
+
+      xhr.addEventListener('timeout', () => {
+        reject(new Error('Upload demorou demasiado e expirou (timeout).'));
       });
 
       xhr.open('PUT', uploadUrl);
