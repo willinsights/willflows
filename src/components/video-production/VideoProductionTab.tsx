@@ -19,7 +19,7 @@ import { useVideoVersions, VideoVersion } from '@/hooks/useVideoVersions';
 import { useVideoComments } from '@/hooks/useVideoComments';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { FeatureTeaser } from '@/components/subscription/FeatureTeaser';
-import { useFFmpegContext } from '@/contexts/FFmpegContext';
+import { FFmpegProvider, useFFmpegContext, useOptionalFFmpegContext } from '@/contexts/FFmpegContext';
 
 interface VideoProductionTabProps {
   projectId: string;
@@ -42,6 +42,32 @@ export function VideoProductionTab({
         title="Aprovação de Vídeo"
         description="Faça upload de versões, receba comentários por timestamp e obtenha aprovação formal do cliente."
       />
+    );
+  }
+
+  return (
+    <VideoProductionTabProviderGuard
+      projectId={projectId}
+      workspaceId={workspaceId}
+      className={className}
+    />
+  );
+}
+
+function VideoProductionTabProviderGuard({
+  projectId,
+  workspaceId,
+  className,
+}: VideoProductionTabProps) {
+  const ctx = useOptionalFFmpegContext();
+
+  // Safety net: in rare cases (e.g. portal/subtree rendering outside the expected tree),
+  // the context might be missing. Wrap locally to avoid crashing the tab.
+  if (!ctx) {
+    return (
+      <FFmpegProvider>
+        <VideoProductionTabContent projectId={projectId} workspaceId={workspaceId} className={className} />
+      </FFmpegProvider>
     );
   }
 

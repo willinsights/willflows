@@ -128,3 +128,9 @@ export function useFFmpegContext() {
   }
   return context;
 }
+
+// Optional hook for cases where a subtree might render outside the expected provider.
+// This allows components to implement a safe fallback without crashing the whole UI.
+export function useOptionalFFmpegContext() {
+  return useContext(FFmpegContext);
+}
