@@ -18,6 +18,12 @@ export interface VideoVersion {
   thumbnail_path: string | null;
   uploaded_by: string | null;
   created_at: string;
+  // Cloudflare fields
+  cloudflare_stream_uid: string | null;
+  r2_key: string | null;
+  stream_status: string | null;
+  stream_playback_url: string | null;
+  is_deleted: boolean;
 }
 
 interface UploadVideoInput {
@@ -36,12 +42,12 @@ export function useVideoVersions(
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [processingVersionId, setProcessingVersionId] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   const { storage, addStorageUsed, removeStorageUsed } = useWorkspaceStorage();
 
   const fetchVersions = useCallback(async () => {
-    // Need either taskId or projectId to fetch
     if (!taskId && !projectId) return;
 
     setLoading(true);
@@ -49,9 +55,9 @@ export function useVideoVersions(
       let query = supabase
         .from('video_versions')
         .select('*')
+        .eq('is_deleted', false)
         .order('version_number', { ascending: false });
 
-      // Filter by taskId if available, otherwise by projectId
       if (taskId) {
         query = query.eq('task_id', taskId);
       } else if (projectId) {
@@ -61,7 +67,7 @@ export function useVideoVersions(
       const { data, error } = await query;
 
       if (error) throw error;
-      setVersions(data as VideoVersion[]);
+      setVersions((data || []) as VideoVersion[]);
     } catch (error: any) {
       console.error('Error fetching video versions:', error);
     } finally {
@@ -75,7 +81,6 @@ export function useVideoVersions(
 
   // Realtime subscription
   useEffect(() => {
-    // Need either taskId or projectId for subscription
     if (!taskId && !projectId) return;
 
     const filterColumn = taskId ? 'task_id' : 'project_id';
@@ -102,6 +107,103 @@ export function useVideoVersions(
     };
   }, [taskId, projectId, fetchVersions]);
 
+  // Upload to R2 with progress tracking
+  const uploadToR2 = useCallback(async (
+    uploadUrl: string, 
+    file: File, 
+    onProgress: (progress: number) => void
+  ): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable) {
+          const progress = Math.round((event.loaded / event.total) * 100);
+          onProgress(progress);
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
+      });
+
+      xhr.addEventListener('error', () => {
+        reject(new Error('Upload failed'));
+      });
+
+      xhr.open('PUT', uploadUrl);
+      xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+      xhr.send(file);
+    });
+  }, []);
+
+  // Poll for processing status
+  const pollProcessingStatus = useCallback(async (
+    streamUid: string, 
+    versionId: string
+  ): Promise<void> => {
+    const maxAttempts = 60; // 5 minutes max
+    let attempts = 0;
+
+    const poll = async (): Promise<void> => {
+      attempts++;
+      
+      try {
+        const { data, error } = await supabase.functions.invoke('stream-get-status', {
+          body: { streamUid, versionId }
+        });
+
+        if (error) {
+          console.error('Error polling status:', error);
+          if (attempts < maxAttempts) {
+            setTimeout(poll, 5000);
+          }
+          return;
+        }
+
+        if (data.status === 'ready') {
+          setProcessingVersionId(null);
+          toast({ title: 'Vídeo processado com sucesso' });
+          await fetchVersions();
+          return;
+        }
+
+        if (data.status === 'error') {
+          setProcessingVersionId(null);
+          toast({ 
+            title: 'Erro no processamento', 
+            description: 'O vídeo não pôde ser processado',
+            variant: 'destructive' 
+          });
+          return;
+        }
+
+        // Still processing, continue polling
+        if (attempts < maxAttempts) {
+          setTimeout(poll, 5000);
+        } else {
+          setProcessingVersionId(null);
+          toast({ 
+            title: 'Processamento demorado', 
+            description: 'O vídeo ainda está a ser processado. Atualiza a página mais tarde.',
+            variant: 'default' 
+          });
+        }
+      } catch (err) {
+        console.error('Polling error:', err);
+        if (attempts < maxAttempts) {
+          setTimeout(poll, 5000);
+        }
+      }
+    };
+
+    poll();
+  }, [fetchVersions, toast]);
+
   const uploadVersion = async ({ file, taskId, workspaceId, projectId }: UploadVideoInput) => {
     if (!user) throw new Error('User not authenticated');
 
@@ -119,64 +221,61 @@ export function useVideoVersions(
     setUploadProgress(0);
 
     try {
-      // Get next version number
-      const { data: existingVersions } = await supabase
-        .from('video_versions')
-        .select('version_number')
-        .eq('task_id', taskId)
-        .order('version_number', { ascending: false })
-        .limit(1);
+      // Step 1: Get presigned URL from R2
+      const { data: urlData, error: urlError } = await supabase.functions.invoke('r2-upload-url', {
+        body: {
+          workspaceId,
+          taskId,
+          projectId,
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+        }
+      });
 
-      const nextVersion = (existingVersions?.[0]?.version_number || 0) + 1;
-
-      // Generate file path
-      const fileExt = file.name.split('.').pop();
-      const fileName = `v${nextVersion}_${Date.now()}.${fileExt}`;
-      const filePath = `${workspaceId}/${taskId}/${fileName}`;
-
-      // Upload to storage
-      const { error: uploadError } = await supabase.storage
-        .from('video-versions')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-        });
-
-      if (uploadError) throw uploadError;
-
-      setUploadProgress(70);
-
-      // Create database record
-      const { data: versionData, error: insertError } = await supabase
-        .from('video_versions')
-        .insert({
-          task_id: taskId,
-          workspace_id: workspaceId,
-          project_id: projectId,
-          version_number: nextVersion,
-          file_path: filePath,
-          file_name: file.name,
-          file_size_bytes: file.size,
-          mime_type: file.type,
-          uploaded_by: user.id,
-        })
-        .select()
-        .single();
-
-      if (insertError) {
-        // Rollback file upload
-        await supabase.storage.from('video-versions').remove([filePath]);
-        throw insertError;
+      if (urlError || !urlData?.uploadUrl) {
+        throw new Error(urlData?.error || 'Failed to get upload URL');
       }
 
-      // Update storage used
-      await addStorageUsed(file.size);
+      // Step 2: Upload directly to R2 with progress
+      await uploadToR2(urlData.uploadUrl, file, (progress) => {
+        // R2 upload is 0-80% of total progress
+        setUploadProgress(Math.round(progress * 0.8));
+      });
+
+      setUploadProgress(80);
+
+      // Step 3: Process video in Cloudflare Stream
+      const { data: processData, error: processError } = await supabase.functions.invoke('stream-process-video', {
+        body: {
+          key: urlData.key,
+          taskId,
+          workspaceId,
+          projectId,
+          fileName: file.name,
+          fileSize: file.size,
+        }
+      });
+
+      if (processError || !processData?.versionId) {
+        throw new Error(processData?.error || 'Failed to process video');
+      }
 
       setUploadProgress(100);
-      toast({ title: `Versão ${nextVersion} carregada com sucesso` });
+      
+      toast({ 
+        title: `Versão ${processData.versionNumber} carregada`,
+        description: 'O vídeo está a ser processado...'
+      });
+
+      // Step 4: Poll for processing status
+      if (processData.streamUid) {
+        setProcessingVersionId(processData.versionId);
+        pollProcessingStatus(processData.streamUid, processData.versionId);
+      }
 
       await fetchVersions();
-      return versionData as VideoVersion;
+      return processData as VideoVersion;
     } catch (error: any) {
       toast({
         title: 'Erro ao carregar vídeo',
@@ -192,23 +291,16 @@ export function useVideoVersions(
 
   const deleteVersion = async (versionId: string) => {
     try {
-      // Get version to find file path and size
       const version = versions.find(v => v.id === versionId);
       if (!version) throw new Error('Version not found');
 
-      // Delete from storage first
-      const { error: storageError } = await supabase.storage
-        .from('video-versions')
-        .remove([version.file_path]);
-
-      if (storageError) {
-        console.warn('Failed to delete file from storage:', storageError);
-      }
-
-      // Delete database record
+      // Mark as deleted in database (actual R2/Stream cleanup happens via cron)
       const { error } = await supabase
         .from('video_versions')
-        .delete()
+        .update({ 
+          is_deleted: true, 
+          deleted_at: new Date().toISOString() 
+        })
         .eq('id', versionId);
 
       if (error) throw error;
@@ -228,7 +320,35 @@ export function useVideoVersions(
     }
   };
 
+  // Get playback URL - now uses Cloudflare Stream
+  const getPlaybackUrl = useCallback((version: VideoVersion): string | null => {
+    // If we have a Cloudflare Stream playback URL, use it
+    if (version.stream_playback_url) {
+      return version.stream_playback_url;
+    }
+    
+    // If we have a stream UID, construct the iframe URL
+    if (version.cloudflare_stream_uid) {
+      // The playback URL should be the HLS manifest, not iframe
+      // For direct video element playback, we need the HLS URL
+      return `https://customer-${getAccountHash()}.cloudflarestream.com/${version.cloudflare_stream_uid}/manifest/video.m3u8`;
+    }
+
+    // Fallback to legacy Supabase Storage (for existing videos)
+    if (version.file_path && !version.file_path.startsWith('r2://')) {
+      return null; // Will need to use getSignedUrl
+    }
+
+    return null;
+  }, []);
+
+  // Legacy: Get signed URL for Supabase Storage videos
   const getSignedUrl = async (filePath: string): Promise<string | null> => {
+    // Skip R2 paths
+    if (filePath.startsWith('r2://')) {
+      return null;
+    }
+    
     try {
       const { data, error } = await supabase.storage
         .from('video-versions')
@@ -242,14 +362,35 @@ export function useVideoVersions(
     }
   };
 
+  // Helper to check if version is using Cloudflare
+  const isCloudflareVersion = useCallback((version: VideoVersion): boolean => {
+    return !!(version.cloudflare_stream_uid || version.r2_key);
+  }, []);
+
+  // Helper to check if version is still processing
+  const isProcessing = useCallback((version: VideoVersion): boolean => {
+    return version.stream_status === 'processing' || version.stream_status === 'pending';
+  }, []);
+
   return {
     versions,
     loading,
     uploading,
     uploadProgress,
+    processingVersionId,
     uploadVersion,
     deleteVersion,
     getSignedUrl,
+    getPlaybackUrl,
+    isCloudflareVersion,
+    isProcessing,
     refetch: fetchVersions,
   };
+}
+
+// Helper to get account hash for Cloudflare customer subdomain
+function getAccountHash(): string {
+  // This would ideally come from environment or be stored after first Stream API call
+  // For now, we'll return a placeholder that should be replaced with actual account hash
+  return import.meta.env.VITE_CLOUDFLARE_CUSTOMER_HASH || 'unknown';
 }

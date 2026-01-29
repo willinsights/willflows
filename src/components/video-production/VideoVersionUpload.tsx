@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Upload, Video, X, AlertCircle } from 'lucide-react';
+import { Upload, Video, X, AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useVideoVersions } from '@/hooks/useVideoVersions';
 import { useWorkspaceStorage } from '@/hooks/useWorkspaceStorage';
@@ -22,7 +22,7 @@ export function VideoVersionUpload({ taskId, workspaceId, projectId, onUploadCom
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
-  const { uploadVersion, uploading, uploadProgress } = useVideoVersions(taskId, workspaceId);
+  const { uploadVersion, uploading, uploadProgress, processingVersionId } = useVideoVersions(taskId, workspaceId);
   const { storage } = useWorkspaceStorage();
 
   const validateFile = (file: File): string | null => {
@@ -102,6 +102,9 @@ export function VideoVersionUpload({ taskId, workspaceId, projectId, onUploadCom
     return `${(bytes / 1024).toFixed(0)} KB`;
   };
 
+  // Show processing state
+  const isProcessing = !!processingVersionId;
+
   if (storage.isFull) {
     return (
       <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
@@ -123,7 +126,7 @@ export function VideoVersionUpload({ taskId, workspaceId, projectId, onUploadCom
         className={cn(
           "relative rounded-lg border-2 border-dashed p-8 text-center transition-colors",
           dragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50",
-          uploading && "pointer-events-none opacity-50"
+          (uploading || isProcessing) && "pointer-events-none opacity-50"
         )}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
@@ -136,7 +139,7 @@ export function VideoVersionUpload({ taskId, workspaceId, projectId, onUploadCom
           accept={ALLOWED_TYPES.join(',')}
           onChange={handleChange}
           className="hidden"
-          disabled={uploading}
+          disabled={uploading || isProcessing}
         />
 
         <div className="flex flex-col items-center gap-3">
@@ -151,7 +154,7 @@ export function VideoVersionUpload({ taskId, workspaceId, projectId, onUploadCom
                 type="button"
                 onClick={() => inputRef.current?.click()}
                 className="text-primary hover:underline"
-                disabled={uploading}
+                disabled={uploading || isProcessing}
               >
                 escolha um ficheiro
               </button>
@@ -172,7 +175,7 @@ export function VideoVersionUpload({ taskId, workspaceId, projectId, onUploadCom
       )}
 
       {/* Selected file */}
-      {selectedFile && !uploading && (
+      {selectedFile && !uploading && !isProcessing && (
         <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
           <Video className="h-5 w-5 text-primary" />
           <div className="flex-1 min-w-0">
@@ -190,10 +193,34 @@ export function VideoVersionUpload({ taskId, workspaceId, projectId, onUploadCom
       {uploading && (
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span>A carregar...</span>
+            <span className="flex items-center gap-2">
+              {uploadProgress < 80 ? (
+                <>A enviar...</>
+              ) : (
+                <>A processar...</>
+              )}
+            </span>
             <span>{uploadProgress}%</span>
           </div>
           <Progress value={uploadProgress} />
+          {uploadProgress >= 80 && (
+            <p className="text-xs text-muted-foreground">
+              O vídeo está a ser processado no servidor...
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Processing state */}
+      {isProcessing && !uploading && (
+        <div className="flex items-center gap-3 rounded-lg bg-primary/10 p-3">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <div>
+            <p className="font-medium text-primary">A processar vídeo</p>
+            <p className="text-sm text-muted-foreground">
+              O vídeo está a ser transcodificado. Isto pode demorar alguns minutos.
+            </p>
+          </div>
         </div>
       )}
     </div>

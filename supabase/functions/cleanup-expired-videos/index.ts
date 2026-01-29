@@ -1,14 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { S3Client, DeleteObjectCommand } from "https://esm.sh/@aws-sdk/client-s3@3.709.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const DEBUG = Deno.env.get("DEBUG") === "true";
-
-const logStep = (step: string, details?: any) => {
+const logStep = (step: string, details?: Record<string, unknown>) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CLEANUP-EXPIRED-VIDEOS] ${step}${detailsStr}`);
 };
@@ -23,6 +22,11 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const accountId = Deno.env.get("CLOUDFLARE_ACCOUNT_ID");
+    const accessKeyId = Deno.env.get("CLOUDFLARE_R2_ACCESS_KEY");
+    const secretAccessKey = Deno.env.get("CLOUDFLARE_R2_SECRET_KEY");
+    const bucketName = Deno.env.get("CLOUDFLARE_R2_BUCKET");
+    const streamToken = Deno.env.get("CLOUDFLARE_STREAM_TOKEN");
     
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error("Missing Supabase configuration");
@@ -31,6 +35,19 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { persistSession: false }
     });
+
+    // Create R2 client if credentials are available
+    let s3Client: S3Client | null = null;
+    if (accountId && accessKeyId && secretAccessKey && bucketName) {
+      s3Client = new S3Client({
+        region: "auto",
+        endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+        credentials: {
+          accessKeyId,
+          secretAccessKey,
+        },
+      });
+    }
 
     const now = new Date().toISOString();
 
@@ -65,7 +82,6 @@ serve(async (req) => {
 
       // Send notification to each workspace admin
       for (const [workspaceId, items] of Object.entries(byWorkspace)) {
-        // Find workspace admins
         const { data: admins } = await supabase
           .from('workspace_members')
           .select('user_id')
@@ -127,37 +143,83 @@ serve(async (req) => {
           // Get all video versions for this task
           const { data: videos } = await supabase
             .from('video_versions')
-            .select('id, file_path, file_size_bytes, thumbnail_path')
-            .eq('task_id', item.task_id);
+            .select('id, file_path, file_size_bytes, thumbnail_path, r2_key, cloudflare_stream_uid')
+            .eq('task_id', item.task_id)
+            .eq('is_deleted', false);
 
           if (videos && videos.length > 0) {
             let totalBytesFreed = 0;
 
             for (const video of videos) {
-              // Delete file from storage
-              if (video.file_path) {
+              // Delete from Cloudflare R2
+              if (video.r2_key && s3Client && bucketName) {
+                try {
+                  await s3Client.send(new DeleteObjectCommand({
+                    Bucket: bucketName,
+                    Key: video.r2_key,
+                  }));
+                  logStep("Deleted from R2", { key: video.r2_key });
+                } catch (r2Error) {
+                  const errMsg = r2Error instanceof Error ? r2Error.message : String(r2Error);
+                  logStep("Error deleting from R2", { key: video.r2_key, error: errMsg });
+                }
+              }
+
+              // Delete from Cloudflare Stream
+              if (video.cloudflare_stream_uid && accountId && streamToken) {
+                try {
+                  const streamResponse = await fetch(
+                    `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${video.cloudflare_stream_uid}`,
+                    {
+                      method: 'DELETE',
+                      headers: {
+                        'Authorization': `Bearer ${streamToken}`,
+                      },
+                    }
+                  );
+                  
+                  if (streamResponse.ok) {
+                    logStep("Deleted from Stream", { uid: video.cloudflare_stream_uid });
+                  } else {
+                    const errorText = await streamResponse.text();
+                    logStep("Error deleting from Stream", { uid: video.cloudflare_stream_uid, error: errorText });
+                  }
+                } catch (streamError) {
+                  const errMsg = streamError instanceof Error ? streamError.message : String(streamError);
+                  logStep("Error deleting from Stream", { uid: video.cloudflare_stream_uid, error: errMsg });
+                }
+              }
+
+              // Legacy: Delete from Supabase Storage if not R2
+              if (video.file_path && !video.r2_key && !video.file_path.startsWith('r2://')) {
                 const { error: deleteError } = await supabase.storage
                   .from('video-versions')
                   .remove([video.file_path]);
 
                 if (deleteError) {
-                  logStep("Error deleting video file", { path: video.file_path, error: deleteError.message });
-                } else {
-                  totalBytesFreed += video.file_size_bytes || 0;
+                  logStep("Error deleting legacy video file", { path: video.file_path, error: deleteError.message });
+                }
+
+                if (video.thumbnail_path) {
+                  await supabase.storage
+                    .from('video-versions')
+                    .remove([video.thumbnail_path]);
                 }
               }
 
-              // Delete thumbnail if exists
-              if (video.thumbnail_path) {
-                await supabase.storage
-                  .from('video-versions')
-                  .remove([video.thumbnail_path]);
-              }
+              totalBytesFreed += video.file_size_bytes || 0;
 
-              // Delete the video record
+              // Mark video as deleted (preserve metadata)
               await supabase
                 .from('video_versions')
-                .delete()
+                .update({
+                  is_deleted: true,
+                  deleted_at: now,
+                  r2_key: null,
+                  cloudflare_stream_uid: null,
+                  stream_playback_url: null,
+                  file_path: `[deleted] ${video.file_path}`,
+                })
                 .eq('id', video.id);
             }
 
@@ -207,9 +269,61 @@ serve(async (req) => {
       }
     }
 
+    // 3. Clean up orphaned deleted videos (manual deletions)
+    const { data: orphanedVideos } = await supabase
+      .from('video_versions')
+      .select('id, r2_key, cloudflare_stream_uid, workspace_id, file_size_bytes')
+      .eq('is_deleted', true)
+      .not('r2_key', 'is', null)
+      .limit(50);
+
+    if (orphanedVideos && orphanedVideos.length > 0) {
+      logStep("Cleaning up orphaned deleted videos", { count: orphanedVideos.length });
+
+      for (const video of orphanedVideos) {
+        // Delete from R2
+        if (video.r2_key && s3Client && bucketName) {
+          try {
+            await s3Client.send(new DeleteObjectCommand({
+              Bucket: bucketName,
+              Key: video.r2_key,
+            }));
+          } catch (e) {
+            // Ignore errors for orphaned cleanup
+          }
+        }
+
+        // Delete from Stream
+        if (video.cloudflare_stream_uid && accountId && streamToken) {
+          try {
+            await fetch(
+              `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${video.cloudflare_stream_uid}`,
+              {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${streamToken}` },
+              }
+            );
+          } catch (e) {
+            // Ignore errors for orphaned cleanup
+          }
+        }
+
+        // Clear the keys
+        await supabase
+          .from('video_versions')
+          .update({
+            r2_key: null,
+            cloudflare_stream_uid: null,
+            stream_playback_url: null,
+          })
+          .eq('id', video.id);
+      }
+    }
+
     const summary = {
       expiringNotified: expiringItems?.length || 0,
       expired: expiredItems?.length || 0,
+      orphanedCleaned: orphanedVideos?.length || 0,
     };
 
     logStep("Cleanup job completed", summary);

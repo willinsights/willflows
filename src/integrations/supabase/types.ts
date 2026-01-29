@@ -3081,14 +3081,21 @@ export type Database = {
       }
       video_versions: {
         Row: {
+          cloudflare_stream_uid: string | null
           created_at: string
+          deleted_at: string | null
           duration_seconds: number | null
           file_name: string
           file_path: string
           file_size_bytes: number
           id: string
+          is_deleted: boolean | null
           mime_type: string | null
           project_id: string
+          r2_key: string | null
+          stream_playback_url: string | null
+          stream_status: string | null
+          stream_thumbnail_url: string | null
           task_id: string | null
           thumbnail_path: string | null
           uploaded_by: string | null
@@ -3096,14 +3103,21 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          cloudflare_stream_uid?: string | null
           created_at?: string
+          deleted_at?: string | null
           duration_seconds?: number | null
           file_name: string
           file_path: string
           file_size_bytes?: number
           id?: string
+          is_deleted?: boolean | null
           mime_type?: string | null
           project_id: string
+          r2_key?: string | null
+          stream_playback_url?: string | null
+          stream_status?: string | null
+          stream_thumbnail_url?: string | null
           task_id?: string | null
           thumbnail_path?: string | null
           uploaded_by?: string | null
@@ -3111,14 +3125,21 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          cloudflare_stream_uid?: string | null
           created_at?: string
+          deleted_at?: string | null
           duration_seconds?: number | null
           file_name?: string
           file_path?: string
           file_size_bytes?: number
           id?: string
+          is_deleted?: boolean | null
           mime_type?: string | null
           project_id?: string
+          r2_key?: string | null
+          stream_playback_url?: string | null
+          stream_status?: string | null
+          stream_thumbnail_url?: string | null
           task_id?: string | null
           thumbnail_path?: string | null
           uploaded_by?: string | null
@@ -3477,6 +3498,10 @@ export type Database = {
     }
     Functions: {
       accept_workspace_invitation: { Args: { p_token: string }; Returns: Json }
+      add_workspace_storage: {
+        Args: { p_bytes: number; p_workspace_id: string }
+        Returns: undefined
+      }
       can_deliver_project: {
         Args: { p_phase: string; p_project_id: string }
         Returns: Json
