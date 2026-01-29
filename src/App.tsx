@@ -78,6 +78,7 @@ const Chat = lazy(() => import("./pages/app/Chat"));
 const Leads = lazy(() => import("./pages/app/Leads"));
 const Contratos = lazy(() => import("./pages/app/Contratos"));
 const ContractSign = lazy(() => import("./pages/public/ContractSign"));
+const VideoApproval = lazy(() => import("./pages/public/VideoApproval"));
 
 // Admin pages (new /admin route)
 const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
@@ -135,6 +136,7 @@ const App = () => (
                     <Route path="/para-produtoras" element={<ParaProdutoras />} />
                     <Route path="/contato" element={<Contact />} />
                     <Route path="/contrato/:token" element={<ContractSign />} />
+                    <Route path="/video-approval/:token" element={<VideoApproval />} />
                     <Route path="/vs" element={<ComparisonsHub />} />
                     <Route path="/vs/asana" element={<VsAsana />} />
                     <Route path="/vs/clickup" element={<VsClickUp />} />
