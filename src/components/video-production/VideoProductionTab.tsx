@@ -13,11 +13,13 @@ import { CommentInputModal } from './CommentInputModal';
 import { ApprovalButton } from './ApprovalButton';
 import { ApprovalShareLink } from './ApprovalShareLink';
 import { StorageUsageBar } from './StorageUsageBar';
+import { FFmpegStatusIndicator } from './FFmpegStatusIndicator';
 
 import { useVideoVersions, VideoVersion } from '@/hooks/useVideoVersions';
 import { useVideoComments } from '@/hooks/useVideoComments';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { FeatureTeaser } from '@/components/subscription/FeatureTeaser';
+import { useFFmpegContext } from '@/contexts/FFmpegContext';
 
 interface VideoProductionTabProps {
   projectId: string;
@@ -63,6 +65,17 @@ function VideoProductionTabContent({
   const videoPlayerRef = useRef<{ seekTo: (time: number) => void }>(null);
   
   const { addComment } = useVideoComments(selectedVersion?.id || null);
+  
+  // Preload FFmpeg when entering video production
+  const { preload, isLoaded } = useFFmpegContext();
+  
+  useEffect(() => {
+    // Start preloading FFmpeg engine in background
+    if (!isLoaded) {
+      console.log('[VideoProductionTab] Starting FFmpeg preload...');
+      preload();
+    }
+  }, [preload, isLoaded]);
 
   // Auto-select latest version
   useEffect(() => {
@@ -116,8 +129,11 @@ function VideoProductionTabContent({
 
   return (
     <div className={cn("space-y-6", className)}>
-      {/* Storage usage bar */}
-      <StorageUsageBar showUpgradeButton />
+      {/* Storage usage bar + FFmpeg status */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <StorageUsageBar showUpgradeButton />
+        <FFmpegStatusIndicator className="shrink-0" />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main content - Video Player */}

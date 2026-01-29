@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { FFmpegProvider } from "@/contexts/FFmpegContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { FullPageLoader } from "@/components/layout/FullPageLoader";
@@ -97,9 +98,10 @@ const App = () => (
       <ThemeProvider>
         <AuthProvider>
           <WorkspaceProvider>
-            <TooltipProvider>
-              <DebugLifecycle />
-              <PWAUpdateListener />
+            <FFmpegProvider>
+              <TooltipProvider>
+                <DebugLifecycle />
+                <PWAUpdateListener />
               <Toaster />
               <Sonner />
               <BrowserRouter>
@@ -209,7 +211,8 @@ const App = () => (
                   <CookieConsentBanner />
                 </PageTrackingProvider>
               </BrowserRouter>
-            </TooltipProvider>
+              </TooltipProvider>
+            </FFmpegProvider>
           </WorkspaceProvider>
         </AuthProvider>
       </ThemeProvider>
