@@ -92,16 +92,21 @@ export function VideoVersionUpload({ projectId, workspaceId, onUploadComplete }:
       // Compress if enabled and not already compressed
       if (enableCompression && !compressionComplete) {
         try {
+          console.log('[Upload] Starting compression...');
           const result = await compressVideo(selectedFile);
           fileToUpload = result.file;
           setCompressionSavings(result.savings);
           setCompressionComplete(true);
-        } catch (compErr) {
-          // If compression fails, proceed with original file
-          console.warn('Compression failed, uploading original:', compErr);
+          console.log('[Upload] Compression complete, savings:', result.savings, '%');
+        } catch (compErr: any) {
+          // If compression fails, show error and proceed with original file
+          console.error('[Upload] Compression failed:', compErr);
+          setError(`Compressão falhou: ${compErr.message}. A enviar ficheiro original.`);
+          // Continue with original file
         }
       }
 
+      console.log('[Upload] Uploading file:', fileToUpload.name, 'Size:', fileToUpload.size);
       await uploadVersion({
         file: fileToUpload,
         workspaceId,
@@ -113,6 +118,7 @@ export function VideoVersionUpload({ projectId, workspaceId, onUploadComplete }:
       onUploadComplete?.();
     } catch (error) {
       // Error toast is handled in hook
+      console.error('[Upload] Upload failed:', error);
     }
   };
 
