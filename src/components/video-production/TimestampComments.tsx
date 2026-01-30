@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Textarea } from '@/components/ui/textarea';
 import { 
-  MessageSquare, 
   Check, 
   RotateCcw,
   Reply,
   Trash2,
-  Clock
+  Clock,
+  MessageSquare,
+  Send
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VideoComment, useVideoComments } from '@/hooks/useVideoComments';
@@ -29,9 +31,10 @@ export function TimestampComments({
   onSeekTo,
   className
 }: TimestampCommentsProps) {
-const { 
+  const { 
     comments, 
     loading, 
+    addComment,
     resolveComment, 
     reopenComment,
     deleteComment,
@@ -47,6 +50,17 @@ const {
     return true;
   });
 
+  const handleReply = async (parentId: string, body: string) => {
+    await addComment({
+      videoVersionId,
+      taskId,
+      workspaceId,
+      timestampSeconds: 0,
+      body,
+      parentId,
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -57,43 +71,33 @@ const {
 
   return (
     <div className={cn("space-y-4", className)}>
-      {/* Header with filters */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium">Comentários</span>
-          <Badge variant="secondary" className="text-xs">
-            {comments.length}
-          </Badge>
-        </div>
-
-        <div className="flex gap-1">
-          <Button
-            variant={filter === 'all' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setFilter('all')}
-          >
-            Todos
-          </Button>
-          <Button
-            variant={filter === 'open' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setFilter('open')}
-            className="gap-1"
-          >
-            <span className="h-2 w-2 rounded-full bg-warning" />
-            {openCount}
-          </Button>
-          <Button
-            variant={filter === 'resolved' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setFilter('resolved')}
-            className="gap-1"
-          >
-            <Check className="h-3 w-3 text-green-500" />
-            {resolvedCount}
-          </Button>
-        </div>
+      {/* Filters only - title is in parent CardTitle */}
+      <div className="flex items-center justify-end gap-1">
+        <Button
+          variant={filter === 'all' ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => setFilter('all')}
+        >
+          Todos
+        </Button>
+        <Button
+          variant={filter === 'open' ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => setFilter('open')}
+          className="gap-1"
+        >
+          <span className="h-2 w-2 rounded-full bg-warning" />
+          {openCount}
+        </Button>
+        <Button
+          variant={filter === 'resolved' ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => setFilter('resolved')}
+          className="gap-1"
+        >
+          <Check className="h-3 w-3 text-green-500" />
+          {resolvedCount}
+        </Button>
       </div>
 
       {/* Comments list */}
@@ -112,6 +116,7 @@ const {
               onResolve={() => resolveComment(comment.id)}
               onReopen={() => reopenComment(comment.id)}
               onDelete={() => deleteComment(comment.id)}
+              onReply={(body) => handleReply(comment.id, body)}
             />
           ))}
         </div>
@@ -126,10 +131,14 @@ interface CommentCardProps {
   onResolve: () => void;
   onReopen: () => void;
   onDelete: () => void;
+  onReply: (body: string) => void;
 }
 
-function CommentCard({ comment, onSeekTo, onResolve, onReopen, onDelete }: CommentCardProps) {
+function CommentCard({ comment, onSeekTo, onResolve, onReopen, onDelete, onReply }: CommentCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showReplyInput, setShowReplyInput] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [submittingReply, setSubmittingReply] = useState(false);
   const isResolved = comment.status === 'resolved';
 
   const getInitials = () => {
@@ -144,6 +153,19 @@ function CommentCard({ comment, onSeekTo, onResolve, onReopen, onDelete }: Comme
       return comment.client_name;
     }
     return 'Membro da equipa';
+  };
+
+  const handleSubmitReply = async () => {
+    if (!replyText.trim() || submittingReply) return;
+    
+    setSubmittingReply(true);
+    try {
+      await onReply(replyText.trim());
+      setReplyText('');
+      setShowReplyInput(false);
+    } finally {
+      setSubmittingReply(false);
+    }
   };
 
   return (
@@ -179,6 +201,17 @@ function CommentCard({ comment, onSeekTo, onResolve, onReopen, onDelete }: Comme
             </div>
             
             <div className="flex items-center gap-1">
+              {/* Reply button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowReplyInput(!showReplyInput)}
+                className="h-7 text-xs"
+              >
+                <Reply className="h-3 w-3 mr-1" />
+                Responder
+              </Button>
+
               {isResolved ? (
                 <Button
                   variant="ghost"
@@ -239,6 +272,46 @@ function CommentCard({ comment, onSeekTo, onResolve, onReopen, onDelete }: Comme
           <p className={cn("text-sm", isResolved && "text-muted-foreground line-through")}>
             {comment.body}
           </p>
+
+          {/* Reply input */}
+          {showReplyInput && (
+            <div className="mt-3 flex gap-2">
+              <Textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Escrever resposta..."
+                rows={2}
+                className="text-sm flex-1"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                    handleSubmitReply();
+                  }
+                }}
+              />
+              <div className="flex flex-col gap-1">
+                <Button
+                  size="sm"
+                  onClick={handleSubmitReply}
+                  disabled={!replyText.trim() || submittingReply}
+                  className="h-8"
+                >
+                  <Send className="h-3 w-3 mr-1" />
+                  Enviar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setShowReplyInput(false);
+                    setReplyText('');
+                  }}
+                  className="h-8"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Replies */}
           {comment.replies && comment.replies.length > 0 && (
