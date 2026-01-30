@@ -957,6 +957,56 @@ export type Database = {
           },
         ]
       }
+      export_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error: string | null
+          file_url: string | null
+          filters: Json | null
+          format: string
+          id: string
+          report_type: string
+          status: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          file_url?: string | null
+          filters?: Json | null
+          format: string
+          id?: string
+          report_type: string
+          status?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          file_url?: string | null
+          filters?: Json | null
+          format?: string
+          id?: string
+          report_type?: string
+          status?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "export_jobs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback: {
         Row: {
           assigned_to: string | null

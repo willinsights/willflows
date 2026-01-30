@@ -518,11 +518,53 @@ CREATE INDEX IF NOT EXISTS idx_video_versions_task
 
 ---
 
-### Sprint 4 — Escala e Observabilidade
-**Esforço: ALTO (5-7 dias)**
+### Sprint 4 — Escala e Observabilidade ✅ CONCLUÍDO
+**Esforço: ALTO (5-7 dias)** — **Executado em 30/01/2026**
 
-1. Implementar índices adicionais no DB
-2. Adicionar caching em relatórios pesados
-3. Implementar background jobs para exports
-4. Configurar alertas de storage
-5. Implementar tracing end-to-end
+1. ✅ Implementar índices adicionais no DB — **17 índices criados**
+2. ✅ Implementar background jobs para exports — **export-report edge function**
+3. ⏭️ Adicionar caching em relatórios pesados — **Backlog** (requires Redis/edge cache)
+4. ⏭️ Configurar alertas de storage — **StorageMetricsTab já implementa** (80%/100% thresholds)
+5. ⏭️ Implementar tracing end-to-end — **Backlog** (requires external observability tool)
+
+#### Ficheiros Criados/Alterados:
+- `supabase/functions/export-report/index.ts` — Edge function para exportações assíncronas
+- `src/hooks/useExportReport.ts` — Hook React para integração com exportações
+- DB: Tabela `export_jobs` com RLS policies
+- DB: Storage bucket `exports` com políticas de acesso
+- DB: 17 novos índices para queries frequentes (projects, tasks, payments, clients, etc.)
+
+#### Índices Criados:
+- `idx_projects_workspace_phase` — Kanban views
+- `idx_projects_workspace_delivered` — Archive queries
+- `idx_tasks_project_phase` — Project detail views
+- `idx_tasks_project_due` — Task ordering
+- `idx_video_versions_task` — Video approval
+- `idx_video_versions_workspace` — Storage calculations
+- `idx_payments_workspace_status` — Financial reports
+- `idx_payments_workspace_due` — Overdue tracking
+- `idx_clients_workspace_lead` — CRM pipeline
+- `idx_calendar_events_workspace_date` — Calendar queries
+- `idx_messages_conversation_created` — Chat pagination
+- `idx_notifications_user_read` — Notification center
+- `idx_activity_log_workspace_date` — Activity feed
+- `idx_admin_audit_log_date` — Audit logs
+- `idx_page_views_session_date` — Analytics
+- `idx_blog_views_post_date` — Blog analytics
+- `idx_user_subscriptions_user` — Subscription lookup
+
+---
+
+## 11. PRÓXIMOS PASSOS
+
+### Backlog Técnico
+- [ ] Implementar caching com stale-while-revalidate em relatórios
+- [ ] Configurar observabilidade com tracing distribuído
+- [ ] Métricas de throughput do Kanban (tempo médio por fase)
+- [ ] Rate limiting nos endpoints de convite e feedback
+- [ ] Atualizar PRODUCT_TO_PLAN no stripe-webhook com novos IDs
+
+### Melhorias de Produto
+- [ ] Breadcrumbs em páginas internas do app
+- [ ] Notificações push para exportações concluídas
+- [ ] Dashboard de performance do workspace
