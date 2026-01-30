@@ -9,13 +9,13 @@
  * @example formatTimecode(3665) => "01:01:05"
  */
 export function formatTimecode(seconds: number): string {
-  const totalSeconds = Math.floor(seconds);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const secs = totalSeconds % 60;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  const ms = Math.floor((seconds % 1) * 100); // Centésimos de segundo (2 dígitos)
   
-  // Always full HH:MM:SS format
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  // Formato completo HH:MM:SS.ms
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
 }
 
 export interface VideoStructureSegment {
