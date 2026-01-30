@@ -562,7 +562,7 @@ export default function VideoApproval() {
               <img src={logoWhite} alt="WillFlow" className="h-8 hidden dark:block" />
               <Separator orientation="vertical" className="h-6" />
               <div>
-                <h1 className="font-semibold">{data.task.title}</h1>
+                <h1 className="font-semibold">Studio Review</h1>
                 <p className="text-sm text-muted-foreground">{data.task.project_name}</p>
               </div>
             </div>
@@ -786,7 +786,7 @@ export default function VideoApproval() {
                           {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
                         </Button>
                         <span className="text-white text-sm font-mono">
-                          {formatTimecode(Math.floor(currentTime))} / {formatTimecode(Math.floor(duration))}
+                          {formatTimecode(currentTime)} / {formatTimecode(duration)}
                         </span>
                       </div>
 
@@ -807,7 +807,7 @@ export default function VideoApproval() {
                   {hasStartedTyping && (
                     <div className="flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5 text-sm font-mono text-primary shrink-0">
                       <Clock className="h-3.5 w-3.5" />
-                      {formatTimecode(Math.floor(commentTimestamp))}
+                      {formatTimecode(commentTimestamp)}
                     </div>
                   )}
 
@@ -874,6 +874,11 @@ export default function VideoApproval() {
                   </span>
                 </div>
               )}
+
+              {/* Retention policy notice */}
+              <div className="text-center text-xs text-muted-foreground mt-4 pb-2">
+                <p>Os vídeos são mantidos durante 7 dias após a tarefa ser concluída</p>
+              </div>
             </div>
           </div>
         </main>
