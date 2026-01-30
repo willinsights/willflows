@@ -35,21 +35,29 @@ export interface VideoPlayerRef {
   play: () => void;
 }
 
-// Extract customer hash from Cloudflare Stream playback URL
-function extractCustomerHash(url: string): string | null {
+// Build canonical HLS URL using videodelivery.net (most compatible)
+function buildCanonicalHlsUrl(streamUid: string): string {
+  return `https://videodelivery.net/${streamUid}/manifest/video.m3u8`;
+}
+
+// Extract streamUid from various Cloudflare Stream URL formats
+function extractStreamUidFromUrl(url: string): string | null {
   try {
     const u = new URL(url);
-    // e.g., customer-y2wrascmexrvzepp.cloudflarestream.com
-    const match = u.hostname.match(/^customer-([a-z0-9]+)\.cloudflarestream\.com$/);
-    return match ? match[1] : null;
+    // Format: customer-*.cloudflarestream.com/<uid>/...
+    // Format: videodelivery.net/<uid>/...
+    const pathParts = u.pathname.split('/').filter(Boolean);
+    if (pathParts.length >= 1) {
+      // The UID is typically a 32-char hex string
+      const potentialUid = pathParts[0];
+      if (/^[a-f0-9]{32}$/.test(potentialUid)) {
+        return potentialUid;
+      }
+    }
+    return null;
   } catch {
     return null;
   }
-}
-
-// Build HLS URL from streamUid and customer hash
-function buildHlsUrl(streamUid: string, customerHash: string): string {
-  return `https://customer-${customerHash}.cloudflarestream.com/${streamUid}/manifest/video.m3u8`;
 }
 
 export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({ 
@@ -76,41 +84,38 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   const [loadError, setLoadError] = useState<string | null>(null);
   const hideControlsTimeout = useRef<NodeJS.Timeout>();
 
-  // Determine the video source URL
+  // Determine the video source URL - always prefer videodelivery.net for HLS
   const getVideoSource = useCallback((): { type: 'hls' | 'native' | 'none'; url: string | null } => {
-    // Priority 1: Direct HLS URL provided
+    // Priority 1: Cloudflare Stream UID - use canonical videodelivery.net URL
+    if (streamUid) {
+      return { type: 'hls', url: buildCanonicalHlsUrl(streamUid) };
+    }
+
+    // Priority 2: Direct HLS URL provided - normalize to videodelivery.net if possible
     if (hlsUrl) {
+      const extractedUid = extractStreamUidFromUrl(hlsUrl);
+      if (extractedUid) {
+        // Use canonical URL instead of customer-specific one
+        return { type: 'hls', url: buildCanonicalHlsUrl(extractedUid) };
+      }
+      // Fallback to provided URL if can't extract UID
       return { type: 'hls', url: hlsUrl };
     }
 
-    // Priority 2: Cloudflare Stream UID - build HLS URL
-    if (streamUid) {
-      // Try to extract customer hash from src (playback URL) or env var
-      let customerHash: string | null = null;
-      
-      if (src) {
-        customerHash = extractCustomerHash(src);
-      }
-      
-      if (!customerHash) {
-        customerHash = import.meta.env.VITE_CLOUDFLARE_CUSTOMER_HASH;
-      }
-
-      if (customerHash) {
-        return { type: 'hls', url: buildHlsUrl(streamUid, customerHash) };
-      }
-      
-      // Fallback: can't determine HLS URL
-      console.warn('Cannot determine Cloudflare customer hash for HLS playback');
-      return { type: 'none', url: null };
-    }
-
-    // Priority 3: Regular video URL (mp4, webm, etc.)
+    // Priority 3: src might be an HLS URL or video file
     if (src) {
-      // Check if it's already an HLS manifest
+      // Check if it's a Cloudflare Stream URL - normalize it
+      const extractedUid = extractStreamUidFromUrl(src);
+      if (extractedUid) {
+        return { type: 'hls', url: buildCanonicalHlsUrl(extractedUid) };
+      }
+      
+      // Check if it's an HLS manifest
       if (src.includes('.m3u8')) {
         return { type: 'hls', url: src };
       }
+      
+      // Regular video file (mp4, webm, etc.)
       return { type: 'native', url: src };
     }
 
@@ -160,7 +165,31 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         hls.on(Hls.Events.ERROR, (_, data) => {
           if (data.fatal) {
             console.error('HLS fatal error:', data);
-            setLoadError('Falha ao carregar o vídeo. Tenta recarregar.');
+            
+            // Build detailed error message for debugging
+            let errorDetail = `${data.type}`;
+            if (data.details) {
+              errorDetail += ` (${data.details})`;
+            }
+            if (data.response?.code) {
+              errorDetail += ` - HTTP ${data.response.code}`;
+            }
+            
+            let userMessage = 'Falha ao carregar o vídeo';
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+              if (data.response?.code === 403) {
+                userMessage = 'Acesso ao vídeo bloqueado (403). Tenta "Corrigir" a versão.';
+              } else if (data.response?.code === 404) {
+                userMessage = 'Vídeo não encontrado (404). Pode ainda estar a processar.';
+              } else {
+                userMessage = `Erro de rede: ${errorDetail}`;
+              }
+            } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+              userMessage = `Erro de media: ${errorDetail}`;
+            }
+            
+            console.error('HLS error detail:', errorDetail);
+            setLoadError(userMessage);
             setIsLoading(false);
           }
         });
