@@ -56,7 +56,7 @@ function VideoProductionTabContent({
   projectId,
   className,
 }: VideoProductionTabProps) {
-  const { versions, loading, deleteVersion, getSignedUrl, isProcessing, refetch } = useVideoVersions(taskId, workspaceId);
+  const { versions, loading, deleteVersion, getSignedUrl, isProcessing, refetch } = useVideoVersions(taskId, workspaceId, projectId);
   const [selectedVersion, setSelectedVersion] = useState<VideoVersion | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [loadingUrl, setLoadingUrl] = useState(false);
