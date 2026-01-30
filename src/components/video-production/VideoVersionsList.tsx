@@ -80,11 +80,6 @@ export function VideoVersionsList({
 
   return (
     <div className={cn("space-y-2", className)}>
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium">Versões</span>
-        <Badge variant="secondary">{versions.length}</Badge>
-      </div>
-
       <TooltipProvider>
         {versions.map((version) => {
           const hasStreamError = version.stream_status === 'error' || 

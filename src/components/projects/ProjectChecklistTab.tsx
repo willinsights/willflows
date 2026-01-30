@@ -534,7 +534,7 @@ export function ProjectChecklistTab({
       {showCaptacao && (
         <PhaseChecklistSection
           phase="captacao"
-          phaseLabel="Checklist Captação"
+          phaseLabel="WillFlow Review Captação"
           checklists={checklists}
           taskIds={captacaoTaskIds}
           projectId={projectId}
@@ -550,7 +550,7 @@ export function ProjectChecklistTab({
       {showEdicao && (
         <PhaseChecklistSection
           phase="edicao"
-          phaseLabel="Checklist Edição"
+          phaseLabel="WillFlow Review Edição"
           checklists={checklists}
           taskIds={edicaoTaskIds}
           projectId={projectId}
