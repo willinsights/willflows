@@ -1257,7 +1257,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                     </div>
                   ) : (
                     <VideoProductionTab
-                      taskId={selectedVideoTaskId || project.id}
+                      taskId={selectedVideoTaskId}
                       projectId={project.id}
                       workspaceId={project.workspace_id}
                     />

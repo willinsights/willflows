@@ -7,7 +7,7 @@ import { useVideoVersions } from '@/hooks/useVideoVersions';
 import { useWorkspaceStorage } from '@/hooks/useWorkspaceStorage';
 
 interface VideoVersionUploadProps {
-  taskId: string;
+  taskId: string | null;
   workspaceId: string;
   projectId: string;
   onUploadComplete?: () => void;

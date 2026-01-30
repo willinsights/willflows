@@ -22,7 +22,7 @@ import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { FeatureTeaser } from '@/components/subscription/FeatureTeaser';
 
 interface VideoProductionTabProps {
-  taskId: string;
+  taskId: string | null;
   workspaceId: string;
   projectId: string;
   className?: string;

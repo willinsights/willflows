@@ -110,20 +110,28 @@ serve(async (req) => {
       fileSize 
     } = await req.json();
 
-    if (!key || !taskId || !workspaceId || !fileName || !fileSize) {
+    // taskId is optional - projectId is required when no taskId
+    if (!key || !workspaceId || !projectId || !fileName || !fileSize) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Get next version number
-    const { data: existingVersions, error: versionsError } = await supabase
+    // Get next version number - query by taskId if available, otherwise by projectId
+    let versionsQuery = supabase
       .from("video_versions")
       .select("version_number")
-      .eq("task_id", taskId)
       .order("version_number", { ascending: false })
       .limit(1);
+
+    if (taskId) {
+      versionsQuery = versionsQuery.eq("task_id", taskId);
+    } else {
+      versionsQuery = versionsQuery.is("task_id", null).eq("project_id", projectId);
+    }
+
+    const { data: existingVersions, error: versionsError } = await versionsQuery;
 
     if (versionsError) {
       logStep("Error fetching versions", { error: versionsError.message });
@@ -136,7 +144,7 @@ serve(async (req) => {
     const { data: versionData, error: insertError } = await supabase
       .from("video_versions")
       .insert({
-        task_id: taskId,
+        task_id: taskId || null,
         workspace_id: workspaceId,
         project_id: projectId,
         version_number: nextVersion,

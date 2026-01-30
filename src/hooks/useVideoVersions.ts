@@ -28,7 +28,7 @@ export interface VideoVersion {
 
 interface UploadVideoInput {
   file: File;
-  taskId: string;
+  taskId: string | null;
   workspaceId: string;
   projectId: string;
 }
