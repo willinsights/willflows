@@ -1,152 +1,118 @@
 
-## Caixa de Comentário Sempre Visível (Estilo Frame.io)
 
-### Objetivo
-Transformar o input de comentário para estar **sempre visível abaixo do player**, onde:
-- Ao começar a escrever, o timecode atual é automaticamente capturado
-- Os comentários ficam no lado **esquerdo** (layout invertido)
-- O timecode fica associado ao momento em que o utilizador começou a escrever
+## Corrigir Recarregamento de Página ao Salvar Comentário
 
-### Alterações Planeadas
+### Problema Identificado
+Quando um comentário é salvo, o código chama `fetchApprovalData()` que:
+1. Define `loading = true` (linha 149)
+2. Isso mostra o spinner e **desmonta o player de vídeo**
+3. Quando os dados chegam, o vídeo é recriado do zero
+4. O utilizador perde a posição do vídeo e demora a voltar
 
-#### 1. Layout Invertido (Comentários à Esquerda)
-Mudar o grid de:
+### Solução
+Criar uma função dedicada `refreshComments()` que:
+- Busca **apenas os comentários** do backend
+- **NÃO** altera o estado `loading`
+- Mantém o player de vídeo intacto
+- Preserva a posição atual do vídeo
+
+### Alterações Técnicas
+
+#### 1. Nova Função `refreshComments()`
+```typescript
+// Atualizar apenas comentários sem recarregar tudo
+const refreshComments = useCallback(async () => {
+  if (!token) return;
+
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-video-approval-data?token=${encodeURIComponent(token)}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+      }
+    );
+
+    if (!response.ok) return;
+
+    const approvalData: ApprovalData = await response.json();
+    
+    // Atualizar APENAS os comentários no estado
+    setData(prev => prev ? { ...prev, comments: approvalData.comments } : null);
+  } catch (err) {
+    console.error('Error refreshing comments:', err);
+  }
+}, [token]);
 ```
-[Player (2 colunas)]  [Comentários (1 coluna)]
-```
-Para:
-```
-[Comentários (1 coluna)]  [Player (2 colunas)]
+
+#### 2. Alterar `handleSubmitComment()`
+Substituir `await fetchApprovalData()` por `await refreshComments()`:
+
+```typescript
+// Antes:
+await fetchApprovalData();  // ❌ Recarrega tudo
+
+// Depois:
+await refreshComments();    // ✅ Só atualiza comentários
 ```
 
-#### 2. Input de Comentário Sempre Visível
-Remover a lógica `isCommentMode` e manter o input sempre visível abaixo do player:
-- Campo de nome (se ainda não guardado)
-- Campo de comentário com placeholder "Adicione um comentário..."
-- Badge de timecode que aparece quando o utilizador começa a escrever
-- Botão de enviar
+#### 3. Adicionar Novo Comentário Localmente (Otimização Extra)
+Para feedback ainda mais instantâneo, podemos adicionar o comentário ao estado local **antes** de chamar a API:
 
-#### 3. Captura Automática do Timecode
-Quando o utilizador começa a escrever no textarea:
-- Pausa o vídeo automaticamente
-- Captura o timecode atual
-- Mostra o badge com o timecode junto ao input
-- Se o utilizador apagar tudo, reseta o timecode
+```typescript
+const handleSubmitComment = async () => {
+  // ... validações ...
+
+  const newComment: VideoComment = {
+    id: crypto.randomUUID(),
+    video_version_id: selectedVersionId,
+    timestamp_seconds: Math.floor(commentTimestamp),
+    body: commentText.trim(),
+    status: 'open',
+    is_client_comment: true,
+    client_name: clientName.trim(),
+    created_at: new Date().toISOString(),
+  };
+
+  // Adicionar imediatamente ao estado local
+  setData(prev => prev ? {
+    ...prev,
+    comments: [...prev.comments, newComment]
+  } : null);
+
+  // Limpar form
+  setCommentText('');
+  setHasStartedTyping(false);
+  setCommentTimestamp(0);
+
+  // Submeter em background
+  try {
+    await fetch(...);
+    // Sincronizar com backend para obter ID real
+    await refreshComments();
+  } catch (err) {
+    // Reverter em caso de erro
+    setData(prev => prev ? {
+      ...prev,
+      comments: prev.comments.filter(c => c.id !== newComment.id)
+    } : null);
+    alert('Erro ao enviar comentário');
+  }
+};
+```
 
 ### Ficheiro a Modificar
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `src/pages/public/VideoApproval.tsx` | Inverter layout, input sempre visível, captura automática de timecode |
+| `src/pages/public/VideoApproval.tsx` | Adicionar `refreshComments()`, atualizar `handleSubmitComment()` |
 
-### Detalhes Técnicos
+### Resultado Esperado
+- Comentário é salvo **instantaneamente** sem delay visível
+- Vídeo **não é recarregado** - mantém a posição
+- Player continua funcional imediatamente após salvar
+- Experiência fluida idêntica ao Frame.io
 
-#### Nova Lógica de Captura de Timecode
-
-```typescript
-// Ao começar a escrever, captura o timecode
-const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-  const newValue = e.target.value;
-  
-  // Se está a começar a escrever (de vazio para algo)
-  if (!commentText && newValue) {
-    // Pausa o vídeo e captura o timecode
-    if (videoRef.current) {
-      videoRef.current.pause();
-      setIsPlaying(false);
-    }
-    setCommentTimestamp(currentTime);
-  }
-  
-  // Se apagou tudo, reseta o timecode
-  if (commentText && !newValue) {
-    setCommentTimestamp(0);
-  }
-  
-  setCommentText(newValue);
-};
-```
-
-#### Novo Layout do Grid
-
-```tsx
-<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-  {/* Comentários à ESQUERDA */}
-  <div className="order-2 lg:order-1 space-y-4">
-    <Card>
-      <CardHeader>...</CardHeader>
-      <CardContent>...</CardContent>
-    </Card>
-  </div>
-  
-  {/* Player à DIREITA (2 colunas) */}
-  <div className="order-1 lg:order-2 lg:col-span-2 space-y-4">
-    {/* Vídeo */}
-    <Card>...</Card>
-    
-    {/* Input SEMPRE visível */}
-    <Card className="p-4">
-      <div className="flex items-start gap-3">
-        {/* Timecode badge (aparece ao escrever) */}
-        {commentText && (
-          <div className="flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5">
-            <Clock className="h-3.5 w-3.5" />
-            {formatTimecode(Math.floor(commentTimestamp))}
-          </div>
-        )}
-        
-        {/* Input area */}
-        <div className="flex-1">
-          <Textarea
-            placeholder="Adicione um comentário..."
-            value={commentText}
-            onChange={handleCommentChange}
-          />
-          
-          {/* Nome e botão enviar */}
-          <div className="flex items-center justify-between mt-3">
-            <Input placeholder="O seu nome" value={clientName} ... />
-            <Button onClick={handleSubmitComment} disabled={!commentText.trim()}>
-              <Send className="h-4 w-4 mr-1" />
-              Enviar
-            </Button>
-          </div>
-        </div>
-      </div>
-    </Card>
-  </div>
-</div>
-```
-
-### Estados Removidos
-- `isCommentMode` - já não necessário pois o input está sempre visível
-- `enterCommentMode()` - substituído pela lógica automática
-- `cancelCommentMode()` - substituído por limpar o texto
-
-### UX Melhorada
-1. Utilizador vê o vídeo
-2. Quando quer comentar, simplesmente começa a escrever
-3. O vídeo pausa automaticamente e o timecode é capturado
-4. Vê o badge com "00:01:23" junto ao input
-5. Escreve o comentário e envia
-6. Pode continuar a ver o vídeo
-
-### Resultado Visual
-
-```text
-+--------------------+  +----------------------------------+
-|                    |  |                                  |
-|   COMENTÁRIOS      |  |           VIDEO PLAYER           |
-|                    |  |                                  |
-|  ┌────────────┐    |  +----------------------------------+
-|  │00:01:23    │    |  |                                  |
-|  │ "Ajustar..." │  |  |  [●] 00:01:23  Escreve aqui...   |
-|  │ João • 5min│    |  |  Nome: [João Silva___]  [Enviar] |
-|  └────────────┘    |  +----------------------------------+
-|                    |
-|  ┌────────────┐    |
-|  │00:02:45    │    |
-|  │ "Mudar..."  │   |
-|  └────────────┘    |
-+--------------------+
-```
