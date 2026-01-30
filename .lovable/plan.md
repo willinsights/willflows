@@ -1,129 +1,91 @@
 
-## Plano de Diagnóstico e Correção: Email de Reenvio de Convite
 
-### Estado Atual
-
-A investigação revelou que a infraestrutura está funcional:
-
-| Componente | Estado |
-|------------|--------|
-| Edge function `send-invitation-email` | Funcional (testado com sucesso) |
-| Remetente | `WillFlow <noreply@willflow.app>` |
-| RESEND_API_KEY | Configurada |
-| Validação de domínios `.pt` | Aceita com fallback de TLD |
+## Plano de Correção: Erro `function digest(text, unknown) does not exist`
 
 ### Problema Identificado
 
-O hook `resendInvitation` depende da lista de convites em memória (`invitations`) que é filtrada para excluir convites expirados. Se um convite expirar enquanto o utilizador está na página, o clique em "Reenviar" falha silenciosamente porque:
+A função `convert_invitation_to_member()` dispara quando um convite é aceite e tenta converter o email hash de volta para encontrar o utilizador. Está a usar:
 
-```tsx
-// Linha 205 de useWorkspaceInvitations.ts
-const invitation = invitations.find(inv => inv.id === invitationId);
-if (!invitation) {
-  return { success: false, error: 'Convite não encontrado' };
-}
+```sql
+WHERE encode(digest(email, 'sha256'), 'hex') = NEW.email_hash
 ```
 
-### Correções Propostas
+Mas deveria usar:
+
+```sql
+WHERE encode(extensions.digest(email, 'sha256'), 'hex') = NEW.email_hash
+```
+
+A função `digest()` faz parte da extensão `pgcrypto` que no Supabase está no schema `extensions`.
 
 ---
 
-#### Correção 1: Buscar Convite Diretamente da Base de Dados
+### Correção
 
-**Ficheiro:** `src/hooks/useWorkspaceInvitations.ts`
+**Tipo:** Migração SQL
 
-Em vez de depender da lista em memória, buscar o convite diretamente da base de dados:
+Corrigir a função `convert_invitation_to_member()` para usar o prefixo correto:
 
-```tsx
-const resendInvitation = async (invitationId: string): Promise<{ success: boolean; error?: string }> => {
-  if (!currentWorkspace?.id) {
-    return { success: false, error: 'Workspace não encontrado' };
-  }
-
-  // Buscar diretamente da DB em vez de usar lista em memória
-  const { data: invitation, error: fetchError } = await supabase
-    .from('workspace_invitations')
-    .select('id, email, role, token')
-    .eq('id', invitationId)
-    .eq('workspace_id', currentWorkspace.id)
-    .is('accepted_at', null)
-    .single();
-
-  if (fetchError || !invitation) {
-    return { success: false, error: 'Convite não encontrado ou já aceite' };
-  }
-
-  // ... resto do código
-};
+```sql
+-- Fix: Use extensions.digest() instead of digest()
+CREATE OR REPLACE FUNCTION convert_invitation_to_member()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_user_id UUID;
+  v_conversation_id UUID;
+  v_project_record RECORD;
+BEGIN
+  -- Only run when invitation is accepted
+  IF NEW.accepted_at IS NOT NULL AND OLD.accepted_at IS NULL THEN
+    -- Find the user by email hash (FIXED: use extensions.digest)
+    SELECT id INTO v_user_id 
+    FROM profiles 
+    WHERE encode(extensions.digest(email, 'sha256'), 'hex') = NEW.email_hash;
+    
+    IF v_user_id IS NOT NULL THEN
+      -- Update project_team records: convert invitation_id to user_id
+      FOR v_project_record IN 
+        SELECT pt.project_id 
+        FROM project_team pt 
+        WHERE pt.invitation_id = NEW.id
+      LOOP
+        -- Update the team record
+        UPDATE project_team 
+        SET user_id = v_user_id, invitation_id = NULL
+        WHERE invitation_id = NEW.id AND project_id = v_project_record.project_id;
+        
+        -- Add user to project chat if exists
+        SELECT id INTO v_conversation_id 
+        FROM conversations 
+        WHERE project_id = v_project_record.project_id AND type = 'project';
+        
+        IF v_conversation_id IS NOT NULL THEN
+          INSERT INTO conversation_members (conversation_id, user_id, role)
+          VALUES (v_conversation_id, v_user_id, 'member')
+          ON CONFLICT (conversation_id, user_id) DO NOTHING;
+        END IF;
+      END LOOP;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 ```
-
----
-
-#### Correção 2: Melhorar Feedback de Erros na UI
-
-**Ficheiro:** `src/pages/app/Equipa.tsx`
-
-Tratar o campo `error` mesmo quando `success: true`:
-
-```tsx
-const handleResendInvite = async (id: string) => {
-  const result = await resendInvitation(id);
-  
-  if (result.success) {
-    toast({
-      title: 'Convite reenviado',
-      description: result.error || 'O convite foi reenviado com sucesso.',
-      variant: result.error ? 'default' : 'default',
-    });
-  } else {
-    toast({
-      title: 'Erro ao reenviar convite',
-      description: result.error || 'Ocorreu um erro. Tente novamente.',
-      variant: 'destructive',
-    });
-  }
-  
-  refreshInvitations();
-};
-```
-
----
-
-#### Correção 3: Adicionar Logging na Edge Function
-
-**Ficheiro:** `supabase/functions/send-invitation-email/index.ts`
-
-Melhorar os logs para diagnóstico:
-
-```typescript
-console.log("Request body:", { 
-  email: email?.substring(0, 3) + '***', 
-  workspaceName, 
-  role,
-  hasToken: !!inviteToken 
-});
-
-// Antes de enviar
-console.log("Attempting to send email via Resend...");
-
-// Após resposta
-console.log("Resend response status:", emailResponse.status);
-```
-
----
-
-### Ficheiros a Modificar
-
-| Ficheiro | Alteração |
-|----------|-----------|
-| `src/hooks/useWorkspaceInvitations.ts` | Buscar convite da DB diretamente |
-| `src/pages/app/Equipa.tsx` | Tratar `result.error` mesmo com `success: true` |
-| `supabase/functions/send-invitation-email/index.ts` | Melhorar logging para diagnóstico |
 
 ---
 
 ### Resultado Esperado
 
-1. Convites expirados podem ser reenviados (busca direta da DB estende expiração)
-2. Utilizador recebe feedback claro sobre o estado do envio
-3. Logs detalhados para diagnóstico de problemas futuros
+1. O trigger `on_invitation_accepted` vai funcionar corretamente
+2. Quando um convite for aceite, o sistema vai encontrar o utilizador pelo email
+3. Os registos de `project_team` serão convertidos de `invitation_id` para `user_id`
+4. O utilizador será adicionado aos chats de projeto automaticamente
+
+---
+
+### Notas
+
+- O erro ocorre especificamente quando se tenta aceitar convites, não ao reenviar
+- O convidado já tem conta no app, por isso o trigger está a ser executado
+- A correção é simples: adicionar o prefixo `extensions.` à função `digest()`
+
