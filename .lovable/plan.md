@@ -1,31 +1,18 @@
 
 
-## Correção: Campo de Nome Causa Refresh a Cada Letra
+## Correção: Capturar Timecode Exato do Vídeo
 
 ### Problema Identificado
-A função `fetchApprovalData` tem `clientName` como dependência do `useCallback` (linha 189). Isto causa um ciclo:
+O timecode é capturado do estado React `currentTime`, que só é atualizado pelo evento `timeupdate` (4-15 vezes por segundo). Isto cria um atraso de até ~250ms entre a posição real do vídeo e o valor capturado.
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│  Utilizador escreve letra → setClientName                   │
-│        ↓                                                    │
-│  fetchApprovalData recriado (clientName nas dependências)   │
-│        ↓                                                    │
-│  useEffect detecta mudança → chama fetchApprovalData()      │
-│        ↓                                                    │
-│  setLoading(true) → ecrã pisca / "refresh"                  │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-### Causa Raiz (Linha 189)
+### Causa Raiz (Linha 332)
 
 ```typescript
-}, [token, clientName]); // ← clientName NÃO deveria estar aqui
+// ❌ Problema: currentTime é um estado React desatualizado
+setCommentTimestamp(currentTime);
 ```
 
-O `clientName` só é usado para definir o estado inicial se não existir (linhas 171-173), mas como está nas dependências, qualquer alteração ao nome recria a função e dispara um novo fetch.
+O estado `currentTime` pode ter sido atualizado há 50-250ms atrás. Para um serviço de aprovação de vídeo profissional, precisamos da posição **exata** no momento da captura.
 
 ---
 
@@ -33,45 +20,71 @@ O `clientName` só é usado para definir o estado inicial se não existir (linha
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `src/pages/public/VideoApproval.tsx` | Remover `clientName` das dependências |
+| `src/pages/public/VideoApproval.tsx` | Ler posição diretamente do elemento vídeo |
 
 ---
 
 ### Alteração
 
-**Linha 189 - Alterar de:**
+**Linhas 326-333 - Alterar de:**
 ```typescript
-}, [token, clientName]);
+// If starting to type (from empty to something)
+if (!commentText && newValue) {
+  // Pause video and capture timecode
+  if (videoRef.current) {
+    videoRef.current.pause();
+    setIsPlaying(false);
+  }
+  setCommentTimestamp(currentTime);
+  setHasStartedTyping(true);
+}
 ```
 
 **Para:**
 ```typescript
-}, [token]);
-```
-
----
-
-### Porquê é Seguro?
-
-O `clientName` dentro do callback (linhas 171-173) só é usado para verificar se deve definir o nome inicial do servidor:
-
-```typescript
-if (!clientName && approvalData.client_name) {
-  setClientName(approvalData.client_name);
+// If starting to type (from empty to something)
+if (!commentText && newValue) {
+  // Pause video and capture EXACT timecode directly from video element
+  if (videoRef.current) {
+    // Capture exact position BEFORE pausing for maximum precision
+    const exactTimestamp = videoRef.current.currentTime;
+    videoRef.current.pause();
+    setIsPlaying(false);
+    setCommentTimestamp(exactTimestamp);
+    setCurrentTime(exactTimestamp); // Sync state to match
+  } else {
+    // Fallback if no video ref
+    setCommentTimestamp(currentTime);
+  }
+  setHasStartedTyping(true);
 }
 ```
 
-Esta lógica só precisa de correr uma vez no carregamento inicial. Usar uma referência ou simplesmente remover a dependência não afeta o comportamento pretendido porque:
-1. Se já há nome local, não faz nada
-2. Se não há nome, usa o do servidor
-
-Como o fetch só corre uma vez (no mount), remover a dependência é a solução correta.
-
 ---
 
-### Resultado Esperado
+### Porquê Funciona
 
 | Antes | Depois |
 |-------|--------|
-| Cada letra → página "pisca" / refresh | Escrita fluida sem interrupções |
+| `currentTime` (estado React) - pode ter ~250ms de atraso | `videoRef.current.currentTime` - posição exata no momento |
+
+A leitura direta de `videoRef.current.currentTime` dá a posição com precisão de milissegundos, garantindo que o timecode do comentário corresponde **exatamente** ao frame visível no ecrã.
+
+---
+
+### Fluxo Corrigido
+
+```text
+┌──────────────────────────────────────────────────────┐
+│  Utilizador clica no campo de texto                  │
+│        ↓                                             │
+│  1. Lê videoRef.current.currentTime (posição EXATA)  │
+│        ↓                                             │
+│  2. Pausa o vídeo                                    │
+│        ↓                                             │
+│  3. Guarda timestamp exato no estado                 │
+│        ↓                                             │
+│  Resultado: Timecode = 00:00:24:09 (frame correto)   │
+└──────────────────────────────────────────────────────┘
+```
 
