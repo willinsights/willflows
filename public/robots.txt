@@ -26,6 +26,7 @@ Disallow: /onboarding
 Disallow: /convite
 Disallow: /checkout-success
 Disallow: /tutorial
+Disallow: /video-approval/
 
 # Sitemaps - Static and Dynamic
 Sitemap: https://willflow.app/sitemap.xml

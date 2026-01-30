@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import Hls from 'hls.js';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -487,34 +488,54 @@ export default function VideoApproval() {
   // Render loading
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-          <p className="mt-4 text-muted-foreground">A carregar...</p>
+      <>
+        <Helmet>
+          <meta name="robots" content="noindex, nofollow, noarchive" />
+          <meta name="googlebot" content="noindex, nofollow, noarchive" />
+          <title>Studio Review | WillFlow</title>
+        </Helmet>
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+            <p className="mt-4 text-muted-foreground">A carregar...</p>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   // Render error
   if (error || !data) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Card className="max-w-md w-full mx-4">
-          <CardContent className="pt-6 text-center">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Link Inválido</h2>
-            <p className="text-muted-foreground">{error || 'Este link de aprovação não é válido.'}</p>
-          </CardContent>
-        </Card>
-      </div>
+      <>
+        <Helmet>
+          <meta name="robots" content="noindex, nofollow, noarchive" />
+          <meta name="googlebot" content="noindex, nofollow, noarchive" />
+          <title>Studio Review | WillFlow</title>
+        </Helmet>
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <Card className="max-w-md w-full mx-4">
+            <CardContent className="pt-6 text-center">
+              <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">Link Inválido</h2>
+              <p className="text-muted-foreground">{error || 'Este link de aprovação não é válido.'}</p>
+            </CardContent>
+          </Card>
+        </div>
+      </>
     );
   }
 
   // Render approved state
   if (data.approval) {
     return (
-      <div className="min-h-screen bg-background">
+      <>
+        <Helmet>
+          <meta name="robots" content="noindex, nofollow, noarchive" />
+          <meta name="googlebot" content="noindex, nofollow, noarchive" />
+          <title>Studio Review | WillFlow</title>
+        </Helmet>
+        <div className="min-h-screen bg-background">
         <header className="border-b bg-card/50 backdrop-blur-sm">
           <div className="container py-4 flex items-center justify-between">
             <img src={logoBlack} alt="WillFlow" className="h-8 dark:hidden" />
@@ -545,15 +566,22 @@ export default function VideoApproval() {
             </CardContent>
           </Card>
         </main>
-      </div>
+        </div>
+      </>
     );
   }
 
   const selectedVersion = data.versions.find(v => v.id === selectedVersionId);
 
   return (
-    <TooltipProvider>
-      <div className="min-h-screen bg-background">
+    <>
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow, noarchive" />
+        <meta name="googlebot" content="noindex, nofollow, noarchive" />
+        <title>Studio Review | WillFlow</title>
+      </Helmet>
+      <TooltipProvider>
+        <div className="min-h-screen bg-background">
         {/* Header */}
         <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
           <div className="container py-4 flex items-center justify-between">
@@ -943,7 +971,8 @@ export default function VideoApproval() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
-    </TooltipProvider>
+        </div>
+      </TooltipProvider>
+    </>
   );
 }
