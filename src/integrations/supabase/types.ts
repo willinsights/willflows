@@ -3494,7 +3494,63 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      workspace_members_secure: {
+        Row: {
+          created_at: string | null
+          hourly_rate: number | null
+          id: string | null
+          invited_at: string | null
+          is_active: boolean | null
+          joined_at: string | null
+          role: Database["public"]["Enums"]["app_role"] | null
+          specialization: string[] | null
+          updated_at: string | null
+          user_id: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          hourly_rate?: never
+          id?: string | null
+          invited_at?: string | null
+          is_active?: boolean | null
+          joined_at?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
+          specialization?: string[] | null
+          updated_at?: string | null
+          user_id?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          hourly_rate?: never
+          id?: string | null
+          invited_at?: string | null
+          is_active?: boolean | null
+          joined_at?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
+          specialization?: string[] | null
+          updated_at?: string | null
+          user_id?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_members_user_profile_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_members_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       accept_workspace_invitation: { Args: { p_token: string }; Returns: Json }
