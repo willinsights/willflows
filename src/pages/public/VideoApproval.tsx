@@ -186,7 +186,7 @@ export default function VideoApproval() {
       setError(err.message || 'Erro ao carregar dados de aprovação');
       setLoading(false);
     }
-  }, [token, clientName]);
+  }, [token]);
 
   // Refresh comments only (without reloading the entire page/player)
   const refreshComments = useCallback(async () => {
