@@ -142,9 +142,9 @@ const App = () => (
                     <Route path="/vs/clickup" element={<VsClickUp />} />
                     <Route path="/vs/trello" element={<VsTrello />} />
                     
-                    {/* Admin Routes (public login, protected dashboard) */}
+                    {/* Admin Routes - login separate, dashboard with layout */}
                     <Route path="/admin" element={<AdminLogin />} />
-                    <Route path="/admin" element={<AdminLayout />}>
+                    <Route path="/admin/*" element={<AdminLayout />}>
                       <Route path="dashboard" element={<AdminDashboard />} />
                       <Route path="analytics" element={<AdminAnalytics />} />
                       <Route path="content" element={<AdminContent />} />

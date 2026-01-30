@@ -438,10 +438,39 @@ CREATE INDEX IF NOT EXISTS idx_video_versions_task
 
 ## 10. PLANO DE EXECUÇÃO
 
-### Sprint 0 — Hotfix e Riscos Críticos
-**Esforço: BAIXO (1-2 dias)**
+### Sprint 0 — Hotfix e Riscos Críticos ✅ CONCLUÍDO
+**Esforço: BAIXO (1-2 dias)** — **Executado em 30/01/2026**
 
-1. Corrigir `plans.ts` (mediaHub, financialReports no Starter)
+1. ✅ Corrigir `plans.ts` (mediaHub, financialReports no Starter) — **FEITO**
+2. ✅ Verificar RLS a `video_versions` — **JÁ EXISTIA** (is_workspace_member, is_workspace_admin)
+3. ✅ Remover `SuperAdmin.tsx` — **REMOVIDO**
+4. ⏭️ Corrigir produto IDs no stripe-webhook — **PENDENTE** (requer novos IDs do Stripe)
+5. ✅ Criar função `can_access_feature()` server-side — **CRIADA** com search_path
+6. ✅ Limpar rotas `/admin` duplicadas — **CORRIGIDO** em App.tsx
+7. ⏸️ Políticas RLS permissivas (beta_waitlist, blog_share_analytics, contract_views) — **INTENCIONAIS** (público)
+
+#### Alterações Realizadas:
+- `src/lib/plans.ts`: mediaHub e financialReports agora `included: true` para Starter
+- `src/pages/app/SuperAdmin.tsx`: Ficheiro removido (código morto)
+- `src/App.tsx`: Rotas admin reorganizadas (/admin/* com wildcard)
+- DB: Função `can_access_feature(workspace_id, feature)` criada para validação server-side
+
+---
+
+### Sprint 1 — Refatoração Base + Segurança
+**Esforço: MÉDIO (3-5 dias)**
+
+1. Integrar `can_access_feature()` nos edge functions críticos
+2. Adicionar `SET search_path = public` a funções existentes (linter warning)
+3. Implementar rate limiting em endpoints sensíveis
+4. Adicionar testes unitários para `usePlanFeatures`
+5. Corrigir `getCompactFeatures()` em plans.ts (mostra Excel para Starter incorretamente)
+
+---
+
+### Original Sprint 1-4 (mantido para referência)
+
+#### Sprint 1 Original
 2. Adicionar RLS policies a `video_versions`
 3. Remover `SuperAdmin.tsx`
 4. Atualizar security finding (blog_posts como intencional)
