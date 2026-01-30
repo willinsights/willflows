@@ -4,6 +4,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
 import { useWorkspaceGoals } from '@/hooks/useWorkspaceGoals';
+import { useHideValues } from '@/hooks/useHideValues';
 import { cn } from '@/lib/utils';
 
 interface MobileGoalsSummaryProps {
@@ -19,6 +20,7 @@ export function MobileGoalsSummary({
 }: MobileGoalsSummaryProps) {
   const { formatCurrency } = useCurrentWorkspace();
   const { goal, loading: goalLoading } = useWorkspaceGoals();
+  const { hideValues } = useHideValues();
   
   const loading = metricsLoading || goalLoading;
   
@@ -115,10 +117,10 @@ export function MobileGoalsSummary({
             </div>
             <Progress value={revenueProgress} className="h-2 mb-2" />
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold">
+              <span className={cn("text-sm font-semibold", hideValues && "blur-md select-none")}>
                 {formatCurrency(currentRevenue)}
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className={cn("text-xs text-muted-foreground", hideValues && "blur-md select-none")}>
                 / {formatCurrency(revenueTarget)}
               </span>
             </div>

@@ -1,6 +1,7 @@
 import { BarChart3, TrendingUp, TrendingDown } from 'lucide-react';
 import { MobileCollapsibleCard } from './MobileCollapsibleCard';
 import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
+import { useHideValues } from '@/hooks/useHideValues';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import type { MonthlyData, AnnualComparisonData } from '@/hooks/useDashboardMetrics';
@@ -29,6 +30,7 @@ export function MobileFinancialSummary({
   previousYearLabel = (new Date().getFullYear() - 1).toString(),
 }: MobileFinancialSummaryProps) {
   const { formatCurrency } = useCurrentWorkspace();
+  const { hideValues } = useHideValues();
 
   // Get current month data for preview
   const currentMonthData = monthlyData[monthlyData.length - 1];
@@ -51,13 +53,13 @@ export function MobileFinancialSummary({
           <div className="flex items-center gap-3">
             <div>
               <p className="text-xs text-muted-foreground">Receita</p>
-              <p className="text-sm font-semibold text-success">
+              <p className={cn("text-sm font-semibold text-success", hideValues && "blur-md select-none")}>
                 {formatCurrency(currentMonthData?.receita || 0)}
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Lucro</p>
-              <p className="text-sm font-semibold text-primary">
+              <p className={cn("text-sm font-semibold text-primary", hideValues && "blur-md select-none")}>
                 {formatCurrency(currentMonthData?.lucro || 0)}
               </p>
             </div>

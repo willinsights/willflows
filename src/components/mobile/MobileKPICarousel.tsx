@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
+import { useHideValues } from '@/hooks/useHideValues';
 import type { DashboardMetrics } from '@/hooks/useDashboardMetrics';
 
 interface MobileKPICarouselProps {
@@ -55,6 +56,7 @@ function ChangeIndicator({
 export function MobileKPICarousel({ metrics, loading }: MobileKPICarouselProps) {
   const { formatCurrency } = useCurrentWorkspace();
   const { canViewAllFinancials, canViewOwnFinancials } = useFinancialPermissions();
+  const { hideValues } = useHideValues();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -187,7 +189,11 @@ export function MobileKPICarousel({ metrics, loading }: MobileKPICarouselProps) 
                   <Skeleton className="h-7 w-12" />
                 ) : (
                   <div className="space-y-0.5">
-                    <span className={cn('text-xl font-bold block', 'valueClass' in kpi ? kpi.valueClass : '')}>
+                    <span className={cn(
+                      'text-xl font-bold block', 
+                      'valueClass' in kpi ? kpi.valueClass : '',
+                      'isCurrency' in kpi && kpi.isCurrency && hideValues && 'blur-md select-none'
+                    )}>
                       {kpi.value}
                     </span>
                     {'change' in kpi && (

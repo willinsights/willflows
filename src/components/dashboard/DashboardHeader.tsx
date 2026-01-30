@@ -1,8 +1,12 @@
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useHideValues } from '@/hooks/useHideValues';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface DashboardHeaderProps {
   currentTime: Date;
@@ -11,6 +15,7 @@ interface DashboardHeaderProps {
 export function DashboardHeader({ currentTime }: DashboardHeaderProps) {
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
+  const { hideValues, toggleHideValues } = useHideValues();
 
   const getGreeting = () => {
     const hour = currentTime.getHours();
@@ -37,6 +42,25 @@ export function DashboardHeader({ currentTime }: DashboardHeaderProps) {
           {formattedDate} • {formattedTime}
         </p>
       </div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleHideValues}
+            className="h-8 w-8 p-0 self-start sm:self-auto"
+          >
+            {hideValues ? (
+              <EyeOff className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <Eye className="h-4 w-4 text-muted-foreground" />
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          <p className="text-xs">{hideValues ? 'Mostrar valores' : 'Esconder valores'}</p>
+        </TooltipContent>
+      </Tooltip>
     </motion.div>
   );
 }
