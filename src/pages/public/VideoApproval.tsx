@@ -350,7 +350,7 @@ export default function VideoApproval() {
     const optimisticComment: VideoComment = {
       id: crypto.randomUUID(),
       video_version_id: selectedVersionId,
-      timestamp_seconds: Math.floor(commentTimestamp),
+      timestamp_seconds: commentTimestamp,
       body: commentText.trim(),
       status: 'open',
       is_client_comment: true,
@@ -366,7 +366,7 @@ export default function VideoApproval() {
 
     // Clear form immediately for instant feedback
     const savedCommentText = commentText.trim();
-    const savedTimestamp = Math.floor(commentTimestamp);
+    const savedTimestamp = commentTimestamp;
     setCommentText('');
     setHasStartedTyping(false);
     setCommentTimestamp(0);
@@ -856,12 +856,18 @@ export default function VideoApproval() {
 
                     {/* Name input and submit button */}
                     <div className="flex items-center gap-3">
-                      <Input
-                        placeholder="O seu nome"
-                        value={clientName}
-                        onChange={(e) => setClientName(e.target.value)}
-                        className="h-9 max-w-[200px]"
-                      />
+                      <div className="flex flex-col gap-1">
+                        <Label htmlFor="client-name-input" className="text-xs text-muted-foreground">
+                          O seu nome
+                        </Label>
+                        <Input
+                          id="client-name-input"
+                          placeholder="Ex: João Silva"
+                          value={clientName}
+                          onChange={(e) => setClientName(e.target.value)}
+                          className="h-9 w-[200px]"
+                        />
+                      </div>
                       
                       <div className="flex-1" />
                       
