@@ -4,6 +4,7 @@ import { Target, Pencil, Lock, Check, X, Trophy, PartyPopper } from 'lucide-reac
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
@@ -157,10 +158,9 @@ export function MonthlyGoalsCard({
                 <label className="text-xs text-muted-foreground mb-1 block">
                   Meta de Receita
                 </label>
-                <Input
-                  type="number"
-                  value={revenueGoal}
-                  onChange={(e) => setRevenueGoal(e.target.value)}
+                <CurrencyInput
+                  value={revenueGoal ? parseFloat(revenueGoal) : null}
+                  onChange={(value) => setRevenueGoal(value?.toString() || '')}
                   placeholder="Ex: 15000"
                   className="h-9"
                 />

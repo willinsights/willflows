@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
@@ -755,24 +756,20 @@ export function CreateProjectModal({
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Preço Cliente ({currencySymbol}) *</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
+                        <CurrencyInput
                           placeholder="0.00"
-                          {...form.register('agreed_value', { valueAsNumber: true })}
+                          value={form.watch('agreed_value')}
+                          onChange={(value) => form.setValue('agreed_value', value || 0)}
                         />
                       </div>
 
                       {hasCaptacao && (
                         <div className="space-y-2">
                           <Label>Custo Captação ({currencySymbol})</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
+                          <CurrencyInput
                             placeholder="0.00"
-                            {...form.register('custo_captacao', { valueAsNumber: true })}
+                            value={form.watch('custo_captacao')}
+                            onChange={(value) => form.setValue('custo_captacao', value || 0)}
                           />
                         </div>
                       )}
@@ -780,24 +777,20 @@ export function CreateProjectModal({
                       {hasEdicao && (
                         <div className="space-y-2">
                           <Label>Custo Edição ({currencySymbol})</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
+                          <CurrencyInput
                             placeholder="0.00"
-                            {...form.register('custo_edicao', { valueAsNumber: true })}
+                            value={form.watch('custo_edicao')}
+                            onChange={(value) => form.setValue('custo_edicao', value || 0)}
                           />
                         </div>
                       )}
 
                       <div className="space-y-2">
                         <Label>Custos Extras ({currencySymbol})</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
+                        <CurrencyInput
                           placeholder="Equipamento, deslocação..."
-                          {...form.register('custos_extras', { valueAsNumber: true })}
+                          value={form.watch('custos_extras')}
+                          onChange={(value) => form.setValue('custos_extras', value || 0)}
                         />
                       </div>
                     </div>

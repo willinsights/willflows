@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -342,14 +343,13 @@ export function ProjectFinancialTab({
 
                 <div className="flex items-center gap-2">
                   <div className="relative w-24">
-                    <Input
-                      type="number"
+                    <CurrencyInput
                       placeholder="€0.00"
-                      value={member.payment_amount || ''}
-                      onChange={(e) => handleTeamMemberPaymentChange(
+                      value={member.payment_amount}
+                      onChange={(value) => handleTeamMemberPaymentChange(
                         member.id, 
                         'payment_amount', 
-                        Number(e.target.value)
+                        value || 0
                       )}
                       className="h-8 text-sm pr-7"
                       disabled={loading}
@@ -429,34 +429,30 @@ export function ProjectFinancialTab({
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>Preço Cliente (€)</Label>
-                  <Input 
-                    type="number" 
+                  <CurrencyInput 
                     value={editForm.agreed_value}
-                    onChange={(e) => setEditForm((prev: any) => ({ ...prev, agreed_value: Number(e.target.value) }))}
+                    onChange={(value) => setEditForm((prev: any) => ({ ...prev, agreed_value: value || 0 }))}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Custo Captação (€)</Label>
-                  <Input 
-                    type="number" 
+                  <CurrencyInput 
                     value={editForm.custo_captacao}
-                    onChange={(e) => setEditForm((prev: any) => ({ ...prev, custo_captacao: Number(e.target.value) }))}
+                    onChange={(value) => setEditForm((prev: any) => ({ ...prev, custo_captacao: value || 0 }))}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Custo Edição (€)</Label>
-                  <Input 
-                    type="number" 
+                  <CurrencyInput 
                     value={editForm.custo_edicao}
-                    onChange={(e) => setEditForm((prev: any) => ({ ...prev, custo_edicao: Number(e.target.value) }))}
+                    onChange={(value) => setEditForm((prev: any) => ({ ...prev, custo_edicao: value || 0 }))}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Custos Extras (€)</Label>
-                  <Input 
-                    type="number" 
+                  <CurrencyInput 
                     value={editForm.custos_extras}
-                    onChange={(e) => setEditForm((prev: any) => ({ ...prev, custos_extras: Number(e.target.value) }))}
+                    onChange={(value) => setEditForm((prev: any) => ({ ...prev, custos_extras: value || 0 }))}
                     placeholder="Equipamento, deslocação..."
                   />
                 </div>
