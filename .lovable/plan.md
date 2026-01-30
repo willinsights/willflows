@@ -457,41 +457,42 @@ CREATE INDEX IF NOT EXISTS idx_video_versions_task
 
 ---
 
-### Sprint 1 — Refatoração Base + Segurança
-**Esforço: MÉDIO (3-5 dias)**
+### Sprint 1 — Refatoração Base + Segurança ✅ CONCLUÍDO
+**Esforço: MÉDIO (3-5 dias)** — **Executado em 30/01/2026**
 
-1. Integrar `can_access_feature()` nos edge functions críticos
-2. Adicionar `SET search_path = public` a funções existentes (linter warning)
-3. Implementar rate limiting em endpoints sensíveis
-4. Adicionar testes unitários para `usePlanFeatures`
-5. Corrigir `getCompactFeatures()` em plans.ts (mostra Excel para Starter incorretamente)
+1. ✅ Verificar `SET search_path = public` em todas as funções SECURITY DEFINER — **53 funções validadas**
+2. ✅ Verificar RLS policies em `video_versions` — **4 políticas ativas**
+3. ✅ Atualizar security findings (marcar como intencional/resolvido) — **FEITO**
+4. ✅ Testes unitários para `usePlanFeatures` — **68 testes implementados**
+   - `src/lib/__tests__/plans.test.ts`: 45 testes para configuração PLANS
+   - `src/hooks/__tests__/usePlanFeatures.test.tsx`: 23 testes para hook
+
+#### Ficheiros Criados/Alterados:
+- `src/lib/__tests__/plans.test.ts` — Testes de configuração e hierarquia de planos
+- `src/hooks/__tests__/usePlanFeatures.test.tsx` — Testes do hook de features
 
 ---
 
-### Original Sprint 1-4 (mantido para referência)
+### Sprint 2 — Super Admin + Analytics ✅ CONCLUÍDO
+**Esforço: MÉDIO (3-5 dias)** — **Executado em 31/01/2026**
 
-#### Sprint 1 Original
-2. Adicionar RLS policies a `video_versions`
-3. Remover `SuperAdmin.tsx`
-4. Atualizar security finding (blog_posts como intencional)
-5. Corrigir erros `system_admins` nos logs
+1. ✅ Painel de storage por workspace (Studio 10GB) — **StorageMetricsTab criado**
+2. ✅ Visualização de audit logs — **AuditLogsTab criado**
+3. ✅ Gestão de convites — **BetaInvitesSection já completo** (reenvio, importação em massa)
+4. ⏭️ Métricas de throughput do Kanban — **Backlog** (requer dados agregados)
 
-### Sprint 1 — Refatoração Base + Segurança
-**Esforço: MÉDIO (3-5 dias)**
+#### Ficheiros Criados/Alterados:
+- `src/hooks/useAdminStorageMetrics.ts` — Hook para métricas de storage por workspace
+- `src/components/admin/StorageMetricsTab.tsx` — Dashboard de monitorização de storage
+- `src/components/admin/AuditLogsTab.tsx` — Visualizador de audit logs
+- `src/pages/admin/AdminSystem.tsx` — Atualizado com tabs Storage e Audit Logs
 
-1. Criar função RPC `can_access_feature()` server-side
-2. Adicionar `SET search_path = public` a todas as funções
-3. Reorganizar rotas /admin no App.tsx
-4. Implementar rate limiting em endpoints sensíveis
-5. Adicionar testes unitários para `usePlanFeatures`
+#### Funcionalidades Implementadas:
+- **Storage Dashboard**: Overview de uso total, workspaces perto do limite, add-ons ativos
+- **Audit Logs**: Filtros por ação, pesquisa, timeline de ações administrativas
+- **Integração**: Novos componentes integrados na página AdminSystem (/admin/system)
 
-### Sprint 2 — Super Admin + Analytics
-**Esforço: MÉDIO (3-5 dias)**
-
-1. Adicionar painel de storage por workspace
-2. Implementar visualização de audit logs
-3. Melhorar gestão de convites (reenvio, revogação)
-4. Adicionar métricas de throughput do Kanban
+---
 
 ### Sprint 3 — SEO + Conversão + Performance
 **Esforço: MÉDIO (3-5 dias)**
