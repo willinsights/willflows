@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import Hls from 'hls.js';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -87,6 +88,7 @@ interface ApprovalData {
 export default function VideoApproval() {
   const { token } = useParams<{ token: string }>();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -178,7 +180,58 @@ export default function VideoApproval() {
     fetchApprovalData();
   }, [fetchApprovalData]);
 
-  // Player controls
+  // HLS setup effect
+  const videoUrl = data?.signed_urls[selectedVersionId];
+  
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !videoUrl) return;
+
+    // Check if it's an HLS stream
+    const isHls = videoUrl.includes('.m3u8');
+
+    if (isHls && Hls.isSupported()) {
+      // Cleanup previous HLS instance
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+      }
+
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+      });
+
+      hlsRef.current = hls;
+      hls.loadSource(videoUrl);
+      hls.attachMedia(video);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        console.log('[VideoApproval] HLS manifest loaded');
+      });
+
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        console.error('[VideoApproval] HLS error:', data);
+        if (data.fatal) {
+          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+            hls.startLoad();
+          } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+            hls.recoverMediaError();
+          }
+        }
+      });
+
+      return () => {
+        hls.destroy();
+        hlsRef.current = null;
+      };
+    } else if (isHls && video.canPlayType('application/vnd.apple.mpegurl')) {
+      // Native HLS support (Safari)
+      video.src = videoUrl;
+    } else if (!isHls) {
+      // Direct video URL (legacy Supabase signed URLs)
+      video.src = videoUrl;
+    }
+  }, [videoUrl]);
   const togglePlay = () => {
     if (videoRef.current) {
       if (isPlaying) {
@@ -398,7 +451,6 @@ export default function VideoApproval() {
   }
 
   const selectedVersion = data.versions.find(v => v.id === selectedVersionId);
-  const videoUrl = data.signed_urls[selectedVersionId];
 
   return (
     <div className="min-h-screen bg-background">
