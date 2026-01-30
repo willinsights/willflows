@@ -1,148 +1,113 @@
 
-## Plano de Correção: Emails de Convite Não Chegam
+## Plano de Diagnóstico e Correção: Email de Reenvio de Convite
 
-### Problemas Identificados
+### Estado Atual
 
-| # | Problema | Impacto |
-|---|----------|---------|
-| 1 | Função `resendInvitation` não envia email | Reenviar convite apenas estende prazo, não manda email |
-| 2 | Erros de envio são silenciados | Utilizador pensa que convite foi enviado quando falhou |
-| 3 | Validação DNS pode rejeitar domínios válidos | Domínios `.pt` podem falhar se DNS timeout ocorrer |
+A investigação revelou que a infraestrutura está funcional:
+
+| Componente | Estado |
+|------------|--------|
+| Edge function `send-invitation-email` | Funcional (testado com sucesso) |
+| Remetente | `WillFlow <noreply@willflow.app>` |
+| RESEND_API_KEY | Configurada |
+| Validação de domínios `.pt` | Aceita com fallback de TLD |
+
+### Problema Identificado
+
+O hook `resendInvitation` depende da lista de convites em memória (`invitations`) que é filtrada para excluir convites expirados. Se um convite expirar enquanto o utilizador está na página, o clique em "Reenviar" falha silenciosamente porque:
+
+```tsx
+// Linha 205 de useWorkspaceInvitations.ts
+const invitation = invitations.find(inv => inv.id === invitationId);
+if (!invitation) {
+  return { success: false, error: 'Convite não encontrado' };
+}
+```
+
+### Correções Propostas
 
 ---
 
-### Correção 1: Reenviar Email ao Reenviar Convite
+#### Correção 1: Buscar Convite Diretamente da Base de Dados
 
 **Ficheiro:** `src/hooks/useWorkspaceInvitations.ts`
 
-Atualizar a função `resendInvitation` para também enviar o email:
+Em vez de depender da lista em memória, buscar o convite diretamente da base de dados:
 
 ```tsx
 const resendInvitation = async (invitationId: string): Promise<{ success: boolean; error?: string }> => {
-  // Buscar dados do convite primeiro
-  const invitation = invitations.find(inv => inv.id === invitationId);
-  if (!invitation) {
-    return { success: false, error: 'Convite não encontrado' };
+  if (!currentWorkspace?.id) {
+    return { success: false, error: 'Workspace não encontrado' };
   }
 
-  // Extend expiration by 7 days
-  const newExpiry = new Date();
-  newExpiry.setDate(newExpiry.getDate() + 7);
-
-  const { error } = await supabase
+  // Buscar diretamente da DB em vez de usar lista em memória
+  const { data: invitation, error: fetchError } = await supabase
     .from('workspace_invitations')
-    .update({ expires_at: newExpiry.toISOString() })
-    .eq('id', invitationId);
+    .select('id, email, role, token')
+    .eq('id', invitationId)
+    .eq('workspace_id', currentWorkspace.id)
+    .is('accepted_at', null)
+    .single();
 
-  if (error) {
-    logger.error('Error resending invitation:', error);
-    return { success: false, error: 'Erro ao reenviar convite' };
+  if (fetchError || !invitation) {
+    return { success: false, error: 'Convite não encontrado ou já aceite' };
   }
 
-  // NOVO: Enviar email novamente
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session && currentWorkspace) {
-      const { data: inviterProfile } = await supabase
-        .from('profiles')
-        .select('full_name, email')
-        .eq('id', user?.id)
-        .single();
-
-      const { error: emailError } = await supabase.functions.invoke('send-invitation-email', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-        body: {
-          invitationId: invitation.id,
-          email: invitation.email,
-          workspaceName: currentWorkspace.name,
-          inviterName: inviterProfile?.full_name || inviterProfile?.email || 'Um utilizador',
-          role: invitation.role,
-          token: invitation.token,
-        },
-      });
-
-      if (emailError) {
-        logger.warn('Failed to resend invitation email:', emailError);
-        return { success: true, error: 'Convite reenviado mas email pode não ter sido entregue' };
-      }
-    }
-  } catch (emailErr) {
-    logger.warn('Error resending invitation email:', emailErr);
-  }
-
-  await fetchInvitations();
-  return { success: true };
+  // ... resto do código
 };
 ```
 
 ---
 
-### Correção 2: Melhorar Tolerância a Falhas de DNS
+#### Correção 2: Melhorar Feedback de Erros na UI
 
-**Ficheiro:** `supabase/functions/_shared/email-validator.ts`
+**Ficheiro:** `src/pages/app/Equipa.tsx`
 
-Adicionar retry com timeout e fallback para DNS lookup:
+Tratar o campo `error` mesmo quando `success: true`:
 
-```typescript
-// 5. Verify MX records via DNS lookup (with retry)
-const maxRetries = 2;
-let mxFound = false;
-
-for (let attempt = 0; attempt < maxRetries && !mxFound; attempt++) {
-  try {
-    const mxRecords = await Deno.resolveDns(domain, 'MX');
-    if (mxRecords && mxRecords.length > 0) {
-      mxFound = true;
-      result.checks.mxRecord = true;
-    }
-  } catch (error) {
-    // Se é domínio comum conhecido (.pt, .com, .org, etc), dar benefício da dúvida
-    const commonTLDs = ['pt', 'com', 'org', 'net', 'edu', 'gov', 'br', 'es', 'fr', 'de', 'uk', 'io'];
-    const tld = domain.split('.').pop()?.toLowerCase();
-    
-    if (attempt === maxRetries - 1) {
-      // Na última tentativa, se for TLD comum, aceitar mesmo com falha DNS
-      if (tld && commonTLDs.includes(tld)) {
-        console.warn(`DNS lookup failed for ${domain}, but accepting common TLD`);
-        mxFound = true;
-        result.checks.mxRecord = true;
-      } else {
-        result.error = 'Domínio de email não existe';
-        result.errorCode = 'INVALID_DOMAIN';
-        return result;
-      }
-    }
-    // Pequena pausa antes de retry
-    await new Promise(r => setTimeout(r, 500));
+```tsx
+const handleResendInvite = async (id: string) => {
+  const result = await resendInvitation(id);
+  
+  if (result.success) {
+    toast({
+      title: 'Convite reenviado',
+      description: result.error || 'O convite foi reenviado com sucesso.',
+      variant: result.error ? 'default' : 'default',
+    });
+  } else {
+    toast({
+      title: 'Erro ao reenviar convite',
+      description: result.error || 'Ocorreu um erro. Tente novamente.',
+      variant: 'destructive',
+    });
   }
-}
-
-if (!mxFound) {
-  result.error = 'Este domínio não aceita emails';
-  result.errorCode = 'NO_MX_RECORD';
-  return result;
-}
+  
+  refreshInvitations();
+};
 ```
 
 ---
 
-### Correção 3: Feedback Visual de Erro
+#### Correção 3: Adicionar Logging na Edge Function
 
-**Ficheiro:** `src/hooks/useWorkspaceInvitations.ts`
+**Ficheiro:** `supabase/functions/send-invitation-email/index.ts`
 
-Melhorar o tratamento de erros para informar o utilizador:
+Melhorar os logs para diagnóstico:
 
-```tsx
-// Em createInvitation, após chamar a edge function:
-if (emailError) {
-  logger.warn('Failed to send invitation email:', emailError);
-  // Retornar sucesso parcial com aviso
-  await fetchInvitations();
-  return { 
-    success: true, 
-    error: 'Convite criado mas o email pode não ter sido enviado. Use "Reenviar" para tentar novamente.' 
-  };
-}
+```typescript
+console.log("Request body:", { 
+  email: email?.substring(0, 3) + '***', 
+  workspaceName, 
+  role,
+  hasToken: !!inviteToken 
+});
+
+// Antes de enviar
+console.log("Attempting to send email via Resend...");
+
+// Após resposta
+console.log("Resend response status:", emailResponse.status);
 ```
 
 ---
@@ -151,22 +116,14 @@ if (emailError) {
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `src/hooks/useWorkspaceInvitations.ts` | Adicionar envio de email em `resendInvitation` + melhorar feedback de erro |
-| `supabase/functions/_shared/email-validator.ts` | Adicionar retry e fallback para DNS de TLDs comuns |
+| `src/hooks/useWorkspaceInvitations.ts` | Buscar convite da DB diretamente |
+| `src/pages/app/Equipa.tsx` | Tratar `result.error` mesmo com `success: true` |
+| `supabase/functions/send-invitation-email/index.ts` | Melhorar logging para diagnóstico |
 
 ---
 
 ### Resultado Esperado
 
-1. **Reenviar Convite** → Atualiza prazo **E** envia email novamente
-2. **Domínios .pt** → Aceites mesmo se DNS lookup temporariamente falhar
-3. **Feedback** → Utilizador informado se email não foi enviado
-
----
-
-### Notas Técnicas
-
-- O validador atual usa `Deno.resolveDns()` que pode ter timeouts em redes lentas
-- Domínios portugueses (sapo.pt, mail.pt, etc) têm MX records válidos mas podem falhar lookup
-- O código atual silencia erros de email (`logger.warn`) sem informar o utilizador
-- A lista de domínios descartáveis não inclui nenhum domínio `.pt`
+1. Convites expirados podem ser reenviados (busca direta da DB estende expiração)
+2. Utilizador recebe feedback claro sobre o estado do envio
+3. Logs detalhados para diagnóstico de problemas futuros
