@@ -1828,6 +1828,61 @@ export type Database = {
           },
         ]
       }
+      project_phase_history: {
+        Row: {
+          column_id: string | null
+          duration_hours: number | null
+          entered_at: string
+          exited_at: string | null
+          id: string
+          phase: Database["public"]["Enums"]["kanban_phase"]
+          project_id: string
+          workspace_id: string
+        }
+        Insert: {
+          column_id?: string | null
+          duration_hours?: number | null
+          entered_at?: string
+          exited_at?: string | null
+          id?: string
+          phase: Database["public"]["Enums"]["kanban_phase"]
+          project_id: string
+          workspace_id: string
+        }
+        Update: {
+          column_id?: string | null
+          duration_hours?: number | null
+          entered_at?: string
+          exited_at?: string | null
+          id?: string
+          phase?: Database["public"]["Enums"]["kanban_phase"]
+          project_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_phase_history_column_id_fkey"
+            columns: ["column_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_columns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_phase_history_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_phase_history_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_team: {
         Row: {
           created_at: string
@@ -3683,6 +3738,14 @@ export type Database = {
           workspace_id: string
           workspace_name: string
         }[]
+      }
+      get_kanban_metrics: {
+        Args: {
+          p_end_date?: string
+          p_start_date?: string
+          p_workspace_id: string
+        }
+        Returns: Json
       }
       get_page_analytics: {
         Args: { days_back?: number }

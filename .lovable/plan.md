@@ -557,10 +557,35 @@ CREATE INDEX IF NOT EXISTS idx_video_versions_task
 
 ## 11. PRÓXIMOS PASSOS
 
+### Sprint 5 — Kanban Metrics ✅ CONCLUÍDO
+**Esforço: MÉDIO (2-3 dias)** — **Executado em 30/01/2026**
+
+1. ✅ Tabela `project_phase_history` para tracking de fases — **Criada com RLS**
+2. ✅ Trigger para auto-tracking de mudanças de fase — **trigger_track_phase_change**
+3. ✅ RPC `get_kanban_metrics()` — **Throughput, cycle time, WIP, bottleneck detection**
+4. ✅ Hook `useKanbanMetrics` — **React Query integration com cache**
+5. ✅ Componente `KanbanMetrics` — **UI com KPIs, gráficos de barras, insights**
+6. ✅ Integração em Relatórios — **Secção colapsável na página de Relatórios**
+
+#### Ficheiros Criados:
+- `src/hooks/useKanbanMetrics.ts` — Hook com formatDuration, getPhaseName, getPhaseColor
+- `src/components/kanban/KanbanMetrics.tsx` — Dashboard de métricas completo
+- DB: Tabela `project_phase_history` com RLS e índices
+- DB: Função `get_kanban_metrics()` SECURITY DEFINER
+
+#### Métricas Implementadas:
+- **Throughput**: Projetos entregues e média por semana
+- **Cycle Time**: Tempo médio e mediana do início à entrega (em dias)
+- **WIP (Work In Progress)**: Contagem de projetos em cada fase
+- **Bottleneck Detection**: Fase com mais projetos acumulados e tempo de espera
+- **Tempo por Fase**: Gráfico de barras com avg/min/max horas por fase
+- **Insights Automáticos**: Sugestões baseadas nos dados (redistribuir recursos, limitar WIP)
+
+---
+
 ### Backlog Técnico
 - [ ] Implementar caching com stale-while-revalidate em relatórios
 - [ ] Configurar observabilidade com tracing distribuído
-- [ ] Métricas de throughput do Kanban (tempo médio por fase)
 - [ ] Rate limiting nos endpoints de convite e feedback
 - [ ] Atualizar PRODUCT_TO_PLAN no stripe-webhook com novos IDs
 
