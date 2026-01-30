@@ -1,28 +1,49 @@
 
 
-## Correções: Timecode Preciso + Botão Apagar Comentários
+## Correção: Erro "Failed to process video" - Foreign Key Violation
 
-### Problema 1: Timecode arredonda após 2 segundos
+### Problema Identificado
 
-**Causa identificada:** A edge function `submit-video-feedback` (linha 120) aplica `Math.floor()`:
+Quando o projeto não tem tarefas criadas, o código usa `project.id` como fallback para `taskId`:
 
 ```typescript
-timestamp_seconds: Math.floor(commentPayload.timestamp_seconds || 0),
+// ProjectDetailsSheet.tsx (linha 683)
+taskId={selectedVideoTaskId || project.id}
 ```
 
-**Fluxo do problema:**
-1. Cliente escreve comentário → timestamp capturado com precisão (ex: 24.36s)
-2. UI mostra optimistic update → `00:00:24:09` (correto)
-3. Edge function guarda com `Math.floor` → 24.0s no banco de dados
-4. `refreshComments()` busca dados reais → substitui por `00:00:24:00`
+Mas `project.id` não existe na tabela `tasks`, causando:
+```
+"insert or update on table \"video_versions\" violates foreign key constraint \"video_versions_task_id_fkey\""
+```
 
 ---
 
-### Problema 2: Falta botão apagar comentário
+### Fluxo do Erro
 
-**Locais afetados:**
-- Página de aprovação (cliente público) → precisa de edge function
-- Modal de produção (equipa autenticada) → já tem função no hook, falta UI e RLS
+```text
+┌────────────────────────────────────────────────────────────────┐
+│  1. Projeto sem tarefas → selectedVideoTaskId = null           │
+│        ↓                                                       │
+│  2. taskId = selectedVideoTaskId || project.id                 │
+│        ↓                                                       │
+│  3. project.id passado como taskId ao edge function            │
+│        ↓                                                       │
+│  4. INSERT em video_versions com task_id = project.id          │
+│        ↓                                                       │
+│  5. FK constraint falha: project.id não existe em tasks        │
+│        ↓                                                       │
+│  6. ERRO: "Failed to process video"                            │
+└────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Solução: Criar Tarefa Padrão Automaticamente
+
+De acordo com a especificação do projeto, devemos criar automaticamente uma tarefa "Produção de Vídeo" quando não existir nenhuma tarefa. Esta abordagem:
+- Mantém a integridade referencial da base de dados
+- Não requer alterações à edge function
+- Segue o padrão já definido na memória do projeto
 
 ---
 
@@ -30,89 +51,69 @@ timestamp_seconds: Math.floor(commentPayload.timestamp_seconds || 0),
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `supabase/functions/submit-video-feedback/index.ts` | Remover `Math.floor()` |
-| `supabase/functions/delete-video-comment/index.ts` | **CRIAR** - Nova edge function |
-| `src/pages/public/VideoApproval.tsx` | Adicionar botão e lógica de apagar |
-| `src/components/video-production/TimestampComments.tsx` | Adicionar botão apagar na UI |
-| Database | Adicionar política RLS para DELETE |
+| `src/components/projects/ProjectDetailsSheet.tsx` | Criar tarefa automática se não existir |
+| `src/components/projects/ProjectDetailsModal.tsx` | Mesma correção |
 
 ---
 
-### Alteração 1: Remover arredondamento na edge function
+### Alteração Principal
 
-**Ficheiro:** `supabase/functions/submit-video-feedback/index.ts`
+Adicionar um `useEffect` que cria uma tarefa "Produção de Vídeo" quando:
+1. O projeto abre
+2. Não há tarefas existentes
+3. O utilizador tem acesso ao tab de vídeo
 
-**Linha 120 - Alterar de:**
+**Lógica:**
 ```typescript
-timestamp_seconds: Math.floor(commentPayload.timestamp_seconds || 0),
+// Criar tarefa de produção se não existir nenhuma
+useEffect(() => {
+  const ensureVideoTask = async () => {
+    if (!open || tasks.length > 0 || !project?.id) return;
+    
+    try {
+      const { data: newTask, error } = await supabase
+        .from('tasks')
+        .insert({
+          title: 'Produção de Vídeo',
+          project_id: project.id,
+          workspace_id: project.workspace_id,
+          phase: project.current_phase,
+          status: 'em_progresso',
+          created_by: user?.id,
+        })
+        .select()
+        .single();
+      
+      if (!error && newTask) {
+        setTasks([newTask]);
+        setSelectedVideoTaskId(newTask.id);
+      }
+    } catch (error) {
+      console.error('Error creating video production task:', error);
+    }
+  };
+  
+  ensureVideoTask();
+}, [open, tasks.length, project?.id]);
 ```
 
-**Para:**
-```typescript
-timestamp_seconds: commentPayload.timestamp_seconds || 0,
-```
+---
+
+### Comportamento Esperado Após Correção
+
+| Cenário | Antes | Depois |
+|---------|-------|--------|
+| Projeto com tarefas | ✅ Funciona | ✅ Funciona |
+| Projeto sem tarefas | ❌ "Failed to process video" | ✅ Cria tarefa automaticamente |
 
 ---
 
-### Alteração 2: Criar edge function para apagar comentários (cliente)
+### Alternativa Considerada (Não Recomendada)
 
-**Novo ficheiro:** `supabase/functions/delete-video-comment/index.ts`
+Poderíamos tornar `task_id` nullable na edge function e base de dados, mas isso:
+- Quebraria a consistência dos dados existentes
+- Complicaria queries que agrupam versões por tarefa
+- Não seguiria a especificação original do projeto
 
-A função irá:
-- Validar token de aprovação
-- Verificar que o comentário pertence a esse token/versão
-- Apagar apenas comentários de cliente (`is_client_comment = true`)
-- Usar service role para bypass de RLS
-
----
-
-### Alteração 3: Botão apagar na página de aprovação
-
-**Ficheiro:** `src/pages/public/VideoApproval.tsx`
-
-Adicionar:
-1. Estado para confirmar apagar
-2. Função `handleDeleteComment` que chama a nova edge function
-3. Botão com ícone de lixo em cada comentário do cliente
-
-**Localização:** No card de comentário (linhas 680-721), adicionar botão Trash2 no header, visível apenas para comentários do próprio cliente.
-
----
-
-### Alteração 4: Botão apagar no componente TimestampComments
-
-**Ficheiro:** `src/components/video-production/TimestampComments.tsx`
-
-O hook já exporta `deleteComment`. Alterações necessárias:
-1. Passar `deleteComment` do hook para o `CommentCard`
-2. Adicionar botão Trash2 ao lado dos botões Resolver/Reabrir
-3. Adicionar confirmação antes de apagar
-
----
-
-### Alteração 5: Política RLS para DELETE
-
-**Migração SQL:**
-```sql
-CREATE POLICY "Members can delete video comments"
-  ON video_comments
-  FOR DELETE
-  TO authenticated
-  USING (
-    is_workspace_member(auth.uid(), workspace_id)
-  );
-```
-
-Isto permite que membros autenticados do workspace apaguem qualquer comentário desse workspace.
-
----
-
-### Resultado Esperado
-
-| Antes | Depois |
-|-------|--------|
-| Timecode: `00:00:24:09` → `00:00:24:00` após 2s | Timecode mantém precisão |
-| Sem opção de apagar comentários | Botão apagar em ambas as páginas |
-| Cliente não pode apagar próprios comentários | Cliente pode apagar via edge function |
-| Equipa não pode apagar via UI | Equipa pode apagar com RLS |
+A criação automática da tarefa é a solução mais limpa e alinhada com a arquitetura.
 
