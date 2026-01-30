@@ -1,53 +1,90 @@
 
-## Adicionar Milissegundos ao Timecode
+## Correções na Página de Aprovação de Vídeo
 
-### Alteração Solicitada
-Atualizar o formato do timecode de `HH:MM:SS` para `HH:MM:SS.ms` (com milissegundos).
+### Problema 1: Título do Cabeçalho
+**Atual:** Mostra `{data.task.title}` (ex: "Checklist Checklist Edição")
+**Pretendido:** Mostrar "Studio Review" como título fixo
+
+### Problema 2: Formato do Timecode
+**Atual:** `00:00:15 / 00:00:48` (sem milissegundos)
+**Causa:** O código usa `Math.floor()` antes de chamar `formatTimecode`, removendo a precisão decimal
+**Pretendido:** `00:00:15.00 / 00:00:48.00` (com centésimos)
+
+### Problema 3: Legenda de Retenção
+**Atual:** Sem informação sobre política de retenção
+**Pretendido:** Adicionar nota informativa sobre os 7 dias de retenção após conclusão da tarefa
+
+---
 
 ### Ficheiro a Modificar
 
-| Ficheiro | Alteração |
+| Ficheiro | Alterações |
 |----------|-----------|
-| `src/lib/duration-utils.ts` | Adicionar milissegundos ao formato |
+| `src/pages/public/VideoApproval.tsx` | 3 correções |
 
-### Código Atual (linha 11-18)
-```typescript
-export function formatTimecode(seconds: number): string {
-  const totalSeconds = Math.floor(seconds);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const secs = totalSeconds % 60;
-  
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-}
+---
+
+### Alteração 1: Título "Studio Review"
+
+**Linhas 564-567 - Alterar de:**
+```tsx
+<div>
+  <h1 className="font-semibold">{data.task.title}</h1>
+  <p className="text-sm text-muted-foreground">{data.task.project_name}</p>
+</div>
 ```
 
-### Novo Código
-```typescript
-export function formatTimecode(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-  const ms = Math.floor((seconds % 1) * 100); // Centésimos de segundo (2 dígitos)
-  
-  // Formato completo HH:MM:SS.ms
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
-}
+**Para:**
+```tsx
+<div>
+  <h1 className="font-semibold">Studio Review</h1>
+  <p className="text-sm text-muted-foreground">{data.task.project_name}</p>
+</div>
 ```
 
-### Exemplos de Resultado
+---
 
-| Segundos | Antes | Depois |
+### Alteração 2: Timecode com Milissegundos
+
+**Linha 789 - Alterar de:**
+```tsx
+{formatTimecode(Math.floor(currentTime))} / {formatTimecode(Math.floor(duration))}
+```
+
+**Para:**
+```tsx
+{formatTimecode(currentTime)} / {formatTimecode(duration)}
+```
+
+**Linha 810 - Alterar de:**
+```tsx
+{formatTimecode(Math.floor(commentTimestamp))}
+```
+
+**Para:**
+```tsx
+{formatTimecode(commentTimestamp)}
+```
+
+---
+
+### Alteração 3: Legenda de Retenção (7 dias)
+
+**Após linha 875 (após "Enviado {date}")**, adicionar:
+```tsx
+{/* Retention policy notice */}
+<div className="text-center text-xs text-muted-foreground mt-4 pb-2">
+  <p>Os vídeos são mantidos durante 7 dias após a tarefa ser concluída</p>
+</div>
+```
+
+---
+
+### Resultado Esperado
+
+| Elemento | Antes | Depois |
 |----------|-------|--------|
-| 0 | `00:00:00` | `00:00:00.00` |
-| 5.5 | `00:00:05` | `00:00:05.50` |
-| 90.25 | `00:01:30` | `00:01:30.25` |
-| 3665.75 | `01:01:05` | `01:01:05.75` |
-
-### Nota Técnica
-Uso 2 dígitos para milissegundos (centésimos) pois:
-- É o padrão profissional de vídeo (frames a 25/30fps ≈ centésimos)
-- Mantém o timecode compacto e legível
-- `00:01:30.50` em vez de `00:01:30.500`
-
-Se preferir 3 dígitos (milissegundos completos), basta alterar `* 100` para `* 1000` e `padStart(2, '0')` para `padStart(3, '0')`.
+| Título | Checklist Checklist Edição | Studio Review |
+| Timecode atual | 00:00:15 | 00:00:15.50 |
+| Timecode total | 00:00:48 | 00:00:48.00 |
+| Legenda retenção | (não existe) | "Os vídeos são mantidos durante 7 dias..." |
