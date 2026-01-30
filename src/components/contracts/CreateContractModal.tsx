@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Loader2, Plus, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -265,13 +266,11 @@ export function CreateContractModal({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="total_value">Valor Total (€)</Label>
-              <Input
+              <CurrencyInput
                 id="total_value"
-                type="number"
-                step="0.01"
                 placeholder="0.00"
-                value={formData.total_value}
-                onChange={e => setFormData(prev => ({ ...prev, total_value: e.target.value }))}
+                value={formData.total_value ? parseFloat(formData.total_value) : null}
+                onChange={(value) => setFormData(prev => ({ ...prev, total_value: value?.toString() || '' }))}
               />
             </div>
 

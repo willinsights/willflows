@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2, Plus, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -160,11 +161,11 @@ export function CreateLeadModal({
 
             <div className="space-y-2">
               <Label htmlFor="estimated_value">Valor Estimado (€)</Label>
-              <Input
+              <CurrencyInput
                 id="estimated_value"
-                type="number"
                 placeholder="0.00"
-                {...form.register('estimated_value')}
+                value={form.watch('estimated_value') ? parseFloat(form.watch('estimated_value') || '0') : null}
+                onChange={(value) => form.setValue('estimated_value', value?.toString() || '')}
               />
             </div>
           </div>
