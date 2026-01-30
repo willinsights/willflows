@@ -1,91 +1,155 @@
 
 
-## Plano de Correção: Erro `function digest(text, unknown) does not exist`
+## Plano: Botão para Esconder Valores Financeiros no Dashboard
 
-### Problema Identificado
+### Objetivo
 
-A função `convert_invitation_to_member()` dispara quando um convite é aceite e tenta converter o email hash de volta para encontrar o utilizador. Está a usar:
-
-```sql
-WHERE encode(digest(email, 'sha256'), 'hex') = NEW.email_hash
-```
-
-Mas deveria usar:
-
-```sql
-WHERE encode(extensions.digest(email, 'sha256'), 'hex') = NEW.email_hash
-```
-
-A função `digest()` faz parte da extensão `pgcrypto` que no Supabase está no schema `extensions`.
+Adicionar um botão que permite ao utilizador ocultar valores financeiros sensíveis (receita, custos, lucro, pagamentos pendentes) no dashboard, aplicando um efeito de blur/fosco. A preferência é persistida localmente.
 
 ---
 
-### Correção
+### Componentes a Criar
 
-**Tipo:** Migração SQL
+| Componente | Descrição |
+|------------|-----------|
+| `useHideValues` | Hook para gerir o estado de valores ocultos (com localStorage) |
+| `HideValuesButton` | Botão toggle com ícone olho/olho fechado |
 
-Corrigir a função `convert_invitation_to_member()` para usar o prefixo correto:
+---
 
-```sql
--- Fix: Use extensions.digest() instead of digest()
-CREATE OR REPLACE FUNCTION convert_invitation_to_member()
-RETURNS TRIGGER AS $$
-DECLARE
-  v_user_id UUID;
-  v_conversation_id UUID;
-  v_project_record RECORD;
-BEGIN
-  -- Only run when invitation is accepted
-  IF NEW.accepted_at IS NOT NULL AND OLD.accepted_at IS NULL THEN
-    -- Find the user by email hash (FIXED: use extensions.digest)
-    SELECT id INTO v_user_id 
-    FROM profiles 
-    WHERE encode(extensions.digest(email, 'sha256'), 'hex') = NEW.email_hash;
-    
-    IF v_user_id IS NOT NULL THEN
-      -- Update project_team records: convert invitation_id to user_id
-      FOR v_project_record IN 
-        SELECT pt.project_id 
-        FROM project_team pt 
-        WHERE pt.invitation_id = NEW.id
-      LOOP
-        -- Update the team record
-        UPDATE project_team 
-        SET user_id = v_user_id, invitation_id = NULL
-        WHERE invitation_id = NEW.id AND project_id = v_project_record.project_id;
-        
-        -- Add user to project chat if exists
-        SELECT id INTO v_conversation_id 
-        FROM conversations 
-        WHERE project_id = v_project_record.project_id AND type = 'project';
-        
-        IF v_conversation_id IS NOT NULL THEN
-          INSERT INTO conversation_members (conversation_id, user_id, role)
-          VALUES (v_conversation_id, v_user_id, 'member')
-          ON CONFLICT (conversation_id, user_id) DO NOTHING;
-        END IF;
-      END LOOP;
-    END IF;
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+### Componentes a Modificar
+
+| Componente | Alteração |
+|------------|-----------|
+| `DashboardHeader.tsx` | Adicionar botão de esconder valores ao lado do nome |
+| `KPICards.tsx` | Aplicar blur condicional aos valores financeiros |
+| `MobileKPICarousel.tsx` | Aplicar blur condicional aos valores financeiros |
+| `FinancialChart.tsx` | Aplicar blur no tooltip e sumário anual |
+| `MonthlyGoalsCard.tsx` | Aplicar blur aos valores de receita/metas |
+| `PendingPaymentsList.tsx` | Aplicar blur aos valores de pagamentos |
+| `MobilePendingPayments.tsx` | Aplicar blur aos valores |
+| `MobileFinancialSummary.tsx` | Aplicar blur no preview e valores |
+| `MobileGoalsSummary.tsx` | Aplicar blur aos valores de metas |
+| `PerformanceMetricsCard.tsx` | Aplicar blur aos valores financeiros (receita por projeto, etc.) |
+
+---
+
+### Implementação Técnica
+
+#### 1. Hook `useHideValues` (novo ficheiro)
+
+```tsx
+// src/hooks/useHideValues.ts
+import { useState, useEffect, useCallback } from 'react';
+
+const HIDE_VALUES_KEY = 'wf_hide_financial_values';
+
+export function useHideValues() {
+  const [hideValues, setHideValuesState] = useState(() => {
+    try {
+      return localStorage.getItem(HIDE_VALUES_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleHideValues = useCallback(() => {
+    setHideValuesState(prev => {
+      const newValue = !prev;
+      localStorage.setItem(HIDE_VALUES_KEY, String(newValue));
+      return newValue;
+    });
+  }, []);
+
+  return { hideValues, toggleHideValues };
+}
 ```
+
+#### 2. Componente de Valor Oculto (reutilizável)
+
+```tsx
+// Exemplo de uso inline
+<span className={cn(
+  'font-bold text-lg',
+  hideValues && 'blur-md select-none'
+)}>
+  {formatCurrency(value)}
+</span>
+```
+
+#### 3. Botão no Header
+
+```tsx
+// Em DashboardHeader.tsx
+import { Eye, EyeOff } from 'lucide-react';
+import { useHideValues } from '@/hooks/useHideValues';
+
+// No JSX
+<Button
+  variant="ghost"
+  size="sm"
+  onClick={toggleHideValues}
+  className="h-8 w-8 p-0"
+  title={hideValues ? 'Mostrar valores' : 'Esconder valores'}
+>
+  {hideValues ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+</Button>
+```
+
+---
+
+### Ficheiros a Criar
+
+| Ficheiro | Descrição |
+|----------|-----------|
+| `src/hooks/useHideValues.ts` | Hook para gerir estado de valores ocultos |
+
+---
+
+### Ficheiros a Modificar
+
+| Ficheiro | Alteração |
+|----------|-----------|
+| `src/components/dashboard/DashboardHeader.tsx` | Adicionar botão toggle |
+| `src/components/dashboard/KPICards.tsx` | Blur nos valores financeiros |
+| `src/components/dashboard/FinancialChart.tsx` | Blur no sumário anual |
+| `src/components/dashboard/MonthlyGoalsCard.tsx` | Blur nos valores |
+| `src/components/dashboard/PendingPaymentsList.tsx` | Blur nos valores |
+| `src/components/dashboard/PerformanceMetricsCard.tsx` | Blur nos valores |
+| `src/components/mobile/MobileKPICarousel.tsx` | Blur nos valores móveis |
+| `src/components/mobile/MobilePendingPayments.tsx` | Blur nos valores |
+| `src/components/mobile/MobileFinancialSummary.tsx` | Blur nos valores |
+| `src/components/mobile/MobileGoalsSummary.tsx` | Blur nos valores |
+
+---
+
+### UX Design
+
+```text
+┌──────────────────────────────────────────────────────────┐
+│  Bom dia, João!                              [👁] [+]   │
+│  quinta-feira, 30 de janeiro • 16:30                     │
+├──────────────────────────────────────────────────────────┤
+│                                                          │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────────────┐│
+│  │ 5       │ │ 8       │ │ 12      │ │ ████████        ││
+│  │Captação │ │ Edição  │ │Entregues│ │ Receita (blur)  ││
+│  └─────────┘ └─────────┘ └─────────┘ └─────────────────┘│
+│                                                          │
+└──────────────────────────────────────────────────────────┘
+```
+
+- **Ícone**: `Eye` quando visível, `EyeOff` quando oculto
+- **Blur**: Classe `blur-md` do Tailwind (suficiente para obscurecer mas reconhecível)
+- **Interação**: Um clique para toggle, hover mostra tooltip
 
 ---
 
 ### Resultado Esperado
 
-1. O trigger `on_invitation_accepted` vai funcionar corretamente
-2. Quando um convite for aceite, o sistema vai encontrar o utilizador pelo email
-3. Os registos de `project_team` serão convertidos de `invitation_id` para `user_id`
-4. O utilizador será adicionado aos chats de projeto automaticamente
-
----
-
-### Notas
-
-- O erro ocorre especificamente quando se tenta aceitar convites, não ao reenviar
-- O convidado já tem conta no app, por isso o trigger está a ser executado
-- A correção é simples: adicionar o prefixo `extensions.` à função `digest()`
+1. Botão visível no header do dashboard (desktop e mobile)
+2. Ao clicar, todos os valores financeiros ficam com blur
+3. Preferência guardada em localStorage (persiste entre sessões)
+4. Contagem de projetos (captação, edição, entregues) **não** são afetados
+5. Apenas valores monetários são ocultados
 
