@@ -1,99 +1,77 @@
 
 
-## Correções na Página de Aprovação de Vídeo
+## Correção: Campo de Nome Causa Refresh a Cada Letra
 
-### Problema 1: Timecode perde precisão nos comentários
-**Causa identificada:** O código usa `Math.floor(commentTimestamp)` ao guardar comentários, removendo os centésimos de segundo.
+### Problema Identificado
+A função `fetchApprovalData` tem `clientName` como dependência do `useCallback` (linha 189). Isto causa um ciclo:
 
-**Localizações no código:**
-- Linha 353: `timestamp_seconds: Math.floor(commentTimestamp)` (optimistic update)
-- Linha 369: `const savedTimestamp = Math.floor(commentTimestamp)` (envio para API)
-
-**Resultado atual:**
-- Player: `00:00:24:09` (correto)
-- Comentários: `00:00:24:00` (incorreto - perdeu `:09`)
-
----
-
-### Problema 2: Campo de nome sem descrição clara
-**Causa identificada:** O campo Input do nome mostra apenas `placeholder="O seu nome"` sem label/descrição.
-
-**Resultado atual:** Aparece um input com "teste" (nome guardado) sem contexto claro do que é.
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  Utilizador escreve letra → setClientName                   │
+│        ↓                                                    │
+│  fetchApprovalData recriado (clientName nas dependências)   │
+│        ↓                                                    │
+│  useEffect detecta mudança → chama fetchApprovalData()      │
+│        ↓                                                    │
+│  setLoading(true) → ecrã pisca / "refresh"                  │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-### Ficheiros a Modificar
+### Causa Raiz (Linha 189)
 
-| Ficheiro | Alterações |
+```typescript
+}, [token, clientName]); // ← clientName NÃO deveria estar aqui
+```
+
+O `clientName` só é usado para definir o estado inicial se não existir (linhas 171-173), mas como está nas dependências, qualquer alteração ao nome recria a função e dispara um novo fetch.
+
+---
+
+### Ficheiro a Modificar
+
+| Ficheiro | Alteração |
 |----------|-----------|
-| `src/pages/public/VideoApproval.tsx` | 2 correções |
+| `src/pages/public/VideoApproval.tsx` | Remover `clientName` das dependências |
 
 ---
 
-### Alteração 1: Manter precisão do timestamp
+### Alteração
 
-**Linha 353 - Alterar de:**
+**Linha 189 - Alterar de:**
 ```typescript
-timestamp_seconds: Math.floor(commentTimestamp),
+}, [token, clientName]);
 ```
 
 **Para:**
 ```typescript
-timestamp_seconds: commentTimestamp,
-```
-
-**Linha 369 - Alterar de:**
-```typescript
-const savedTimestamp = Math.floor(commentTimestamp);
-```
-
-**Para:**
-```typescript
-const savedTimestamp = commentTimestamp;
+}, [token]);
 ```
 
 ---
 
-### Alteração 2: Adicionar label ao campo de nome
+### Porquê é Seguro?
 
-**Linhas 857-864 - Alterar de:**
-```tsx
-{/* Name input and submit button */}
-<div className="flex items-center gap-3">
-  <Input
-    placeholder="O seu nome"
-    value={clientName}
-    onChange={(e) => setClientName(e.target.value)}
-    className="h-9 max-w-[200px]"
-  />
+O `clientName` dentro do callback (linhas 171-173) só é usado para verificar se deve definir o nome inicial do servidor:
+
+```typescript
+if (!clientName && approvalData.client_name) {
+  setClientName(approvalData.client_name);
+}
 ```
 
-**Para:**
-```tsx
-{/* Name input and submit button */}
-<div className="flex items-center gap-3">
-  <div className="flex flex-col gap-1">
-    <Label htmlFor="client-name-input" className="text-xs text-muted-foreground">
-      O seu nome
-    </Label>
-    <Input
-      id="client-name-input"
-      placeholder="Ex: João Silva"
-      value={clientName}
-      onChange={(e) => setClientName(e.target.value)}
-      className="h-9 w-[200px]"
-    />
-  </div>
-```
+Esta lógica só precisa de correr uma vez no carregamento inicial. Usar uma referência ou simplesmente remover a dependência não afeta o comportamento pretendido porque:
+1. Se já há nome local, não faz nada
+2. Se não há nome, usa o do servidor
+
+Como o fetch só corre uma vez (no mount), remover a dependência é a solução correta.
 
 ---
 
 ### Resultado Esperado
 
-| Problema | Antes | Depois |
-|----------|-------|--------|
-| Timecode comentários | `00:00:24:00` | `00:00:24:09` |
-| Campo nome | Input sem contexto | Label "O seu nome" + placeholder "Ex: João Silva" |
-
-O timecode fica idêntico entre o player e os comentários, mantendo a precisão dos centésimos de segundo.
+| Antes | Depois |
+|-------|--------|
+| Cada letra → página "pisca" / refresh | Escrita fluida sem interrupções |
 
