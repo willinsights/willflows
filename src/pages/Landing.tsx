@@ -35,6 +35,8 @@ import { PublicFooter } from '@/components/marketing/PublicFooter';
 import { WaitlistForm } from '@/components/marketing/WaitlistForm';
 import { LaunchBannerOptimized } from '@/components/marketing/LaunchBannerOptimized';
 import { FloatingScreenshot } from '@/components/marketing/FloatingScreenshot';
+import { TestimonialsSection } from '@/components/marketing/TestimonialsSection';
+import { SocialProofBanner } from '@/components/marketing/SocialProofBanner';
 
 // Dark mode screenshots for the new hero
 import screenshotDashboard from '@/assets/screenshot-dark-dashboard.png';
@@ -635,6 +637,12 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Social Proof Banner */}
+      <SocialProofBanner />
+
+      {/* Testimonials */}
+      <TestimonialsSection />
+
       {/* Pricing with Focal Zoom */}
       <section className="py-20 px-4 relative overflow-hidden" id="pricing">
         {/* Background bokeh */}
@@ -778,9 +786,9 @@ export default function Landing() {
           </div>
 
           <div className="text-center mt-8">
-            <Link to="/planos">
+            <Link to="/planos/comparar">
               <Button variant="link" className="text-primary">
-                Ver comparação completa →
+                Ver comparação detalhada de todos os planos →
               </Button>
             </Link>
           </div>

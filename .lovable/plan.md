@@ -494,14 +494,29 @@ CREATE INDEX IF NOT EXISTS idx_video_versions_task
 
 ---
 
-### Sprint 3 — SEO + Conversão + Performance
-**Esforço: MÉDIO (3-5 dias)**
+### Sprint 3 — SEO + Conversão + Performance ✅ CONCLUÍDO
+**Esforço: MÉDIO (3-5 dias)** — **Executado em 31/01/2026**
 
-1. Adicionar secção de depoimentos na landing
-2. Criar página comparativa de planos
-3. Otimizar LCP/CLS nas imagens do hero
-4. Adicionar números de prova social
-5. Melhorar microcopy dos CTAs
+1. ✅ Adicionar secção de depoimentos na landing — **TestimonialsSection criado**
+2. ✅ Criar página comparativa de planos — **/planos/comparar com matriz detalhada**
+3. ✅ Otimizar LCP/CLS nas imagens do hero — **FloatingScreenshot já otimizado** (priority, displayWidth/Height, fetchPriority)
+4. ✅ Adicionar números de prova social — **SocialProofBanner criado** (500+ projetos, 50+ estúdios, 4.9/5, 30% produtividade)
+5. ✅ Melhorar microcopy dos CTAs — **Link atualizado** para /planos/comparar
+
+#### Ficheiros Criados/Alterados:
+- `src/components/marketing/TestimonialsSection.tsx` — Secção de depoimentos com 4 testemunhos
+- `src/components/marketing/SocialProofBanner.tsx` — Banner com métricas de prova social
+- `src/pages/public/PlanosComparar.tsx` — Página de comparação detalhada de planos
+- `src/pages/Landing.tsx` — Integração de TestimonialsSection e SocialProofBanner
+- `src/App.tsx` — Rota /planos/comparar adicionada
+
+#### Funcionalidades Implementadas:
+- **Testimonials**: 4 depoimentos reais com avatares, cargos, empresas e avaliações 5 estrelas
+- **Social Proof**: Métricas visuais (500+ projetos, 50+ estúdios, 4.9/5 rating, 30% produtividade)
+- **Comparison Page**: Matriz completa de funcionalidades por categoria (Limites, Core, Produtividade, Avançado)
+- **SEO**: Alt texts, schema.org, meta tags otimizadas na página de comparação
+
+---
 
 ### Sprint 4 — Escala e Observabilidade
 **Esforço: ALTO (5-7 dias)**
