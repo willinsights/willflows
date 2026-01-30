@@ -1038,10 +1038,21 @@ function TeamMemberSelector({ label, selectedMembers, setSelectedMembers, worksp
                   <Badge 
                     key={memberId} 
                     variant={isInvitation(memberId) ? "outline" : "secondary"} 
-                    className={cn("text-xs", isInvitation(memberId) && "border-dashed border-amber-500/50 text-amber-600 dark:text-amber-400")}
+                    className={cn("text-xs flex items-center gap-1", isInvitation(memberId) && "border-dashed border-amber-500/50 text-amber-600 dark:text-amber-400")}
                   >
                     {getMemberDisplay(memberId)}
-                    {isInvitation(memberId) && <span className="ml-1 text-[10px]">⏳</span>}
+                    {isInvitation(memberId) && <span className="text-[10px]">⏳</span>}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedMembers(prev => prev.filter(id => id !== memberId));
+                      }}
+                      className="ml-0.5 hover:text-destructive transition-colors"
+                      aria-label="Remover"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
                   </Badge>
                 ))}
               </div>
