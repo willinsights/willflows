@@ -214,8 +214,9 @@ serve(async (req) => {
     }
 
     const streamUid = streamData.result.uid;
-    const playbackUrl = `https://customer-${accountId}.cloudflarestream.com/${streamUid}/iframe`;
-    const thumbnailUrl = `https://customer-${accountId}.cloudflarestream.com/${streamUid}/thumbnails/thumbnail.jpg`;
+    // Use canonical videodelivery.net domain for better compatibility
+    const playbackUrl = `https://videodelivery.net/${streamUid}/manifest/video.m3u8`;
+    const thumbnailUrl = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg`;
 
     // Update version with Stream information
     const { error: updateError } = await supabase

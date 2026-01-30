@@ -94,33 +94,29 @@ serve(async (req) => {
       throw new Error(errorMsg);
     }
 
-    // Extract the correct playback URL from the response
+    // Extract data from the response
     const result = updateData.result;
-    const playbackHls = result?.playback?.hls;
-    const thumbnail = result?.thumbnail;
     const duration = result?.duration;
+
+    // Always use canonical videodelivery.net URL for best compatibility
+    const canonicalPlaybackUrl = `https://videodelivery.net/${streamUid}/manifest/video.m3u8`;
+    const canonicalThumbnail = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg`;
 
     logStep("Video updated successfully", { 
       streamUid, 
-      playbackHls,
-      thumbnail,
+      canonicalPlaybackUrl,
+      canonicalThumbnail,
       duration,
       allowedOrigins: result?.allowedOrigins 
     });
 
-    // Update database record if versionId provided
+    // Update database record if versionId provided - always normalize URLs
     if (versionId) {
       const updateFields: Record<string, unknown> = {
         stream_status: result?.status?.state || "ready",
+        stream_playback_url: canonicalPlaybackUrl,
+        thumbnail_path: canonicalThumbnail,
       };
-
-      if (playbackHls) {
-        updateFields.stream_playback_url = playbackHls;
-      }
-
-      if (thumbnail) {
-        updateFields.thumbnail_path = thumbnail;
-      }
 
       if (duration) {
         updateFields.duration_seconds = Math.round(duration);
@@ -141,8 +137,8 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       streamUid,
-      playbackUrl: playbackHls,
-      thumbnail,
+      playbackUrl: canonicalPlaybackUrl,
+      thumbnail: canonicalThumbnail,
       duration,
       allowedOrigins: result?.allowedOrigins || [],
     }), {
