@@ -1255,46 +1255,12 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                         A funcionalidade de Produção/Aprovação de vídeo não está disponível no seu plano atual.
                       </p>
                     </div>
-                  ) : tasks.length === 0 ? (
-                    <div className="rounded-lg border border-border/60 bg-card/50 p-4">
-                      <p className="text-sm text-muted-foreground">
-                        Para usar a Produção, crie pelo menos uma tarefa neste projeto.
-                      </p>
-                    </div>
                   ) : (
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label>Selecionar tarefa</Label>
-                          <Button type="button" variant="outline" size="sm" onClick={fetchRelatedData}>
-                            Atualizar
-                          </Button>
-                        </div>
-                        <Select
-                          value={selectedVideoTaskId || undefined}
-                          onValueChange={(v) => setSelectedVideoTaskId(v)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecionar tarefa" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {tasks.map((t) => (
-                              <SelectItem key={t.id} value={t.id}>
-                                {t.title}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {selectedVideoTaskId && (
-                        <VideoProductionTab
-                          taskId={selectedVideoTaskId}
-                          projectId={project.id}
-                          workspaceId={project.workspace_id}
-                        />
-                      )}
-                    </div>
+                    <VideoProductionTab
+                      taskId={selectedVideoTaskId || project.id}
+                      projectId={project.id}
+                      workspaceId={project.workspace_id}
+                    />
                   )}
                 </TabsContent>
               )}
