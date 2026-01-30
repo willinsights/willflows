@@ -1,51 +1,37 @@
 
+## Plano de Correção: Estado de Esconder Valores Não Está Sincronizado
 
-## Plano: Botão para Esconder Valores Financeiros no Dashboard
+### Problema Identificado
 
-### Objetivo
-
-Adicionar um botão que permite ao utilizador ocultar valores financeiros sensíveis (receita, custos, lucro, pagamentos pendentes) no dashboard, aplicando um efeito de blur/fosco. A preferência é persistida localmente.
-
----
-
-### Componentes a Criar
-
-| Componente | Descrição |
-|------------|-----------|
-| `useHideValues` | Hook para gerir o estado de valores ocultos (com localStorage) |
-| `HideValuesButton` | Botão toggle com ícone olho/olho fechado |
+O hook `useHideValues` usa `useState` localmente em cada componente. Quando múltiplos componentes chamam `useHideValues()`, cada um tem a sua própria instância do estado. Ao clicar no botão no `DashboardHeader`, apenas o estado desse componente muda - os restantes componentes (`KPICards`, `FinancialChart`, `PendingPaymentsList`, etc.) não são atualizados porque têm instâncias separadas.
 
 ---
 
-### Componentes a Modificar
+### Solução
 
-| Componente | Alteração |
-|------------|-----------|
-| `DashboardHeader.tsx` | Adicionar botão de esconder valores ao lado do nome |
-| `KPICards.tsx` | Aplicar blur condicional aos valores financeiros |
-| `MobileKPICarousel.tsx` | Aplicar blur condicional aos valores financeiros |
-| `FinancialChart.tsx` | Aplicar blur no tooltip e sumário anual |
-| `MonthlyGoalsCard.tsx` | Aplicar blur aos valores de receita/metas |
-| `PendingPaymentsList.tsx` | Aplicar blur aos valores de pagamentos |
-| `MobilePendingPayments.tsx` | Aplicar blur aos valores |
-| `MobileFinancialSummary.tsx` | Aplicar blur no preview e valores |
-| `MobileGoalsSummary.tsx` | Aplicar blur aos valores de metas |
-| `PerformanceMetricsCard.tsx` | Aplicar blur aos valores financeiros (receita por projeto, etc.) |
+Converter o hook para usar um **React Context** que fornece um estado global partilhado por todos os componentes.
 
 ---
 
 ### Implementação Técnica
 
-#### 1. Hook `useHideValues` (novo ficheiro)
+#### 1. Criar Context `HideValuesContext`
 
 ```tsx
-// src/hooks/useHideValues.ts
-import { useState, useEffect, useCallback } from 'react';
+// src/contexts/HideValuesContext.tsx
+import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 
 const HIDE_VALUES_KEY = 'wf_hide_financial_values';
 
-export function useHideValues() {
-  const [hideValues, setHideValuesState] = useState(() => {
+interface HideValuesContextType {
+  hideValues: boolean;
+  toggleHideValues: () => void;
+}
+
+const HideValuesContext = createContext<HideValuesContextType | undefined>(undefined);
+
+export function HideValuesProvider({ children }: { children: ReactNode }) {
+  const [hideValues, setHideValues] = useState(() => {
     try {
       return localStorage.getItem(HIDE_VALUES_KEY) === 'true';
     } catch {
@@ -54,46 +40,39 @@ export function useHideValues() {
   });
 
   const toggleHideValues = useCallback(() => {
-    setHideValuesState(prev => {
+    setHideValues(prev => {
       const newValue = !prev;
       localStorage.setItem(HIDE_VALUES_KEY, String(newValue));
       return newValue;
     });
   }, []);
 
-  return { hideValues, toggleHideValues };
+  return (
+    <HideValuesContext.Provider value={{ hideValues, toggleHideValues }}>
+      {children}
+    </HideValuesContext.Provider>
+  );
+}
+
+export function useHideValues() {
+  const context = useContext(HideValuesContext);
+  if (context === undefined) {
+    throw new Error('useHideValues must be used within a HideValuesProvider');
+  }
+  return context;
 }
 ```
 
-#### 2. Componente de Valor Oculto (reutilizável)
+#### 2. Adicionar Provider ao App Layout
 
 ```tsx
-// Exemplo de uso inline
-<span className={cn(
-  'font-bold text-lg',
-  hideValues && 'blur-md select-none'
-)}>
-  {formatCurrency(value)}
-</span>
-```
+// Em AppLayout.tsx ou no root da aplicação
+import { HideValuesProvider } from '@/contexts/HideValuesContext';
 
-#### 3. Botão no Header
-
-```tsx
-// Em DashboardHeader.tsx
-import { Eye, EyeOff } from 'lucide-react';
-import { useHideValues } from '@/hooks/useHideValues';
-
-// No JSX
-<Button
-  variant="ghost"
-  size="sm"
-  onClick={toggleHideValues}
-  className="h-8 w-8 p-0"
-  title={hideValues ? 'Mostrar valores' : 'Esconder valores'}
->
-  {hideValues ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-</Button>
+// Envolver o layout com o provider
+<HideValuesProvider>
+  {/* ... resto do layout */}
+</HideValuesProvider>
 ```
 
 ---
@@ -102,7 +81,7 @@ import { useHideValues } from '@/hooks/useHideValues';
 
 | Ficheiro | Descrição |
 |----------|-----------|
-| `src/hooks/useHideValues.ts` | Hook para gerir estado de valores ocultos |
+| `src/contexts/HideValuesContext.tsx` | Context provider para estado global de esconder valores |
 
 ---
 
@@ -110,46 +89,33 @@ import { useHideValues } from '@/hooks/useHideValues';
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `src/components/dashboard/DashboardHeader.tsx` | Adicionar botão toggle |
-| `src/components/dashboard/KPICards.tsx` | Blur nos valores financeiros |
-| `src/components/dashboard/FinancialChart.tsx` | Blur no sumário anual |
-| `src/components/dashboard/MonthlyGoalsCard.tsx` | Blur nos valores |
-| `src/components/dashboard/PendingPaymentsList.tsx` | Blur nos valores |
-| `src/components/dashboard/PerformanceMetricsCard.tsx` | Blur nos valores |
-| `src/components/mobile/MobileKPICarousel.tsx` | Blur nos valores móveis |
-| `src/components/mobile/MobilePendingPayments.tsx` | Blur nos valores |
-| `src/components/mobile/MobileFinancialSummary.tsx` | Blur nos valores |
-| `src/components/mobile/MobileGoalsSummary.tsx` | Blur nos valores |
+| `src/hooks/useHideValues.ts` | Remover ou redirecionar para o Context |
+| `src/components/layout/AppLayout.tsx` | Adicionar `HideValuesProvider` no root |
+| `src/components/layout/MobileAppLayout.tsx` | Adicionar `HideValuesProvider` no root (se separado) |
 
 ---
 
-### UX Design
+### Como Funciona
 
 ```text
-┌──────────────────────────────────────────────────────────┐
-│  Bom dia, João!                              [👁] [+]   │
-│  quinta-feira, 30 de janeiro • 16:30                     │
-├──────────────────────────────────────────────────────────┤
-│                                                          │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────────────┐│
-│  │ 5       │ │ 8       │ │ 12      │ │ ████████        ││
-│  │Captação │ │ Edição  │ │Entregues│ │ Receita (blur)  ││
-│  └─────────┘ └─────────┘ └─────────┘ └─────────────────┘│
-│                                                          │
-└──────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│                 HideValuesProvider                   │
+│                   (estado global)                    │
+│                                                      │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────┐ │
+│  │DashboardHeader│ │   KPICards   │ │FinancialChart│
+│  │  (toggle btn) │ │   (blur)     │ │   (blur)     │
+│  └──────────────┘  └──────────────┘  └────────────┘ │
+│         │                 │                │        │
+│         └─────────────────┴────────────────┘        │
+│                     partilham mesmo estado          │
+└─────────────────────────────────────────────────────┘
 ```
-
-- **Ícone**: `Eye` quando visível, `EyeOff` quando oculto
-- **Blur**: Classe `blur-md` do Tailwind (suficiente para obscurecer mas reconhecível)
-- **Interação**: Um clique para toggle, hover mostra tooltip
 
 ---
 
 ### Resultado Esperado
 
-1. Botão visível no header do dashboard (desktop e mobile)
-2. Ao clicar, todos os valores financeiros ficam com blur
-3. Preferência guardada em localStorage (persiste entre sessões)
-4. Contagem de projetos (captação, edição, entregues) **não** são afetados
-5. Apenas valores monetários são ocultados
-
+1. Ao clicar no botão do olho no header, **todos** os componentes atualizam imediatamente
+2. O estado continua persistido em localStorage
+3. A preferência é mantida entre sessões e entre navegações dentro da app
