@@ -56,6 +56,9 @@ const VsAsana = lazy(() => import("./pages/comparisons/VsAsana"));
 const VsClickUp = lazy(() => import("./pages/comparisons/VsClickUp"));
 const VsTrello = lazy(() => import("./pages/comparisons/VsTrello"));
 
+// Plan comparison page
+const PlanosComparar = lazy(() => import("./pages/public/PlanosComparar"));
+
 // Lazy loaded protected pages
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const CheckoutSuccess = lazy(() => import("./pages/CheckoutSuccess"));
@@ -110,6 +113,7 @@ const App = () => (
                     <Route path="/" element={<Landing />} />
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/planos" element={<Pricing />} />
+                    <Route path="/planos/comparar" element={<PlanosComparar />} />
                     <Route path="/funcionalidades" element={<Features />} />
                     <Route path="/funcionalidades/chat" element={<ChatFeature />} />
                     <Route path="/funcionalidades/kanban" element={<KanbanFeature />} />
