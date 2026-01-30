@@ -3558,6 +3558,10 @@ export type Database = {
         Args: { p_bytes: number; p_workspace_id: string }
         Returns: undefined
       }
+      can_access_feature: {
+        Args: { p_feature: string; p_workspace_id: string }
+        Returns: boolean
+      }
       can_deliver_project: {
         Args: { p_phase: string; p_project_id: string }
         Returns: Json
