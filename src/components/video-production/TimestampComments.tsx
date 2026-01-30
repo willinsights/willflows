@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VideoComment, useVideoComments } from '@/hooks/useVideoComments';
-import { formatDuration } from '@/lib/duration-utils';
+import { formatTimecode } from '@/lib/duration-utils';
 
 interface TimestampCommentsProps {
   videoVersionId: string;
@@ -155,7 +155,7 @@ function CommentCard({ comment, onSeekTo, onResolve, onReopen }: CommentCardProp
         >
           <div className="flex items-center gap-1 rounded bg-primary/10 px-2 py-1 text-xs font-mono text-primary group-hover:bg-primary/20">
             <Clock className="h-3 w-3" />
-            {formatDuration(comment.timestamp_seconds)}
+            {formatTimecode(comment.timestamp_seconds)}
           </div>
         </button>
 
