@@ -46,6 +46,7 @@ import {
   Send,
   ArrowLeftRight,
   X,
+  Trash2,
 } from 'lucide-react';
 import { formatTimecode } from '@/lib/duration-utils';
 import { cn } from '@/lib/utils';
@@ -130,6 +131,9 @@ export default function VideoApproval() {
   const [approvalName, setApprovalName] = useState('');
   const [approvalNotes, setApprovalNotes] = useState('');
   const [submittingApproval, setSubmittingApproval] = useState(false);
+
+  // Delete comment state
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
 
   // Save client name to localStorage when it changes
   useEffect(() => {
@@ -457,6 +461,56 @@ export default function VideoApproval() {
     }
   };
 
+  // Delete comment via edge function
+  const handleDeleteComment = async (commentId: string) => {
+    if (!clientName.trim() || !token) return;
+
+    setDeletingCommentId(commentId);
+    
+    // Optimistic update: remove from local state immediately
+    const originalComments = data?.comments || [];
+    setData(prev => prev ? {
+      ...prev,
+      comments: prev.comments.filter(c => c.id !== commentId)
+    } : null);
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-video-comment`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({
+            token,
+            comment_id: commentId,
+            client_name: clientName.trim(),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erro ao apagar comentário');
+      }
+
+      // Sync with backend
+      await refreshComments();
+    } catch (err: any) {
+      console.error('Error deleting comment:', err);
+      // Revert optimistic update on error
+      setData(prev => prev ? {
+        ...prev,
+        comments: originalComments
+      } : null);
+      alert(err.message || 'Erro ao apagar comentário');
+    } finally {
+      setDeletingCommentId(null);
+    }
+  };
+
   // Get comments for current version, sorted by timestamp
   const currentComments = (data?.comments.filter(
     c => c.video_version_id === selectedVersionId
@@ -686,7 +740,7 @@ export default function VideoApproval() {
                             )}
                             onClick={() => seekTo(comment.timestamp_seconds)}
                           >
-                            {/* Header: timecode + status */}
+                            {/* Header: timecode + status + delete */}
                             <div className="flex items-center justify-between mb-2">
                               <button className="flex items-center gap-1.5 rounded bg-primary/10 px-2 py-1 text-xs font-mono text-primary hover:bg-primary/20 transition-colors">
                                 <Clock className="h-3 w-3" />
@@ -701,6 +755,28 @@ export default function VideoApproval() {
                                   </span>
                                 ) : (
                                   <span className="w-2 h-2 rounded-full bg-yellow-500" />
+                                )}
+                                
+                                {/* Delete button - only for client's own comments */}
+                                {comment.is_client_comment && 
+                                 comment.client_name?.toLowerCase().trim() === clientName.toLowerCase().trim() && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (confirm('Apagar este comentário?')) {
+                                        handleDeleteComment(comment.id);
+                                      }
+                                    }}
+                                    disabled={deletingCommentId === comment.id}
+                                    className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                    title="Apagar comentário"
+                                  >
+                                    {deletingCommentId === comment.id ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-3 w-3" />
+                                    )}
+                                  </button>
                                 )}
                               </div>
                             </div>

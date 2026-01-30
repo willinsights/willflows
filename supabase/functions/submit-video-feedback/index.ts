@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
           task_id: taskId,
           project_id: projectId,
           workspace_id: workspaceId,
-          timestamp_seconds: Math.floor(commentPayload.timestamp_seconds || 0),
+          timestamp_seconds: commentPayload.timestamp_seconds || 0,
           body: commentPayload.body.trim().slice(0, 2000), // Max 2000 chars
           is_client_comment: true,
           client_name: sanitizedName,

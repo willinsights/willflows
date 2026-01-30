@@ -97,6 +97,9 @@ verify_jwt = false
 [functions.submit-video-feedback]
 verify_jwt = false
 
+[functions.delete-video-comment]
+verify_jwt = false
+
 [functions.r2-upload-url]
 verify_jwt = false
 
