@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
+import { useHideValues } from '@/hooks/useHideValues';
+import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -24,6 +26,7 @@ export function MobilePendingPayments({
   maxItems = 3,
 }: MobilePendingPaymentsProps) {
   const { formatCurrency } = useCurrentWorkspace();
+  const { hideValues } = useHideValues();
   const navigate = useNavigate();
   
   const displayedPayments = payments.slice(0, maxItems);
@@ -102,9 +105,11 @@ export function MobilePendingPayments({
                         )}
                       </div>
                     </div>
-                    <span className={`text-sm font-semibold whitespace-nowrap ml-3 ${
-                      payment.isOverdue ? 'text-destructive' : 'text-warning'
-                    }`}>
+                    <span className={cn(
+                      'text-sm font-semibold whitespace-nowrap ml-3',
+                      payment.isOverdue ? 'text-destructive' : 'text-warning',
+                      hideValues && 'blur-md select-none'
+                    )}>
                       {formatCurrency(payment.amount)}
                     </span>
                   </div>
@@ -116,7 +121,7 @@ export function MobilePendingPayments({
                 <span className="text-xs text-muted-foreground">
                   Total ({payments.length})
                 </span>
-                <span className="text-base font-bold text-warning">
+                <span className={cn("text-base font-bold text-warning", hideValues && "blur-md select-none")}>
                   {formatCurrency(totalAmount)}
                 </span>
               </div>

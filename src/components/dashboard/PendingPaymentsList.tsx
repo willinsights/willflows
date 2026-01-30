@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
+import { useHideValues } from '@/hooks/useHideValues';
+import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { format, isPast, parseISO } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -34,6 +36,7 @@ export function PendingPaymentsList({
 }: PendingPaymentsListProps) {
   const { formatCurrency } = useCurrentWorkspace();
   const { canViewAllFinancials, canViewOwnFinancials } = useFinancialPermissions();
+  const { hideValues } = useHideValues();
   const navigate = useNavigate();
 
   // Visualizador não vê este card
@@ -140,9 +143,11 @@ export function PendingPaymentsList({
                           )}
                         </div>
                       </div>
-                      <span className={`text-sm font-semibold whitespace-nowrap ml-3 ${
-                        payment.isOverdue ? 'text-destructive' : 'text-warning'
-                      }`}>
+                      <span className={cn(
+                        'text-sm font-semibold whitespace-nowrap ml-3',
+                        payment.isOverdue ? 'text-destructive' : 'text-warning',
+                        hideValues && 'blur-md select-none'
+                      )}>
                         {formatCurrency(payment.amount)}
                       </span>
                     </div>
@@ -155,7 +160,7 @@ export function PendingPaymentsList({
                 <span className="text-xs text-muted-foreground">
                   Total ({payments.length} pagamento{payments.length !== 1 ? 's' : ''})
                 </span>
-                <span className="text-base font-bold text-warning">
+                <span className={cn("text-base font-bold text-warning", hideValues && "blur-md select-none")}>
                   {formatCurrency(totalAmount)}
                 </span>
               </div>

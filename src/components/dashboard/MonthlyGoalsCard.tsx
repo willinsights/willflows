@@ -10,6 +10,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
 import { useWorkspaceGoals } from '@/hooks/useWorkspaceGoals';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
+import { useHideValues } from '@/hooks/useHideValues';
+import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
@@ -27,6 +29,7 @@ export function MonthlyGoalsCard({
   const { formatCurrency } = useCurrentWorkspace();
   const { canViewAllFinancials, userRole } = useFinancialPermissions();
   const { goal, loading: goalLoading, saveGoal } = useWorkspaceGoals();
+  const { hideValues } = useHideValues();
   
   const [isEditing, setIsEditing] = useState(false);
   const [revenueGoal, setRevenueGoal] = useState('');
@@ -211,10 +214,10 @@ export function MonthlyGoalsCard({
                 </div>
                 <Progress value={revenueProgress} className="h-2" />
                 <div className="flex items-center justify-between mt-1">
-                  <span className="text-sm font-semibold text-foreground">
+                  <span className={cn("text-sm font-semibold text-foreground", hideValues && "blur-md select-none")}>
                     {formatCurrency(currentRevenue)}
                   </span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className={cn("text-xs text-muted-foreground", hideValues && "blur-md select-none")}>
                     / {formatCurrency(revenueTarget)}
                   </span>
                 </div>

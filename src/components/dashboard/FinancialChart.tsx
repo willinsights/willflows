@@ -5,6 +5,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
+import { useHideValues } from '@/hooks/useHideValues';
+import { cn } from '@/lib/utils';
 import type { MonthlyData, AnnualComparisonData } from '@/hooks/useDashboardMetrics';
 import {
   AreaChart,
@@ -34,6 +36,7 @@ export function FinancialChart({
 }: FinancialChartProps) {
   const { formatCurrency } = useCurrentWorkspace();
   const { canViewAllFinancials } = useFinancialPermissions();
+  const { hideValues } = useHideValues();
 
   // Se não for admin, não mostra o gráfico
   if (!canViewAllFinancials) {
@@ -252,11 +255,11 @@ export function FinancialChart({
                   <div className="flex items-center justify-center gap-6 mt-2 pt-2 border-t border-border/50">
                     <div className="text-center">
                       <p className="text-xs text-muted-foreground">{currentYearLabel}</p>
-                      <p className="text-sm font-semibold text-primary">{formatCurrency(currentYearTotal)}</p>
+                      <p className={cn("text-sm font-semibold text-primary", hideValues && "blur-md select-none")}>{formatCurrency(currentYearTotal)}</p>
                     </div>
                     <div className="text-center">
                       <p className="text-xs text-muted-foreground">{previousYearLabel}</p>
-                      <p className="text-sm font-medium text-muted-foreground">{formatCurrency(previousYearTotal)}</p>
+                      <p className={cn("text-sm font-medium text-muted-foreground", hideValues && "blur-md select-none")}>{formatCurrency(previousYearTotal)}</p>
                     </div>
                     {previousYearTotal > 0 && (
                       <div className="text-center">

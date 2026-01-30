@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils';
 import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
+import { useHideValues } from '@/hooks/useHideValues';
 import type { DashboardMetrics } from '@/hooks/useDashboardMetrics';
 import { Coins } from 'lucide-react';
 
@@ -57,6 +58,7 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
     isCollaborator,
     canViewOwnFinancials 
   } = useFinancialPermissions();
+  const { hideValues } = useHideValues();
 
   // Base KPI data (always visible)
   const baseKpiData = [
@@ -206,7 +208,11 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
                     <Skeleton className={cn('h-7', 'isCurrency' in kpi && kpi.isCurrency ? 'w-16' : 'w-8')} />
                   ) : (
                     <>
-                      <span className={cn('font-bold', 'isCurrency' in kpi && kpi.isCurrency ? kpi.valueClass : 'text-2xl')}>
+                      <span className={cn(
+                        'font-bold', 
+                        'isCurrency' in kpi && kpi.isCurrency ? kpi.valueClass : 'text-2xl',
+                        'isCurrency' in kpi && kpi.isCurrency && hideValues && 'blur-md select-none'
+                      )}>
                         {kpi.value}
                       </span>
                       {'change' in kpi && !('isRestricted' in kpi) && (
