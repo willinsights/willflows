@@ -201,10 +201,22 @@ export function useWorkspaceInvitations() {
   };
 
   const resendInvitation = async (invitationId: string): Promise<{ success: boolean; error?: string }> => {
-    // Find the invitation first
-    const invitation = invitations.find(inv => inv.id === invitationId);
-    if (!invitation) {
-      return { success: false, error: 'Convite não encontrado' };
+    if (!currentWorkspace?.id) {
+      return { success: false, error: 'Workspace não encontrado' };
+    }
+
+    // Fetch invitation directly from DB (not from memory list which may be stale)
+    const { data: invitation, error: fetchError } = await supabase
+      .from('workspace_invitations')
+      .select('id, email, role, token')
+      .eq('id', invitationId)
+      .eq('workspace_id', currentWorkspace.id)
+      .is('accepted_at', null)
+      .single();
+
+    if (fetchError || !invitation) {
+      logger.error('Invitation not found:', fetchError);
+      return { success: false, error: 'Convite não encontrado ou já aceite' };
     }
 
     // Extend expiration by 7 days

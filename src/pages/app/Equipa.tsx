@@ -132,20 +132,22 @@ export default function Equipa() {
   };
 
   const handleResendInvite = async (id: string) => {
-    try {
-      await resendInvitation(id);
+    const result = await resendInvitation(id);
+    
+    if (result.success) {
       toast({
         title: 'Convite reenviado',
-        description: 'O convite foi reenviado com sucesso.',
+        description: result.error || 'O convite foi reenviado com sucesso.',
       });
-      refreshInvitations();
-    } catch (err: any) {
+    } else {
       toast({
         title: 'Erro ao reenviar convite',
-        description: err.message || 'Ocorreu um erro. Tente novamente.',
+        description: result.error || 'Ocorreu um erro. Tente novamente.',
         variant: 'destructive',
       });
     }
+    
+    refreshInvitations();
   };
 
   const handleCancelInvite = async (id: string) => {
