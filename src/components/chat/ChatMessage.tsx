@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { linkifyText } from '@/lib/linkify';
 import { format, formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -245,7 +246,7 @@ export function ChatMessage({
             </div>
           ) : (
             <div className="text-sm text-foreground/90 mt-1 whitespace-pre-wrap break-words leading-relaxed">
-              {message.body}
+              {linkifyText(message.body)}
             </div>
           )}
 
