@@ -7,7 +7,7 @@ import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 export interface ExportData {
   id?: string;
   projeto: string;
@@ -135,7 +135,7 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
     });
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     if (data.length === 0 && !forecastSummary) {
       toast({
         title: 'Sem dados',
@@ -149,49 +149,50 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
     const keys = getRelevantKeys();
     const totals = calculateTotals();
 
-    // Create workbook and worksheet
-    const wb = XLSX.utils.book_new();
+    // Create workbook and worksheet using ExcelJS
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'WillFlow';
+    workbook.created = new Date();
     
-    // Build the data array for the sheet
-    const sheetData: (string | number)[][] = [];
+    const worksheet = workbook.addWorksheet('Dados');
 
     // Add header section
-    sheetData.push([reportTitle]);
-    sheetData.push([workspaceName]);
-    sheetData.push([`Exportado: ${currentDateTime}`]);
-    sheetData.push([`Total: ${data.length} registos`]);
-    sheetData.push([]); // Empty row
+    worksheet.addRow([reportTitle]);
+    worksheet.addRow([workspaceName]);
+    worksheet.addRow([`Exportado: ${currentDateTime}`]);
+    worksheet.addRow([`Total: ${data.length} registos`]);
+    worksheet.addRow([]); // Empty row
 
     // Add forecast summary for previsao type
     if (type === 'previsao' && forecastSummary) {
-      sheetData.push(['RESUMO FINANCEIRO']);
-      sheetData.push(['Previsão de Entrada', forecastSummary.receivable]);
-      sheetData.push(['Previsão de Saída', forecastSummary.totalPayable]);
-      sheetData.push(['Saldo Previsto', forecastSummary.net]);
-      sheetData.push([]);
+      worksheet.addRow(['RESUMO FINANCEIRO']);
+      worksheet.addRow(['Previsão de Entrada', forecastSummary.receivable]);
+      worksheet.addRow(['Previsão de Saída', forecastSummary.totalPayable]);
+      worksheet.addRow(['Saldo Previsto', forecastSummary.net]);
+      worksheet.addRow([]);
       
       if (forecastSummary.teamTotal || forecastSummary.custosExtras || forecastSummary.payable) {
-        sheetData.push(['DETALHES DE SAÍDAS']);
+        worksheet.addRow(['DETALHES DE SAÍDAS']);
         if (forecastSummary.teamTotal && forecastSummary.teamTotal !== '0') {
-          sheetData.push(['A Pagar Colaboradores', forecastSummary.teamTotal]);
-          if (forecastSummary.teamCaptacao) sheetData.push(['  - Captação', forecastSummary.teamCaptacao]);
-          if (forecastSummary.teamEdicao) sheetData.push(['  - Edição', forecastSummary.teamEdicao]);
+          worksheet.addRow(['A Pagar Colaboradores', forecastSummary.teamTotal]);
+          if (forecastSummary.teamCaptacao) worksheet.addRow(['  - Captação', forecastSummary.teamCaptacao]);
+          if (forecastSummary.teamEdicao) worksheet.addRow(['  - Edição', forecastSummary.teamEdicao]);
         }
         if (forecastSummary.custosExtras && forecastSummary.custosExtras !== '0') {
-          sheetData.push(['Custos Extras', forecastSummary.custosExtras]);
+          worksheet.addRow(['Custos Extras', forecastSummary.custosExtras]);
         }
         if (forecastSummary.payable && forecastSummary.payable !== '0') {
-          sheetData.push(['Outros Pagamentos', forecastSummary.payable]);
+          worksheet.addRow(['Outros Pagamentos', forecastSummary.payable]);
         }
-        sheetData.push([]);
+        worksheet.addRow([]);
       }
       
-      sheetData.push(['MOVIMENTOS DO MÊS']);
+      worksheet.addRow(['MOVIMENTOS DO MÊS']);
     }
 
     // Add column headers
     const headers = keys.map(k => labels[k]);
-    sheetData.push(headers);
+    worksheet.addRow(headers);
     
     // Add data rows
     data.forEach(row => {
@@ -199,32 +200,35 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
         const value = row[key as keyof ExportData] || '-';
         return String(value);
       });
-      sheetData.push(cells);
+      worksheet.addRow(cells);
     });
 
     // Add totals section
-    sheetData.push([]);
-    sheetData.push(['TOTAIS']);
+    worksheet.addRow([]);
+    worksheet.addRow(['TOTAIS']);
     if (type === 'clients') {
-      sheetData.push(['Total Pago', formatCurrencyValue(totals.pago)]);
-      sheetData.push(['Total Pendente', formatCurrencyValue(totals.pendente)]);
-      sheetData.push(['Total Vencido', formatCurrencyValue(totals.vencido)]);
+      worksheet.addRow(['Total Pago', formatCurrencyValue(totals.pago)]);
+      worksheet.addRow(['Total Pendente', formatCurrencyValue(totals.pendente)]);
+      worksheet.addRow(['Total Vencido', formatCurrencyValue(totals.vencido)]);
     }
-    sheetData.push(['Total Geral', formatCurrencyValue(totals.total)]);
-
-    // Create worksheet from data
-    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    worksheet.addRow(['Total Geral', formatCurrencyValue(totals.total)]);
 
     // Set column widths
-    const colWidths = keys.map((_, index) => ({ wch: index === 0 ? 15 : 25 }));
-    ws['!cols'] = colWidths;
-
-    // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(wb, ws, 'Dados');
+    keys.forEach((_, index) => {
+      worksheet.getColumn(index + 1).width = index === 0 ? 15 : 25;
+    });
 
     // Generate and download the file
     const excelFilename = `${filename}-${currentDateFile}.xlsx`;
-    XLSX.writeFile(wb, excelFilename);
+    
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = excelFilename;
+    link.click();
+    URL.revokeObjectURL(url);
 
     toast({
       title: 'Exportado com sucesso',
