@@ -1,16 +1,104 @@
 
 
-## Correção: Gerar Link de Aprovação sem Tarefa
+## Remover Setas de Inputs Numéricos para Valores Monetários
 
-### Problema Identificado
+### Problema
 
-Quando um projeto não tem tarefas (`taskId = null`), o botão "Gerar link de aprovação" não executa porque:
+Os campos de valores monetários estão a usar `type="number"` que mostra as setas (spinner) para incrementar/decrementar. Isso é pouco prático para valores monetários onde os utilizadores preferem digitar diretamente.
 
-1. O hook `useVideoApproval` verifica `if (!taskId)` e não executa as funções
-2. A função `generateToken` falha com `throw new Error('Missing required data')` quando `taskId` é `null`
-3. O componente `ApprovalShareLink` não recebe `projectId`
+---
 
-A tabela `video_approval_tokens` já suporta `project_id` (nullable), então só precisamos atualizar o código para usar este campo.
+### Solução
+
+Criar um componente `CurrencyInput` reutilizável que:
+1. Usa `type="text"` com `inputMode="decimal"` (teclado numérico em mobile)
+2. Remove as setas (spinners) completamente
+3. Formata automaticamente o valor como moeda
+4. Aceita apenas números e separadores decimais
+
+---
+
+### Componente a Criar
+
+| Ficheiro | Descrição |
+|----------|-----------|
+| `src/components/ui/currency-input.tsx` | Novo componente de input para moeda |
+
+---
+
+### Implementação do Componente
+
+```typescript
+// currency-input.tsx
+import * as React from "react";
+import { cn } from "@/lib/utils";
+
+interface CurrencyInputProps extends Omit<React.ComponentProps<"input">, 'onChange' | 'value'> {
+  value: number | string | null | undefined;
+  onChange: (value: number | null) => void;
+  currencySymbol?: string;
+}
+
+const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
+  ({ className, value, onChange, currencySymbol, placeholder = "0.00", ...props }, ref) => {
+    const [displayValue, setDisplayValue] = React.useState('');
+
+    // Sync display value with prop value
+    React.useEffect(() => {
+      if (value === null || value === undefined || value === '') {
+        setDisplayValue('');
+      } else {
+        const numValue = typeof value === 'string' ? parseFloat(value) : value;
+        if (!isNaN(numValue)) {
+          setDisplayValue(numValue.toString());
+        }
+      }
+    }, [value]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const inputValue = e.target.value;
+      
+      // Allow empty input
+      if (inputValue === '') {
+        setDisplayValue('');
+        onChange(null);
+        return;
+      }
+
+      // Only allow numbers, decimal point, and minus sign
+      const sanitized = inputValue.replace(/[^0-9.,\-]/g, '').replace(',', '.');
+      
+      // Validate number format
+      if (/^-?\d*\.?\d*$/.test(sanitized)) {
+        setDisplayValue(sanitized);
+        const numValue = parseFloat(sanitized);
+        if (!isNaN(numValue)) {
+          onChange(numValue);
+        }
+      }
+    };
+
+    return (
+      <input
+        type="text"
+        inputMode="decimal"
+        className={cn(
+          "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+          className,
+        )}
+        ref={ref}
+        value={displayValue}
+        onChange={handleChange}
+        placeholder={placeholder}
+        {...props}
+      />
+    );
+  },
+);
+CurrencyInput.displayName = "CurrencyInput";
+
+export { CurrencyInput };
+```
 
 ---
 
@@ -18,134 +106,53 @@ A tabela `video_approval_tokens` já suporta `project_id` (nullable), então só
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `src/hooks/useVideoApproval.ts` | Suportar `projectId` como alternativa a `taskId` |
-| `src/components/video-production/ApprovalShareLink.tsx` | Aceitar e passar `projectId` |
-| `src/components/video-production/VideoProductionTab.tsx` | Passar `projectId` ao `ApprovalShareLink` |
+| `src/components/projects/ProjectFinancialTab.tsx` | Substituir `type="number"` por `CurrencyInput` |
+| `src/components/projects/CreateProjectModal.tsx` | Substituir inputs monetários |
+| `src/components/contracts/CreateContractModal.tsx` | Substituir input de valor total |
+| `src/components/leads/CreateLeadModal.tsx` | Substituir input de valor estimado |
+| `src/components/dashboard/MonthlyGoalsCard.tsx` | Substituir input de meta de receita |
 
 ---
 
-### Alteração 1: Hook `useVideoApproval`
+### Exemplo de Substituição
 
-**Interface atualizada:**
-```typescript
-export function useVideoApproval(taskId: string | null, projectId?: string | null)
+**Antes:**
+```tsx
+<Input
+  type="number"
+  step="0.01"
+  min="0"
+  placeholder="0.00"
+  value={member.payment_amount || ''}
+  onChange={(e) => handleChange(Number(e.target.value))}
+/>
 ```
 
-**Funções atualizadas:**
-
-```typescript
-const fetchToken = useCallback(async () => {
-  // Aceitar taskId OU projectId
-  if (!taskId && !projectId) return;
-
-  try {
-    let query = supabase
-      .from('video_approval_tokens')
-      .select('*')
-      .eq('is_active', true);
-
-    if (taskId) {
-      query = query.eq('task_id', taskId);
-    } else if (projectId) {
-      query = query.is('task_id', null).eq('project_id', projectId);
-    }
-
-    const { data, error } = await query.maybeSingle();
-    // ...
-  }
-}, [taskId, projectId]);
-
-const generateToken = async (workspaceId: string, ...) => {
-  // Validar: precisa de taskId OU projectId
-  if ((!taskId && !projectId) || !user) {
-    throw new Error('Missing required data');
-  }
-
-  // Desativar tokens existentes
-  let deactivateQuery = supabase
-    .from('video_approval_tokens')
-    .update({ is_active: false });
-
-  if (taskId) {
-    deactivateQuery = deactivateQuery.eq('task_id', taskId);
-  } else if (projectId) {
-    deactivateQuery = deactivateQuery.is('task_id', null).eq('project_id', projectId);
-  }
-
-  await deactivateQuery;
-
-  // Criar novo token
-  const { data, error } = await supabase
-    .from('video_approval_tokens')
-    .insert({
-      task_id: taskId || null,
-      project_id: projectId || null,  // Novo campo
-      workspace_id: workspaceId,
-      // ... resto dos campos
-    })
-    .select()
-    .single();
-  // ...
-};
-```
-
----
-
-### Alteração 2: Componente `ApprovalShareLink`
-
-**Interface atualizada:**
-```typescript
-interface ApprovalShareLinkProps {
-  taskId: string | null;  // Agora aceita null
-  workspaceId: string;
-  projectId: string;      // Novo campo obrigatório
-  className?: string;
-}
-
-export function ApprovalShareLink({ taskId, workspaceId, projectId, className }) {
-  // Passar projectId ao hook
-  const { token, generateToken, revokeToken, getApprovalUrl } = 
-    useVideoApproval(taskId, projectId);
-  // ...
-}
-```
-
----
-
-### Alteração 3: Componente `VideoProductionTab`
-
-```typescript
-<ApprovalShareLink
-  taskId={taskId}
-  workspaceId={workspaceId}
-  projectId={projectId}  // Adicionar esta prop
+**Depois:**
+```tsx
+<CurrencyInput
+  placeholder="0.00"
+  value={member.payment_amount}
+  onChange={(value) => handleChange(value || 0)}
 />
 ```
 
 ---
 
-### Fluxo Corrigido
+### Resultado Visual
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  Projeto SEM tarefa                                             │
-│        ↓                                                        │
-│  ApprovalShareLink(taskId=null, projectId="xxx")                │
-│        ↓                                                        │
-│  useVideoApproval(null, "xxx") → usa projectId                  │
-│        ↓                                                        │
-│  generateToken() → INSERT com project_id="xxx", task_id=NULL    │
-│        ↓                                                        │
-│  ✅ Link gerado com sucesso                                     │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Antes | Depois |
+|-------|--------|
+| Campo com setas ↑↓ | Campo de texto limpo |
+| Incremento por clique | Digitação direta |
+| `type="number"` | `type="text" inputMode="decimal"` |
 
 ---
 
-### Resultado Esperado
+### Vantagens
 
-| Cenário | Antes | Depois |
-|---------|-------|--------|
-| Projeto com tarefa | ✅ Funciona | ✅ Funciona |
-| Projeto sem tarefa | ❌ Não executa | ✅ Usa projectId |
+1. **UX melhorada**: Sem setas que ocupam espaço e causam cliques acidentais
+2. **Mobile-friendly**: `inputMode="decimal"` mostra teclado numérico
+3. **Consistência**: Mesmo componente em todo o projeto
+4. **Validação**: Só aceita valores numéricos válidos
 
