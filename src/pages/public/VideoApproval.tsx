@@ -324,12 +324,18 @@ export default function VideoApproval() {
     
     // If starting to type (from empty to something)
     if (!commentText && newValue) {
-      // Pause video and capture timecode
+      // Pause video and capture EXACT timecode directly from video element
       if (videoRef.current) {
+        // Capture exact position BEFORE pausing for maximum precision
+        const exactTimestamp = videoRef.current.currentTime;
         videoRef.current.pause();
         setIsPlaying(false);
+        setCommentTimestamp(exactTimestamp);
+        setCurrentTime(exactTimestamp); // Sync state to match
+      } else {
+        // Fallback if no video ref
+        setCommentTimestamp(currentTime);
       }
-      setCommentTimestamp(currentTime);
       setHasStartedTyping(true);
     }
     
