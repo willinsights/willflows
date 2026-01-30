@@ -108,13 +108,9 @@ serve(async (req) => {
         updateData.duration_seconds = Math.round(duration);
       }
 
-      if (thumbnail) {
-        updateData.thumbnail_path = thumbnail;
-      }
-
-      if (playback?.hls) {
-        updateData.stream_playback_url = playback.hls;
-      }
+      // Always use canonical videodelivery.net URL
+      updateData.thumbnail_path = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg`;
+      updateData.stream_playback_url = `https://videodelivery.net/${streamUid}/manifest/video.m3u8`;
 
       const { error: updateError } = await supabase
         .from("video_versions")
