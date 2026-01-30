@@ -16,6 +16,10 @@ interface VideoVersion {
   workspace_id: string;
   task_id: string | null;
   project_id: string | null;
+  stream_playback_url: string | null;
+  cloudflare_stream_uid: string | null;
+  stream_status: string | null;
+  thumbnail_path: string | null;
 }
 
 interface VideoComment {
@@ -163,17 +167,26 @@ Deno.serve(async (req) => {
     const { data: approvals } = await approvalsQuery;
     const approval = approvals?.[0] || null;
 
-    // Generate signed URLs for all versions (30 minutes validity)
-    const signedUrls: Record<string, string> = {};
+    // Generate video URLs - prefer Cloudflare Stream, fallback to signed Supabase URLs
+    const videoUrls: Record<string, string> = {};
     for (const version of (versions || []) as VideoVersion[]) {
-      const { data: urlData, error: urlError } = await supabase.storage
-        .from('video-versions')
-        .createSignedUrl(version.file_path, 1800); // 30 minutes
+      // Use Cloudflare Stream URL if available and ready
+      if (version.cloudflare_stream_uid && version.stream_status === 'ready') {
+        videoUrls[version.id] = `https://videodelivery.net/${version.cloudflare_stream_uid}/manifest/video.m3u8`;
+      } else if (version.stream_playback_url) {
+        // Use stored stream URL (already canonical)
+        videoUrls[version.id] = version.stream_playback_url;
+      } else {
+        // Fallback to Supabase Storage signed URL for legacy videos
+        const { data: urlData, error: urlError } = await supabase.storage
+          .from('video-versions')
+          .createSignedUrl(version.file_path, 1800); // 30 minutes
 
-      if (urlData?.signedUrl && !urlError) {
-        signedUrls[version.id] = urlData.signedUrl;
-      } else if (urlError) {
-        console.error(`Failed to create signed URL for ${version.id}:`, urlError);
+        if (urlData?.signedUrl && !urlError) {
+          videoUrls[version.id] = urlData.signedUrl;
+        } else if (urlError) {
+          console.error(`Failed to create signed URL for ${version.id}:`, urlError);
+        }
       }
     }
 
@@ -194,7 +207,7 @@ Deno.serve(async (req) => {
       } : null,
       client_name: tokenData.client_name,
       workspace_id: tokenData.workspace_id,
-      signed_urls: signedUrls,
+      signed_urls: videoUrls,
     };
 
     console.log(`Approval data fetched for token ${token.substring(0, 8)}... - ${(versions || []).length} versions, ${(comments || []).length} comments`);
