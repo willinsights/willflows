@@ -1,90 +1,81 @@
 
-## Correções na Página de Aprovação de Vídeo
+## Proteção Contra Indexação - Links de Aprovação de Vídeo
 
-### Problema 1: Título do Cabeçalho
-**Atual:** Mostra `{data.task.title}` (ex: "Checklist Checklist Edição")
-**Pretendido:** Mostrar "Studio Review" como título fixo
-
-### Problema 2: Formato do Timecode
-**Atual:** `00:00:15 / 00:00:48` (sem milissegundos)
-**Causa:** O código usa `Math.floor()` antes de chamar `formatTimecode`, removendo a precisão decimal
-**Pretendido:** `00:00:15.00 / 00:00:48.00` (com centésimos)
-
-### Problema 3: Legenda de Retenção
-**Atual:** Sem informação sobre política de retenção
-**Pretendido:** Adicionar nota informativa sobre os 7 dias de retenção após conclusão da tarefa
+### Objetivo
+Impedir que motores de pesquisa (Google, Bing, etc.) indexem as páginas de aprovação de vídeo dos clientes.
 
 ---
 
-### Ficheiro a Modificar
+### Alterações a Implementar
 
-| Ficheiro | Alterações |
+| Ficheiro | Alteração |
 |----------|-----------|
-| `src/pages/public/VideoApproval.tsx` | 3 correções |
+| `public/robots.txt` | Adicionar `Disallow: /video-approval/` |
+| `src/pages/public/VideoApproval.tsx` | Adicionar `Helmet` com meta tags `noindex` |
 
 ---
 
-### Alteração 1: Título "Studio Review"
+### Alteração 1: robots.txt
 
-**Linhas 564-567 - Alterar de:**
-```tsx
-<div>
-  <h1 className="font-semibold">{data.task.title}</h1>
-  <p className="text-sm text-muted-foreground">{data.task.project_name}</p>
-</div>
+**Ficheiro:** `public/robots.txt`
+
+Adicionar antes da secção "Sitemaps" (linha 29):
+```txt
+Disallow: /video-approval/
 ```
 
-**Para:**
-```tsx
-<div>
-  <h1 className="font-semibold">Studio Review</h1>
-  <p className="text-sm text-muted-foreground">{data.task.project_name}</p>
-</div>
-```
-
----
-
-### Alteração 2: Timecode com Milissegundos
-
-**Linha 789 - Alterar de:**
-```tsx
-{formatTimecode(Math.floor(currentTime))} / {formatTimecode(Math.floor(duration))}
-```
-
-**Para:**
-```tsx
-{formatTimecode(currentTime)} / {formatTimecode(duration)}
-```
-
-**Linha 810 - Alterar de:**
-```tsx
-{formatTimecode(Math.floor(commentTimestamp))}
-```
-
-**Para:**
-```tsx
-{formatTimecode(commentTimestamp)}
+**Estado final da secção de bloqueio:**
+```txt
+# Block app routes (require authentication)
+Disallow: /app/
+Disallow: /auth
+Disallow: /onboarding
+Disallow: /convite
+Disallow: /checkout-success
+Disallow: /tutorial
+Disallow: /video-approval/
 ```
 
 ---
 
-### Alteração 3: Legenda de Retenção (7 dias)
+### Alteração 2: Meta Tags noindex
 
-**Após linha 875 (após "Enviado {date}")**, adicionar:
+**Ficheiro:** `src/pages/public/VideoApproval.tsx`
+
+**Passo 1 - Adicionar import (linha 3):**
 ```tsx
-{/* Retention policy notice */}
-<div className="text-center text-xs text-muted-foreground mt-4 pb-2">
-  <p>Os vídeos são mantidos durante 7 dias após a tarefa ser concluída</p>
-</div>
+import { Helmet } from 'react-helmet-async';
 ```
+
+**Passo 2 - Adicionar Helmet no JSX (após o return principal, antes do primeiro elemento):**
+```tsx
+<>
+  <Helmet>
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <meta name="googlebot" content="noindex, nofollow, noarchive" />
+    <title>Studio Review | WillFlow</title>
+  </Helmet>
+  {/* ... resto do componente */}
+</>
+```
+
+---
+
+### Porquê 2 Camadas de Proteção?
+
+| Camada | Propósito |
+|--------|-----------|
+| `robots.txt` | Primeira linha de defesa - crawlers bem-comportados respeitam isto |
+| Meta tags `noindex` | Segunda linha - aplicada mesmo que o crawler ignore robots.txt |
+
+### Directivas Utilizadas
+
+- **noindex** - Não mostrar esta página nos resultados de pesquisa
+- **nofollow** - Não seguir links encontrados nesta página  
+- **noarchive** - Não guardar versão em cache da página
 
 ---
 
 ### Resultado Esperado
 
-| Elemento | Antes | Depois |
-|----------|-------|--------|
-| Título | Checklist Checklist Edição | Studio Review |
-| Timecode atual | 00:00:15 | 00:00:15.50 |
-| Timecode total | 00:00:48 | 00:00:48.00 |
-| Legenda retenção | (não existe) | "Os vídeos são mantidos durante 7 dias..." |
+Os vídeos dos clientes ficam completamente protegidos contra indexação em qualquer motor de pesquisa.
