@@ -187,6 +187,33 @@ export default function VideoApproval() {
     }
   }, [token, clientName]);
 
+  // Refresh comments only (without reloading the entire page/player)
+  const refreshComments = useCallback(async () => {
+    if (!token) return;
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-video-approval-data?token=${encodeURIComponent(token)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+        }
+      );
+
+      if (!response.ok) return;
+
+      const approvalData: ApprovalData = await response.json();
+      
+      // Update ONLY the comments in state (keeps video player intact)
+      setData(prev => prev ? { ...prev, comments: approvalData.comments } : null);
+    } catch (err) {
+      console.error('Error refreshing comments:', err);
+    }
+  }, [token]);
+
   useEffect(() => {
     fetchApprovalData();
   }, [fetchApprovalData]);
@@ -314,9 +341,34 @@ export default function VideoApproval() {
     setCommentText(newValue);
   };
 
-  // Submit comment via edge function
+  // Submit comment via edge function (with optimistic update)
   const handleSubmitComment = async () => {
     if (!commentText.trim() || !clientName.trim() || !data || !token) return;
+
+    // Create optimistic comment
+    const optimisticComment: VideoComment = {
+      id: crypto.randomUUID(),
+      video_version_id: selectedVersionId,
+      timestamp_seconds: Math.floor(commentTimestamp),
+      body: commentText.trim(),
+      status: 'open',
+      is_client_comment: true,
+      client_name: clientName.trim(),
+      created_at: new Date().toISOString(),
+    };
+
+    // Immediately add to local state (optimistic update)
+    setData(prev => prev ? {
+      ...prev,
+      comments: [...prev.comments, optimisticComment]
+    } : null);
+
+    // Clear form immediately for instant feedback
+    const savedCommentText = commentText.trim();
+    const savedTimestamp = Math.floor(commentTimestamp);
+    setCommentText('');
+    setHasStartedTyping(false);
+    setCommentTimestamp(0);
 
     setSubmittingComment(true);
     try {
@@ -332,8 +384,8 @@ export default function VideoApproval() {
             type: 'comment',
             token,
             video_version_id: selectedVersionId,
-            timestamp_seconds: Math.floor(commentTimestamp),
-            body: commentText.trim(),
+            timestamp_seconds: savedTimestamp,
+            body: savedCommentText,
             client_name: clientName.trim(),
           }),
         }
@@ -344,13 +396,15 @@ export default function VideoApproval() {
         throw new Error(errorData.error || 'Erro ao enviar comentário');
       }
 
-      // Refresh data to show new comment
-      await fetchApprovalData();
-      setCommentText('');
-      setHasStartedTyping(false);
-      setCommentTimestamp(0);
+      // Sync with backend to get real ID (without reloading player)
+      await refreshComments();
     } catch (err: any) {
       console.error('Error submitting comment:', err);
+      // Revert optimistic update on error
+      setData(prev => prev ? {
+        ...prev,
+        comments: prev.comments.filter(c => c.id !== optimisticComment.id)
+      } : null);
       alert(err.message || 'Erro ao enviar comentário');
     } finally {
       setSubmittingComment(false);
