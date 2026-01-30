@@ -112,19 +112,41 @@ export async function validateEmail(email: string): Promise<EmailValidationResul
   }
   result.checks.notDisposable = true;
 
-  // 5. Verify MX records via DNS lookup
-  try {
-    const mxRecords = await Deno.resolveDns(domain, 'MX');
-    if (!mxRecords || mxRecords.length === 0) {
-      result.error = 'Este domínio não aceita emails';
-      result.errorCode = 'NO_MX_RECORD';
-      return result;
+  // 5. Verify MX records via DNS lookup (with retry and TLD fallback)
+  const maxRetries = 2;
+  let mxFound = false;
+  const commonTLDs = ['pt', 'com', 'org', 'net', 'edu', 'gov', 'br', 'es', 'fr', 'de', 'uk', 'io', 'co', 'info', 'biz', 'eu'];
+  const tld = domain.split('.').pop()?.toLowerCase();
+
+  for (let attempt = 0; attempt < maxRetries && !mxFound; attempt++) {
+    try {
+      const mxRecords = await Deno.resolveDns(domain, 'MX');
+      if (mxRecords && mxRecords.length > 0) {
+        mxFound = true;
+        result.checks.mxRecord = true;
+      }
+    } catch (error) {
+      if (attempt === maxRetries - 1) {
+        // Last attempt failed - check if it's a common TLD we should trust
+        if (tld && commonTLDs.includes(tld)) {
+          console.warn(`DNS lookup failed for ${domain}, but accepting common TLD .${tld}`);
+          mxFound = true;
+          result.checks.mxRecord = true;
+        } else {
+          result.error = 'Domínio de email não existe';
+          result.errorCode = 'INVALID_DOMAIN';
+          return result;
+        }
+      } else {
+        // Wait before retry
+        await new Promise(r => setTimeout(r, 500));
+      }
     }
-    result.checks.mxRecord = true;
-  } catch (error) {
-    // DNS lookup failed - domain probably doesn't exist
-    result.error = 'Domínio de email não existe';
-    result.errorCode = 'INVALID_DOMAIN';
+  }
+
+  if (!mxFound) {
+    result.error = 'Este domínio não aceita emails';
+    result.errorCode = 'NO_MX_RECORD';
     return result;
   }
 

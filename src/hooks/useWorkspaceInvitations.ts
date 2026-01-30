@@ -165,12 +165,20 @@ export function useWorkspaceInvitations() {
 
         if (emailError) {
           logger.warn('Failed to send invitation email:', emailError);
-          // Don't fail the invitation creation if email fails
+          await fetchInvitations();
+          return { 
+            success: true, 
+            error: 'Convite criado mas o email pode não ter sido enviado. Use "Reenviar" para tentar novamente.' 
+          };
         }
       }
     } catch (emailErr) {
       logger.warn('Error sending invitation email:', emailErr);
-      // Don't fail the invitation creation if email fails
+      await fetchInvitations();
+      return { 
+        success: true, 
+        error: 'Convite criado mas o email pode não ter sido enviado. Use "Reenviar" para tentar novamente.' 
+      };
     }
 
     await fetchInvitations();
@@ -193,6 +201,12 @@ export function useWorkspaceInvitations() {
   };
 
   const resendInvitation = async (invitationId: string): Promise<{ success: boolean; error?: string }> => {
+    // Find the invitation first
+    const invitation = invitations.find(inv => inv.id === invitationId);
+    if (!invitation) {
+      return { success: false, error: 'Convite não encontrado' };
+    }
+
     // Extend expiration by 7 days
     const newExpiry = new Date();
     newExpiry.setDate(newExpiry.getDate() + 7);
@@ -205,6 +219,40 @@ export function useWorkspaceInvitations() {
     if (error) {
       logger.error('Error resending invitation:', error);
       return { success: false, error: 'Erro ao reenviar convite' };
+    }
+
+    // Send the invitation email again
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && currentWorkspace) {
+        const { data: inviterProfile } = await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', user?.id)
+          .single();
+
+        const { error: emailError } = await supabase.functions.invoke('send-invitation-email', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          body: {
+            invitationId: invitation.id,
+            email: invitation.email,
+            workspaceName: currentWorkspace.name,
+            inviterName: inviterProfile?.full_name || inviterProfile?.email || 'Um utilizador',
+            role: invitation.role,
+            token: invitation.token,
+          },
+        });
+
+        if (emailError) {
+          logger.warn('Failed to resend invitation email:', emailError);
+          await fetchInvitations();
+          return { success: true, error: 'Convite reenviado mas o email pode não ter sido entregue' };
+        }
+      }
+    } catch (emailErr) {
+      logger.warn('Error resending invitation email:', emailErr);
+      await fetchInvitations();
+      return { success: true, error: 'Convite reenviado mas o email pode não ter sido entregue' };
     }
 
     await fetchInvitations();
