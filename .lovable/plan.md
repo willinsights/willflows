@@ -1,22 +1,149 @@
 
+## Plano de Correção: Emails de Convite Não Chegam
 
-## Correções na Secção de Comentários de Produção de Vídeo
+### Problemas Identificados
 
-### Problema 1: Título "Comentários" Duplicado
-
-Na imagem enviada, vê-se:
-- "Comentários" no `CardTitle` do `VideoProductionTab.tsx` (linha 243)
-- "Comentários" novamente no header do `TimestampComments.tsx` (linha 64)
-
-**Solução**: Remover o header interno do `TimestampComments` já que o Card pai já tem o título.
+| # | Problema | Impacto |
+|---|----------|---------|
+| 1 | Função `resendInvitation` não envia email | Reenviar convite apenas estende prazo, não manda email |
+| 2 | Erros de envio são silenciados | Utilizador pensa que convite foi enviado quando falhou |
+| 3 | Validação DNS pode rejeitar domínios válidos | Domínios `.pt` podem falhar se DNS timeout ocorrer |
 
 ---
 
-### Problema 2: Falta Forma de Responder a Comentários
+### Correção 1: Reenviar Email ao Reenviar Convite
 
-O hook `useVideoComments` já suporta respostas via `parentId`, mas não há UI para a equipa responder.
+**Ficheiro:** `src/hooks/useWorkspaceInvitations.ts`
 
-**Solução**: Adicionar botão "Responder" e campo de input em cada comentário.
+Atualizar a função `resendInvitation` para também enviar o email:
+
+```tsx
+const resendInvitation = async (invitationId: string): Promise<{ success: boolean; error?: string }> => {
+  // Buscar dados do convite primeiro
+  const invitation = invitations.find(inv => inv.id === invitationId);
+  if (!invitation) {
+    return { success: false, error: 'Convite não encontrado' };
+  }
+
+  // Extend expiration by 7 days
+  const newExpiry = new Date();
+  newExpiry.setDate(newExpiry.getDate() + 7);
+
+  const { error } = await supabase
+    .from('workspace_invitations')
+    .update({ expires_at: newExpiry.toISOString() })
+    .eq('id', invitationId);
+
+  if (error) {
+    logger.error('Error resending invitation:', error);
+    return { success: false, error: 'Erro ao reenviar convite' };
+  }
+
+  // NOVO: Enviar email novamente
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session && currentWorkspace) {
+      const { data: inviterProfile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user?.id)
+        .single();
+
+      const { error: emailError } = await supabase.functions.invoke('send-invitation-email', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: {
+          invitationId: invitation.id,
+          email: invitation.email,
+          workspaceName: currentWorkspace.name,
+          inviterName: inviterProfile?.full_name || inviterProfile?.email || 'Um utilizador',
+          role: invitation.role,
+          token: invitation.token,
+        },
+      });
+
+      if (emailError) {
+        logger.warn('Failed to resend invitation email:', emailError);
+        return { success: true, error: 'Convite reenviado mas email pode não ter sido entregue' };
+      }
+    }
+  } catch (emailErr) {
+    logger.warn('Error resending invitation email:', emailErr);
+  }
+
+  await fetchInvitations();
+  return { success: true };
+};
+```
+
+---
+
+### Correção 2: Melhorar Tolerância a Falhas de DNS
+
+**Ficheiro:** `supabase/functions/_shared/email-validator.ts`
+
+Adicionar retry com timeout e fallback para DNS lookup:
+
+```typescript
+// 5. Verify MX records via DNS lookup (with retry)
+const maxRetries = 2;
+let mxFound = false;
+
+for (let attempt = 0; attempt < maxRetries && !mxFound; attempt++) {
+  try {
+    const mxRecords = await Deno.resolveDns(domain, 'MX');
+    if (mxRecords && mxRecords.length > 0) {
+      mxFound = true;
+      result.checks.mxRecord = true;
+    }
+  } catch (error) {
+    // Se é domínio comum conhecido (.pt, .com, .org, etc), dar benefício da dúvida
+    const commonTLDs = ['pt', 'com', 'org', 'net', 'edu', 'gov', 'br', 'es', 'fr', 'de', 'uk', 'io'];
+    const tld = domain.split('.').pop()?.toLowerCase();
+    
+    if (attempt === maxRetries - 1) {
+      // Na última tentativa, se for TLD comum, aceitar mesmo com falha DNS
+      if (tld && commonTLDs.includes(tld)) {
+        console.warn(`DNS lookup failed for ${domain}, but accepting common TLD`);
+        mxFound = true;
+        result.checks.mxRecord = true;
+      } else {
+        result.error = 'Domínio de email não existe';
+        result.errorCode = 'INVALID_DOMAIN';
+        return result;
+      }
+    }
+    // Pequena pausa antes de retry
+    await new Promise(r => setTimeout(r, 500));
+  }
+}
+
+if (!mxFound) {
+  result.error = 'Este domínio não aceita emails';
+  result.errorCode = 'NO_MX_RECORD';
+  return result;
+}
+```
+
+---
+
+### Correção 3: Feedback Visual de Erro
+
+**Ficheiro:** `src/hooks/useWorkspaceInvitations.ts`
+
+Melhorar o tratamento de erros para informar o utilizador:
+
+```tsx
+// Em createInvitation, após chamar a edge function:
+if (emailError) {
+  logger.warn('Failed to send invitation email:', emailError);
+  // Retornar sucesso parcial com aviso
+  await fetchInvitations();
+  return { 
+    success: true, 
+    error: 'Convite criado mas o email pode não ter sido enviado. Use "Reenviar" para tentar novamente.' 
+  };
+}
+```
 
 ---
 
@@ -24,155 +151,22 @@ O hook `useVideoComments` já suporta respostas via `parentId`, mas não há UI 
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `src/components/video-production/TimestampComments.tsx` | Remover header duplicado + Adicionar UI de resposta |
+| `src/hooks/useWorkspaceInvitations.ts` | Adicionar envio de email em `resendInvitation` + melhorar feedback de erro |
+| `supabase/functions/_shared/email-validator.ts` | Adicionar retry e fallback para DNS de TLDs comuns |
 
 ---
 
-### Alterações no TimestampComments.tsx
+### Resultado Esperado
 
-**1. Remover header duplicado (linhas 60-97)**
-
-Transformar de header completo com filtros para apenas os filtros (sem o título "Comentários" redundante):
-
-```tsx
-// Antes: Header com ícone, título E filtros
-<div className="flex items-center justify-between">
-  <div className="flex items-center gap-2">
-    <MessageSquare className="h-4 w-4 text-muted-foreground" />
-    <span className="font-medium">Comentários</span>  {/* REMOVER */}
-    <Badge>...</Badge>  {/* REMOVER - já redundante */}
-  </div>
-  <div className="flex gap-1">...</div> {/* Manter filtros */}
-</div>
-
-// Depois: Apenas filtros
-<div className="flex items-center justify-end gap-1">
-  {/* Apenas botões de filtro */}
-</div>
-```
-
-**2. Adicionar funcionalidade de resposta no CommentCard**
-
-```tsx
-// Props adicionais
-interface CommentCardProps {
-  comment: VideoComment;
-  onSeekTo?: (timestampSeconds: number) => void;
-  onResolve: () => void;
-  onReopen: () => void;
-  onDelete: () => void;
-  onReply: (body: string) => void;  // NOVO
-}
-
-// Estado para resposta
-const [showReplyInput, setShowReplyInput] = useState(false);
-const [replyText, setReplyText] = useState('');
-const [submittingReply, setSubmittingReply] = useState(false);
-
-// Botão de responder (junto aos outros botões de ação)
-<Button
-  variant="ghost"
-  size="sm"
-  onClick={() => setShowReplyInput(!showReplyInput)}
-  className="h-7 text-xs"
->
-  <Reply className="h-3 w-3 mr-1" />
-  Responder
-</Button>
-
-// Campo de input para resposta (após o corpo do comentário)
-{showReplyInput && (
-  <div className="mt-2 flex gap-2">
-    <Textarea
-      value={replyText}
-      onChange={(e) => setReplyText(e.target.value)}
-      placeholder="Escrever resposta..."
-      rows={2}
-      className="text-sm"
-    />
-    <div className="flex flex-col gap-1">
-      <Button
-        size="sm"
-        onClick={handleSubmitReply}
-        disabled={!replyText.trim() || submittingReply}
-      >
-        Enviar
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        onClick={() => {
-          setShowReplyInput(false);
-          setReplyText('');
-        }}
-      >
-        Cancelar
-      </Button>
-    </div>
-  </div>
-)}
-```
-
-**3. Atualizar TimestampComments para passar função de reply**
-
-```tsx
-// No componente TimestampComments, adicionar handler
-const handleReply = async (parentId: string, body: string) => {
-  if (!selectedVersionId) return;
-  
-  await addComment({
-    videoVersionId: selectedVersionId,
-    taskId,
-    workspaceId,
-    timestampSeconds: 0, // Respostas não têm timestamp próprio
-    body,
-    parentId,
-  });
-};
-
-// Passar ao CommentCard
-<CommentCard
-  key={comment.id}
-  comment={comment}
-  onSeekTo={onSeekTo}
-  onResolve={() => resolveComment(comment.id)}
-  onReopen={() => reopenComment(comment.id)}
-  onDelete={() => deleteComment(comment.id)}
-  onReply={(body) => handleReply(comment.id, body)}  // NOVO
-/>
-```
+1. **Reenviar Convite** → Atualiza prazo **E** envia email novamente
+2. **Domínios .pt** → Aceites mesmo se DNS lookup temporariamente falhar
+3. **Feedback** → Utilizador informado se email não foi enviado
 
 ---
 
-### Resultado Visual
+### Notas Técnicas
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│ 📹 Comentários (Card Title - já existe no pai)                   │
-├─────────────────────────────────────────────────────────────────┤
-│                                    [Todos] [●1] [✓0]  ← Filtros │
-│                                                                 │
-│ ┌─────────────────────────────────────────────────────────────┐ │
-│ │ ⏱ 00:00:45:56  U Membro da equipa         [Responder][...]  │ │
-│ │                                                             │ │
-│ │ ultima imagem acabar em tela totalmente preta               │ │
-│ │                                                             │ │
-│ │ [Campo de resposta - aparece ao clicar em Responder]        │ │
-│ │ ┌───────────────────────────────────┐ ┌────────┐            │ │
-│ │ │ Escrever resposta...              │ │ Enviar │            │ │
-│ │ └───────────────────────────────────┘ │Cancelar│            │ │
-│ │                                       └────────┘            │ │
-│ │ ├─ Respostas aparecem aqui                                  │ │
-│ │ │  └─ Equipa: Corrigido na v2!                              │ │
-│ └─────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-### Dependências Técnicas
-
-- O hook `useVideoComments` já suporta `parentId` para criar respostas
-- As respostas já são organizadas automaticamente pelo hook (`replies` array)
-- Só é necessário adicionar a UI para acionar esta funcionalidade
-
+- O validador atual usa `Deno.resolveDns()` que pode ter timeouts em redes lentas
+- Domínios portugueses (sapo.pt, mail.pt, etc) têm MX records válidos mas podem falhar lookup
+- O código atual silencia erros de email (`logger.warn`) sem informar o utilizador
+- A lista de domínios descartáveis não inclui nenhum domínio `.pt`
