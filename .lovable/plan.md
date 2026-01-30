@@ -1,90 +1,118 @@
 
 
-## Correção: Capturar Timecode Exato do Vídeo
+## Correções: Timecode Preciso + Botão Apagar Comentários
 
-### Problema Identificado
-O timecode é capturado do estado React `currentTime`, que só é atualizado pelo evento `timeupdate` (4-15 vezes por segundo). Isto cria um atraso de até ~250ms entre a posição real do vídeo e o valor capturado.
+### Problema 1: Timecode arredonda após 2 segundos
 
-### Causa Raiz (Linha 332)
+**Causa identificada:** A edge function `submit-video-feedback` (linha 120) aplica `Math.floor()`:
 
 ```typescript
-// ❌ Problema: currentTime é um estado React desatualizado
-setCommentTimestamp(currentTime);
+timestamp_seconds: Math.floor(commentPayload.timestamp_seconds || 0),
 ```
 
-O estado `currentTime` pode ter sido atualizado há 50-250ms atrás. Para um serviço de aprovação de vídeo profissional, precisamos da posição **exata** no momento da captura.
+**Fluxo do problema:**
+1. Cliente escreve comentário → timestamp capturado com precisão (ex: 24.36s)
+2. UI mostra optimistic update → `00:00:24:09` (correto)
+3. Edge function guarda com `Math.floor` → 24.0s no banco de dados
+4. `refreshComments()` busca dados reais → substitui por `00:00:24:00`
 
 ---
 
-### Ficheiro a Modificar
+### Problema 2: Falta botão apagar comentário
+
+**Locais afetados:**
+- Página de aprovação (cliente público) → precisa de edge function
+- Modal de produção (equipa autenticada) → já tem função no hook, falta UI e RLS
+
+---
+
+### Ficheiros a Modificar
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `src/pages/public/VideoApproval.tsx` | Ler posição diretamente do elemento vídeo |
+| `supabase/functions/submit-video-feedback/index.ts` | Remover `Math.floor()` |
+| `supabase/functions/delete-video-comment/index.ts` | **CRIAR** - Nova edge function |
+| `src/pages/public/VideoApproval.tsx` | Adicionar botão e lógica de apagar |
+| `src/components/video-production/TimestampComments.tsx` | Adicionar botão apagar na UI |
+| Database | Adicionar política RLS para DELETE |
 
 ---
 
-### Alteração
+### Alteração 1: Remover arredondamento na edge function
 
-**Linhas 326-333 - Alterar de:**
+**Ficheiro:** `supabase/functions/submit-video-feedback/index.ts`
+
+**Linha 120 - Alterar de:**
 ```typescript
-// If starting to type (from empty to something)
-if (!commentText && newValue) {
-  // Pause video and capture timecode
-  if (videoRef.current) {
-    videoRef.current.pause();
-    setIsPlaying(false);
-  }
-  setCommentTimestamp(currentTime);
-  setHasStartedTyping(true);
-}
+timestamp_seconds: Math.floor(commentPayload.timestamp_seconds || 0),
 ```
 
 **Para:**
 ```typescript
-// If starting to type (from empty to something)
-if (!commentText && newValue) {
-  // Pause video and capture EXACT timecode directly from video element
-  if (videoRef.current) {
-    // Capture exact position BEFORE pausing for maximum precision
-    const exactTimestamp = videoRef.current.currentTime;
-    videoRef.current.pause();
-    setIsPlaying(false);
-    setCommentTimestamp(exactTimestamp);
-    setCurrentTime(exactTimestamp); // Sync state to match
-  } else {
-    // Fallback if no video ref
-    setCommentTimestamp(currentTime);
-  }
-  setHasStartedTyping(true);
-}
+timestamp_seconds: commentPayload.timestamp_seconds || 0,
 ```
 
 ---
 
-### Porquê Funciona
+### Alteração 2: Criar edge function para apagar comentários (cliente)
+
+**Novo ficheiro:** `supabase/functions/delete-video-comment/index.ts`
+
+A função irá:
+- Validar token de aprovação
+- Verificar que o comentário pertence a esse token/versão
+- Apagar apenas comentários de cliente (`is_client_comment = true`)
+- Usar service role para bypass de RLS
+
+---
+
+### Alteração 3: Botão apagar na página de aprovação
+
+**Ficheiro:** `src/pages/public/VideoApproval.tsx`
+
+Adicionar:
+1. Estado para confirmar apagar
+2. Função `handleDeleteComment` que chama a nova edge function
+3. Botão com ícone de lixo em cada comentário do cliente
+
+**Localização:** No card de comentário (linhas 680-721), adicionar botão Trash2 no header, visível apenas para comentários do próprio cliente.
+
+---
+
+### Alteração 4: Botão apagar no componente TimestampComments
+
+**Ficheiro:** `src/components/video-production/TimestampComments.tsx`
+
+O hook já exporta `deleteComment`. Alterações necessárias:
+1. Passar `deleteComment` do hook para o `CommentCard`
+2. Adicionar botão Trash2 ao lado dos botões Resolver/Reabrir
+3. Adicionar confirmação antes de apagar
+
+---
+
+### Alteração 5: Política RLS para DELETE
+
+**Migração SQL:**
+```sql
+CREATE POLICY "Members can delete video comments"
+  ON video_comments
+  FOR DELETE
+  TO authenticated
+  USING (
+    is_workspace_member(auth.uid(), workspace_id)
+  );
+```
+
+Isto permite que membros autenticados do workspace apaguem qualquer comentário desse workspace.
+
+---
+
+### Resultado Esperado
 
 | Antes | Depois |
 |-------|--------|
-| `currentTime` (estado React) - pode ter ~250ms de atraso | `videoRef.current.currentTime` - posição exata no momento |
-
-A leitura direta de `videoRef.current.currentTime` dá a posição com precisão de milissegundos, garantindo que o timecode do comentário corresponde **exatamente** ao frame visível no ecrã.
-
----
-
-### Fluxo Corrigido
-
-```text
-┌──────────────────────────────────────────────────────┐
-│  Utilizador clica no campo de texto                  │
-│        ↓                                             │
-│  1. Lê videoRef.current.currentTime (posição EXATA)  │
-│        ↓                                             │
-│  2. Pausa o vídeo                                    │
-│        ↓                                             │
-│  3. Guarda timestamp exato no estado                 │
-│        ↓                                             │
-│  Resultado: Timecode = 00:00:24:09 (frame correto)   │
-└──────────────────────────────────────────────────────┘
-```
+| Timecode: `00:00:24:09` → `00:00:24:00` após 2s | Timecode mantém precisão |
+| Sem opção de apagar comentários | Botão apagar em ambas as páginas |
+| Cliente não pode apagar próprios comentários | Cliente pode apagar via edge function |
+| Equipa não pode apagar via UI | Equipa pode apagar com RLS |
 
