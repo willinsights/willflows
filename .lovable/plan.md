@@ -1,15 +1,16 @@
 
-## Alterações Solicitadas
+## Adicionar Milissegundos ao Timecode
 
-### 1. Timecode Completo (HH:MM:SS)
+### Alteração Solicitada
+Atualizar o formato do timecode de `HH:MM:SS` para `HH:MM:SS.ms` (com milissegundos).
 
-Atualizar a função `formatTimecode` em `src/lib/duration-utils.ts` para **sempre** mostrar o formato completo com horas, minutos e segundos:
+### Ficheiro a Modificar
 
-**Antes:** `01:30` (para 90 segundos)
-**Depois:** `00:01:30` (sempre com horas)
+| Ficheiro | Alteração |
+|----------|-----------|
+| `src/lib/duration-utils.ts` | Adicionar milissegundos ao formato |
 
-**Ficheiro:** `src/lib/duration-utils.ts`
-
+### Código Atual (linha 11-18)
 ```typescript
 export function formatTimecode(seconds: number): string {
   const totalSeconds = Math.floor(seconds);
@@ -17,110 +18,36 @@ export function formatTimecode(seconds: number): string {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const secs = totalSeconds % 60;
   
-  // Sempre formato completo HH:MM:SS
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 ```
 
----
-
-### 2. Corrigir Texto "Versões" Duplicado
-
-A imagem mostra "Versões" aparecendo duas vezes:
-- Uma vez no `CardTitle` do `VideoProductionTab.tsx` (linha 265)
-- Outra vez no header interno do `VideoVersionsList.tsx` (linha 84)
-
-**Solução:** Remover o header interno do `VideoVersionsList.tsx` já que o Card pai já tem o título.
-
-**Ficheiro:** `src/components/video-production/VideoVersionsList.tsx`
-
-```text
-Antes (linhas 82-86):
-┌────────────────────────────────┐
-│ <span>Versões</span> <Badge>1</Badge> │  ← REMOVER
-├────────────────────────────────┤
-│ V1 - nome_do_video.mp4         │
-└────────────────────────────────┘
-
-Depois:
-┌────────────────────────────────┐
-│ V1 - nome_do_video.mp4         │
-└────────────────────────────────┘
-```
-
----
-
-### 3. Remover Requisito de Tarefa para Vídeo
-
-Atualmente, a aba de Produção exige que exista pelo menos uma tarefa no projeto. O utilizador quer poder adicionar vídeos sem precisar de criar tarefas/checklists primeiro.
-
-**Solução:** 
-- Criar uma tarefa automaticamente quando não existir nenhuma
-- Ou permitir upload diretamente associado ao projeto
-
-**Ficheiros:**
-- `src/components/projects/ProjectDetailsSheet.tsx`
-- `src/components/projects/ProjectDetailsModal.tsx`
-
-**Lógica atual (linhas 681-686):**
+### Novo Código
 ```typescript
-} : tasks.length === 0 ? (
-  <div className="rounded-lg border...">
-    <p>Para usar a Produção, crie pelo menos uma tarefa neste projeto.</p>
-  </div>
-)
-```
-
-**Nova lógica:**
-```typescript
-// Se não existem tarefas, criar uma automaticamente
-useEffect(() => {
-  if (tasks.length === 0 && !creatingDefaultTask) {
-    createDefaultTask();
-  }
-}, [tasks]);
-
-const createDefaultTask = async () => {
-  const { data, error } = await supabase
-    .from('tasks')
-    .insert({
-      project_id: project.id,
-      workspace_id: project.workspace_id,
-      title: 'Produção de Vídeo',
-      phase: 'edicao',
-      position: 0,
-    })
-    .select()
-    .single();
+export function formatTimecode(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  const ms = Math.floor((seconds % 1) * 100); // Centésimos de segundo (2 dígitos)
   
-  if (data) {
-    setTasks([data]);
-    setSelectedVideoTaskId(data.id);
-  }
-};
+  // Formato completo HH:MM:SS.ms
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+}
 ```
 
----
+### Exemplos de Resultado
 
-### 4. Renomear "Checklist Captação/Edição" para "WillFlow Review"
+| Segundos | Antes | Depois |
+|----------|-------|--------|
+| 0 | `00:00:00` | `00:00:00.00` |
+| 5.5 | `00:00:05` | `00:00:05.50` |
+| 90.25 | `00:01:30` | `00:01:30.25` |
+| 3665.75 | `01:01:05` | `01:01:05.75` |
 
-**Ficheiro:** `src/components/projects/ProjectChecklistTab.tsx`
+### Nota Técnica
+Uso 2 dígitos para milissegundos (centésimos) pois:
+- É o padrão profissional de vídeo (frames a 25/30fps ≈ centésimos)
+- Mantém o timecode compacto e legível
+- `00:01:30.50` em vez de `00:01:30.500`
 
-**Alterações:**
-- Linha 537: `"Checklist Captação"` → `"WillFlow Review Captação"`
-- Linha 553: `"Checklist Edição"` → `"WillFlow Review Edição"`
-
-Também atualizar a tarefa criada automaticamente (linha 236):
-- `Checklist ${phaseLabel}` → mantém o nome da fase
-
----
-
-### Resumo dos Ficheiros a Modificar
-
-| Ficheiro | Alteração |
-|----------|-----------|
-| `src/lib/duration-utils.ts` | Formato timecode sempre HH:MM:SS |
-| `src/components/video-production/VideoVersionsList.tsx` | Remover header "Versões" duplicado |
-| `src/components/projects/ProjectDetailsSheet.tsx` | Auto-criar tarefa para vídeo |
-| `src/components/projects/ProjectDetailsModal.tsx` | Auto-criar tarefa para vídeo |
-| `src/components/projects/ProjectChecklistTab.tsx` | Renomear para "WillFlow Review" |
+Se preferir 3 dígitos (milissegundos completos), basta alterar `* 100` para `* 1000` e `padStart(2, '0')` para `padStart(3, '0')`.
