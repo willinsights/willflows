@@ -3,10 +3,10 @@
  */
 
 /**
- * Format seconds to professional SMPTE-style timecode
- * @example formatTimecode(5) => "00:05"
- * @example formatTimecode(90) => "01:30"
- * @example formatTimecode(3665) => "01:01:05"
+ * Format seconds to professional SMPTE-style timecode (Frame.io format)
+ * @example formatTimecode(5) => "00:00:05:00"
+ * @example formatTimecode(22.15) => "00:00:22:15"
+ * @example formatTimecode(90.5) => "00:01:30:50"
  */
 export function formatTimecode(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -14,8 +14,8 @@ export function formatTimecode(seconds: number): string {
   const secs = Math.floor(seconds % 60);
   const ms = Math.floor((seconds % 1) * 100); // Centésimos de segundo (2 dígitos)
   
-  // Formato completo HH:MM:SS.ms
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+  // Formato completo HH:MM:SS:FF (Frame.io style)
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}:${ms.toString().padStart(2, '0')}`;
 }
 
 export interface VideoStructureSegment {
