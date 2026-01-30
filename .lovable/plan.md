@@ -1,35 +1,116 @@
 
 
-## Correção: Vídeo Não Aparece Após Processamento
+## Correção: Erro ao Pausar/Retomar Vídeo (Código 4)
 
-### Causa Raiz Identificada
+### Problema Identificado
 
-O componente `VideoProductionTabContent` chama o hook sem passar o `projectId`:
+O erro "Falha ao carregar o vídeo (código 4)" ocorre frequentemente ao pausar e retomar o vídeo porque:
 
-```typescript
-// Linha 59 - FALTA projectId!
-const { versions, ... } = useVideoVersions(taskId, workspaceId);
-```
+1. **O `useEffect` de inicialização HLS** depende de `getVideoSource`, que é um `useCallback` recriado em cada render quando as props mudam
+2. **A destruição prematura do HLS.js** acontece quando o `useEffect` cleanup é executado, mas o vídeo ainda está ativo
+3. **Não há recuperação de erro** - quando ocorre um erro de media, não tentamos recarregar
 
-Quando `taskId` é `null` (projeto sem tarefas), o hook verifica:
-
-```typescript
-if (!taskId && !projectId) return;  // Não busca versões!
-```
-
-Como `projectId` é `undefined`, a query nunca é executada.
+O **Error Code 4** (MEDIA_ERR_SRC_NOT_SUPPORTED) indica que o HLS.js foi destruído antes de tempo, deixando o elemento `<video>` sem source válida.
 
 ---
 
-### Verificação na Base de Dados
+### Causa Raiz no Código
 
-O vídeo está corretamente guardado:
-- **ID**: `487372a9-95d7-415c-8002-e547449e48c1`
-- **Ficheiro**: CAIMAN - SAFARI NOTURNO.mp4
-- **Versão**: 3
-- **Status**: `ready`
-- **project_id**: `e398da1f-2b71-4cdd-95c0-a61de8343a8c`
-- **task_id**: `NULL` (correto - não há tarefa)
+```typescript
+// VideoPlayer.tsx - linha 214
+useEffect(() => {
+  // ... inicializa HLS
+  return () => {
+    if (hlsRef.current) {
+      hlsRef.current.destroy();  // ← Destruído sem verificar estado
+      hlsRef.current = null;
+    }
+  };
+}, [getVideoSource]);  // ← Recriado a cada re-render!
+```
+
+Quando há um re-render (ex: estado de outra componente muda), o `getVideoSource` pode ser recriado, causando:
+1. Cleanup do `useEffect` anterior (destrói HLS)
+2. Re-execução do `useEffect` (tenta criar novo HLS)
+3. Se o timing não é perfeito → Error Code 4
+
+---
+
+### Solução
+
+**1. Memoizar a URL do vídeo** em vez de depender de `getVideoSource`:
+
+```typescript
+// Memorizar a URL do source para evitar re-renders desnecessários
+const videoSource = useMemo(() => {
+  if (streamUid) {
+    return { type: 'hls' as const, url: buildCanonicalHlsUrl(streamUid) };
+  }
+  if (hlsUrl) {
+    const extractedUid = extractStreamUidFromUrl(hlsUrl);
+    if (extractedUid) {
+      return { type: 'hls' as const, url: buildCanonicalHlsUrl(extractedUid) };
+    }
+    return { type: 'hls' as const, url: hlsUrl };
+  }
+  if (src) {
+    const extractedUid = extractStreamUidFromUrl(src);
+    if (extractedUid) {
+      return { type: 'hls' as const, url: buildCanonicalHlsUrl(extractedUid) };
+    }
+    if (src.includes('.m3u8')) {
+      return { type: 'hls' as const, url: src };
+    }
+    return { type: 'native' as const, url: src };
+  }
+  return { type: 'none' as const, url: null };
+}, [src, streamUid, hlsUrl]);
+```
+
+**2. O `useEffect` depende da URL final** (string estável):
+
+```typescript
+useEffect(() => {
+  // ... inicializa HLS
+}, [videoSource.url]); // Apenas re-executa se URL realmente mudar
+```
+
+**3. Adicionar recuperação de erros de media**:
+
+```typescript
+const handleVideoError = useCallback(() => {
+  const video = videoRef.current;
+  const mediaError = video?.error;
+  
+  // Para Error Code 4, tentar recarregar automaticamente (1x)
+  if (mediaError?.code === 4 && hlsRef.current && retryCountRef.current < 1) {
+    retryCountRef.current++;
+    console.log('Tentando recarregar vídeo após erro 4...');
+    hlsRef.current.recoverMediaError();
+    return;
+  }
+  
+  const message = mediaError
+    ? `Falha ao carregar o vídeo (código ${mediaError.code}).`
+    : 'Falha ao carregar o vídeo.';
+  setIsLoading(false);
+  setIsPlaying(false);
+  setLoadError(message);
+}, []);
+```
+
+**4. Usar `startTransition` para evitar interrupções** (opcional):
+
+```typescript
+const handleSeek = useCallback((value: number[]) => {
+  startTransition(() => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = value[0];
+    }
+    setCurrentTime(value[0]);
+  });
+}, []);
+```
 
 ---
 
@@ -37,48 +118,105 @@ O vídeo está corretamente guardado:
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `src/components/video-production/VideoProductionTab.tsx` | Passar `projectId` ao hook |
+| `src/components/video-production/VideoPlayer.tsx` | Memoizar source, adicionar recuperação de erros |
 
 ---
 
-### Alteração (Linha 59)
+### Alterações Detalhadas
 
-**Antes:**
+**Linha 87-123: Substituir `getVideoSource` por `useMemo`**
+
+Mudar de `useCallback` para `useMemo` com uma string de URL estável:
+
 ```typescript
-const { versions, loading, deleteVersion, getSignedUrl, isProcessing, refetch } = 
-  useVideoVersions(taskId, workspaceId);
+// Antes: useCallback que retorna novo objeto a cada chamada
+const getVideoSource = useCallback((): { type: ..., url: ... } => { ... }, [...]);
+
+// Depois: useMemo que retorna objeto memoizado
+const videoSource = useMemo(() => { ... }, [src, streamUid, hlsUrl]);
 ```
 
-**Depois:**
+**Linha 126-214: Atualizar o `useEffect` de inicialização**
+
 ```typescript
-const { versions, loading, deleteVersion, getSignedUrl, isProcessing, refetch } = 
-  useVideoVersions(taskId, workspaceId, projectId);
+useEffect(() => {
+  const video = videoRef.current;
+  if (!video) return;
+
+  // Cleanup anterior
+  if (hlsRef.current) {
+    hlsRef.current.destroy();
+    hlsRef.current = null;
+  }
+
+  if (videoSource.type === 'none' || !videoSource.url) {
+    setIsLoading(false);
+    return;
+  }
+
+  // ... resto da lógica de inicialização ...
+
+  return () => {
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+  };
+}, [videoSource.url]); // ← Depende apenas da URL (string estável)
+```
+
+**Linha 268-277: Adicionar recuperação de erros**
+
+```typescript
+const retryCountRef = useRef(0);
+
+// Reset retry count quando source muda
+useEffect(() => {
+  retryCountRef.current = 0;
+}, [videoSource.url]);
+
+const handleVideoError = useCallback(() => {
+  const video = videoRef.current;
+  const mediaError = video?.error;
+  
+  // Tentar recuperar de Error Code 4 uma vez
+  if (mediaError?.code === 4 && hlsRef.current && retryCountRef.current < 1) {
+    retryCountRef.current++;
+    console.log('Recuperando de erro de media...');
+    try {
+      hlsRef.current.recoverMediaError();
+    } catch (e) {
+      // Se falhar, mostra erro
+    }
+    return;
+  }
+  
+  const message = mediaError
+    ? `Falha ao carregar o vídeo (código ${mediaError.code}).`
+    : 'Falha ao carregar o vídeo.';
+  setIsLoading(false);
+  setIsPlaying(false);
+  setLoadError(message);
+}, []);
 ```
 
 ---
 
-### Fluxo Corrigido
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  Projeto sem tarefas (taskId = null)                            │
-│        ↓                                                        │
-│  useVideoVersions(null, workspaceId, projectId)                 │
-│        ↓                                                        │
-│  Hook verifica: !taskId && !projectId → FALSE (projectId existe)│
-│        ↓                                                        │
-│  Query: SELECT * FROM video_versions WHERE project_id = ?       │
-│        ↓                                                        │
-│  ✅ Versões aparecem na UI                                      │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-### Resultado
+### Comportamento Esperado
 
 | Cenário | Antes | Depois |
 |---------|-------|--------|
-| Projeto sem tarefas | ❌ Lista vazia | ✅ Versões aparecem |
-| Projeto com tarefa selecionada | ✅ Funciona | ✅ Funciona |
+| Pausar e retomar | ❌ Às vezes erro 4 | ✅ Funciona |
+| Seek no slider | ❌ Pode dar erro 4 | ✅ Funciona |
+| Mudar de tab e voltar | ❌ Recarrega HLS | ✅ Mantém estado |
+| Error Code 4 esporádico | ❌ Falha permanente | ✅ Recupera automaticamente |
+
+---
+
+### Resumo Técnico
+
+1. **Memoização**: `useMemo` em vez de `useCallback` para evitar recriação de objetos
+2. **Dependência estável**: `useEffect` depende de `videoSource.url` (string) em vez de função
+3. **Recuperação de erros**: `hlsRef.current.recoverMediaError()` para Error Code 4
+4. **Contador de retry**: Evita loops infinitos de recuperação
 
