@@ -16,6 +16,7 @@ import {
   UserCircle,
   ChevronDown,
   ChevronUp,
+  Activity,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,6 +60,7 @@ import { AccessDenied } from '@/components/ui/access-denied';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import KanbanMetrics from '@/components/kanban/KanbanMetrics';
 
 type PeriodType = '1M' | '3M' | '6M' | '12M' | 'YTD' | 'custom';
 
@@ -96,6 +98,7 @@ export default function Relatorios() {
     to: undefined,
   });
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [metricsOpen, setMetricsOpen] = useState(false);
 
   // Top Collaborators data
   const [collaboratorsData, setCollaboratorsData] = useState<CollaboratorData[]>([]);
@@ -1176,6 +1179,31 @@ export default function Relatorios() {
                   </tbody>
                 </table>
               </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* Kanban Metrics Section */}
+      <Collapsible open={metricsOpen} onOpenChange={setMetricsOpen}>
+        <Card className="glass-card">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-primary" />
+                  Métricas de Kanban
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">Performance</Badge>
+                  {metricsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </div>
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              <KanbanMetrics />
             </CardContent>
           </CollapsibleContent>
         </Card>
