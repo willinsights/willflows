@@ -1,91 +1,58 @@
 
 
-## Correção: Upload de Vídeo Sem Criar Tarefa
+## Correção: Vídeo Não Aparece Após Processamento
 
-### Abordagem Simplificada
+### Causa Raiz Identificada
 
-Em vez de criar uma tarefa automática no checklist, vamos usar o `projectId` diretamente quando não há tarefa selecionada. A coluna `task_id` na tabela `video_versions` **já é nullable**, então só precisamos ajustar o código.
+O componente `VideoProductionTabContent` chama o hook sem passar o `projectId`:
+
+```typescript
+// Linha 59 - FALTA projectId!
+const { versions, ... } = useVideoVersions(taskId, workspaceId);
+```
+
+Quando `taskId` é `null` (projeto sem tarefas), o hook verifica:
+
+```typescript
+if (!taskId && !projectId) return;  // Não busca versões!
+```
+
+Como `projectId` é `undefined`, a query nunca é executada.
 
 ---
 
-### Ficheiros a Modificar
+### Verificação na Base de Dados
+
+O vídeo está corretamente guardado:
+- **ID**: `487372a9-95d7-415c-8002-e547449e48c1`
+- **Ficheiro**: CAIMAN - SAFARI NOTURNO.mp4
+- **Versão**: 3
+- **Status**: `ready`
+- **project_id**: `e398da1f-2b71-4cdd-95c0-a61de8343a8c`
+- **task_id**: `NULL` (correto - não há tarefa)
+
+---
+
+### Ficheiro a Modificar
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `supabase/functions/stream-process-video/index.ts` | Tornar `taskId` opcional |
-| `supabase/functions/r2-upload-url/index.ts` | Tornar `taskId` opcional |
-| `src/components/projects/ProjectDetailsSheet.tsx` | Passar `null` em vez de `project.id` |
-| `src/components/projects/ProjectDetailsModal.tsx` | Mesma correção |
-| `src/hooks/useVideoVersions.ts` | Ajustar interface para `taskId` opcional |
-| `src/components/video-production/VideoVersionUpload.tsx` | Aceitar `taskId` como opcional |
-| `src/components/video-production/VideoProductionTab.tsx` | Aceitar `taskId` como opcional |
+| `src/components/video-production/VideoProductionTab.tsx` | Passar `projectId` ao hook |
 
 ---
 
-### Alteração 1: Edge Function `stream-process-video`
+### Alteração (Linha 59)
 
-**Linha 113 - Alterar validação:**
+**Antes:**
 ```typescript
-// Antes: taskId era obrigatório
-if (!key || !taskId || !workspaceId || !fileName || !fileSize) {
-
-// Depois: taskId é opcional
-if (!key || !workspaceId || !projectId || !fileName || !fileSize) {
+const { versions, loading, deleteVersion, getSignedUrl, isProcessing, refetch } = 
+  useVideoVersions(taskId, workspaceId);
 ```
 
-**Linha 120-126 - Alterar query de versões:**
+**Depois:**
 ```typescript
-// Antes: buscava por task_id
-.eq("task_id", taskId)
-
-// Depois: busca por project_id quando não há task_id
-if (taskId) {
-  query = query.eq("task_id", taskId);
-} else {
-  query = query.is("task_id", null).eq("project_id", projectId);
-}
-```
-
-**Linha 139 - Usar null quando não há taskId:**
-```typescript
-task_id: taskId || null,
-```
-
----
-
-### Alteração 2: Edge Function `r2-upload-url`
-
-Mesma lógica - tornar `taskId` opcional na validação.
-
----
-
-### Alteração 3: Componentes React
-
-**`ProjectDetailsSheet.tsx` (linha 683):**
-```typescript
-// Antes: usava project.id como fallback (causava FK error)
-taskId={selectedVideoTaskId || project.id}
-
-// Depois: passa null quando não há tarefa
-taskId={selectedVideoTaskId || null}
-```
-
-**`VideoProductionTab.tsx` - Ajustar interface:**
-```typescript
-interface VideoProductionTabProps {
-  taskId: string | null;  // Agora aceita null
-  workspaceId: string;
-  projectId: string;
-}
-```
-
-**`VideoVersionUpload.tsx` - Ajustar interface:**
-```typescript
-interface VideoVersionUploadProps {
-  taskId: string | null;  // Agora aceita null
-  workspaceId: string;
-  projectId: string;
-}
+const { versions, loading, deleteVersion, getSignedUrl, isProcessing, refetch } = 
+  useVideoVersions(taskId, workspaceId, projectId);
 ```
 
 ---
@@ -94,35 +61,24 @@ interface VideoVersionUploadProps {
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│  Projeto sem tarefas                                            │
+│  Projeto sem tarefas (taskId = null)                            │
 │        ↓                                                        │
-│  taskId = null                                                  │
+│  useVideoVersions(null, workspaceId, projectId)                 │
 │        ↓                                                        │
-│  Edge function recebe: { taskId: null, projectId: "xxx" }       │
+│  Hook verifica: !taskId && !projectId → FALSE (projectId existe)│
 │        ↓                                                        │
-│  INSERT em video_versions: task_id = NULL, project_id = "xxx"   │
+│  Query: SELECT * FROM video_versions WHERE project_id = ?       │
 │        ↓                                                        │
-│  ✅ Sucesso! Versões agrupadas por projeto                      │
+│  ✅ Versões aparecem na UI                                      │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### Vantagens desta Abordagem
+### Resultado
 
-| Aspeto | Benefício |
-|--------|-----------|
-| Sem tarefas fantasma | Checklist permanece limpo |
-| Dados consistentes | Versões ligadas ao projeto, não a tarefa inexistente |
-| Código simples | Apenas ajustes de tipos, sem lógica complexa |
-| Já suportado | A coluna `task_id` já é nullable no banco |
-
----
-
-### Comportamento Final
-
-| Cenário | Resultado |
-|---------|-----------|
-| Projeto COM tarefa selecionada | `task_id` = ID da tarefa |
-| Projeto SEM tarefa | `task_id` = NULL, agrupa por `project_id` |
+| Cenário | Antes | Depois |
+|---------|-------|--------|
+| Projeto sem tarefas | ❌ Lista vazia | ✅ Versões aparecem |
+| Projeto com tarefa selecionada | ✅ Funciona | ✅ Funciona |
 
