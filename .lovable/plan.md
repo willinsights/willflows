@@ -1,81 +1,80 @@
 
-## Proteção Contra Indexação - Links de Aprovação de Vídeo
+## Padronização do Formato de Timecode (Frame.io Style)
 
-### Objetivo
-Impedir que motores de pesquisa (Google, Bing, etc.) indexem as páginas de aprovação de vídeo dos clientes.
+### Problema Identificado
+O formato atual do timecode é `HH:MM:SS.ms` (com **ponto** e centésimos), mas o padrão profissional Frame.io usa `HH:MM:SS:FF` (com **dois pontos** e frames).
+
+**Formato atual:** `00:00:22.05`  
+**Formato pretendido:** `00:00:22:05`
 
 ---
 
-### Alterações a Implementar
+### Ficheiros a Modificar
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `public/robots.txt` | Adicionar `Disallow: /video-approval/` |
-| `src/pages/public/VideoApproval.tsx` | Adicionar `Helmet` com meta tags `noindex` |
+| `src/lib/duration-utils.ts` | Alterar separador de `.` para `:` |
 
 ---
 
-### Alteração 1: robots.txt
+### Alteração Única: formatTimecode()
 
-**Ficheiro:** `public/robots.txt`
-
-Adicionar antes da secção "Sitemaps" (linha 29):
-```txt
-Disallow: /video-approval/
+**Linha 18 - Alterar de:**
+```typescript
+return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
 ```
 
-**Estado final da secção de bloqueio:**
-```txt
-# Block app routes (require authentication)
-Disallow: /app/
-Disallow: /auth
-Disallow: /onboarding
-Disallow: /convite
-Disallow: /checkout-success
-Disallow: /tutorial
-Disallow: /video-approval/
+**Para:**
+```typescript
+return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}:${ms.toString().padStart(2, '0')}`;
 ```
 
 ---
 
-### Alteração 2: Meta Tags noindex
+### Também atualizar a documentação (linhas 5-10):
 
-**Ficheiro:** `src/pages/public/VideoApproval.tsx`
-
-**Passo 1 - Adicionar import (linha 3):**
-```tsx
-import { Helmet } from 'react-helmet-async';
+**De:**
+```typescript
+/**
+ * Format seconds to professional SMPTE-style timecode
+ * @example formatTimecode(5) => "00:05"
+ * @example formatTimecode(90) => "01:30"
+ * @example formatTimecode(3665) => "01:01:05"
+ */
 ```
 
-**Passo 2 - Adicionar Helmet no JSX (após o return principal, antes do primeiro elemento):**
-```tsx
-<>
-  <Helmet>
-    <meta name="robots" content="noindex, nofollow, noarchive" />
-    <meta name="googlebot" content="noindex, nofollow, noarchive" />
-    <title>Studio Review | WillFlow</title>
-  </Helmet>
-  {/* ... resto do componente */}
-</>
+**Para:**
+```typescript
+/**
+ * Format seconds to professional SMPTE-style timecode (Frame.io format)
+ * @example formatTimecode(5) => "00:00:05:00"
+ * @example formatTimecode(22.15) => "00:00:22:15"
+ * @example formatTimecode(90.5) => "00:01:30:50"
+ */
 ```
 
 ---
 
-### Porquê 2 Camadas de Proteção?
+### Locais Afetados Automaticamente
 
-| Camada | Propósito |
-|--------|-----------|
-| `robots.txt` | Primeira linha de defesa - crawlers bem-comportados respeitam isto |
-| Meta tags `noindex` | Segunda linha - aplicada mesmo que o crawler ignore robots.txt |
+Esta alteração irá corrigir automaticamente **todos os locais** que usam `formatTimecode`:
 
-### Directivas Utilizadas
-
-- **noindex** - Não mostrar esta página nos resultados de pesquisa
-- **nofollow** - Não seguir links encontrados nesta página  
-- **noarchive** - Não guardar versão em cache da página
+| Localização | Contexto |
+|-------------|----------|
+| `VideoApproval.tsx` linha 687 | Timecode nos comentários |
+| `VideoApproval.tsx` linha 787 | Tooltip dos marcadores |
+| `VideoApproval.tsx` linha 817 | Barra de progresso do player |
+| `VideoApproval.tsx` linha 838 | Badge do comentário em edição |
+| `TimestampComments.tsx` linha 158 | Lista de comentários |
 
 ---
 
 ### Resultado Esperado
 
-Os vídeos dos clientes ficam completamente protegidos contra indexação em qualquer motor de pesquisa.
+| Antes | Depois |
+|-------|--------|
+| `00:00:22.05` | `00:00:22:05` |
+| `00:01:30.50` | `00:01:30:50` |
+| `01:02:33.75` | `01:02:33:75` |
+
+O formato fica idêntico ao Frame.io: `HH:MM:SS:FF`
