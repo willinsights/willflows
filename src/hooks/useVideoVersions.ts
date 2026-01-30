@@ -330,18 +330,20 @@ export function useVideoVersions(
     }
   };
 
-  // Get playback URL - now uses Cloudflare Stream
+  // Get playback URL - now uses Cloudflare Stream with canonical videodelivery.net domain
   const getPlaybackUrl = useCallback((version: VideoVersion): string | null => {
-    // If we have a Cloudflare Stream playback URL, use it
+    // If we have a Cloudflare Stream playback URL, normalize to canonical domain
     if (version.stream_playback_url) {
+      // Ensure we always use videodelivery.net domain for CORS compatibility
+      if (version.stream_playback_url.includes('cloudflarestream.com')) {
+        return `https://videodelivery.net/${version.cloudflare_stream_uid}/manifest/video.m3u8`;
+      }
       return version.stream_playback_url;
     }
     
-    // If we have a stream UID, construct the iframe URL
+    // If we have a stream UID, construct the HLS URL using canonical domain
     if (version.cloudflare_stream_uid) {
-      // The playback URL should be the HLS manifest, not iframe
-      // For direct video element playback, we need the HLS URL
-      return `https://customer-${getAccountHash()}.cloudflarestream.com/${version.cloudflare_stream_uid}/manifest/video.m3u8`;
+      return `https://videodelivery.net/${version.cloudflare_stream_uid}/manifest/video.m3u8`;
     }
 
     // Fallback to legacy Supabase Storage (for existing videos)
