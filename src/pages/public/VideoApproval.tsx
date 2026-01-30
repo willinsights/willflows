@@ -115,9 +115,9 @@ export default function VideoApproval() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
-  // Inline comment state (Frame.io style)
-  const [isCommentMode, setIsCommentMode] = useState(false);
+  // Inline comment state (Frame.io style - always visible)
   const [commentTimestamp, setCommentTimestamp] = useState(0);
+  const [hasStartedTyping, setHasStartedTyping] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [clientName, setClientName] = useState(() => {
     return localStorage.getItem(CLIENT_NAME_KEY) || '';
@@ -290,22 +290,28 @@ export default function VideoApproval() {
     }
   };
 
-  // Enter comment mode (Frame.io style - inline, not modal)
-  const enterCommentMode = () => {
-    if (videoRef.current) {
-      videoRef.current.pause();
-      setIsPlaying(false);
+  // Handle comment text change - auto-capture timecode on first keystroke
+  const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value;
+    
+    // If starting to type (from empty to something)
+    if (!commentText && newValue) {
+      // Pause video and capture timecode
+      if (videoRef.current) {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      }
       setCommentTimestamp(currentTime);
-      setIsCommentMode(true);
-      // Focus the textarea after a short delay
-      setTimeout(() => commentInputRef.current?.focus(), 100);
+      setHasStartedTyping(true);
     }
-  };
-
-  // Cancel comment mode
-  const cancelCommentMode = () => {
-    setIsCommentMode(false);
-    setCommentText('');
+    
+    // If cleared everything, reset timecode
+    if (commentText && !newValue) {
+      setHasStartedTyping(false);
+      setCommentTimestamp(0);
+    }
+    
+    setCommentText(newValue);
   };
 
   // Submit comment via edge function
@@ -341,7 +347,8 @@ export default function VideoApproval() {
       // Refresh data to show new comment
       await fetchApprovalData();
       setCommentText('');
-      setIsCommentMode(false);
+      setHasStartedTyping(false);
+      setCommentTimestamp(0);
     } catch (err: any) {
       console.error('Error submitting comment:', err);
       alert(err.message || 'Erro ao enviar comentário');
@@ -544,8 +551,96 @@ export default function VideoApproval() {
 
         <main className="container py-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Video Player */}
-            <div className="lg:col-span-2 space-y-4">
+            {/* Comments Sidebar - LEFT (Frame.io style) */}
+            <div className="order-2 lg:order-1 space-y-4">
+              <Card className="h-fit">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5" />
+                      Comentários
+                    </CardTitle>
+                    <div className="flex items-center gap-1.5">
+                      {openCommentsCount > 0 && (
+                        <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
+                          {openCommentsCount} aberto{openCommentsCount !== 1 ? 's' : ''}
+                        </Badge>
+                      )}
+                      {resolvedCommentsCount > 0 && (
+                        <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/20">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          {resolvedCommentsCount}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {currentComments.length === 0 ? (
+                    <div className="text-center py-8">
+                      <MessageSquare className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+                      <p className="text-sm text-muted-foreground">
+                        Sem comentários nesta versão
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Comece a escrever abaixo do player
+                      </p>
+                    </div>
+                  ) : (
+                    <ScrollArea className="h-[450px] pr-3 -mr-3">
+                      <div className="space-y-3">
+                        {currentComments.map((comment) => (
+                          <div
+                            key={comment.id}
+                            className={cn(
+                              'group p-3 rounded-lg border cursor-pointer transition-all hover:bg-accent/50',
+                              comment.status === 'resolved' && 'opacity-60'
+                            )}
+                            onClick={() => seekTo(comment.timestamp_seconds)}
+                          >
+                            {/* Header: timecode + status */}
+                            <div className="flex items-center justify-between mb-2">
+                              <button className="flex items-center gap-1.5 rounded bg-primary/10 px-2 py-1 text-xs font-mono text-primary hover:bg-primary/20 transition-colors">
+                                <Clock className="h-3 w-3" />
+                                {formatTimecode(comment.timestamp_seconds)}
+                              </button>
+                              
+                              <div className="flex items-center gap-2">
+                                {comment.status === 'resolved' ? (
+                                  <span className="flex items-center gap-1 text-xs text-green-600">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    Resolvido
+                                  </span>
+                                ) : (
+                                  <span className="w-2 h-2 rounded-full bg-yellow-500" />
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Comment body */}
+                            <p className={cn(
+                              'text-sm',
+                              comment.status === 'resolved' && 'line-through'
+                            )}>
+                              {comment.body}
+                            </p>
+
+                            {/* Footer: author + time */}
+                            <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+                              <span className="font-medium">{comment.client_name || 'Anónimo'}</span>
+                              <span>{formatRelativeTime(comment.created_at)}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Video Player - RIGHT (2 columns) */}
+            <div className="order-1 lg:order-2 lg:col-span-2 space-y-4">
               <Card className="overflow-hidden">
                 <div className="relative bg-black aspect-video">
                   {videoUrl ? (
@@ -642,15 +737,6 @@ export default function VideoApproval() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-white"
-                          onClick={enterCommentMode}
-                        >
-                          <MessageSquare className="h-4 w-4 mr-1" />
-                          Comentar
-                        </Button>
                         <Button variant="ghost" size="icon" className="text-white" onClick={toggleFullscreen}>
                           <Maximize className="h-5 w-5" />
                         </Button>
@@ -658,82 +744,69 @@ export default function VideoApproval() {
                     </div>
                   </div>
                 </div>
+              </Card>
 
-                {/* Inline comment input (Frame.io style) */}
-                {isCommentMode && (
-                  <div className="border-t bg-card p-4">
-                    <div className="flex items-start gap-3">
-                      {/* Timecode badge */}
-                      <div className="flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5 text-sm font-mono text-primary shrink-0">
-                        <Clock className="h-3.5 w-3.5" />
-                        {formatTimecode(Math.floor(commentTimestamp))}
-                      </div>
+              {/* Always visible comment input (Frame.io style) */}
+              <Card className="p-4">
+                <div className="flex items-start gap-3">
+                  {/* Timecode badge - shows when user starts typing */}
+                  {hasStartedTyping && (
+                    <div className="flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5 text-sm font-mono text-primary shrink-0">
+                      <Clock className="h-3.5 w-3.5" />
+                      {formatTimecode(Math.floor(commentTimestamp))}
+                    </div>
+                  )}
 
-                      <div className="flex-1 space-y-3">
-                        {/* Name input (if not saved) */}
-                        {!clientName && (
-                          <Input
-                            placeholder="O seu nome"
-                            value={clientName}
-                            onChange={(e) => setClientName(e.target.value)}
-                            className="h-9"
-                          />
+                  <div className="flex-1 space-y-3">
+                    {/* Comment textarea */}
+                    <Textarea
+                      ref={commentInputRef}
+                      placeholder="Adicione um comentário..."
+                      value={commentText}
+                      onChange={handleCommentChange}
+                      className="min-h-[60px] resize-none"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                          handleSubmitComment();
+                        }
+                      }}
+                    />
+
+                    {/* Name input and submit button */}
+                    <div className="flex items-center gap-3">
+                      <Input
+                        placeholder="O seu nome"
+                        value={clientName}
+                        onChange={(e) => setClientName(e.target.value)}
+                        className="h-9 max-w-[200px]"
+                      />
+                      
+                      <div className="flex-1" />
+                      
+                      {clientName && (
+                        <p className="text-xs text-muted-foreground hidden sm:block">
+                          <kbd className="px-1 py-0.5 rounded bg-muted text-[10px]">⌘</kbd>
+                          <kbd className="px-1 py-0.5 rounded bg-muted text-[10px] ml-0.5">Enter</kbd>
+                        </p>
+                      )}
+                      
+                      <Button
+                        size="sm"
+                        onClick={handleSubmitComment}
+                        disabled={!commentText.trim() || !clientName.trim() || submittingComment}
+                      >
+                        {submittingComment ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Send className="h-4 w-4 mr-1" />
+                            Enviar
+                          </>
                         )}
-                        
-                        {/* Comment textarea */}
-                        <Textarea
-                          ref={commentInputRef}
-                          placeholder="Adicione um comentário..."
-                          value={commentText}
-                          onChange={(e) => setCommentText(e.target.value)}
-                          className="min-h-[80px] resize-none"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                              handleSubmitComment();
-                            }
-                            if (e.key === 'Escape') {
-                              cancelCommentMode();
-                            }
-                          }}
-                        />
-
-                        {/* Actions */}
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs text-muted-foreground">
-                            {clientName && <span>Comentando como <strong>{clientName}</strong> • </span>}
-                            <kbd className="px-1 py-0.5 rounded bg-muted text-[10px]">⌘</kbd>
-                            <kbd className="px-1 py-0.5 rounded bg-muted text-[10px] ml-0.5">Enter</kbd>
-                            <span className="ml-1">para enviar</span>
-                          </p>
-                          
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={cancelCommentMode}
-                            >
-                              Cancelar
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={handleSubmitComment}
-                              disabled={!commentText.trim() || !clientName.trim() || submittingComment}
-                            >
-                              {submittingComment ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <>
-                                  <Send className="h-4 w-4 mr-1" />
-                                  Enviar
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
+                      </Button>
                     </div>
                   </div>
-                )}
+                </div>
               </Card>
 
               {/* Version info */}
@@ -747,100 +820,6 @@ export default function VideoApproval() {
                   </span>
                 </div>
               )}
-            </div>
-
-            {/* Comments Sidebar (Redesigned) */}
-            <div className="space-y-4">
-              <Card className="h-fit">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <MessageSquare className="h-5 w-5" />
-                      Comentários
-                    </CardTitle>
-                    <div className="flex items-center gap-1.5">
-                      {openCommentsCount > 0 && (
-                        <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
-                          {openCommentsCount} aberto{openCommentsCount !== 1 ? 's' : ''}
-                        </Badge>
-                      )}
-                      {resolvedCommentsCount > 0 && (
-                        <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/20">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          {resolvedCommentsCount}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  {currentComments.length === 0 ? (
-                    <div className="text-center py-8">
-                      <MessageSquare className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
-                      <p className="text-sm text-muted-foreground">
-                        Sem comentários nesta versão
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Clique em "Comentar" para adicionar
-                      </p>
-                    </div>
-                  ) : (
-                    <ScrollArea className="h-[450px] pr-3 -mr-3">
-                      <div className="space-y-3">
-                        {currentComments.map((comment) => (
-                          <div
-                            key={comment.id}
-                            className={cn(
-                              'group p-3 rounded-lg border cursor-pointer transition-all hover:bg-accent/50',
-                              comment.status === 'resolved' && 'opacity-60'
-                            )}
-                            onClick={() => seekTo(comment.timestamp_seconds)}
-                          >
-                            {/* Header: timecode + status */}
-                            <div className="flex items-center justify-between mb-2">
-                              <button className="flex items-center gap-1.5 rounded bg-primary/10 px-2 py-1 text-xs font-mono text-primary hover:bg-primary/20 transition-colors">
-                                <Clock className="h-3 w-3" />
-                                {formatTimecode(comment.timestamp_seconds)}
-                              </button>
-                              
-                              <div className="flex items-center gap-2">
-                                {comment.status === 'resolved' ? (
-                                  <span className="flex items-center gap-1 text-xs text-green-600">
-                                    <CheckCircle2 className="h-3 w-3" />
-                                    Resolvido
-                                  </span>
-                                ) : (
-                                  <span className="w-2 h-2 rounded-full bg-yellow-500" />
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Comment body */}
-                            <p className={cn(
-                              'text-sm',
-                              comment.status === 'resolved' && 'line-through'
-                            )}>
-                              {comment.body}
-                            </p>
-
-                            {/* Footer: author + time */}
-                            <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
-                              <span className="font-medium">{comment.client_name || 'Anónimo'}</span>
-                              <span>{formatRelativeTime(comment.created_at)}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Quick add comment button */}
-              <Button className="w-full" variant="outline" onClick={enterCommentMode}>
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Adicionar Comentário
-              </Button>
             </div>
           </div>
         </main>
