@@ -105,7 +105,8 @@ serve(async (req) => {
     // Parse request body
     const { workspaceId, taskId, projectId, fileName, fileSize, mimeType } = await req.json();
 
-    if (!workspaceId || !taskId || !fileName || !fileSize) {
+    // taskId is optional - projectId is required when no taskId
+    if (!workspaceId || !projectId || !fileName || !fileSize) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
