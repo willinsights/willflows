@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select,
   SelectContent,
@@ -25,6 +26,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   Play,
   Pause,
   Volume2,
@@ -37,8 +44,9 @@ import {
   Loader2,
   Send,
   ArrowLeftRight,
+  X,
 } from 'lucide-react';
-import { formatDuration } from '@/lib/duration-utils';
+import { formatTimecode } from '@/lib/duration-utils';
 import { cn } from '@/lib/utils';
 import logoWhite from '@/assets/logo-willflow-white.png';
 import logoBlack from '@/assets/logo-willflow-black.png';
@@ -85,10 +93,14 @@ interface ApprovalData {
   signed_urls: Record<string, string>;
 }
 
+// Local storage key for client name persistence
+const CLIENT_NAME_KEY = 'willflow_client_name';
+
 export default function VideoApproval() {
   const { token } = useParams<{ token: string }>();
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const commentInputRef = useRef<HTMLTextAreaElement>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -103,11 +115,13 @@ export default function VideoApproval() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
-  // Comment state
-  const [showCommentModal, setShowCommentModal] = useState(false);
+  // Inline comment state (Frame.io style)
+  const [isCommentMode, setIsCommentMode] = useState(false);
   const [commentTimestamp, setCommentTimestamp] = useState(0);
   const [commentText, setCommentText] = useState('');
-  const [clientName, setClientName] = useState('');
+  const [clientName, setClientName] = useState(() => {
+    return localStorage.getItem(CLIENT_NAME_KEY) || '';
+  });
   const [submittingComment, setSubmittingComment] = useState(false);
 
   // Approval state
@@ -115,6 +129,13 @@ export default function VideoApproval() {
   const [approvalName, setApprovalName] = useState('');
   const [approvalNotes, setApprovalNotes] = useState('');
   const [submittingApproval, setSubmittingApproval] = useState(false);
+
+  // Save client name to localStorage when it changes
+  useEffect(() => {
+    if (clientName.trim()) {
+      localStorage.setItem(CLIENT_NAME_KEY, clientName.trim());
+    }
+  }, [clientName]);
 
   // Fetch data using edge function
   const fetchApprovalData = useCallback(async () => {
@@ -127,18 +148,6 @@ export default function VideoApproval() {
     try {
       setLoading(true);
       
-      const { data: responseData, error: fetchError } = await supabase.functions.invoke(
-        'get-video-approval-data',
-        {
-          body: null,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          method: 'GET',
-        }
-      );
-
-      // Fallback: use query params for GET
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-video-approval-data?token=${encodeURIComponent(token)}`,
         {
@@ -158,7 +167,9 @@ export default function VideoApproval() {
       const approvalData: ApprovalData = await response.json();
 
       setData(approvalData);
-      setClientName(approvalData.client_name || '');
+      if (!clientName && approvalData.client_name) {
+        setClientName(approvalData.client_name);
+      }
 
       // Set initial version
       if (approvalData.versions.length > 0) {
@@ -174,7 +185,7 @@ export default function VideoApproval() {
       setError(err.message || 'Erro ao carregar dados de aprovação');
       setLoading(false);
     }
-  }, [token]);
+  }, [token, clientName]);
 
   useEffect(() => {
     fetchApprovalData();
@@ -187,11 +198,9 @@ export default function VideoApproval() {
     const video = videoRef.current;
     if (!video || !videoUrl) return;
 
-    // Check if it's an HLS stream
     const isHls = videoUrl.includes('.m3u8');
 
     if (isHls && Hls.isSupported()) {
-      // Cleanup previous HLS instance
       if (hlsRef.current) {
         hlsRef.current.destroy();
       }
@@ -204,10 +213,6 @@ export default function VideoApproval() {
       hlsRef.current = hls;
       hls.loadSource(videoUrl);
       hls.attachMedia(video);
-
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        console.log('[VideoApproval] HLS manifest loaded');
-      });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
         console.error('[VideoApproval] HLS error:', data);
@@ -225,13 +230,12 @@ export default function VideoApproval() {
         hlsRef.current = null;
       };
     } else if (isHls && video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Native HLS support (Safari)
       video.src = videoUrl;
     } else if (!isHls) {
-      // Direct video URL (legacy Supabase signed URLs)
       video.src = videoUrl;
     }
   }, [videoUrl]);
+
   const togglePlay = () => {
     if (videoRef.current) {
       if (isPlaying) {
@@ -286,14 +290,22 @@ export default function VideoApproval() {
     }
   };
 
-  // Open comment modal
-  const openCommentModal = () => {
+  // Enter comment mode (Frame.io style - inline, not modal)
+  const enterCommentMode = () => {
     if (videoRef.current) {
       videoRef.current.pause();
       setIsPlaying(false);
       setCommentTimestamp(currentTime);
-      setShowCommentModal(true);
+      setIsCommentMode(true);
+      // Focus the textarea after a short delay
+      setTimeout(() => commentInputRef.current?.focus(), 100);
     }
+  };
+
+  // Cancel comment mode
+  const cancelCommentMode = () => {
+    setIsCommentMode(false);
+    setCommentText('');
   };
 
   // Submit comment via edge function
@@ -329,7 +341,7 @@ export default function VideoApproval() {
       // Refresh data to show new comment
       await fetchApprovalData();
       setCommentText('');
-      setShowCommentModal(false);
+      setIsCommentMode(false);
     } catch (err: any) {
       console.error('Error submitting comment:', err);
       alert(err.message || 'Erro ao enviar comentário');
@@ -367,7 +379,6 @@ export default function VideoApproval() {
         throw new Error(errorData.error || 'Erro ao aprovar vídeo');
       }
 
-      // Refresh data to show approval
       await fetchApprovalData();
       setShowApprovalModal(false);
     } catch (err: any) {
@@ -378,12 +389,39 @@ export default function VideoApproval() {
     }
   };
 
-  // Get comments for current version
-  const currentComments = data?.comments.filter(
+  // Get comments for current version, sorted by timestamp
+  const currentComments = (data?.comments.filter(
     c => c.video_version_id === selectedVersionId
-  ) || [];
+  ) || []).sort((a, b) => a.timestamp_seconds - b.timestamp_seconds);
 
   const openCommentsCount = currentComments.filter(c => c.status === 'open').length;
+  const resolvedCommentsCount = currentComments.filter(c => c.status === 'resolved').length;
+
+  // Group comments by timestamp for markers (multiple comments at same time)
+  const commentMarkers = currentComments.reduce((acc, comment) => {
+    const key = Math.floor(comment.timestamp_seconds);
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(comment);
+    return acc;
+  }, {} as Record<number, VideoComment[]>);
+
+  // Format relative time
+  const formatRelativeTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'agora';
+    if (diffMins < 60) return `há ${diffMins} min`;
+    if (diffHours < 24) return `há ${diffHours}h`;
+    if (diffDays < 7) return `há ${diffDays}d`;
+    return date.toLocaleDateString('pt-PT');
+  };
 
   // Render loading
   if (loading) {
@@ -453,331 +491,421 @@ export default function VideoApproval() {
   const selectedVersion = data.versions.find(v => v.id === selectedVersionId);
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <img src={logoBlack} alt="WillFlow" className="h-8 dark:hidden" />
-            <img src={logoWhite} alt="WillFlow" className="h-8 hidden dark:block" />
-            <Separator orientation="vertical" className="h-6" />
-            <div>
-              <h1 className="font-semibold">{data.task.title}</h1>
-              <p className="text-sm text-muted-foreground">{data.task.project_name}</p>
+    <TooltipProvider>
+      <div className="min-h-screen bg-background">
+        {/* Header */}
+        <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+          <div className="container py-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <img src={logoBlack} alt="WillFlow" className="h-8 dark:hidden" />
+              <img src={logoWhite} alt="WillFlow" className="h-8 hidden dark:block" />
+              <Separator orientation="vertical" className="h-6" />
+              <div>
+                <h1 className="font-semibold">{data.task.title}</h1>
+                <p className="text-sm text-muted-foreground">{data.task.project_name}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Version selector */}
+              <Select value={selectedVersionId} onValueChange={setSelectedVersionId}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {data.versions.map((v) => (
+                    <SelectItem key={v.id} value={v.id}>
+                      Versão {v.version_number}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Compare toggle */}
+              {data.versions.length > 1 && (
+                <Button
+                  variant={isComparing ? 'secondary' : 'outline'}
+                  size="sm"
+                  onClick={() => setIsComparing(!isComparing)}
+                >
+                  <ArrowLeftRight className="h-4 w-4 mr-1" />
+                  Comparar
+                </Button>
+              )}
+
+              {/* Approve button */}
+              <Button onClick={() => setShowApprovalModal(true)}>
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+                Aprovar
+              </Button>
             </div>
           </div>
+        </header>
 
-          <div className="flex items-center gap-2">
-            {/* Version selector */}
-            <Select value={selectedVersionId} onValueChange={setSelectedVersionId}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {data.versions.map((v) => (
-                  <SelectItem key={v.id} value={v.id}>
-                    Versão {v.version_number}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Compare toggle */}
-            {data.versions.length > 1 && (
-              <Button
-                variant={isComparing ? 'secondary' : 'outline'}
-                size="sm"
-                onClick={() => setIsComparing(!isComparing)}
-              >
-                <ArrowLeftRight className="h-4 w-4 mr-1" />
-                Comparar
-              </Button>
-            )}
-
-            {/* Approve button */}
-            <Button onClick={() => setShowApprovalModal(true)}>
-              <CheckCircle2 className="h-4 w-4 mr-2" />
-              Aprovar
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="container py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Video Player */}
-          <div className="lg:col-span-2 space-y-4">
-            <Card className="overflow-hidden">
-              <div className="relative bg-black aspect-video">
-                {videoUrl ? (
-                  <video
-                    ref={videoRef}
-                    src={videoUrl}
-                    className="w-full h-full"
-                    onTimeUpdate={handleTimeUpdate}
-                    onLoadedMetadata={handleLoadedMetadata}
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
-                    onEnded={() => setIsPlaying(false)}
-                  />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-white/50" />
-                  </div>
-                )}
-
-                {/* Comment markers on timeline */}
-                {currentComments.length > 0 && duration > 0 && (
-                  <div className="absolute bottom-16 left-0 right-0 px-4">
-                    {currentComments.map((comment) => {
-                      const position = (comment.timestamp_seconds / duration) * 100;
-                      return (
-                        <button
-                          key={comment.id}
-                          className={cn(
-                            'absolute -translate-x-1/2 w-3 h-3 rounded-full transition-transform hover:scale-150',
-                            comment.status === 'resolved' ? 'bg-green-500' : 'bg-yellow-500'
-                          )}
-                          style={{ left: `${position}%` }}
-                          onClick={() => seekTo(comment.timestamp_seconds)}
-                          title={comment.body}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Controls overlay */}
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                  {/* Progress bar */}
-                  <div
-                    className="h-1 bg-white/30 rounded-full mb-3 cursor-pointer"
-                    onClick={handleProgressClick}
-                  >
-                    <div
-                      className="h-full bg-primary rounded-full"
-                      style={{ width: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%' }}
+        <main className="container py-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Video Player */}
+            <div className="lg:col-span-2 space-y-4">
+              <Card className="overflow-hidden">
+                <div className="relative bg-black aspect-video">
+                  {videoUrl ? (
+                    <video
+                      ref={videoRef}
+                      className="w-full h-full"
+                      onTimeUpdate={handleTimeUpdate}
+                      onLoadedMetadata={handleLoadedMetadata}
+                      onPlay={() => setIsPlaying(true)}
+                      onPause={() => setIsPlaying(false)}
+                      onEnded={() => setIsPlaying(false)}
                     />
-                  </div>
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Loader2 className="h-8 w-8 animate-spin text-white/50" />
+                    </div>
+                  )}
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="icon" className="text-white" onClick={togglePlay}>
-                        {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-                      </Button>
-                      <Button variant="ghost" size="icon" className="text-white" onClick={toggleMute}>
-                        {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-                      </Button>
-                      <span className="text-white text-sm">
-                        {formatDuration(Math.floor(currentTime))} / {formatDuration(Math.floor(duration))}
-                      </span>
+                  {/* Controls overlay */}
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                    {/* Progress bar with comment markers */}
+                    <div className="relative mb-3">
+                      <div
+                        className="h-1.5 bg-white/30 rounded-full cursor-pointer relative"
+                        onClick={handleProgressClick}
+                      >
+                        <div
+                          className="h-full bg-primary rounded-full transition-all"
+                          style={{ width: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%' }}
+                        />
+                        
+                        {/* Comment markers on timeline */}
+                        {duration > 0 && Object.entries(commentMarkers).map(([timestamp, comments]) => {
+                          const position = (parseInt(timestamp) / duration) * 100;
+                          const hasOpen = comments.some(c => c.status === 'open');
+                          const count = comments.length;
+                          
+                          return (
+                            <Tooltip key={timestamp}>
+                              <TooltipTrigger asChild>
+                                <button
+                                  className={cn(
+                                    'absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full transition-all hover:scale-125 z-10',
+                                    count > 1 ? 'w-4 h-4' : 'w-3 h-3',
+                                    hasOpen ? 'bg-yellow-500' : 'bg-green-500'
+                                  )}
+                                  style={{ left: `${position}%` }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    seekTo(parseInt(timestamp));
+                                  }}
+                                >
+                                  {count > 1 && (
+                                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-black">
+                                      {count}
+                                    </span>
+                                  )}
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <div className="space-y-1">
+                                  <p className="font-mono text-xs text-muted-foreground">{formatTimecode(parseInt(timestamp))}</p>
+                                  {comments.slice(0, 2).map(c => (
+                                    <div key={c.id} className="flex items-start gap-1.5">
+                                      <span className={cn(
+                                        'w-1.5 h-1.5 rounded-full mt-1.5 shrink-0',
+                                        c.status === 'open' ? 'bg-yellow-500' : 'bg-green-500'
+                                      )} />
+                                      <p className="text-xs line-clamp-2">{c.body}</p>
+                                    </div>
+                                  ))}
+                                  {count > 2 && (
+                                    <p className="text-xs text-muted-foreground">+{count - 2} mais</p>
+                                  )}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          );
+                        })}
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-white"
-                        onClick={openCommentModal}
-                      >
-                        <MessageSquare className="h-4 w-4 mr-1" />
-                        Comentar
-                      </Button>
-                      <Button variant="ghost" size="icon" className="text-white" onClick={toggleFullscreen}>
-                        <Maximize className="h-5 w-5" />
-                      </Button>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="icon" className="text-white" onClick={togglePlay}>
+                          {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-white" onClick={toggleMute}>
+                          {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                        </Button>
+                        <span className="text-white text-sm font-mono">
+                          {formatTimecode(Math.floor(currentTime))} / {formatTimecode(Math.floor(duration))}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-white"
+                          onClick={enterCommentMode}
+                        >
+                          <MessageSquare className="h-4 w-4 mr-1" />
+                          Comentar
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-white" onClick={toggleFullscreen}>
+                          <Maximize className="h-5 w-5" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </Card>
 
-            {/* Version info */}
-            {selectedVersion && (
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>
-                  Versão {selectedVersion.version_number} • {selectedVersion.file_name}
-                </span>
-                <span>
-                  Enviado {new Date(selectedVersion.created_at).toLocaleDateString('pt-PT')}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Comments Sidebar */}
-          <div className="space-y-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5" />
-                  Comentários
-                  {openCommentsCount > 0 && (
-                    <Badge variant="secondary" className="ml-auto">
-                      {openCommentsCount} aberto{openCommentsCount !== 1 ? 's' : ''}
-                    </Badge>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {currentComments.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    Nenhum comentário nesta versão.
-                    <br />
-                    Pause o vídeo e clique em "Comentar" para adicionar.
-                  </p>
-                ) : (
-                  <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                    {currentComments.map((comment) => (
-                      <div
-                        key={comment.id}
-                        className={cn(
-                          'p-3 rounded-lg border cursor-pointer transition-colors hover:bg-accent/50',
-                          comment.status === 'resolved' && 'opacity-60'
-                        )}
-                        onClick={() => seekTo(comment.timestamp_seconds)}
-                      >
-                        <div className="flex items-start gap-2">
-                          <Badge variant="outline" className="shrink-0 text-xs">
-                            <Clock className="h-3 w-3 mr-1" />
-                            {formatDuration(comment.timestamp_seconds)}
-                          </Badge>
-                          {comment.status === 'resolved' && (
-                            <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-                          )}
-                        </div>
-                        <p className="text-sm mt-2">{comment.body}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {comment.client_name || 'Anónimo'}
-                        </p>
+                {/* Inline comment input (Frame.io style) */}
+                {isCommentMode && (
+                  <div className="border-t bg-card p-4">
+                    <div className="flex items-start gap-3">
+                      {/* Timecode badge */}
+                      <div className="flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5 text-sm font-mono text-primary shrink-0">
+                        <Clock className="h-3.5 w-3.5" />
+                        {formatTimecode(Math.floor(commentTimestamp))}
                       </div>
-                    ))}
+
+                      <div className="flex-1 space-y-3">
+                        {/* Name input (if not saved) */}
+                        {!clientName && (
+                          <Input
+                            placeholder="O seu nome"
+                            value={clientName}
+                            onChange={(e) => setClientName(e.target.value)}
+                            className="h-9"
+                          />
+                        )}
+                        
+                        {/* Comment textarea */}
+                        <Textarea
+                          ref={commentInputRef}
+                          placeholder="Adicione um comentário..."
+                          value={commentText}
+                          onChange={(e) => setCommentText(e.target.value)}
+                          className="min-h-[80px] resize-none"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                              handleSubmitComment();
+                            }
+                            if (e.key === 'Escape') {
+                              cancelCommentMode();
+                            }
+                          }}
+                        />
+
+                        {/* Actions */}
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-muted-foreground">
+                            {clientName && <span>Comentando como <strong>{clientName}</strong> • </span>}
+                            <kbd className="px-1 py-0.5 rounded bg-muted text-[10px]">⌘</kbd>
+                            <kbd className="px-1 py-0.5 rounded bg-muted text-[10px] ml-0.5">Enter</kbd>
+                            <span className="ml-1">para enviar</span>
+                          </p>
+                          
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={cancelCommentMode}
+                            >
+                              Cancelar
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={handleSubmitComment}
+                              disabled={!commentText.trim() || !clientName.trim() || submittingComment}
+                            >
+                              {submittingComment ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Send className="h-4 w-4 mr-1" />
+                                  Enviar
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </Card>
 
-            {/* Add Comment Button */}
-            <Button className="w-full" variant="outline" onClick={openCommentModal}>
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Adicionar Comentário
-            </Button>
-          </div>
-        </div>
-      </main>
-
-      {/* Comment Modal */}
-      <Dialog open={showCommentModal} onOpenChange={setShowCommentModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Adicionar Comentário</DialogTitle>
-            <DialogDescription>
-              Comentário no tempo {formatDuration(Math.floor(commentTimestamp))}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="client-name">O seu nome *</Label>
-              <Input
-                id="client-name"
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-                placeholder="Ex: João Silva"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="comment-text">Comentário *</Label>
-              <Textarea
-                id="comment-text"
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Descreva a alteração pretendida..."
-                rows={4}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCommentModal(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSubmitComment}
-              disabled={!commentText.trim() || !clientName.trim() || submittingComment}
-            >
-              {submittingComment ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4 mr-2" />
+              {/* Version info */}
+              {selectedVersion && (
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>
+                    Versão {selectedVersion.version_number} • {selectedVersion.file_name}
+                  </span>
+                  <span>
+                    Enviado {new Date(selectedVersion.created_at).toLocaleDateString('pt-PT')}
+                  </span>
+                </div>
               )}
-              Enviar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Approval Modal */}
-      <Dialog open={showApprovalModal} onOpenChange={setShowApprovalModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Aprovar Vídeo</DialogTitle>
-            <DialogDescription>
-              Confirme a aprovação da Versão {selectedVersion?.version_number}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="approval-name">O seu nome *</Label>
-              <Input
-                id="approval-name"
-                value={approvalName}
-                onChange={(e) => setApprovalName(e.target.value)}
-                placeholder="Ex: João Silva"
-              />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="approval-notes">Notas (opcional)</Label>
-              <Textarea
-                id="approval-notes"
-                value={approvalNotes}
-                onChange={(e) => setApprovalNotes(e.target.value)}
-                placeholder="Alguma observação adicional..."
-                rows={3}
-              />
-            </div>
+            {/* Comments Sidebar (Redesigned) */}
+            <div className="space-y-4">
+              <Card className="h-fit">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5" />
+                      Comentários
+                    </CardTitle>
+                    <div className="flex items-center gap-1.5">
+                      {openCommentsCount > 0 && (
+                        <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
+                          {openCommentsCount} aberto{openCommentsCount !== 1 ? 's' : ''}
+                        </Badge>
+                      )}
+                      {resolvedCommentsCount > 0 && (
+                        <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/20">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          {resolvedCommentsCount}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {currentComments.length === 0 ? (
+                    <div className="text-center py-8">
+                      <MessageSquare className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+                      <p className="text-sm text-muted-foreground">
+                        Sem comentários nesta versão
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Clique em "Comentar" para adicionar
+                      </p>
+                    </div>
+                  ) : (
+                    <ScrollArea className="h-[450px] pr-3 -mr-3">
+                      <div className="space-y-3">
+                        {currentComments.map((comment) => (
+                          <div
+                            key={comment.id}
+                            className={cn(
+                              'group p-3 rounded-lg border cursor-pointer transition-all hover:bg-accent/50',
+                              comment.status === 'resolved' && 'opacity-60'
+                            )}
+                            onClick={() => seekTo(comment.timestamp_seconds)}
+                          >
+                            {/* Header: timecode + status */}
+                            <div className="flex items-center justify-between mb-2">
+                              <button className="flex items-center gap-1.5 rounded bg-primary/10 px-2 py-1 text-xs font-mono text-primary hover:bg-primary/20 transition-colors">
+                                <Clock className="h-3 w-3" />
+                                {formatTimecode(comment.timestamp_seconds)}
+                              </button>
+                              
+                              <div className="flex items-center gap-2">
+                                {comment.status === 'resolved' ? (
+                                  <span className="flex items-center gap-1 text-xs text-green-600">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    Resolvido
+                                  </span>
+                                ) : (
+                                  <span className="w-2 h-2 rounded-full bg-yellow-500" />
+                                )}
+                              </div>
+                            </div>
 
-            {openCommentsCount > 0 && (
-              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 text-sm text-yellow-600 dark:text-yellow-400">
-                <AlertCircle className="h-4 w-4 inline mr-2" />
-                Existem {openCommentsCount} comentário{openCommentsCount !== 1 ? 's' : ''} em aberto.
-                Confirme que pretende aprovar mesmo assim.
+                            {/* Comment body */}
+                            <p className={cn(
+                              'text-sm',
+                              comment.status === 'resolved' && 'line-through'
+                            )}>
+                              {comment.body}
+                            </p>
+
+                            {/* Footer: author + time */}
+                            <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+                              <span className="font-medium">{comment.client_name || 'Anónimo'}</span>
+                              <span>{formatRelativeTime(comment.created_at)}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Quick add comment button */}
+              <Button className="w-full" variant="outline" onClick={enterCommentMode}>
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Adicionar Comentário
+              </Button>
+            </div>
+          </div>
+        </main>
+
+        {/* Approval Modal */}
+        <Dialog open={showApprovalModal} onOpenChange={setShowApprovalModal}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Aprovar Vídeo</DialogTitle>
+              <DialogDescription>
+                Confirme a aprovação da Versão {selectedVersion?.version_number}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="approval-name">O seu nome *</Label>
+                <Input
+                  id="approval-name"
+                  value={approvalName}
+                  onChange={(e) => setApprovalName(e.target.value)}
+                  placeholder="Ex: João Silva"
+                />
               </div>
-            )}
-          </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowApprovalModal(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSubmitApproval}
-              disabled={!approvalName.trim() || submittingApproval}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {submittingApproval ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4 mr-2" />
+              <div className="space-y-2">
+                <Label htmlFor="approval-notes">Notas (opcional)</Label>
+                <Textarea
+                  id="approval-notes"
+                  value={approvalNotes}
+                  onChange={(e) => setApprovalNotes(e.target.value)}
+                  placeholder="Alguma observação adicional..."
+                  rows={3}
+                />
+              </div>
+
+              {openCommentsCount > 0 && (
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 text-sm text-yellow-600 dark:text-yellow-400">
+                  <AlertCircle className="h-4 w-4 inline mr-2" />
+                  Existem {openCommentsCount} comentário{openCommentsCount !== 1 ? 's' : ''} em aberto.
+                  Confirme que pretende aprovar mesmo assim.
+                </div>
               )}
-              Confirmar Aprovação
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowApprovalModal(false)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleSubmitApproval}
+                disabled={!approvalName.trim() || submittingApproval}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {submittingApproval ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                )}
+                Confirmar Aprovação
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </TooltipProvider>
   );
 }

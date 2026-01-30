@@ -2,6 +2,26 @@
  * Duration utilities for video structure timeline
  */
 
+/**
+ * Format seconds to professional SMPTE-style timecode
+ * @example formatTimecode(5) => "00:05"
+ * @example formatTimecode(90) => "01:30"
+ * @example formatTimecode(3665) => "01:01:05"
+ */
+export function formatTimecode(seconds: number): string {
+  const totalSeconds = Math.floor(seconds);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+  
+  // Compact format for videos under 1 hour
+  if (hours === 0) {
+    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+  
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
 export interface VideoStructureSegment {
   id: string;
   name: string;
