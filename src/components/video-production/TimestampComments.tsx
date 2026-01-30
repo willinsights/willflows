@@ -29,11 +29,12 @@ export function TimestampComments({
   onSeekTo,
   className
 }: TimestampCommentsProps) {
-  const { 
+const { 
     comments, 
     loading, 
     resolveComment, 
     reopenComment,
+    deleteComment,
     openCount,
     resolvedCount
   } = useVideoComments(videoVersionId);
@@ -110,6 +111,7 @@ export function TimestampComments({
               onSeekTo={onSeekTo}
               onResolve={() => resolveComment(comment.id)}
               onReopen={() => reopenComment(comment.id)}
+              onDelete={() => deleteComment(comment.id)}
             />
           ))}
         </div>
@@ -123,9 +125,11 @@ interface CommentCardProps {
   onSeekTo?: (timestampSeconds: number) => void;
   onResolve: () => void;
   onReopen: () => void;
+  onDelete: () => void;
 }
 
-function CommentCard({ comment, onSeekTo, onResolve, onReopen }: CommentCardProps) {
+function CommentCard({ comment, onSeekTo, onResolve, onReopen, onDelete }: CommentCardProps) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const isResolved = comment.status === 'resolved';
 
   const getInitials = () => {
@@ -194,6 +198,38 @@ function CommentCard({ comment, onSeekTo, onResolve, onReopen }: CommentCardProp
                 >
                   <Check className="h-3 w-3 mr-1" />
                   Resolver
+                </Button>
+              )}
+              {showDeleteConfirm ? (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="h-7 text-xs"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      onDelete();
+                      setShowDeleteConfirm(false);
+                    }}
+                    className="h-7 text-xs text-destructive hover:text-destructive"
+                  >
+                    Confirmar
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="h-3 w-3" />
                 </Button>
               )}
             </div>
