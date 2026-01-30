@@ -1,49 +1,10 @@
 
 
-## Correção: Erro "Failed to process video" - Foreign Key Violation
+## Correção: Upload de Vídeo Sem Criar Tarefa
 
-### Problema Identificado
+### Abordagem Simplificada
 
-Quando o projeto não tem tarefas criadas, o código usa `project.id` como fallback para `taskId`:
-
-```typescript
-// ProjectDetailsSheet.tsx (linha 683)
-taskId={selectedVideoTaskId || project.id}
-```
-
-Mas `project.id` não existe na tabela `tasks`, causando:
-```
-"insert or update on table \"video_versions\" violates foreign key constraint \"video_versions_task_id_fkey\""
-```
-
----
-
-### Fluxo do Erro
-
-```text
-┌────────────────────────────────────────────────────────────────┐
-│  1. Projeto sem tarefas → selectedVideoTaskId = null           │
-│        ↓                                                       │
-│  2. taskId = selectedVideoTaskId || project.id                 │
-│        ↓                                                       │
-│  3. project.id passado como taskId ao edge function            │
-│        ↓                                                       │
-│  4. INSERT em video_versions com task_id = project.id          │
-│        ↓                                                       │
-│  5. FK constraint falha: project.id não existe em tasks        │
-│        ↓                                                       │
-│  6. ERRO: "Failed to process video"                            │
-└────────────────────────────────────────────────────────────────┘
-```
-
----
-
-### Solução: Criar Tarefa Padrão Automaticamente
-
-De acordo com a especificação do projeto, devemos criar automaticamente uma tarefa "Produção de Vídeo" quando não existir nenhuma tarefa. Esta abordagem:
-- Mantém a integridade referencial da base de dados
-- Não requer alterações à edge function
-- Segue o padrão já definido na memória do projeto
+Em vez de criar uma tarefa automática no checklist, vamos usar o `projectId` diretamente quando não há tarefa selecionada. A coluna `task_id` na tabela `video_versions` **já é nullable**, então só precisamos ajustar o código.
 
 ---
 
@@ -51,69 +12,117 @@ De acordo com a especificação do projeto, devemos criar automaticamente uma ta
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `src/components/projects/ProjectDetailsSheet.tsx` | Criar tarefa automática se não existir |
+| `supabase/functions/stream-process-video/index.ts` | Tornar `taskId` opcional |
+| `supabase/functions/r2-upload-url/index.ts` | Tornar `taskId` opcional |
+| `src/components/projects/ProjectDetailsSheet.tsx` | Passar `null` em vez de `project.id` |
 | `src/components/projects/ProjectDetailsModal.tsx` | Mesma correção |
+| `src/hooks/useVideoVersions.ts` | Ajustar interface para `taskId` opcional |
+| `src/components/video-production/VideoVersionUpload.tsx` | Aceitar `taskId` como opcional |
+| `src/components/video-production/VideoProductionTab.tsx` | Aceitar `taskId` como opcional |
 
 ---
 
-### Alteração Principal
+### Alteração 1: Edge Function `stream-process-video`
 
-Adicionar um `useEffect` que cria uma tarefa "Produção de Vídeo" quando:
-1. O projeto abre
-2. Não há tarefas existentes
-3. O utilizador tem acesso ao tab de vídeo
-
-**Lógica:**
+**Linha 113 - Alterar validação:**
 ```typescript
-// Criar tarefa de produção se não existir nenhuma
-useEffect(() => {
-  const ensureVideoTask = async () => {
-    if (!open || tasks.length > 0 || !project?.id) return;
-    
-    try {
-      const { data: newTask, error } = await supabase
-        .from('tasks')
-        .insert({
-          title: 'Produção de Vídeo',
-          project_id: project.id,
-          workspace_id: project.workspace_id,
-          phase: project.current_phase,
-          status: 'em_progresso',
-          created_by: user?.id,
-        })
-        .select()
-        .single();
-      
-      if (!error && newTask) {
-        setTasks([newTask]);
-        setSelectedVideoTaskId(newTask.id);
-      }
-    } catch (error) {
-      console.error('Error creating video production task:', error);
-    }
-  };
-  
-  ensureVideoTask();
-}, [open, tasks.length, project?.id]);
+// Antes: taskId era obrigatório
+if (!key || !taskId || !workspaceId || !fileName || !fileSize) {
+
+// Depois: taskId é opcional
+if (!key || !workspaceId || !projectId || !fileName || !fileSize) {
+```
+
+**Linha 120-126 - Alterar query de versões:**
+```typescript
+// Antes: buscava por task_id
+.eq("task_id", taskId)
+
+// Depois: busca por project_id quando não há task_id
+if (taskId) {
+  query = query.eq("task_id", taskId);
+} else {
+  query = query.is("task_id", null).eq("project_id", projectId);
+}
+```
+
+**Linha 139 - Usar null quando não há taskId:**
+```typescript
+task_id: taskId || null,
 ```
 
 ---
 
-### Comportamento Esperado Após Correção
+### Alteração 2: Edge Function `r2-upload-url`
 
-| Cenário | Antes | Depois |
-|---------|-------|--------|
-| Projeto com tarefas | ✅ Funciona | ✅ Funciona |
-| Projeto sem tarefas | ❌ "Failed to process video" | ✅ Cria tarefa automaticamente |
+Mesma lógica - tornar `taskId` opcional na validação.
 
 ---
 
-### Alternativa Considerada (Não Recomendada)
+### Alteração 3: Componentes React
 
-Poderíamos tornar `task_id` nullable na edge function e base de dados, mas isso:
-- Quebraria a consistência dos dados existentes
-- Complicaria queries que agrupam versões por tarefa
-- Não seguiria a especificação original do projeto
+**`ProjectDetailsSheet.tsx` (linha 683):**
+```typescript
+// Antes: usava project.id como fallback (causava FK error)
+taskId={selectedVideoTaskId || project.id}
 
-A criação automática da tarefa é a solução mais limpa e alinhada com a arquitetura.
+// Depois: passa null quando não há tarefa
+taskId={selectedVideoTaskId || null}
+```
+
+**`VideoProductionTab.tsx` - Ajustar interface:**
+```typescript
+interface VideoProductionTabProps {
+  taskId: string | null;  // Agora aceita null
+  workspaceId: string;
+  projectId: string;
+}
+```
+
+**`VideoVersionUpload.tsx` - Ajustar interface:**
+```typescript
+interface VideoVersionUploadProps {
+  taskId: string | null;  // Agora aceita null
+  workspaceId: string;
+  projectId: string;
+}
+```
+
+---
+
+### Fluxo Corrigido
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  Projeto sem tarefas                                            │
+│        ↓                                                        │
+│  taskId = null                                                  │
+│        ↓                                                        │
+│  Edge function recebe: { taskId: null, projectId: "xxx" }       │
+│        ↓                                                        │
+│  INSERT em video_versions: task_id = NULL, project_id = "xxx"   │
+│        ↓                                                        │
+│  ✅ Sucesso! Versões agrupadas por projeto                      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Vantagens desta Abordagem
+
+| Aspeto | Benefício |
+|--------|-----------|
+| Sem tarefas fantasma | Checklist permanece limpo |
+| Dados consistentes | Versões ligadas ao projeto, não a tarefa inexistente |
+| Código simples | Apenas ajustes de tipos, sem lógica complexa |
+| Já suportado | A coluna `task_id` já é nullable no banco |
+
+---
+
+### Comportamento Final
+
+| Cenário | Resultado |
+|---------|-----------|
+| Projeto COM tarefa selecionada | `task_id` = ID da tarefa |
+| Projeto SEM tarefa | `task_id` = NULL, agrupa por `project_id` |
 
