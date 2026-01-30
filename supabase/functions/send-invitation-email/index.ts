@@ -69,8 +69,15 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { email, workspaceName, inviterName, role, token: inviteToken }: InvitationEmailRequest = await req.json();
 
+    console.log("Request body received:", { 
+      email: email ? email.substring(0, 3) + '***@' + email.split('@')[1] : 'missing',
+      workspaceName, 
+      role,
+      hasToken: !!inviteToken 
+    });
+
     if (!workspaceName || !inviteToken) {
-      console.error("Missing required fields");
+      console.error("Missing required fields - workspaceName:", !!workspaceName, "token:", !!inviteToken);
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -88,10 +95,13 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     console.log(`Sending invitation email to ${email} for workspace ${workspaceName}`);
+    console.log("Using Resend API with from: WillFlow <noreply@willflow.app>");
 
     // Build the invitation link - always use production domain for assets
     const appUrl = "https://willflow.app";
     const inviteLink = `${appUrl}/convite?token=${inviteToken}`;
+
+    console.log("Attempting to send email via Resend...");
 
     // Send email using Resend API directly via fetch
     const emailResponse = await fetch("https://api.resend.com/emails", {
@@ -177,15 +187,18 @@ const handler = async (req: Request): Promise<Response> => {
 
     const emailData = await emailResponse.json();
 
+    console.log("Resend API response status:", emailResponse.status);
+    console.log("Resend API response data:", JSON.stringify(emailData));
+
     if (!emailResponse.ok) {
-      console.error("Resend API error:", emailData);
+      console.error("Resend API error - status:", emailResponse.status, "data:", emailData);
       return new Response(
         JSON.stringify({ error: emailData.message || "Failed to send email" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Email sent successfully:", emailData);
+    console.log("Email sent successfully to", email.substring(0, 3) + '***');
 
     return new Response(JSON.stringify({ success: true, data: emailData }), {
       status: 200,
