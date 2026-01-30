@@ -298,6 +298,7 @@ function VideoProductionTabContent({
               <ApprovalShareLink
                 taskId={taskId}
                 workspaceId={workspaceId}
+                projectId={projectId}
               />
             </CardContent>
           </Card>
