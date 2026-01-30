@@ -1,80 +1,99 @@
 
-## Padronização do Formato de Timecode (Frame.io Style)
 
-### Problema Identificado
-O formato atual do timecode é `HH:MM:SS.ms` (com **ponto** e centésimos), mas o padrão profissional Frame.io usa `HH:MM:SS:FF` (com **dois pontos** e frames).
+## Correções na Página de Aprovação de Vídeo
 
-**Formato atual:** `00:00:22.05`  
-**Formato pretendido:** `00:00:22:05`
+### Problema 1: Timecode perde precisão nos comentários
+**Causa identificada:** O código usa `Math.floor(commentTimestamp)` ao guardar comentários, removendo os centésimos de segundo.
+
+**Localizações no código:**
+- Linha 353: `timestamp_seconds: Math.floor(commentTimestamp)` (optimistic update)
+- Linha 369: `const savedTimestamp = Math.floor(commentTimestamp)` (envio para API)
+
+**Resultado atual:**
+- Player: `00:00:24:09` (correto)
+- Comentários: `00:00:24:00` (incorreto - perdeu `:09`)
+
+---
+
+### Problema 2: Campo de nome sem descrição clara
+**Causa identificada:** O campo Input do nome mostra apenas `placeholder="O seu nome"` sem label/descrição.
+
+**Resultado atual:** Aparece um input com "teste" (nome guardado) sem contexto claro do que é.
 
 ---
 
 ### Ficheiros a Modificar
 
-| Ficheiro | Alteração |
+| Ficheiro | Alterações |
 |----------|-----------|
-| `src/lib/duration-utils.ts` | Alterar separador de `.` para `:` |
+| `src/pages/public/VideoApproval.tsx` | 2 correções |
 
 ---
 
-### Alteração Única: formatTimecode()
+### Alteração 1: Manter precisão do timestamp
 
-**Linha 18 - Alterar de:**
+**Linha 353 - Alterar de:**
 ```typescript
-return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+timestamp_seconds: Math.floor(commentTimestamp),
 ```
 
 **Para:**
 ```typescript
-return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}:${ms.toString().padStart(2, '0')}`;
+timestamp_seconds: commentTimestamp,
 ```
 
----
-
-### Também atualizar a documentação (linhas 5-10):
-
-**De:**
+**Linha 369 - Alterar de:**
 ```typescript
-/**
- * Format seconds to professional SMPTE-style timecode
- * @example formatTimecode(5) => "00:05"
- * @example formatTimecode(90) => "01:30"
- * @example formatTimecode(3665) => "01:01:05"
- */
+const savedTimestamp = Math.floor(commentTimestamp);
 ```
 
 **Para:**
 ```typescript
-/**
- * Format seconds to professional SMPTE-style timecode (Frame.io format)
- * @example formatTimecode(5) => "00:00:05:00"
- * @example formatTimecode(22.15) => "00:00:22:15"
- * @example formatTimecode(90.5) => "00:01:30:50"
- */
+const savedTimestamp = commentTimestamp;
 ```
 
 ---
 
-### Locais Afetados Automaticamente
+### Alteração 2: Adicionar label ao campo de nome
 
-Esta alteração irá corrigir automaticamente **todos os locais** que usam `formatTimecode`:
+**Linhas 857-864 - Alterar de:**
+```tsx
+{/* Name input and submit button */}
+<div className="flex items-center gap-3">
+  <Input
+    placeholder="O seu nome"
+    value={clientName}
+    onChange={(e) => setClientName(e.target.value)}
+    className="h-9 max-w-[200px]"
+  />
+```
 
-| Localização | Contexto |
-|-------------|----------|
-| `VideoApproval.tsx` linha 687 | Timecode nos comentários |
-| `VideoApproval.tsx` linha 787 | Tooltip dos marcadores |
-| `VideoApproval.tsx` linha 817 | Barra de progresso do player |
-| `VideoApproval.tsx` linha 838 | Badge do comentário em edição |
-| `TimestampComments.tsx` linha 158 | Lista de comentários |
+**Para:**
+```tsx
+{/* Name input and submit button */}
+<div className="flex items-center gap-3">
+  <div className="flex flex-col gap-1">
+    <Label htmlFor="client-name-input" className="text-xs text-muted-foreground">
+      O seu nome
+    </Label>
+    <Input
+      id="client-name-input"
+      placeholder="Ex: João Silva"
+      value={clientName}
+      onChange={(e) => setClientName(e.target.value)}
+      className="h-9 w-[200px]"
+    />
+  </div>
+```
 
 ---
 
 ### Resultado Esperado
 
-| Antes | Depois |
-|-------|--------|
-| `00:00:22.05` | `00:00:22:05` |
-| `00:01:30.50` | `00:01:30:50` |
-| `01:02:33.75` | `01:02:33:75` |
+| Problema | Antes | Depois |
+|----------|-------|--------|
+| Timecode comentários | `00:00:24:00` | `00:00:24:09` |
+| Campo nome | Input sem contexto | Label "O seu nome" + placeholder "Ex: João Silva" |
 
-O formato fica idêntico ao Frame.io: `HH:MM:SS:FF`
+O timecode fica idêntico entre o player e os comentários, mantendo a precisão dos centésimos de segundo.
+
