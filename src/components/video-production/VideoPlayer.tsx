@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle, useMemo } from 'react';
 import Hls from 'hls.js';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -83,9 +83,10 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const hideControlsTimeout = useRef<NodeJS.Timeout>();
+  const retryCountRef = useRef(0);
 
-  // Determine the video source URL - always prefer videodelivery.net for HLS
-  const getVideoSource = useCallback((): { type: 'hls' | 'native' | 'none'; url: string | null } => {
+  // Memoize video source to prevent unnecessary re-renders and HLS destruction
+  const videoSource = useMemo((): { type: 'hls' | 'native' | 'none'; url: string | null } => {
     // Priority 1: Cloudflare Stream UID - use canonical videodelivery.net URL
     if (streamUid) {
       return { type: 'hls', url: buildCanonicalHlsUrl(streamUid) };
@@ -95,47 +96,43 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     if (hlsUrl) {
       const extractedUid = extractStreamUidFromUrl(hlsUrl);
       if (extractedUid) {
-        // Use canonical URL instead of customer-specific one
         return { type: 'hls', url: buildCanonicalHlsUrl(extractedUid) };
       }
-      // Fallback to provided URL if can't extract UID
       return { type: 'hls', url: hlsUrl };
     }
 
     // Priority 3: src might be an HLS URL or video file
     if (src) {
-      // Check if it's a Cloudflare Stream URL - normalize it
       const extractedUid = extractStreamUidFromUrl(src);
       if (extractedUid) {
         return { type: 'hls', url: buildCanonicalHlsUrl(extractedUid) };
       }
-      
-      // Check if it's an HLS manifest
       if (src.includes('.m3u8')) {
         return { type: 'hls', url: src };
       }
-      
-      // Regular video file (mp4, webm, etc.)
       return { type: 'native', url: src };
     }
 
     return { type: 'none', url: null };
   }, [src, streamUid, hlsUrl]);
 
-  // Initialize HLS.js or native playback
+  // Reset retry count when source changes
+  useEffect(() => {
+    retryCountRef.current = 0;
+  }, [videoSource.url]);
+
+  // Initialize HLS.js or native playback - depends on stable URL string
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    const source = getVideoSource();
-    
     // Cleanup previous HLS instance
     if (hlsRef.current) {
       hlsRef.current.destroy();
       hlsRef.current = null;
     }
 
-    if (source.type === 'none' || !source.url) {
+    if (videoSource.type === 'none' || !videoSource.url) {
       setIsLoading(false);
       return;
     }
@@ -143,10 +140,10 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     setIsLoading(true);
     setLoadError(null);
 
-    if (source.type === 'hls') {
+    if (videoSource.type === 'hls') {
       // Check if browser supports HLS natively (Safari)
       if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = source.url;
+        video.src = videoSource.url;
         video.load();
       } else if (Hls.isSupported()) {
         // Use hls.js for other browsers
@@ -155,7 +152,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           lowLatencyMode: false,
         });
         
-        hls.loadSource(source.url);
+        hls.loadSource(videoSource.url);
         hls.attachMedia(video);
         
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -185,6 +182,13 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
                 userMessage = `Erro de rede: ${errorDetail}`;
               }
             } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+              // Try to recover from media errors once
+              if (retryCountRef.current < 1) {
+                retryCountRef.current++;
+                console.log('Attempting HLS media error recovery...');
+                hls.recoverMediaError();
+                return;
+              }
               userMessage = `Erro de media: ${errorDetail}`;
             }
             
@@ -201,7 +205,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       }
     } else {
       // Native video playback
-      video.src = source.url;
+      video.src = videoSource.url;
       video.load();
     }
 
@@ -211,7 +215,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         hlsRef.current = null;
       }
     };
-  }, [getVideoSource]);
+  }, [videoSource.url]); // Stable URL dependency prevents unnecessary re-initialization
 
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
@@ -268,6 +272,19 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   const handleVideoError = useCallback(() => {
     const video = videoRef.current;
     const mediaError = video?.error;
+    
+    // Try to recover from Error Code 4 (MEDIA_ERR_SRC_NOT_SUPPORTED) once
+    if (mediaError?.code === 4 && hlsRef.current && retryCountRef.current < 1) {
+      retryCountRef.current++;
+      console.log('Recovering from media error code 4...');
+      try {
+        hlsRef.current.recoverMediaError();
+        return;
+      } catch (e) {
+        console.error('Failed to recover from media error:', e);
+      }
+    }
+    
     const message = mediaError
       ? `Falha ao carregar o vídeo (código ${mediaError.code}).`
       : 'Falha ao carregar o vídeo.';
@@ -377,7 +394,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
-  }, [src, streamUid, hlsUrl]);
+  }, [videoSource.url]);
 
   // Calculate comment markers positions
   const commentMarkers = comments.map(comment => ({
