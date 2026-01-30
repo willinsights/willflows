@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, RefreshCw, X } from 'lucide-react';
 import { AppSidebar } from './AppSidebar';
 import { AppHeader } from './AppHeader';
+import { AppBreadcrumbs } from './AppBreadcrumbs';
 import { MobileAppLayout } from './MobileAppLayout';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -247,6 +248,10 @@ function DesktopAppLayout() {
         
         <main className={`flex-1 overflow-auto ${fetchError ? 'pt-14' : ''}`}>
           <div className="h-full">
+            {/* Breadcrumbs - positioned at top of content */}
+            <div className="px-6 pt-4 pb-2">
+              <AppBreadcrumbs />
+            </div>
             <ErrorBoundary>
               <Outlet />
             </ErrorBoundary>

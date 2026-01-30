@@ -583,6 +583,19 @@ CREATE INDEX IF NOT EXISTS idx_video_versions_task
 
 ---
 
+### Sprint 6 — Breadcrumbs ✅ CONCLUÍDO
+**Esforço: BAIXO** — **Executado em 30/01/2026**
+
+1. ✅ Componente `AppBreadcrumbs` — Navegação contextual automática
+2. ✅ Integração no `AppLayout` — Breadcrumbs visíveis em todas as páginas
+3. ✅ Mapeamento de rotas — Labels em português para todas as rotas do app
+
+#### Ficheiros Criados:
+- `src/components/layout/AppBreadcrumbs.tsx` — Componente de breadcrumbs automático
+- Editado: `src/components/layout/AppLayout.tsx` — Integração no layout principal
+
+---
+
 ### Backlog Técnico
 - [ ] Implementar caching com stale-while-revalidate em relatórios
 - [ ] Configurar observabilidade com tracing distribuído
@@ -590,6 +603,6 @@ CREATE INDEX IF NOT EXISTS idx_video_versions_task
 - [ ] Atualizar PRODUCT_TO_PLAN no stripe-webhook com novos IDs
 
 ### Melhorias de Produto
-- [ ] Breadcrumbs em páginas internas do app
+- [ ] ~~Breadcrumbs em páginas internas do app~~ ✅ Implementado Sprint 6
 - [ ] Notificações push para exportações concluídas
 - [ ] Dashboard de performance do workspace
