@@ -50,7 +50,7 @@ interface ApproveVideoAsClientInput {
   notes?: string;
 }
 
-export function useVideoApproval(taskId: string | null) {
+export function useVideoApproval(taskId: string | null, projectId?: string | null) {
   const [approvals, setApprovals] = useState<VideoApproval[]>([]);
   const [token, setToken] = useState<VideoApprovalToken | null>(null);
   const [loading, setLoading] = useState(false);
@@ -81,22 +81,28 @@ export function useVideoApproval(taskId: string | null) {
   }, [taskId]);
 
   const fetchToken = useCallback(async () => {
-    if (!taskId) return;
+    if (!taskId && !projectId) return;
 
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('video_approval_tokens')
         .select('*')
-        .eq('task_id', taskId)
-        .eq('is_active', true)
-        .maybeSingle();
+        .eq('is_active', true);
+
+      if (taskId) {
+        query = query.eq('task_id', taskId);
+      } else if (projectId) {
+        query = query.is('task_id', null).eq('project_id', projectId);
+      }
+
+      const { data, error } = await query.maybeSingle();
 
       if (error) throw error;
       setToken(data as VideoApprovalToken | null);
     } catch (error: any) {
       console.error('Error fetching approval token:', error);
     }
-  }, [taskId]);
+  }, [taskId, projectId]);
 
   useEffect(() => {
     fetchApprovals();
@@ -180,14 +186,21 @@ export function useVideoApproval(taskId: string | null) {
   };
 
   const generateToken = async (workspaceId: string, clientName?: string, clientEmail?: string, expiresInDays?: number) => {
-    if (!taskId || !user) throw new Error('Missing required data');
+    if ((!taskId && !projectId) || !user) throw new Error('Missing required data');
 
     try {
       // Deactivate existing tokens
-      await supabase
+      let deactivateQuery = supabase
         .from('video_approval_tokens')
-        .update({ is_active: false })
-        .eq('task_id', taskId);
+        .update({ is_active: false });
+
+      if (taskId) {
+        deactivateQuery = deactivateQuery.eq('task_id', taskId);
+      } else if (projectId) {
+        deactivateQuery = deactivateQuery.is('task_id', null).eq('project_id', projectId);
+      }
+
+      await deactivateQuery;
 
       // Create new token
       const expiresAt = expiresInDays
@@ -197,7 +210,8 @@ export function useVideoApproval(taskId: string | null) {
       const { data, error } = await supabase
         .from('video_approval_tokens')
         .insert({
-          task_id: taskId,
+          task_id: taskId || null,
+          project_id: projectId || null,
           workspace_id: workspaceId,
           client_name: clientName || null,
           client_email: clientEmail || null,

@@ -20,13 +20,14 @@ import { useVideoApproval, VideoApprovalToken } from '@/hooks/useVideoApproval';
 import { useToast } from '@/hooks/use-toast';
 
 interface ApprovalShareLinkProps {
-  taskId: string;
+  taskId: string | null;
   workspaceId: string;
+  projectId: string;
   className?: string;
 }
 
-export function ApprovalShareLink({ taskId, workspaceId, className }: ApprovalShareLinkProps) {
-  const { token, generateToken, revokeToken, getApprovalUrl } = useVideoApproval(taskId);
+export function ApprovalShareLink({ taskId, workspaceId, projectId, className }: ApprovalShareLinkProps) {
+  const { token, generateToken, revokeToken, getApprovalUrl } = useVideoApproval(taskId, projectId);
   const { toast } = useToast();
   
   const [showGenerateModal, setShowGenerateModal] = useState(false);
