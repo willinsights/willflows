@@ -19,6 +19,7 @@ import { useChatNotifications } from '@/hooks/useChatNotifications';
 import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useGlobalBadge } from '@/hooks/useGlobalBadge';
+import { HideValuesProvider } from '@/contexts/HideValuesContext';
 
 const RETRY_COOLDOWN_MS = 5000; // 5 seconds cooldown between retries
 
@@ -35,13 +36,12 @@ type ClickDebugInfo = {
 export function AppLayout() {
   const isMobile = useIsMobile();
 
-  // Use dedicated mobile layout for mobile devices
-  if (isMobile) {
-    return <MobileAppLayout />;
-  }
-
-  // Desktop layout
-  return <DesktopAppLayout />;
+  // Wrap both layouts with HideValuesProvider for shared state
+  return (
+    <HideValuesProvider>
+      {isMobile ? <MobileAppLayout /> : <DesktopAppLayout />}
+    </HideValuesProvider>
+  );
 }
 
 function DesktopAppLayout() {
