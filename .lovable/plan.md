@@ -1,115 +1,152 @@
 
-## Melhorar Comentários ao Estilo Frame.io
+## Caixa de Comentário Sempre Visível (Estilo Frame.io)
 
 ### Objetivo
-Transformar a experiência de comentários na página de aprovação do cliente para se assemelhar ao Frame.io, com:
-- **Timecode profissional** no formato SMPTE (00:00:00)
-- **Comentários inline** no vídeo (clicar para comentar diretamente na timeline)
-- **Marcadores visuais** na barra de progresso
-- **Lista de comentários** com navegação rápida
-- **Input de comentário** integrado no player
+Transformar o input de comentário para estar **sempre visível abaixo do player**, onde:
+- Ao começar a escrever, o timecode atual é automaticamente capturado
+- Os comentários ficam no lado **esquerdo** (layout invertido)
+- O timecode fica associado ao momento em que o utilizador começou a escrever
 
 ### Alterações Planeadas
 
-#### 1. Formato de Timecode Profissional
-Atualizar a função `formatDuration` para suportar formato SMPTE:
-- Formato atual: `5s`, `1m 30s`
-- Novo formato: `00:00:05`, `00:01:30`
-
-Criar nova função `formatTimecode()` em `src/lib/duration-utils.ts`:
-```typescript
-export function formatTimecode(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-}
+#### 1. Layout Invertido (Comentários à Esquerda)
+Mudar o grid de:
+```
+[Player (2 colunas)]  [Comentários (1 coluna)]
+```
+Para:
+```
+[Comentários (1 coluna)]  [Player (2 colunas)]
 ```
 
-#### 2. Comentários Inline no Player (VideoApproval.tsx)
-Adicionar modo de comentário direto:
-- Clicar na timeline para definir ponto de comentário
-- Input de comentário aparece junto ao vídeo (não em modal)
-- Mostrar preview do frame no momento do comentário
+#### 2. Input de Comentário Sempre Visível
+Remover a lógica `isCommentMode` e manter o input sempre visível abaixo do player:
+- Campo de nome (se ainda não guardado)
+- Campo de comentário com placeholder "Adicione um comentário..."
+- Badge de timecode que aparece quando o utilizador começa a escrever
+- Botão de enviar
 
-```text
-+------------------------------------------+
-|                                          |
-|              [VIDEO PLAYER]              |
-|                                          |
-+------------------------------------------+
-|  [●] 00:01:23  Input de comentário...  ▶ |
-+------------------------------------------+
-|  ● 00:00:45  |  ✓ 00:02:10  |  ● 00:03:22 | <- marcadores
-+------------------------------------------+
-```
+#### 3. Captura Automática do Timecode
+Quando o utilizador começa a escrever no textarea:
+- Pausa o vídeo automaticamente
+- Captura o timecode atual
+- Mostra o badge com o timecode junto ao input
+- Se o utilizador apagar tudo, reseta o timecode
 
-#### 3. Marcadores de Comentário Melhorados
-Na barra de progresso do vídeo:
-- Marcadores coloridos (amarelo = aberto, verde = resolvido)
-- Tooltip ao hover mostrando preview do comentário
-- Números indicando quantidade de comentários no mesmo timestamp
-
-#### 4. Lista de Comentários Redesenhada
-Painel lateral com:
-- Agrupamento por versão (se A/B comparison ativo)
-- Timecode clicável em formato profissional
-- Indicador de status (aberto/resolvido)
-- Avatar e nome do comentador
-- Timestamp relativo ("há 5 min")
-
-#### 5. Input de Comentário Integrado
-Substituir modal por input inline:
-- Campo de nome (guardado em localStorage para reutilização)
-- Campo de comentário com auto-expand
-- Botão de enviar integrado
-- Indicador visual do timecode actual
-
-### Ficheiros a Modificar
+### Ficheiro a Modificar
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `src/lib/duration-utils.ts` | Adicionar `formatTimecode()` para formato SMPTE |
-| `src/pages/public/VideoApproval.tsx` | Redesenhar secção de comentários, input inline, marcadores melhorados |
-| `src/components/video-production/TimestampComments.tsx` | Atualizar formato de timecode (para consistência interna) |
+| `src/pages/public/VideoApproval.tsx` | Inverter layout, input sempre visível, captura automática de timecode |
 
 ### Detalhes Técnicos
 
-#### Nova Função de Timecode
+#### Nova Lógica de Captura de Timecode
+
 ```typescript
-// src/lib/duration-utils.ts
-export function formatTimecode(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
+// Ao começar a escrever, captura o timecode
+const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const newValue = e.target.value;
   
-  // Formato compacto para vídeos curtos (< 1h)
-  if (hours === 0) {
-    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  // Se está a começar a escrever (de vazio para algo)
+  if (!commentText && newValue) {
+    // Pausa o vídeo e captura o timecode
+    if (videoRef.current) {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
+    setCommentTimestamp(currentTime);
   }
   
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-}
+  // Se apagou tudo, reseta o timecode
+  if (commentText && !newValue) {
+    setCommentTimestamp(0);
+  }
+  
+  setCommentText(newValue);
+};
 ```
 
-#### Componente de Input Inline
-- Mostra timecode actual em destaque
-- Campo de nome com persistência em localStorage
-- Textarea expansível para comentário
-- Botão de cancelar e enviar
-- Aparece quando utilizador clica na timeline ou botão de comentário
+#### Novo Layout do Grid
 
-#### Marcadores na Timeline
-- Círculos coloridos sobre a barra de progresso
-- Tamanho proporcional (normal ou maior se múltiplos comentários)
-- Hover mostra tooltip com:
-  - Timecode
-  - Preview do comentário (primeiras 50 chars)
-  - Autor
-  - Status
+```tsx
+<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  {/* Comentários à ESQUERDA */}
+  <div className="order-2 lg:order-1 space-y-4">
+    <Card>
+      <CardHeader>...</CardHeader>
+      <CardContent>...</CardContent>
+    </Card>
+  </div>
+  
+  {/* Player à DIREITA (2 colunas) */}
+  <div className="order-1 lg:order-2 lg:col-span-2 space-y-4">
+    {/* Vídeo */}
+    <Card>...</Card>
+    
+    {/* Input SEMPRE visível */}
+    <Card className="p-4">
+      <div className="flex items-start gap-3">
+        {/* Timecode badge (aparece ao escrever) */}
+        {commentText && (
+          <div className="flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5">
+            <Clock className="h-3.5 w-3.5" />
+            {formatTimecode(Math.floor(commentTimestamp))}
+          </div>
+        )}
+        
+        {/* Input area */}
+        <div className="flex-1">
+          <Textarea
+            placeholder="Adicione um comentário..."
+            value={commentText}
+            onChange={handleCommentChange}
+          />
+          
+          {/* Nome e botão enviar */}
+          <div className="flex items-center justify-between mt-3">
+            <Input placeholder="O seu nome" value={clientName} ... />
+            <Button onClick={handleSubmitComment} disabled={!commentText.trim()}>
+              <Send className="h-4 w-4 mr-1" />
+              Enviar
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Card>
+  </div>
+</div>
+```
 
-### Resultado Esperado
-- Experiência de revisão de vídeo profissional e familiar
-- Timecodes legíveis e consistentes
-- Navegação rápida entre comentários
-- Input de comentário fluido sem interrupções
+### Estados Removidos
+- `isCommentMode` - já não necessário pois o input está sempre visível
+- `enterCommentMode()` - substituído pela lógica automática
+- `cancelCommentMode()` - substituído por limpar o texto
+
+### UX Melhorada
+1. Utilizador vê o vídeo
+2. Quando quer comentar, simplesmente começa a escrever
+3. O vídeo pausa automaticamente e o timecode é capturado
+4. Vê o badge com "00:01:23" junto ao input
+5. Escreve o comentário e envia
+6. Pode continuar a ver o vídeo
+
+### Resultado Visual
+
+```text
++--------------------+  +----------------------------------+
+|                    |  |                                  |
+|   COMENTÁRIOS      |  |           VIDEO PLAYER           |
+|                    |  |                                  |
+|  ┌────────────┐    |  +----------------------------------+
+|  │00:01:23    │    |  |                                  |
+|  │ "Ajustar..." │  |  |  [●] 00:01:23  Escreve aqui...   |
+|  │ João • 5min│    |  |  Nome: [João Silva___]  [Enviar] |
+|  └────────────┘    |  +----------------------------------+
+|                    |
+|  ┌────────────┐    |
+|  │00:02:45    │    |
+|  │ "Mudar..."  │   |
+|  └────────────┘    |
++--------------------+
+```
