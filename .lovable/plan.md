@@ -1,68 +1,115 @@
 
+## Melhorar Comentários ao Estilo Frame.io
 
-## Diagnóstico do Erro "código 4" no Playback de Vídeo
+### Objetivo
+Transformar a experiência de comentários na página de aprovação do cliente para se assemelhar ao Frame.io, com:
+- **Timecode profissional** no formato SMPTE (00:00:00)
+- **Comentários inline** no vídeo (clicar para comentar diretamente na timeline)
+- **Marcadores visuais** na barra de progresso
+- **Lista de comentários** com navegação rápida
+- **Input de comentário** integrado no player
 
-### Causa Raiz Identificada
+### Alterações Planeadas
 
-O erro "Falha ao carregar o vídeo (código 4)" é causado por **restrições de domínio no Cloudflare Stream**. Quando um vídeo é carregado, o Cloudflare Stream aplica automaticamente `allowedOrigins` restritivos que bloqueiam o playback em domínios como `*.lovableproject.com`.
+#### 1. Formato de Timecode Profissional
+Atualizar a função `formatDuration` para suportar formato SMPTE:
+- Formato atual: `5s`, `1m 30s`
+- Novo formato: `00:00:05`, `00:01:30`
 
-### Problemas Encontrados
-
-1. **`stream-process-video`**: Ao criar o vídeo via API `/copy`, envia `requireSignedURLs: false` mas **não envia `allowedOrigins: []`**, deixando o Cloudflare aplicar restrições por defeito
-
-2. **`stream-get-status`**: Quando faz polling e o vídeo fica "ready", sobrescreve o URL canónico `videodelivery.net` com o URL `customer-*.cloudflarestream.com` retornado pela API - embora o VideoPlayer normalize isto, a BD fica com o URL errado
-
-3. **Fluxo actual**: O utilizador precisa de clicar manualmente em "Corrigir" para remover as restrições - não há correção automática
-
-### Solução Proposta
-
-#### 1. Corrigir `stream-process-video` (Prioridade Alta)
-Adicionar `allowedOrigins: []` ao pedido de criação do vídeo para permitir playback de qualquer origem:
-
+Criar nova função `formatTimecode()` em `src/lib/duration-utils.ts`:
 ```typescript
-body: JSON.stringify({
-  url: signedR2Url,
-  meta: { ... },
-  requireSignedURLs: false,
-  allowedOrigins: [], // <-- ADICIONAR ESTA LINHA
-}),
-```
-
-#### 2. Corrigir `stream-get-status` (Prioridade Média)
-Normalizar o URL do playback para usar sempre `videodelivery.net`:
-
-```typescript
-// Em vez de usar playback.hls directamente:
-if (playback?.hls) {
-  // Extrair UID e usar URL canónico
-  const uid = extractUidFromUrl(playback.hls) || streamUid;
-  updateData.stream_playback_url = `https://videodelivery.net/${uid}/manifest/video.m3u8`;
+export function formatTimecode(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 ```
 
-#### 3. Corrigir o vídeo actual (Imediato)
-Executar a Edge Function `stream-update-video` para remover as restrições do vídeo já carregado:
-- Remove `allowedOrigins` do Cloudflare
-- Actualiza a BD com o URL canónico
+#### 2. Comentários Inline no Player (VideoApproval.tsx)
+Adicionar modo de comentário direto:
+- Clicar na timeline para definir ponto de comentário
+- Input de comentário aparece junto ao vídeo (não em modal)
+- Mostrar preview do frame no momento do comentário
+
+```text
++------------------------------------------+
+|                                          |
+|              [VIDEO PLAYER]              |
+|                                          |
++------------------------------------------+
+|  [●] 00:01:23  Input de comentário...  ▶ |
++------------------------------------------+
+|  ● 00:00:45  |  ✓ 00:02:10  |  ● 00:03:22 | <- marcadores
++------------------------------------------+
+```
+
+#### 3. Marcadores de Comentário Melhorados
+Na barra de progresso do vídeo:
+- Marcadores coloridos (amarelo = aberto, verde = resolvido)
+- Tooltip ao hover mostrando preview do comentário
+- Números indicando quantidade de comentários no mesmo timestamp
+
+#### 4. Lista de Comentários Redesenhada
+Painel lateral com:
+- Agrupamento por versão (se A/B comparison ativo)
+- Timecode clicável em formato profissional
+- Indicador de status (aberto/resolvido)
+- Avatar e nome do comentador
+- Timestamp relativo ("há 5 min")
+
+#### 5. Input de Comentário Integrado
+Substituir modal por input inline:
+- Campo de nome (guardado em localStorage para reutilização)
+- Campo de comentário com auto-expand
+- Botão de enviar integrado
+- Indicador visual do timecode actual
 
 ### Ficheiros a Modificar
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `supabase/functions/stream-process-video/index.ts` | Adicionar `allowedOrigins: []` ao criar vídeo |
-| `supabase/functions/stream-get-status/index.ts` | Normalizar URLs para `videodelivery.net` |
+| `src/lib/duration-utils.ts` | Adicionar `formatTimecode()` para formato SMPTE |
+| `src/pages/public/VideoApproval.tsx` | Redesenhar secção de comentários, input inline, marcadores melhorados |
+| `src/components/video-production/TimestampComments.tsx` | Atualizar formato de timecode (para consistência interna) |
 
-### Passos de Implementação
+### Detalhes Técnicos
 
-1. Actualizar `stream-process-video` para enviar `allowedOrigins: []`
-2. Actualizar `stream-get-status` para normalizar URLs
-3. Fazer deploy das edge functions
-4. Chamar `stream-update-video` para o vídeo actual (ID: `5c3d54b64d31cb281d68487916effc9b`)
-5. Testar upload e playback de um novo vídeo
+#### Nova Função de Timecode
+```typescript
+// src/lib/duration-utils.ts
+export function formatTimecode(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  // Formato compacto para vídeos curtos (< 1h)
+  if (hours === 0) {
+    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+  
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+```
+
+#### Componente de Input Inline
+- Mostra timecode actual em destaque
+- Campo de nome com persistência em localStorage
+- Textarea expansível para comentário
+- Botão de cancelar e enviar
+- Aparece quando utilizador clica na timeline ou botão de comentário
+
+#### Marcadores na Timeline
+- Círculos coloridos sobre a barra de progresso
+- Tamanho proporcional (normal ou maior se múltiplos comentários)
+- Hover mostra tooltip com:
+  - Timecode
+  - Preview do comentário (primeiras 50 chars)
+  - Autor
+  - Status
 
 ### Resultado Esperado
-
-- Vídeos novos funcionam imediatamente sem necessidade de "Corrigir"
-- O vídeo actual é corrigido automaticamente
-- URLs na BD usam sempre o domínio canónico `videodelivery.net`
-
+- Experiência de revisão de vídeo profissional e familiar
+- Timecodes legíveis e consistentes
+- Navegação rápida entre comentários
+- Input de comentário fluido sem interrupções
