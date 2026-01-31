@@ -271,7 +271,21 @@ export default function Pricing() {
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {PLAN_ORDER.map((planId, index) => {
               const plan = PLANS[planId];
-              const displayFeatures = plan.features.filter(f => f.category !== 'limit');
+              
+              // Features a mostrar por plano (apenas diferenças)
+              const HIGHLIGHT_FEATURES: Record<PlanId, string[]> = {
+                starter: ['kanban', 'crmBasic', 'calendar', 'mediaHub', 'reportsBasic', 'financialReports'],
+                pro: ['chat', 'crmComplete', 'exportExcel', 'googleCalendar', 'reportsAdvanced', 'templates'],
+                studio: ['frameio', 'automations', 'permissions', 'api'],
+              };
+              
+              const highlightKeys = HIGHLIGHT_FEATURES[planId];
+              const displayFeatures = plan.features.filter(f => 
+                f.category !== 'limit' && 
+                f.category !== 'studio' && 
+                highlightKeys.includes(f.key) && 
+                f.included
+              );
               
               return (
                 <motion.div
@@ -317,18 +331,40 @@ export default function Pricing() {
                     <p className="text-sm font-medium">{plan.limitsDisplay.projects}</p>
                   </div>
 
+                  {/* Texto "Tudo do X, mais:" para Pro e Studio */}
+                  {planId !== 'starter' && (
+                    <p className="text-xs text-muted-foreground mb-3 italic">
+                      ✓ Tudo do {planId === 'pro' ? 'Starter' : 'Pro'}, mais:
+                    </p>
+                  )}
+
+                  {/* Studio Exclusive Highlight Box */}
+                  {planId === 'studio' && (
+                    <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-primary/20 via-purple-500/15 to-pink-500/10 border border-primary/30 shadow-lg shadow-primary/5">
+                      <p className="text-xs font-semibold text-primary/80 uppercase tracking-wide mb-3">Exclusivo Studio</p>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">🎬</span>
+                          <span className="text-sm font-semibold text-foreground">Aprovação de vídeo</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">🎞️</span>
+                          <span className="text-sm font-semibold text-foreground">Desenho de Timeline</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">📦</span>
+                          <span className="text-sm text-muted-foreground">10 GB armazenamento incluído</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Features */}
                   <ul className="space-y-3 mb-6 flex-1">
                     {displayFeatures.map((feature) => (
                       <li key={feature.key} className="flex items-center gap-2 text-sm">
-                        {feature.included ? (
-                          <Check className="h-4 w-4 text-success flex-shrink-0" />
-                        ) : (
-                          <X className="h-4 w-4 text-muted-foreground/40 flex-shrink-0" />
-                        )}
-                        <span className={!feature.included ? 'text-muted-foreground/60' : ''}>
-                          {feature.name}
-                        </span>
+                        <Check className="h-4 w-4 text-success flex-shrink-0" />
+                        <span>{feature.name}</span>
                       </li>
                     ))}
                   </ul>
