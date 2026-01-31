@@ -1,313 +1,303 @@
 
 
-# Plano: Auditoria e Otimização SEO Completa para Indexação no Google
+# Plano: Destacar Funcionalidades Studio - Aprovação de Vídeo e Desenho de Timeline
 
-## Estado Actual da Implementação SEO
+## Objectivo
 
-### O que JÁ ESTÁ Implementado ✅
+Criar visibilidade máxima para as funcionalidades exclusivas do plano Studio:
+- 🎬 **Aprovação de Vídeo** (Video Approval)
+- 🎞️ **Desenho de Timeline** (Timeline Design)
 
-| Elemento | Estado | Detalhes |
-|----------|--------|----------|
-| **robots.txt** | ✅ Completo | Permite indexação de todas as rotas públicas, bloqueia /app/, /auth, /video-approval/ |
-| **Sitemap estático** | ✅ Existe | `public/sitemap.xml` com todas as páginas estáticas |
-| **Sitemap dinâmico** | ✅ Existe | Edge function que gera sitemap com posts do blog + imagens |
-| **Meta tags básicas** | ✅ Maioria | `<title>`, `<description>` em quase todas as páginas |
-| **Tags canónicas** | ✅ Maioria | `<link rel="canonical">` em ~90% das páginas |
-| **Open Graph** | ⚠️ Parcial | Apenas algumas páginas têm `og:title`, `og:description`, `og:url` |
-| **Twitter Cards** | ⚠️ Parcial | Apenas algumas páginas têm `twitter:title`, `twitter:description` |
-| **og:image** | ❌ Em falta | Apenas BlogPost usa og:image dinâmico; demais páginas não têm |
-| **Structured Data** | ⚠️ Parcial | index.html tem Organization, SoftwareApplication, WebSite; algumas páginas têm schemas específicos |
-| **FAQPage Schema** | ✅ Implementado | Help.tsx e Pricing.tsx têm FAQPage schema |
-| **Breadcrumbs Schema** | ✅ Implementado | Componente Breadcrumbs.tsx com schema JSON-LD |
-| **Hreflang** | ✅ Implementado | pt-PT, pt-BR e x-default no index.html |
-| **noindex correto** | ✅ Implementado | Tutorial, NotFound, VideoApproval, BlogPost (erro) têm noindex |
-| **Geo Tags** | ✅ Implementado | geo.region=PT, geo.placename=Lisboa |
-| **Bing Verification** | ✅ Implementado | msvalidate.01 no index.html |
-| **Preconnect** | ✅ Implementado | fonts.googleapis, supabase.co |
+Estas são funcionalidades premium que diferenciam o WillFlow de concorrentes como Frame.io e justificam o plano mais avançado.
 
 ---
 
-## Problemas Identificados e Soluções
+## Estado Actual
 
-### 1. **og:image em falta nas páginas públicas** (Prioridade Alta)
-
-**Problema:** Apenas o BlogPost.tsx usa og:image. Todas as outras páginas públicas (Landing, Features, Pricing, etc.) não têm og:image definido, usando apenas o fallback do index.html.
-
-**Impacto:** Quando partilhado em redes sociais, as páginas não mostram imagem específica.
-
-**Solução:** Adicionar og:image a todas as páginas públicas usando a imagem genérica `/og-image.png` ou imagens específicas por secção.
-
-**Páginas a atualizar:**
-- `Landing.tsx`
-- `Features.tsx`
-- `Pricing.tsx`
-- `ParaFotografos.tsx`
-- `ParaVideomakers.tsx`
-- `ParaAgencias.tsx`
-- `ParaProdutoras.tsx`
-- `Security.tsx`
-- `Integrations.tsx`
-- `Help.tsx`
-- `Contact.tsx`
-- `About.tsx`
-- `Blog.tsx`
-- `Privacy.tsx`
-- `Terms.tsx`
-- `Cookies.tsx`
-- Todas as páginas em `/features/*`
-- Todas as páginas em `/comparisons/*`
+| Local | Aprovação de Vídeo | Timeline |
+|-------|-------------------|----------|
+| Landing.tsx (Pricing) | ✅ Box Studio | ✅ Box Studio |
+| Pricing.tsx | ✅ Box Studio | ✅ Box Studio |
+| Features.tsx | ❌ Não aparece | ❌ Não aparece |
+| Páginas dedicadas | ❌ Não existe | ❌ Não existe |
+| RelatedFeatures | ❌ Não listado | ❌ Não listado |
+| Secção Features (Landing) | ❌ Não aparece | ❌ Não aparece |
+| ParaVideomakers.tsx | ❌ Menção breve | ⚠️ Menção breve |
 
 ---
 
-### 2. **Twitter Cards incompletos** (Prioridade Alta)
+## Estratégia de Destaque
 
-**Problema:** Várias páginas têm og:* tags mas faltam twitter:* equivalentes.
-
-**Solução:** Adicionar twitter:card, twitter:image a todas as páginas públicas.
-
----
-
-### 3. **Falta schema Product/Service nas Feature Pages** (Prioridade Média)
-
-**Problema:** As páginas de funcionalidades (Chat, Kanban, CRM, etc.) já têm alguns schemas, mas podem beneficiar de schemas mais ricos.
-
-**Estado actual:** Chat.tsx tem schema Product básico; outras features podem estar incompletas.
-
----
-
-### 4. **Landing Page sem Helmet** (Prioridade Alta)
-
-**Problema:** Verificar se Landing.tsx tem tags SEO completas.
-
----
-
-### 5. **Falta schema FAQPage na Landing** (Prioridade Média)
-
-**Problema:** Landing.tsx tem uma secção FAQ mas não tem o schema FAQPage.
-
-**Impacto:** Perde oportunidade de rich snippets nos resultados de pesquisa.
-
----
-
-### 6. **Sitemap estático desatualizado** (Prioridade Baixa)
-
-**Problema:** O sitemap estático em `public/sitemap.xml` tem datas de lastmod antigas (2026-01-21/22).
-
-**Solução:** Remover sitemap estático e usar apenas o dinâmico da Edge Function, ou automatizar atualização de datas.
-
----
-
-## Alterações Técnicas Propostas
-
-### Ficheiros a Criar/Modificar
-
-#### 1. Novo componente SEO reutilizável: `src/components/seo/SEOHead.tsx`
-
-Criar componente centralizado para garantir consistência:
-
-```typescript
-interface SEOHeadProps {
-  title: string;
-  description: string;
-  canonical: string;
-  ogImage?: string;
-  ogType?: 'website' | 'article' | 'product';
-  noindex?: boolean;
-  schemaData?: object;
-}
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          NÍVEIS DE VISIBILIDADE                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐              │
+│  │   NÍVEL 1    │    │   NÍVEL 2    │    │   NÍVEL 3    │              │
+│  │  Páginas     │    │  Features    │    │   Listagens  │              │
+│  │  Dedicadas   │    │  Grid + Hero │    │  e Links     │              │
+│  └──────────────┘    └──────────────┘    └──────────────┘              │
+│        ↓                   ↓                   ↓                        │
+│  VideoApproval.tsx   Features.tsx       RelatedFeatures.tsx            │
+│  Timeline.tsx        Landing.tsx        ParaVideomakers.tsx            │
+│                                         Navigation                      │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-Inclui automaticamente:
-- `<title>`
-- `<meta name="description">`
-- `<link rel="canonical">`
-- `<meta property="og:title">`
-- `<meta property="og:description">`
-- `<meta property="og:url">`
-- `<meta property="og:image">` (default: /og-image.png)
-- `<meta property="og:image:width">` (1200)
-- `<meta property="og:image:height">` (630)
-- `<meta property="og:type">`
-- `<meta name="twitter:card">` (summary_large_image)
-- `<meta name="twitter:title">`
-- `<meta name="twitter:description">`
-- `<meta name="twitter:image">`
-- Schema JSON-LD se fornecido
+---
+
+## Alterações Propostas
+
+### 1. Criar Páginas Dedicadas (Nível 1)
+
+#### Ficheiro: `src/pages/features/VideoApproval.tsx`
+
+Nova página seguindo o padrão de Chat.tsx:
+
+**Estrutura:**
+- Hero com badge "Exclusivo Studio 🎬"
+- Diagrama de fluxo: Upload → Review → Comentário → Aprovação
+- Secções de features com screenshots
+- Comparação com Frame.io / Vimeo Review
+- CTA focado no plano Studio
+
+**Conteúdo Principal:**
+- Portal público para clientes
+- Comentários por timestamp (SMPTE timecode)
+- Múltiplas versões A/B
+- Notificações de feedback
+- Retenção de 7 dias após conclusão
 
 ---
 
-#### 2. Atualizar páginas para usar SEOHead
+#### Ficheiro: `src/pages/features/Timeline.tsx`
 
-| Página | Alterações |
-|--------|------------|
-| `Landing.tsx` | Usar SEOHead + adicionar FAQPage schema |
-| `Features.tsx` | Usar SEOHead com og:image |
-| `Pricing.tsx` | Já tem boa estrutura, adicionar og:image |
-| `ParaFotografos.tsx` | Adicionar og:image, twitter:image |
-| `ParaVideomakers.tsx` | Adicionar og:image, twitter:image |
-| `ParaAgencias.tsx` | Adicionar og:image, twitter:image |
-| `ParaProdutoras.tsx` | Adicionar og:image, twitter:image |
-| `Security.tsx` | Adicionar og:image, twitter:image |
-| `Integrations.tsx` | Adicionar og:image, twitter:image |
-| `Help.tsx` | Adicionar og:image, twitter:image |
-| `Contact.tsx` | Adicionar og:image, twitter:image |
-| `About.tsx` | Adicionar og:image, twitter:image |
-| `Blog.tsx` | Adicionar og:image (lista), twitter:* |
-| `Privacy.tsx` | Adicionar og:*, twitter:* |
-| `Terms.tsx` | Adicionar og:*, twitter:* |
-| `Cookies.tsx` | Adicionar og:*, twitter:* |
-| `features/Chat.tsx` | Adicionar og:image, twitter:* |
-| `features/Kanban.tsx` | Adicionar og:image, twitter:* |
-| `features/CRM.tsx` | Adicionar og:image, twitter:* |
-| `features/Calendario.tsx` | Adicionar og:image, twitter:* |
-| `features/Pagamentos.tsx` | Adicionar og:image, twitter:* |
-| `features/Relatorios.tsx` | Adicionar og:image, twitter:* |
-| `features/MediaHub.tsx` | Adicionar og:image, twitter:* |
-| `comparisons/ComparisonsHub.tsx` | Adicionar og:image, twitter:* |
-| `comparisons/VsAsana.tsx` | Adicionar og:image, twitter:* |
-| `comparisons/VsClickUp.tsx` | Adicionar og:image, twitter:* |
-| `comparisons/VsTrello.tsx` | Adicionar og:image, twitter:* |
-| `public/PlanosComparar.tsx` | Adicionar og:image, twitter:* |
+Nova página para Desenho de Timeline:
+
+**Estrutura:**
+- Hero com badge "Exclusivo Studio 🎞️"
+- Diagrama visual da timeline
+- Secções explicativas
+- Templates reutilizáveis
+- CTA focado no plano Studio
+
+**Conteúdo Principal:**
+- Guia estrutural para editores
+- Segmentos com durações (min/max)
+- Drag & drop para reordenar
+- Guardar como template
+- Visualização de timeline estilo Frame.io
 
 ---
 
-#### 3. Adicionar FAQPage Schema à Landing
+### 2. Adicionar ao Grid de Features (Nível 2)
 
-```javascript
+#### Ficheiro: `src/pages/Features.tsx`
+
+Adicionar 2 novos cards ao array `features`:
+
+```typescript
 {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": faqs.map(faq => ({
-    "@type": "Question",
-    "name": faq.question,
-    "acceptedAnswer": {
-      "@type": "Answer",
-      "text": faq.answer
-    }
-  }))
-}
+  icon: Film,
+  title: '🎬 Aprovação de Vídeo',
+  description: 'Portal de review para clientes com comentários por timestamp. Alternativa integrada ao Frame.io.',
+  href: '/funcionalidades/video-approval',
+  badge: 'Studio',
+  details: [
+    'Portal público para clientes',
+    'Comentários no timestamp exato',
+    'Comparação de versões A/B',
+    'Notificações de feedback',
+  ],
+},
+{
+  icon: Clapperboard,
+  title: '🎞️ Desenho de Timeline',
+  description: 'Estrutura visual para guiar a edição. Defina segmentos e durações antes de começar.',
+  href: '/funcionalidades/timeline',
+  badge: 'Studio',
+  details: [
+    'Segmentos com duração',
+    'Drag & drop para reordenar',
+    'Templates reutilizáveis',
+    'Timecode profissional SMPTE',
+  ],
+},
 ```
 
----
-
-## Resumo de Alterações
-
-| Tipo | Quantidade |
-|------|------------|
-| Criar novo ficheiro | 1 (SEOHead.tsx) |
-| Modificar páginas | ~30 páginas |
-| Schema JSON-LD novos | 1 (FAQPage na Landing) |
-| og:image adicionados | ~30 páginas |
-| twitter:* adicionados | ~30 páginas |
+**Visual diferenciado:** Cards com badge "Studio" e borda gradient especial
 
 ---
 
-## Resultado Final
+### 3. Adicionar à Landing Page (Nível 2)
 
-Após implementação:
-1. **100% das páginas públicas** terão SEO completo
-2. **Rich snippets** para FAQs em Landing, Help, Pricing
-3. **Open Graph** completo para partilhas em redes sociais
-4. **Twitter Cards** completos para partilhas no Twitter/X
-5. **Schema estruturado** para melhor compreensão pelo Google
-6. **Consistência** através do componente SEOHead reutilizável
+#### Ficheiro: `src/pages/Landing.tsx`
 
----
-
-## Secção Técnica Detalhada
-
-### Componente SEOHead.tsx
+Adicionar as 2 features ao array `features` (linha ~53):
 
 ```typescript
-import { Helmet } from 'react-helmet-async';
-
-interface SEOHeadProps {
-  title: string;
-  description: string;
-  canonical: string;
-  ogImage?: string;
-  ogType?: 'website' | 'article' | 'product';
-  noindex?: boolean;
-  schemaData?: object | object[];
-  twitterCard?: 'summary' | 'summary_large_image';
-}
-
-export function SEOHead({
-  title,
-  description,
-  canonical,
-  ogImage = 'https://willflow.app/og-image.png',
-  ogType = 'website',
-  noindex = false,
-  schemaData,
-  twitterCard = 'summary_large_image',
-}: SEOHeadProps) {
-  const fullCanonical = canonical.startsWith('http') 
-    ? canonical 
-    : `https://willflow.app${canonical}`;
-
-  return (
-    <Helmet>
-      <title>{title}</title>
-      <meta name="description" content={description} />
-      <link rel="canonical" href={fullCanonical} />
-      
-      {noindex && <meta name="robots" content="noindex, nofollow" />}
-      
-      {/* Open Graph */}
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
-      <meta property="og:url" content={fullCanonical} />
-      <meta property="og:type" content={ogType} />
-      <meta property="og:image" content={ogImage} />
-      <meta property="og:image:width" content="1200" />
-      <meta property="og:image:height" content="630" />
-      <meta property="og:site_name" content="WillFlow" />
-      <meta property="og:locale" content="pt_PT" />
-      
-      {/* Twitter */}
-      <meta name="twitter:card" content={twitterCard} />
-      <meta name="twitter:title" content={title} />
-      <meta name="twitter:description" content={description} />
-      <meta name="twitter:image" content={ogImage} />
-      
-      {/* Schema.org */}
-      {schemaData && (
-        <script type="application/ld+json">
-          {JSON.stringify(
-            Array.isArray(schemaData) 
-              ? schemaData 
-              : schemaData
-          )}
-        </script>
-      )}
-    </Helmet>
-  );
-}
+{
+  icon: Film,
+  title: '🎬 Aprovação de Vídeo',
+  description: 'Portal de review para clientes com comentários por timecode. Exclusivo Studio.',
+},
+{
+  icon: Clapperboard,
+  title: '🎞️ Timeline',
+  description: 'Estrutura visual para guiar a edição de vídeo. Exclusivo Studio.',
+},
 ```
 
-### Exemplo de Uso na Landing.tsx
+---
+
+### 4. Actualizar Listagens e Links (Nível 3)
+
+#### Ficheiro: `src/components/marketing/RelatedFeatures.tsx`
+
+Adicionar ao array `allFeatures`:
+
+```typescript
+{ name: 'Aprovação de Vídeo', href: '/funcionalidades/video-approval', icon: Film, description: 'Review de vídeos' },
+{ name: 'Timeline', href: '/funcionalidades/timeline', icon: Clapperboard, description: 'Estrutura de edição' },
+```
+
+---
+
+#### Ficheiro: `src/pages/ParaVideomakers.tsx`
+
+Adicionar secções dedicadas com FeatureSection para:
+- Aprovação de Vídeo (alternativa ao Frame.io)
+- Desenho de Timeline
+
+---
+
+### 5. Actualizar Rotas
+
+#### Ficheiro: `src/App.tsx`
+
+Adicionar imports e rotas:
+
+```typescript
+import VideoApprovalFeature from './pages/features/VideoApproval';
+import TimelineFeature from './pages/features/Timeline';
+
+// Nas rotas:
+<Route path="/funcionalidades/video-approval" element={<VideoApprovalFeature />} />
+<Route path="/funcionalidades/timeline" element={<TimelineFeature />} />
+```
+
+---
+
+### 6. SEO e Sitemap
+
+Adicionar ao sitemap:
+- `/funcionalidades/video-approval`
+- `/funcionalidades/timeline`
+
+Incluir schemas JSON-LD Product para cada página.
+
+---
+
+## Resumo de Ficheiros
+
+| Ficheiro | Acção |
+|----------|-------|
+| `src/pages/features/VideoApproval.tsx` | Criar (nova página) |
+| `src/pages/features/Timeline.tsx` | Criar (nova página) |
+| `src/pages/Features.tsx` | Modificar (adicionar 2 cards) |
+| `src/pages/Landing.tsx` | Modificar (adicionar 2 features) |
+| `src/components/marketing/RelatedFeatures.tsx` | Modificar (adicionar 2 links) |
+| `src/pages/ParaVideomakers.tsx` | Modificar (expandir secções) |
+| `src/App.tsx` | Modificar (adicionar 2 rotas) |
+| `public/sitemap.xml` | Modificar (adicionar 2 URLs) |
+
+---
+
+## Resultado Visual Esperado
+
+### Features.tsx (Grid)
+
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│                                                                      │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
+│  │ 💬 Chat      │  │ 📋 Kanban    │  │ 👥 CRM       │              │
+│  │              │  │              │  │              │              │
+│  └──────────────┘  └──────────────┘  └──────────────┘              │
+│                                                                      │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
+│  │ 📅 Calendário│  │ 💰 Pagamentos│  │ 📊 Relatórios│              │
+│  │              │  │              │  │              │              │
+│  └──────────────┘  └──────────────┘  └──────────────┘              │
+│                                                                      │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │                 ⭐ EXCLUSIVO PLANO STUDIO ⭐                   │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│  ┌──────────────────────────┐  ┌──────────────────────────┐        │
+│  │ 🎬 Aprovação de Vídeo    │  │ 🎞️ Desenho de Timeline   │        │
+│  │     [STUDIO]             │  │     [STUDIO]             │        │
+│  │ Portal de review para    │  │ Estrutura visual para    │        │
+│  │ clientes com timecode    │  │ guiar a edição           │        │
+│  │                          │  │                          │        │
+│  │ ─────────────────────    │  │ ─────────────────────    │        │
+│  │ • Portal público         │  │ • Segmentos duração      │        │
+│  │ • Comentários timestamp  │  │ • Drag & drop            │        │
+│  │ • Versões A/B            │  │ • Templates              │        │
+│  │ • Notificações           │  │ • Timecode SMPTE         │        │
+│  └──────────────────────────┘  └──────────────────────────┘        │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Secção Técnica: Estrutura das Novas Páginas
+
+### VideoApproval.tsx (Estrutura)
 
 ```tsx
-import { SEOHead } from '@/components/seo/SEOHead';
+import { Helmet } from 'react-helmet-async';
+import { Film, Play, MessageSquare, CheckCircle, Upload, Eye } from 'lucide-react';
+import { PublicHeader } from '@/components/marketing/PublicHeader';
+import { PublicFooter } from '@/components/marketing/PublicFooter';
+import { FeatureHero } from '@/components/marketing/FeatureHero';
+import { FeatureSection } from '@/components/marketing/FeatureSection';
+import { FlowDiagram } from '@/components/marketing/FlowDiagram';
+import { ComparisonTable } from '@/components/marketing/ComparisonTable';
+import { RelatedFeatures } from '@/components/marketing/RelatedFeatures';
+import { AutoBreadcrumbs } from '@/components/seo/Breadcrumbs';
+// ... SEO completo + schemas
+// ... Secções: Hero, Flow, Features, Comparison vs Frame.io, CTA
+```
 
-// No componente Landing:
-<SEOHead
-  title="WillFlow - Gestão de Projetos para Fotógrafos e Filmmakers"
-  description="Sistema completo de gestão de projetos e produção para fotógrafos, filmmakers, agências e produtoras. Kanban, CRM, calendário e finanças num só lugar."
-  canonical="/"
-  schemaData={{
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": faqs.map(faq => ({
-      "@type": "Question",
-      "name": faq.question,
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": faq.answer
-      }
-    }))
-  }}
-/>
+### Timeline.tsx (Estrutura)
+
+```tsx
+import { Helmet } from 'react-helmet-async';
+import { Clapperboard, Clock, Layers, Copy, Move } from 'lucide-react';
+// ... mesma estrutura
+// ... Secções específicas para Timeline Design
+```
+
+---
+
+## SEO para Novas Páginas
+
+Cada página incluirá:
+- Title optimizado (<70 chars)
+- Meta description (<160 chars)
+- Canonical URL
+- Open Graph completo
+- Twitter Cards
+- Schema Product JSON-LD
+- Schema BreadcrumbList
+
+**Exemplo Video Approval:**
+```html
+<title>Aprovação de Vídeo | WillFlow - Alternativa ao Frame.io</title>
+<meta name="description" content="Portal de review de vídeo para clientes. Comentários por timestamp, comparação de versões e aprovação online. Exclusivo plano Studio." />
 ```
 
