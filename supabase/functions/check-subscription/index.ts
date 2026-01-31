@@ -121,7 +121,7 @@ serve(async (req) => {
       const limits = {
         workspaces: plan === 'studio' ? 10 : plan === 'pro' ? 3 : 1,
         users: plan === 'studio' ? 999 : plan === 'pro' ? 10 : 2,
-        projects: plan === 'studio' ? 999 : plan === 'pro' ? 999 : 15,
+        projects: plan === 'studio' ? 999 : plan === 'pro' ? 999 : 20,
       };
 
       const trialExpired = trialEndsAt ? new Date(trialEndsAt) < new Date() : false;
@@ -181,7 +181,7 @@ serve(async (req) => {
         const limits = {
           workspaces: 1,
           users: 2,
-          projects: 15,
+          projects: 20,
         };
 
         const value = { 
@@ -244,7 +244,7 @@ serve(async (req) => {
       const limits = {
         workspaces: plan === 'studio' ? 10 : plan === 'pro' ? 3 : 1,
         users: plan === 'studio' ? 999 : plan === 'pro' ? 10 : 2,
-        projects: plan === 'studio' ? 999 : plan === 'pro' ? 999 : 15,
+        projects: plan === 'studio' ? 999 : plan === 'pro' ? 999 : 20,
       };
 
       const value = {

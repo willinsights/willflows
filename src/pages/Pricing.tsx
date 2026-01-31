@@ -181,7 +181,7 @@ export default function Pricing() {
                 "name": "Pro",
                 "url": "https://willflow.app/planos",
                 "priceCurrency": "EUR",
-                "price": "22",
+                "price": "24",
                 "priceValidUntil": "2027-12-31",
                 "availability": "https://schema.org/InStock"
               },
@@ -190,7 +190,7 @@ export default function Pricing() {
                 "name": "Studio",
                 "url": "https://willflow.app/planos",
                 "priceCurrency": "EUR",
-                "price": "32",
+                "price": "42",
                 "priceValidUntil": "2027-12-31",
                 "availability": "https://schema.org/InStock"
               }

@@ -245,7 +245,7 @@ export default function Landing() {
               "@type": "AggregateOffer",
               "priceCurrency": "EUR",
               "lowPrice": "14",
-              "highPrice": "49",
+              "highPrice": "42",
               "offerCount": "3"
             },
             "creator": {
