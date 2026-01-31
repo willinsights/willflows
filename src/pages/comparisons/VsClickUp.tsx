@@ -92,6 +92,16 @@ export default function VsClickUp() {
         <meta property="og:title" content="WillFlow vs ClickUp: Comparação Completa" />
         <meta property="og:description" content="Simplicidade focada vs complexidade generalista. Qual é melhor para produção visual?" />
         <meta property="og:url" content="https://willflow.app/vs/clickup" />
+        <meta property="og:type" content="article" />
+        <meta property="og:image" content="https://willflow.app/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:site_name" content="WillFlow" />
+        <meta property="og:locale" content="pt_PT" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="WillFlow vs ClickUp: Comparação Completa" />
+        <meta name="twitter:description" content="Simplicidade focada vs complexidade generalista. Qual é melhor para produção visual?" />
+        <meta name="twitter:image" content="https://willflow.app/og-image.png" />
         <script type="application/ld+json">{JSON.stringify(schemaData)}</script>
       </Helmet>
 

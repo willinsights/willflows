@@ -71,6 +71,16 @@ export default function KanbanFeature() {
         <meta property="og:title" content="Kanban Visual para Projetos | WillFlow" />
         <meta property="og:description" content="Kanban visual desenhado para produção fotográfica e vídeo. Colunas customizáveis e transição automática entre fases." />
         <meta property="og:url" content="https://willflow.app/funcionalidades/kanban" />
+        <meta property="og:type" content="product" />
+        <meta property="og:image" content="https://willflow.app/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:site_name" content="WillFlow" />
+        <meta property="og:locale" content="pt_PT" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Kanban Visual para Projetos | WillFlow" />
+        <meta name="twitter:description" content="Kanban visual desenhado para produção fotográfica e vídeo. Colunas customizáveis e transição automática entre fases." />
+        <meta name="twitter:image" content="https://willflow.app/og-image.png" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",

@@ -70,8 +70,15 @@ export default function Blog() {
         <meta property="og:description" content="Novidades, tutoriais, comparações e dicas para otimizar a gestão do seu estúdio de produção audiovisual." />
         <meta property="og:url" content="https://willflow.app/blog" />
         <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://willflow.app/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:site_name" content="WillFlow" />
+        <meta property="og:locale" content="pt_PT" />
+        <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Blog | WillFlow - Dicas de Gestão para Produtores" />
         <meta name="twitter:description" content="Novidades, tutoriais, comparações e dicas para otimizar a gestão do seu estúdio de produção audiovisual." />
+        <meta name="twitter:image" content="https://willflow.app/og-image.png" />
         
         {/* Structured Data for Blog Listing */}
         <script type="application/ld+json">

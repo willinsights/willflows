@@ -69,6 +69,16 @@ export default function MediaHubFeature() {
         <meta property="og:title" content="Media Hub | WillFlow" />
         <meta property="og:description" content="Centralize todos os links de media dos seus projetos num só lugar." />
         <meta property="og:url" content="https://willflow.app/funcionalidades/media-hub" />
+        <meta property="og:type" content="product" />
+        <meta property="og:image" content="https://willflow.app/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:site_name" content="WillFlow" />
+        <meta property="og:locale" content="pt_PT" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Media Hub | WillFlow" />
+        <meta name="twitter:description" content="Centralize todos os links de media dos seus projetos num só lugar." />
+        <meta name="twitter:image" content="https://willflow.app/og-image.png" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",

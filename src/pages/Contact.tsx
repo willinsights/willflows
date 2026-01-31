@@ -73,6 +73,16 @@ export default function Contact() {
         <meta property="og:title" content="Contato - WillFlow | Fale Connosco" />
         <meta property="og:description" content="Entre em contato com a equipa WillFlow. Suporte técnico, dúvidas sobre planos, parcerias ou sugestões." />
         <meta property="og:url" content="https://willflow.app/contato" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://willflow.app/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:site_name" content="WillFlow" />
+        <meta property="og:locale" content="pt_PT" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Contato - WillFlow | Fale Connosco" />
+        <meta name="twitter:description" content="Entre em contato com a equipa WillFlow. Suporte técnico, dúvidas sobre planos." />
+        <meta name="twitter:image" content="https://willflow.app/og-image.png" />
         <script type="application/ld+json">{JSON.stringify(schemaData)}</script>
       </Helmet>
 

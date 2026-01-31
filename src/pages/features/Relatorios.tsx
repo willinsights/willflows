@@ -69,6 +69,16 @@ export default function RelatoriosFeature() {
         <meta property="og:title" content="Relatórios e Analytics | WillFlow" />
         <meta property="og:description" content="Analise o desempenho do seu negócio com relatórios visuais e detalhados." />
         <meta property="og:url" content="https://willflow.app/funcionalidades/relatorios" />
+        <meta property="og:type" content="product" />
+        <meta property="og:image" content="https://willflow.app/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:site_name" content="WillFlow" />
+        <meta property="og:locale" content="pt_PT" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Relatórios e Analytics | WillFlow" />
+        <meta name="twitter:description" content="Analise o desempenho do seu negócio com relatórios visuais e detalhados." />
+        <meta name="twitter:image" content="https://willflow.app/og-image.png" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",

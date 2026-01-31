@@ -227,12 +227,24 @@ export default function Landing() {
         <title>WillFlow - Gestão de Projetos para Fotógrafos e Filmmakers</title>
         <meta name="description" content="WillFlow é o sistema completo de gestão de projetos e produção para fotógrafos, filmmakers, agências e produtoras. Kanban, CRM, calendário e finanças num só lugar." />
         <link rel="canonical" href="https://willflow.app" />
+        
+        {/* Open Graph */}
         <meta property="og:title" content="WillFlow - Gestão de Projetos para Fotógrafos e Filmmakers" />
         <meta property="og:description" content="Sistema completo de gestão para produtores: Kanban visual, CRM, calendário, pagamentos e relatórios. 30 dias grátis." />
         <meta property="og:url" content="https://willflow.app" />
         <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://willflow.app/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:site_name" content="WillFlow" />
+        <meta property="og:locale" content="pt_PT" />
+        
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="WillFlow - Gestão de Projetos para Fotógrafos e Filmmakers" />
         <meta name="twitter:description" content="Sistema completo de gestão para produtores: Kanban visual, CRM, calendário, pagamentos e relatórios. 30 dias grátis." />
+        <meta name="twitter:image" content="https://willflow.app/og-image.png" />
+        
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
@@ -271,6 +283,20 @@ export default function Landing() {
               "position": index + 1,
               "name": step.title,
               "text": step.description
+            }))
+          })}
+        </script>
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": faqs.map(faq => ({
+              "@type": "Question",
+              "name": faq.question,
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": faq.answer
+              }
             }))
           })}
         </script>
