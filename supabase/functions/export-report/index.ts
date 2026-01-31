@@ -376,6 +376,13 @@ async function processExport(
 
     if (signedUrlError) throw signedUrlError;
 
+    // Get job details for notification
+    const { data: jobData } = await supabase
+      .from('export_jobs')
+      .select('user_id, workspace_id')
+      .eq('id', jobId)
+      .single();
+
     // Update job as completed
     await supabase
       .from('export_jobs')
@@ -386,10 +393,39 @@ async function processExport(
       })
       .eq('id', jobId);
 
+    // Create notification for user
+    if (jobData) {
+      const reportLabels: Record<string, string> = {
+        financial: 'Relatório Financeiro',
+        projects: 'Relatório de Projetos',
+        clients: 'Relatório de Clientes',
+        payments: 'Relatório de Pagamentos',
+      };
+
+      await supabase
+        .from('notifications')
+        .insert({
+          user_id: jobData.user_id,
+          workspace_id: jobData.workspace_id,
+          type: 'success',
+          title: 'Exportação Concluída',
+          message: `O seu ${reportLabels[reportType] || 'relatório'} está pronto para download.`,
+          entity_type: 'export_job',
+          entity_id: jobId,
+        });
+    }
+
     console.log(`Export job ${jobId} completed successfully`);
 
   } catch (error) {
     console.error(`Export job ${jobId} failed:`, error);
+    
+    // Get job details for failure notification
+    const { data: jobData } = await supabase
+      .from('export_jobs')
+      .select('user_id, workspace_id')
+      .eq('id', jobId)
+      .single();
     
     await supabase
       .from('export_jobs')
@@ -399,6 +435,21 @@ async function processExport(
         completed_at: new Date().toISOString(),
       })
       .eq('id', jobId);
+
+    // Create failure notification
+    if (jobData) {
+      await supabase
+        .from('notifications')
+        .insert({
+          user_id: jobData.user_id,
+          workspace_id: jobData.workspace_id,
+          type: 'error',
+          title: 'Exportação Falhou',
+          message: 'Ocorreu um erro ao gerar o relatório. Por favor, tente novamente.',
+          entity_type: 'export_job',
+          entity_id: jobId,
+        });
+    }
   }
 }
 
