@@ -7,14 +7,14 @@ export interface KanbanMetrics {
     avg_per_week: number;
   };
   avg_time_by_phase: Array<{
-    phase: 'captacao' | 'edicao' | 'entregue';
+    phase: 'captacao' | 'edicao';
     avg_hours: number;
     min_hours: number;
     max_hours: number;
     count: number;
   }> | null;
   bottleneck: {
-    phase: 'captacao' | 'edicao' | 'entregue';
+    phase: 'captacao' | 'edicao';
     current_count: number;
     avg_wait_hours: number;
   } | null;
@@ -85,7 +85,6 @@ export function getPhaseName(phase: string): string {
   switch (phase) {
     case 'captacao': return 'Captação';
     case 'edicao': return 'Edição';
-    case 'entregue': return 'Entregue';
     default: return phase;
   }
 }
@@ -95,7 +94,6 @@ export function getPhaseColor(phase: string): string {
   switch (phase) {
     case 'captacao': return 'hsl(var(--chart-1))';
     case 'edicao': return 'hsl(var(--chart-2))';
-    case 'entregue': return 'hsl(var(--chart-3))';
     default: return 'hsl(var(--muted))';
   }
 }
