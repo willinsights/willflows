@@ -275,8 +275,8 @@ export default function Pricing() {
               // Features a mostrar por plano (apenas diferenças)
               const HIGHLIGHT_FEATURES: Record<PlanId, string[]> = {
                 starter: ['kanban', 'crmBasic', 'calendar', 'mediaHub', 'reportsBasic', 'financialReports'],
-                pro: ['chat', 'crmComplete', 'exportExcel', 'googleCalendar', 'reportsAdvanced', 'templates'],
-                studio: ['frameio', 'automations', 'permissions', 'api'],
+                pro: ['chat', 'crmComplete', 'exportExcel', 'googleCalendar', 'reportsAdvanced'],
+                studio: ['automations', 'permissions'],
               };
               
               const highlightKeys = HIGHLIGHT_FEATURES[planId];

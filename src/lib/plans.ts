@@ -179,10 +179,7 @@ export const PLANS: Record<PlanId, PlanInfo> = {
       { key: 'googleCalendar', name: 'Google Calendar', value: false, included: false, category: 'integration' },
       { key: 'googleMeet', name: 'Meet integrado', value: false, included: false, category: 'integration' },
       { key: 'reportsAdvanced', name: 'Relatórios avançados', value: false, included: false, category: 'core' },
-      { key: 'templates', name: 'Templates de projeto', value: false, included: false, category: 'core' },
-      { key: 'frameio', name: 'Frame.io', value: false, included: false, category: 'integration' },
       { key: 'automations', name: 'Automações', value: false, included: false, category: 'core' },
-      { key: 'api', name: 'API & Webhooks', value: false, included: false, category: 'integration' },
       { key: 'timeline', name: 'Desenho de Timeline', value: false, included: false, category: 'studio' },
       { key: 'videoApproval', name: 'Aprovação de vídeo', value: false, included: false, category: 'studio' },
     ],
@@ -218,10 +215,7 @@ export const PLANS: Record<PlanId, PlanInfo> = {
       { key: 'reportsAdvanced', name: 'Relatórios avançados', value: true, included: true, category: 'core' },
       { key: 'googleCalendar', name: 'Google Calendar', value: true, included: true, category: 'integration' },
       { key: 'googleMeet', name: 'Meet integrado', value: true, included: true, category: 'integration' },
-      { key: 'templates', name: 'Templates de projeto', value: true, included: true, category: 'core' },
-      { key: 'frameio', name: 'Frame.io', value: false, included: false, category: 'integration' },
       { key: 'automations', name: 'Automações avançadas', value: false, included: false, category: 'core' },
-      { key: 'api', name: 'API & Webhooks', value: false, included: false, category: 'integration' },
       { key: 'timeline', name: 'Desenho de Timeline', value: false, included: false, category: 'studio' },
       { key: 'videoApproval', name: 'Aprovação de vídeo', value: false, included: false, category: 'studio' },
     ],
@@ -256,11 +250,8 @@ export const PLANS: Record<PlanId, PlanInfo> = {
       { key: 'reportsAdvanced', name: 'Relatórios avançados', value: true, included: true, category: 'core' },
       { key: 'googleCalendar', name: 'Google Calendar', value: true, included: true, category: 'integration' },
       { key: 'googleMeet', name: 'Meet integrado', value: true, included: true, category: 'integration' },
-      { key: 'templates', name: 'Templates de projeto', value: true, included: true, category: 'core' },
-      { key: 'frameio', name: 'Frame.io integrado', value: true, included: true, category: 'integration' },
       { key: 'automations', name: 'Automações avançadas', value: true, included: true, category: 'core' },
       { key: 'permissions', name: 'Permissões avançadas', value: true, included: true, category: 'core' },
-      { key: 'api', name: 'API & Webhooks', value: true, included: true, category: 'integration' },
       { key: 'timeline', name: 'Desenho de Timeline', value: true, included: true, category: 'studio' },
       { key: 'videoApproval', name: 'Aprovação de vídeo', value: true, included: true, category: 'studio' },
       { key: 'videoStorage', name: 'Armazenamento de vídeos', value: '10GB', included: true, category: 'limit' },
@@ -363,7 +354,7 @@ export function getCompactFeatures(planId: PlanId): string[] {
     case 'pro':
       return ['Tudo do Starter', 'Google Calendar', 'Meet', 'PDF'];
     case 'studio':
-      return ['Tudo do Pro', 'Frame.io', 'Automações', 'API'];
+      return ['Tudo do Pro', 'Automações', 'Permissões avançadas'];
     default:
       return plan.features.filter(f => f.included).slice(0, 4).map(f => f.name);
   }
