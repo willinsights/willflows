@@ -102,31 +102,39 @@ export const STRIPE_PRICES = {
 } as const;
 
 // Storage Addon Price IDs - LIVE PRODUCTION
+// Note: +25GB addon needs to be created in Stripe and price_id updated here
 export const STORAGE_ADDON_PRICES = {
+  '25gb': {
+    price_id: '', // TODO: Create in Stripe and add price_id
+    product_id: '', // TODO: Create in Stripe and add product_id
+    bytes: 25 * 1024 * 1024 * 1024,
+    displayName: '+25 GB',
+    price: { eur: 6, brl: 35 },
+  },
   '50gb': {
     price_id: 'price_1SuuVQGr2lXbVyw9OybAtJ9i',
     product_id: 'prod_TsfrcvSlClixZM',
     bytes: 50 * 1024 * 1024 * 1024,
     displayName: '+50 GB',
-    price: { eur: 9, brl: 49 },
+    price: { eur: 10, brl: 59 },
   },
   '100gb': {
     price_id: 'price_1SuuVRGr2lXbVyw92Mnlgzj0',
     product_id: 'prod_TsfrGDXzlIOhaM',
     bytes: 100 * 1024 * 1024 * 1024,
     displayName: '+100 GB',
-    price: { eur: 15, brl: 79 },
+    price: { eur: 18, brl: 99 },
   },
   '250gb': {
     price_id: 'price_1SuuVSGr2lXbVyw9XhaYRv0T',
     product_id: 'prod_TsfrRubX5bCWEh',
     bytes: 250 * 1024 * 1024 * 1024,
     displayName: '+250 GB',
-    price: { eur: 29, brl: 159 },
+    price: { eur: 35, brl: 197 },
   },
 } as const;
 
-export type StorageAddonTier = keyof typeof STORAGE_ADDON_PRICES;
+export type StorageAddonTier = '25gb' | '50gb' | '100gb' | '250gb';
 
 export function getStorageAddonPrice(tier: StorageAddonTier, currency: Currency): number {
   return STORAGE_ADDON_PRICES[tier].price[currency];
@@ -219,8 +227,8 @@ export const PLANS: Record<PlanId, PlanInfo> = {
     name: 'Studio',
     description: 'Para agências e produtoras',
     prices: {
-      eur: { monthly: 32, yearly: 307 }, // 32 × 12 × 0.8 = 307.2 ≈ 307
-      brl: { monthly: 197, yearly: 1891 }, // 197 × 12 × 0.8 = 1891.2 ≈ 1891
+      eur: { monthly: 42, yearly: 403 }, // 42 × 12 × 0.8 = 403.2 ≈ 403
+      brl: { monthly: 247, yearly: 2371 }, // 247 × 12 × 0.8 = 2371.2 ≈ 2371
     },
     limits: PLAN_LIMITS.studio,
     limitsDisplay: {
