@@ -1,130 +1,163 @@
 
-# Plano de Correção - Preços, Limites e Features
 
-## Resumo das Discrepâncias Identificadas
+# Plano: Melhorar Cards de Pricing com Destaque nas Diferenças
 
-| Item | Valor Actual | Valor Correcto | Ficheiro |
-|------|--------------|----------------|----------|
-| Pro JSON-LD | €22 | €24 | Pricing.tsx |
-| highPrice JSON-LD | €49 | €42 | Landing.tsx |
-| Projetos Starter (backend) | 15 | 20 | check-subscription/index.ts |
-| Studio mensal EUR | €32 | €42 | plans.ts + Stripe |
-| Chat interno Starter | NÃO (correcto) | NÃO ✅ | Já está correcto |
-| Timeline | Não registada como feature | Já existe no código | Verificado em useVideoStructure.ts |
+## Objectivo
+Reformular os cards de pricing para:
+1. Destacar visualmente as **diferenças** entre planos (não repetir features comuns)
+2. Adicionar no **Studio** destaque para "Aprovação de vídeo" e "Desenho de Timeline"
+3. Criar uma apresentação mais limpa e orientada à conversão
 
-## Alterações Necessárias
+---
 
-### 1. Corrigir Preço Pro no JSON-LD (SEO)
-**Ficheiro:** `src/pages/Pricing.tsx` (linha 184)
+## Mudanças Propostas
 
-```text
-ANTES:  "price": "22"
-DEPOIS: "price": "24"
-```
+### 1. Adicionar Feature "Timeline" em `plans.ts`
 
-### 2. Corrigir highPrice na Landing.tsx
-**Ficheiro:** `src/pages/Landing.tsx` (linha 248)
-
-```text
-ANTES:  "highPrice": "49"
-DEPOIS: "highPrice": "42"
-```
-
-### 3. Corrigir Limite de Projetos no Backend
-**Ficheiro:** `supabase/functions/check-subscription/index.ts`
-
-Há **3 locais** onde `projects: 15` precisa ser alterado para `projects: 20`:
-- Linha 124: Dentro do bloco `userSubData`
-- Linha 184: Fallback quando não há cliente Stripe
-- Linha 247: Fallback final após verificação Stripe
-
-### 4. Actualizar Preço Studio para €42
-**Ficheiro:** `src/lib/plans.ts` (linhas 221-224)
+Actualmente só existe `videoApproval`. Vou adicionar `timeline` como feature separada:
 
 ```typescript
-// ANTES
-prices: {
-  eur: { monthly: 32, yearly: 307 },
-  brl: { monthly: 197, yearly: 1891 },
-},
-
-// DEPOIS (€42 mensais, anual = 42 × 12 × 0.8 = 403.2 ≈ 403)
-prices: {
-  eur: { monthly: 42, yearly: 403 },
-  brl: { monthly: 247, yearly: 2371 }, // Proporcional ao aumento
-},
+// Em studio.features (plans.ts)
+{ key: 'timeline', name: 'Desenho de Timeline', value: true, included: true, category: 'studio' },
+{ key: 'videoApproval', name: 'Aprovação de vídeo', value: true, included: true, category: 'studio' },
 ```
 
-### 5. Actualizar JSON-LD do Studio na Pricing.tsx
-**Ficheiro:** `src/pages/Pricing.tsx` (linha 193)
+E adicionar `timeline: false` nos planos Starter e Pro para aparecer como não incluído.
+
+---
+
+### 2. Reformular Cards em `Pricing.tsx`
+
+#### Estrutura Proposta (por plano):
+
+**STARTER** - Mostrar apenas features incluídas:
+- Kanban Captação + Edição
+- CRM básico
+- Calendário integrado
+- Media Hub
+- Relatórios simples
+- Relatórios financeiros
+
+**PRO** - Mostrar features que **diferenciam** do Starter:
+- Tudo do Starter, **MAIS**:
+- Chat interno ← diferenciador
+- CRM completo ← diferenciador
+- Exportação Excel ← diferenciador
+- Google Calendar ← diferenciador
+- Relatórios avançados ← diferenciador
+
+**STUDIO** - Mostrar features **exclusivas** com destaque especial:
+- Tudo do Pro, **MAIS**:
+- 🎬 **Aprovação de vídeo** ← destaque visual
+- 🎞️ **Desenho de Timeline** ← destaque visual
+- 📦 10 GB armazenamento incluído
+- Frame.io integrado
+- API & Webhooks
+
+---
+
+### 3. Design Visual dos Cards
 
 ```text
-ANTES:  "price": "32"
-DEPOIS: "price": "42"
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│   STARTER                PRO (Mais vendido)           STUDIO               │
+│   €14/mês                €24/mês                      €42/mês              │
+│                                                                             │
+│   1 workspace            Até 3 workspaces             Até 10 workspaces    │
+│   Até 2 utilizadores     Até 10 utilizadores          Utilizadores ilimit. │
+│   20 projetos ativos     Projetos ilimitados          Projetos ilimitados  │
+│   ─────────────────      ─────────────────            ─────────────────    │
+│                                                                             │
+│   ✓ Kanban               ✓ Tudo do Starter, mais:     ✓ Tudo do Pro, mais: │
+│   ✓ CRM básico           ✓ Chat interno               ┌──────────────────┐ │
+│   ✓ Calendário           ✓ CRM completo               │ 🎬 Aprovação de  │ │
+│   ✓ Media Hub            ✓ Exportação Excel           │    vídeo         │ │
+│   ✓ Relatórios simples   ✓ Google Calendar            │ 🎞️ Desenho de    │ │
+│   ✓ Relatórios finan.    ✓ Relatórios avançados       │    Timeline      │ │
+│                                                        │ 📦 10GB incluído │ │
+│                                                        └──────────────────┘ │
+│                                                        ✓ Frame.io           │
+│                                                        ✓ API & Webhooks     │
+│                                                                             │
+│   [Testar grátis 30 dias] [Testar grátis 30 dias]    [Testar grátis 30 dias]│
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 6. Actualizar Storage Addons no plans.ts
-**Ficheiro:** `src/lib/plans.ts` (linhas 104-127)
+---
 
-O utilizador indicou novos tiers de storage:
-- +25 GB → €6 (NOVO - não existe)
-- +50 GB → €10 (actual: €9)
-- +100 GB → €18 (actual: €15)
-- +250 GB → €35 (actual: €29)
+## Implementação Técnica
+
+### Ficheiro: `src/lib/plans.ts`
+
+1. Adicionar feature `timeline` a todos os planos:
+   - Starter: `included: false`
+   - Pro: `included: false`
+   - Studio: `included: true`
+
+2. Adicionar categoria `studio` para features exclusivas do Studio
+
+### Ficheiro: `src/pages/Pricing.tsx`
+
+1. Criar lógica para **mostrar apenas diferenças**:
+   ```typescript
+   // Definir features a mostrar por plano
+   const HIGHLIGHT_FEATURES = {
+     starter: ['kanban', 'crmBasic', 'calendar', 'mediaHub', 'reportsBasic', 'financialReports'],
+     pro: ['chat', 'crmComplete', 'exportExcel', 'googleCalendar', 'reportsAdvanced'],
+     studio: ['timeline', 'videoApproval', 'videoStorage', 'frameio', 'api'],
+   };
+   ```
+
+2. Adicionar **secção de destaque especial** para Studio:
+   ```tsx
+   {planId === 'studio' && (
+     <div className="mb-4 p-3 rounded-lg bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/30">
+       <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+         <span>🎬</span> Aprovação de vídeo
+       </div>
+       <div className="flex items-center gap-2 text-sm font-semibold text-primary mt-1">
+         <span>🎞️</span> Desenho de Timeline
+       </div>
+       <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+         <span>📦</span> 10 GB incluído
+       </div>
+     </div>
+   )}
+   ```
+
+3. Adicionar texto "Tudo do [Plano anterior], mais:" para Pro e Studio:
+   ```tsx
+   {planId !== 'starter' && (
+     <p className="text-xs text-muted-foreground mb-3 italic">
+       Tudo do {planId === 'pro' ? 'Starter' : 'Pro'}, mais:
+     </p>
+   )}
+   ```
 
 ---
 
-## Secção Técnica
+## Resultado Esperado
 
-### Ficheiros a Modificar
-
-1. **`src/pages/Pricing.tsx`**
-   - Linha 184: `"price": "22"` → `"price": "24"`
-   - Linha 193: `"price": "32"` → `"price": "42"`
-
-2. **`src/pages/Landing.tsx`**
-   - Linha 248: `"highPrice": "49"` → `"highPrice": "42"`
-
-3. **`supabase/functions/check-subscription/index.ts`**
-   - Linha 124: `projects: 15` → `projects: 20`
-   - Linha 184: `projects: 15` → `projects: 20`
-   - Linha 247: `projects: 15` → `projects: 20`
-
-4. **`src/lib/plans.ts`**
-   - Linhas 221-224: Actualizar preços Studio para €42/€403 (EUR)
-   - Linhas 104-127: Actualizar preços dos Storage Addons
-
-### Acção Necessária no Stripe
-
-O preço do Studio no Stripe está actualmente a **€32**. Para alterar para **€42**, será necessário:
-1. Criar novos preços no Stripe para o produto Studio (€42 mensal / €403 anual)
-2. Actualizar os price_ids em `src/lib/plans.ts`
-3. Criar o produto +25GB Storage Addon no Stripe
-
-Posso criar os novos preços no Stripe durante a implementação.
-
-### Verificações de Segurança
-
-- ✅ Chat interno no Starter já está como `included: false` (correcto)
-- ✅ Desenho de Timeline já existe no código (`useVideoStructure.ts`) e está integrado na UI de detalhes de tarefa
-- ✅ Feature `videoApproval` já está registada no Studio
-
-### Timeline (Desenho de Timeline)
-
-Confirmo que a feature "Desenho de Timeline" já existe no sistema:
-- Componente em `useVideoStructure.ts` com funções de `clearTimeline`
-- Está disponível no detalhe de tarefa/projecto
-- A feature `videoApproval` (que engloba timeline e aprovação de vídeo) já está correctamente gatilhada ao plano Studio
+| Aspecto | Antes | Depois |
+|---------|-------|--------|
+| Features listadas | Todas (repetidas) | Apenas diferenciadoras |
+| Timeline no Studio | Não aparecia | Destaque visual |
+| Aprovação de vídeo | Não aparecia destacado | Destaque visual com box colorido |
+| 10GB storage | Não aparecia | Mencionado no destaque |
+| Clareza das diferenças | Baixa | Alta |
 
 ---
 
-## Resumo de Implementação
+## Ficheiros a Modificar
 
-| Prioridade | Tarefa | Esforço |
-|------------|--------|---------|
-| 🔴 CRÍTICO | Corrigir preço Pro JSON-LD (€22→€24) | Baixo |
-| 🔴 CRÍTICO | Corrigir limite projectos (15→20) | Baixo |
-| 🟡 ALTO | Actualizar preço Studio (€32→€42) | Médio |
-| 🟡 ALTO | Corrigir highPrice Landing (€49→€42) | Baixo |
-| 🟢 MÉDIO | Actualizar Storage Addons preços | Médio |
-| 🟢 MÉDIO | Criar +25GB Storage Addon | Médio |
+1. **`src/lib/plans.ts`**
+   - Adicionar feature `timeline` aos 3 planos
+   - Adicionar categoria `studio` para features exclusivas
+
+2. **`src/pages/Pricing.tsx`**
+   - Reformular renderização dos cards
+   - Adicionar box de destaque para Studio
+   - Filtrar features para mostrar apenas diferenças
+   - Adicionar texto "Tudo do X, mais:"
+
