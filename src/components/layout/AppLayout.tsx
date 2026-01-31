@@ -18,6 +18,7 @@ import { FeedbackButton } from '@/components/feedback/FeedbackButton';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { useChatNotifications } from '@/hooks/useChatNotifications';
 import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
+import { useExportNotifications } from '@/hooks/useExportNotifications';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useGlobalBadge } from '@/hooks/useGlobalBadge';
 import { HideValuesProvider } from '@/contexts/HideValuesContext';
@@ -68,6 +69,9 @@ function DesktopAppLayout() {
   
   // Enable realtime notifications for projects, tasks, and events
   useRealtimeNotifications();
+
+  // Enable push notifications for export completions
+  useExportNotifications();
 
   // Enable PWA badge for unread notifications
   useGlobalBadge();

@@ -596,6 +596,23 @@ CREATE INDEX IF NOT EXISTS idx_video_versions_task
 
 ---
 
+### Sprint 7 — Push Notifications para Exportações ✅ CONCLUÍDO
+**Esforço: BAIXO** — **Executado em 30/01/2026**
+
+1. ✅ Notificações na tabela `notifications` — Criadas automaticamente ao terminar export
+2. ✅ Hook `useExportNotifications` — Realtime subscription para export jobs
+3. ✅ Push nativo + som — Notificação nativa do browser quando exportação termina
+4. ✅ Navegação para Relatórios — Clicar na notificação leva à página de relatórios
+5. ✅ Tratamento de erros — Notificação de falha se exportação falhar
+
+#### Ficheiros Criados:
+- `src/hooks/useExportNotifications.ts` — Hook de realtime para export notifications
+- Editado: `supabase/functions/export-report/index.ts` — Inserir notificações na tabela
+- Editado: `src/components/notifications/NotificationCenter.tsx` — Route para export_job
+- Editado: `src/components/layout/AppLayout.tsx` — Integração do hook
+
+---
+
 ### Backlog Técnico
 - [ ] Implementar caching com stale-while-revalidate em relatórios
 - [ ] Configurar observabilidade com tracing distribuído
@@ -603,6 +620,6 @@ CREATE INDEX IF NOT EXISTS idx_video_versions_task
 - [ ] Atualizar PRODUCT_TO_PLAN no stripe-webhook com novos IDs
 
 ### Melhorias de Produto
-- [ ] ~~Breadcrumbs em páginas internas do app~~ ✅ Implementado Sprint 6
-- [ ] Notificações push para exportações concluídas
+- ~~[ ] Breadcrumbs em páginas internas do app~~ ✅ Implementado Sprint 6
+- ~~[ ] Notificações push para exportações concluídas~~ ✅ Implementado Sprint 7
 - [ ] Dashboard de performance do workspace

@@ -68,6 +68,8 @@ function getNotificationRoute(notification: Notification): string | null {
       return `/app/chat`;
     case 'client':
       return `/app/clientes?id=${notification.entity_id}`;
+    case 'export_job':
+      return `/app/relatorios`;
     default:
       return null;
   }
