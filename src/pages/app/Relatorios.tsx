@@ -175,18 +175,26 @@ export default function Relatorios() {
   }, [projects, currentWorkspace?.id]);
 
   // Fetch collaborators data - only from DELIVERED projects
+  const [collaboratorsLoading, setCollaboratorsLoading] = useState(false);
+  const [collaboratorsError, setCollaboratorsError] = useState<string | null>(null);
+
   useEffect(() => {
     const fetchCollaborators = async () => {
       if (!currentWorkspace?.id) return;
+
+      setCollaboratorsLoading(true);
+      setCollaboratorsError(null);
 
       // Filter only delivered projects
       const deliveredProjectIds = projects.filter(p => p.is_delivered).map(p => p.id);
       if (deliveredProjectIds.length === 0) {
         setCollaboratorsData([]);
+        setCollaboratorsLoading(false);
         return;
       }
 
-      const { data: teamData } = await supabase
+      // Try the join query first
+      const { data: teamData, error } = await supabase
         .from('project_team')
         .select(`
           user_id,
@@ -202,15 +210,60 @@ export default function Relatorios() {
         `)
         .in('project_id', deliveredProjectIds);
 
-      if (!teamData) {
+      // If join fails, use fallback with separate queries
+      let finalTeamData = teamData;
+      if (error || !teamData) {
+        console.warn('Join query failed, using fallback:', error?.message);
+        
+        // Fallback: fetch project_team without join
+        const { data: basicTeamData, error: fallbackError } = await supabase
+          .from('project_team')
+          .select('user_id, external_name, is_external, payment_amount, phase, project_id')
+          .in('project_id', deliveredProjectIds);
+
+        if (fallbackError || !basicTeamData) {
+          console.error('Fallback query also failed:', fallbackError?.message);
+          setCollaboratorsError('Falha ao carregar colaboradores');
+          setCollaboratorsLoading(false);
+          return;
+        }
+
+        // Get unique user_ids for profiles lookup
+        const userIds = [...new Set(basicTeamData.filter(t => t.user_id).map(t => t.user_id))];
+        
+        // Fetch profiles separately
+        let profilesMap: Record<string, { full_name: string | null; avatar_url: string | null }> = {};
+        if (userIds.length > 0) {
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url')
+            .in('id', userIds);
+          
+          if (profilesData) {
+            profilesMap = profilesData.reduce((acc, p) => {
+              acc[p.id] = { full_name: p.full_name, avatar_url: p.avatar_url };
+              return acc;
+            }, {} as Record<string, { full_name: string | null; avatar_url: string | null }>);
+          }
+        }
+
+        // Merge profiles into team data
+        finalTeamData = basicTeamData.map(entry => ({
+          ...entry,
+          profiles: entry.user_id ? profilesMap[entry.user_id] || null : null,
+        }));
+      }
+
+      if (!finalTeamData || finalTeamData.length === 0) {
         setCollaboratorsData([]);
+        setCollaboratorsLoading(false);
         return;
       }
 
       // Aggregate by collaborator (user_id or external_name)
       const collaboratorStats: Record<string, CollaboratorData & { projectIds: Set<string> }> = {};
 
-      teamData.forEach((entry: any) => {
+      finalTeamData.forEach((entry: any) => {
         const isExternal = entry.is_external || !entry.user_id;
         const key = isExternal ? `ext_${entry.external_name}` : entry.user_id;
         const name = isExternal 
@@ -249,6 +302,7 @@ export default function Relatorios() {
         .slice(0, 10);
 
       setCollaboratorsData(sorted);
+      setCollaboratorsLoading(false);
     };
 
     fetchCollaborators();
@@ -1023,7 +1077,15 @@ export default function Relatorios() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {collaboratorsData.length === 0 ? (
+            {collaboratorsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            ) : collaboratorsError ? (
+              <p className="text-center text-destructive py-8">
+                {collaboratorsError}
+              </p>
+            ) : collaboratorsData.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
                 Nenhum dado de colaboradores disponível
               </p>
