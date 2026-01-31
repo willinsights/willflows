@@ -101,8 +101,15 @@ export default function ParaProdutoras() {
         <meta property="og:description" content="Software de gestão para produtoras de vídeo e cinema. Organize todas as fases de produção." />
         <meta property="og:url" content="https://willflow.app/para-produtoras" />
         <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://willflow.app/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:site_name" content="WillFlow" />
+        <meta property="og:locale" content="pt_PT" />
+        <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="WillFlow para Produtoras | Gestão de Produção Audiovisual" />
         <meta name="twitter:description" content="Software de gestão para produtoras de vídeo e cinema." />
+        <meta name="twitter:image" content="https://willflow.app/og-image.png" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",

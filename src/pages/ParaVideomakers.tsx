@@ -76,8 +76,15 @@ export default function ParaVideomakers() {
         <meta property="og:description" content="Sistema de gestão para videomakers e produtoras. Organize produções, equipas e entregas. 30 dias grátis." />
         <meta property="og:url" content="https://willflow.app/para-videomakers" />
         <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://willflow.app/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:site_name" content="WillFlow" />
+        <meta property="og:locale" content="pt_PT" />
+        <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="WillFlow para Videomakers | Gestão de Produções de Vídeo" />
         <meta name="twitter:description" content="Sistema de gestão para videomakers e produtoras. Organize produções, equipas e entregas. 30 dias grátis." />
+        <meta name="twitter:image" content="https://willflow.app/og-image.png" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",

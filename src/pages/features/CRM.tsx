@@ -71,6 +71,16 @@ export default function CRMFeature() {
         <meta property="og:title" content="CRM para Criativos | WillFlow" />
         <meta property="og:description" content="CRM simples e poderoso para freelancers e produtoras. Gestão de clientes integrada com projetos." />
         <meta property="og:url" content="https://willflow.app/funcionalidades/crm" />
+        <meta property="og:type" content="product" />
+        <meta property="og:image" content="https://willflow.app/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:site_name" content="WillFlow" />
+        <meta property="og:locale" content="pt_PT" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="CRM para Criativos | WillFlow" />
+        <meta name="twitter:description" content="CRM simples e poderoso para freelancers e produtoras. Gestão de clientes integrada com projetos." />
+        <meta name="twitter:image" content="https://willflow.app/og-image.png" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",

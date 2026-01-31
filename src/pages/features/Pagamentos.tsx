@@ -71,6 +71,16 @@ export default function PagamentosFeature() {
         <meta property="og:title" content="Gestão de Pagamentos | WillFlow" />
         <meta property="og:description" content="Controle receitas e custos de forma simples. Dashboard financeiro integrado com projetos." />
         <meta property="og:url" content="https://willflow.app/funcionalidades/pagamentos" />
+        <meta property="og:type" content="product" />
+        <meta property="og:image" content="https://willflow.app/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:site_name" content="WillFlow" />
+        <meta property="og:locale" content="pt_PT" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Gestão de Pagamentos | WillFlow" />
+        <meta name="twitter:description" content="Controle receitas e custos de forma simples. Dashboard financeiro integrado com projetos." />
+        <meta name="twitter:image" content="https://willflow.app/og-image.png" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
