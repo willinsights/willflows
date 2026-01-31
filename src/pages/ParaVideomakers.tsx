@@ -16,8 +16,13 @@ import {
   Palette,
   CheckCircle,
   BarChart3,
+  MessageSquare,
+  GitCompare,
+  Layers,
+  Timer,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
 import { FlowDiagram } from '@/components/marketing/FlowDiagram';
@@ -293,6 +298,103 @@ export default function ParaVideomakers() {
         ]}
         reversed
       />
+
+      {/* Studio Exclusive Features Section */}
+      <section className="py-20 px-4 bg-gradient-to-br from-primary/5 to-purple-500/5">
+        <div className="container mx-auto">
+          <div className="text-center mb-12">
+            <Badge className="mb-4 bg-gradient-to-r from-primary to-purple-500 text-white border-0">
+              <Sparkles className="h-3 w-3 mr-1" />
+              Exclusivo Plano Studio
+            </Badge>
+            <h2 className="text-3xl font-bold mb-4">
+              Funcionalidades avançadas para produtoras
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Ferramentas de nível profissional para equipas que precisam de mais
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {/* Video Approval Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="glass-card p-8 border-primary/30"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-purple-500/20">
+                  <Film className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold">🎬 Aprovação de Vídeo</h3>
+              </div>
+              <p className="text-muted-foreground mb-6">
+                Portal de review para clientes. Alternativa integrada ao Frame.io sem custos extra.
+              </p>
+              <ul className="space-y-3 mb-6">
+                <li className="flex items-center gap-2 text-sm">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                  Comentários por timestamp SMPTE
+                </li>
+                <li className="flex items-center gap-2 text-sm">
+                  <GitCompare className="h-4 w-4 text-primary" />
+                  Comparação de versões A/B
+                </li>
+                <li className="flex items-center gap-2 text-sm">
+                  <CheckCircle className="h-4 w-4 text-primary" />
+                  Aprovação online directa
+                </li>
+              </ul>
+              <Link to="/funcionalidades/video-approval">
+                <Button variant="outline" className="w-full">
+                  Saber mais
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            </motion.div>
+            
+            {/* Timeline Design Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              viewport={{ once: true }}
+              className="glass-card p-8 border-primary/30"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-purple-500/20">
+                  <Clapperboard className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold">🎞️ Desenho de Timeline</h3>
+              </div>
+              <p className="text-muted-foreground mb-6">
+                Estruture visualmente os vídeos antes de editar. Guie a equipa com templates.
+              </p>
+              <ul className="space-y-3 mb-6">
+                <li className="flex items-center gap-2 text-sm">
+                  <Layers className="h-4 w-4 text-primary" />
+                  Segmentos visuais drag & drop
+                </li>
+                <li className="flex items-center gap-2 text-sm">
+                  <Timer className="h-4 w-4 text-primary" />
+                  Durações min/max por segmento
+                </li>
+                <li className="flex items-center gap-2 text-sm">
+                  <CheckCircle className="h-4 w-4 text-primary" />
+                  Templates reutilizáveis
+                </li>
+              </ul>
+              <Link to="/funcionalidades/timeline">
+                <Button variant="outline" className="w-full">
+                  Saber mais
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            </motion.div>
+          </div>
+        </div>
+      </section>
 
       {/* Comparison Table */}
       <ComparisonTable

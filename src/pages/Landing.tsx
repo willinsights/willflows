@@ -15,6 +15,8 @@ import {
   FileSpreadsheet,
   BarChart3,
   X,
+  Film,
+  Clapperboard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -70,6 +72,18 @@ const features = [
     icon: CreditCard,
     title: 'Pagamentos',
     description: 'Controle receitas, custos e pagamentos de forma simples e organizada.',
+  },
+  {
+    icon: Film,
+    title: '🎬 Aprovação de Vídeo',
+    description: 'Portal de review para clientes com comentários por timecode. Exclusivo Studio.',
+    badge: 'Studio',
+  },
+  {
+    icon: Clapperboard,
+    title: '🎞️ Timeline',
+    description: 'Estrutura visual para guiar a edição de vídeo. Exclusivo Studio.',
+    badge: 'Studio',
   },
   {
     icon: FileSpreadsheet,
