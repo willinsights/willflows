@@ -105,8 +105,8 @@ export const STRIPE_PRICES = {
 // Note: +25GB addon needs to be created in Stripe and price_id updated here
 export const STORAGE_ADDON_PRICES = {
   '25gb': {
-    price_id: '', // TODO: Create in Stripe and add price_id
-    product_id: '', // TODO: Create in Stripe and add product_id
+    price_id: 'price_1SviwHGr2lXbVyw9V2L3pgY9',
+    product_id: 'prod_TtVyg9RmLKqwRS',
     bytes: 25 * 1024 * 1024 * 1024,
     displayName: '+25 GB',
     price: { eur: 6, brl: 35 },
