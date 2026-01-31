@@ -1,69 +1,130 @@
 
-Objetivo
-- Fazer o card “Top 10 Colaboradores” aparecer corretamente na página /app/relatorios quando existem projetos finalizados, mesmo que ainda não recebidos.
-- Corrigir a causa raiz do “Nenhum dado de colaboradores disponível” quando há dados reais.
+# Plano de Correção - Preços, Limites e Features
 
-Diagnóstico (baseado no que vi no código + logs/rede)
-- O card é alimentado pelo useEffect `fetchCollaborators` em `src/pages/app/Relatorios.tsx`.
-- Esse effect faz um select em `project_team` com um “join embutido” para `profiles`:
-  - `profiles:user_id (full_name, avatar_url)`
-- A requisição está falhando com HTTP 400 e erro:
-  - “Could not find a relationship between 'project_team' and 'user_id' in the schema cache”
-- No schema tipado (`src/integrations/supabase/types.ts`), a tabela `project_team` não tem relacionamento (FK) do `user_id` para `profiles.id`, então o backend não consegue montar o join automático.
-- Resultado: `teamData` vem null/undefined, o código cai no empty state e mostra “Nenhum dado…”.
-- Importante: conferi se há `user_id` “órfão” em `project_team` (sem perfil correspondente) e está tudo OK (0 faltantes). Isso significa que adicionar a FK deve ser seguro.
+## Resumo das Discrepâncias Identificadas
 
-Estratégia de correção (duas camadas, para ficar robusto)
-1) Corrigir a causa raiz no backend (recomendado)
-- Criar a Foreign Key `project_team.user_id -> profiles.id` (com `ON DELETE SET NULL`).
-- Benefícios:
-  - O join `profiles:user_id(...)` passa a funcionar.
-  - Outros pontos do app que usam o mesmo padrão de join ficam consistentes.
-- Risco/mitigação:
-  - Se existissem `user_id` sem profile, a migration falharia. Já validamos que não existem.
+| Item | Valor Actual | Valor Correcto | Ficheiro |
+|------|--------------|----------------|----------|
+| Pro JSON-LD | €22 | €24 | Pricing.tsx |
+| highPrice JSON-LD | €49 | €42 | Landing.tsx |
+| Projetos Starter (backend) | 15 | 20 | check-subscription/index.ts |
+| Studio mensal EUR | €32 | €42 | plans.ts + Stripe |
+| Chat interno Starter | NÃO (correcto) | NÃO ✅ | Já está correcto |
+| Timeline | Não registada como feature | Já existe no código | Verificado em useVideoStructure.ts |
 
-2) Melhorar o front para lidar com erro e não “sumir” silenciosamente
-- Hoje o `fetchCollaborators` não trata `error` da query; apenas checa `teamData`.
-- Vou:
-  - Capturar e tratar erro de forma explícita (log + UI).
-  - Adicionar um estado simples de loading/erro no card:
-    - Loading enquanto busca.
-    - Mensagem “Falha ao carregar colaboradores” se houver erro (em vez de “Nenhum dado…”).
-  - Opcional: fallback automático (se o join ainda falhar por qualquer motivo): fazer 2 queries (project_team e depois profiles via `.in('id', userIds)`), igual ao padrão usado em outras partes do código (ex.: ChatContextPanel). Isso garante que o ranking funciona mesmo se, por algum motivo, o join não estiver disponível.
+## Alterações Necessárias
 
-Plano de implementação (passo a passo)
-A) Backend (migração)
-- Criar uma migration com:
-  1. `ALTER TABLE public.project_team ADD CONSTRAINT project_team_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE SET NULL;`
-  2. (Opcional, recomendado) `CREATE INDEX IF NOT EXISTS project_team_user_id_idx ON public.project_team(user_id);`
-- Verificação pós-migração:
-  - Recarregar /app/relatorios e confirmar que a requisição do card deixa de retornar 400.
+### 1. Corrigir Preço Pro no JSON-LD (SEO)
+**Ficheiro:** `src/pages/Pricing.tsx` (linha 184)
 
-B) Frontend (Relatorios.tsx)
-- Ajustar o `fetchCollaborators` para:
-  - Verificar `error` retornado pelo backend e setar um estado `collaboratorsError`.
-  - Exibir um estado de “carregando” e/ou mensagem de erro no CardContent.
-  - (Fallback robusto) Se a query com join falhar:
-    1. Buscar `project_team` sem join (campos básicos).
-    2. Extrair `userIds` e buscar `profiles` em separado.
-    3. Montar o map `userId -> profile` e continuar o mesmo agregador já existente.
-- Manter exatamente a regra que você pediu:
-  - Contar somente projetos `is_delivered = true` (finalizados), independentemente de estarem pagos ou pendentes.
+```text
+ANTES:  "price": "22"
+DEPOIS: "price": "24"
+```
 
-C) Testes rápidos (manual)
-- Na página /app/relatorios:
-  1. Confirmar que “Top 10 Colaboradores” mostra nomes/valores.
-  2. Conferir se “Top 10 Clientes” continua ok (para garantir que não houve regressão no layout).
-  3. Validar que, se não houver `payment_amount` em alguns registros, eles entram como 0 (como já acontece).
-- Verificar no console do navegador:
-  - Se a requisição a `project_team?select=...profiles:user_id(...)` passou a retornar 200.
-  - Se não há mais erro 400/PGRST200 relacionado ao relacionamento.
+### 2. Corrigir highPrice na Landing.tsx
+**Ficheiro:** `src/pages/Landing.tsx` (linha 248)
 
-Critérios de sucesso
-- O card “Top 10 Colaboradores” deixa de mostrar “Nenhum dado…” quando há projetos finalizados com entradas em `project_team`.
-- A requisição do ranking não falha mais por ausência de relacionamento.
-- Se houver qualquer falha de rede/permissão, o usuário vê uma mensagem clara (não um empty state enganoso).
+```text
+ANTES:  "highPrice": "49"
+DEPOIS: "highPrice": "42"
+```
 
-Notas técnicas
-- A ausência de FK em `project_team.user_id` é a causa direta do erro de join (o backend precisa do relacionamento para o select aninhado).
-- Como o `user_id` é nullable e existe `is_external/external_name`, o `ON DELETE SET NULL` é adequado para não quebrar registros históricos caso um perfil seja removido/desativado.
+### 3. Corrigir Limite de Projetos no Backend
+**Ficheiro:** `supabase/functions/check-subscription/index.ts`
+
+Há **3 locais** onde `projects: 15` precisa ser alterado para `projects: 20`:
+- Linha 124: Dentro do bloco `userSubData`
+- Linha 184: Fallback quando não há cliente Stripe
+- Linha 247: Fallback final após verificação Stripe
+
+### 4. Actualizar Preço Studio para €42
+**Ficheiro:** `src/lib/plans.ts` (linhas 221-224)
+
+```typescript
+// ANTES
+prices: {
+  eur: { monthly: 32, yearly: 307 },
+  brl: { monthly: 197, yearly: 1891 },
+},
+
+// DEPOIS (€42 mensais, anual = 42 × 12 × 0.8 = 403.2 ≈ 403)
+prices: {
+  eur: { monthly: 42, yearly: 403 },
+  brl: { monthly: 247, yearly: 2371 }, // Proporcional ao aumento
+},
+```
+
+### 5. Actualizar JSON-LD do Studio na Pricing.tsx
+**Ficheiro:** `src/pages/Pricing.tsx` (linha 193)
+
+```text
+ANTES:  "price": "32"
+DEPOIS: "price": "42"
+```
+
+### 6. Actualizar Storage Addons no plans.ts
+**Ficheiro:** `src/lib/plans.ts` (linhas 104-127)
+
+O utilizador indicou novos tiers de storage:
+- +25 GB → €6 (NOVO - não existe)
+- +50 GB → €10 (actual: €9)
+- +100 GB → €18 (actual: €15)
+- +250 GB → €35 (actual: €29)
+
+---
+
+## Secção Técnica
+
+### Ficheiros a Modificar
+
+1. **`src/pages/Pricing.tsx`**
+   - Linha 184: `"price": "22"` → `"price": "24"`
+   - Linha 193: `"price": "32"` → `"price": "42"`
+
+2. **`src/pages/Landing.tsx`**
+   - Linha 248: `"highPrice": "49"` → `"highPrice": "42"`
+
+3. **`supabase/functions/check-subscription/index.ts`**
+   - Linha 124: `projects: 15` → `projects: 20`
+   - Linha 184: `projects: 15` → `projects: 20`
+   - Linha 247: `projects: 15` → `projects: 20`
+
+4. **`src/lib/plans.ts`**
+   - Linhas 221-224: Actualizar preços Studio para €42/€403 (EUR)
+   - Linhas 104-127: Actualizar preços dos Storage Addons
+
+### Acção Necessária no Stripe
+
+O preço do Studio no Stripe está actualmente a **€32**. Para alterar para **€42**, será necessário:
+1. Criar novos preços no Stripe para o produto Studio (€42 mensal / €403 anual)
+2. Actualizar os price_ids em `src/lib/plans.ts`
+3. Criar o produto +25GB Storage Addon no Stripe
+
+Posso criar os novos preços no Stripe durante a implementação.
+
+### Verificações de Segurança
+
+- ✅ Chat interno no Starter já está como `included: false` (correcto)
+- ✅ Desenho de Timeline já existe no código (`useVideoStructure.ts`) e está integrado na UI de detalhes de tarefa
+- ✅ Feature `videoApproval` já está registada no Studio
+
+### Timeline (Desenho de Timeline)
+
+Confirmo que a feature "Desenho de Timeline" já existe no sistema:
+- Componente em `useVideoStructure.ts` com funções de `clearTimeline`
+- Está disponível no detalhe de tarefa/projecto
+- A feature `videoApproval` (que engloba timeline e aprovação de vídeo) já está correctamente gatilhada ao plano Studio
+
+---
+
+## Resumo de Implementação
+
+| Prioridade | Tarefa | Esforço |
+|------------|--------|---------|
+| 🔴 CRÍTICO | Corrigir preço Pro JSON-LD (€22→€24) | Baixo |
+| 🔴 CRÍTICO | Corrigir limite projectos (15→20) | Baixo |
+| 🟡 ALTO | Actualizar preço Studio (€32→€42) | Médio |
+| 🟡 ALTO | Corrigir highPrice Landing (€49→€42) | Baixo |
+| 🟢 MÉDIO | Actualizar Storage Addons preços | Médio |
+| 🟢 MÉDIO | Criar +25GB Storage Addon | Médio |
