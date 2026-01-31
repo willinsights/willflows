@@ -1,112 +1,276 @@
 
-# Plano: Remover Features Não Implementadas da Página de Pricing
+# Plano: Aplicar Estilo de Pricing da Página /planos à Homepage
 
 ## Objectivo
-Limpar a lista de features para mostrar apenas funcionalidades **realmente disponíveis**, mantendo a honestidade com os clientes.
+Uniformizar a apresentação dos cards de pricing na Homepage (Landing.tsx) com o mesmo estilo já implementado na página /planos (Pricing.tsx), incluindo:
+1. Mostrar apenas **features diferenciadas** por plano
+2. Adicionar texto "Tudo do X, mais:" para Pro e Studio
+3. Adicionar **box de destaque exclusivo Studio** com Aprovação de vídeo, Timeline e 10GB
 
 ---
 
-## Resumo das Alterações
+## Estado Actual (Landing.tsx)
 
-| Feature | Estado Actual | Acção |
-|---------|---------------|-------|
-| Templates de projeto | ❌ Sem UI | **Remover** do Pro |
-| Frame.io integrado | ❌ Substituído | **Remover** do Studio |
-| API & Webhooks | ❌ Não existe | **Remover** do Studio |
-| Permissões avançadas | ✅ Funcional | **Manter** |
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│  STARTER          PRO (Mais vendido)       STUDIO               │
+│  €14/mês          €24/mês                  €42/mês              │
+│                                                                  │
+│  1 workspace      Até 3 workspaces         Até 10 workspaces    │
+│  Até 2 users      Até 10 users             Ilimitado            │
+│  20 projetos      Ilimitado                Ilimitado            │
+│  ──────────       ──────────               ──────────           │
+│                                                                  │
+│  ✓ Feature 1      ✓ Feature 1              ✓ Feature 1          │
+│  ✓ Feature 2      ✓ Feature 2              ✓ Feature 2          │
+│  ✓ Feature 3      ✓ Feature 3              ✓ Feature 3          │
+│  ... (todas)      ... (todas)              ... (todas)          │
+│                                                                  │
+│  [Testar grátis]  [Testar grátis]          [Testar grátis]      │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Problemas:**
+- Mostra todas as features incluídas (repetição entre planos)
+- Não destaca as diferenças
+- Studio não tem highlight box especial
+
+---
+
+## Estado Desejado (igual a Pricing.tsx)
+
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│  STARTER          PRO (Mais vendido)       STUDIO               │
+│  €14/mês          €24/mês                  €42/mês              │
+│                                                                  │
+│  1 workspace      Até 3 workspaces         Até 10 workspaces    │
+│  Até 2 users      Até 10 users             Ilimitado            │
+│  20 projetos      Ilimitado                Ilimitado            │
+│  ──────────       ──────────               ──────────           │
+│                                                                  │
+│  ✓ Kanban         ✓ Tudo do Starter, +     ✓ Tudo do Pro, +     │
+│  ✓ CRM básico     ✓ Chat interno           ┌────────────────┐   │
+│  ✓ Calendário     ✓ CRM completo           │ 🎬 Aprovação   │   │
+│  ✓ Media Hub      ✓ Exportação Excel       │ 🎞️ Timeline    │   │
+│  ✓ Relatórios     ✓ Google Calendar        │ 📦 10GB        │   │
+│  ✓ Financeiro     ✓ Relatórios avançados   └────────────────┘   │
+│                                             ✓ Automações        │
+│                                             ✓ Permissões        │
+│                                                                  │
+│  [Testar grátis]  [Testar grátis]          [Testar grátis]      │
+└──────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## Alterações Técnicas
 
-### 1. Ficheiro: `src/lib/plans.ts`
+### Ficheiro: `src/pages/Landing.tsx`
 
-#### Remover `templates` de todos os planos:
-- **Linha 182** (Starter): Remover `{ key: 'templates', ... }`
-- **Linha 221** (Pro): Remover `{ key: 'templates', ... }`
-- **Linha 259** (Studio): Remover `{ key: 'templates', ... }`
+#### 1. Substituir lógica de displayFeatures (linhas 720-785)
 
-#### Remover `frameio` de todos os planos:
-- **Linha 183** (Starter): Remover `{ key: 'frameio', ... }`
-- **Linha 222** (Pro): Remover `{ key: 'frameio', ... }`
-- **Linha 260** (Studio): Remover `{ key: 'frameio', ... }`
-
-#### Remover `api` de todos os planos:
-- **Linha 185** (Starter): Remover `{ key: 'api', ... }`
-- **Linha 224** (Pro): Remover `{ key: 'api', ... }`
-- **Linha 263** (Studio): Remover `{ key: 'api', ... }`
-
----
-
-### 2. Ficheiro: `src/pages/Pricing.tsx`
-
-#### Actualizar `HIGHLIGHT_FEATURES` (linhas ~233-237):
-
+**Antes (linhas 723-724):**
 ```typescript
-// ANTES
-const HIGHLIGHT_FEATURES: Record<PlanId, string[]> = {
-  starter: ['kanban', 'crmBasic', 'calendar', 'mediaHub', 'reportsBasic', 'financialReports'],
-  pro: ['chat', 'crmComplete', 'exportExcel', 'googleCalendar', 'reportsAdvanced', 'templates'],
-  studio: ['frameio', 'automations', 'permissions', 'api'],
-};
+const displayFeatures = plan.features.filter(f => f.category !== 'limit' && f.included);
+```
 
-// DEPOIS (remover templates, frameio, api)
+**Depois:**
+```typescript
+// Features a mostrar por plano (apenas diferenças)
 const HIGHLIGHT_FEATURES: Record<PlanId, string[]> = {
   starter: ['kanban', 'crmBasic', 'calendar', 'mediaHub', 'reportsBasic', 'financialReports'],
   pro: ['chat', 'crmComplete', 'exportExcel', 'googleCalendar', 'reportsAdvanced'],
   studio: ['automations', 'permissions'],
 };
+
+const highlightKeys = HIGHLIGHT_FEATURES[planId];
+const displayFeatures = plan.features.filter(f => 
+  f.category !== 'limit' && 
+  f.category !== 'studio' && 
+  highlightKeys.includes(f.key) && 
+  f.included
+);
+```
+
+#### 2. Adicionar texto "Tudo do X, mais:" (após os limites, linha ~763)
+
+```tsx
+{/* Texto "Tudo do X, mais:" para Pro e Studio */}
+{planId !== 'starter' && (
+  <p className="text-xs text-muted-foreground mb-3 italic">
+    ✓ Tudo do {planId === 'pro' ? 'Starter' : 'Pro'}, mais:
+  </p>
+)}
+```
+
+#### 3. Adicionar Studio Highlight Box (antes das features, linha ~764)
+
+```tsx
+{/* Studio Exclusive Highlight Box */}
+{planId === 'studio' && (
+  <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-primary/20 via-purple-500/15 to-pink-500/10 border border-primary/30 shadow-lg shadow-primary/5">
+    <p className="text-xs font-semibold text-primary/80 uppercase tracking-wide mb-3">Exclusivo Studio</p>
+    <div className="space-y-2">
+      <div className="flex items-center gap-3">
+        <span className="text-lg">🎬</span>
+        <span className="text-sm font-semibold text-foreground">Aprovação de vídeo</span>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-lg">🎞️</span>
+        <span className="text-sm font-semibold text-foreground">Desenho de Timeline</span>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-lg">📦</span>
+        <span className="text-sm text-muted-foreground">10 GB armazenamento incluído</span>
+      </div>
+    </div>
+  </div>
+)}
+```
+
+#### 4. Remover `.slice(0, 6)` das features (linha 766)
+
+**Antes:**
+```tsx
+{displayFeatures.slice(0, 6).map((feature) => (
+```
+
+**Depois:**
+```tsx
+{displayFeatures.map((feature) => (
 ```
 
 ---
 
-### 3. Ficheiro: `src/lib/plans.ts` - Actualizar `getCompactFeatures`
+## Código Completo do Bloco (linhas 720-785)
 
-```typescript
-// ANTES (linha 365-366)
-case 'studio':
-  return ['Tudo do Pro', 'Frame.io', 'Automações', 'API'];
+```tsx
+<div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto focal-container">
+  {PLAN_ORDER.map((planId, index) => {
+    const plan = PLANS[planId];
+    
+    // Features a mostrar por plano (apenas diferenças)
+    const HIGHLIGHT_FEATURES: Record<PlanId, string[]> = {
+      starter: ['kanban', 'crmBasic', 'calendar', 'mediaHub', 'reportsBasic', 'financialReports'],
+      pro: ['chat', 'crmComplete', 'exportExcel', 'googleCalendar', 'reportsAdvanced'],
+      studio: ['automations', 'permissions'],
+    };
+    
+    const highlightKeys = HIGHLIGHT_FEATURES[planId];
+    const displayFeatures = plan.features.filter(f => 
+      f.category !== 'limit' && 
+      f.category !== 'studio' && 
+      highlightKeys.includes(f.key) && 
+      f.included
+    );
+    
+    return (
+      <motion.div
+        key={planId}
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        transition={{ delay: index * 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        viewport={{ once: true }}
+        className={`focal-card relative flex flex-col rounded-2xl border p-6 ${
+          plan.popular 
+            ? 'border-primary bg-primary/5 shadow-xl shadow-primary/10 md:scale-105 z-10' 
+            : 'border-border/50 bg-background/50'
+        }`}
+      >
+        {plan.popular && (
+          <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 gradient-primary px-4">
+            Mais vendido
+          </Badge>
+        )}
+        
+        <div className="text-center mb-6">
+          <h3 className="font-bold text-xl mb-1">{plan.name}</h3>
+          <p className="text-sm text-muted-foreground mb-4">{plan.description}</p>
+          
+          <div className="flex items-baseline justify-center gap-1">
+            <span className="text-4xl font-bold">
+              {currencySymbol}{getPrice(planId)}
+            </span>
+            <span className="text-muted-foreground">/mês</span>
+          </div>
+        </div>
 
-// DEPOIS
-case 'studio':
-  return ['Tudo do Pro', 'Automações', 'Permissões avançadas'];
+        {/* Limits */}
+        <div className="space-y-2 mb-6 pb-6 border-b border-border/50">
+          <p className="text-sm font-medium">{plan.limitsDisplay.workspaces}</p>
+          <p className="text-sm font-medium">{plan.limitsDisplay.users}</p>
+          <p className="text-sm font-medium">{plan.limitsDisplay.projects}</p>
+        </div>
+
+        {/* Texto "Tudo do X, mais:" */}
+        {planId !== 'starter' && (
+          <p className="text-xs text-muted-foreground mb-3 italic">
+            ✓ Tudo do {planId === 'pro' ? 'Starter' : 'Pro'}, mais:
+          </p>
+        )}
+
+        {/* Studio Exclusive Highlight Box */}
+        {planId === 'studio' && (
+          <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-primary/20 via-purple-500/15 to-pink-500/10 border border-primary/30 shadow-lg shadow-primary/5">
+            <p className="text-xs font-semibold text-primary/80 uppercase tracking-wide mb-3">Exclusivo Studio</p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <span className="text-lg">🎬</span>
+                <span className="text-sm font-semibold text-foreground">Aprovação de vídeo</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-lg">🎞️</span>
+                <span className="text-sm font-semibold text-foreground">Desenho de Timeline</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-lg">📦</span>
+                <span className="text-sm text-muted-foreground">10 GB armazenamento incluído</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Features */}
+        <ul className="space-y-3 mb-6 flex-1">
+          {displayFeatures.map((feature) => (
+            <li key={feature.key} className="flex items-center gap-2 text-sm">
+              <Check className="h-4 w-4 text-success flex-shrink-0" />
+              <span>{feature.name}</span>
+            </li>
+          ))}
+        </ul>
+
+        <Link to="/auth?trial=true">
+          <Button
+            className={`w-full glow-ring ${plan.popular ? 'gradient-primary' : ''}`}
+            variant={plan.popular ? 'default' : 'outline'}
+          >
+            Testar grátis 30 dias
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </Link>
+      </motion.div>
+    );
+  })}
+</div>
 ```
 
 ---
 
-## Impacto Visual
+## Ficheiro a Modificar
 
-### Antes da Limpeza
-**Studio** mostrava:
-- Frame.io integrado ← **Não existe**
-- API & Webhooks ← **Não existe**
-- Templates de projeto ← **Não existe**
-
-### Depois da Limpeza
-**Studio** mostrará apenas features reais:
-- 🎬 Aprovação de vídeo ✅
-- 🎞️ Desenho de Timeline ✅
-- 📦 10 GB armazenamento ✅
-- Automações avançadas ✅
-- Permissões avançadas ✅
-
----
-
-## Ficheiros a Modificar
-
-| Ficheiro | Alterações |
-|----------|------------|
-| `src/lib/plans.ts` | Remover features `templates`, `frameio`, `api` dos 3 planos |
-| `src/lib/plans.ts` | Actualizar `getCompactFeatures()` |
-| `src/pages/Pricing.tsx` | Actualizar `HIGHLIGHT_FEATURES` |
+| Ficheiro | Alteração |
+|----------|-----------|
+| `src/pages/Landing.tsx` | Substituir bloco de pricing (linhas ~720-785) com a nova lógica |
 
 ---
 
 ## Resultado Final
 
-A página de pricing mostrará apenas funcionalidades que:
-1. **Existem** e estão implementadas
-2. **Funcionam** e o utilizador pode aceder
-3. Mantêm **honestidade** com os potenciais clientes
-
-Quando API & Webhooks e Templates forem implementados no futuro, basta re-adicionar à lista.
+| Elemento | Antes | Depois |
+|----------|-------|--------|
+| Features listadas | Todas incluídas (repetição) | Apenas diferenças |
+| Texto introdutório | Nenhum | "Tudo do X, mais:" |
+| Studio destaque | Nenhum | Box visual com 🎬🎞️📦 |
+| Consistência | Diferente de /planos | Idêntico a /planos |
