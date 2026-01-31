@@ -16,6 +16,8 @@ import {
   Archive,
   ArrowRight,
   ChevronRight,
+  Film,
+  Clapperboard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PublicHeader } from '@/components/marketing/PublicHeader';
@@ -150,6 +152,32 @@ const features = [
       'Reativar se necessário',
     ],
   },
+  {
+    icon: Film,
+    title: '🎬 Aprovação de Vídeo',
+    description: 'Portal de review para clientes com comentários por timestamp. Alternativa integrada ao Frame.io.',
+    href: '/funcionalidades/video-approval',
+    badge: 'Studio',
+    details: [
+      'Portal público para clientes',
+      'Comentários no timestamp exato',
+      'Comparação de versões A/B',
+      'Notificações de feedback',
+    ],
+  },
+  {
+    icon: Clapperboard,
+    title: '🎞️ Desenho de Timeline',
+    description: 'Estrutura visual para guiar a edição. Defina segmentos e durações antes de começar.',
+    href: '/funcionalidades/timeline',
+    badge: 'Studio',
+    details: [
+      'Segmentos com duração',
+      'Drag & drop para reordenar',
+      'Templates reutilizáveis',
+      'Timecode profissional SMPTE',
+    ],
+  },
 ];
 
 export default function Features() {
@@ -216,14 +244,22 @@ export default function Features() {
         <div className="container mx-auto">
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => {
+              const isStudio = 'badge' in feature && feature.badge === 'Studio';
               const CardContent = (
                 <div className="flex items-start gap-4">
-                  <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 flex-shrink-0">
+                  <div className={`flex items-center justify-center w-12 h-12 rounded-xl flex-shrink-0 ${isStudio ? 'bg-gradient-to-br from-primary/20 to-purple-500/20' : 'bg-primary/10'}`}>
                     <feature.icon className="h-6 w-6 text-primary" />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-bold text-lg">{feature.title}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-lg">{feature.title}</h3>
+                        {isStudio && (
+                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gradient-to-r from-primary to-purple-500 text-white">
+                            Studio
+                          </span>
+                        )}
+                      </div>
                       {'href' in feature && (
                         <ChevronRight className="h-5 w-5 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
                       )}
@@ -253,7 +289,10 @@ export default function Features() {
                   viewport={{ once: true }}
                 >
                   {'href' in feature ? (
-                    <Link to={feature.href} className="block glass-card p-6 group hover:border-primary/50 transition-colors">
+                    <Link 
+                      to={feature.href} 
+                      className={`block glass-card p-6 group hover:border-primary/50 transition-colors ${isStudio ? 'border-primary/30 bg-gradient-to-br from-primary/5 to-purple-500/5' : ''}`}
+                    >
                       {CardContent}
                     </Link>
                   ) : (

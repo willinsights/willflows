@@ -9,6 +9,8 @@ import {
   CreditCard,
   BarChart3,
   FolderOpen,
+  Film,
+  Clapperboard,
 } from 'lucide-react';
 
 interface FeatureLink {
@@ -26,6 +28,8 @@ const allFeatures: FeatureLink[] = [
   { name: 'Pagamentos', href: '/funcionalidades/pagamentos', icon: CreditCard, description: 'Controlo financeiro' },
   { name: 'Relatórios', href: '/funcionalidades/relatorios', icon: BarChart3, description: 'Analytics e insights' },
   { name: 'Media Hub', href: '/funcionalidades/media-hub', icon: FolderOpen, description: 'Gestão de ficheiros' },
+  { name: 'Aprovação de Vídeo', href: '/funcionalidades/video-approval', icon: Film, description: 'Review de vídeos' },
+  { name: 'Timeline', href: '/funcionalidades/timeline', icon: Clapperboard, description: 'Estrutura de edição' },
 ];
 
 interface RelatedFeaturesProps {
