@@ -7,6 +7,10 @@ import {
   TrendingDown,
   Wallet,
   Lock,
+  Coins,
+  Target,
+  Calculator,
+  PiggyBank,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,7 +20,6 @@ import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useHideValues } from '@/hooks/useHideValues';
 import type { DashboardMetrics } from '@/hooks/useDashboardMetrics';
-import { Coins } from 'lucide-react';
 
 interface KPICardsProps {
   metrics: DashboardMetrics;
@@ -191,69 +194,171 @@ export function KPICards({ metrics, loading }: KPICardsProps) {
     },
   ];
 
+  // Forecast KPIs (only for admins with financial access)
+  const forecastKpiData = canViewAllFinancials ? [
+    {
+      label: 'Prev. Receita',
+      value: formatCurrency(metrics.previsaoReceita),
+      icon: Target,
+      iconColor: 'text-info',
+      bgColor: 'bg-info/10',
+      cardClass: 'hover:border-info/30',
+      valueClass: 'text-info text-lg',
+      isCurrency: true,
+      delay: 0.21,
+      tooltip: `Receita prevista de ${metrics.projetosAtivos} projeto(s) activo(s)`,
+    },
+    {
+      label: 'Prev. Custos',
+      value: formatCurrency(metrics.previsaoCustos),
+      icon: Calculator,
+      iconColor: 'text-warning',
+      bgColor: 'bg-warning/10',
+      cardClass: 'hover:border-warning/30',
+      valueClass: 'text-warning text-lg',
+      isCurrency: true,
+      delay: 0.24,
+      tooltip: 'Custos previstos para projetos activos + pagamentos de equipa pendentes',
+    },
+    {
+      label: 'Prev. Lucro',
+      value: formatCurrency(metrics.previsaoLucro),
+      icon: PiggyBank,
+      iconColor: metrics.previsaoLucro >= 0 ? 'text-success' : 'text-destructive',
+      bgColor: metrics.previsaoLucro >= 0 ? 'bg-success/10' : 'bg-destructive/10',
+      cardClass: metrics.previsaoLucro >= 0 ? 'hover:border-success/30' : 'hover:border-destructive/30',
+      valueClass: cn('text-lg', metrics.previsaoLucro >= 0 ? 'text-success' : 'text-destructive'),
+      isCurrency: true,
+      delay: 0.27,
+      tooltip: `Margem prevista: ${metrics.previsaoMargemPercent}%`,
+    },
+  ] : [];
+
   const kpiData = [...baseKpiData, ...financialKpiData];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-      {kpiData.map((kpi) => {
-        const cardContent = (
-          <Card className={cn('metric-card', kpi.cardClass)}>
-            <CardContent className="p-3">
-              <div className="flex items-center gap-2">
-                <div className={cn('p-1.5 rounded-md', kpi.bgColor)}>
-                  <kpi.icon className={cn('h-4 w-4', kpi.iconColor)} />
+    <div className="space-y-4">
+      {/* Main KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {kpiData.map((kpi) => {
+          const cardContent = (
+            <Card className={cn('metric-card', kpi.cardClass)}>
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2">
+                  <div className={cn('p-1.5 rounded-md', kpi.bgColor)}>
+                    <kpi.icon className={cn('h-4 w-4', kpi.iconColor)} />
+                  </div>
+                  <div className="flex flex-col">
+                    {loading ? (
+                      <Skeleton className={cn('h-7', 'isCurrency' in kpi && kpi.isCurrency ? 'w-16' : 'w-8')} />
+                    ) : (
+                      <>
+                        <span className={cn(
+                          'font-bold', 
+                          'isCurrency' in kpi && kpi.isCurrency ? kpi.valueClass : 'text-2xl',
+                          'isCurrency' in kpi && kpi.isCurrency && hideValues && 'blur-md select-none'
+                        )}>
+                          {kpi.value}
+                        </span>
+                        {'change' in kpi && !('isRestricted' in kpi) && (
+                          <ChangeIndicator change={kpi.change ?? null} invertColor={'invertColor' in kpi ? kpi.invertColor : false} />
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div className="flex flex-col">
-                  {loading ? (
-                    <Skeleton className={cn('h-7', 'isCurrency' in kpi && kpi.isCurrency ? 'w-16' : 'w-8')} />
-                  ) : (
-                    <>
-                      <span className={cn(
-                        'font-bold', 
-                        'isCurrency' in kpi && kpi.isCurrency ? kpi.valueClass : 'text-2xl',
-                        'isCurrency' in kpi && kpi.isCurrency && hideValues && 'blur-md select-none'
-                      )}>
-                        {kpi.value}
-                      </span>
-                      {'change' in kpi && !('isRestricted' in kpi) && (
-                        <ChangeIndicator change={kpi.change ?? null} invertColor={'invertColor' in kpi ? kpi.invertColor : false} />
-                      )}
-                    </>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {kpi.label}
+                  {'isRestricted' in kpi && (
+                    <span className="ml-1 text-[10px]">(restrito)</span>
                   )}
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                {kpi.label}
-                {'isRestricted' in kpi && (
-                  <span className="ml-1 text-[10px]">(restrito)</span>
-                )}
-              </p>
-            </CardContent>
-          </Card>
-        );
+                </p>
+              </CardContent>
+            </Card>
+          );
 
-        return (
-          <motion.div
-            key={kpi.label}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: kpi.delay }}
-          >
-            {'tooltip' in kpi && kpi.tooltip ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  {cardContent}
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[200px]">
-                  <p className="text-xs">{kpi.tooltip}</p>
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              cardContent
-            )}
-          </motion.div>
-        );
-      })}
+          return (
+            <motion.div
+              key={kpi.label}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: kpi.delay }}
+            >
+              {'tooltip' in kpi && kpi.tooltip ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    {cardContent}
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[200px]">
+                    <p className="text-xs">{kpi.tooltip}</p>
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                cardContent
+              )}
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* Forecast KPIs (separate row for admins) */}
+      {forecastKpiData.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
+            <Target className="h-3 w-3" />
+            Previsão do Mês (projetos activos)
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {forecastKpiData.map((kpi) => {
+              const cardContent = (
+                <Card className={cn('metric-card', kpi.cardClass)}>
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-2">
+                      <div className={cn('p-1.5 rounded-md', kpi.bgColor)}>
+                        <kpi.icon className={cn('h-4 w-4', kpi.iconColor)} />
+                      </div>
+                      <div className="flex flex-col">
+                        {loading ? (
+                          <Skeleton className="h-7 w-16" />
+                        ) : (
+                          <span className={cn(
+                            'font-bold',
+                            kpi.valueClass,
+                            hideValues && 'blur-md select-none'
+                          )}>
+                            {kpi.value}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {kpi.label}
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+
+              return (
+                <motion.div
+                  key={kpi.label}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: kpi.delay }}
+                >
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      {cardContent}
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-[200px]">
+                      <p className="text-xs">{kpi.tooltip}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -22,6 +22,12 @@ export interface DashboardMetrics {
   entreguesChange: number | null;
   // Personal earnings for collaborators
   meusGanhos: number;
+  // Forecast metrics (active projects rollover)
+  previsaoReceita: number;
+  previsaoCustos: number;
+  previsaoLucro: number;
+  previsaoMargemPercent: number;
+  projetosAtivos: number;
 }
 
 export interface PerformanceMetrics {
@@ -105,6 +111,11 @@ export function useDashboardMetrics() {
     lucroChange: null,
     entreguesChange: null,
     meusGanhos: 0,
+    previsaoReceita: 0,
+    previsaoCustos: 0,
+    previsaoLucro: 0,
+    previsaoMargemPercent: 0,
+    projetosAtivos: 0,
   });
   const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics>({
     deliveryRate: 0,
@@ -143,10 +154,10 @@ export function useDashboardMetrics() {
       // 6 months ago for performance metrics
       const sixMonthsAgo = subMonths(now, 6);
       
-      // Fetch projects count by phase
+      // Fetch projects count by phase (include delivery_date for forecast)
       const { data: projectsData } = await supabase
         .from('projects')
-        .select('id, current_phase, is_delivered, agreed_value, custo_captacao, custo_edicao, custos_extras, created_at, delivered_at, type')
+        .select('id, current_phase, is_delivered, agreed_value, custo_captacao, custo_edicao, custos_extras, created_at, delivered_at, delivery_date, type')
         .eq('workspace_id', currentWorkspace.id);
 
       const captacao = projectsData?.filter(p => p.current_phase === 'captacao' && !p.is_delivered).length || 0;
@@ -273,6 +284,50 @@ export function useDashboardMetrics() {
         }).reduce((sum, tp) => sum + (tp.payment_amount || 0), 0) || 0;
       }
 
+      // === FORECAST METRICS (Previsão com Rollover) ===
+      // Projects that contribute to forecast = not delivered
+      // Rollover logic: if delivery_date passed and not delivered, counts for current month
+      const previsaoProjects = projectsData?.filter(p => {
+        if (p.is_delivered) return false;
+        
+        // No delivery date = counts for current month (active in kanban)
+        if (!p.delivery_date) return true;
+        
+        const deliveryDate = new Date(p.delivery_date);
+        // If delivery date passed and not delivered, it counts for current month (ROLLOVER)
+        if (deliveryDate < currentMonthEnd) return true;
+        
+        // If delivery date is in current month, also counts
+        return deliveryDate >= currentMonthStart && deliveryDate <= currentMonthEnd;
+      }) || [];
+
+      const previsaoReceita = previsaoProjects.reduce(
+        (sum, p) => sum + (p.agreed_value || 0), 0
+      );
+
+      // Forecast costs from projects
+      const previsaoCustosProjeto = previsaoProjects.reduce(
+        (sum, p) => sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0
+      );
+
+      // Fetch pending team payments for forecast
+      const { data: pendingTeamPaymentsData } = await supabase
+        .from('project_team')
+        .select('payment_amount, projects!inner(workspace_id)')
+        .eq('projects.workspace_id', currentWorkspace.id)
+        .neq('payment_status', 'pago');
+
+      const teamPaymentsPending = pendingTeamPaymentsData?.reduce(
+        (sum, tp) => sum + (tp.payment_amount || 0), 0
+      ) || 0;
+
+      const previsaoCustos = previsaoCustosProjeto + teamPaymentsPending;
+      const previsaoLucro = previsaoReceita - previsaoCustos;
+      const previsaoMargemPercent = previsaoReceita > 0 
+        ? Math.round((previsaoLucro / previsaoReceita) * 100) 
+        : 0;
+      const projetosAtivos = previsaoProjects.length;
+
       setMetrics({
         captacao,
         edicao,
@@ -287,6 +342,11 @@ export function useDashboardMetrics() {
         lucroChange,
         entreguesChange,
         meusGanhos,
+        previsaoReceita,
+        previsaoCustos,
+        previsaoLucro,
+        previsaoMargemPercent,
+        projetosAtivos,
       });
 
       // Calculate PERFORMANCE METRICS (last 6 months)
@@ -499,6 +559,11 @@ export function useDashboardMetrics() {
         lucroChange: null,
         entreguesChange: null,
         meusGanhos: 0,
+        previsaoReceita: 0,
+        previsaoCustos: 0,
+        previsaoLucro: 0,
+        previsaoMargemPercent: 0,
+        projetosAtivos: 0,
       });
       setPerformanceMetrics({
         deliveryRate: 0,
