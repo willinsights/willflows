@@ -63,6 +63,10 @@ export interface MonthlyData {
   receita: number;
   custos: number;
   lucro: number;
+  // Forecast fields (only for current month)
+  receitaPrevisao?: number;
+  custosPrevisao?: number;
+  lucroPrevisao?: number;
 }
 
 export interface UpcomingEvent {
@@ -399,8 +403,9 @@ export function useDashboardMetrics() {
         const monthDate = subMonths(now, i);
         const monthStart = startOfMonth(monthDate);
         const monthEnd = endOfMonth(monthDate);
+        const isCurrentMonth = i === 0;
         
-        // Filter only DELIVERED projects in this month
+        // Filter only DELIVERED projects in this month (realized revenue)
         const monthProjects = projectsData?.filter(p => {
           if (!p.is_delivered || !p.delivered_at) return false;
           const deliveredAt = new Date(p.delivered_at);
@@ -411,11 +416,41 @@ export function useDashboardMetrics() {
         const monthCustos = monthProjects.reduce((sum, p) => 
           sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
         
+        // FORECAST: Only for current month - active projects with rollover logic
+        let receitaPrevisao: number | undefined;
+        let custosPrevisao: number | undefined;
+        let lucroPrevisao: number | undefined;
+        
+        if (isCurrentMonth) {
+          // Projects NOT delivered (rollover logic)
+          const activeProjects = projectsData?.filter(p => {
+            if (p.is_delivered) return false;
+            // No delivery date = counts for current month
+            if (!p.delivery_date) return true;
+            const deliveryDate = new Date(p.delivery_date);
+            // If delivery date passed and not delivered = ROLLOVER
+            return deliveryDate < monthEnd;
+          }) || [];
+          
+          receitaPrevisao = activeProjects.reduce(
+            (sum, p) => sum + (p.agreed_value || 0), 0
+          );
+          custosPrevisao = activeProjects.reduce(
+            (sum, p) => sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0
+          );
+          // Add pending team payments to forecast costs
+          custosPrevisao += teamPaymentsPending;
+          lucroPrevisao = receitaPrevisao - custosPrevisao;
+        }
+        
         monthlyStats.push({
           month: format(monthDate, 'MMM', { locale: pt }),
           receita: monthReceita,
           custos: monthCustos,
           lucro: monthReceita - monthCustos,
+          receitaPrevisao,
+          custosPrevisao,
+          lucroPrevisao,
         });
       }
       

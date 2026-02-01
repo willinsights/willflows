@@ -63,6 +63,15 @@ export function MobileFinancialSummary({
                 {formatCurrency(currentMonthData?.lucro || 0)}
               </p>
             </div>
+            {/* Show forecast if available */}
+            {currentMonthData?.receitaPrevisao !== undefined && currentMonthData.receitaPrevisao > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground">+ Previsão</p>
+                <p className={cn("text-sm font-medium text-info", hideValues && "blur-md select-none")}>
+                  {formatCurrency(currentMonthData.receitaPrevisao)}
+                </p>
+              </div>
+            )}
           </div>
           {revenueChange !== null && (
             <div className={cn(
