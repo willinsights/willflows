@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VideoComment } from '@/hooks/useVideoComments';
-import { formatDuration } from '@/lib/duration-utils';
+import { formatTimecode } from '@/lib/duration-utils';
 
 interface VideoPlayerProps {
   src?: string;
@@ -516,7 +516,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
             
             {/* Time display */}
             <span className="text-sm text-white tabular-nums">
-              {formatDuration(currentTime)} / {formatDuration(duration)}
+              {formatTimecode(currentTime)} / {formatTimecode(duration)}
             </span>
           </div>
 
