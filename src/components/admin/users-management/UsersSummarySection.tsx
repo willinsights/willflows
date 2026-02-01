@@ -173,10 +173,12 @@ export function UsersSummarySection() {
     setProcessingEmail(null);
   };
 
-  const exportToCSV = (type: string) => {
+  const handleExportExcel = async (type: string) => {
     if (!summary) return;
 
-    let data: any[] = [];
+    const { exportToExcel } = await import('@/lib/excel-export');
+
+    let data: (string | number)[][] = [];
     let filename = '';
     let headers: string[] = [];
     let title = '';
@@ -193,7 +195,7 @@ export function UsersSummarySection() {
           o.plan || 'Trial',
           format(new Date(o.createdAt), 'dd/MM/yyyy', { locale: pt })
         ]);
-        filename = 'donos-workspace.csv';
+        filename = 'donos-workspace';
         break;
       case 'collaborators':
         title = 'Colaboradores';
@@ -206,7 +208,7 @@ export function UsersSummarySection() {
           c.ownerEmail,
           format(new Date(c.joinedAt), 'dd/MM/yyyy', { locale: pt })
         ]);
-        filename = 'colaboradores.csv';
+        filename = 'colaboradores';
         break;
       case 'invites':
         title = 'Convites Pendentes';
@@ -219,7 +221,7 @@ export function UsersSummarySection() {
           format(new Date(i.createdAt), 'dd/MM/yyyy', { locale: pt }),
           i.isExpired ? 'Expirado' : 'Pendente'
         ]);
-        filename = 'convites-pendentes.csv';
+        filename = 'convites-pendentes';
         break;
       case 'waitlist':
         title = 'Waitlist Sem Conta';
@@ -232,32 +234,17 @@ export function UsersSummarySection() {
           format(new Date(w.createdAt), 'dd/MM/yyyy', { locale: pt }),
           w.wasInvited ? 'Sim' : 'Não'
         ]);
-        filename = 'waitlist-sem-conta.csv';
+        filename = 'waitlist-sem-conta';
         break;
     }
 
-    // BOM para UTF-8 (Excel PT compatibility)
-    let csvContent = '\ufeff';
-    
-    // Professional header
-    csvContent += `"${title}"\n`;
-    csvContent += `"WillFlow Admin Export"\n`;
-    csvContent += `"Exportado: ${format(new Date(), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}"\n`;
-    csvContent += `"Total: ${data.length} registos"\n\n`;
-    
-    // Headers with semicolon separator
-    csvContent += headers.map(h => `"${h}"`).join(';') + '\n';
-    
-    // Data rows with semicolon separator
-    data.forEach(row => {
-      csvContent += row.map((cell: any) => `"${cell}"`).join(';') + '\n';
+    await exportToExcel({
+      title,
+      subtitle: 'WillFlow Admin Export',
+      headers,
+      data,
+      filename,
     });
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    link.click();
   };
 
   if (isLoading) {
@@ -350,9 +337,9 @@ export function UsersSummarySection() {
               {/* Owners Table */}
               <TabsContent value="owners" className="mt-0">
                 <div className="flex justify-end mb-4">
-                  <Button variant="outline" size="sm" onClick={() => exportToCSV('owners')}>
+                  <Button variant="outline" size="sm" onClick={() => handleExportExcel('owners')}>
                     <Download className="h-4 w-4 mr-2" />
-                    Exportar CSV
+                    Exportar Excel
                   </Button>
                 </div>
                 <div className="rounded-md border">
@@ -407,9 +394,9 @@ export function UsersSummarySection() {
               {/* Collaborators Table */}
               <TabsContent value="collaborators" className="mt-0">
                 <div className="flex justify-end mb-4">
-                  <Button variant="outline" size="sm" onClick={() => exportToCSV('collaborators')}>
+                  <Button variant="outline" size="sm" onClick={() => handleExportExcel('collaborators')}>
                     <Download className="h-4 w-4 mr-2" />
-                    Exportar CSV
+                    Exportar Excel
                   </Button>
                 </div>
                 <div className="rounded-md border">
@@ -453,9 +440,9 @@ export function UsersSummarySection() {
               {/* Invites Table */}
               <TabsContent value="invites" className="mt-0">
                 <div className="flex justify-end mb-4">
-                  <Button variant="outline" size="sm" onClick={() => exportToCSV('invites')}>
+                  <Button variant="outline" size="sm" onClick={() => handleExportExcel('invites')}>
                     <Download className="h-4 w-4 mr-2" />
-                    Exportar CSV
+                    Exportar Excel
                   </Button>
                 </div>
                 <div className="rounded-md border">
