@@ -94,6 +94,7 @@ export function BetaInvitesSection() {
   const { toast } = useToast();
   const [invites, setInvites] = useState<BetaInviteToken[]>([]);
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
+  const [existingProfileEmails, setExistingProfileEmails] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
@@ -111,7 +112,7 @@ export function BetaInvitesSection() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [invitesResult, waitlistResult] = await Promise.all([
+      const [invitesResult, waitlistResult, profilesResult] = await Promise.all([
         supabase
           .from('beta_invite_tokens')
           .select('*')
@@ -119,11 +120,22 @@ export function BetaInvitesSection() {
         supabase
           .from('beta_waitlist')
           .select('*')
-          .order('created_at', { ascending: false })
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('profiles')
+          .select('email')
       ]);
 
       if (invitesResult.error) throw invitesResult.error;
       if (waitlistResult.error) throw waitlistResult.error;
+
+      // Criar set de emails que já têm conta criada
+      const emailSet = new Set(
+        (profilesResult.data || [])
+          .map(p => p.email?.toLowerCase())
+          .filter(Boolean) as string[]
+      );
+      setExistingProfileEmails(emailSet);
 
       setInvites(invitesResult.data || []);
       setWaitlist(waitlistResult.data || []);
@@ -372,9 +384,17 @@ export function BetaInvitesSection() {
     return { success, failed, errors };
   };
 
-  // Separar convites por estado
-  const pendingInvites = invites.filter(inv => !inv.used_at); // Não criaram conta
-  const registeredInvites = invites.filter(inv => inv.used_at); // Criaram conta
+  // Separar convites por estado (lógica inteligente: cruza com profiles)
+  // Pendentes: Convite NÃO usado E email NÃO tem conta em profiles
+  const pendingInvites = invites.filter(inv => 
+    !inv.used_at && 
+    (!inv.email || !existingProfileEmails.has(inv.email.toLowerCase()))
+  );
+  // Registados: Convite usado OU email já tem conta em profiles
+  const registeredInvites = invites.filter(inv => 
+    inv.used_at || 
+    (inv.email && existingProfileEmails.has(inv.email.toLowerCase()))
+  );
   const pendingWaitlist = waitlist.filter(w => !w.invited_at);
 
   return (
