@@ -50,8 +50,8 @@ import {
 } from 'lucide-react';
 import { formatTimecode } from '@/lib/duration-utils';
 import { cn } from '@/lib/utils';
-import logoWhite from '@/assets/logo-willflow-white.png';
-import logoBlack from '@/assets/logo-willflow-black.png';
+import logoIconCyan from '@/assets/logo-willflow-icon-cyan.png';
+import logoIconPurple from '@/assets/logo-willflow-icon-purple.png';
 
 interface VideoVersion {
   id: string;
@@ -599,8 +599,8 @@ export default function VideoApproval() {
         <div className="min-h-screen bg-background">
         <header className="border-b bg-card/50 backdrop-blur-sm">
           <div className="container py-4 flex items-center justify-between">
-            <img src={logoBlack} alt="WillFlow" className="h-8 dark:hidden" />
-            <img src={logoWhite} alt="WillFlow" className="h-8 hidden dark:block" />
+            <img src={logoIconPurple} alt="WillFlow" className="h-8 w-8 dark:hidden" />
+            <img src={logoIconCyan} alt="WillFlow" className="h-8 w-8 hidden dark:block" />
             <Badge variant="default" className="bg-green-500/10 text-green-600 border-green-500/20">
               <CheckCircle2 className="h-3 w-3 mr-1" />
               Aprovado
@@ -649,8 +649,8 @@ export default function VideoApproval() {
         <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
           <div className="container py-4 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <img src={logoBlack} alt="WillFlow" className="h-8 dark:hidden" />
-              <img src={logoWhite} alt="WillFlow" className="h-8 hidden dark:block" />
+              <img src={logoIconPurple} alt="WillFlow" className="h-8 w-8 dark:hidden" />
+              <img src={logoIconCyan} alt="WillFlow" className="h-8 w-8 hidden dark:block" />
               <Separator orientation="vertical" className="h-6" />
               <div>
                 <h1 className="font-semibold">Studio Review</h1>
