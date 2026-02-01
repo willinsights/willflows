@@ -52,6 +52,7 @@ import { formatTimecode } from '@/lib/duration-utils';
 import { cn } from '@/lib/utils';
 import logoIconCyan from '@/assets/logo-willflow-icon-cyan.png';
 import logoIconPurple from '@/assets/logo-willflow-icon-purple.png';
+import { ComparisonPlayer } from '@/components/video/ComparisonPlayer';
 
 interface VideoVersion {
   id: string;
@@ -808,190 +809,207 @@ export default function VideoApproval() {
 
             {/* Video Player - RIGHT (2 columns) */}
             <div className="order-1 lg:order-2 lg:col-span-2 space-y-4">
-              <Card className="overflow-hidden">
-                <div className="relative bg-black aspect-video">
-                  {videoUrl ? (
-                    <video
-                      ref={videoRef}
-                      className="w-full h-full"
-                      onTimeUpdate={handleTimeUpdate}
-                      onLoadedMetadata={handleLoadedMetadata}
-                      onPlay={() => setIsPlaying(true)}
-                      onPause={() => setIsPlaying(false)}
-                      onEnded={() => setIsPlaying(false)}
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Loader2 className="h-8 w-8 animate-spin text-white/50" />
-                    </div>
-                  )}
-
-                  {/* Controls overlay */}
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                    {/* Progress bar with comment markers */}
-                    <div className="relative mb-3">
-                      <div
-                        className="h-1.5 bg-white/30 rounded-full cursor-pointer relative"
-                        onClick={handleProgressClick}
-                      >
-                        <div
-                          className="h-full bg-primary rounded-full transition-all"
-                          style={{ width: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%' }}
+              {/* Comparison Mode */}
+              {isComparing ? (
+                <Card className="p-4">
+                  <ComparisonPlayer
+                    versions={data.versions}
+                    signedUrls={data.signed_urls}
+                    leftVersionId={selectedVersionId}
+                    rightVersionId={compareVersionId}
+                    onLeftVersionChange={setSelectedVersionId}
+                    onRightVersionChange={setCompareVersionId}
+                    onClose={() => setIsComparing(false)}
+                  />
+                </Card>
+              ) : (
+                <>
+                  <Card className="overflow-hidden">
+                    <div className="relative bg-black aspect-video">
+                      {videoUrl ? (
+                        <video
+                          ref={videoRef}
+                          className="w-full h-full"
+                          onTimeUpdate={handleTimeUpdate}
+                          onLoadedMetadata={handleLoadedMetadata}
+                          onPlay={() => setIsPlaying(true)}
+                          onPause={() => setIsPlaying(false)}
+                          onEnded={() => setIsPlaying(false)}
                         />
-                        
-                        {/* Comment markers on timeline */}
-                        {duration > 0 && Object.entries(commentMarkers).map(([timestamp, comments]) => {
-                          const position = (parseInt(timestamp) / duration) * 100;
-                          const hasOpen = comments.some(c => c.status === 'open');
-                          const count = comments.length;
-                          
-                          return (
-                            <Tooltip key={timestamp}>
-                              <TooltipTrigger asChild>
-                                <button
-                                  className={cn(
-                                    'absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full transition-all hover:scale-125 z-10',
-                                    count > 1 ? 'w-4 h-4' : 'w-3 h-3',
-                                    hasOpen ? 'bg-yellow-500' : 'bg-green-500'
-                                  )}
-                                  style={{ left: `${position}%` }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    seekTo(parseInt(timestamp));
-                                  }}
-                                >
-                                  {count > 1 && (
-                                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-black">
-                                      {count}
-                                    </span>
-                                  )}
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-xs">
-                                <div className="space-y-1">
-                                  <p className="font-mono text-xs text-muted-foreground">{formatTimecode(parseInt(timestamp))}</p>
-                                  {comments.slice(0, 2).map(c => (
-                                    <div key={c.id} className="flex items-start gap-1.5">
-                                      <span className={cn(
-                                        'w-1.5 h-1.5 rounded-full mt-1.5 shrink-0',
-                                        c.status === 'open' ? 'bg-yellow-500' : 'bg-green-500'
-                                      )} />
-                                      <p className="text-xs line-clamp-2">{c.body}</p>
-                                    </div>
-                                  ))}
-                                  {count > 2 && (
-                                    <p className="text-xs text-muted-foreground">+{count - 2} mais</p>
-                                  )}
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" className="text-white" onClick={togglePlay}>
-                          {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-                        </Button>
-                        <Button variant="ghost" size="icon" className="text-white" onClick={toggleMute}>
-                          {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-                        </Button>
-                        <span className="text-white text-sm font-mono">
-                          {formatTimecode(currentTime)} / {formatTimecode(duration)}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" className="text-white" onClick={toggleFullscreen}>
-                          <Maximize className="h-5 w-5" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Always visible comment input (Frame.io style) */}
-              <Card className="p-4">
-                <div className="flex items-start gap-3">
-                  {/* Timecode badge - shows when user starts typing */}
-                  {hasStartedTyping && (
-                    <div className="flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5 text-sm font-mono text-primary shrink-0">
-                      <Clock className="h-3.5 w-3.5" />
-                      {formatTimecode(commentTimestamp)}
-                    </div>
-                  )}
-
-                  <div className="flex-1 space-y-3">
-                    {/* Comment textarea */}
-                    <Textarea
-                      ref={commentInputRef}
-                      placeholder="Adicione um comentário..."
-                      value={commentText}
-                      onChange={handleCommentChange}
-                      className="min-h-[60px] resize-none"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                          handleSubmitComment();
-                        }
-                      }}
-                    />
-
-                    {/* Name input and submit button */}
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-col gap-1">
-                        <Label htmlFor="client-name-input" className="text-xs text-muted-foreground">
-                          O seu nome
-                        </Label>
-                        <Input
-                          id="client-name-input"
-                          placeholder="Ex: João Silva"
-                          value={clientName}
-                          onChange={(e) => setClientName(e.target.value)}
-                          className="h-9 w-[200px]"
-                        />
-                      </div>
-                      
-                      <div className="flex-1" />
-                      
-                      {clientName && (
-                        <p className="text-xs text-muted-foreground hidden sm:block">
-                          <kbd className="px-1 py-0.5 rounded bg-muted text-[10px]">⌘</kbd>
-                          <kbd className="px-1 py-0.5 rounded bg-muted text-[10px] ml-0.5">Enter</kbd>
-                        </p>
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Loader2 className="h-8 w-8 animate-spin text-white/50" />
+                        </div>
                       )}
-                      
-                      <Button
-                        size="sm"
-                        onClick={handleSubmitComment}
-                        disabled={!commentText.trim() || !clientName.trim() || submittingComment}
-                      >
-                        {submittingComment ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <>
-                            <Send className="h-4 w-4 mr-1" />
-                            Enviar
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </Card>
 
-              {/* Version info */}
-              {selectedVersion && (
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>
-                    Versão {selectedVersion.version_number} • {selectedVersion.file_name}
-                  </span>
-                  <span>
-                    Enviado {new Date(selectedVersion.created_at).toLocaleDateString('pt-PT')}
-                  </span>
-                </div>
+                      {/* Controls overlay */}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                        {/* Progress bar with comment markers */}
+                        <div className="relative mb-3">
+                          <div
+                            className="h-1.5 bg-white/30 rounded-full cursor-pointer relative"
+                            onClick={handleProgressClick}
+                          >
+                            <div
+                              className="h-full bg-primary rounded-full transition-all"
+                              style={{ width: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%' }}
+                            />
+                            
+                            {/* Comment markers on timeline */}
+                            {duration > 0 && Object.entries(commentMarkers).map(([timestamp, comments]) => {
+                              const position = (parseInt(timestamp) / duration) * 100;
+                              const hasOpen = comments.some(c => c.status === 'open');
+                              const count = comments.length;
+                              
+                              return (
+                                <Tooltip key={timestamp}>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      className={cn(
+                                        'absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full transition-all hover:scale-125 z-10',
+                                        count > 1 ? 'w-4 h-4' : 'w-3 h-3',
+                                        hasOpen ? 'bg-yellow-500' : 'bg-green-500'
+                                      )}
+                                      style={{ left: `${position}%` }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        seekTo(parseInt(timestamp));
+                                      }}
+                                    >
+                                      {count > 1 && (
+                                        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-black">
+                                          {count}
+                                        </span>
+                                      )}
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-xs">
+                                    <div className="space-y-1">
+                                      <p className="font-mono text-xs text-muted-foreground">{formatTimecode(parseInt(timestamp))}</p>
+                                      {comments.slice(0, 2).map(c => (
+                                        <div key={c.id} className="flex items-start gap-1.5">
+                                          <span className={cn(
+                                            'w-1.5 h-1.5 rounded-full mt-1.5 shrink-0',
+                                            c.status === 'open' ? 'bg-yellow-500' : 'bg-green-500'
+                                          )} />
+                                          <p className="text-xs line-clamp-2">{c.body}</p>
+                                        </div>
+                                      ))}
+                                      {count > 2 && (
+                                        <p className="text-xs text-muted-foreground">+{count - 2} mais</p>
+                                      )}
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="icon" className="text-white" onClick={togglePlay}>
+                              {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                            </Button>
+                            <Button variant="ghost" size="icon" className="text-white" onClick={toggleMute}>
+                              {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                            </Button>
+                            <span className="text-white text-sm font-mono">
+                              {formatTimecode(currentTime)} / {formatTimecode(duration)}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="icon" className="text-white" onClick={toggleFullscreen}>
+                              <Maximize className="h-5 w-5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Always visible comment input (Frame.io style) */}
+                  <Card className="p-4">
+                    <div className="flex items-start gap-3">
+                      {/* Timecode badge - shows when user starts typing */}
+                      {hasStartedTyping && (
+                        <div className="flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5 text-sm font-mono text-primary shrink-0">
+                          <Clock className="h-3.5 w-3.5" />
+                          {formatTimecode(commentTimestamp)}
+                        </div>
+                      )}
+
+                      <div className="flex-1 space-y-3">
+                        {/* Comment textarea */}
+                        <Textarea
+                          ref={commentInputRef}
+                          placeholder="Adicione um comentário..."
+                          value={commentText}
+                          onChange={handleCommentChange}
+                          className="min-h-[60px] resize-none"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                              handleSubmitComment();
+                            }
+                          }}
+                        />
+
+                        {/* Name input and submit button */}
+                        <div className="flex items-center gap-3">
+                          <div className="flex flex-col gap-1">
+                            <Label htmlFor="client-name-input" className="text-xs text-muted-foreground">
+                              O seu nome
+                            </Label>
+                            <Input
+                              id="client-name-input"
+                              placeholder="Ex: João Silva"
+                              value={clientName}
+                              onChange={(e) => setClientName(e.target.value)}
+                              className="h-9 w-[200px]"
+                            />
+                          </div>
+                          
+                          <div className="flex-1" />
+                          
+                          {clientName && (
+                            <p className="text-xs text-muted-foreground hidden sm:block">
+                              <kbd className="px-1 py-0.5 rounded bg-muted text-[10px]">⌘</kbd>
+                              <kbd className="px-1 py-0.5 rounded bg-muted text-[10px] ml-0.5">Enter</kbd>
+                            </p>
+                          )}
+                          
+                          <Button
+                            size="sm"
+                            onClick={handleSubmitComment}
+                            disabled={!commentText.trim() || !clientName.trim() || submittingComment}
+                          >
+                            {submittingComment ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Send className="h-4 w-4 mr-1" />
+                                Enviar
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Version info */}
+                  {selectedVersion && (
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span>
+                        Versão {selectedVersion.version_number} • {selectedVersion.file_name}
+                      </span>
+                      <span>
+                        Enviado {new Date(selectedVersion.created_at).toLocaleDateString('pt-PT')}
+                      </span>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Retention policy notice */}
