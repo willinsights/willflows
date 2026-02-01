@@ -101,32 +101,43 @@ export const STRIPE_PRICES = {
   },
 } as const;
 
-// Storage Addon Price IDs - LIVE PRODUCTION
-// Note: +25GB addon needs to be created in Stripe and price_id updated here
+// Storage Addon Price IDs - LIVE PRODUCTION (EUR + BRL)
 export const STORAGE_ADDON_PRICES = {
   '25gb': {
-    price_id: 'price_1SviwHGr2lXbVyw9V2L3pgY9',
+    price_id: {
+      eur: 'price_1SviwHGr2lXbVyw9V2L3pgY9',
+      brl: 'price_1Sw5TGGr2lXbVyw9u8hw1ul0',
+    },
     product_id: 'prod_TtVyg9RmLKqwRS',
     bytes: 25 * 1024 * 1024 * 1024,
     displayName: '+25 GB',
     price: { eur: 6, brl: 35 },
   },
   '50gb': {
-    price_id: 'price_1SuuVQGr2lXbVyw9OybAtJ9i',
+    price_id: {
+      eur: 'price_1SuuVQGr2lXbVyw9OybAtJ9i',
+      brl: 'price_1Sw5TIGr2lXbVyw94wWjWSOz',
+    },
     product_id: 'prod_TsfrcvSlClixZM',
     bytes: 50 * 1024 * 1024 * 1024,
     displayName: '+50 GB',
     price: { eur: 10, brl: 59 },
   },
   '100gb': {
-    price_id: 'price_1SuuVRGr2lXbVyw92Mnlgzj0',
+    price_id: {
+      eur: 'price_1SuuVRGr2lXbVyw92Mnlgzj0',
+      brl: 'price_1Sw5TJGr2lXbVyw9pG3eUgiu',
+    },
     product_id: 'prod_TsfrGDXzlIOhaM',
     bytes: 100 * 1024 * 1024 * 1024,
     displayName: '+100 GB',
     price: { eur: 18, brl: 99 },
   },
   '250gb': {
-    price_id: 'price_1SuuVSGr2lXbVyw9XhaYRv0T',
+    price_id: {
+      eur: 'price_1SuuVSGr2lXbVyw9XhaYRv0T',
+      brl: 'price_1Sw5TKGr2lXbVyw91lqsbx3Y',
+    },
     product_id: 'prod_TsfrRubX5bCWEh',
     bytes: 250 * 1024 * 1024 * 1024,
     displayName: '+250 GB',
@@ -138,6 +149,10 @@ export type StorageAddonTier = '25gb' | '50gb' | '100gb' | '250gb';
 
 export function getStorageAddonPrice(tier: StorageAddonTier, currency: Currency): number {
   return STORAGE_ADDON_PRICES[tier].price[currency];
+}
+
+export function getStorageAddonPriceId(tier: StorageAddonTier, currency: Currency): string {
+  return STORAGE_ADDON_PRICES[tier].price_id[currency];
 }
 
 export function getStorageAddonBytes(tier: StorageAddonTier): number {

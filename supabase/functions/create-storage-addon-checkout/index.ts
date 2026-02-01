@@ -7,32 +7,48 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Storage addon tiers with their Stripe price IDs and storage amounts
+// Storage addon tiers with their Stripe price IDs (EUR + BRL) and storage amounts
 const STORAGE_TIERS = {
+  '25gb': {
+    price_id: {
+      eur: 'price_1SviwHGr2lXbVyw9V2L3pgY9',
+      brl: 'price_1Sw5TGGr2lXbVyw9u8hw1ul0',
+    },
+    product_id: 'prod_TtVyg9RmLKqwRS',
+    bytes: 25 * 1024 * 1024 * 1024, // 25GB in bytes
+    display: '+25 GB',
+  },
   '50gb': {
-    price_id: 'price_1SuuVQGr2lXbVyw9OybAtJ9i',
+    price_id: {
+      eur: 'price_1SuuVQGr2lXbVyw9OybAtJ9i',
+      brl: 'price_1Sw5TIGr2lXbVyw94wWjWSOz',
+    },
     product_id: 'prod_TsfrcvSlClixZM',
     bytes: 50 * 1024 * 1024 * 1024, // 50GB in bytes
     display: '+50 GB',
-    price_eur: 9,
   },
   '100gb': {
-    price_id: 'price_1SuuVRGr2lXbVyw92Mnlgzj0',
+    price_id: {
+      eur: 'price_1SuuVRGr2lXbVyw92Mnlgzj0',
+      brl: 'price_1Sw5TJGr2lXbVyw9pG3eUgiu',
+    },
     product_id: 'prod_TsfrGDXzlIOhaM',
     bytes: 100 * 1024 * 1024 * 1024, // 100GB in bytes
     display: '+100 GB',
-    price_eur: 15,
   },
   '250gb': {
-    price_id: 'price_1SuuVSGr2lXbVyw9XhaYRv0T',
+    price_id: {
+      eur: 'price_1SuuVSGr2lXbVyw9XhaYRv0T',
+      brl: 'price_1Sw5TKGr2lXbVyw91lqsbx3Y',
+    },
     product_id: 'prod_TsfrRubX5bCWEh',
     bytes: 250 * 1024 * 1024 * 1024, // 250GB in bytes
     display: '+250 GB',
-    price_eur: 29,
   },
 } as const;
 
 type StorageTier = keyof typeof STORAGE_TIERS;
+type Currency = 'eur' | 'brl';
 
 const DEBUG = Deno.env.get("DEBUG") === "true";
 
@@ -67,18 +83,23 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const { tier, workspaceId } = await req.json();
+    const { tier, workspaceId, currency = 'eur' } = await req.json();
     
     if (!tier || !STORAGE_TIERS[tier as StorageTier]) {
-      throw new Error("Invalid storage tier. Valid options: 50gb, 100gb, 250gb");
+      throw new Error("Invalid storage tier. Valid options: 25gb, 50gb, 100gb, 250gb");
     }
     
     if (!workspaceId) {
       throw new Error("Workspace ID is required");
     }
 
+    // Validate currency
+    const validCurrency: Currency = currency === 'brl' ? 'brl' : 'eur';
+    
     const tierInfo = STORAGE_TIERS[tier as StorageTier];
-    logStep("Request parsed", { tier, workspaceId, priceId: tierInfo.price_id });
+    const priceId = tierInfo.price_id[validCurrency];
+    
+    logStep("Request parsed", { tier, workspaceId, currency: validCurrency, priceId });
 
     // Verify user has access to this workspace and it's on Studio plan
     const { data: workspace, error: wsError } = await supabaseClient
@@ -139,7 +160,7 @@ serve(async (req) => {
       
       line_items: [
         {
-          price: tierInfo.price_id,
+          price: priceId,
           quantity: 1,
         },
       ],
@@ -166,6 +187,7 @@ serve(async (req) => {
         workspace_id: workspaceId,
         storage_tier: tier,
         addon_type: 'storage',
+        currency: validCurrency,
       },
       subscription_data: {
         metadata: {
@@ -173,11 +195,12 @@ serve(async (req) => {
           workspace_id: workspaceId,
           storage_tier: tier,
           addon_type: 'storage',
+          currency: validCurrency,
         },
       },
     });
 
-    logStep("Checkout session created", { sessionId: session.id, url: session.url });
+    logStep("Checkout session created", { sessionId: session.id, url: session.url, currency: validCurrency });
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
