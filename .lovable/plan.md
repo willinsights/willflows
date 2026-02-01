@@ -1,221 +1,235 @@
 
-# Plano: Separar Utilizadores por Estado no Painel Admin
 
-## Contexto Actual
+# Plano: Corrigir Classificação de Utilizadores no Painel Admin
 
-A página `/admin/users` organiza a gestão de utilizadores em 4 abas:
-1. **Utilizadores** - Lista geral de todos os perfis
-2. **Workspaces** - Gestão de workspaces
-3. **Aquisição** - Convites beta e waitlist (aba `BetaInvitesSection`)
-4. **Limpeza** - Ferramentas de manutenção
+## Problemas Identificados
 
-O problema é que dentro de **Aquisição** (`BetaInvitesSection`), a separação entre "Convites Plataforma" e "Lista de Espera" não mostra claramente quem **recebeu convite mas ainda não criou conta** (pendentes verdadeiros).
+### 1. Dados Inconsistentes na Base de Dados
 
-### Dados Actuais
-- **14 convites** enviados que ainda não foram usados (pessoas que não criaram conta)
-- **0 entradas** na waitlist
-- **24 utilizadores** com workspace activo
+6 utilizadores criaram conta com sucesso mas o convite beta não foi marcado como usado:
+
+| Email | Nome | Workspaces | Conta Criada | Convite `used_at` |
+|-------|------|------------|--------------|-------------------|
+| info.savioleandro@gmail.com | Savio Macedo | 2 | ✅ 30/01 | ❌ null |
+| contato@silascoelho.com.br | Silas Coelho | 1 | ✅ 24/01 | ❌ null |
+| geral@impulso.pt | impulso | 1 | ✅ 24/01 | ❌ null |
+| contact@fernandobraz.com | Fernando Braz | 1 | ✅ 23/01 | ❌ null |
+| rafaela.impulso@gmail.com | Rafaela Nunes | 2 | ✅ 22/01 | ❌ null |
+| thyagovideo@gmail.com | Thyago Nascimento | 1 | ✅ 22/01 | ❌ null |
+
+### 2. Lógica de Filtragem Limitada
+
+O código actual filtra por `used_at`:
+```typescript
+const pendingInvites = invites.filter(inv => !inv.used_at);
+```
+
+Mas não verifica se o email já existe na tabela `profiles`.
+
+### 3. Erro de React Ref
+
+O `AlertDialog` dentro de uma `TableCell` gera warning porque não suporta refs correctamente.
 
 ---
 
-## Solução Proposta
+## Solução
 
-### 1. Renomear e Reorganizar a Aba de Aquisição
+### Parte 1: Correcção de Dados (Migração SQL)
 
-**Antes:**
+Actualizar os 6 convites para marcar como usados:
+
+```sql
+UPDATE beta_invite_tokens bit
+SET 
+  used_at = p.created_at,
+  used_by = p.id
+FROM profiles p
+WHERE LOWER(bit.email) = LOWER(p.email)
+  AND bit.used_at IS NULL;
 ```
-Convites Plataforma (14) | Lista de Espera (0)
-```
 
-**Depois:**
-```
-Pendentes (14) | Registados (0) | Waitlist (0)
-```
+### Parte 2: Lógica Inteligente no Frontend
 
-### 2. Nova Estrutura de Abas Internas
+Modificar `BetaInvitesSection.tsx` para cruzar dados com `profiles`:
 
-| Tab | Descrição | Dados |
-|-----|-----------|-------|
-| **Pendentes** | Pessoas que receberam convite mas não criaram conta | `beta_invite_tokens` onde `used_by IS NULL` |
-| **Registados** | Pessoas que usaram o convite e criaram conta | `beta_invite_tokens` onde `used_by IS NOT NULL` |
-| **Waitlist** | Lista de espera para convite | `beta_waitlist` (manter existente) |
-
----
-
-## Ficheiros a Modificar
-
-### Frontend (1 ficheiro)
-
-| Ficheiro | Alteração |
-|----------|-----------|
-| `src/components/admin/users-management/BetaInvitesSection.tsx` | Reorganizar tabs e adicionar funcionalidade de reenvio |
-
----
-
-## Secção Tecnica
-
-### Alteracoes em `BetaInvitesSection.tsx`
-
-**1. Renomear variaveis e separar estados (linhas 357-359):**
+**1. Buscar perfis existentes (adicionar query):**
 
 ```typescript
-// Antes
-const activeInvites = invites.filter(inv => !inv.used_at && (!inv.expires_at || new Date(inv.expires_at) > new Date()));
-const usedInvites = invites.filter(inv => inv.used_at);
-const pendingWaitlist = waitlist.filter(w => !w.invited_at);
+// Dentro de fetchData()
+const { data: profileEmails } = await supabase
+  .from('profiles')
+  .select('email');
 
-// Depois
-const pendingInvites = invites.filter(inv => !inv.used_at); // Todos que não criaram conta (inclui expirados)
-const registeredInvites = invites.filter(inv => inv.used_at); // Criaram conta
-const pendingWaitlist = waitlist.filter(w => !w.invited_at);
+const existingEmails = new Set(
+  (profileEmails || []).map(p => p.email?.toLowerCase())
+);
+
+setExistingProfileEmails(existingEmails);
 ```
 
-**2. Actualizar estatisticas (linhas 458-491):**
-
-Mudar cards de:
-- "Convites Ativos" para "Pendentes"
-- "Convites Usados" para "Registados"
-- Manter "Waitlist Pendente" e "Total Waitlist"
-
-**3. Actualizar Tabs (linhas 494-503):**
-
-```tsx
-<TabsList>
-  <TabsTrigger value="pending">
-    <Clock className="h-4 w-4 mr-2" />
-    Pendentes ({pendingInvites.length})
-  </TabsTrigger>
-  <TabsTrigger value="registered">
-    <UserCheck className="h-4 w-4 mr-2" />
-    Registados ({registeredInvites.length})
-  </TabsTrigger>
-  <TabsTrigger value="waitlist">
-    <Users className="h-4 w-4 mr-2" />
-    Waitlist ({waitlist.length})
-  </TabsTrigger>
-</TabsList>
-```
-
-**4. Tab "Pendentes" - Nova tabela com accoes:**
-
-```tsx
-<TabsContent value="pending">
-  <Card>
-    <CardHeader className="pb-2">
-      <div className="flex items-center justify-between">
-        <CardTitle className="text-base">Convites Pendentes</CardTitle>
-        {pendingInvites.length > 0 && (
-          <Button size="sm" onClick={resendAllPending} disabled={resendingAll}>
-            <Send className="h-4 w-4 mr-2" />
-            Reenviar Todos
-          </Button>
-        )}
-      </div>
-    </CardHeader>
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Email</TableHead>
-          <TableHead>Enviado em</TableHead>
-          <TableHead>Expira em</TableHead>
-          <TableHead>Estado</TableHead>
-          <TableHead>Accoes</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {pendingInvites.map((invite) => {
-          const isExpired = invite.expires_at && new Date(invite.expires_at) < new Date();
-          return (
-            <TableRow key={invite.id}>
-              <TableCell className="font-medium">{invite.email}</TableCell>
-              <TableCell>{format(new Date(invite.created_at), 'dd/MM/yy')}</TableCell>
-              <TableCell>{invite.expires_at ? format(new Date(invite.expires_at), 'dd/MM/yy') : '-'}</TableCell>
-              <TableCell>
-                <Badge variant={isExpired ? 'destructive' : 'outline'}>
-                  {isExpired ? 'Expirado' : 'Activo'}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={() => resendInviteEmail(invite)}
-                  disabled={sendingEmail === invite.id}
-                >
-                  {sendingEmail === invite.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4" />
-                  )}
-                </Button>
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
-  </Card>
-</TabsContent>
-```
-
-**5. Funcao para reenviar todos os pendentes:**
+**2. Filtrar correctamente:**
 
 ```typescript
-const resendAllPending = async () => {
-  setResendingAll(true);
-  let successCount = 0;
+// Pendentes: Convite NÃO usado E email NÃO tem conta
+const pendingInvites = invites.filter(inv => 
+  !inv.used_at && 
+  (!inv.email || !existingProfileEmails.has(inv.email.toLowerCase()))
+);
 
-  for (const invite of pendingInvites.filter(i => i.email)) {
-    try {
-      await resendInviteEmail(invite);
-      successCount++;
-    } catch (error) {
-      console.error(`Failed to resend to ${invite.email}:`, error);
-    }
-  }
+// Registados: Convite usado OU email já tem conta
+const registeredInvites = invites.filter(inv => 
+  inv.used_at || 
+  (inv.email && existingProfileEmails.has(inv.email.toLowerCase()))
+);
+```
 
-  setResendingAll(false);
-  toast({
-    title: 'Convites reenviados',
-    description: `${successCount} emails enviados.`,
-  });
+### Parte 3: Corrigir Warning React Ref
+
+O `AlertDialog` dentro de `map()` pode causar problemas de ref. Extrair para componente separado:
+
+```tsx
+// Novo componente: DeleteInviteButton
+const DeleteInviteButton = ({ inviteId, onDelete }: { inviteId: string; onDelete: (id: string) => void }) => {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        {/* ... */}
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 };
 ```
 
 ---
 
-## Resultado Visual
+## Ficheiros a Modificar
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│  Aquisicao de Novos Utilizadores                            │
-├─────────────────────────────────────────────────────────────┤
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       │
-│  │ 14       │ │ 0        │ │ 0        │ │ 0        │       │
-│  │ Pendentes│ │Registados│ │ Waitlist │ │ Total WL │       │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘       │
-├─────────────────────────────────────────────────────────────┤
-│  [Pendentes (14)]  [Registados (0)]  [Waitlist (0)]        │
-├─────────────────────────────────────────────────────────────┤
-│                                   [Reenviar Todos]          │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │ Email              │ Enviado │ Expira │Estado│ Accao │  │
-│  ├────────────────────┼─────────┼────────┼──────┼───────┤  │
-│  │ user@email.com     │ 22/01   │ 21/02  │Activo│  ↻    │  │
-│  │ outro@email.com    │ 21/01   │ 20/02  │Expirado│ ↻   │  │
-│  └──────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
+| Tipo | Ficheiro | Alteração |
+|------|----------|-----------|
+| **SQL** | Migração | Corrigir dados dos 6 utilizadores |
+| **Frontend** | `BetaInvitesSection.tsx` | Lógica de filtragem + corrigir ref |
+
+---
+
+## Secção Técnica Detalhada
+
+### Migração SQL
+
+```sql
+-- Corrigir convites beta que não foram marcados como usados
+UPDATE beta_invite_tokens bit
+SET 
+  used_at = p.created_at,
+  used_by = p.id
+FROM profiles p
+WHERE LOWER(bit.email) = LOWER(p.email)
+  AND bit.used_at IS NULL;
+```
+
+### Alterações em `BetaInvitesSection.tsx`
+
+**1. Novo state (linha ~95):**
+```typescript
+const [existingProfileEmails, setExistingProfileEmails] = useState<Set<string>>(new Set());
+```
+
+**2. Buscar emails existentes no fetchData (linha ~114):**
+```typescript
+const fetchData = async () => {
+  setLoading(true);
+  try {
+    const [invitesResult, waitlistResult, profilesResult] = await Promise.all([
+      supabase.from('beta_invite_tokens').select('*').order('created_at', { ascending: false }),
+      supabase.from('beta_waitlist').select('*').order('created_at', { ascending: false }),
+      supabase.from('profiles').select('email') // NOVO
+    ]);
+
+    // ... existing error handling ...
+
+    // NOVO: Criar set de emails existentes
+    const emailSet = new Set(
+      (profilesResult.data || [])
+        .map(p => p.email?.toLowerCase())
+        .filter(Boolean) as string[]
+    );
+    setExistingProfileEmails(emailSet);
+
+    setInvites(invitesResult.data || []);
+    setWaitlist(waitlistResult.data || []);
+  } catch (error: any) {
+    // ... existing error handling ...
+  } finally {
+    setLoading(false);
+  }
+};
+```
+
+**3. Filtros inteligentes (linhas 375-378):**
+```typescript
+// Pendentes: Não criaram conta (usado_at null E email não existe em profiles)
+const pendingInvites = invites.filter(inv => 
+  !inv.used_at && 
+  (!inv.email || !existingProfileEmails.has(inv.email.toLowerCase()))
+);
+
+// Registados: Criaram conta (used_at existe OU email existe em profiles)
+const registeredInvites = invites.filter(inv => 
+  inv.used_at || 
+  (inv.email && existingProfileEmails.has(inv.email.toLowerCase()))
+);
+```
+
+**4. Componente DeleteInviteButton (extrair para evitar ref warning):**
+```tsx
+// Antes do return principal, adicionar componente local:
+const DeleteInviteButton = ({ inviteId }: { inviteId: string }) => (
+  <AlertDialog>
+    <AlertDialogTrigger asChild>
+      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </AlertDialogTrigger>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>Eliminar convite?</AlertDialogTitle>
+        <AlertDialogDescription>
+          Esta ação não pode ser desfeita. O link de convite deixará de funcionar.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+        <AlertDialogAction onClick={() => deleteInvite(inviteId)}>
+          Eliminar
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+);
+```
+
+E substituir o AlertDialog inline por:
+```tsx
+<DeleteInviteButton inviteId={invite.id} />
 ```
 
 ---
 
-## Resumo
+## Resultado Esperado
 
-| Alteracao | Descricao |
-|-----------|-----------|
-| Renomear "Convites Plataforma" | Para "Pendentes" |
-| Separar "Usados" | Nova tab "Registados" |
-| Manter Waitlist | Sem alteracao |
-| Adicionar "Reenviar Todos" | Botao para reenviar convites em massa |
-| Mostrar estado | Badge "Activo" ou "Expirado" por convite |
-| Accao individual | Botao reenviar por linha |
+**Antes:**
+```
+Pendentes (14)  ← Inclui utilizadores que JÁ criaram conta
+Registados (0)  ← Vazio porque used_at está null
+```
+
+**Depois:**
+```
+Pendentes (8)   ← Apenas quem realmente não criou conta
+Registados (6)  ← Utilizadores com conta criada (detectados por email)
+```
+
