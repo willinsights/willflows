@@ -1,54 +1,53 @@
 
 
-# Plano: Reduzir Logo no Sidebar Expandido em 30%
+# Plano: Corrigir Formato de Timecode no Player de Produção
 
-## Situação Actual
+## Problema
 
-O logo no sidebar expandido usa a classe `h-10` (40px de altura).
+O player na aba "Produção" do modal de tarefa usa `formatDuration()` que mostra segundos simples (ex: `7.516504s / 49s`), em vez do formato profissional SMPTE `HH:MM:SS:FF` (ex: `00:00:07:51`) que é usado no portal de aprovação.
 
-| Componente | Classe Actual | Tamanho |
-|------------|---------------|---------|
-| Logo expandido | `h-10` | 40px |
-| Logo colapsado | `h-8` | 32px |
+| Componente | Formato Actual | Formato Esperado |
+|------------|----------------|------------------|
+| Modal Produção | `7.516504s / 49s` | `00:00:07:51 / 00:00:49:00` |
+| Portal Cliente | `00:00:07:51` ✓ | - |
 
-## Alteração
+## Causa
 
-Reduzir o logo expandido em ~30%:
-- **Actual:** `h-10` = 40px
-- **30% menos:** 40px × 0.7 = 28px ≈ `h-7`
-
-### `src/components/layout/AppSidebar.tsx`
-
-**Antes (linha 184):**
+**Linha 519 de `src/components/video-production/VideoPlayer.tsx`:**
 ```tsx
-collapsed && !isMobile ? 'h-8' : 'h-10'
+{formatDuration(currentTime)} / {formatDuration(duration)}
 ```
 
-**Depois:**
+Está a importar `formatDuration` (linha 18) em vez de `formatTimecode`.
+
+## Solução
+
+### Ficheiro: `src/components/video-production/VideoPlayer.tsx`
+
+**1. Alterar import (linha 18):**
 ```tsx
-collapsed && !isMobile ? 'h-8' : 'h-7'
+// Antes
+import { formatDuration } from '@/lib/duration-utils';
+
+// Depois
+import { formatTimecode } from '@/lib/duration-utils';
 ```
 
----
+**2. Alterar exibição do tempo (linha 519):**
+```tsx
+// Antes
+{formatDuration(currentTime)} / {formatDuration(duration)}
 
-## Visual Comparativo
-
-```
-ANTES (h-10 = 40px):          DEPOIS (h-7 = 28px):
-┌───────────────────────┐     ┌───────────────────────┐
-│ [══ WILLFLOW ══]  ☰  │     │ [═ WILLFLOW ═]    ☰  │
-│                       │     │                       │
-│ VISÃO GERAL           │     │ VISÃO GERAL           │
-│ 🏠 Dashboard          │     │ 🏠 Dashboard          │
-└───────────────────────┘     └───────────────────────┘
-         ↓ 30% menor
+// Depois
+{formatTimecode(currentTime)} / {formatTimecode(duration)}
 ```
 
----
+## Resultado Visual
 
-## Ficheiro a Modificar
+```text
+ANTES:                    DEPOIS:
+7.516504s / 49s    →     00:00:07:51 / 00:00:49:00
+```
 
-| Ficheiro | Alteração |
-|----------|-----------|
-| `src/components/layout/AppSidebar.tsx` | Linha 184: alterar `h-10` para `h-7` |
+Isto mantém consistência com o formato SMPTE profissional usado em todo o sistema de vídeo, conforme a memória `tech/video/timecode-padrao-smpte`.
 
