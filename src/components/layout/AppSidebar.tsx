@@ -181,7 +181,7 @@ export function AppSidebar({ collapsed, onToggle, isMobile, autoCollapseOnNav = 
             iconOnly={collapsed && !isMobile}
             className={cn(
               'cursor-pointer',
-              collapsed && !isMobile ? 'h-8' : 'h-10'
+              collapsed && !isMobile ? 'h-8' : 'h-7'
             )} 
           />
         </button>
