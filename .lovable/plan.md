@@ -1,26 +1,48 @@
 
-# Plano: Corrigir Headers CORS na Edge Function send-beta-invite
 
-## Problema Identificado
+# Plano: Configurar VAT Português no Stripe
 
-A Edge Function `send-beta-invite` tem headers CORS incompletos, o que faz com que o browser bloqueie as requests quando o botão "Reenviar" é clicado.
+## Situação Actual
 
-**Headers actuais (linha 8-9):**
-```javascript
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+### ✅ Já Implementado no Código
+
+A Edge Function `create-checkout` já tem configuração completa de VAT para subscrições:
+
+```typescript
+automatic_tax: { enabled: true },
+billing_address_collection: 'required',
+tax_id_collection: { enabled: true },
 ```
 
-O cliente Supabase envia automaticamente headers adicionais (`x-supabase-client-platform`, etc.) que não estão na lista permitida, causando um erro de CORS silencioso.
+### ❌ Falta Implementar
+
+1. **Edge Function `create-storage-addon-checkout`** - Não tem configuração de VAT
+2. **Configuração no Stripe Dashboard** - Registar Portugal como localização fiscal
 
 ---
 
-## Solução
+## Passos a Executar
 
-Actualizar os headers CORS para incluir todos os headers necessários, seguindo o padrão das outras Edge Functions do projecto.
+### Parte 1: Configuração no Stripe Dashboard
+
+Isto requer acção manual no Dashboard Stripe:
+
+| Passo | Acção | Link |
+|-------|-------|------|
+| 1 | Ir a **Tax Settings** | [dashboard.stripe.com/settings/tax](https://dashboard.stripe.com/settings/tax) |
+| 2 | Clicar em **"Get started"** ou **"Add a registration"** | |
+| 3 | Seleccionar **Portugal** como país | |
+| 4 | Inserir o **NIF português** da empresa | |
+| 5 | Confirmar a taxa de **23% VAT** (padrão PT) | |
+
+**Nota**: O Stripe aplicará automaticamente:
+- 23% VAT para clientes PT
+- Taxas VAT correctas para outros países EU
+- Reverse charge para B2B com VAT ID válido
+
+### Parte 2: Actualizar Edge Function
+
+Adicionar configuração de VAT ao `create-storage-addon-checkout`:
 
 ---
 
@@ -28,38 +50,97 @@ Actualizar os headers CORS para incluir todos os headers necessários, seguindo 
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `supabase/functions/send-beta-invite/index.ts` | Corrigir `corsHeaders` (linhas 6-10) |
+| `supabase/functions/create-storage-addon-checkout/index.ts` | Adicionar `automatic_tax`, `billing_address_collection`, `tax_id_collection` |
 
 ---
 
 ## Secção Técnica
 
-### Alteração em `send-beta-invite/index.ts`
+### Alterações em `create-storage-addon-checkout/index.ts`
 
-**Antes (linhas 6-10):**
+**Linhas 130-156 - Adicionar configurações de VAT ao checkout session:**
+
 ```typescript
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+// Create checkout session for the storage addon
+const session = await stripe.checkout.sessions.create({
+  customer: customerId || undefined,
+  customer_email: customerId ? undefined : user.email,
+  
+  // Allow updating customer address for existing customers
+  customer_update: customerId ? {
+    address: 'auto',
+    name: 'auto',
+  } : undefined,
+  
+  line_items: [
+    {
+      price: tierInfo.price_id,
+      quantity: 1,
+    },
+  ],
+  mode: "subscription",
+  allow_promotion_codes: true,
+  
+  // EU VAT Compliance: Enable automatic tax calculation
+  automatic_tax: {
+    enabled: true,
+  },
+  
+  // EU VAT Compliance: Require billing address for tax determination
+  billing_address_collection: 'required',
+  
+  // EU VAT Compliance: Allow B2B customers to enter VAT ID
+  tax_id_collection: {
+    enabled: true,
+  },
+  
+  success_url: `${requestOrigin}/app/planos?storage=success&tier=${tier}`,
+  cancel_url: `${requestOrigin}/app/planos?storage=cancelled`,
+  metadata: {
+    user_id: user.id,
+    workspace_id: workspaceId,
+    storage_tier: tier,
+    addon_type: 'storage',
+  },
+  subscription_data: {
+    metadata: {
+      user_id: user.id,
+      workspace_id: workspaceId,
+      storage_tier: tier,
+      addon_type: 'storage',
+    },
+  },
+});
 ```
 
-**Depois:**
-```typescript
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
-```
+---
+
+## Taxas VAT Aplicáveis (Automático via Stripe Tax)
+
+| País | Taxa |
+|------|------|
+| Portugal | 23% |
+| Espanha | 21% |
+| França | 20% |
+| Alemanha | 19% |
+| Brasil | 0% (fora EU) |
+| B2B com VAT ID | 0% (reverse charge) |
 
 ---
 
 ## Resumo
 
-| Item | Detalhe |
-|------|---------|
-| **Causa** | Headers CORS incompletos bloqueiam requests do cliente Supabase |
-| **Solução** | Adicionar headers `x-supabase-client-*` à lista permitida |
-| **Impacto** | Reenvio de convites funcionará correctamente |
+| Tarefa | Tipo | Responsável |
+|--------|------|-------------|
+| Registar Portugal no Stripe Tax | Dashboard | Utilizador |
+| Actualizar `create-storage-addon-checkout` | Código | Lovable |
+| `create-checkout` | ✅ Já feito | - |
+
+---
+
+## Próximos Passos Após Aprovação
+
+1. Actualizo a Edge Function `create-storage-addon-checkout`
+2. Forneço link directo para configurar no Stripe Dashboard
+3. Testo a integração
+
