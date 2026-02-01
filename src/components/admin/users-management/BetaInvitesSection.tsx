@@ -97,6 +97,7 @@ export function BetaInvitesSection() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
+  const [resendingAll, setResendingAll] = useState(false);
   const [approvingAll, setApprovingAll] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [newInviteEmail, setNewInviteEmail] = useState('');
@@ -229,6 +230,29 @@ export function BetaInvitesSection() {
     }
   };
 
+  const resendAllPending = async () => {
+    const pendingWithEmail = pendingInvites.filter(i => i.email);
+    if (pendingWithEmail.length === 0) return;
+
+    setResendingAll(true);
+    let successCount = 0;
+
+    for (const invite of pendingWithEmail) {
+      try {
+        await sendBetaInviteEmail(invite.email!, invite.token);
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to resend to ${invite.email}:`, error);
+      }
+    }
+
+    setResendingAll(false);
+    toast({
+      title: 'Convites reenviados',
+      description: `${successCount} de ${pendingWithEmail.length} emails enviados.`,
+    });
+  };
+
   const deleteInvite = async (id: string) => {
     try {
       const { error } = await supabase.from('beta_invite_tokens').delete().eq('id', id);
@@ -315,12 +339,6 @@ export function BetaInvitesSection() {
     toast({ title: 'Link copiado!' });
   };
 
-  const getInviteStatus = (invite: BetaInviteToken) => {
-    if (invite.used_at) return { label: 'Usado', variant: 'default' as const, icon: UserCheck };
-    if (invite.expires_at && new Date(invite.expires_at) < new Date()) return { label: 'Expirado', variant: 'secondary' as const, icon: Clock };
-    return { label: 'Ativo', variant: 'outline' as const, icon: Send };
-  };
-
   const handleBulkImport = async (emails: string[], freeDays: number): Promise<{ success: number; failed: number; errors: string[] }> => {
     let success = 0;
     const errors: string[] = [];
@@ -354,8 +372,9 @@ export function BetaInvitesSection() {
     return { success, failed, errors };
   };
 
-  const activeInvites = invites.filter(inv => !inv.used_at && (!inv.expires_at || new Date(inv.expires_at) > new Date()));
-  const usedInvites = invites.filter(inv => inv.used_at);
+  // Separar convites por estado
+  const pendingInvites = invites.filter(inv => !inv.used_at); // Não criaram conta
+  const registeredInvites = invites.filter(inv => inv.used_at); // Criaram conta
   const pendingWaitlist = waitlist.filter(w => !w.invited_at);
 
   return (
@@ -458,18 +477,18 @@ export function BetaInvitesSection() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Convites Ativos</CardDescription>
+              <CardDescription>Pendentes</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-primary">{activeInvites.length}</p>
+              <p className="text-2xl font-bold text-amber-600">{pendingInvites.length}</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Convites Usados</CardDescription>
+              <CardDescription>Registados</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-green-600">{usedInvites.length}</p>
+              <p className="text-2xl font-bold text-green-600">{registeredInvites.length}</p>
             </CardContent>
           </Card>
           <Card>
@@ -477,7 +496,7 @@ export function BetaInvitesSection() {
               <CardDescription>Waitlist Pendente</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-amber-600">{pendingWaitlist.length}</p>
+              <p className="text-2xl font-bold text-muted-foreground">{pendingWaitlist.length}</p>
             </CardContent>
           </Card>
           <Card>
@@ -491,57 +510,80 @@ export function BetaInvitesSection() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="invites" className="w-full">
+        <Tabs defaultValue="pending" className="w-full">
           <TabsList>
-            <TabsTrigger value="invites">
-              <LinkIcon className="h-4 w-4 mr-2" />
-              Convites Plataforma ({invites.length})
+            <TabsTrigger value="pending">
+              <Clock className="h-4 w-4 mr-2" />
+              Pendentes ({pendingInvites.length})
+            </TabsTrigger>
+            <TabsTrigger value="registered">
+              <UserCheck className="h-4 w-4 mr-2" />
+              Registados ({registeredInvites.length})
             </TabsTrigger>
             <TabsTrigger value="waitlist">
               <Users className="h-4 w-4 mr-2" />
-              Lista de Espera ({waitlist.length})
+              Waitlist ({waitlist.length})
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="invites" className="mt-4">
+          {/* Tab: Pendentes */}
+          <TabsContent value="pending" className="mt-4">
             <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Convites Pendentes</CardTitle>
+                  {pendingInvites.filter(i => i.email).length > 0 && (
+                    <Button size="sm" onClick={resendAllPending} disabled={resendingAll}>
+                      {resendingAll ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4 mr-2" />
+                      )}
+                      Reenviar Todos
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Email</TableHead>
                     <TableHead className="hidden md:table-cell">Notas</TableHead>
+                    <TableHead>Enviado em</TableHead>
+                    <TableHead className="hidden sm:table-cell">Expira em</TableHead>
                     <TableHead>Estado</TableHead>
-                    <TableHead className="hidden sm:table-cell">Criado</TableHead>
                     <TableHead>Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8">A carregar...</TableCell>
+                      <TableCell colSpan={6} className="text-center py-8">A carregar...</TableCell>
                     </TableRow>
-                  ) : invites.length === 0 ? (
+                  ) : pendingInvites.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                        Nenhum convite criado
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        Nenhum convite pendente
                       </TableCell>
                     </TableRow>
-                  ) : invites.map((invite) => {
-                    const status = getInviteStatus(invite);
+                  ) : pendingInvites.map((invite) => {
+                    const isExpired = invite.expires_at && new Date(invite.expires_at) < new Date();
                     return (
                       <TableRow key={invite.id}>
                         <TableCell className="font-medium">{invite.email || '—'}</TableCell>
                         <TableCell className="hidden md:table-cell text-muted-foreground text-sm truncate max-w-[200px]">
                           {invite.notes || '—'}
                         </TableCell>
-                        <TableCell>
-                          <Badge variant={status.variant}>
-                            <status.icon className="h-3 w-3 mr-1" />
-                            {status.label}
-                          </Badge>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {invite.created_at ? format(new Date(invite.created_at), 'dd/MM/yy', { locale: pt }) : '—'}
                         </TableCell>
                         <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
-                          {invite.created_at ? format(new Date(invite.created_at), 'dd/MM/yy', { locale: pt }) : '—'}
+                          {invite.expires_at ? format(new Date(invite.expires_at), 'dd/MM/yy', { locale: pt }) : '—'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={isExpired ? 'destructive' : 'outline'}>
+                            {isExpired ? 'Expirado' : 'Activo'}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
@@ -553,7 +595,7 @@ export function BetaInvitesSection() {
                               </TooltipTrigger>
                               <TooltipContent>Copiar link</TooltipContent>
                             </Tooltip>
-                            {invite.email && !invite.used_at && (
+                            {invite.email && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button
@@ -566,36 +608,34 @@ export function BetaInvitesSection() {
                                     {sendingEmail === invite.id ? (
                                       <Loader2 className="h-4 w-4 animate-spin" />
                                     ) : (
-                                      <Mail className="h-4 w-4" />
+                                      <RefreshCw className="h-4 w-4" />
                                     )}
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Reenviar email</TooltipContent>
                               </Tooltip>
                             )}
-                            {!invite.used_at && (
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Eliminar convite?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Esta ação não pode ser desfeita. O link de convite deixará de funcionar.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => deleteInvite(invite.id)}>
-                                      Eliminar
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            )}
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Eliminar convite?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Esta ação não pode ser desfeita. O link de convite deixará de funcionar.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => deleteInvite(invite.id)}>
+                                    Eliminar
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -606,6 +646,52 @@ export function BetaInvitesSection() {
             </Card>
           </TabsContent>
 
+          {/* Tab: Registados */}
+          <TabsContent value="registered" className="mt-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Utilizadores Registados</CardTitle>
+              </CardHeader>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Email</TableHead>
+                    <TableHead className="hidden md:table-cell">Notas</TableHead>
+                    <TableHead>Registou em</TableHead>
+                    <TableHead className="hidden sm:table-cell">Convite Criado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8">A carregar...</TableCell>
+                    </TableRow>
+                  ) : registeredInvites.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                        Nenhum utilizador registado via convite
+                      </TableCell>
+                    </TableRow>
+                  ) : registeredInvites.map((invite) => (
+                    <TableRow key={invite.id}>
+                      <TableCell className="font-medium">{invite.email || '—'}</TableCell>
+                      <TableCell className="hidden md:table-cell text-muted-foreground text-sm truncate max-w-[200px]">
+                        {invite.notes || '—'}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {invite.used_at ? format(new Date(invite.used_at), 'dd/MM/yy HH:mm', { locale: pt }) : '—'}
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
+                        {invite.created_at ? format(new Date(invite.created_at), 'dd/MM/yy', { locale: pt }) : '—'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+          </TabsContent>
+
+          {/* Tab: Waitlist */}
           <TabsContent value="waitlist" className="mt-4">
             <Card>
               <CardHeader className="pb-2">
