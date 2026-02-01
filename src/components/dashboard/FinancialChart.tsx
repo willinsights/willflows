@@ -123,6 +123,15 @@ export function FinancialChart({
                           <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/>
                           <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
                         </linearGradient>
+                        {/* Forecast gradients - lighter opacity */}
+                        <linearGradient id="colorReceitaPrevisao" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.15}/>
+                          <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="colorLucroPrevisao" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2}/>
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                        </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
                       <XAxis 
@@ -146,7 +155,10 @@ export function FinancialChart({
                           boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                           fontSize: '12px',
                         }}
-                        formatter={(value: number) => [formatCurrency(value), '']}
+                        formatter={(value: number, name: string) => [
+                          formatCurrency(value), 
+                          name.includes('Prev.') ? `${name} (previsto)` : name
+                        ]}
                         labelStyle={{ fontWeight: 600, marginBottom: 4 }}
                       />
                       <Legend 
@@ -154,6 +166,7 @@ export function FinancialChart({
                         iconType="circle"
                         iconSize={8}
                       />
+                      {/* Realized data - solid lines */}
                       <Area
                         type="monotone"
                         dataKey="receita"
@@ -180,6 +193,29 @@ export function FinancialChart({
                         strokeWidth={2.5}
                         fillOpacity={1}
                         fill="url(#colorLucro)"
+                      />
+                      {/* Forecast data - dashed lines (current month only) */}
+                      <Area
+                        type="monotone"
+                        dataKey="receitaPrevisao"
+                        name="Prev. Receita"
+                        stroke="hsl(var(--success))"
+                        strokeWidth={1.5}
+                        strokeDasharray="4 4"
+                        fillOpacity={1}
+                        fill="url(#colorReceitaPrevisao)"
+                        connectNulls={false}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="lucroPrevisao"
+                        name="Prev. Lucro"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={1.5}
+                        strokeDasharray="4 4"
+                        fillOpacity={1}
+                        fill="url(#colorLucroPrevisao)"
+                        connectNulls={false}
                       />
                     </AreaChart>
                   </ResponsiveContainer>
