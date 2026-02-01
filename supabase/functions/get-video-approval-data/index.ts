@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
 
     let approvalsQuery = supabase
       .from('video_approvals')
-      .select('*')
+      .select('*, video_version:video_versions(version_number)')
       .order('approved_at', { ascending: false })
       .limit(1);
 
@@ -203,7 +203,7 @@ Deno.serve(async (req) => {
         approved_at: approval.approved_at,
         client_name: approval.client_name,
         notes: approval.notes,
-        version_number: null, // Could join if needed
+        version_number: (approval.video_version as any)?.version_number || null,
       } : null,
       client_name: tokenData.client_name,
       workspace_id: tokenData.workspace_id,
