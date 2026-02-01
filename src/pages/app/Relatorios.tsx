@@ -433,70 +433,57 @@ export default function Relatorios() {
   }, [projects, clients, teamPaymentsData]);
 
   // Export functions
-  const handleExportExcel = () => {
-    // BOM para UTF-8 (Excel PT compatibility)
-    let csvContent = '\ufeff';
+  const handleExportExcel = async () => {
+    const { exportMultiSectionToExcel } = await import('@/lib/excel-export');
     
-    // Professional header
-    csvContent += `"Relatório Financeiro"\n`;
-    csvContent += `"${currentWorkspace?.name || 'WillFlow'}"\n`;
-    csvContent += `"Período: ${format(dateRange.start, "d MMM yyyy", { locale: pt })} - ${format(dateRange.end, "d MMM yyyy", { locale: pt })}"\n`;
-    csvContent += `"Exportado: ${format(new Date(), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}"\n\n`;
-    
-    // Monthly data section
-    csvContent += `"EVOLUÇÃO MENSAL"\n`;
-    const headers = ['Mês', 'Receita', 'Custos', 'Lucro', 'Margem (%)', 'Projetos'];
-    csvContent += headers.map(h => `"${h}"`).join(';') + '\n';
-    
-    monthlyData.forEach(m => {
-      csvContent += [
-        `"${m.fullMonth}"`,
-        `"${formatCurrency(m.receita)}"`,
-        `"${formatCurrency(m.custos)}"`,
-        `"${formatCurrency(m.lucro)}"`,
-        `"${m.margin.toFixed(1)}%"`,
-        `"${m.projetos}"`
-      ].join(';') + '\n';
-    });
-
     const totalReceita = monthlyData.reduce((sum, m) => sum + m.receita, 0);
     const totalCustos = monthlyData.reduce((sum, m) => sum + m.custos, 0);
     const totalLucro = monthlyData.reduce((sum, m) => sum + m.lucro, 0);
     const avgMargin = totalReceita > 0 ? ((totalLucro / totalReceita) * 100) : 0;
     const totalProjetos = monthlyData.reduce((sum, m) => sum + m.projetos, 0);
     
-    csvContent += [
-      `"TOTAL"`,
-      `"${formatCurrency(totalReceita)}"`,
-      `"${formatCurrency(totalCustos)}"`,
-      `"${formatCurrency(totalLucro)}"`,
-      `"${avgMargin.toFixed(1)}%"`,
-      `"${totalProjetos}"`
-    ].join(';') + '\n';
-    
-    // Top Clients section
-    csvContent += `\n"TOP 10 CLIENTES POR RECEITA"\n`;
-    csvContent += `"#";"Cliente";"Receita";"Projetos"\n`;
-    topClients.forEach((client, i) => {
-      csvContent += `"${i + 1}";"${client.name}";"${formatCurrency(client.revenue)}";"${client.projects}"\n`;
+    await exportMultiSectionToExcel({
+      title: 'Relatório Financeiro',
+      subtitle: `${currentWorkspace?.name || 'WillFlow'} • Período: ${format(dateRange.start, "d MMM yyyy", { locale: pt })} - ${format(dateRange.end, "d MMM yyyy", { locale: pt })}`,
+      sections: [
+        {
+          title: 'EVOLUÇÃO MENSAL',
+          headers: ['Mês', 'Receita', 'Custos', 'Lucro', 'Margem (%)', 'Projetos'],
+          data: [
+            ...monthlyData.map(m => [
+              m.fullMonth,
+              formatCurrency(m.receita),
+              formatCurrency(m.custos),
+              formatCurrency(m.lucro),
+              `${m.margin.toFixed(1)}%`,
+              m.projetos,
+            ]),
+            ['TOTAL', formatCurrency(totalReceita), formatCurrency(totalCustos), formatCurrency(totalLucro), `${avgMargin.toFixed(1)}%`, totalProjetos],
+          ],
+        },
+        {
+          title: 'TOP 10 CLIENTES POR RECEITA',
+          headers: ['#', 'Cliente', 'Receita', 'Projetos'],
+          data: topClients.map((client, i) => [
+            i + 1,
+            client.name,
+            formatCurrency(client.revenue),
+            client.projects,
+          ]),
+        },
+        {
+          title: 'TOP 10 COLABORADORES',
+          headers: ['#', 'Colaborador', 'Total Ganho', 'Projetos Finalizados'],
+          data: collaboratorsData.map((collab, i) => [
+            i + 1,
+            collab.name,
+            formatCurrency(collab.totalValue),
+            collab.projectCount,
+          ]),
+        },
+      ],
+      filename: `relatorio-financeiro-${format(new Date(), 'yyyy-MM-dd')}.xlsx`,
     });
-    
-    // Top Collaborators section
-    csvContent += `\n"TOP 10 COLABORADORES"\n`;
-    csvContent += `"#";"Colaborador";"Total Ganho";"Projetos Finalizados"\n`;
-    collaboratorsData.forEach((collab, i) => {
-      csvContent += `"${i + 1}";"${collab.name}";"${formatCurrency(collab.totalValue)}";"${collab.projectCount}"\n`;
-    });
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `relatorio-financeiro-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
   };
 
   const handleExportPDF = () => {
