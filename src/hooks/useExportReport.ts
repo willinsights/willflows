@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export type ReportType = 'financial' | 'projects' | 'clients' | 'payments';
-export type ExportFormat = 'csv' | 'json';
+export type ExportFormat = 'excel' | 'pdf';
 
 interface ExportJob {
   id: string;
