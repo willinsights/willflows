@@ -212,6 +212,12 @@ export default function Pagamentos() {
       .reduce((sum, p) => sum + (p.custos_extras || 0), 0);
     
     const totalPayable = payable + teamTotal + custosExtras;
+
+    // Lucro Previsto calculation
+    const lucroPrevisto = pendingReceivable - totalPayable;
+    const margemPercent = pendingReceivable > 0 
+      ? Math.round((lucroPrevisto / pendingReceivable) * 100)
+      : 0;
     
     return { 
       totalReceivable,
@@ -224,7 +230,9 @@ export default function Pagamentos() {
       teamEdicao,
       custosExtras,
       totalPayable,
-      net: pendingReceivable - totalPayable 
+      net: pendingReceivable - totalPayable,
+      lucroPrevisto,
+      margemPercent,
     };
   }, [monthProjectRevenue, monthPayments, typedTeamPayments, projectCosts]);
 
@@ -591,19 +599,36 @@ export default function Pagamentos() {
           </div>
           
           {/* Net Balance Card */}
-          <Card className="glass-card border-primary/20">
-            <CardContent className="py-4 px-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Saldo Líquido Previsto</p>
-                  <p className="text-xs text-muted-foreground/70">Por Receber - Total a Pagar</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="glass-card border-primary/20">
+              <CardContent className="py-4 px-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Saldo Líquido Previsto</p>
+                    <p className="text-xs text-muted-foreground/70">Por Receber - Total a Pagar</p>
+                  </div>
+                  <p className={cn('text-3xl font-bold', monthlyForecast.net >= 0 ? 'text-success' : 'text-destructive')}>
+                    {monthlyForecast.net >= 0 ? '+' : ''}{formatCurrency(monthlyForecast.net)}
+                  </p>
                 </div>
-                <p className={cn('text-3xl font-bold', monthlyForecast.net >= 0 ? 'text-success' : 'text-destructive')}>
-                  {monthlyForecast.net >= 0 ? '+' : ''}{formatCurrency(monthlyForecast.net)}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            {/* Lucro Previsto Card */}
+            <Card className="glass-card border-primary/30 bg-primary/5">
+              <CardContent className="py-4 px-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Lucro Previsto</p>
+                    <p className="text-xs text-muted-foreground/70">Margem: {monthlyForecast.margemPercent}%</p>
+                  </div>
+                  <p className={cn('text-3xl font-bold', monthlyForecast.lucroPrevisto >= 0 ? 'text-primary' : 'text-destructive')}>
+                    {monthlyForecast.lucroPrevisto >= 0 ? '+' : ''}{formatCurrency(monthlyForecast.lucroPrevisto)}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Empty State for Month */}
           {monthPayments.length === 0 && monthProjectRevenue.length === 0 && (
