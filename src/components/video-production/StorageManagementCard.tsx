@@ -49,7 +49,7 @@ export function StorageManagementCard({ className }: StorageManagementCardProps)
 
       const { data, error } = await supabase.functions.invoke('create-storage-addon-checkout', {
         headers: { Authorization: `Bearer ${session.access_token}` },
-        body: { tier, workspaceId: currentWorkspace?.id },
+        body: { tier, workspaceId: currentWorkspace?.id, currency },
       });
 
       if (error) throw error;
