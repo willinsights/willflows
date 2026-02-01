@@ -18,9 +18,11 @@ import {
   ShieldAlert,
   Loader2,
   Shield,
+  Timer,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { TrialsManagementTab } from './TrialsManagementTab';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -70,6 +72,10 @@ export function BillingTab() {
             <AlertTriangle className="h-4 w-4" />
             Dunning
           </TabsTrigger>
+          <TabsTrigger value="trials" className="gap-2">
+            <Timer className="h-4 w-4" />
+            Trials
+          </TabsTrigger>
           <TabsTrigger value="webhooks" className="gap-2">
             <Webhook className="h-4 w-4" />
             Webhooks
@@ -88,6 +94,9 @@ export function BillingTab() {
         </TabsContent>
         <TabsContent value="dunning">
           <DunningSubTab />
+        </TabsContent>
+        <TabsContent value="trials">
+          <TrialsManagementTab />
         </TabsContent>
         <TabsContent value="webhooks">
           <WebhooksSubTab />
