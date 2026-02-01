@@ -89,6 +89,7 @@ interface ApprovalData {
     approved_at: string;
     client_name: string | null;
     notes: string | null;
+    version_number: number | null;
   } | null;
   client_name: string | null;
   workspace_id: string;
@@ -615,9 +616,11 @@ export default function VideoApproval() {
               <p className="text-muted-foreground mb-6">
                 Este vídeo foi aprovado por <strong>{data.approval.client_name}</strong>
               </p>
-              <div className="bg-muted/50 rounded-lg p-4 text-sm">
+              <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-1">
                 <p><strong>Projeto:</strong> {data.task.project_name}</p>
-                <p><strong>Tarefa:</strong> {data.task.title}</p>
+                {data.approval.version_number && (
+                  <p><strong>Versão:</strong> V{data.approval.version_number}</p>
+                )}
                 <p><strong>Aprovado em:</strong> {new Date(data.approval.approved_at).toLocaleString('pt-PT')}</p>
                 {data.approval.notes && (
                   <p className="mt-2"><strong>Notas:</strong> {data.approval.notes}</p>
