@@ -130,6 +130,13 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       customer: customerId || undefined,
       customer_email: customerId ? undefined : user.email,
+      
+      // Allow updating customer address for existing customers
+      customer_update: customerId ? {
+        address: 'auto',
+        name: 'auto',
+      } : undefined,
+      
       line_items: [
         {
           price: tierInfo.price_id,
@@ -137,6 +144,21 @@ serve(async (req) => {
         },
       ],
       mode: "subscription",
+      allow_promotion_codes: true,
+      
+      // EU VAT Compliance: Enable automatic tax calculation
+      automatic_tax: {
+        enabled: true,
+      },
+      
+      // EU VAT Compliance: Require billing address for tax determination
+      billing_address_collection: 'required',
+      
+      // EU VAT Compliance: Allow B2B customers to enter VAT ID
+      tax_id_collection: {
+        enabled: true,
+      },
+      
       success_url: `${requestOrigin}/app/planos?storage=success&tier=${tier}`,
       cancel_url: `${requestOrigin}/app/planos?storage=cancelled`,
       metadata: {
