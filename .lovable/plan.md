@@ -1,199 +1,115 @@
 
-# Plano: Gráfico de Evolução Financeira com Previsão
+# Plano: Corrigir Ecrã de Aprovação de Vídeo
 
-## Objectivo
+## Problemas Identificados
 
-Actualizar o gráfico de Evolução Financeira para incluir a **previsão do mês actual** baseada em projectos não finalizados, aplicando a mesma lógica de rollover implementada nos KPIs.
+Da imagem fornecida:
+
+1. **"Tarefa: Checklist Checklist Edição"** - O texto "Checklist" está duplicado e não deveria aparecer como nome da tarefa
+2. **Versão aprovada não é mencionada** - O cliente devia ver qual versão foi aprovada (ex: "V2")
 
 ---
 
-## Estado Actual
+## Análise Técnica
 
-O gráfico mostra apenas **receita realizada** (projectos com `is_delivered = true`):
+### Problema 1: Título da Tarefa
 
-```text
-Jan  Fev  Mar  Abr  Mai  Jun
- │    │    │    │    │    │
- ▼    ▼    ▼    ▼    ▼    ▼
-€5k  €8k  €6k  €10k €7k  €3k  ← Apenas entregues
+O título "Checklist Checklist Edição" vem de dados históricos onde a tarefa foi criada com duplicação. 
+
+**Causa raiz** (linha 236 de `ProjectChecklistTab.tsx`):
+```typescript
+title: `Checklist ${phaseLabel}`,  // phaseLabel já contém texto
 ```
 
-## Novo Comportamento
+Se `phaseLabel` era "Checklist Edição" (versão antiga), resultava em "Checklist Checklist Edição".
 
-O mês actual inclui também a **previsão** (projectos activos não entregues):
+**Solução na UI**: Remover o prefixo "Checklist " se já existir no título, ou não mostrar o campo "Tarefa" quando é uma tarefa automática de checklist.
 
-```text
-Jan  Fev  Mar  Abr  Mai  Jun (actual)
- │    │    │    │    │    │
- ▼    ▼    ▼    ▼    ▼    ▼
-€5k  €8k  €6k  €10k €7k  €3k realizado + €12k previsão
-                          │
-                          └─ Barra/área adicional mostrando previsão
-```
+### Problema 2: Versão Aprovada
+
+A tabela `video_approvals` já tem o campo `video_version_id`, mas:
+- A Edge Function não faz JOIN para obter o `version_number`
+- O frontend não recebe/mostra essa informação
 
 ---
 
 ## Alterações
 
-### 1. `src/hooks/useDashboardMetrics.ts`
+### 1. Edge Function `get-video-approval-data/index.ts`
 
-Actualizar a interface `MonthlyData` e o cálculo:
-
-```typescript
-export interface MonthlyData {
-  month: string;
-  receita: number;      // Receita realizada (entregue)
-  custos: number;       // Custos realizados
-  lucro: number;        // Lucro realizado
-  // NOVOS campos para previsão
-  receitaPrevisao?: number;  // Receita prevista (não entregues)
-  custosPrevisao?: number;   // Custos previstos
-  lucroPrevisao?: number;    // Lucro previsto
-}
-```
-
-**Lógica para mês actual:**
+Adicionar JOIN para obter o número da versão aprovada:
 
 ```typescript
-// No loop de cálculo mensal (linhas 398-420)
-for (let i = 5; i >= 0; i--) {
-  const monthDate = subMonths(now, i);
-  const monthStart = startOfMonth(monthDate);
-  const monthEnd = endOfMonth(monthDate);
-  const isCurrentMonth = i === 0;
-  
-  // Projectos ENTREGUES no mês (realizado)
-  const deliveredProjects = projectsData?.filter(p => {
-    if (!p.is_delivered || !p.delivered_at) return false;
-    const deliveredAt = new Date(p.delivered_at);
-    return deliveredAt >= monthStart && deliveredAt <= monthEnd;
-  }) || [];
-  
-  const monthReceita = deliveredProjects.reduce(...);
-  const monthCustos = deliveredProjects.reduce(...);
-  
-  // PREVISÃO: Apenas para mês actual
-  let receitaPrevisao = 0;
-  let custosPrevisao = 0;
-  
-  if (isCurrentMonth) {
-    // Projectos NÃO entregues (rollover automático)
-    const activeProjects = projectsData?.filter(p => {
-      if (p.is_delivered) return false;
-      if (!p.delivery_date) return true;
-      const deliveryDate = new Date(p.delivery_date);
-      return deliveryDate < monthEnd; // Rollover
-    }) || [];
-    
-    receitaPrevisao = activeProjects.reduce(
-      (sum, p) => sum + (p.agreed_value || 0), 0
-    );
-    custosPrevisao = activeProjects.reduce(
-      (sum, p) => sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0
-    );
-  }
-  
-  monthlyStats.push({
-    month: format(monthDate, 'MMM', { locale: pt }),
-    receita: monthReceita,
-    custos: monthCustos,
-    lucro: monthReceita - monthCustos,
-    receitaPrevisao: isCurrentMonth ? receitaPrevisao : undefined,
-    custosPrevisao: isCurrentMonth ? custosPrevisao : undefined,
-    lucroPrevisao: isCurrentMonth ? (receitaPrevisao - custosPrevisao) : undefined,
-  });
-}
+// Linha ~167: Ao buscar approval, incluir versão
+const { data: approvals } = await supabase
+  .from('video_approvals')
+  .select('*, video_version:video_versions(version_number)')
+  .eq('task_id', tokenData.task_id)  // ou project_id
+  .order('approved_at', { ascending: false })
+  .limit(1);
+
+// Linha ~202: Incluir version_number na resposta
+approval: approval ? {
+  approved_at: approval.approved_at,
+  client_name: approval.client_name,
+  notes: approval.notes,
+  version_number: approval.video_version?.version_number || null,
+} : null,
 ```
 
-### 2. `src/components/dashboard/FinancialChart.tsx`
+### 2. Frontend `VideoApproval.tsx`
 
-Adicionar áreas tracejadas para previsão no mês actual:
-
+**Interface** (linha ~88):
 ```typescript
-// Novos gradientes para previsão
-<linearGradient id="colorReceitaPrevisao" x1="0" y1="0" x2="0" y2="1">
-  <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.15}/>
-  <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0}/>
-</linearGradient>
-
-// Nova área para previsão de receita (tracejada)
-<Area
-  type="monotone"
-  dataKey="receitaPrevisao"
-  name="Prev. Receita"
-  stroke="hsl(var(--success))"
-  strokeWidth={1.5}
-  strokeDasharray="4 4"  // Linha tracejada
-  fillOpacity={1}
-  fill="url(#colorReceitaPrevisao)"
-/>
+approval: {
+  approved_at: string;
+  client_name: string | null;
+  notes: string | null;
+  version_number: number | null;  // NOVO
+} | null;
 ```
 
-**Alternativa visual (stacked):**
+**Ecrã de aprovação** (linhas ~618-621):
 
-Em vez de áreas separadas, empilhar realizado + previsão:
-
-```text
-┌─────────────────────────────────────────────────┐
-│                                    ░░░░░░░░░░░  │ ← Previsão (padrão tracejado)
-│                              ████████████████   │ ← Realizado (sólido)
-│         ▄▄▄▄▄▄▄▄▄▄▄▄        █████████████████   │
-│    ▄▄▄▄████████████████▄▄▄▄██████████████████   │
-│ ▄▄█████████████████████████████████████████████ │
-├─────────────────────────────────────────────────┤
-│ Jan  Fev  Mar  Abr  Mai  Jun                    │
-└─────────────────────────────────────────────────┘
+Antes:
+```tsx
+<p><strong>Projeto:</strong> {data.task.project_name}</p>
+<p><strong>Tarefa:</strong> {data.task.title}</p>
 ```
 
-### 3. `src/components/mobile/MobileFinancialSummary.tsx`
-
-Actualizar para mostrar também previsão no último mês:
-
-```typescript
-// Mostrar previsão no preview colapsado
-const currentMonthData = monthlyData[monthlyData.length - 1];
-
-// Se tiver previsão, mostrar
-{currentMonthData?.receitaPrevisao && (
-  <div>
-    <p className="text-xs text-muted-foreground">+ Previsão</p>
-    <p className="text-sm font-medium text-info">
-      {formatCurrency(currentMonthData.receitaPrevisao)}
-    </p>
-  </div>
+Depois:
+```tsx
+<p><strong>Projeto:</strong> {data.task.project_name}</p>
+{/* Mostrar versão aprovada */}
+{data.approval.version_number && (
+  <p><strong>Versão:</strong> V{data.approval.version_number}</p>
 )}
+<p><strong>Aprovado em:</strong> {new Date(data.approval.approved_at).toLocaleString('pt-PT')}</p>
 ```
+
+**Remover linha "Tarefa"**: O campo tarefa não é relevante para o cliente (é interno).
 
 ---
 
 ## Visual Final
 
-### Gráfico Desktop
-
 ```text
-┌───────────────────────────────────────────────────────────────┐
-│  📊 Evolução Financeira                    [6 Meses] [Anual]  │
-├───────────────────────────────────────────────────────────────┤
-│                                                               │
-│  €30k ┤                                                       │
-│       │                                    ░░░░░░░░░░░░░░░    │
-│  €20k ┤         ████                       ████████████████   │
-│       │    ████ ████ ████             ████ ████████████████   │
-│  €10k ┤████████ ████ ████ ████   ████ ████ ████████████████   │
-│       │████████ ████ ████ ████   ████ ████ ████████████████   │
-│    €0 ┼────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴──   │
-│       Jan  Fev  Mar  Abr  Mai  Jun  Jul  Ago  Set  Out  Nov   │
-│                                                      │        │
-│  ● Receita  ● Custos  ● Lucro  ○ Previsão ─ ─ ─     └──────── │
-│                                                      Mês      │
-│                                                      Actual   │
-└───────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│              ✓ (verde)                      │
+│                                             │
+│         Vídeo Aprovado!                     │
+│                                             │
+│   Este vídeo foi aprovado por will          │
+│                                             │
+│   ┌─────────────────────────────────────┐   │
+│   │ Projeto: Chocopalha visita e prova  │   │
+│   │          de vinho                   │   │
+│   │ Versão: V2                          │   │ ← NOVO
+│   │ Aprovado em: 01/02/2026, 15:43:03   │   │
+│   └─────────────────────────────────────┘   │
+│                                             │
+└─────────────────────────────────────────────┘
 ```
-
-### Legenda
-
-- **Cores sólidas:** Valores realizados (projectos entregues)
-- **Padrão tracejado (░):** Previsão do mês actual (projectos activos)
 
 ---
 
@@ -201,61 +117,51 @@ const currentMonthData = monthlyData[monthlyData.length - 1];
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `src/hooks/useDashboardMetrics.ts` | Interface MonthlyData + cálculo previsão mensal |
-| `src/components/dashboard/FinancialChart.tsx` | Áreas tracejadas para previsão |
-| `src/components/mobile/MobileFinancialSummary.tsx` | Mostrar previsão no resumo |
+| `supabase/functions/get-video-approval-data/index.ts` | JOIN com video_versions para obter version_number |
+| `src/pages/public/VideoApproval.tsx` | Interface + UI sem "Tarefa" + mostrar versão |
 
 ---
 
 ## Secção Técnica
 
-### Interface Actualizada
+### Edge Function - Query Actualizada
 
 ```typescript
-export interface MonthlyData {
-  month: string;
-  receita: number;
-  custos: number;
-  lucro: number;
-  // Previsão (apenas mês actual)
-  receitaPrevisao?: number;
-  custosPrevisao?: number;
-  lucroPrevisao?: number;
-}
+// Substituir query de approvals (linhas 101-105)
+let approvalsQuery = supabase
+  .from('video_approvals')
+  .select('*, video_version:video_versions(version_number)')
+  .order('approved_at', { ascending: false })
+  .limit(1);
 ```
 
-### Tooltip Personalizado
-
-Para distinguir realizado de previsto no tooltip:
+### Resposta da API
 
 ```typescript
-const CustomTooltip = ({ active, payload, label }) => {
-  if (!active || !payload) return null;
-  
-  return (
-    <div className="bg-card border rounded-lg p-2 shadow-lg">
-      <p className="font-semibold mb-1">{label}</p>
-      {payload.map(entry => (
-        <p key={entry.name} style={{ color: entry.color }}>
-          {entry.name}: {formatCurrency(entry.value)}
-          {entry.name.includes('Prev') && ' (previsto)'}
-        </p>
-      ))}
-    </div>
-  );
-};
+approval: approval ? {
+  approved_at: approval.approved_at,
+  client_name: approval.client_name,
+  notes: approval.notes,
+  version_number: (approval.video_version as any)?.version_number || null,
+} : null,
 ```
 
-### Dados Combinados para Visualização
+### Frontend - Ecrã Limpo
 
-Para mostrar realizado + previsão empilhados:
-
-```typescript
-// Dados transformados para stacked chart
-const chartData = monthlyData.map(d => ({
-  ...d,
-  // Total = realizado + previsão (para altura da barra)
-  receitaTotal: d.receita + (d.receitaPrevisao || 0),
-  lucroTotal: d.lucro + (d.lucroPrevisao || 0),
-}));
+```tsx
+<div className="bg-muted/50 rounded-lg p-4 text-sm space-y-1">
+  <p><strong>Projeto:</strong> {data.task.project_name}</p>
+  {data.approval.version_number && (
+    <p><strong>Versão:</strong> V{data.approval.version_number}</p>
+  )}
+  <p><strong>Aprovado em:</strong> {new Date(data.approval.approved_at).toLocaleString('pt-PT')}</p>
+  {data.approval.notes && (
+    <p className="mt-2"><strong>Notas:</strong> {data.approval.notes}</p>
+  )}
+</div>
 ```
+
+A linha "Tarefa" é removida pois:
+- É informação interna (não relevante para cliente)
+- Os dados históricos têm títulos confusos ("Checklist Checklist...")
+- O nome do projecto é suficiente para identificação
