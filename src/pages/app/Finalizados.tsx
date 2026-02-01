@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Calendar as CalendarIcon, Download, FileText, Camera, Film, Video, Eye, X, Users, Lock } from 'lucide-react';
+import { Search, Filter, Calendar as CalendarIcon, FileSpreadsheet, FileText, Camera, Film, Video, Eye, X, Users, Lock } from 'lucide-react';
 import { format, isWithinInterval, parseISO } from 'date-fns';
 import { usePagination } from '@/hooks/usePagination';
 import { ListPagination } from '@/components/ui/list-pagination';
@@ -222,39 +222,22 @@ export default function Finalizados() {
       return member?.full_name || member?.email || '';
     }).filter(Boolean).join(', ') || '-';
   };
-  const exportToCSV = () => {
+  const exportToExcel = async () => {
     if (completedProjects.length === 0) return;
+
+    const { exportToExcel: doExport } = await import('@/lib/excel-export');
     
     // Build headers based on permissions
     const headers = canViewAllFinancials 
       ? ['Código', 'Projeto', 'Cliente', 'Tipo', 'Data de Entrega', 'Captação', 'Edição', 'Preço Cliente', 'Custos', 'Lucro']
       : ['Código', 'Projeto', 'Cliente', 'Tipo', 'Data de Entrega', 'Captação', 'Edição'];
     
-    // BOM para UTF-8 (Excel PT compatibility)
-    let csvContent = '\ufeff';
-    
-    // Professional header
-    csvContent += `"Projetos Finalizados"\n`;
-    csvContent += `"${currentWorkspace?.name || 'WillFlow'}"\n`;
-    csvContent += `"Exportado: ${format(new Date(), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}"\n`;
-    csvContent += `"Total: ${completedProjects.length} projetos"\n\n`;
-    
-    // Headers with semicolon
-    csvContent += headers.map(h => `"${h}"`).join(';') + '\n';
-    
-    // Data rows
-    let totalRevenue = 0;
-    let totalCosts = 0;
-    
-    completedProjects.forEach(project => {
+    const data = completedProjects.map(project => {
       const team = projectTeams[project.id] || { captacao: [], edicao: [] };
       const custo = (project.custo_captacao || 0) + (project.custo_edicao || 0) + (project.custos_extras || 0);
       const lucro = (project.agreed_value || 0) - custo;
       
-      totalRevenue += (project.agreed_value || 0);
-      totalCosts += custo;
-      
-      const cells = [
+      const row: (string | number)[] = [
         project.project_code || project.id.slice(0, 8).toUpperCase(),
         project.name,
         project.clients?.name || 'Sem cliente',
@@ -265,33 +248,21 @@ export default function Finalizados() {
       ];
       
       if (canViewAllFinancials) {
-        cells.push(formatCurrency(project.agreed_value || 0));
-        cells.push(formatCurrency(custo));
-        cells.push(formatCurrency(lucro));
+        row.push(formatCurrency(project.agreed_value || 0));
+        row.push(formatCurrency(custo));
+        row.push(formatCurrency(lucro));
       }
       
-      csvContent += cells.map(c => `"${c}"`).join(';') + '\n';
+      return row;
     });
-    
-    // Totals section
-    csvContent += '\n';
-    if (canViewAllFinancials) {
-      csvContent += `"RESUMO"\n`;
-      csvContent += `"Total Projetos";"${completedProjects.length}"\n`;
-      csvContent += `"Receita Total";"${formatCurrency(totalRevenue)}"\n`;
-      csvContent += `"Custos Total";"${formatCurrency(totalCosts)}"\n`;
-      csvContent += `"Lucro Total";"${formatCurrency(totalRevenue - totalCosts)}"\n`;
-    } else {
-      csvContent += `"Total Projetos";"${completedProjects.length}"\n`;
-    }
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `projetos-finalizados-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+
+    await doExport({
+      title: 'Projetos Finalizados',
+      subtitle: currentWorkspace?.name || 'WillFlow',
+      headers,
+      data,
+      filename: `projetos-finalizados-${format(new Date(), 'yyyy-MM-dd')}`,
+    });
   };
 
   const exportToPDF = () => {
@@ -432,9 +403,9 @@ export default function Finalizados() {
           <p className="text-muted-foreground">Histórico completo de projetos concluídos</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2" onClick={exportToCSV} disabled={completedProjects.length === 0}>
-            <Download className="h-4 w-4" />
-            CSV
+          <Button variant="outline" size="sm" className="gap-2" onClick={exportToExcel} disabled={completedProjects.length === 0}>
+            <FileSpreadsheet className="h-4 w-4" />
+            Excel
           </Button>
           {canExportPdf ? <Button variant="outline" size="sm" className="gap-2" onClick={exportToPDF} disabled={completedProjects.length === 0}>
               <FileText className="h-4 w-4" />

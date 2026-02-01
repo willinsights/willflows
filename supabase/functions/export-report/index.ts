@@ -13,7 +13,7 @@ const corsHeaders = {
 interface ExportRequest {
   workspace_id: string;
   report_type: 'financial' | 'projects' | 'clients' | 'payments';
-  format: 'csv' | 'json';
+  format: 'excel' | 'pdf';
   filters?: {
     start_date?: string;
     end_date?: string;
@@ -346,14 +346,13 @@ async function processExport(
     let content: string;
     let contentType: string;
 
-    if (format === 'csv') {
-      content = convertToCSV(data);
-      contentType = 'text/csv';
-      fileName += '.csv';
+    if (format === 'excel') {
+      content = convertToExcelCSV(data);
+      contentType = 'text/csv;charset=utf-8';
+      fileName += '.csv'; // Excel-compatible CSV with UTF-8 BOM
     } else {
-      content = JSON.stringify(data, null, 2);
-      contentType = 'application/json';
-      fileName += '.json';
+      // PDF generation would require additional library
+      throw new Error('PDF export not yet implemented in background jobs');
     }
 
     // Upload to storage
@@ -453,25 +452,24 @@ async function processExport(
   }
 }
 
-function convertToCSV(data: any[]): string {
+function convertToExcelCSV(data: any[]): string {
   if (data.length === 0) return '';
-
+  
+  // BOM for UTF-8 Excel compatibility (Portuguese characters)
+  const BOM = '\ufeff';
   const headers = Object.keys(data[0]);
+  
   const csvRows = [
-    headers.join(','),
+    headers.map(h => `"${h}"`).join(';'),
     ...data.map(row => 
       headers.map(header => {
         const value = row[header];
-        if (value === null || value === undefined) return '';
-        const stringValue = String(value);
-        // Escape quotes and wrap in quotes if contains comma or quote
-        if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
-          return `"${stringValue.replace(/"/g, '""')}"`;
-        }
-        return stringValue;
-      }).join(',')
+        if (value === null || value === undefined) return '""';
+        const stringValue = String(value).replace(/"/g, '""');
+        return `"${stringValue}"`;
+      }).join(';')
     )
   ];
 
-  return csvRows.join('\n');
+  return BOM + csvRows.join('\n');
 }
