@@ -180,11 +180,11 @@ export function useDashboardMetrics() {
         const deliveredAt = new Date(p.delivered_at);
         return deliveredAt >= previousMonthStart && deliveredAt <= previousMonthEnd;
       }).length || 0;
-
-      // Calculate financial metrics for CURRENT MONTH only
+      // Calculate financial metrics for CURRENT MONTH (DELIVERED projects only)
       const currentMonthProjects = projectsData?.filter(p => {
-        const createdAt = new Date(p.created_at);
-        return createdAt >= currentMonthStart && createdAt <= currentMonthEnd;
+        if (!p.is_delivered || !p.delivered_at) return false;
+        const deliveredAt = new Date(p.delivered_at);
+        return deliveredAt >= currentMonthStart && deliveredAt <= currentMonthEnd;
       }) || [];
       
       const receita = currentMonthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
@@ -192,10 +192,11 @@ export function useDashboardMetrics() {
         sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
       const lucro = receita - custos;
       
-      // Calculate financial metrics for PREVIOUS MONTH
+      // Calculate financial metrics for PREVIOUS MONTH (DELIVERED projects only)
       const previousMonthProjects = projectsData?.filter(p => {
-        const createdAt = new Date(p.created_at);
-        return createdAt >= previousMonthStart && createdAt <= previousMonthEnd;
+        if (!p.is_delivered || !p.delivered_at) return false;
+        const deliveredAt = new Date(p.delivered_at);
+        return deliveredAt >= previousMonthStart && deliveredAt <= previousMonthEnd;
       }) || [];
       
       const receitaPrevious = previousMonthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
