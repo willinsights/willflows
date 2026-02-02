@@ -7,7 +7,9 @@ import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import ExcelJS from 'exceljs';
+import { exportToExcel } from '@/lib/excel-export';
+import { generatePdfHtml, printPdf, type PdfStatItem, type PdfTableRow } from '@/lib/pdf-export';
+
 export interface ExportData {
   id?: string;
   projeto: string;
@@ -115,7 +117,6 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
   const canExportExcel = canUseFeature('exportExcel');
   const canExportPdf = canUseFeature('exportPdf');
 
-  const currentDateTime = format(new Date(), "dd MMM yyyy 'às' HH:mm", { locale: pt });
   const currentDateFile = format(new Date(), 'yyyy-MM-dd', { locale: pt });
   const reportTitle = typeLabels[type] || 'Relatório';
 
@@ -132,107 +133,6 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
         const value = row[key as keyof ExportData];
         return value !== undefined && value !== null && value !== '' && value !== '-';
       });
-    });
-  };
-
-  const exportToExcel = async () => {
-    if (data.length === 0 && !forecastSummary) {
-      toast({
-        title: 'Sem dados',
-        description: 'Não há dados para exportar',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const labels = getColumnLabels();
-    const keys = getRelevantKeys();
-    const totals = calculateTotals();
-
-    // Create workbook and worksheet using ExcelJS
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'WillFlow';
-    workbook.created = new Date();
-    
-    const worksheet = workbook.addWorksheet('Dados');
-
-    // Add header section
-    worksheet.addRow([reportTitle]);
-    worksheet.addRow([workspaceName]);
-    worksheet.addRow([`Exportado: ${currentDateTime}`]);
-    worksheet.addRow([`Total: ${data.length} registos`]);
-    worksheet.addRow([]); // Empty row
-
-    // Add forecast summary for previsao type
-    if (type === 'previsao' && forecastSummary) {
-      worksheet.addRow(['RESUMO FINANCEIRO']);
-      worksheet.addRow(['Previsão de Entrada', forecastSummary.receivable]);
-      worksheet.addRow(['Previsão de Saída', forecastSummary.totalPayable]);
-      worksheet.addRow(['Saldo Previsto', forecastSummary.net]);
-      worksheet.addRow([]);
-      
-      if (forecastSummary.teamTotal || forecastSummary.custosExtras || forecastSummary.payable) {
-        worksheet.addRow(['DETALHES DE SAÍDAS']);
-        if (forecastSummary.teamTotal && forecastSummary.teamTotal !== '0') {
-          worksheet.addRow(['A Pagar Colaboradores', forecastSummary.teamTotal]);
-          if (forecastSummary.teamCaptacao) worksheet.addRow(['  - Captação', forecastSummary.teamCaptacao]);
-          if (forecastSummary.teamEdicao) worksheet.addRow(['  - Edição', forecastSummary.teamEdicao]);
-        }
-        if (forecastSummary.custosExtras && forecastSummary.custosExtras !== '0') {
-          worksheet.addRow(['Custos Extras', forecastSummary.custosExtras]);
-        }
-        if (forecastSummary.payable && forecastSummary.payable !== '0') {
-          worksheet.addRow(['Outros Pagamentos', forecastSummary.payable]);
-        }
-        worksheet.addRow([]);
-      }
-      
-      worksheet.addRow(['MOVIMENTOS DO MÊS']);
-    }
-
-    // Add column headers
-    const headers = keys.map(k => labels[k]);
-    worksheet.addRow(headers);
-    
-    // Add data rows
-    data.forEach(row => {
-      const cells = keys.map(key => {
-        const value = row[key as keyof ExportData] || '-';
-        return String(value);
-      });
-      worksheet.addRow(cells);
-    });
-
-    // Add totals section
-    worksheet.addRow([]);
-    worksheet.addRow(['TOTAIS']);
-    if (type === 'clients') {
-      worksheet.addRow(['Total Pago', formatCurrencyValue(totals.pago)]);
-      worksheet.addRow(['Total Pendente', formatCurrencyValue(totals.pendente)]);
-      worksheet.addRow(['Total Vencido', formatCurrencyValue(totals.vencido)]);
-    }
-    worksheet.addRow(['Total Geral', formatCurrencyValue(totals.total)]);
-
-    // Set column widths
-    keys.forEach((_, index) => {
-      worksheet.getColumn(index + 1).width = index === 0 ? 15 : 25;
-    });
-
-    // Generate and download the file
-    const excelFilename = `${filename}-${currentDateFile}.xlsx`;
-    
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = excelFilename;
-    link.click();
-    URL.revokeObjectURL(url);
-
-    toast({
-      title: 'Exportado com sucesso',
-      description: `Ficheiro ${excelFilename} exportado com ${data.length} registos`,
     });
   };
 
@@ -259,7 +159,48 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
     }, { pago: 0, pendente: 0, vencido: 0, total: 0 });
   };
 
-  const exportToPDF = () => {
+  /**
+   * Export to Excel using centralized utility
+   */
+  const handleExportToExcel = async () => {
+    if (data.length === 0 && !forecastSummary) {
+      toast({
+        title: 'Sem dados',
+        description: 'Não há dados para exportar',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const labels = getColumnLabels();
+    const keys = getRelevantKeys();
+
+    try {
+      await exportToExcel({
+        title: reportTitle,
+        subtitle: workspaceName,
+        headers: keys.map(k => labels[k]),
+        data: data.map(row => keys.map(key => String(row[key as keyof ExportData] || '-'))),
+        filename: `${filename}-${currentDateFile}`,
+      });
+
+      toast({
+        title: 'Exportado com sucesso',
+        description: `Ficheiro Excel exportado com ${data.length} registos`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro ao exportar',
+        description: 'Não foi possível exportar o ficheiro',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  /**
+   * Export to PDF using centralized utility with unified styling
+   */
+  const handleExportToPdf = () => {
     if (data.length === 0 && !forecastSummary) {
       toast({
         title: 'Sem dados',
@@ -274,358 +215,66 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
     const headers = keys.map(k => labels[k]);
     const totals = calculateTotals();
 
-    const tableRows = data.map(row => {
-      const cells = keys.map(key => {
-        const value = row[key as keyof ExportData] || '-';
-        let className = '';
+    // Build stats bar based on type
+    let statsBar: PdfStatItem[] = [];
+    
+    if (type === 'previsao' && forecastSummary) {
+      const isPositiveNet = !forecastSummary.net.includes('-');
+      statsBar = [
+        { label: 'Previsão de Entrada', value: forecastSummary.receivable, className: 'success' },
+        { label: 'Previsão de Saída', value: forecastSummary.totalPayable, className: 'destructive' },
+        { label: 'Saldo Previsto', value: forecastSummary.net, className: isPositiveNet ? 'success' : 'destructive' },
+      ];
+    } else {
+      statsBar = [
+        { label: 'Total Geral', value: formatCurrencyValue(totals.total), className: 'primary' },
+        { label: 'Pago', value: formatCurrencyValue(totals.pago), className: 'success' },
+        { label: 'Pendente', value: formatCurrencyValue(totals.pendente), className: 'warning' },
+        { label: 'Vencido', value: formatCurrencyValue(totals.vencido), className: 'destructive' },
+      ];
+    }
+
+    // Build table rows with proper styling
+    const tableRows: PdfTableRow[] = data.map(row => ({
+      cells: keys.map(key => {
+        const value = String(row[key as keyof ExportData] || '-');
         
+        // Status column with badge styling
         if (key === 'status') {
-          const statusClass = String(value).toLowerCase().replace(/\s/g, '');
-          return `<td><span class="status-badge status-${statusClass}">${value}</span></td>`;
+          const statusClass = value.toLowerCase().replace(/\s/g, '');
+          return { 
+            value: `<span class="status-badge status-${statusClass}">${value}</span>`,
+            className: ''
+          };
         }
         
+        // Value column with color coding
         if (key === 'valor') {
-          if (type === 'clients' || String(value).startsWith('+')) {
-            className = 'valor-positivo';
-          } else if (type === 'freelancers' || type === 'custos' || String(value).startsWith('-')) {
-            className = 'valor-negativo';
+          if (type === 'clients' || value.startsWith('+')) {
+            return { value, className: 'positive' };
+          } else if (type === 'freelancers' || type === 'custos' || value.startsWith('-')) {
+            return { value, className: 'negative' };
           }
         }
         
-        return `<td class="${className}">${value}</td>`;
-      }).join('');
-      
-      return `<tr>${cells}</tr>`;
-    }).join('');
-
-    // Build forecast summary section for previsao type
-    let forecastSection = '';
-    if (type === 'previsao' && forecastSummary) {
-      const isPositiveNet = !forecastSummary.net.includes('-');
-      forecastSection = `
-        <div class="forecast-summary">
-          <div class="forecast-cards">
-            <div class="forecast-card income">
-              <div class="card-label">Previsão de Entrada</div>
-              <div class="card-value income-value">${forecastSummary.receivable}</div>
-              <div class="card-sublabel">Pagamentos de clientes</div>
-            </div>
-            <div class="forecast-card expense">
-              <div class="card-label">Previsão de Saída</div>
-              <div class="card-value expense-value">${forecastSummary.totalPayable}</div>
-              <div class="card-sublabel">Colaboradores + Custos</div>
-            </div>
-            <div class="forecast-card balance">
-              <div class="card-label">Saldo Previsto</div>
-              <div class="card-value ${isPositiveNet ? 'income-value' : 'expense-value'}">${forecastSummary.net}</div>
-            </div>
-          </div>
-          
-          ${(forecastSummary.teamTotal && forecastSummary.teamTotal !== '0,00 €' && forecastSummary.teamTotal !== '0') || 
-            (forecastSummary.custosExtras && forecastSummary.custosExtras !== '0,00 €' && forecastSummary.custosExtras !== '0') ||
-            (forecastSummary.payable && forecastSummary.payable !== '0,00 €' && forecastSummary.payable !== '0') ? `
-          <div class="details-section">
-            <h3>📊 Detalhes de Saídas Previstas</h3>
-            <table class="details-table">
-              ${forecastSummary.teamTotal && forecastSummary.teamTotal !== '0,00 €' && forecastSummary.teamTotal !== '0' ? `
-              <tr>
-                <td class="detail-label">👥 A Pagar Colaboradores</td>
-                <td class="detail-value expense-value">${forecastSummary.teamTotal}</td>
-              </tr>
-              ${forecastSummary.teamCaptacao && forecastSummary.teamCaptacao !== '0,00 €' ? `
-              <tr class="subrow">
-                <td class="detail-label sublabel">Captação</td>
-                <td class="detail-value">${forecastSummary.teamCaptacao}</td>
-              </tr>
-              ` : ''}
-              ${forecastSummary.teamEdicao && forecastSummary.teamEdicao !== '0,00 €' ? `
-              <tr class="subrow">
-                <td class="detail-label sublabel">Edição</td>
-                <td class="detail-value">${forecastSummary.teamEdicao}</td>
-              </tr>
-              ` : ''}
-              ` : ''}
-              ${forecastSummary.custosExtras && forecastSummary.custosExtras !== '0,00 €' && forecastSummary.custosExtras !== '0' ? `
-              <tr>
-                <td class="detail-label">📦 Custos Extras</td>
-                <td class="detail-value expense-value">${forecastSummary.custosExtras}</td>
-              </tr>
-              ` : ''}
-              ${forecastSummary.payable && forecastSummary.payable !== '0,00 €' && forecastSummary.payable !== '0' ? `
-              <tr>
-                <td class="detail-label">💳 Outros Pagamentos</td>
-                <td class="detail-value expense-value">${forecastSummary.payable}</td>
-              </tr>
-              ` : ''}
-            </table>
-          </div>
-          ` : ''}
-        </div>
-      `;
-    }
+        return value;
+      }),
+    }));
 
     const title = type === 'previsao' && forecastSummary?.month 
       ? `Relatório de Previsão - ${forecastSummary.month}`
       : reportTitle;
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>${title} - ${workspaceName}</title>
-        <style>
-          * { box-sizing: border-box; margin: 0; padding: 0; }
-          body { 
-            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif; 
-            padding: 40px; 
-            background: #fff;
-            color: #1a1a1a;
-            line-height: 1.5;
-          }
-          .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 30px;
-            border-bottom: 3px solid #8224e3;
-            padding-bottom: 20px;
-          }
-          .brand h1 { 
-            color: #8224e3; 
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 4px;
-          }
-          .brand .workspace-name {
-            font-size: 14px;
-            color: #6b7280;
-            font-weight: 500;
-          }
-          .meta {
-            text-align: right;
-            font-size: 12px;
-            color: #6b7280;
-          }
-          .meta p { margin-bottom: 4px; }
-          
-          /* Stats bar */
-          .stats-bar {
-            display: flex;
-            gap: 24px;
-            margin-bottom: 24px;
-            padding: 16px 20px;
-            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
-            border-radius: 12px;
-          }
-          .stat-item { text-align: center; }
-          .stat-label {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #6b7280;
-            margin-bottom: 4px;
-          }
-          .stat-value { font-size: 18px; font-weight: 700; }
-          .stat-value.success { color: #16a34a; }
-          .stat-value.warning { color: #ca8a04; }
-          .stat-value.destructive { color: #dc2626; }
-          
-          /* Forecast Summary Styles */
-          .forecast-summary { margin-bottom: 30px; }
-          .forecast-cards {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 25px;
-          }
-          .forecast-card {
-            flex: 1;
-            padding: 20px;
-            border-radius: 12px;
-            text-align: center;
-            border: 1px solid #e5e7eb;
-          }
-          .forecast-card.income { border-left: 4px solid #22c55e; background: #f0fdf4; }
-          .forecast-card.expense { border-left: 4px solid #ef4444; background: #fef2f2; }
-          .forecast-card.balance { border-left: 4px solid #6366f1; background: #eef2ff; }
-          .card-label {
-            font-size: 13px;
-            color: #666;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-          }
-          .card-value { font-size: 28px; font-weight: 700; }
-          .income-value { color: #16a34a; }
-          .expense-value { color: #dc2626; }
-          .card-sublabel {
-            font-size: 11px;
-            color: #888;
-            margin-top: 5px;
-          }
-          
-          .details-section {
-            background: #f9fafb;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 25px;
-            border: 1px solid #e5e7eb;
-          }
-          .details-section h3 {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 15px;
-            color: #374151;
-          }
-          .details-table { width: 100%; border-collapse: collapse; }
-          .details-table tr { border-bottom: 1px solid #e5e7eb; }
-          .details-table tr:last-child { border-bottom: none; }
-          .details-table td { padding: 12px 8px; }
-          .detail-label { font-weight: 500; }
-          .detail-label.sublabel {
-            padding-left: 30px;
-            font-weight: 400;
-            color: #666;
-          }
-          .detail-value { text-align: right; font-weight: 600; }
-          .subrow td { padding: 8px; }
-          
-          /* Main Table Styles */
-          h2 {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 15px;
-            color: #374151;
-          }
-          table.main-table { 
-            width: 100%; 
-            border-collapse: collapse;
-            margin-top: 10px;
-            font-size: 12px;
-          }
-          table.main-table th { 
-            background: linear-gradient(135deg, #8224e3 0%, #6b21a8 100%);
-            color: white;
-            text-align: left;
-            padding: 12px 10px;
-            font-weight: 600;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-          }
-          table.main-table th:first-child { border-radius: 8px 0 0 0; }
-          table.main-table th:last-child { border-radius: 0 8px 0 0; }
-          table.main-table td { 
-            padding: 10px;
-            border-bottom: 1px solid #e5e7eb;
-          }
-          table.main-table tr:nth-child(even) { background: #f9fafb; }
-          table.main-table tr:hover { background: #f3f4f6; }
-          
-          /* Status badges */
-          .status-badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 10px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-          }
-          .status-pago { background: #dcfce7; color: #16a34a; }
-          .status-pendente { background: #fef9c3; color: #ca8a04; }
-          .status-vencido { background: #fee2e2; color: #dc2626; }
-          .status-cancelado { background: #f3f4f6; color: #6b7280; }
-          
-          .valor-positivo { color: #16a34a; font-weight: 600; }
-          .valor-negativo { color: #dc2626; font-weight: 600; }
-          
-          .empty-message {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-            font-style: italic;
-          }
-          
-          .footer {
-            margin-top: 32px;
-            padding-top: 16px;
-            border-top: 1px solid #e5e7eb;
-            text-align: center;
-            font-size: 10px;
-            color: #9ca3af;
-          }
-          
-          @media print {
-            body { padding: 20px; }
-            .forecast-cards { page-break-inside: avoid; }
-            .header { margin-bottom: 20px; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="brand">
-            <h1>📊 ${title}</h1>
-            <p class="workspace-name">${workspaceName}</p>
-          </div>
-          <div class="meta">
-            <p><strong>Exportado:</strong> ${currentDateTime}</p>
-            <p><strong>Total:</strong> ${data.length} registos</p>
-          </div>
-        </div>
-        
-        ${type !== 'previsao' ? `
-        <div class="stats-bar">
-          <div class="stat-item">
-            <div class="stat-label">Total Geral</div>
-            <div class="stat-value">${formatCurrencyValue(totals.total)}</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-label">Pago</div>
-            <div class="stat-value success">${formatCurrencyValue(totals.pago)}</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-label">Pendente</div>
-            <div class="stat-value warning">${formatCurrencyValue(totals.pendente)}</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-label">Vencido</div>
-            <div class="stat-value destructive">${formatCurrencyValue(totals.vencido)}</div>
-          </div>
-        </div>
-        ` : ''}
-        
-        ${forecastSection}
-        
-        ${data.length > 0 ? `
-        <h2>📋 ${type === 'previsao' ? 'Movimentos do Mês' : 'Detalhes'}</h2>
-        <table class="main-table">
-          <thead>
-            <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
-          </thead>
-          <tbody>${tableRows}</tbody>
-        </table>
-        ` : type !== 'previsao' ? '<p class="empty-message">Sem movimentos registados</p>' : ''}
-        
-        <div class="footer">
-          Gerado por ${workspaceName} • willflow.app
-        </div>
-      </body>
-      </html>
-    `;
+    const html = generatePdfHtml({
+      title,
+      workspaceName,
+      statsBar,
+      headers,
+      data: tableRows,
+      totalLabel: `Total: ${data.length} registos`,
+    });
 
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
-      
-      printWindow.onload = () => {
-        setTimeout(() => {
-          printWindow.print();
-        }, 300);
-      };
-    }
+    printPdf(html);
 
     toast({
       title: 'PDF gerado',
@@ -638,7 +287,7 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
       checkFeature('exportExcel');
       return;
     }
-    exportToExcel();
+    handleExportToExcel();
   };
 
   const handlePdfClick = () => {
@@ -646,7 +295,7 @@ export const PaymentExportButtons = forwardRef<HTMLDivElement, PaymentExportButt
       checkFeature('exportPdf');
       return;
     }
-    exportToPDF();
+    handleExportToPdf();
   };
 
   return (
