@@ -1,281 +1,232 @@
 
-# Plano: Adicionar Cliente a Todos os Relatórios de Pagamentos
+
+# Plano: Secção de Previsão Financeira Simplificada
 
 ## Objectivo
-Garantir que todos os relatórios de pagamentos (Colaboradores e Custos Extras) incluam a coluna "Cliente" para identificar para qual cliente foi executado o projecto/tarefa.
+
+Redesenhar a área de KPIs do Dashboard para mostrar uma única secção "Previsão Financeira" com layout:
+1. **Linha 1**: 3 contadores de projectos (Em Captação, Em Edição, Entregues)
+2. **Linha 2**: 3 cards de previsão financeira (Receita, Custo, Lucro) com selector de mês
 
 ---
 
-## Análise Actual
+## Layout Proposto
 
-| Componente | Tem Cliente? | Exporta Cliente? |
-|------------|--------------|------------------|
-| ClientPaymentsControl | ✅ Sim | ✅ Sim |
-| ProjectRevenueControl | ✅ Sim | ✅ Sim |
-| FreelancerPaymentsControl | ❌ Não | ❌ Não |
-| ExtraCostsPaymentsControl | ❌ Não | ❌ Não |
-
----
-
-## Alterações Necessárias
-
-### 1. FreelancerPaymentsControl
-
-**Interface do projecto expandida:**
-```typescript
-interface Project {
-  id: string;
-  name: string;
-  project_code?: string | null;
-  client_id?: string | null;  // NOVO
-}
-```
-
-**Adicionar prop de clients:**
-```typescript
-interface FreelancerPaymentsControlProps {
-  // ...existentes
-  clients?: { id: string; name: string }[];  // NOVO
-}
-```
-
-**Adicionar função para obter nome do cliente:**
-```typescript
-const getClientName = (projectId: string) => {
-  const project = projects.find(p => p.id === projectId);
-  if (!project?.client_id || !clients) return '-';
-  const client = clients.find(c => c.id === project.client_id);
-  return client?.name || '-';
-};
-```
-
-**Adicionar coluna à tabela e ao exportData:**
-- Nova coluna "Cliente" entre "Projeto" e "Colaborador"
-- Campo `cliente` no exportData
-
-### 2. ExtraCostsPaymentsControl
-
-**Interface expandida:**
-```typescript
-export interface ProjectCustoExtra {
-  id: string;
-  name: string;
-  project_code?: string | null;
-  custos_extras: number | null;
-  custos_extras_payment_status: string | null;
-  client_id?: string | null;  // NOVO
-  clients?: { name: string } | null;  // NOVO
-}
-```
-
-**Adicionar coluna à tabela e ao exportData:**
-- Nova coluna "Cliente" entre "Projeto" e "Status"
-- Campo `cliente` no exportData
-
-### 3. Pagamentos.tsx
-
-**Actualizar queries de custos extras:**
-```typescript
-// Incluir client_id e clients(name) na query
-.select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, clients(name)')
-```
-
-**Passar clients ao FreelancerPaymentsControl:**
-```tsx
-<FreelancerPaymentsControl
-  // ...props existentes
-  clients={clientsList}  // NOVO
-/>
-```
-
-### 4. PaymentExportButtons
-
-**Adicionar coluna "Cliente" aos labels de cada tipo:**
-```typescript
-freelancers: {
-  id: 'Código',
-  projeto: 'Projeto',
-  cliente: 'Cliente',  // NOVO
-  contraparte: 'Colaborador',
-  // ...
-},
-custos: {
-  id: 'Código',
-  projeto: 'Projeto',
-  cliente: 'Cliente',  // NOVO
-  status: 'Status',
-  valor: 'Custo Extra',
-},
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  ┌────────────┐   ┌────────────┐   ┌────────────┐              │
+│  │ 📷 3       │   │ 🎬 5       │   │ ✅ 2       │              │
+│  │ Em Captação│   │ Em Edição  │   │ Entregues  │              │
+│  └────────────┘   └────────────┘   └────────────┘              │
+├─────────────────────────────────────────────────────────────────┤
+│ Previsão Financeira                    [< ] Fev 2026 [>] [Hoje]│
+│                                                                 │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │   Receita    │  │    Custo     │  │    Lucro     │          │
+│  │  12.400 €    │  │   3.200 €    │  │   9.200 €    │          │
+│  │  prevista    │  │  previsto    │  │  previsto    │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Ficheiros a Modificar
+## O Que Muda
 
-| Ficheiro | Alteração |
-|----------|-----------|
-| `src/components/payments/FreelancerPaymentsControl.tsx` | Adicionar coluna Cliente na tabela e export |
-| `src/components/payments/ExtraCostsPaymentsControl.tsx` | Adicionar coluna Cliente na tabela e export |
-| `src/components/payments/PaymentExportButtons.tsx` | Adicionar label "Cliente" aos tipos freelancers e custos |
-| `src/pages/app/Pagamentos.tsx` | Actualizar queries e passar clients aos componentes |
+| Elemento | Antes | Depois |
+|----------|-------|--------|
+| Contadores de projectos | Misturados com KPIs financeiros | **Linha própria no topo** |
+| Cards financeiros (6) | Realizados + Previsão separados | **Apenas previsão com filtro de mês** |
+| Selector de mês | Não existia | **Novo, permite navegar meses** |
+| Layout | 6 cards numa grelha | **2 linhas: contadores + previsão** |
+
+---
+
+## Ficheiros a Criar/Modificar
+
+| Ficheiro | Acção | Descrição |
+|----------|-------|-----------|
+| `src/hooks/useMonthlyForecast.ts` | **Criar** | Hook para cálculo de previsão por mês |
+| `src/components/dashboard/MonthPicker.tsx` | **Criar** | Selector de mês |
+| `src/components/dashboard/ProjectCounters.tsx` | **Criar** | 3 cards de contagem |
+| `src/components/dashboard/FinancialForecastCards.tsx` | **Criar** | 3 cards de previsão + header |
+| `src/pages/app/Dashboard.tsx` | Modificar | Usar novos componentes |
+| `src/components/dashboard/KPICards.tsx` | Manter backup | Pode ser removido depois |
+
+---
+
+## Componentes
+
+### 1. ProjectCounters.tsx
+
+Três cards com contagem actual de projectos:
+- **Em Captação**: Ícone Camera, cor amarela/warning
+- **Em Edição**: Ícone Film, cor azul/info  
+- **Entregues (mês)**: Ícone CheckCircle2, cor verde/success
+
+Usa dados do `useDashboardMetrics` existente (`metrics.captacao`, `metrics.edicao`, `metrics.entregues`).
+
+### 2. FinancialForecastCards.tsx
+
+Header com:
+- Título "Previsão Financeira"
+- MonthPicker (navegação de mês)
+
+Três cards de previsão:
+- **Receita Prevista**: Ícone Target, cor verde
+- **Custo Previsto**: Ícone Calculator, cor laranja/warning
+- **Lucro Previsto**: Ícone PiggyBank, cor roxa (ou vermelha se negativo)
+
+### 3. MonthPicker.tsx
+
+```text
+[<] Fev 2026 [>] [Hoje]
+```
+
+- Botão `<` - mês anterior
+- Display do mês: "Fev 2026" (formato pt-PT)
+- Botão `>` - mês seguinte
+- Botão "Hoje" - volta ao mês corrente (só aparece se não estiver no mês actual)
+
+### 4. useMonthlyForecast.ts
+
+Hook que calcula previsão para o mês seleccionado:
+
+```typescript
+function useMonthlyForecast(selectedMonth: Date) {
+  return {
+    totalRevenue: number,    // Σ agreed_value
+    totalCost: number,       // Σ custos + pagamentos equipa
+    totalProfit: number,     // revenue - cost
+    projectCount: number,    // quantos projectos incluídos
+    loading: boolean
+  };
+}
+```
+
+**Lógica de inclusão**:
+- Projectos com `delivery_date` no mês seleccionado
+- Fallback para `shoot_date` se não tiver `delivery_date`
+- Projectos atrasados (`is_delivered = false` e data < mês) são incluídos via rollover
 
 ---
 
 ## Secção Técnica
 
-### FreelancerPaymentsControl.tsx
+### useMonthlyForecast.ts
 
 ```typescript
-// Nova interface Project
-interface Project {
-  id: string;
-  name: string;
-  project_code?: string | null;
-  client_id?: string | null;
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { format, parseISO } from 'date-fns';
+
+export interface MonthlyForecastData {
+  totalRevenue: number;
+  totalCost: number;
+  totalProfit: number;
+  projectCount: number;
+  loading: boolean;
 }
 
-// Nova interface Client
-interface Client {
-  id: string;
-  name: string;
+export function useMonthlyForecast(selectedMonth: Date): MonthlyForecastData {
+  const { currentWorkspace } = useWorkspace();
+  const [data, setData] = useState<MonthlyForecastData>({
+    totalRevenue: 0,
+    totalCost: 0,
+    totalProfit: 0,
+    projectCount: 0,
+    loading: true,
+  });
+
+  useEffect(() => {
+    if (!currentWorkspace?.id) return;
+
+    const fetchForecast = async () => {
+      setData(prev => ({ ...prev, loading: true }));
+      
+      const monthKey = format(selectedMonth, 'yyyy-MM');
+
+      // Buscar projectos do workspace
+      const { data: projects } = await supabase
+        .from('projects')
+        .select(`
+          id, is_delivered, delivery_date, shoot_date,
+          agreed_value, custo_captacao, custo_edicao, custos_extras
+        `)
+        .eq('workspace_id', currentWorkspace.id);
+
+      let totalRevenue = 0;
+      let totalCost = 0;
+      let projectCount = 0;
+
+      projects?.forEach(p => {
+        // Determinar data âncora
+        const anchorDate = p.delivery_date || p.shoot_date;
+        if (!anchorDate) return;
+
+        const projectMonth = format(parseISO(anchorDate), 'yyyy-MM');
+
+        // Incluir se: mês coincide OU rollover (atrasado + não entregue)
+        const isInMonth = projectMonth === monthKey;
+        const isRollover = !p.is_delivered && projectMonth < monthKey;
+
+        if (isInMonth || isRollover) {
+          totalRevenue += p.agreed_value || 0;
+          totalCost += (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0);
+          projectCount++;
+        }
+      });
+
+      // TODO: Adicionar pagamentos de equipa pendentes ao custo
+
+      setData({
+        totalRevenue,
+        totalCost,
+        totalProfit: totalRevenue - totalCost,
+        projectCount,
+        loading: false,
+      });
+    };
+
+    fetchForecast();
+  }, [currentWorkspace?.id, selectedMonth]);
+
+  return data;
 }
-
-// Props expandidas
-interface FreelancerPaymentsControlProps {
-  teamPayments: ProjectTeamPayment[];
-  projects: Project[];
-  members: Member[];
-  clients?: Client[];  // NOVO
-  onStatusChange: (teamId: string, newStatus: string) => Promise<void>;
-  formatCurrency: (value: number) => string;
-  workspaceName?: string;
-  filterByUserId?: string | null;
-}
-
-// Nova função
-const getClientName = (projectId: string) => {
-  const project = projects.find(p => p.id === projectId);
-  if (!project?.client_id || !clients) return '-';
-  const client = clients.find(c => c.id === project.client_id);
-  return client?.name || '-';
-};
-
-// Export data actualizado
-const exportData = useMemo(() => {
-  return filteredPayments.map(tp => ({
-    id: getProjectCode(tp.project_id),
-    projeto: getProjectName(tp.project_id),
-    cliente: getClientName(tp.project_id),  // NOVO
-    contraparte: getMemberName(tp.user_id),
-    fase: tp.phase === 'captacao' ? 'Captação' : 'Edição',
-    status: statusLabels[tp.payment_status] || tp.payment_status,
-    valor: formatCurrency(tp.payment_amount || 0),
-  }));
-}, [filteredPayments, formatCurrency, projects, clients]);
-
-// Nova coluna na tabela
-<TableHead className="min-w-[120px]">Cliente</TableHead>
-
-// Nova célula
-<TableCell>{getClientName(tp.project_id)}</TableCell>
 ```
 
-### ExtraCostsPaymentsControl.tsx
+### Dashboard.tsx - Alteração
 
-```typescript
-// Interface expandida
-export interface ProjectCustoExtra {
-  id: string;
-  name: string;
-  project_code?: string | null;
-  custos_extras: number | null;
-  custos_extras_payment_status: string | null;
-  client_id?: string | null;
-  clients?: { name: string } | null;
-}
+```tsx
+// Substituir <KPICards> por:
+<ProjectCounters metrics={metrics} loading={loading} />
 
-// Export data actualizado
-const exportData = useMemo(() => {
-  return filteredCosts.map(cost => ({
-    id: cost.project_code || cost.id.slice(0, 8).toUpperCase(),
-    projeto: cost.name,
-    cliente: cost.clients?.name || '-',  // NOVO
-    status: statusLabels[cost.custos_extras_payment_status || 'pendente'],
-    valor: formatCurrency(cost.custos_extras || 0),
-  }));
-}, [filteredCosts, formatCurrency]);
-
-// Nova coluna na tabela
-<TableHead className="min-w-[120px]">Cliente</TableHead>
-
-// Nova célula
-<TableCell>{cost.clients?.name || '-'}</TableCell>
-```
-
-### Pagamentos.tsx - Queries Actualizadas
-
-```typescript
-// Query de custos extras (linha ~99)
-const { data: costsData } = await supabase
-  .from('projects')
-  .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, clients(name)')
-  .eq('workspace_id', currentWorkspace.id)
-  .gt('custos_extras', 0)
-  .in('custos_extras_payment_status', ['pendente', 'vencido', null]);
-
-// Query de ALL custos extras (linha ~109)  
-const { data: allCostsData } = await supabase
-  .from('projects')
-  .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, clients(name)')
-  .eq('workspace_id', currentWorkspace.id)
-  .gt('custos_extras', 0);
-```
-
-### PaymentExportButtons.tsx - Labels
-
-```typescript
-const columnLabelsMap: Record<string, Record<string, string>> = {
-  // ... clients mantém-se igual
-  freelancers: {
-    id: 'Código',
-    projeto: 'Projeto',
-    cliente: 'Cliente',  // NOVO
-    contraparte: 'Colaborador',
-    fase: 'Fase',
-    vencimento: 'Data Vencimento',
-    status: 'Status Pagamento',
-    valor: 'Valor a Pagar',
-    iban: 'IBAN',
-    banco: 'Banco',
-  },
-  custos: {
-    id: 'Código',
-    projeto: 'Projeto',
-    cliente: 'Cliente',  // NOVO
-    status: 'Status',
-    valor: 'Custo Extra',
-  },
-  // ... outros mantêm-se
-};
+{!isCollaborator && canViewAllFinancials && (
+  <FinancialForecastCards />
+)}
 ```
 
 ---
 
-## Resultado Esperado
+## Permissões
 
-Após as alterações:
-- ✅ Tabela de Pagamentos Colaboradores mostra coluna "Cliente"
-- ✅ Tabela de Custos Extras mostra coluna "Cliente"
-- ✅ Export Excel inclui coluna "Cliente" em ambos os relatórios
-- ✅ Export PDF inclui coluna "Cliente" em ambos os relatórios
+- **Contadores de projectos**: Visíveis para todos os utilizadores
+- **Cards de previsão financeira**: Apenas para utilizadores com `canViewAllFinancials`
+- **hideValues**: Aplica blur nos valores financeiros quando activo
 
 ---
 
-## Resumo de Alterações
+## Estilo Visual
 
-| Ficheiro | Linhas | Tipo |
-|----------|--------|------|
-| `src/components/payments/FreelancerPaymentsControl.tsx` | +25 linhas | Modificar |
-| `src/components/payments/ExtraCostsPaymentsControl.tsx` | +10 linhas | Modificar |
-| `src/components/payments/PaymentExportButtons.tsx` | +2 linhas | Modificar |
-| `src/pages/app/Pagamentos.tsx` | +5 linhas | Modificar |
+- Contadores: Cards compactos com ícone + número grande + label
+- Previsão: Cards maiores com valor destacado
+- Cores:
+  - Captação: Amarelo/Primary
+  - Edição: Azul/Info
+  - Entregues: Verde/Success
+  - Receita: Verde/Success
+  - Custo: Laranja/Warning
+  - Lucro: Roxo/Primary (ou Vermelho se negativo)
+
