@@ -315,18 +315,9 @@ export function useDashboardMetrics() {
         (sum, p) => sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0
       );
 
-      // Fetch pending team payments for forecast
-      const { data: pendingTeamPaymentsData } = await supabase
-        .from('project_team')
-        .select('payment_amount, projects!inner(workspace_id)')
-        .eq('projects.workspace_id', currentWorkspace.id)
-        .neq('payment_status', 'pago');
-
-      const teamPaymentsPending = pendingTeamPaymentsData?.reduce(
-        (sum, tp) => sum + (tp.payment_amount || 0), 0
-      ) || 0;
-
-      const previsaoCustos = previsaoCustosProjeto + teamPaymentsPending;
+      // NOTE: Project cost fields (custo_captacao, custo_edicao, custos_extras) are the source of truth
+      // Team payments (project_team.payment_amount) are NOT added separately as they're already aggregated in project costs
+      const previsaoCustos = previsaoCustosProjeto;
       const previsaoLucro = previsaoReceita - previsaoCustos;
       const previsaoMargemPercent = previsaoReceita > 0 
         ? Math.round((previsaoLucro / previsaoReceita) * 100) 
@@ -436,11 +427,10 @@ export function useDashboardMetrics() {
           receitaPrevisao = activeProjects.reduce(
             (sum, p) => sum + (p.agreed_value || 0), 0
           );
+          // Use project cost fields as source of truth (no separate team payments)
           custosPrevisao = activeProjects.reduce(
             (sum, p) => sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0
           );
-          // Add pending team payments to forecast costs
-          custosPrevisao += teamPaymentsPending;
           lucroPrevisao = receitaPrevisao - custosPrevisao;
         }
         

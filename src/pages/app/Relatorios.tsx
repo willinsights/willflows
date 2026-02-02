@@ -102,13 +102,6 @@ export default function Relatorios() {
 
   // Top Collaborators data
   const [collaboratorsData, setCollaboratorsData] = useState<CollaboratorData[]>([]);
-  
-  // Team payments data for accurate cost calculations
-  const [teamPaymentsData, setTeamPaymentsData] = useState<Array<{
-    project_id: string;
-    phase: string;
-    payment_amount: number | null;
-  }>>([]);
 
   const currency = currentWorkspace?.currency || 'EUR';
 
@@ -151,28 +144,6 @@ export default function Relatorios() {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return Math.max(1, Math.ceil(diffDays / 30));
   }, [dateRange]);
-
-  // Fetch team payments data for accurate cost calculations
-  useEffect(() => {
-    const fetchTeamPayments = async () => {
-      if (!currentWorkspace?.id) return;
-      
-      const deliveredProjectIds = projects.filter(p => p.is_delivered).map(p => p.id);
-      if (deliveredProjectIds.length === 0) {
-        setTeamPaymentsData([]);
-        return;
-      }
-      
-      const { data } = await supabase
-        .from('project_team')
-        .select('project_id, phase, payment_amount')
-        .in('project_id', deliveredProjectIds);
-      
-      setTeamPaymentsData(data || []);
-    };
-    
-    fetchTeamPayments();
-  }, [projects, currentWorkspace?.id]);
 
   // Fetch collaborators data - only from DELIVERED projects
   const [collaboratorsLoading, setCollaboratorsLoading] = useState(false);
@@ -308,7 +279,7 @@ export default function Relatorios() {
     fetchCollaborators();
   }, [projects, currentWorkspace?.id]);
 
-  // Calculate monthly revenue data - using project_team.payment_amount as source of truth for team costs
+  // Calculate monthly revenue data - using project cost fields as source of truth
   const monthlyData = useMemo(() => {
     const months = [];
     
@@ -327,16 +298,9 @@ export default function Relatorios() {
       
       const revenue = monthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
       
-      // Calculate costs from project_team.payment_amount (source of truth)
-      const monthProjectIds = monthProjects.map(p => p.id);
-      const teamCosts = teamPaymentsData
-        .filter(tp => monthProjectIds.includes(tp.project_id))
-        .reduce((sum, tp) => sum + (tp.payment_amount || 0), 0);
-      
-      // Extra costs come from project table
-      const extraCosts = monthProjects.reduce((sum, p) => sum + (p.custos_extras || 0), 0);
-      
-      const costs = teamCosts + extraCosts;
+      // Use project cost fields as source of truth (custo_captacao + custo_edicao + custos_extras)
+      const costs = monthProjects.reduce((sum, p) => 
+        sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
       
       months.push({
         month: format(date, 'MMM yy', { locale: pt }),
@@ -350,7 +314,7 @@ export default function Relatorios() {
     }
     
     return months;
-  }, [projects, dateRange, periodMonths, teamPaymentsData]);
+  }, [projects, dateRange, periodMonths]);
 
   // Top clients by revenue
   const topClients = useMemo(() => {
@@ -402,22 +366,16 @@ export default function Relatorios() {
     return Object.entries(priorities).map(([name, value]) => ({ name, value }));
   }, [projects]);
 
-  // Summary metrics - using project_team.payment_amount as source of truth for team costs
+  // Summary metrics - using project cost fields as source of truth
   const summaryMetrics = useMemo(() => {
     const deliveredProjects = projects.filter(p => p.is_delivered);
-    const deliveredProjectIds = deliveredProjects.map(p => p.id);
     
     const totalRevenue = deliveredProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
     
-    // Team costs from project_team.payment_amount (source of truth)
-    const totalTeamCosts = teamPaymentsData
-      .filter(tp => deliveredProjectIds.includes(tp.project_id))
-      .reduce((sum, tp) => sum + (tp.payment_amount || 0), 0);
+    // Use project cost fields as source of truth (custo_captacao + custo_edicao + custos_extras)
+    const totalCosts = deliveredProjects.reduce((sum, p) => 
+      sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
     
-    // Extra costs from projects
-    const totalExtraCosts = deliveredProjects.reduce((sum, p) => sum + (p.custos_extras || 0), 0);
-    
-    const totalCosts = totalTeamCosts + totalExtraCosts;
     const avgProjectValue = deliveredProjects.length > 0 ? totalRevenue / deliveredProjects.length : 0;
     
     return {
@@ -430,7 +388,7 @@ export default function Relatorios() {
       deliveredProjects: deliveredProjects.length,
       activeClients: clients.filter(c => c.is_active).length,
     };
-  }, [projects, clients, teamPaymentsData]);
+  }, [projects, clients]);
 
   // Export functions
   const handleExportExcel = async () => {
