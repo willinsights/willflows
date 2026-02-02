@@ -1,50 +1,120 @@
-# Plano: Data de Entrega Retroactiva para Projectos
 
-## Estado: ✅ CONCLUÍDO
+# Plano: Corrigir Cálculo de Métricas Financeiras (Receita/Custos/Lucro)
 
-## Objectivo
-Permitir que ao concluir um projecto, o utilizador possa escolher uma data de entrega diferente do dia actual. Isto é essencial para que os ganhos sejam atribuídos ao mês correcto nos relatórios financeiros.
+## Problema Identificado
 
----
+Os KPIs de **Receita**, **Custos** e **Lucro** no dashboard estão a usar a data de **criação** (`created_at`) em vez da data de **entrega** (`delivered_at`) para filtrar projectos.
 
-## Alterações Implementadas
+| Métrica | Filtro Actual | Filtro Correcto |
+|---------|---------------|-----------------|
+| Entregues | `delivered_at` ✅ | `delivered_at` |
+| Receita | `created_at` ❌ | `delivered_at` |
+| Custos | `created_at` ❌ | `delivered_at` |
+| Lucro | `created_at` ❌ | `delivered_at` |
 
-### 1. ✅ RPC `deliver_project` Actualizada
-- Adicionado parâmetro opcional `p_delivered_at` (default: `now()`)
-- A data escolhida pelo utilizador é agora guardada no campo `delivered_at`
-
-### 2. ✅ Novo Componente: `DeliverConfirmDialog`
-- Ficheiro: `src/components/kanban/DeliverConfirmDialog.tsx`
-- Modal com DatePicker para seleccionar data de entrega retroactiva
-- Data máxima limitada ao dia actual (não permite datas futuras)
-- Texto explicativo sobre o impacto nos relatórios financeiros
-
-### 3. ✅ Hook `useKanban` Actualizado
-- Ficheiro: `src/hooks/useKanban.ts`
-- Novo estado `pendingDelivery` para controlar o dialog de confirmação
-- Nova função `confirmDelivery(deliveredAt: Date)` que chama a RPC com a data
-- Fluxo modificado: validação → dialog de confirmação → entrega com data
-
-### 4. ✅ KanbanBoard Integrado
-- Ficheiro: `src/components/kanban/KanbanBoard.tsx`
-- Renderiza o `DeliverConfirmDialog` quando necessário
-- Conectado ao estado e callbacks do hook
-
-### 5. ✅ ProjectDetailsSheet Actualizado
-- Ficheiro: `src/components/projects/ProjectDetailsSheet.tsx`
-- Botão "Concluir" agora abre o dialog de confirmação com datepicker
-- Nova função `confirmDeliveryWithDate(deliveredAt: Date)`
+### Impacto
+Os 100€ de receita/custos que vês referem-se a projectos **criados** em Janeiro, não **entregues** em Janeiro. Ao corrigir, o dashboard irá:
+- Mostrar 0€ de receita/custos para Fevereiro (se nenhum projecto foi entregue ainda)
+- Mostrar os valores correctos para Janeiro (projectos entregues nesse mês)
 
 ---
 
-## Fluxo de UX Implementado
+## Alteração Necessária
 
-1. Utilizador arrasta projecto para coluna final OU clica em "Concluir"
-2. Sistema valida se todos os checklists estão completos
-3. Se válido, abre modal de confirmação com:
-   - Nome do projecto
-   - DatePicker com data de hoje pré-seleccionada
-   - Texto: "Esta data será usada para os relatórios financeiros"
-4. Utilizador pode alterar a data para uma retroactiva (ex: 31 de Janeiro)
-5. Ao confirmar, projecto é entregue com a data escolhida
-6. Relatórios financeiros agrupam receita pela data seleccionada
+### Ficheiro: `src/hooks/useDashboardMetrics.ts`
+
+Alterar o filtro de `created_at` para `delivered_at` apenas para projectos **entregues**:
+
+```typescript
+// ANTES (linhas 185-193)
+const currentMonthProjects = projectsData?.filter(p => {
+  const createdAt = new Date(p.created_at);
+  return createdAt >= currentMonthStart && createdAt <= currentMonthEnd;
+}) || [];
+
+// DEPOIS
+const currentMonthProjects = projectsData?.filter(p => {
+  // Only count DELIVERED projects for financial metrics
+  if (!p.is_delivered || !p.delivered_at) return false;
+  const deliveredAt = new Date(p.delivered_at);
+  return deliveredAt >= currentMonthStart && deliveredAt <= currentMonthEnd;
+}) || [];
+```
+
+Aplicar a mesma correção para o mês anterior (linhas 196-199):
+
+```typescript
+// DEPOIS
+const previousMonthProjects = projectsData?.filter(p => {
+  if (!p.is_delivered || !p.delivered_at) return false;
+  const deliveredAt = new Date(p.delivered_at);
+  return deliveredAt >= previousMonthStart && deliveredAt <= previousMonthEnd;
+}) || [];
+```
+
+---
+
+## Lógica de Negócio
+
+A receita/custos só devem ser contabilizados quando o projecto é **efectivamente entregue**, não quando é criado:
+
+- **Projectos em andamento** → contribuem para **Previsão** (já funciona assim)
+- **Projectos entregues** → contribuem para **Receita/Custos/Lucro do mês**
+
+---
+
+## Secção Técnica
+
+### Código Actual (Incorrecto)
+
+```typescript
+// Lines 185-193 - Uses created_at
+const currentMonthProjects = projectsData?.filter(p => {
+  const createdAt = new Date(p.created_at);
+  return createdAt >= currentMonthStart && createdAt <= currentMonthEnd;
+}) || [];
+
+const receita = currentMonthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
+```
+
+### Código Corrigido
+
+```typescript
+// Lines 185-193 - Uses delivered_at for DELIVERED projects only
+const currentMonthProjects = projectsData?.filter(p => {
+  if (!p.is_delivered || !p.delivered_at) return false;
+  const deliveredAt = new Date(p.delivered_at);
+  return deliveredAt >= currentMonthStart && deliveredAt <= currentMonthEnd;
+}) || [];
+
+const receita = currentMonthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
+```
+
+### Também corrigir mês anterior (para comparação %)
+
+```typescript
+// Lines 196-204
+const previousMonthProjects = projectsData?.filter(p => {
+  if (!p.is_delivered || !p.delivered_at) return false;
+  const deliveredAt = new Date(p.delivered_at);
+  return deliveredAt >= previousMonthStart && deliveredAt <= previousMonthEnd;
+}) || [];
+```
+
+---
+
+## Resultado Esperado
+
+Após a correção:
+- **Fevereiro**: 0€ receita (nenhum projecto entregue ainda)
+- **Janeiro**: Valores correctos dos projectos entregues com `delivered_at` em Janeiro
+- Os projectos que acabaste de marcar como entregues com data 31/Jan irão contar para Janeiro
+
+---
+
+## Ficheiros a Modificar
+
+| Ficheiro | Alteração |
+|----------|-----------|
+| `src/hooks/useDashboardMetrics.ts` | Corrigir filtro de `created_at` para `delivered_at` nas linhas ~185-204 |
+
