@@ -47,6 +47,7 @@ import { ProjectMediaTab } from './ProjectMediaTab';
 import { ProjectFinancialTab } from './ProjectFinancialTab';
 import { ProjectTimelineTab } from './ProjectTimelineTab';
 import { ChecklistPendingAlert } from './ChecklistPendingAlert';
+import { DeliverConfirmDialog } from '@/components/kanban/DeliverConfirmDialog';
 import { useConversations } from '@/hooks/useConversations';
 import { useAuth } from '@/contexts/AuthContext';
 import { VideoProductionTab } from '@/components/video-production/VideoProductionTab';
@@ -114,6 +115,7 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [showDeliverConfirmDialog, setShowDeliverConfirmDialog] = useState(false);
   const [showReopenDialog, setShowReopenDialog] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [duplicateName, setDuplicateName] = useState('');
@@ -393,37 +395,20 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
     setLoading(true);
     
     try {
-      const { data: finalColumn } = await supabase
-        .from('kanban_columns')
-        .select('id')
-        .eq('workspace_id', project.workspace_id)
-        .eq('phase', project.current_phase)
-        .eq('is_final', true)
-        .single();
-      
-      if (!finalColumn) {
-        toast({ title: 'Erro', description: 'Coluna final não encontrada.', variant: 'destructive' });
-        setLoading(false);
-        return;
-      }
-      
-      const { data, error } = await supabase.rpc('deliver_project', {
+      // First validate with can_deliver_project RPC
+      const { data: validationResult, error: validationError } = await supabase.rpc('can_deliver_project', {
         p_project_id: project.id,
-        p_phase: project.current_phase,
-        p_target_column_id: finalColumn.id
+        p_phase: project.current_phase
       });
       
-      if (error) {
-        const errorMessage = error.message.includes('CHECKLIST_INCOMPLETE')
-          ? error.message.replace('CHECKLIST_INCOMPLETE: ', '')
-          : error.message;
-        toast({ title: 'Não é possível concluir', description: errorMessage, variant: 'destructive' });
+      if (validationError) {
+        toast({ title: 'Erro ao validar', description: validationError.message, variant: 'destructive' });
         setLoading(false);
         return;
       }
       
-      const result = data as { can_deliver: boolean; reason: string | null; pending_tasks: number; pending_checklists: number } | null;
-      if (result && !result.can_deliver) {
+      const validation = validationResult as { can_deliver: boolean; reason: string | null; pending_tasks: number; pending_checklists: number } | null;
+      if (validation && !validation.can_deliver) {
         const itemType = project.item_type || 'projeto_completo';
         const isFullProjectFinalDelivery = itemType === 'projeto_completo' && project.current_phase === 'edicao';
         
@@ -442,7 +427,56 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
         return;
       }
       
+      // Validation passed - open date picker dialog
+      setShowDeliverConfirmDialog(true);
+    } catch (error: any) {
+      toast({ title: 'Erro ao validar', description: error.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmDeliveryWithDate = async (deliveredAt: Date) => {
+    if (!project) return;
+    setLoading(true);
+    
+    try {
+      const { data: finalColumn } = await supabase
+        .from('kanban_columns')
+        .select('id')
+        .eq('workspace_id', project.workspace_id)
+        .eq('phase', project.current_phase)
+        .eq('is_final', true)
+        .single();
+      
+      if (!finalColumn) {
+        toast({ title: 'Erro', description: 'Coluna final não encontrada.', variant: 'destructive' });
+        setLoading(false);
+        return;
+      }
+      
+      const { data, error } = await supabase.rpc('deliver_project', {
+        p_project_id: project.id,
+        p_phase: project.current_phase,
+        p_target_column_id: finalColumn.id,
+        p_delivered_at: deliveredAt.toISOString(),
+      });
+      
+      if (error) {
+        toast({ title: 'Erro ao concluir', description: error.message, variant: 'destructive' });
+        setLoading(false);
+        return;
+      }
+      
+      const result = data as { can_deliver: boolean; reason: string | null } | null;
+      if (result && !result.can_deliver) {
+        toast({ title: 'Não foi possível concluir', description: result.reason || 'Erro desconhecido', variant: 'destructive' });
+        setLoading(false);
+        return;
+      }
+      
       toast({ title: 'Projeto concluído com sucesso!' });
+      setShowDeliverConfirmDialog(false);
       setShowCompleteDialog(false);
       onOpenChange(false);
       onUpdate();
@@ -766,6 +800,14 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
         onOpenChange={setShowCompleteDialog}
         pendingItems={pendingChecklistItems.map(item => ({ id: item.id, title: item.title }))}
         pendingChecklistsCount={pendingChecklistItems.length}
+      />
+
+      <DeliverConfirmDialog
+        open={showDeliverConfirmDialog}
+        onOpenChange={setShowDeliverConfirmDialog}
+        projectName={project.name}
+        onConfirm={confirmDeliveryWithDate}
+        loading={loading}
       />
 
       <AlertDialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>

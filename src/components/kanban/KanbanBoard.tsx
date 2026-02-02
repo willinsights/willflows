@@ -27,6 +27,7 @@ import { KanbanFilters, KanbanFilterState } from './KanbanFilters';
 import { CreateProjectModal } from '@/components/projects/CreateProjectModal';
 import { ProjectDetailsSheet } from '@/components/projects/ProjectDetailsSheet';
 import { ChecklistPendingAlert } from '@/components/projects/ChecklistPendingAlert';
+import { DeliverConfirmDialog } from './DeliverConfirmDialog';
 import { useKanban, KanbanPhase, ProjectWithClient } from '@/hooks/useKanban';
 import { useCategories } from '@/hooks/useCategories';
 
@@ -52,7 +53,7 @@ interface PendingAlertData {
 }
 
 export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
-  const { columns, loading, moveProject, updateColumn, addColumn, deleteColumn, reorderColumns, refresh, silentRefresh, pendingAlert, clearPendingAlert } = useKanban(phase);
+  const { columns, loading, moveProject, updateColumn, addColumn, deleteColumn, reorderColumns, refresh, silentRefresh, pendingAlert, clearPendingAlert, pendingDelivery, clearPendingDelivery, confirmDelivery } = useKanban(phase);
   const { categories } = useCategories();
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<KanbanFilterState>(defaultFilters);
@@ -431,6 +432,14 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
         pendingTasksCount={pendingAlert.tasks}
         pendingChecklistsCount={pendingAlert.checklists}
         message={pendingAlert.message}
+      />
+
+      {/* Delivery Confirmation Dialog - shown when delivering to select date */}
+      <DeliverConfirmDialog
+        open={pendingDelivery.open}
+        onOpenChange={(open) => !open && clearPendingDelivery()}
+        projectName={pendingDelivery.projectName}
+        onConfirm={confirmDelivery}
       />
     </div>
   );

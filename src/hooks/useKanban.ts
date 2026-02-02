@@ -46,11 +46,25 @@ export interface PendingAlertState {
   message?: string;
 }
 
+export interface PendingDeliveryState {
+  open: boolean;
+  projectId: string | null;
+  projectName: string;
+  targetColumnId: string | null;
+}
+
 const initialPendingAlert: PendingAlertState = {
   open: false,
   items: [],
   tasks: 0,
   checklists: 0,
+};
+
+const initialPendingDelivery: PendingDeliveryState = {
+  open: false,
+  projectId: null,
+  projectName: '',
+  targetColumnId: null,
 };
 
 // Debounce helper
@@ -70,6 +84,7 @@ export function useKanban(phase: KanbanPhase) {
   const [columns, setColumns] = useState<KanbanColumnWithProjects[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingAlert, setPendingAlert] = useState<PendingAlertState>(initialPendingAlert);
+  const [pendingDelivery, setPendingDelivery] = useState<PendingDeliveryState>(initialPendingDelivery);
   
   // Check if user should see only their projects (based on dynamic permissions)
   const isCollaborator = !canViewAllProjects;
@@ -96,6 +111,10 @@ export function useKanban(phase: KanbanPhase) {
 
   const clearPendingAlert = useCallback(() => {
     setPendingAlert(initialPendingAlert);
+  }, []);
+
+  const clearPendingDelivery = useCallback(() => {
+    setPendingDelivery(initialPendingDelivery);
   }, []);
 
   // Helper to fetch pending checklist items for a project
@@ -637,52 +656,42 @@ export function useKanban(phase: KanbanPhase) {
         }
       }
       
-      // Call RPC deliver_project for backend validation
-      const { data, error } = await supabase.rpc('deliver_project', {
+      // First validate if can deliver using can_deliver_project RPC
+      const { data: validationResult, error: validationError } = await supabase.rpc('can_deliver_project', {
         p_project_id: projectId,
-        p_phase: phase,
-        p_target_column_id: targetColumnId
+        p_phase: phase
       });
       
-      
-      if (error) {
-        // Capture trigger error - fetch pending items for rich alert
-        if (error.message.includes('CHECKLIST_INCOMPLETE')) {
-          const pendingItems = await fetchPendingChecklistItems(projectId, phase);
-          setPendingAlert({
-            open: true,
-            items: pendingItems,
-            tasks: 0,
-            checklists: pendingItems.length,
-            message: error.message.replace('CHECKLIST_INCOMPLETE: ', ''),
-          });
-        } else {
-          toast({
-            title: 'Não é possível entregar',
-            description: handleDatabaseError('moveProject', error),
-            variant: 'destructive',
-          });
-        }
+      if (validationError) {
+        toast({
+          title: 'Erro ao validar',
+          description: handleDatabaseError('validateDelivery', validationError),
+          variant: 'destructive',
+        });
         return;
       }
       
-      const result = data as { can_deliver: boolean; reason: string | null; pending_tasks: number; pending_checklists: number } | null;
-      if (result && !result.can_deliver) {
+      const validation = validationResult as { can_deliver: boolean; reason: string | null; pending_tasks: number; pending_checklists: number } | null;
+      if (validation && !validation.can_deliver) {
         // Fetch pending items for rich alert
         const pendingItems = await fetchPendingChecklistItems(projectId, phase);
         setPendingAlert({
           open: true,
           items: pendingItems,
-          tasks: result.pending_tasks,
-          checklists: result.pending_checklists,
-          message: result.reason || undefined,
+          tasks: validation.pending_tasks,
+          checklists: validation.pending_checklists,
+          message: validation.reason || undefined,
         });
         return;
       }
       
-      // Success - update UI
-      toast({ title: 'Projeto entregue com sucesso!' });
-      fetchColumns();
+      // Validation passed - open confirmation dialog to select delivery date
+      setPendingDelivery({
+        open: true,
+        projectId,
+        projectName: project.name,
+        targetColumnId,
+      });
       return;
     }
     
@@ -919,6 +928,46 @@ export function useKanban(phase: KanbanPhase) {
     }
   };
 
+  // Confirm delivery with selected date
+  const confirmDelivery = async (deliveredAt: Date) => {
+    if (!pendingDelivery.projectId || !pendingDelivery.targetColumnId) {
+      clearPendingDelivery();
+      return;
+    }
+
+    const { data, error } = await supabase.rpc('deliver_project', {
+      p_project_id: pendingDelivery.projectId,
+      p_phase: phase,
+      p_target_column_id: pendingDelivery.targetColumnId,
+      p_delivered_at: deliveredAt.toISOString(),
+    });
+
+    if (error) {
+      toast({
+        title: 'Erro ao entregar',
+        description: handleDatabaseError('confirmDelivery', error),
+        variant: 'destructive',
+      });
+      clearPendingDelivery();
+      return;
+    }
+
+    const result = data as { can_deliver: boolean; reason: string | null } | null;
+    if (result && !result.can_deliver) {
+      toast({
+        title: 'Não foi possível entregar',
+        description: result.reason || 'Erro desconhecido',
+        variant: 'destructive',
+      });
+      clearPendingDelivery();
+      return;
+    }
+
+    toast({ title: 'Projeto entregue com sucesso!' });
+    clearPendingDelivery();
+    fetchColumns();
+  };
+
   return {
     columns,
     loading,
@@ -931,5 +980,8 @@ export function useKanban(phase: KanbanPhase) {
     silentRefresh,
     pendingAlert,
     clearPendingAlert,
+    pendingDelivery,
+    clearPendingDelivery,
+    confirmDelivery,
   };
 }
