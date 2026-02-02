@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { lovable } from '@/integrations/lovable';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { isTrialExpired, hasPaidSubscription } from '@/lib/subscription-utils';
 import { queryClient } from '@/lib/query-client';
@@ -144,11 +145,8 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/app`,
-      },
+    const { error } = await lovable.auth.signInWithOAuth('google', {
+      redirect_uri: window.location.origin,
     });
     return { error: error as Error | null };
   }, []);
