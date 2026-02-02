@@ -1,120 +1,173 @@
 
-# Plano: Corrigir Cálculo de Métricas Financeiras (Receita/Custos/Lucro)
+# Plano: Unificar Layout de Exportações de Dados
 
-## Problema Identificado
-
-Os KPIs de **Receita**, **Custos** e **Lucro** no dashboard estão a usar a data de **criação** (`created_at`) em vez da data de **entrega** (`delivered_at`) para filtrar projectos.
-
-| Métrica | Filtro Actual | Filtro Correcto |
-|---------|---------------|-----------------|
-| Entregues | `delivered_at` ✅ | `delivered_at` |
-| Receita | `created_at` ❌ | `delivered_at` |
-| Custos | `created_at` ❌ | `delivered_at` |
-| Lucro | `created_at` ❌ | `delivered_at` |
-
-### Impacto
-Os 100€ de receita/custos que vês referem-se a projectos **criados** em Janeiro, não **entregues** em Janeiro. Ao corrigir, o dashboard irá:
-- Mostrar 0€ de receita/custos para Fevereiro (se nenhum projecto foi entregue ainda)
-- Mostrar os valores correctos para Janeiro (projectos entregues nesse mês)
+## Objectivo
+Padronizar todas as exportações (Excel e PDF) para seguir o mesmo layout profissional utilizado na página "Projetos Finalizados", garantindo consistência visual em toda a aplicação.
 
 ---
 
-## Alteração Necessária
+## Análise do Layout de Referência (Projetos Finalizados)
 
-### Ficheiro: `src/hooks/useDashboardMetrics.ts`
+### Excel
+- Utiliza a função central `exportToExcel` de `@/lib/excel-export.ts`
+- Cabeçalhos com cor da marca (#8224E3)
+- Linhas alternadas (zebra stripes) com tom roxo claro (#F8F4FF)
+- Auto-ajuste de colunas
+- Título, subtítulo, data e contagem de registos
 
-Alterar o filtro de `created_at` para `delivered_at` apenas para projectos **entregues**:
-
-```typescript
-// ANTES (linhas 185-193)
-const currentMonthProjects = projectsData?.filter(p => {
-  const createdAt = new Date(p.created_at);
-  return createdAt >= currentMonthStart && createdAt <= currentMonthEnd;
-}) || [];
-
-// DEPOIS
-const currentMonthProjects = projectsData?.filter(p => {
-  // Only count DELIVERED projects for financial metrics
-  if (!p.is_delivered || !p.delivered_at) return false;
-  const deliveredAt = new Date(p.delivered_at);
-  return deliveredAt >= currentMonthStart && deliveredAt <= currentMonthEnd;
-}) || [];
-```
-
-Aplicar a mesma correção para o mês anterior (linhas 196-199):
-
-```typescript
-// DEPOIS
-const previousMonthProjects = projectsData?.filter(p => {
-  if (!p.is_delivered || !p.delivered_at) return false;
-  const deliveredAt = new Date(p.delivered_at);
-  return deliveredAt >= previousMonthStart && deliveredAt <= previousMonthEnd;
-}) || [];
-```
+### PDF
+- Barra lateral roxa à esquerda (`border-left: 4px solid #8224e3`)
+- Barra de estatísticas com gradiente roxo
+- Tabela com cabeçalhos roxos (#8224E3)
+- Linhas zebra
+- Rodapé com marca "WillFlow" e data de geração
+- Cores: verde para valores positivos, vermelho para negativos
 
 ---
 
-## Lógica de Negócio
+## Problemas Identificados
 
-A receita/custos só devem ser contabilizados quando o projecto é **efectivamente entregue**, não quando é criado:
+### 1. `PaymentExportButtons.tsx` (Pagamentos)
+| Aspecto | Actual | Esperado |
+|---------|--------|----------|
+| Excel | Lógica inline sem formatação | Usar `exportToExcel` central |
+| PDF Header | `border-bottom: 3px solid` | `border-left: 4px solid` |
+| Stats bar | Diferente | Gradiente roxo consistente |
+| Rodapé | Centrado | Flex com marca à esquerda |
 
-- **Projectos em andamento** → contribuem para **Previsão** (já funciona assim)
-- **Projectos entregues** → contribuem para **Receita/Custos/Lucro do mês**
+### 2. `Relatorios.tsx` 
+- **Excel**: Já usa `exportMultiSectionToExcel` ✅
+- **PDF**: Layout correcto mas código duplicado no ficheiro
+
+---
+
+## Solução
+
+### Fase 1: Criar Utilidades Centrais
+
+Criar `src/lib/pdf-export.ts` com template HTML reutilizável que replica o estilo de "Projetos Finalizados".
+
+### Fase 2: Refatorar PaymentExportButtons.tsx
+
+1. **Excel**: Substituir lógica inline por `exportToExcel` de `@/lib/excel-export.ts`
+2. **PDF**: Alinhar estilos com o template de referência
+
+---
+
+## Alterações de Ficheiros
+
+| Ficheiro | Alteração |
+|----------|-----------|
+| `src/lib/pdf-export.ts` | **Novo** - Template HTML central para PDFs |
+| `src/components/payments/PaymentExportButtons.tsx` | Refatorar para usar utilidades centrais |
 
 ---
 
 ## Secção Técnica
 
-### Código Actual (Incorrecto)
+### Novo ficheiro: `src/lib/pdf-export.ts`
 
 ```typescript
-// Lines 185-193 - Uses created_at
-const currentMonthProjects = projectsData?.filter(p => {
-  const createdAt = new Date(p.created_at);
-  return createdAt >= currentMonthStart && createdAt <= currentMonthEnd;
-}) || [];
+export interface PdfExportOptions {
+  title: string;
+  subtitle?: string;
+  workspaceName: string;
+  statsBar?: { label: string; value: string; className?: string }[];
+  headers: string[];
+  data: { cells: string[]; rowClass?: string }[];
+  footer?: {
+    brand: string;
+    date: string;
+  };
+}
 
-const receita = currentMonthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
+export function generatePdfHtml(options: PdfExportOptions): string {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>${options.title}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #1a1a1a; background: #fff; }
+        .header { border-left: 4px solid #8224e3; padding-left: 20px; margin-bottom: 30px; }
+        .header h1 { color: #8224e3; font-size: 28px; margin-bottom: 8px; }
+        .header .workspace-name { color: #666; font-size: 16px; margin-bottom: 4px; }
+        .header .date { color: #999; font-size: 12px; }
+        .stats-bar { display: flex; gap: 20px; margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, #f8f4ff 0%, #f0e8ff 100%); border-radius: 12px; flex-wrap: wrap; }
+        .stat-item { flex: 1; min-width: 120px; }
+        .stat-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .stat-value { font-size: 22px; font-weight: 700; color: #1a1a1a; }
+        .stat-value.success { color: #16a34a; }
+        .stat-value.primary { color: #8224e3; }
+        .stat-value.warning { color: #ca8a04; }
+        .stat-value.destructive { color: #dc2626; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
+        th, td { border: 1px solid #e5e5e5; padding: 10px 8px; text-align: left; }
+        th { background: #8224e3; color: white; font-weight: 600; font-size: 11px; text-transform: uppercase; }
+        tr:nth-child(even) { background-color: #fafafa; }
+        tr:hover { background-color: #f5f0ff; }
+        .positive { color: #16a34a; }
+        .negative { color: #dc2626; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e5e5; display: flex; justify-content: space-between; }
+        .footer-brand { color: #8224e3; font-weight: 600; font-size: 14px; }
+        .footer-date { color: #999; font-size: 11px; }
+        @media print { body { padding: 20px; } }
+      </style>
+    </head>
+    <body>
+      <!-- Content generated from options -->
+    </body>
+    </html>
+  `;
+}
 ```
 
-### Código Corrigido
+### Alterações em PaymentExportButtons.tsx
+
+**Excel** - Substituir linhas 138-237 por:
 
 ```typescript
-// Lines 185-193 - Uses delivered_at for DELIVERED projects only
-const currentMonthProjects = projectsData?.filter(p => {
-  if (!p.is_delivered || !p.delivered_at) return false;
-  const deliveredAt = new Date(p.delivered_at);
-  return deliveredAt >= currentMonthStart && deliveredAt <= currentMonthEnd;
-}) || [];
-
-const receita = currentMonthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
+const exportToExcelHandler = async () => {
+  const { exportToExcel: doExport } = await import('@/lib/excel-export');
+  const labels = getColumnLabels();
+  const keys = getRelevantKeys();
+  
+  await doExport({
+    title: reportTitle,
+    subtitle: workspaceName,
+    headers: keys.map(k => labels[k]),
+    data: data.map(row => keys.map(key => String(row[key as keyof ExportData] || '-'))),
+    filename: `${filename}-${currentDateFile}`,
+  });
+};
 ```
 
-### Também corrigir mês anterior (para comparação %)
+**PDF** - Alinhar estilos:
 
-```typescript
-// Lines 196-204
-const previousMonthProjects = projectsData?.filter(p => {
-  if (!p.is_delivered || !p.delivered_at) return false;
-  const deliveredAt = new Date(p.delivered_at);
-  return deliveredAt >= previousMonthStart && deliveredAt <= previousMonthEnd;
-}) || [];
-```
+1. Mudar header de `border-bottom: 3px` para `border-left: 4px`
+2. Uniformizar stats-bar com gradiente `linear-gradient(135deg, #f8f4ff 0%, #f0e8ff 100%)`
+3. Padronizar footer com layout flex (marca à esquerda, data à direita)
+4. Usar mesmas classes de cores (`.success`, `.primary`, etc.)
 
 ---
 
-## Resultado Esperado
+## Resultado Visual Esperado
 
-Após a correção:
-- **Fevereiro**: 0€ receita (nenhum projecto entregue ainda)
-- **Janeiro**: Valores correctos dos projectos entregues com `delivered_at` em Janeiro
-- Os projectos que acabaste de marcar como entregues com data 31/Jan irão contar para Janeiro
+Após as alterações, todos os exports terão:
+
+- ✅ Barra lateral roxa no cabeçalho
+- ✅ Gradiente roxo na barra de estatísticas  
+- ✅ Tabelas com cabeçalhos #8224E3
+- ✅ Linhas zebra consistentes
+- ✅ Rodapé com marca WillFlow à esquerda
+- ✅ Excel com formatação profissional via `exportToExcel`
 
 ---
 
-## Ficheiros a Modificar
+## Resumo de Alterações
 
-| Ficheiro | Alteração |
-|----------|-----------|
-| `src/hooks/useDashboardMetrics.ts` | Corrigir filtro de `created_at` para `delivered_at` nas linhas ~185-204 |
-
+| Ficheiro | Linhas | Tipo |
+|----------|--------|------|
+| `src/lib/pdf-export.ts` | ~80 | Novo |
+| `src/components/payments/PaymentExportButtons.tsx` | ~200 linhas modificadas | Refatorar |
