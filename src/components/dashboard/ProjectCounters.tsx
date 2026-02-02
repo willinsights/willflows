@@ -3,6 +3,7 @@ import { Camera, Film, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ChangeIndicator } from '@/components/ui/ChangeIndicator';
 import { cn } from '@/lib/utils';
 import type { DashboardMetrics } from '@/hooks/useDashboardMetrics';
 
@@ -16,6 +17,7 @@ export function ProjectCounters({ metrics, loading }: ProjectCountersProps) {
     {
       label: 'Em Captação',
       value: metrics.captacao,
+      change: null, // Snapshot, no month comparison
       icon: Camera,
       iconColor: 'text-primary',
       bgColor: 'bg-primary/10',
@@ -25,6 +27,7 @@ export function ProjectCounters({ metrics, loading }: ProjectCountersProps) {
     {
       label: 'Em Edição',
       value: metrics.edicao,
+      change: null, // Snapshot, no month comparison
       icon: Film,
       iconColor: 'text-info',
       bgColor: 'bg-info/10',
@@ -34,6 +37,7 @@ export function ProjectCounters({ metrics, loading }: ProjectCountersProps) {
     {
       label: 'Entregues (mês)',
       value: metrics.entregues,
+      change: metrics.entreguesChange, // Monthly accumulative metric
       icon: CheckCircle2,
       iconColor: 'text-success',
       bgColor: 'bg-success/10',
@@ -56,9 +60,12 @@ export function ProjectCounters({ metrics, loading }: ProjectCountersProps) {
                   {loading ? (
                     <Skeleton className="h-7 w-8" />
                   ) : (
-                    <span className="font-bold text-2xl">
-                      {counter.value}
-                    </span>
+                    <>
+                      <span className="font-bold text-2xl">
+                        {counter.value}
+                      </span>
+                      <ChangeIndicator change={counter.change} />
+                    </>
                   )}
                 </div>
               </div>

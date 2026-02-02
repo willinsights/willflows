@@ -4,6 +4,7 @@ import { Target, Calculator, PiggyBank } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ChangeIndicator } from '@/components/ui/ChangeIndicator';
 import { cn } from '@/lib/utils';
 import { useMonthlyForecast } from '@/hooks/useMonthlyForecast';
 import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
@@ -14,7 +15,16 @@ export function FinancialForecastCards() {
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const { formatCurrency } = useCurrentWorkspace();
   const { hideValues } = useHideValues();
-  const { totalRevenue, totalCost, totalProfit, projectCount, loading } = useMonthlyForecast(selectedMonth);
+  const { 
+    totalRevenue, 
+    totalCost, 
+    totalProfit, 
+    projectCount, 
+    revenueChange,
+    costChange,
+    profitChange,
+    loading 
+  } = useMonthlyForecast(selectedMonth);
 
   const goToPreviousMonth = () => {
     setSelectedMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
@@ -32,6 +42,8 @@ export function FinancialForecastCards() {
     {
       label: 'Receita Prevista',
       value: formatCurrency(totalRevenue),
+      change: revenueChange,
+      invertColor: false,
       icon: Target,
       iconColor: 'text-success',
       bgColor: 'bg-success/10',
@@ -42,6 +54,8 @@ export function FinancialForecastCards() {
     {
       label: 'Custo Previsto',
       value: formatCurrency(totalCost),
+      change: costChange,
+      invertColor: true, // Cost increase = red
       icon: Calculator,
       iconColor: 'text-warning',
       bgColor: 'bg-warning/10',
@@ -52,6 +66,8 @@ export function FinancialForecastCards() {
     {
       label: 'Lucro Previsto',
       value: formatCurrency(totalProfit),
+      change: profitChange,
+      invertColor: false,
       icon: PiggyBank,
       iconColor: totalProfit >= 0 ? 'text-primary' : 'text-destructive',
       bgColor: totalProfit >= 0 ? 'bg-primary/10' : 'bg-destructive/10',
@@ -93,13 +109,21 @@ export function FinancialForecastCards() {
                     {loading ? (
                       <Skeleton className="h-7 w-20" />
                     ) : (
-                      <span className={cn(
-                        'font-bold text-lg',
-                        card.valueClass,
-                        hideValues && 'blur-md select-none'
-                      )}>
-                        {card.value}
-                      </span>
+                      <>
+                        <span className={cn(
+                          'font-bold text-lg',
+                          card.valueClass,
+                          hideValues && 'blur-md select-none'
+                        )}>
+                          {card.value}
+                        </span>
+                        {!hideValues && (
+                          <ChangeIndicator 
+                            change={card.change} 
+                            invertColor={card.invertColor} 
+                          />
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
