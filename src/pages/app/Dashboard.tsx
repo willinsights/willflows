@@ -3,7 +3,8 @@ import { ProductTour } from '@/components/tour/ProductTour';
 import { TrialBanner } from '@/components/dashboard/TrialBanner';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { QuickActionsCard } from '@/components/dashboard/QuickActionsCard';
-import { KPICards } from '@/components/dashboard/KPICards';
+import { ProjectCounters } from '@/components/dashboard/ProjectCounters';
+import { FinancialForecastCards } from '@/components/dashboard/FinancialForecastCards';
 import { FinancialChart } from '@/components/dashboard/FinancialChart';
 import { MonthlyGoalsCard } from '@/components/dashboard/MonthlyGoalsCard';
 import { UrgentProjectsCard } from '@/components/dashboard/UrgentProjectsCard';
@@ -206,8 +207,13 @@ export default function Dashboard() {
         <QuickActionsCard />
       </div>
 
-      {/* KPIs Row */}
-      <KPICards metrics={metrics} loading={loading} />
+      {/* Project Counters Row */}
+      <ProjectCounters metrics={metrics} loading={loading} />
+
+      {/* Financial Forecast Row - Only for admins */}
+      {!isCollaborator && canViewAllFinancials && (
+        <FinancialForecastCards />
+      )}
 
       {/* Charts Row - Financial (with tabs) + Monthly Goals - Hidden for collaborators */}
       {!isCollaborator && (
