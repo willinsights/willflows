@@ -1,215 +1,271 @@
 
+# Plano: Actualizar Relatórios com Correcção de Custos
 
-# Plano: Corrigir Cálculo de Custos na Previsão Financeira
+## Contexto
 
-## Problema Identificado
+A correcção feita no `useMonthlyForecast.ts` estabeleceu que os campos do projecto (`custo_captacao`, `custo_edicao`, `custos_extras`) são a **fonte de verdade** para custos. Não se deve adicionar separadamente os `project_team.payment_amount` porque esses valores já estão agregados nos campos do projecto.
 
-Os custos do mês de Janeiro (e de qualquer mês) estão **inflacionados** devido a dois erros na lógica do hook `useMonthlyForecast.ts`:
-
-### 1. Duplicação de Custos
-Os campos `custo_captacao`, `custo_edicao` e `custos_extras` do projecto já representam os custos totais (que são distribuídos pelos membros da equipa em `project_team.payment_amount`). O hook está a somar **ambos**:
-- Custos do projecto: 3.539,90€
-- Pagamentos de equipa pendentes: 5.879,90€
-- **Total errado: 9.419,80€**
-
-Na realidade, estes valores representam a mesma coisa - os custos de captação e edição são agregados dos pagamentos individuais da equipa.
-
-### 2. Pagamentos Não Filtrados por Mês
-O hook está a buscar **TODOS** os pagamentos pendentes do workspace (5.879,90€), incluindo:
-- Pagamentos de projectos de Fevereiro
-- Pagamentos de projectos de meses futuros
-- Pagamentos atrasados de meses passados
-
-Todos estes valores são adicionados ao custo de Janeiro, quando deveria incluir apenas os pagamentos dos projectos que pertencem a Janeiro.
+No entanto, outros relatórios e hooks ainda usam lógica inconsistente:
+- Alguns somam `project_team.payment_amount` aos custos (duplicação)
+- Outros fazem queries desnecessárias a `project_team`
 
 ---
 
-## Solução Proposta
+## Ficheiros Afectados
 
-Usar apenas os campos de custo do projecto (`custo_captacao + custo_edicao + custos_extras`) como fonte de verdade, **removendo** a soma adicional de pagamentos de equipa pendentes.
-
-Os campos do projecto já representam o custo total agregado, portanto não há necessidade de somar os pagamentos individuais da equipa.
+| Ficheiro | Problema | Correcção |
+|----------|----------|-----------|
+| `src/hooks/useDashboardMetrics.ts` | Linha 329 e 443: soma `teamPaymentsPending` aos custos de previsão | Remover soma duplicada |
+| `src/pages/app/Relatorios.tsx` | Linhas 155-175, 312-353, 406-433: usa `project_team.payment_amount` para custos | Usar campos do projecto |
+| `src/pages/app/Finalizados.tsx` | Linhas 237, 273-278, 361: já usa campos corretos | Manter (está correcto) |
+| `src/components/dashboard/FinancialChart.tsx` | Recebe dados do `useDashboardMetrics` | Corrigido automaticamente |
+| `src/components/mobile/MobileFinancialSummary.tsx` | Recebe dados do `useDashboardMetrics` | Corrigido automaticamente |
 
 ---
 
-## Alterações Necessárias
+## Correcções Detalhadas
 
-### Ficheiro: `src/hooks/useMonthlyForecast.ts`
+### 1. `useDashboardMetrics.ts` - Linha 329
 
-**Remover** a lógica que adiciona pagamentos de equipa pendentes:
-
-**Antes (linhas 55-64 e 103-106):**
+**Problema:**
 ```typescript
-// Fetch pending team payments for the month
-const { data: teamPayments } = await supabase
-  .from('project_team')
-  .select(`
-    payment_amount,
-    payment_status,
-    projects!inner(workspace_id)
-  `)
-  .eq('projects.workspace_id', currentWorkspace.id)
-  .eq('payment_status', 'pendente');
-
-// ...
-
-// Add pending team payments to costs (both months use the same pending payments)
-const pendingTeamCosts = teamPayments?.reduce((sum, tp) => sum + (tp.payment_amount || 0), 0) || 0;
-totalCost += pendingTeamCosts;
-prevCost += pendingTeamCosts;
+// Linha 329
+const previsaoCustos = previsaoCustosProjeto + teamPaymentsPending;
 ```
 
-**Depois:**
+O hook calcula `previsaoCustosProjeto` correctamente (soma de `custo_captacao + custo_edicao + custos_extras`), mas depois adiciona TODOS os pagamentos pendentes da equipa do workspace. Isto duplica custos.
+
+**Correcção:**
 ```typescript
-// Removed: team payments query and addition to costs
-// The project cost fields (custo_captacao, custo_edicao, custos_extras)
-// already represent the total costs including team payments
+// Remover a soma de teamPaymentsPending
+const previsaoCustos = previsaoCustosProjeto;
+```
+
+**Impacto:** Também remover a query `pendingTeamPaymentsData` (linhas 318-327) se não for usada noutro local.
+
+### 2. `useDashboardMetrics.ts` - Linha 443
+
+**Problema:**
+```typescript
+// Linha 443
+custosPrevisao += teamPaymentsPending;
+```
+
+No cálculo de `monthlyData` para o gráfico, adiciona-se novamente os pagamentos pendentes da equipa aos custos de previsão.
+
+**Correcção:**
+```typescript
+// Remover esta linha
+// custosPrevisao += teamPaymentsPending;
+```
+
+### 3. `Relatorios.tsx` - Lógica de Custos (Linhas 155-175)
+
+**Problema:**
+```typescript
+// Fetch team payments data for accurate cost calculations
+const [teamPaymentsData, setTeamPaymentsData] = useState<...>([]);
+
+useEffect(() => {
+  const fetchTeamPayments = async () => {
+    // ... busca project_team.payment_amount
+  };
+  fetchTeamPayments();
+}, [projects]);
+```
+
+O componente faz uma query separada a `project_team` para obter pagamentos, e depois usa-os para calcular custos.
+
+**Correcção:**
+Remover esta query e usar directamente os campos do projecto (`custo_captacao + custo_edicao + custos_extras`).
+
+### 4. `Relatorios.tsx` - `monthlyData` (Linhas 312-353)
+
+**Problema:**
+```typescript
+// Calculate costs from project_team.payment_amount (source of truth)
+const teamCosts = teamPaymentsData
+  .filter(tp => monthProjectIds.includes(tp.project_id))
+  .reduce((sum, tp) => sum + (tp.payment_amount || 0), 0);
+
+const extraCosts = monthProjects.reduce((sum, p) => sum + (p.custos_extras || 0), 0);
+const costs = teamCosts + extraCosts;
+```
+
+**Correcção:**
+```typescript
+// Use project cost fields as source of truth
+const costs = monthProjects.reduce((sum, p) => 
+  sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
+```
+
+### 5. `Relatorios.tsx` - `summaryMetrics` (Linhas 406-433)
+
+**Problema:**
+```typescript
+// Team costs from project_team.payment_amount (source of truth)
+const totalTeamCosts = teamPaymentsData
+  .filter(tp => deliveredProjectIds.includes(tp.project_id))
+  .reduce((sum, tp) => sum + (tp.payment_amount || 0), 0);
+
+const totalExtraCosts = deliveredProjects.reduce((sum, p) => sum + (p.custos_extras || 0), 0);
+const totalCosts = totalTeamCosts + totalExtraCosts;
+```
+
+**Correcção:**
+```typescript
+// Use project cost fields as source of truth
+const totalCosts = deliveredProjects.reduce((sum, p) => 
+  sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
 ```
 
 ---
 
-## Resultado Esperado
+## Resumo das Alterações por Ficheiro
 
-Para Janeiro 2026 no workspace In-Sights:
+### `src/hooks/useDashboardMetrics.ts`
 
-| Métrica | Valor Actual (Errado) | Valor Correcto |
-|---------|----------------------|----------------|
-| Receita Prevista | 6.823,90€ | 6.823,90€ |
-| Custo Previsto | 9.419,80€ | **3.539,90€** |
-| Lucro Previsto | -2.595,90€ | **3.284,00€** |
+| Linha | Acção |
+|-------|-------|
+| 318-327 | **Remover** query `pendingTeamPaymentsData` (já não é necessária) |
+| 329 | Alterar: `previsaoCustos = previsaoCustosProjeto` (sem `+ teamPaymentsPending`) |
+| 443 | **Remover** linha: `custosPrevisao += teamPaymentsPending` |
+
+### `src/pages/app/Relatorios.tsx`
+
+| Linha | Acção |
+|-------|-------|
+| 106-111 | **Remover** state `teamPaymentsData` |
+| 155-175 | **Remover** `useEffect` que faz fetch de `project_team` |
+| 312-353 | Reescrever `monthlyData` para usar campos do projecto |
+| 406-433 | Reescrever `summaryMetrics` para usar campos do projecto |
+
+---
+
+## Verificação de Finalizados.tsx
+
+O ficheiro `Finalizados.tsx` já usa a lógica correcta:
+
+```typescript
+// Linha 237
+const custo = (project.custo_captacao || 0) + (project.custo_edicao || 0) + (project.custos_extras || 0);
+```
+
+Não é necessária nenhuma alteração.
+
+---
+
+## Impacto Visual
+
+Após estas correcções:
+
+| Relatório | Antes | Depois |
+|-----------|-------|--------|
+| Dashboard Previsão | Custos inflacionados | Custos correctos |
+| Gráfico Financeiro | Previsão com custos duplicados | Previsão alinhada |
+| Relatórios → Evolução Mensal | Custos de `project_team` | Custos do projecto |
+| Relatórios → Resumo | Custos de `project_team` | Custos do projecto |
 
 ---
 
 ## Secção Técnica
 
-### Código Corrigido para `useMonthlyForecast.ts`
+### useDashboardMetrics.ts - Código Corrigido
 
 ```typescript
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { format, parseISO, subMonths } from 'date-fns';
+// REMOVER linhas 318-327 (query pendingTeamPaymentsData)
 
-export interface MonthlyForecastData {
-  totalRevenue: number;
-  totalCost: number;
-  totalProfit: number;
-  projectCount: number;
-  revenueChange: number | null;
-  costChange: number | null;
-  profitChange: number | null;
-  loading: boolean;
-}
+// Linha 329 - ALTERAR de:
+const previsaoCustos = previsaoCustosProjeto + teamPaymentsPending;
+// PARA:
+const previsaoCustos = previsaoCustosProjeto;
 
-function calculateChange(current: number, previous: number): number | null {
-  if (previous === 0) return null;
-  return Math.round(((current - previous) / Math.abs(previous)) * 100);
-}
+// REMOVER linha 443:
+// custosPrevisao += teamPaymentsPending;
+```
 
-export function useMonthlyForecast(selectedMonth: Date): MonthlyForecastData {
-  const { currentWorkspace } = useWorkspace();
-  const [data, setData] = useState<MonthlyForecastData>({
-    totalRevenue: 0,
-    totalCost: 0,
-    totalProfit: 0,
-    projectCount: 0,
-    revenueChange: null,
-    costChange: null,
-    profitChange: null,
-    loading: true,
-  });
+### Relatorios.tsx - Código Corrigido
 
-  useEffect(() => {
-    if (!currentWorkspace?.id) return;
+```typescript
+// REMOVER state teamPaymentsData (linhas 106-111)
+// REMOVER useEffect fetchTeamPayments (linhas 155-175)
 
-    const fetchForecast = async () => {
-      setData(prev => ({ ...prev, loading: true }));
-      
-      const monthKey = format(selectedMonth, 'yyyy-MM');
-      const previousMonth = subMonths(selectedMonth, 1);
-      const previousMonthKey = format(previousMonth, 'yyyy-MM');
+// monthlyData - SIMPLIFICAR para:
+const monthlyData = useMemo(() => {
+  const months = [];
+  
+  for (let i = periodMonths - 1; i >= 0; i--) {
+    const date = subMonths(dateRange.end, i);
+    const start = startOfMonth(date);
+    const end = endOfMonth(date);
+    
+    if (end < dateRange.start) continue;
+    
+    const monthProjects = projects.filter(p => {
+      if (!p.is_delivered || !p.delivered_at) return false;
+      const delivered = new Date(p.delivered_at);
+      return isWithinInterval(delivered, { start, end });
+    });
+    
+    const revenue = monthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
+    
+    // Use project cost fields as source of truth
+    const costs = monthProjects.reduce((sum, p) => 
+      sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
+    
+    months.push({
+      month: format(date, 'MMM yy', { locale: pt }),
+      fullMonth: format(date, 'MMMM yyyy', { locale: pt }),
+      receita: revenue,
+      custos: costs,
+      lucro: revenue - costs,
+      margin: revenue > 0 ? ((revenue - costs) / revenue * 100) : 0,
+      projetos: monthProjects.length,
+    });
+  }
+  
+  return months;
+}, [projects, dateRange, periodMonths]);  // Remove teamPaymentsData dependency
 
-      // Fetch projects from workspace
-      const { data: projects } = await supabase
-        .from('projects')
-        .select(`
-          id, is_delivered, delivery_date, shoot_date,
-          agreed_value, custo_captacao, custo_edicao, custos_extras
-        `)
-        .eq('workspace_id', currentWorkspace.id);
-
-      // Calculate totals for selected month
-      let totalRevenue = 0;
-      let totalCost = 0;
-      let projectCount = 0;
-
-      // Calculate totals for previous month
-      let prevRevenue = 0;
-      let prevCost = 0;
-
-      projects?.forEach(p => {
-        // Determine anchor date (delivery_date or fallback to shoot_date)
-        const anchorDate = p.delivery_date || p.shoot_date;
-        if (!anchorDate) return;
-
-        const projectMonth = format(parseISO(anchorDate), 'yyyy-MM');
-        
-        // Project costs = custo_captacao + custo_edicao + custos_extras
-        // These fields already represent the total costs (including team payments)
-        const projectCosts = (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0);
-
-        // Include in selected month if: month matches OR rollover (delayed + not delivered)
-        const isInMonth = projectMonth === monthKey;
-        const isRollover = !p.is_delivered && projectMonth < monthKey;
-
-        if (isInMonth || isRollover) {
-          totalRevenue += p.agreed_value || 0;
-          totalCost += projectCosts;
-          projectCount++;
-        }
-
-        // Include in previous month if: month matches OR rollover
-        const isInPrevMonth = projectMonth === previousMonthKey;
-        const isPrevRollover = !p.is_delivered && projectMonth < previousMonthKey;
-
-        if (isInPrevMonth || isPrevRollover) {
-          prevRevenue += p.agreed_value || 0;
-          prevCost += projectCosts;
-        }
-      });
-
-      // NOTE: Team payments (project_team.payment_amount) are NOT added separately
-      // because custo_captacao and custo_edicao already represent these costs
-
-      const totalProfit = totalRevenue - totalCost;
-      const prevProfit = prevRevenue - prevCost;
-
-      setData({
-        totalRevenue,
-        totalCost,
-        totalProfit,
-        projectCount,
-        revenueChange: calculateChange(totalRevenue, prevRevenue),
-        costChange: calculateChange(totalCost, prevCost),
-        profitChange: calculateChange(totalProfit, prevProfit),
-        loading: false,
-      });
-    };
-
-    fetchForecast();
-  }, [currentWorkspace?.id, selectedMonth]);
-
-  return data;
-}
+// summaryMetrics - SIMPLIFICAR para:
+const summaryMetrics = useMemo(() => {
+  const deliveredProjects = projects.filter(p => p.is_delivered);
+  
+  const totalRevenue = deliveredProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
+  
+  // Use project cost fields as source of truth
+  const totalCosts = deliveredProjects.reduce((sum, p) => 
+    sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
+  
+  const avgProjectValue = deliveredProjects.length > 0 ? totalRevenue / deliveredProjects.length : 0;
+  
+  return {
+    totalRevenue,
+    totalCosts,
+    profit: totalRevenue - totalCosts,
+    margin: totalRevenue > 0 ? ((totalRevenue - totalCosts) / totalRevenue * 100) : 0,
+    avgProjectValue,
+    totalProjects: projects.length,
+    deliveredProjects: deliveredProjects.length,
+    activeClients: clients.filter(c => c.is_active).length,
+  };
+}, [projects, clients]);  // Remove teamPaymentsData dependency
 ```
 
 ---
 
-## Resumo das Alterações
+## Componentes que Não Precisam de Alteração
 
-| Ficheiro | Alteração |
-|----------|-----------|
-| `src/hooks/useMonthlyForecast.ts` | Remover query de `project_team` e lógica de soma de pagamentos pendentes |
+- **FinancialChart.tsx**: Recebe dados do `useDashboardMetrics`, será corrigido automaticamente
+- **MobileFinancialSummary.tsx**: Recebe dados do `useDashboardMetrics`, será corrigido automaticamente
+- **Finalizados.tsx**: Já usa lógica correcta
+- **useMonthlyForecast.ts**: Já foi corrigido
 
-**Linhas a remover:** 55-64 (query de teamPayments) e 103-106 (soma de pendingTeamCosts)
+---
 
+## Ficheiros a Modificar
+
+| Ficheiro | Acção |
+|----------|-------|
+| `src/hooks/useDashboardMetrics.ts` | Remover query e somas duplicadas |
+| `src/pages/app/Relatorios.tsx` | Remover query e simplificar cálculos |
