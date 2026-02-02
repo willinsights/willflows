@@ -50,6 +50,12 @@ interface Project {
   id: string;
   name: string;
   project_code?: string | null;
+  client_id?: string | null;
+}
+
+interface Client {
+  id: string;
+  name: string;
 }
 
 interface Member {
@@ -61,6 +67,7 @@ interface FreelancerPaymentsControlProps {
   teamPayments: ProjectTeamPayment[];
   projects: Project[];
   members: Member[];
+  clients?: Client[];
   onStatusChange: (teamId: string, newStatus: string) => Promise<void>;
   formatCurrency: (value: number) => string;
   workspaceName?: string;
@@ -72,6 +79,7 @@ export function FreelancerPaymentsControl({
   teamPayments,
   projects,
   members,
+  clients,
   onStatusChange,
   formatCurrency,
   workspaceName = 'WillFlow',
@@ -108,6 +116,13 @@ export function FreelancerPaymentsControl({
     return project?.project_code || projectId.slice(0, 8).toUpperCase();
   };
 
+  const getClientName = (projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project?.client_id || !clients) return '-';
+    const client = clients.find(c => c.id === project.client_id);
+    return client?.name || '-';
+  };
+
   const filteredPayments = useMemo(() => {
     return baseTeamPayments.filter(tp => {
       if (filters.memberId && tp.user_id !== filters.memberId) return false;
@@ -132,12 +147,13 @@ export function FreelancerPaymentsControl({
     return filteredPayments.map(tp => ({
       id: getProjectCode(tp.project_id),
       projeto: getProjectName(tp.project_id),
+      cliente: getClientName(tp.project_id),
       contraparte: getMemberName(tp.user_id),
       fase: tp.phase === 'captacao' ? 'Captação' : 'Edição',
       status: statusLabels[tp.payment_status] || tp.payment_status,
       valor: formatCurrency(tp.payment_amount || 0),
     }));
-  }, [filteredPayments, formatCurrency, projects]);
+  }, [filteredPayments, formatCurrency, projects, clients]);
 
   return (
     <Card className="glass-card">
@@ -178,9 +194,10 @@ export function FreelancerPaymentsControl({
           <>
             <Table>
               <TableHeader>
-                <TableRow>
+              <TableRow>
                   <TableHead className="w-[80px] min-w-[80px]">ID</TableHead>
                   <TableHead className="min-w-[150px]">Projeto</TableHead>
+                  <TableHead className="min-w-[120px]">Cliente</TableHead>
                   <TableHead className="min-w-[120px]">Colaborador</TableHead>
                   <TableHead className="min-w-[90px]">Fase</TableHead>
                   <TableHead className="min-w-[130px]">Status</TableHead>
@@ -195,6 +212,9 @@ export function FreelancerPaymentsControl({
                     </TableCell>
                     <TableCell className="font-medium">
                       {getProjectName(tp.project_id)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {getClientName(tp.project_id)}
                     </TableCell>
                     <TableCell>
                       {getMemberName(tp.user_id)}

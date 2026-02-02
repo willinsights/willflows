@@ -41,6 +41,8 @@ export interface ProjectCustoExtra {
   project_code?: string | null;
   custos_extras: number | null;
   custos_extras_payment_status: string | null;
+  client_id?: string | null;
+  clients?: { name: string } | null;
 }
 
 interface ExtraCostsPaymentsControlProps {
@@ -78,6 +80,7 @@ export function ExtraCostsPaymentsControl({
     return filteredCosts.map(cost => ({
       id: cost.project_code || cost.id.slice(0, 8).toUpperCase(),
       projeto: cost.name,
+      cliente: cost.clients?.name || '-',
       status: statusLabels[cost.custos_extras_payment_status || 'pendente'] || 'Pendente',
       valor: formatCurrency(cost.custos_extras || 0),
     }));
@@ -131,6 +134,7 @@ export function ExtraCostsPaymentsControl({
               <TableRow>
                 <TableHead className="w-[80px] min-w-[80px]">ID</TableHead>
                 <TableHead className="min-w-[150px]">Projeto</TableHead>
+                <TableHead className="min-w-[120px]">Cliente</TableHead>
                 <TableHead className="min-w-[130px]">Status</TableHead>
                 <TableHead className="text-right min-w-[100px]">Valor</TableHead>
               </TableRow>
@@ -142,6 +146,9 @@ export function ExtraCostsPaymentsControl({
                     {cost.project_code || cost.id.slice(0, 8).toUpperCase()}
                   </TableCell>
                   <TableCell className="font-medium">{cost.name}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {cost.clients?.name || '-'}
+                  </TableCell>
                   <TableCell>
                     <Select
                       value={cost.custos_extras_payment_status || 'pendente'}

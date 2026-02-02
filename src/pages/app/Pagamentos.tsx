@@ -96,7 +96,7 @@ export default function Pagamentos() {
       // Fetch projects with pending extra costs (for summaries)
       const { data: costsData } = await supabase
         .from('projects')
-        .select('id, name, project_code, custos_extras, custos_extras_payment_status')
+        .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, clients(name)')
         .eq('workspace_id', currentWorkspace.id)
         .gt('custos_extras', 0)
         .in('custos_extras_payment_status', ['pendente', 'vencido', null]);
@@ -108,7 +108,7 @@ export default function Pagamentos() {
       // Fetch ALL projects with extra costs (for the tab)
       const { data: allCostsData } = await supabase
         .from('projects')
-        .select('id, name, project_code, custos_extras, custos_extras_payment_status')
+        .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, clients(name)')
         .eq('workspace_id', currentWorkspace.id)
         .gt('custos_extras', 0);
       
@@ -356,7 +356,7 @@ export default function Pagamentos() {
     // Refresh data
     const { data: costsData } = await supabase
       .from('projects')
-      .select('id, name, project_code, custos_extras, custos_extras_payment_status')
+      .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, clients(name)')
       .eq('workspace_id', currentWorkspace?.id)
       .gt('custos_extras', 0);
     
@@ -414,9 +414,9 @@ export default function Pagamentos() {
     return members.map(m => ({ user_id: m.user_id, full_name: m.full_name }));
   }, [members]);
 
-  // Prepare projects list for freelancer component
+  // Prepare projects list for freelancer component (include client_id for lookup)
   const projectsList = useMemo(() => {
-    return projects.map(p => ({ id: p.id, name: p.name, project_code: p.project_code }));
+    return projects.map(p => ({ id: p.id, name: p.name, project_code: p.project_code, client_id: p.client_id }));
   }, [projects]);
 
   if (loading || permissionsLoading) {
@@ -815,6 +815,7 @@ export default function Pagamentos() {
             teamPayments={typedTeamPayments}
             projects={projectsList}
             members={membersList}
+            clients={clientsList}
             onStatusChange={handleFreelancerStatusChange}
             formatCurrency={formatCurrency}
           />

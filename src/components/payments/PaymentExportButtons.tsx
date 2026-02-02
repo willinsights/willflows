@@ -13,6 +13,7 @@ import { generatePdfHtml, printPdf, type PdfStatItem, type PdfTableRow } from '@
 export interface ExportData {
   id?: string;
   projeto: string;
+  cliente?: string;
   contraparte?: string;
   vencimento?: string;
   status: string;
@@ -65,6 +66,7 @@ const columnLabelsMap: Record<string, Record<string, string>> = {
   freelancers: {
     id: 'Código',
     projeto: 'Projeto',
+    cliente: 'Cliente',
     contraparte: 'Colaborador',
     fase: 'Fase',
     vencimento: 'Data Vencimento',
@@ -76,6 +78,7 @@ const columnLabelsMap: Record<string, Record<string, string>> = {
   custos: {
     id: 'Código',
     projeto: 'Projeto',
+    cliente: 'Cliente',
     status: 'Status',
     valor: 'Custo Extra',
   },
