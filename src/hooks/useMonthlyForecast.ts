@@ -52,18 +52,9 @@ export function useMonthlyForecast(selectedMonth: Date): MonthlyForecastData {
         `)
         .eq('workspace_id', currentWorkspace.id);
 
-      // Fetch pending team payments for the month
-      const { data: teamPayments } = await supabase
-        .from('project_team')
-        .select(`
-          payment_amount,
-          payment_status,
-          projects!inner(workspace_id)
-        `)
-        .eq('projects.workspace_id', currentWorkspace.id)
-        .eq('payment_status', 'pendente');
-
       // Calculate totals for selected month
+      // NOTE: We only use project cost fields (custo_captacao, custo_edicao, custos_extras)
+      // These already represent total costs - team payments are NOT added separately
       let totalRevenue = 0;
       let totalCost = 0;
       let projectCount = 0;
@@ -99,11 +90,6 @@ export function useMonthlyForecast(selectedMonth: Date): MonthlyForecastData {
           prevCost += projectCosts;
         }
       });
-
-      // Add pending team payments to costs (both months use the same pending payments)
-      const pendingTeamCosts = teamPayments?.reduce((sum, tp) => sum + (tp.payment_amount || 0), 0) || 0;
-      totalCost += pendingTeamCosts;
-      prevCost += pendingTeamCosts;
 
       const totalProfit = totalRevenue - totalCost;
       const prevProfit = prevRevenue - prevCost;
