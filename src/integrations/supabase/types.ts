@@ -3704,14 +3704,24 @@ export type Database = {
         Args: { _encrypted_token: string; _user_id: string }
         Returns: string
       }
-      deliver_project: {
-        Args: {
-          p_phase: string
-          p_project_id: string
-          p_target_column_id: string
-        }
-        Returns: Json
-      }
+      deliver_project:
+        | {
+            Args: {
+              p_phase: string
+              p_project_id: string
+              p_target_column_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_delivered_at?: string
+              p_phase: string
+              p_project_id: string
+              p_target_column_id: string
+            }
+            Returns: Json
+          }
       encrypt_oauth_token: {
         Args: { _token: string; _user_id: string }
         Returns: string
