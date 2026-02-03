@@ -24,6 +24,7 @@ import {
 import { PaymentFilters, FilterState } from './PaymentFilters';
 import { PaymentExportButtons } from './PaymentExportButtons';
 import { cn } from '@/lib/utils';
+import { useHideValues } from '@/hooks/useHideValues';
 import type { PaymentWithDetails } from '@/hooks/usePayments';
 
 const statusLabels: Record<string, string> = {
@@ -62,6 +63,7 @@ export function ClientPaymentsControl({
   projects = [],
   workspaceName = 'WillFlow',
 }: ClientPaymentsControlProps) {
+  const { hideValues } = useHideValues();
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: null,
     dateTo: null,
@@ -145,7 +147,7 @@ export function ClientPaymentsControl({
         </div>
         {totalPending > 0 && (
           <div className="mt-2 text-sm text-muted-foreground">
-            Total pendente: <span className="font-semibold text-success">{formatCurrency(totalPending)}</span>
+            Total pendente: <span className={cn("font-semibold text-success", hideValues && "blur-md select-none")}>{formatCurrency(totalPending)}</span>
           </div>
         )}
       </CardHeader>
@@ -198,7 +200,7 @@ export function ClientPaymentsControl({
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell className="text-right font-medium text-success">
+                    <TableCell className={cn("text-right font-medium text-success", hideValues && "blur-md select-none")}>
                       +{formatCurrency(payment.amount)}
                     </TableCell>
                   </TableRow>

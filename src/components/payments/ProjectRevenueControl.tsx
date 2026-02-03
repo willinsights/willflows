@@ -23,6 +23,7 @@ import {
 import { PaymentFilters, FilterState } from './PaymentFilters';
 import { PaymentExportButtons } from './PaymentExportButtons';
 import { cn } from '@/lib/utils';
+import { useHideValues } from '@/hooks/useHideValues';
 
 const statusLabels: Record<string, string> = {
   pendente: 'Pendente',
@@ -70,6 +71,7 @@ export function ProjectRevenueControl({
   formatCurrency,
   workspaceName = 'WillFlow',
 }: ProjectRevenueControlProps) {
+  const { hideValues } = useHideValues();
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: null,
     dateTo: null,
@@ -162,10 +164,10 @@ export function ProjectRevenueControl({
         </div>
         <div className="mt-2 flex flex-wrap gap-4 text-sm text-muted-foreground">
           <span>
-            Total pendente: <span className="font-semibold text-warning">{formatCurrency(totalPending)}</span>
+            Total pendente: <span className={cn("font-semibold text-warning", hideValues && "blur-md select-none")}>{formatCurrency(totalPending)}</span>
           </span>
           <span>
-            Total recebido: <span className="font-semibold text-success">{formatCurrency(totalReceived)}</span>
+            Total recebido: <span className={cn("font-semibold text-success", hideValues && "blur-md select-none")}>{formatCurrency(totalReceived)}</span>
           </span>
         </div>
       </CardHeader>
@@ -226,7 +228,7 @@ export function ProjectRevenueControl({
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell className="text-right font-medium text-success">
+                    <TableCell className={cn("text-right font-medium text-success", hideValues && "blur-md select-none")}>
                       +{formatCurrency(project.agreed_value || 0)}
                     </TableCell>
                   </TableRow>
