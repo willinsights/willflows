@@ -1,148 +1,119 @@
 
 
-# Plano: Eventos Pessoais do Google Só Visíveis ao Próprio Utilizador
+# Plano: Configurar Credenciais Google Próprias (White-Label)
 
-## Problema Identificado
+## Objectivo
 
-Quando um utilizador sincroniza o seu Google Calendar, os eventos pessoais importados ficam visíveis para **todos os membros do workspace**, em vez de apenas para o utilizador que fez a sincronização.
+Fazer com que o ecrã de autenticação do Google mostre o **nome da sua empresa** (WillFlow) em vez de "Lovable" quando os utilizadores:
+1. Fazem login com Google
+2. Conectam o Google Calendar
 
-### Análise Técnica
+---
 
-A tabela `calendar_events` já tem a infraestrutura correcta:
+## Configuração Actual
 
-| Elemento | Estado |
-|----------|--------|
-| Coluna `is_private` | Existe (default: `false`) |
-| Coluna `created_by` | Existe (regista quem criou) |
-| Política RLS | Existe: `(is_private = false) OR (created_by = auth.uid())` |
+| Funcionalidade | Estado Actual | Credenciais |
+|---------------|---------------|-------------|
+| **Login com Google** | Usa credenciais Lovable (mostra "Lovable") | Geridas pelo Lovable Cloud |
+| **Google Calendar** | Já usa credenciais próprias ✅ | `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` |
 
-O problema está na edge function `google-calendar-sync`:
+---
 
-```typescript
-// Linha 553-564 - O is_private NÃO é definido!
-const eventData = {
-  workspace_id: workspaceId,
-  title: gEvent.summary || 'Evento do Google',
-  description: gEvent.description || null,
-  start_at: startAt,
-  end_at: endAt,
-  all_day: isAllDay,
-  location: gEvent.location || null,
-  event_type: 'event',
-  google_event_id: gEvent.id,
-  created_by: userId,
-  // FALTA: is_private: true
-};
+## Passos de Configuração
+
+### Parte 1: Configurar Projecto no Google Cloud Console
+
+1. Aceda à [Google Cloud Console](https://console.cloud.google.com/)
+
+2. Crie um projecto ou seleccione o existente ("WillFlow" ou similar)
+
+3. Vá a **APIs & Services → OAuth consent screen**:
+   - **App name**: WillFlow (ou o nome da sua empresa)
+   - **User support email**: O seu email
+   - **Authorized domains**: Adicione `willflow.app` e `lovable.app`
+   - **Developer contact email**: O seu email
+
+4. Em **Scopes**, adicione:
+   - `.../auth/userinfo.email`
+   - `.../auth/userinfo.profile`
+   - `openid`
+   - `.../auth/calendar` (para o Calendar)
+   - `.../auth/calendar.events` (para o Calendar)
+
+5. Vá a **APIs & Services → Credentials**:
+   - Clique em **Create Credentials → OAuth Client ID**
+   - Seleccione **Web application**
+   - **Name**: WillFlow Web App
+
+---
+
+### Parte 2: Configurar URIs de Redirect
+
+No Google Cloud Console, adicione estes **Authorized redirect URIs**:
+
+**Para Login com Google (Lovable Cloud):**
+```
+https://wppfmyseeigsdqutkgyc.supabase.co/auth/v1/callback
 ```
 
-## Solução
-
-Adicionar `is_private: true` ao objecto `eventData` na importação de eventos do Google Calendar.
-
-### Ficheiro a Modificar
-
-**`supabase/functions/google-calendar-sync/index.ts`** - Linha 553-564
-
-```typescript
-const eventData = {
-  workspace_id: workspaceId,
-  title: gEvent.summary || 'Evento do Google',
-  description: gEvent.description || null,
-  start_at: startAt,
-  end_at: endAt,
-  all_day: isAllDay,
-  location: gEvent.location || null,
-  event_type: 'event',
-  google_event_id: gEvent.id,
-  created_by: userId,
-  is_private: true,  // ← ADICIONAR ESTA LINHA
-};
+**Para Google Calendar (Edge Function):**
+```
+https://wppfmyseeigsdqutkgyc.supabase.co/functions/v1/google-calendar-sync?action=callback
 ```
 
-### Corrigir Eventos Já Importados
+---
 
-Para corrigir eventos já importados no passado, será necessário executar uma query de migração:
+### Parte 3: Configurar Login com Google (BYOK)
 
-```sql
-UPDATE calendar_events
-SET is_private = true
-WHERE google_event_id IS NOT NULL
-  AND is_private = false;
-```
+1. No Lovable, abra o **Backend Dashboard**:
+
+2. Navegue para: **Users → Authentication Settings → Sign In Methods → Google**
+
+3. Desactive a opção "Use Lovable managed credentials"
+
+4. Introduza as credenciais do Google Cloud Console:
+   - **Client ID**: O valor do OAuth Client ID
+   - **Client Secret**: O valor do OAuth Client Secret
+
+5. Guarde as alterações
+
+---
+
+### Parte 4: Verificar Credenciais do Google Calendar
+
+As credenciais do Google Calendar já estão configuradas via secrets:
+- `GOOGLE_CLIENT_ID` ✅
+- `GOOGLE_CLIENT_SECRET` ✅
+
+**Importante**: Pode usar o **mesmo Client ID e Secret** para ambas as funcionalidades, desde que ambos os redirect URIs estejam configurados no Google Cloud Console.
+
+---
 
 ## Resultado Esperado
 
-| Cenário | Antes | Depois |
-|---------|-------|--------|
-| User A importa evento pessoal do Google | ❌ Visível para todos no workspace | ✅ Só visível para User A |
-| User B tenta ver eventos de User A | ❌ Vê todos os eventos | ✅ Não vê eventos privados |
-| User A vê os seus eventos | ✅ Vê os seus eventos | ✅ Vê os seus eventos |
-| Eventos de projecto (WillFlow) | ✅ Visíveis para a equipa | ✅ Visíveis para a equipa |
+| Ecrã | Antes | Depois |
+|------|-------|--------|
+| Login com Google | Mostra "Lovable quer aceder..." | Mostra "WillFlow quer aceder..." |
+| Conectar Google Calendar | Já mostra nome correcto | Mostra "WillFlow quer aceder..." |
 
-## Secção Técnica
+---
 
-### Lógica da Política RLS
+## Verificação Final
 
-A política existente já funciona correctamente:
+Após configurar, teste:
 
-```sql
--- Política: Users can view calendar events in their workspace
-(workspace_id IN (
-  SELECT workspace_id FROM workspace_members
-  WHERE user_id = auth.uid() AND is_active = true
-))
-AND (is_private = false OR created_by = auth.uid())
-```
+1. **Logout** da aplicação
+2. Clique em **"Entrar com Google"**
+3. Verifique que o popup mostra o nome da sua empresa
+4. Vá às **Definições → Google Calendar**
+5. Clique em **"Conectar Google Calendar"**
+6. Verifique que o popup mostra o nome da sua empresa
 
-Esta política garante que:
-- Se `is_private = false` → Todos os membros do workspace podem ver
-- Se `is_private = true` → Só o `created_by` pode ver
+---
 
-### Alteração Completa
+## Notas Importantes
 
-```typescript
-// supabase/functions/google-calendar-sync/index.ts
-// Linha 553-564
-
-// ANTES:
-const eventData = {
-  workspace_id: workspaceId,
-  title: gEvent.summary || 'Evento do Google',
-  description: gEvent.description || null,
-  start_at: startAt,
-  end_at: endAt,
-  all_day: isAllDay,
-  location: gEvent.location || null,
-  event_type: 'event',
-  google_event_id: gEvent.id,
-  created_by: userId,
-};
-
-// DEPOIS:
-const eventData = {
-  workspace_id: workspaceId,
-  title: gEvent.summary || 'Evento do Google',
-  description: gEvent.description || null,
-  start_at: startAt,
-  end_at: endAt,
-  all_day: isAllDay,
-  location: gEvent.location || null,
-  event_type: 'event',
-  google_event_id: gEvent.id,
-  created_by: userId,
-  is_private: true,
-};
-```
-
-### Migração para Eventos Existentes
-
-Após a alteração do código, será executada uma migração para corrigir eventos já importados:
-
-```sql
--- Marcar todos os eventos importados do Google como privados
-UPDATE calendar_events
-SET is_private = true
-WHERE google_event_id IS NOT NULL
-  AND is_private = false;
-```
+- Se a app ainda estiver em modo "Testing" no Google Cloud Console, apenas emails adicionados como test users podem fazer login
+- Para produção, submeta a app para verificação do Google (pode demorar alguns dias)
+- Enquanto estiver em "Testing", utilizadores verão um aviso "App não verificada" - podem clicar em "Avançar" → "Ir para WillFlow (não seguro)" para continuar
 
