@@ -3678,6 +3678,10 @@ export type Database = {
         Args: { p_phase: string; p_project_id: string }
         Returns: Json
       }
+      can_edit_project: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_manage_conversation_members: {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
