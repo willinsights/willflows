@@ -49,8 +49,8 @@ export function useCollaboratorForecast(selectedMonth: Date): CollaboratorForeca
       const { data: teamPayments } = await supabase
         .from('project_team')
         .select(`
-          id, payment_amount, payment_status, phase,
-          projects!inner(delivery_date, shoot_date, is_delivered, workspace_id)
+          id, project_id, payment_amount, payment_status, phase,
+          projects!inner(delivery_date, shoot_date, is_delivered, workspace_id, created_at)
         `)
         .eq('user_id', user.id)
         .eq('projects.workspace_id', currentWorkspace.id);
@@ -67,11 +67,15 @@ export function useCollaboratorForecast(selectedMonth: Date): CollaboratorForeca
 
       teamPayments?.forEach((payment: any) => {
         const project = payment.projects;
-        // Determine anchor date (delivery_date or fallback to shoot_date)
-        const anchorDate = project.delivery_date || project.shoot_date;
+        // Determine anchor date (delivery_date → shoot_date → created_at)
+        const anchorDate = project.delivery_date || project.shoot_date || project.created_at;
         if (!anchorDate) return;
 
-        const projectMonth = format(parseISO(anchorDate), 'yyyy-MM');
+        // Normalize to date only (created_at includes timestamp)
+        const dateString = typeof anchorDate === 'string' && anchorDate.includes('T') 
+          ? anchorDate.split('T')[0] 
+          : anchorDate;
+        const projectMonth = format(parseISO(dateString), 'yyyy-MM');
         const paymentAmount = payment.payment_amount || 0;
         const isPaid = payment.payment_status === 'pago';
 
