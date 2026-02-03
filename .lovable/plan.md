@@ -1,78 +1,185 @@
 
-# Plano: Configurar Google OAuth com Credenciais Próprias (White-Label)
+# Plano: Expandir Privacy Mode para Todo o Aplicativo
 
-## Problema Actual
+## Situação Atual
 
-Quando utiliza as credenciais geridas pelo Lovable ("Managed by Lovable"), os clientes veem a marca "Lovable" durante o login com Google. Isto não é ideal para um produto white-label como o WillFlow.
+O recurso de "Ocultar Valores" (Privacy Mode) existe apenas em componentes específicos do **Dashboard**. O botão toggle está no `DashboardHeader.tsx` e os valores são ocultados apenas em:
 
-## Solução
+| Componente | Localização | Estado |
+|------------|-------------|--------|
+| `FinancialForecastCards` | Dashboard | ✅ Protegido |
+| `FinancialChart` | Dashboard | ✅ Protegido |
+| `MonthlyGoalsCard` | Dashboard | ✅ Protegido |
+| `MobileKPICarousel` | Mobile Dashboard | ✅ Protegido |
+| `MobilePendingPayments` | Mobile Dashboard | ✅ Protegido |
 
-Usar credenciais próprias (BYOK - Bring Your Own Key) da Google Cloud Console para que os clientes vejam apenas a sua marca durante o login.
+### Componentes SEM Proteção (expostos)
+
+| Componente/Página | Valores Exibidos |
+|-------------------|------------------|
+| **Pagamentos.tsx** | Summary cards, previsão mensal, tabelas de receitas |
+| **Finalizados.tsx** | Receita total, média por projeto, tabela de lucros |
+| **Relatorios.tsx** | Gráficos financeiros, totais, tabelas de análise |
+| **Faturacao.tsx** | Valores de faturas Stripe |
+| **ProjectFinancialTab** | Preço cliente, custos, lucro por projeto |
+| **ProjectRevenueControl** | Tabela de receitas de projetos |
+| **FreelancerPaymentsControl** | Pagamentos a colaboradores |
+| **ClientPaymentsControl** | Pagamentos de clientes |
+| **ExtraCostsPaymentsControl** | Custos extras |
+| **LeadCard** | Valor estimado do lead |
 
 ---
 
-## Passo a Passo
+## O Que Vamos Fazer
 
-### 1. Criar Credenciais na Google Cloud Console
+### 1. Expandir o Toggle para Mais Locais
 
-1. Aceda a [Google Cloud Console](https://console.cloud.google.com/)
-2. Seleccione ou crie um projecto
-3. Vá a **APIs & Services → Credentials**
-4. Clique em **Create Credentials → OAuth client ID**
-5. Escolha **Web application**
+Adicionar o botão de toggle (olho/olho riscado) ao header de cada página que exibe valores financeiros:
+- Pagamentos
+- Finalizados
+- Relatórios
+- Faturação
 
-### 2. Configurar o Consent Screen
+### 2. Proteger Todos os Valores Financeiros
 
-Em **APIs & Services → OAuth consent screen**:
+Aplicar a classe `blur-md select-none` condicionalmente em todos os elementos que exibem valores monetários quando `hideValues` estiver ativo.
 
-| Campo | Valor |
-|-------|-------|
-| App name | **WillFlow** (ou o nome que quiser mostrar) |
-| User support email | O seu email |
-| App logo | Logo do WillFlow |
-| Authorized domains | `willflow.app` e `lovable.app` |
+---
 
-**Scopes necessários:**
-- `.../auth/userinfo.email`
-- `.../auth/userinfo.profile`  
-- `openid`
+## Ficheiros a Modificar
 
-### 3. Configurar Redirect URLs
+### Páginas Principais
 
-Nas credenciais OAuth, adicione os seguintes **Authorized redirect URIs**:
+1. **`src/pages/app/Pagamentos.tsx`**
+   - Adicionar `useHideValues` hook
+   - Proteger summary cards (linhas 466, 476, 486)
+   - Proteger cards de previsão mensal (linhas 565-627)
+   - Proteger valores na lista de projetos (linhas 681-682)
+   - Adicionar botão toggle ao header
 
+2. **`src/pages/app/Finalizados.tsx`**
+   - Adicionar `useHideValues` hook
+   - Proteger cards de resumo (linha 665)
+   - Proteger valores nas tabelas
+
+3. **`src/pages/app/Relatorios.tsx`**
+   - Adicionar `useHideValues` hook
+   - Proteger todos os valores nos gráficos e tabelas
+
+4. **`src/pages/app/Faturacao.tsx`**
+   - Adicionar `useHideValues` hook
+   - Proteger valores das faturas (linha 346)
+
+### Componentes de Pagamentos
+
+5. **`src/components/payments/ProjectRevenueControl.tsx`**
+   - Adicionar `useHideValues` hook
+   - Proteger totais e valores na tabela
+
+6. **`src/components/payments/FreelancerPaymentsControl.tsx`**
+   - Adicionar `useHideValues` hook
+   - Proteger totais e valores na tabela
+
+7. **`src/components/payments/ClientPaymentsControl.tsx`**
+   - Adicionar `useHideValues` hook
+   - Proteger totais e valores na tabela
+
+8. **`src/components/payments/ExtraCostsPaymentsControl.tsx`**
+   - Adicionar `useHideValues` hook
+   - Proteger valores na tabela
+
+### Componentes de Projetos e Leads
+
+9. **`src/components/projects/ProjectFinancialTab.tsx`**
+   - Adicionar `useHideValues` hook
+   - Proteger todos os valores (preço, custos, lucro)
+
+10. **`src/components/leads/LeadCard.tsx`**
+    - Adicionar `useHideValues` hook
+    - Proteger valor estimado do lead
+
+---
+
+## Padrão de Implementação
+
+Para cada componente, seguir este padrão:
+
+```typescript
+// 1. Importar o hook
+import { useHideValues } from '@/hooks/useHideValues';
+
+// 2. Usar o hook no componente
+const { hideValues } = useHideValues();
+
+// 3. Aplicar classe condicional aos valores
+<span className={cn("...", hideValues && "blur-md select-none")}>
+  {formatCurrency(value)}
+</span>
 ```
-https://wppfmyseeigsdqutkgyc.supabase.co/auth/v1/callback
+
+---
+
+## Resultado Esperado
+
+Após a implementação:
+- O toggle de privacidade no Dashboard afetará TODAS as páginas
+- Valores financeiros em todo o app ficarão desfocados
+- Estado persiste via `localStorage` (já implementado no contexto)
+- Utilizadores podem apresentar ecrã sem expor dados sensíveis
+
+---
+
+## Secção Técnica
+
+### Exemplo: Pagamentos.tsx
+
+```typescript
+// Importar hook (adicionar ao topo)
+import { useHideValues } from '@/hooks/useHideValues';
+
+// Dentro do componente
+const { hideValues } = useHideValues();
+
+// Modificar summary cards (linhas ~466-500)
+<span className={cn(
+  "text-2xl font-bold text-success",
+  hideValues && "blur-md select-none"
+)}>
+  {formatCurrency(totalRevenueFromProjects.pending)}
+</span>
 ```
 
-### 4. Adicionar Credenciais no Lovable Cloud
+### Componentes de Pagamentos
 
-No painel Backend:
-1. Vá a **Users → Authentication Settings → Sign In Methods → Google**
-2. Desactive "Managed by Lovable"
-3. Insira o **Client ID** e **Client Secret** das novas credenciais
+```typescript
+// ProjectRevenueControl.tsx - linha 165
+<span className={cn(
+  "font-semibold text-warning",
+  hideValues && "blur-md select-none"
+)}>
+  {formatCurrency(totalPending)}
+</span>
 
----
+// Linha 230
+<TableCell className={cn(
+  "text-right font-medium text-success",
+  hideValues && "blur-md select-none"
+)}>
+  +{formatCurrency(project.agreed_value || 0)}
+</TableCell>
+```
 
-## Notas Importantes
+### Estimativa de Alterações
 
-### Credenciais Existentes
-
-O projecto já tem secrets `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` configurados. Estes são usados para a **integração do Google Calendar**, não para login.
-
-Para o login, as credenciais devem ser configuradas directamente nas **Authentication Settings** do Lovable Cloud, não como secrets.
-
-### Resultado Final
-
-Após a configuração:
-- Os clientes verão "WillFlow" (ou o nome que definir) durante o login
-- Sem qualquer referência ao Lovable
-- Experiência totalmente white-label
-
----
-
-## Próximos Passos
-
-1. **Você**: Criar as credenciais na Google Cloud Console seguindo os passos acima
-2. **Você**: Adicionar as credenciais nas Authentication Settings do Lovable Cloud
-3. **Eu**: Testar o login para confirmar que funciona correctamente
+| Ficheiro | Linhas a Modificar | Complexidade |
+|----------|-------------------|--------------|
+| Pagamentos.tsx | ~15 elementos | Média |
+| Finalizados.tsx | ~10 elementos | Média |
+| Relatorios.tsx | ~20 elementos | Alta |
+| Faturacao.tsx | ~5 elementos | Baixa |
+| ProjectRevenueControl.tsx | ~4 elementos | Baixa |
+| FreelancerPaymentsControl.tsx | ~4 elementos | Baixa |
+| ClientPaymentsControl.tsx | ~4 elementos | Baixa |
+| ExtraCostsPaymentsControl.tsx | ~3 elementos | Baixa |
+| ProjectFinancialTab.tsx | ~10 elementos | Média |
+| LeadCard.tsx | ~1 elemento | Baixa |
