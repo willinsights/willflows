@@ -1,92 +1,148 @@
 
-# Plano: Corrigir Exibição de Valores de Colaboradores no Dashboard
+
+# Plano: Eventos Pessoais do Google Só Visíveis ao Próprio Utilizador
 
 ## Problema Identificado
 
-A lógica que determina se um utilizador é "colaborador" está incorrecta. Actualmente:
+Quando um utilizador sincroniza o seu Google Calendar, os eventos pessoais importados ficam visíveis para **todos os membros do workspace**, em vez de apenas para o utilizador que fez a sincronização.
+
+### Análise Técnica
+
+A tabela `calendar_events` já tem a infraestrutura correcta:
+
+| Elemento | Estado |
+|----------|--------|
+| Coluna `is_private` | Existe (default: `false`) |
+| Coluna `created_by` | Existe (regista quem criou) |
+| Política RLS | Existe: `(is_private = false) OR (created_by = auth.uid())` |
+
+O problema está na edge function `google-calendar-sync`:
 
 ```typescript
-// useFinancialPermissions.ts - Linha 86
-const isCollaborator = !canViewAllProjects && role !== null;
+// Linha 553-564 - O is_private NÃO é definido!
+const eventData = {
+  workspace_id: workspaceId,
+  title: gEvent.summary || 'Evento do Google',
+  description: gEvent.description || null,
+  start_at: startAt,
+  end_at: endAt,
+  all_day: isAllDay,
+  location: gEvent.location || null,
+  event_type: 'event',
+  google_event_id: gEvent.id,
+  created_by: userId,
+  // FALTA: is_private: true
+};
 ```
-
-Mas na base de dados, **todos os roles têm `visibility.all_projects = true`**:
-
-| Role | visibility.all_projects | Resultado |
-|------|------------------------|-----------|
-| editor | `true` | `isCollaborator = false` ❌ |
-| captacao | `true` | `isCollaborator = false` ❌ |
-| freelancer | `true` | `isCollaborator = false` ❌ |
-| visualizador | `true` | `isCollaborator = false` ❌ |
-
-Isto significa que **nenhum colaborador vê o `CollaboratorForecastCards`** porque a condição no Dashboard:
-
-```typescript
-{isCollaborator && <CollaboratorForecastCards />}
-```
-
-Nunca é verdadeira (exceto para admin, que nunca seria colaborador de qualquer forma).
-
-## Causa Raiz
-
-A definição de "colaborador" para efeitos de dashboard financeiro deveria ser:
-- **Alguém que não pode ver financeiros globais** (`!canViewAllFinancials`)
-- **Mas pode ver os seus próprios ganhos** (`canViewOwnFinancials`)
-
-Não deveria estar ligado à visibilidade de projectos (`visibility.all_projects`), que é uma permissão diferente.
 
 ## Solução
 
-Corrigir a lógica no hook `useFinancialPermissions.ts`:
+Adicionar `is_private: true` ao objecto `eventData` na importação de eventos do Google Calendar.
+
+### Ficheiro a Modificar
+
+**`supabase/functions/google-calendar-sync/index.ts`** - Linha 553-564
 
 ```typescript
-// ANTES (Linha 86):
-const isCollaborator = !canViewAllProjects && role !== null;
+const eventData = {
+  workspace_id: workspaceId,
+  title: gEvent.summary || 'Evento do Google',
+  description: gEvent.description || null,
+  start_at: startAt,
+  end_at: endAt,
+  all_day: isAllDay,
+  location: gEvent.location || null,
+  event_type: 'event',
+  google_event_id: gEvent.id,
+  created_by: userId,
+  is_private: true,  // ← ADICIONAR ESTA LINHA
+};
+```
 
-// DEPOIS:
-// Um colaborador é alguém que:
-// 1. Não tem acesso a financeiros globais
-// 2. Mas pode ver os seus próprios ganhos
-// 3. E tem um role atribuído
-const isCollaborator = !canViewAllFinancials && canViewOwnFinancials && role !== null;
+### Corrigir Eventos Já Importados
+
+Para corrigir eventos já importados no passado, será necessário executar uma query de migração:
+
+```sql
+UPDATE calendar_events
+SET is_private = true
+WHERE google_event_id IS NOT NULL
+  AND is_private = false;
 ```
 
 ## Resultado Esperado
 
-| Role | canViewAllFinancials | canViewOwnFinancials | isCollaborator | Vê |
-|------|---------------------|---------------------|----------------|-----|
-| admin | ✅ true | ✅ true | ❌ false | FinancialForecastCards |
-| editor | ❌ false | ✅ true | ✅ **true** | CollaboratorForecastCards |
-| captacao | ❌ false | ✅ true | ✅ **true** | CollaboratorForecastCards |
-| freelancer | ❌ false | ✅ true | ✅ **true** | CollaboratorForecastCards |
-| visualizador | ❌ false | ❌ false | ❌ false | Nenhum (sem acesso a ganhos) |
-
-## Ficheiros a Modificar
-
-1. **`src/hooks/useFinancialPermissions.ts`** - Linha 86:
-   - Alterar a lógica de `isCollaborator` para usar `!canViewAllFinancials && canViewOwnFinancials`
+| Cenário | Antes | Depois |
+|---------|-------|--------|
+| User A importa evento pessoal do Google | ❌ Visível para todos no workspace | ✅ Só visível para User A |
+| User B tenta ver eventos de User A | ❌ Vê todos os eventos | ✅ Não vê eventos privados |
+| User A vê os seus eventos | ✅ Vê os seus eventos | ✅ Vê os seus eventos |
+| Eventos de projecto (WillFlow) | ✅ Visíveis para a equipa | ✅ Visíveis para a equipa |
 
 ## Secção Técnica
+
+### Lógica da Política RLS
+
+A política existente já funciona correctamente:
+
+```sql
+-- Política: Users can view calendar events in their workspace
+(workspace_id IN (
+  SELECT workspace_id FROM workspace_members
+  WHERE user_id = auth.uid() AND is_active = true
+))
+AND (is_private = false OR created_by = auth.uid())
+```
+
+Esta política garante que:
+- Se `is_private = false` → Todos os membros do workspace podem ver
+- Se `is_private = true` → Só o `created_by` pode ver
 
 ### Alteração Completa
 
 ```typescript
-// src/hooks/useFinancialPermissions.ts - Linha 85-86
+// supabase/functions/google-calendar-sync/index.ts
+// Linha 553-564
 
 // ANTES:
-// Identificar se é colaborador (não tem visão global)
-const isCollaborator = !canViewAllProjects && role !== null;
+const eventData = {
+  workspace_id: workspaceId,
+  title: gEvent.summary || 'Evento do Google',
+  description: gEvent.description || null,
+  start_at: startAt,
+  end_at: endAt,
+  all_day: isAllDay,
+  location: gEvent.location || null,
+  event_type: 'event',
+  google_event_id: gEvent.id,
+  created_by: userId,
+};
 
 // DEPOIS:
-// Identificar se é colaborador (não tem visão financeira global, mas pode ver próprios ganhos)
-const isCollaborator = !canViewAllFinancials && canViewOwnFinancials && role !== null;
+const eventData = {
+  workspace_id: workspaceId,
+  title: gEvent.summary || 'Evento do Google',
+  description: gEvent.description || null,
+  start_at: startAt,
+  end_at: endAt,
+  all_day: isAllDay,
+  location: gEvent.location || null,
+  event_type: 'event',
+  google_event_id: gEvent.id,
+  created_by: userId,
+  is_private: true,
+};
 ```
 
-### Impacto
+### Migração para Eventos Existentes
 
-Esta alteração afecta:
-- Dashboard desktop (linha 226-228)
-- Dashboard mobile (linha 159-161)
-- Página de pagamentos (linha 533-542)
+Após a alteração do código, será executada uma migração para corrigir eventos já importados:
 
-Todos estes locais verificam `isCollaborator` para decidir qual view mostrar.
+```sql
+-- Marcar todos os eventos importados do Google como privados
+UPDATE calendar_events
+SET is_private = true
+WHERE google_event_id IS NOT NULL
+  AND is_private = false;
+```
+
