@@ -1,143 +1,92 @@
 
-# Plano: Corrigir Valores de Colaboradores no Dashboard
+# Plano: Corrigir Exibição de Valores de Colaboradores no Dashboard
 
-## Problemas Identificados
+## Problema Identificado
 
-### Problema 1: Campo `project_id` em falta na query
-
-A query do hook `useCollaboratorForecast` não inclui o campo `project_id`:
+A lógica que determina se um utilizador é "colaborador" está incorrecta. Actualmente:
 
 ```typescript
-// Linha 51-53 - SELECT actual
-.select(`
-  id, payment_amount, payment_status, phase,
-  projects!inner(delivery_date, shoot_date, is_delivered, workspace_id)
-`)
+// useFinancialPermissions.ts - Linha 86
+const isCollaborator = !canViewAllProjects && role !== null;
 ```
 
-Mas na linha 89, o código tenta usar `payment.project_id`:
+Mas na base de dados, **todos os roles têm `visibility.all_projects = true`**:
+
+| Role | visibility.all_projects | Resultado |
+|------|------------------------|-----------|
+| editor | `true` | `isCollaborator = false` ❌ |
+| captacao | `true` | `isCollaborator = false` ❌ |
+| freelancer | `true` | `isCollaborator = false` ❌ |
+| visualizador | `true` | `isCollaborator = false` ❌ |
+
+Isto significa que **nenhum colaborador vê o `CollaboratorForecastCards`** porque a condição no Dashboard:
 
 ```typescript
-if (!projectIds.has(payment.project_id)) { // ← undefined!
-  projectIds.add(payment.project_id);
-  projectCount++;
-}
+{isCollaborator && <CollaboratorForecastCards />}
 ```
 
-### Problema 2: Projectos sem datas são ignorados
+Nunca é verdadeira (exceto para admin, que nunca seria colaborador de qualquer forma).
 
-Na linha 72, se o projecto não tiver `delivery_date` nem `shoot_date`, o pagamento é completamente ignorado:
+## Causa Raiz
 
-```typescript
-const anchorDate = project.delivery_date || project.shoot_date;
-if (!anchorDate) return; // ← 46% dos pagamentos ignorados!
-```
+A definição de "colaborador" para efeitos de dashboard financeiro deveria ser:
+- **Alguém que não pode ver financeiros globais** (`!canViewAllFinancials`)
+- **Mas pode ver os seus próprios ganhos** (`canViewOwnFinancials`)
 
-**Impacto**: De 89 pagamentos na base de dados, **41 (46%) são ignorados** porque os projectos não têm datas definidas.
-
----
+Não deveria estar ligado à visibilidade de projectos (`visibility.all_projects`), que é uma permissão diferente.
 
 ## Solução
 
-### Alteração no ficheiro `src/hooks/useCollaboratorForecast.ts`
-
-#### 1. Adicionar `project_id` ao SELECT
+Corrigir a lógica no hook `useFinancialPermissions.ts`:
 
 ```typescript
-const { data: teamPayments } = await supabase
-  .from('project_team')
-  .select(`
-    id, project_id, payment_amount, payment_status, phase,
-    projects!inner(delivery_date, shoot_date, is_delivered, workspace_id, created_at)
-  `)
-  .eq('user_id', user.id)
-  .eq('projects.workspace_id', currentWorkspace.id);
+// ANTES (Linha 86):
+const isCollaborator = !canViewAllProjects && role !== null;
+
+// DEPOIS:
+// Um colaborador é alguém que:
+// 1. Não tem acesso a financeiros globais
+// 2. Mas pode ver os seus próprios ganhos
+// 3. E tem um role atribuído
+const isCollaborator = !canViewAllFinancials && canViewOwnFinancials && role !== null;
 ```
-
-#### 2. Usar `created_at` como fallback para datas
-
-```typescript
-teamPayments?.forEach((payment: any) => {
-  const project = payment.projects;
-  // Determinar data âncora (delivery_date → shoot_date → created_at)
-  const anchorDate = project.delivery_date || project.shoot_date || project.created_at;
-  if (!anchorDate) return;
-
-  // Extrair apenas a data se for timestamp completo
-  const dateOnly = anchorDate.split('T')[0]; // '2026-01-24 14:37:46' → '2026-01-24'
-  const projectMonth = format(parseISO(dateOnly), 'yyyy-MM');
-  // ... resto da lógica
-});
-```
-
----
 
 ## Resultado Esperado
 
-| Cenário | Antes | Depois |
-|---------|-------|--------|
-| Pagamentos com datas | ✅ Processados | ✅ Processados |
-| Pagamentos sem datas | ❌ Ignorados (46%) | ✅ Usa `created_at` |
-| Contagem de projectos | ❌ Sempre 0 | ✅ Conta correctamente |
-| Totais financeiros | ❌ Incompletos | ✅ Valores correctos |
-
----
+| Role | canViewAllFinancials | canViewOwnFinancials | isCollaborator | Vê |
+|------|---------------------|---------------------|----------------|-----|
+| admin | ✅ true | ✅ true | ❌ false | FinancialForecastCards |
+| editor | ❌ false | ✅ true | ✅ **true** | CollaboratorForecastCards |
+| captacao | ❌ false | ✅ true | ✅ **true** | CollaboratorForecastCards |
+| freelancer | ❌ false | ✅ true | ✅ **true** | CollaboratorForecastCards |
+| visualizador | ❌ false | ❌ false | ❌ false | Nenhum (sem acesso a ganhos) |
 
 ## Ficheiros a Modificar
 
-1. **`src/hooks/useCollaboratorForecast.ts`**:
-   - Adicionar `project_id` ao SELECT
-   - Adicionar `created_at` ao SELECT de projects
-   - Usar `created_at` como fallback para projectos sem datas
-
----
+1. **`src/hooks/useFinancialPermissions.ts`** - Linha 86:
+   - Alterar a lógica de `isCollaborator` para usar `!canViewAllFinancials && canViewOwnFinancials`
 
 ## Secção Técnica
 
-### Alteração Completa da Query
+### Alteração Completa
 
 ```typescript
-// Linha 49-56 - ANTES
-const { data: teamPayments } = await supabase
-  .from('project_team')
-  .select(`
-    id, payment_amount, payment_status, phase,
-    projects!inner(delivery_date, shoot_date, is_delivered, workspace_id)
-  `)
-  .eq('user_id', user.id)
-  .eq('projects.workspace_id', currentWorkspace.id);
+// src/hooks/useFinancialPermissions.ts - Linha 85-86
 
-// Linha 49-56 - DEPOIS
-const { data: teamPayments } = await supabase
-  .from('project_team')
-  .select(`
-    id, project_id, payment_amount, payment_status, phase,
-    projects!inner(delivery_date, shoot_date, is_delivered, workspace_id, created_at)
-  `)
-  .eq('user_id', user.id)
-  .eq('projects.workspace_id', currentWorkspace.id);
+// ANTES:
+// Identificar se é colaborador (não tem visão global)
+const isCollaborator = !canViewAllProjects && role !== null;
+
+// DEPOIS:
+// Identificar se é colaborador (não tem visão financeira global, mas pode ver próprios ganhos)
+const isCollaborator = !canViewAllFinancials && canViewOwnFinancials && role !== null;
 ```
 
-### Alteração da Lógica de Data Âncora
+### Impacto
 
-```typescript
-// Linha 70-74 - ANTES
-const anchorDate = project.delivery_date || project.shoot_date;
-if (!anchorDate) return;
+Esta alteração afecta:
+- Dashboard desktop (linha 226-228)
+- Dashboard mobile (linha 159-161)
+- Página de pagamentos (linha 533-542)
 
-const projectMonth = format(parseISO(anchorDate), 'yyyy-MM');
-
-// Linha 70-77 - DEPOIS
-const anchorDate = project.delivery_date || project.shoot_date || project.created_at;
-if (!anchorDate) return;
-
-// Normalizar para data apenas (created_at inclui timestamp)
-const dateString = typeof anchorDate === 'string' && anchorDate.includes('T') 
-  ? anchorDate.split('T')[0] 
-  : anchorDate;
-const projectMonth = format(parseISO(dateString), 'yyyy-MM');
-```
-
-### Aplicar Mesma Correção ao Mobile
-
-O componente `MobileCollaboratorForecast.tsx` usa o mesmo hook, portanto beneficia automaticamente da correcção.
+Todos estes locais verificam `isCollaborator` para decidir qual view mostrar.
