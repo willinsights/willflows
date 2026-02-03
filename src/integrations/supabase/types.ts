@@ -3797,6 +3797,14 @@ export type Database = {
         Args: { _user_id: string; _workspace_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      has_workspace_permission: {
+        Args: {
+          _permission_key: string
+          _user_id: string
+          _workspace_id: string
+        }
+        Returns: boolean
+      }
       hash_email: { Args: { _email: string }; Returns: string }
       hash_invitation_token: { Args: { _token: string }; Returns: string }
       increment_promo_code_usage: {
