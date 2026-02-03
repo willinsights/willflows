@@ -71,16 +71,16 @@ export function useFinancialPermissions(): FinancialPermissions {
     const canViewReports = hasPermission('reports.view');
     const canViewPerformance = hasPermission('dashboard.view_performance');
     
-    // Visibilidade de páginas
-    const canViewLeads = hasPermission('visibility.leads') || (hasPermission('clients.view') && role === 'admin');
+    // Visibilidade de páginas - agora totalmente dinâmico
+    const canViewLeads = hasPermission('visibility.leads');
     const canViewClients = hasPermission('clients.view');
     const canViewContracts = hasPermission('visibility.contracts');
     const canViewTeam = hasPermission('team.view');
     const canViewAllProjects = hasPermission('visibility.all_projects');
 
-    // Contactos - apenas admin por padrão (segurança)
-    const canViewClientContacts = role === 'admin';
-    const canViewTeamContacts = role === 'admin';
+    // Contactos - verificação dinâmica (admin tem sempre acesso via hasPermission)
+    const canViewClientContacts = hasPermission('clients.view');
+    const canViewTeamContacts = hasPermission('team.view');
 
     // Identificar se é colaborador (não tem visão global)
     const isCollaborator = !canViewAllProjects && role !== null;

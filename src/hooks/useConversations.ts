@@ -32,8 +32,8 @@ export function useConversations() {
   const toast = useAppToast();
   const queryClient = useQueryClient();
   
-  // Freelancers e visualizadores só veem canais onde são membros
-  const isRestrictedRole = membership?.role === 'freelancer' || membership?.role === 'visualizador';
+  // Utilizadores sem permissão visibility.all_projects só veem canais onde são membros
+  // Nota: A verificação dinâmica será feita na query abaixo
 
   const { data: conversations = [], isLoading, error, refetch } = useQuery({
     queryKey: ['conversations', workspace?.id, membership?.role],
@@ -67,9 +67,10 @@ export function useConversations() {
       
       // Filter conversations based on role and type
       // - Chats de projeto: só aparecem se is_active = true
-      // - Freelancers e visualizadores: só veem conversas onde são membros
-      // - Outros papéis: veem as suas conversas + canais públicos
-      const isUserRestricted = membership?.role === 'freelancer' || membership?.role === 'visualizador';
+      // - Utilizadores restritos: só veem conversas onde são membros
+      // - Outros: veem as suas conversas + canais públicos
+      // Nota: No futuro, esta verificação pode usar permissões dinâmicas
+      const isUserRestricted = !['admin', 'editor', 'captacao'].includes(membership?.role || '');
       const filtered = (data || []).filter((c: any) => {
         // Chats de projeto só aparecem se is_active = true
         if (c.type === 'project') {
