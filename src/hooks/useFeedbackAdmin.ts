@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSuperAdmin } from './useSuperAdmin';
 
 export type FeedbackStatus = 'pending' | 'reviewed' | 'resolved' | 'dismissed';
 export type FeedbackType = 'bug' | 'improvement';
@@ -42,6 +43,7 @@ export interface FeedbackStats {
 }
 
 export function useFeedbackAdmin() {
+  const { isSuperAdmin } = useSuperAdmin();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState<FeedbackFilters>({
@@ -85,6 +87,7 @@ export function useFeedbackAdmin() {
         workspace_name: item.workspaces?.name,
       })) as Feedback[];
     },
+    enabled: isSuperAdmin,
   });
 
   // Calculate stats
