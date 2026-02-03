@@ -1,174 +1,199 @@
 
-# Plano: Previsão de Ganhos para Colaboradores no Dashboard
 
-## Objectivo
+# Plano: Corrigir Permissões de Criação de Projetos para Visualizador e Freelancer
 
-Adicionar ao Dashboard dos colaboradores (Editor, Captação, Freelancer) uma secção de **"Previsão de Ganhos"** com navegação por mês, semelhante à "Previsão Financeira" dos administradores. Os valores apresentados serão apenas os pagamentos atribuídos ao colaborador nos projectos.
+## Problema Identificado
 
----
+A política RLS (Row-Level Security) para **INSERT** na tabela `projects` está codificada de forma rígida:
 
-## O Que Vai Ser Apresentado
-
-| Card | Descrição |
-|------|-----------|
-| **A Receber** | Soma de `payment_amount` pendentes do mês |
-| **Já Recebido** | Soma de `payment_amount` com status "pago" do mês |
-| **Total Previsto** | Total de pagamentos do mês (pendentes + pagos) |
-
-O mês do projecto é determinado pela `delivery_date`, com fallback para `shoot_date`.
-
----
-
-## Ficheiros a Criar
-
-### 1. `src/hooks/useCollaboratorForecast.ts`
-
-Hook que calcula a previsão financeira filtrada para o colaborador actual:
-
-```text
-useCollaboratorForecast(selectedMonth: Date)
-  ├── Buscar project_team onde user_id = utilizador actual
-  ├── Incluir dados do projecto (delivery_date, shoot_date, is_delivered)
-  ├── Agrupar por mês (lógica anchor date igual ao admin)
-  ├── Incluir rollover (projectos atrasados não entregues)
-  └── Retornar: pendingAmount, paidAmount, totalAmount, projectCount
+```sql
+-- Política actual (bloqueadora):
+get_workspace_role(auth.uid(), workspace_id) = ANY (ARRAY['admin', 'editor', 'captacao'])
 ```
 
-### 2. `src/components/dashboard/CollaboratorForecastCards.tsx`
+Isto bloqueia **freelancer** e **visualizador** ao nível da base de dados, **independentemente** das permissões configuradas em `workspace_role_permissions`.
 
-Componente visual com:
-- Header "Meus Ganhos Previstos"
-- MonthPicker (reutilizar o existente)
-- 3 cards: A Receber, Recebido, Total
+Quando o admin activa `projects.create = true` para estas roles, a configuração é guardada mas não tem efeito porque o RLS ignora-a.
 
 ---
 
-## Ficheiros a Modificar
+## Solução
 
-### 3. `src/pages/app/Dashboard.tsx`
+Criar uma **função de verificação dinâmica** que consulta a tabela `workspace_role_permissions` e actualizar a policy RLS para usá-la.
 
-Adicionar a secção de previsão para colaboradores:
+---
 
-```text
-// Onde actualmente está:
-{!isCollaborator && canViewAllFinancials && (
-  <FinancialForecastCards />
-)}
+## Alterações Necessárias
 
-// Adicionar abaixo:
-{isCollaborator && canViewOwnFinancials && (
-  <CollaboratorForecastCards />
-)}
+### 1. Criar Função `has_workspace_permission`
+
+```sql
+CREATE OR REPLACE FUNCTION public.has_workspace_permission(
+  _user_id uuid,
+  _workspace_id uuid,
+  _permission_key text
+)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT 
+    CASE 
+      -- Admin tem sempre todas as permissões
+      WHEN get_workspace_role(_user_id, _workspace_id) = 'admin' THEN true
+      -- Verificar permissão dinâmica
+      ELSE COALESCE(
+        (SELECT enabled 
+         FROM workspace_role_permissions 
+         WHERE workspace_id = _workspace_id 
+           AND role = get_workspace_role(_user_id, _workspace_id)
+           AND permission_key = _permission_key),
+        false
+      )
+    END
+$$;
 ```
 
-### 4. `src/components/mobile/MobileCollaboratorForecast.tsx` (novo)
+### 2. Actualizar Policy RLS de INSERT
 
-Versão mobile da previsão para colaboradores, semelhante ao `MobileFinancialSummary` mas com dados do colaborador.
+```sql
+-- Remover policy antiga
+DROP POLICY IF EXISTS "Members with editing rights can create projects" 
+  ON public.projects;
 
-### 5. `src/pages/app/Dashboard.tsx` (mobile)
+-- Criar nova policy dinâmica
+CREATE POLICY "Members with create permission can create projects"
+  ON public.projects
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    has_workspace_permission(auth.uid(), workspace_id, 'projects.create')
+  );
+```
 
-Adicionar versão mobile para colaboradores na secção condicional.
+### 3. Actualizar Policy RLS de UPDATE
+
+```sql
+DROP POLICY IF EXISTS "Members with editing rights can update projects" 
+  ON public.projects;
+
+CREATE POLICY "Members with edit permission can update projects"
+  ON public.projects
+  FOR UPDATE
+  TO authenticated
+  USING (
+    has_workspace_permission(auth.uid(), workspace_id, 'projects.edit')
+  );
+```
+
+### 4. Actualizar Policy RLS de DELETE
+
+```sql
+DROP POLICY IF EXISTS "Admins can delete projects" 
+  ON public.projects;
+
+CREATE POLICY "Members with delete permission can delete projects"
+  ON public.projects
+  FOR DELETE
+  TO authenticated
+  USING (
+    has_workspace_permission(auth.uid(), workspace_id, 'projects.delete')
+  );
+```
+
+---
+
+## Resultado Esperado
+
+| Cenário | Antes | Depois |
+|---------|-------|--------|
+| Freelancer com `projects.create = true` | ❌ Bloqueado | ✅ Pode criar |
+| Visualizador com `projects.create = true` | ❌ Bloqueado | ✅ Pode criar |
+| Freelancer com `projects.create = false` | ❌ Bloqueado | ❌ Bloqueado |
+| Admin | ✅ Sempre pode | ✅ Sempre pode |
 
 ---
 
 ## Secção Técnica
 
-### Hook: useCollaboratorForecast
+### Migração SQL Completa
 
-```typescript
-export function useCollaboratorForecast(selectedMonth: Date) {
-  const { currentWorkspace } = useWorkspace();
-  const { user } = useAuth();
-  
-  useEffect(() => {
-    // Buscar pagamentos do project_team para o utilizador actual
-    const { data: teamPayments } = await supabase
-      .from('project_team')
-      .select(`
-        id, payment_amount, payment_status, phase,
-        projects!inner(delivery_date, shoot_date, is_delivered, workspace_id)
-      `)
-      .eq('user_id', user.id)
-      .eq('projects.workspace_id', currentWorkspace.id);
-    
-    // Filtrar por mês (anchor date = delivery_date || shoot_date)
-    // Incluir rollover de meses anteriores (is_delivered = false)
-    // Calcular totais por status
-  }, [selectedMonth, user?.id, currentWorkspace?.id]);
-}
-```
+```sql
+-- 1. Criar função de verificação dinâmica
+CREATE OR REPLACE FUNCTION public.has_workspace_permission(
+  _user_id uuid,
+  _workspace_id uuid,
+  _permission_key text
+)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT 
+    CASE 
+      WHEN get_workspace_role(_user_id, _workspace_id) = 'admin' THEN true
+      ELSE COALESCE(
+        (SELECT enabled 
+         FROM workspace_role_permissions 
+         WHERE workspace_id = _workspace_id 
+           AND role = get_workspace_role(_user_id, _workspace_id)
+           AND permission_key = _permission_key),
+        false
+      )
+    END
+$$;
 
-### Componente Visual
+-- 2. Actualizar policy INSERT
+DROP POLICY IF EXISTS "Members with editing rights can create projects" 
+  ON public.projects;
 
-```typescript
-export function CollaboratorForecastCards() {
-  const [selectedMonth, setSelectedMonth] = useState(new Date());
-  const { pendingAmount, paidAmount, totalAmount, projectCount, loading } = 
-    useCollaboratorForecast(selectedMonth);
-  
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3>Meus Ganhos Previstos</h3>
-        <MonthPicker selectedMonth={selectedMonth} ... />
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        {/* Card A Receber */}
-        {/* Card Recebido */}
-        {/* Card Total */}
-      </div>
-    </div>
+CREATE POLICY "Members with create permission can create projects"
+  ON public.projects
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    has_workspace_permission(auth.uid(), workspace_id, 'projects.create')
   );
-}
+
+-- 3. Actualizar policy UPDATE
+DROP POLICY IF EXISTS "Members with editing rights can update projects" 
+  ON public.projects;
+
+CREATE POLICY "Members with edit permission can update projects"
+  ON public.projects
+  FOR UPDATE
+  TO authenticated
+  USING (
+    has_workspace_permission(auth.uid(), workspace_id, 'projects.edit')
+  );
+
+-- 4. Actualizar policy DELETE
+DROP POLICY IF EXISTS "Admins can delete projects" 
+  ON public.projects;
+
+CREATE POLICY "Members with delete permission can delete projects"
+  ON public.projects
+  FOR DELETE
+  TO authenticated
+  USING (
+    has_workspace_permission(auth.uid(), workspace_id, 'projects.delete')
+  );
 ```
 
----
+### Considerações de Performance
 
-## Lógica de Agrupamento por Mês
+A função `has_workspace_permission` usa `STABLE` e `SECURITY DEFINER`:
+- `STABLE`: Indica que a função retorna o mesmo resultado para os mesmos argumentos dentro de uma transação
+- `SECURITY DEFINER`: Executa com privilégios do owner, permitindo ler `workspace_role_permissions` sem recursão RLS
 
-Para cada pagamento do colaborador:
+### Verificação Pós-Implementação
 
-1. **Anchor Date**: `project.delivery_date` || `project.shoot_date`
-2. **Inclusão no mês**:
-   - Se anchor date está no mês seleccionado → incluir
-   - Se anchor date é anterior E `is_delivered = false` → rollover (incluir)
-3. **Cálculo**:
-   - `pendingAmount`: suma onde `payment_status != 'pago'`
-   - `paidAmount`: suma onde `payment_status = 'pago'`
-   - `totalAmount`: soma total
+Após aplicar a migração, testar:
+1. Login como visualizador/freelancer com permissão `projects.create = true`
+2. Tentar criar um projecto
+3. Confirmar que o projecto é criado com sucesso
 
----
-
-## Integração com Privacy Mode
-
-Todos os valores respeitam o `useHideValues` hook:
-
-```typescript
-<span className={cn("font-bold", hideValues && "blur-md select-none")}>
-  {formatCurrency(value)}
-</span>
-```
-
----
-
-## Estimativa de Alterações
-
-| Ficheiro | Tipo | Complexidade |
-|----------|------|--------------|
-| `useCollaboratorForecast.ts` | Novo | Média |
-| `CollaboratorForecastCards.tsx` | Novo | Média |
-| `MobileCollaboratorForecast.tsx` | Novo | Baixa |
-| `Dashboard.tsx` | Modificar | Baixa |
-
----
-
-## Resultado Final
-
-**Antes (Colaborador):**
-- Vê apenas "Meus Ganhos (mês)" com valor actual
-
-**Depois (Colaborador):**
-- Vê "Meus Ganhos Previstos" com navegação por mês
-- Cards: A Receber, Já Recebido, Total Previsto
-- Rollover de projectos atrasados
-- Privacy mode funcional
