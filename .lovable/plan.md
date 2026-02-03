@@ -1,164 +1,213 @@
 
 
-# Plano: Actualizar RLS de Tabelas Relacionadas com Projectos
+# Auditoria Completa: Verificações Hardcoded de Roles
 
-## Problema Identificado
+## Resumo Executivo
 
-Mesmo após corrigir a tabela `projects`, existem **múltiplas tabelas relacionadas** que ainda usam verificações hardcoded de roles. Isto impede colaboradores (freelancer/visualizador) de:
-
-- Adicionar/editar links de media
-- Gerir equipa do projecto
-- Criar/editar tarefas
-- Atribuir membros a tarefas
-- Gerir checklists
-- Criar eventos de calendário
+Após análise extensiva do código frontend e das políticas RLS da base de dados, identifiquei **múltiplas áreas** onde as permissões são verificadas de forma hardcoded (rígida) em vez de consultarem a tabela `workspace_role_permissions`. Isto impede que as configurações feitas pelo admin tenham efeito.
 
 ---
 
-## Tabelas a Actualizar
+## Problemas Identificados
 
-| Tabela | Policy Actual | Nova Lógica |
-|--------|--------------|-------------|
-| `project_media_links` | `admin, editor, captacao` | Quem pode editar projecto pode gerir links |
-| `project_team` | `admin, editor` | Quem pode editar projecto pode gerir equipa |
-| `tasks` | `admin, editor, captacao` | Quem pode editar projecto pode gerir tarefas |
-| `task_assignees` | `admin, editor, captacao` | Quem pode editar projecto pode atribuir |
-| `task_checklists` | `admin, editor, captacao` + assignees | Manter assignees + permissão dinâmica |
-| `calendar_events` | `admin, editor, captacao` | Quem pode editar projecto pode criar eventos |
+### A. Verificações Hardcoded no Frontend
+
+| Ficheiro | Linha | Problema | Impacto |
+|----------|-------|----------|---------|
+| `WorkspaceContext.tsx` | 573 | `canEdit = ['admin', 'editor', 'captacao'].includes(...)` | Freelancer/Visualizador nunca podem editar |
+| `useCurrentWorkspace.ts` | 87-89 | `canManageTeam`, `canManagePayments`, `canViewReports` hardcoded | Permissões não respeitam configuração |
+| `useConversations.ts` | 36, 72 | `role === 'freelancer' \|\| role === 'visualizador'` | Filtragem de canais ignora permissões |
+| `useFinancialPermissions.ts` | 75, 82-83 | Verificações mistas com `role === 'admin'` | Contactos sempre restritos a admin |
+| `useFilteredProjects.ts` | 86 | `userRole === 'admin'` redundante | Duplicação de lógica |
+
+### B. Políticas RLS Hardcoded na Base de Dados
+
+| Tabela | Policy | Roles Hardcoded | Deveria Usar |
+|--------|--------|-----------------|--------------|
+| `activity_log` | INSERT | `admin, editor` | Permissão dinâmica |
+| `categories` | ALL | `admin, editor` | `has_workspace_permission` |
+| `clients` | SELECT | `admin, editor, captacao` | `clients.view` |
+| `clients` | UPDATE | `admin, editor, captacao` | `clients.edit` |
+| `client_communications` | ALL | `admin, editor` | `clients.edit` |
+| `client_notes` | ALL | `admin, editor` | `clients.edit` |
+| `contracts` | ALL | `admin, editor` | `visibility.contracts` |
+| `contract_templates` | ALL | `admin, editor` | `visibility.contracts` |
+| `video_structures` | INSERT | `admin, editor, captacao` | `projects.edit` |
+| `video_structure_templates` | INSERT | `admin, editor, captacao` | `projects.edit` |
 
 ---
 
-## Lógica de Permissão
+## Plano de Correcção
 
-Um utilizador pode gerir recursos de um projecto se:
-1. Tem `projects.edit` = true no workspace, **OU**
-2. É assignee da tarefa específica (para `task_checklists`)
+### Fase 1: Corrigir Frontend (Verificações Hardcoded)
 
----
+#### 1.1 WorkspaceContext.tsx
 
-## Alterações Necessárias
+Actualizar `canEdit` para usar permissão dinâmica:
 
-### 1. Criar Função Helper para Projectos
+```typescript
+// ANTES:
+const canEdit = ['admin', 'editor', 'captacao'].includes(membership?.role || '');
 
-Para evitar repetição, criar uma função que verifica se o utilizador pode editar um projecto específico:
-
-```sql
-CREATE OR REPLACE FUNCTION public.can_edit_project(_user_id uuid, _project_id uuid)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM projects p
-    WHERE p.id = _project_id
-      AND has_workspace_permission(_user_id, p.workspace_id, 'projects.edit')
-  )
-$$;
+// DEPOIS:
+// canEdit será calculado pelo hook useWorkspacePermissions
+// Remover esta lógica hardcoded e delegar ao hook centralizado
 ```
 
-### 2. Actualizar `project_media_links`
+#### 1.2 useCurrentWorkspace.ts
 
-```sql
-DROP POLICY IF EXISTS "Members with editing rights can manage project media links" 
-  ON project_media_links;
+Substituir verificações rígidas por consulta ao sistema de permissões:
 
-CREATE POLICY "Members with edit permission can manage project media links"
-  ON project_media_links FOR ALL TO authenticated
-  USING (can_edit_project(auth.uid(), project_id));
+```typescript
+// ANTES:
+const canManageTeam = ['admin', 'editor'].includes(userRole || '');
+const canManagePayments = ['admin', 'editor'].includes(userRole || '');
+const canViewReports = ['admin', 'editor', 'visualizador'].includes(userRole || '');
+
+// DEPOIS:
+// Remover estas verificações - devem vir de useWorkspacePermissions
+// ou usar hasPermission('team.manage'), hasPermission('payments.manage'), etc.
 ```
 
-### 3. Actualizar `project_team`
+#### 1.3 useConversations.ts
 
-```sql
-DROP POLICY IF EXISTS "Members with editing rights can manage project team" 
-  ON project_team;
+Remover filtragem baseada em role hardcoded:
 
-CREATE POLICY "Members with edit permission can manage project team"
-  ON project_team FOR ALL TO authenticated
-  USING (can_edit_project(auth.uid(), project_id));
+```typescript
+// ANTES:
+const isRestrictedRole = membership?.role === 'freelancer' || membership?.role === 'visualizador';
+
+// DEPOIS:
+// Usar permissão dinâmica: !hasPermission('visibility.all_projects')
 ```
 
-### 4. Actualizar `tasks`
+#### 1.4 useFinancialPermissions.ts
 
-```sql
--- INSERT
-DROP POLICY IF EXISTS "Members with editing rights can create tasks" ON tasks;
+Corrigir verificações mistas:
 
-CREATE POLICY "Members with edit permission can create tasks"
-  ON tasks FOR INSERT TO authenticated
-  WITH CHECK (
-    has_workspace_permission(auth.uid(), workspace_id, 'projects.edit')
-    OR EXISTS (
-      SELECT 1 FROM projects p 
-      WHERE p.id = tasks.project_id 
-      AND has_workspace_permission(auth.uid(), p.workspace_id, 'projects.edit')
-    )
-  );
+```typescript
+// ANTES:
+const canViewLeads = hasPermission('visibility.leads') || (hasPermission('clients.view') && role === 'admin');
+const canViewClientContacts = role === 'admin';
+const canViewTeamContacts = role === 'admin';
 
--- UPDATE (manter assignees)
-DROP POLICY IF EXISTS "Members with editing rights can update tasks" ON tasks;
-
-CREATE POLICY "Members with edit permission can update tasks"
-  ON tasks FOR UPDATE TO authenticated
-  USING (
-    has_workspace_permission(auth.uid(), workspace_id, 'projects.edit')
-    OR EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = id AND ta.user_id = auth.uid())
-  );
+// DEPOIS:
+const canViewLeads = hasPermission('visibility.leads');
+const canViewClientContacts = hasPermission('clients.view_contacts'); // Nova permissão
+const canViewTeamContacts = hasPermission('team.view_contacts'); // Nova permissão
 ```
 
-### 5. Actualizar `task_assignees`
+### Fase 2: Actualizar Políticas RLS
+
+#### 2.1 Clientes e Relacionados
 
 ```sql
-DROP POLICY IF EXISTS "Members with editing rights can manage task assignees" 
-  ON task_assignees;
+-- clients - SELECT
+DROP POLICY IF EXISTS "Admin, editor, captacao can view clients" ON clients;
+CREATE POLICY "Members with view permission can view clients"
+  ON clients FOR SELECT TO authenticated
+  USING (has_workspace_permission(auth.uid(), workspace_id, 'clients.view'));
 
-CREATE POLICY "Members with edit permission can manage task assignees"
-  ON task_assignees FOR ALL TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM tasks t
-      WHERE t.id = task_assignees.task_id
-      AND has_workspace_permission(auth.uid(), t.workspace_id, 'projects.edit')
-    )
-  );
+-- clients - UPDATE
+DROP POLICY IF EXISTS "Members with editing rights can update lead status" ON clients;
+CREATE POLICY "Members with edit permission can update clients"
+  ON clients FOR UPDATE TO authenticated
+  USING (has_workspace_permission(auth.uid(), workspace_id, 'clients.edit'));
+
+-- clients - INSERT/DELETE (admin, editor)
+DROP POLICY IF EXISTS "Admins and editors can manage clients" ON clients;
+CREATE POLICY "Members with create permission can create clients"
+  ON clients FOR INSERT TO authenticated
+  WITH CHECK (has_workspace_permission(auth.uid(), workspace_id, 'clients.create'));
+
+CREATE POLICY "Members with delete permission can delete clients"
+  ON clients FOR DELETE TO authenticated
+  USING (has_workspace_permission(auth.uid(), workspace_id, 'clients.delete'));
 ```
 
-### 6. Actualizar `task_checklists`
+#### 2.2 Comunicações e Notas de Clientes
 
 ```sql
-DROP POLICY IF EXISTS "Assignees and editors can manage checklists" 
-  ON task_checklists;
+-- client_communications
+DROP POLICY IF EXISTS "Members with editing rights can manage communications" ON client_communications;
+CREATE POLICY "Members with client edit permission can manage communications"
+  ON client_communications FOR ALL TO authenticated
+  USING (has_workspace_permission(auth.uid(), workspace_id, 'clients.edit'));
 
-CREATE POLICY "Assignees and editors can manage checklists"
-  ON task_checklists FOR ALL TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM tasks t
-      WHERE t.id = task_checklists.task_id
-      AND (
-        has_workspace_permission(auth.uid(), t.workspace_id, 'projects.edit')
-        OR EXISTS (
-          SELECT 1 FROM task_assignees ta 
-          WHERE ta.task_id = t.id AND ta.user_id = auth.uid()
-        )
-      )
-    )
-  );
+-- client_notes
+DROP POLICY IF EXISTS "Members with editing rights can manage notes" ON client_notes;
+CREATE POLICY "Members with client edit permission can manage notes"
+  ON client_notes FOR ALL TO authenticated
+  USING (has_workspace_permission(auth.uid(), workspace_id, 'clients.edit'));
 ```
 
-### 7. Actualizar `calendar_events`
+#### 2.3 Contratos
 
 ```sql
-DROP POLICY IF EXISTS "Members with editing rights can create events" 
-  ON calendar_events;
+-- contracts
+DROP POLICY IF EXISTS "Admin and editor can manage contracts" ON contracts;
+CREATE POLICY "Members with contract permission can manage contracts"
+  ON contracts FOR ALL TO authenticated
+  USING (has_workspace_permission(auth.uid(), workspace_id, 'visibility.contracts'));
 
-CREATE POLICY "Members with edit permission can create events"
-  ON calendar_events FOR INSERT TO authenticated
-  WITH CHECK (
-    has_workspace_permission(auth.uid(), workspace_id, 'projects.edit')
-  );
+-- contract_templates
+DROP POLICY IF EXISTS "Admin and editor can manage templates" ON contract_templates;
+CREATE POLICY "Members with contract permission can manage templates"
+  ON contract_templates FOR ALL TO authenticated
+  USING (has_workspace_permission(auth.uid(), workspace_id, 'visibility.contracts'));
+```
+
+#### 2.4 Categorias
+
+```sql
+DROP POLICY IF EXISTS "Admins and editors can manage categories" ON categories;
+CREATE POLICY "Members with client edit permission can manage categories"
+  ON categories FOR ALL TO authenticated
+  USING (has_workspace_permission(auth.uid(), workspace_id, 'clients.edit'));
+```
+
+#### 2.5 Video Structures
+
+```sql
+-- video_structures
+DROP POLICY IF EXISTS "Members with editing rights can create video structures" ON video_structures;
+CREATE POLICY "Members with project edit permission can create video structures"
+  ON video_structures FOR INSERT TO authenticated
+  WITH CHECK (has_workspace_permission(auth.uid(), workspace_id, 'projects.edit'));
+
+-- video_structure_templates
+DROP POLICY IF EXISTS "Members with editing rights can create templates" ON video_structure_templates;
+CREATE POLICY "Members with project edit permission can create templates"
+  ON video_structure_templates FOR INSERT TO authenticated
+  WITH CHECK (has_workspace_permission(auth.uid(), workspace_id, 'projects.edit'));
+```
+
+#### 2.6 Activity Log
+
+```sql
+DROP POLICY IF EXISTS "Admin and editor can insert activity log" ON activity_log;
+CREATE POLICY "Members with project edit permission can insert activity log"
+  ON activity_log FOR INSERT TO authenticated
+  WITH CHECK (has_workspace_permission(auth.uid(), workspace_id, 'projects.edit'));
+```
+
+### Fase 3: Adicionar Novas Permissões (Opcional)
+
+Para maior granularidade, adicionar novas permission keys:
+
+```sql
+-- Adicionar novas definições de permissão
+INSERT INTO workspace_role_permissions (workspace_id, role, permission_key, enabled)
+SELECT 
+  id as workspace_id,
+  unnest(ARRAY['admin', 'editor', 'captacao', 'freelancer', 'visualizador']::app_role[]) as role,
+  unnest(ARRAY['clients.delete', 'clients.view_contacts', 'team.view_contacts']) as permission_key,
+  CASE 
+    WHEN unnest = 'admin' THEN true
+    ELSE false
+  END as enabled
+FROM workspaces
+ON CONFLICT DO NOTHING;
 ```
 
 ---
@@ -167,30 +216,35 @@ CREATE POLICY "Members with edit permission can create events"
 
 | Cenário | Antes | Depois |
 |---------|-------|--------|
-| Freelancer com `projects.edit = true` adicionar link | ❌ Bloqueado | ✅ Pode adicionar |
-| Freelancer atribuído a tarefa editar checklist | ❌/✅ Incerto | ✅ Pode editar |
-| Visualizador com `projects.edit = true` criar tarefa | ❌ Bloqueado | ✅ Pode criar |
-| Admin | ✅ Sempre pode | ✅ Sempre pode |
+| Freelancer com `clients.view = true` ver clientes | ❌ Bloqueado | ✅ Pode ver |
+| Visualizador com `clients.edit = true` editar cliente | ❌ Bloqueado | ✅ Pode editar |
+| Freelancer com `visibility.contracts = true` gerir contratos | ❌ Bloqueado | ✅ Pode gerir |
+| Configurações do admin | Ignoradas | ✅ Aplicadas |
 
 ---
 
 ## Secção Técnica
 
-### Migração SQL Completa
-
-Uma única migração que:
-1. Cria função `can_edit_project` 
-2. Actualiza 7 policies em 6 tabelas
-3. Mantém lógica de assignees onde aplicável
-
-### Considerações de Performance
-
-- `can_edit_project` usa `SECURITY DEFINER` para evitar recursão RLS
-- Todas as funções são `STABLE` para caching dentro da transação
-- Índices existentes em `project_id` optimizam as queries
-
 ### Ordem de Execução
 
-1. Criar função `can_edit_project`
-2. Actualizar policies uma a uma (DROP + CREATE)
+1. **Migração SQL** - Actualizar políticas RLS (prioridade alta)
+2. **Frontend** - Actualizar hooks hardcoded
+3. **Testes** - Verificar com utilizadores de diferentes roles
+
+### Ficheiros a Modificar
+
+**Base de Dados (1 migração SQL):**
+- Actualizar ~15 políticas RLS em 10 tabelas
+
+**Frontend (5 ficheiros):**
+- `src/contexts/WorkspaceContext.tsx`
+- `src/hooks/useCurrentWorkspace.ts`
+- `src/hooks/useConversations.ts`
+- `src/hooks/useFinancialPermissions.ts`
+- `src/hooks/useFilteredProjects.ts`
+
+### Riscos e Mitigação
+
+- **Risco**: Quebrar funcionalidade existente para roles actuais
+- **Mitigação**: As permissões por defeito mantêm o comportamento actual; apenas novas configurações terão efeito
 
