@@ -20,7 +20,7 @@ export interface ProjectWithClient extends Project {
 export function useFilteredProjects() {
   const { currentWorkspace, fetchError } = useWorkspace();
   const { user } = useAuth();
-  const { canViewAllFinancials, userRole, isLoading: permissionsLoading, canViewAllProjects } = useFinancialPermissions();
+  const { canViewAllFinancials, isLoading: permissionsLoading, canViewAllProjects } = useFinancialPermissions();
   
   const [allProjects, setAllProjects] = useState<ProjectWithClient[]>([]);
   const [userProjectIds, setUserProjectIds] = useState<Set<string>>(new Set());
@@ -80,16 +80,16 @@ export function useFilteredProjects() {
     }
   }, [currentWorkspace?.id, fetchError, fetchData, permissionsLoading, canViewAllProjects]);
 
-  // Filter projects based on dynamic permissions
+  // Filter projects based on dynamic permissions only
   const projects = useMemo(() => {
-    // If user can view all projects (admin or has visibility.all_projects permission)
-    if (canViewAllProjects || userRole === 'admin') {
+    // canViewAllProjects já inclui admin via hasPermission
+    if (canViewAllProjects) {
       return allProjects;
     }
     
-    // All other users see only projects where they are in the team
+    // Utilizadores sem permissão veem apenas projectos onde estão na equipa
     return allProjects.filter(project => userProjectIds.has(project.id));
-  }, [allProjects, userProjectIds, canViewAllProjects, userRole]);
+  }, [allProjects, userProjectIds, canViewAllProjects]);
 
   return {
     projects,
