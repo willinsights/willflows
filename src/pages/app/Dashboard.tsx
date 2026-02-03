@@ -5,6 +5,7 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { QuickActionsCard } from '@/components/dashboard/QuickActionsCard';
 import { ProjectCounters } from '@/components/dashboard/ProjectCounters';
 import { FinancialForecastCards } from '@/components/dashboard/FinancialForecastCards';
+import { CollaboratorForecastCards } from '@/components/dashboard/CollaboratorForecastCards';
 import { FinancialChart } from '@/components/dashboard/FinancialChart';
 import { MonthlyGoalsCard } from '@/components/dashboard/MonthlyGoalsCard';
 import { UrgentProjectsCard } from '@/components/dashboard/UrgentProjectsCard';
@@ -28,6 +29,7 @@ import { MobileUrgentProjects } from '@/components/mobile/MobileUrgentProjects';
 import { MobileUpcomingEvents } from '@/components/mobile/MobileUpcomingEvents';
 import { MobilePendingPayments } from '@/components/mobile/MobilePendingPayments';
 import { MobileRecentActivity } from '@/components/mobile/MobileRecentActivity';
+import { MobileCollaboratorForecast } from '@/components/mobile/MobileCollaboratorForecast';
 
 export default function Dashboard() {
   const { currentWorkspace } = useWorkspace();
@@ -146,6 +148,11 @@ export default function Dashboard() {
           </>
         )}
 
+        {/* Collaborator Forecast - Only for collaborators */}
+        {isCollaborator && (
+          <MobileCollaboratorForecast />
+        )}
+
         {/* Urgent Projects */}
         <MobileUrgentProjects
           urgentProjects={urgentProjects}
@@ -213,6 +220,11 @@ export default function Dashboard() {
       {/* Financial Forecast Row - Only for admins */}
       {!isCollaborator && canViewAllFinancials && (
         <FinancialForecastCards />
+      )}
+
+      {/* Collaborator Forecast Row - Only for collaborators */}
+      {isCollaborator && (
+        <CollaboratorForecastCards />
       )}
 
       {/* Charts Row - Financial (with tabs) + Monthly Goals - Hidden for collaborators */}
