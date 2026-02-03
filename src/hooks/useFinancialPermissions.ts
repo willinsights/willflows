@@ -82,8 +82,8 @@ export function useFinancialPermissions(): FinancialPermissions {
     const canViewClientContacts = hasPermission('clients.view');
     const canViewTeamContacts = hasPermission('team.view');
 
-    // Identificar se é colaborador (não tem visão global)
-    const isCollaborator = !canViewAllProjects && role !== null;
+    // Identificar se é colaborador (não tem visão financeira global, mas pode ver próprios ganhos)
+    const isCollaborator = !canViewAllFinancials && canViewOwnFinancials && role !== null;
 
     return {
       canViewAllFinancials,
