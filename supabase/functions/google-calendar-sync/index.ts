@@ -561,6 +561,7 @@ serve(async (req) => {
             event_type: 'event', // Default type for imported events
             google_event_id: gEvent.id,
             created_by: userId,
+            is_private: true, // Eventos importados são privados por defeito
           };
 
           if (existingGoogleIds.has(gEvent.id)) {
