@@ -16,6 +16,8 @@ import {
   Package,
   Lock,
   Euro,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +31,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
+import { useHideValues } from '@/hooks/useHideValues';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { ClientPaymentsControl } from '@/components/payments/ClientPaymentsControl';
@@ -63,6 +66,7 @@ export default function Pagamentos() {
   const { members } = useWorkspaceMembers();
   const { canViewAllFinancials, canViewOwnFinancials, userId, userRole, isCollaborator, isLoading: permissionsLoading } = useFinancialPermissions();
   const { hasFeatureAccess, checkFeature, upgradeAlert, closeUpgradeAlert, getFeatureInfo, getUpgradePlan } = usePlanFeatures();
+  const { hideValues, toggleHideValues } = useHideValues();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('previsao');
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -454,6 +458,9 @@ export default function Pagamentos() {
               : 'Os seus pagamentos e receitas'}
           </p>
         </div>
+        <Button variant="ghost" size="icon" onClick={toggleHideValues} className="h-9 w-9">
+          {hideValues ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </Button>
       </div>
 
       {/* Summary Cards - Only for admins - Using Project Revenue */}
@@ -463,7 +470,7 @@ export default function Pagamentos() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <TrendingUp className="h-5 w-5 text-success" />
-                <span className="text-2xl font-bold text-success">{formatCurrency(totalRevenueFromProjects.pending)}</span>
+                <span className={cn("text-2xl font-bold text-success", hideValues && "blur-md select-none")}>{formatCurrency(totalRevenueFromProjects.pending)}</span>
               </div>
               <p className="text-sm text-muted-foreground mt-1">A Receber</p>
               <p className="text-xs text-muted-foreground/70">Preço Cliente pendente</p>
@@ -473,7 +480,7 @@ export default function Pagamentos() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <TrendingDown className="h-5 w-5 text-destructive" />
-                <span className="text-2xl font-bold text-destructive">{formatCurrency(totalPayableWithExtras)}</span>
+                <span className={cn("text-2xl font-bold text-destructive", hideValues && "blur-md select-none")}>{formatCurrency(totalPayableWithExtras)}</span>
               </div>
               <p className="text-sm text-muted-foreground mt-1">A Pagar</p>
               <p className="text-xs text-muted-foreground/70">Colaboradores + Custos</p>
@@ -483,7 +490,7 @@ export default function Pagamentos() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <CheckCircle2 className="h-5 w-5 text-success" />
-                <span className="text-2xl font-bold">{formatCurrency(totalRevenueFromProjects.received)}</span>
+                <span className={cn("text-2xl font-bold", hideValues && "blur-md select-none")}>{formatCurrency(totalRevenueFromProjects.received)}</span>
               </div>
               <p className="text-sm text-muted-foreground mt-1">Recebido</p>
               <p className="text-xs text-muted-foreground/70">Total recebido</p>
@@ -562,7 +569,7 @@ export default function Pagamentos() {
             <Card className="glass-card border-success/20">
               <CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground mb-1">Receita Total</p>
-                <p className="text-2xl font-bold text-success">{formatCurrency(monthlyForecast.totalReceivable)}</p>
+                <p className={cn("text-2xl font-bold text-success", hideValues && "blur-md select-none")}>{formatCurrency(monthlyForecast.totalReceivable)}</p>
                 <p className="text-[10px] text-muted-foreground/70 mt-1">Todos os pagamentos</p>
               </CardContent>
             </Card>
@@ -574,7 +581,7 @@ export default function Pagamentos() {
                   <CheckCircle2 className="h-3 w-3 text-success" />
                   <p className="text-xs text-muted-foreground">Já Recebido</p>
                 </div>
-                <p className="text-2xl font-bold text-success/80">{formatCurrency(monthlyForecast.alreadyReceived)}</p>
+                <p className={cn("text-2xl font-bold text-success/80", hideValues && "blur-md select-none")}>{formatCurrency(monthlyForecast.alreadyReceived)}</p>
                 <p className="text-[10px] text-muted-foreground/70 mt-1">Status: Pago</p>
               </CardContent>
             </Card>
@@ -583,7 +590,7 @@ export default function Pagamentos() {
             <Card className="glass-card border-warning/20">
               <CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground mb-1">Por Receber</p>
-                <p className="text-2xl font-bold text-warning">{formatCurrency(monthlyForecast.pendingReceivable)}</p>
+                <p className={cn("text-2xl font-bold text-warning", hideValues && "blur-md select-none")}>{formatCurrency(monthlyForecast.pendingReceivable)}</p>
                 <p className="text-[10px] text-muted-foreground/70 mt-1">Pendentes + Vencidos</p>
               </CardContent>
             </Card>
@@ -592,7 +599,7 @@ export default function Pagamentos() {
             <Card className="glass-card border-destructive/20">
               <CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground mb-1">Total a Pagar</p>
-                <p className="text-2xl font-bold text-destructive">{formatCurrency(monthlyForecast.totalPayable)}</p>
+                <p className={cn("text-2xl font-bold text-destructive", hideValues && "blur-md select-none")}>{formatCurrency(monthlyForecast.totalPayable)}</p>
                 <p className="text-[10px] text-muted-foreground/70 mt-1">Colaboradores + Custos</p>
               </CardContent>
             </Card>
@@ -607,7 +614,7 @@ export default function Pagamentos() {
                     <p className="text-sm text-muted-foreground">Saldo Líquido Previsto</p>
                     <p className="text-xs text-muted-foreground/70">Por Receber - Total a Pagar</p>
                   </div>
-                  <p className={cn('text-3xl font-bold', monthlyForecast.net >= 0 ? 'text-success' : 'text-destructive')}>
+                  <p className={cn('text-3xl font-bold', monthlyForecast.net >= 0 ? 'text-success' : 'text-destructive', hideValues && "blur-md select-none")}>
                     {monthlyForecast.net >= 0 ? '+' : ''}{formatCurrency(monthlyForecast.net)}
                   </p>
                 </div>
@@ -622,7 +629,7 @@ export default function Pagamentos() {
                     <p className="text-sm text-muted-foreground">Lucro Previsto</p>
                     <p className="text-xs text-muted-foreground/70">Margem: {monthlyForecast.margemPercent}%</p>
                   </div>
-                  <p className={cn('text-3xl font-bold', monthlyForecast.lucroPrevisto >= 0 ? 'text-primary' : 'text-destructive')}>
+                  <p className={cn('text-3xl font-bold', monthlyForecast.lucroPrevisto >= 0 ? 'text-primary' : 'text-destructive', hideValues && "blur-md select-none")}>
                     {monthlyForecast.lucroPrevisto >= 0 ? '+' : ''}{formatCurrency(monthlyForecast.lucroPrevisto)}
                   </p>
                 </div>
@@ -678,7 +685,7 @@ export default function Pagamentos() {
                         <Badge variant="outline" className={cn(statusColors[project.client_payment_status || 'pendente'])}>
                           {statusLabels[project.client_payment_status || 'pendente']}
                         </Badge>
-                        <span className="font-medium text-success">
+                        <span className={cn("font-medium text-success", hideValues && "blur-md select-none")}>
                           +{formatCurrency(project.agreed_value || 0)}
                         </span>
                       </div>

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Calendar as CalendarIcon, FileSpreadsheet, FileText, Camera, Film, Video, Eye, X, Users, Lock } from 'lucide-react';
+import { Search, Filter, Calendar as CalendarIcon, FileSpreadsheet, FileText, Camera, Film, Video, Eye, EyeOff, X, Users, Lock } from 'lucide-react';
 import { format, isWithinInterval, parseISO } from 'date-fns';
 import { usePagination } from '@/hooks/usePagination';
 import { ListPagination } from '@/components/ui/list-pagination';
@@ -21,6 +21,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
+import { useHideValues } from '@/hooks/useHideValues';
 import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 import { ProjectDetailsSheet } from '@/components/projects/ProjectDetailsSheet';
 import { supabase } from '@/integrations/supabase/client';
@@ -57,6 +58,7 @@ export default function Finalizados() {
     closeUpgradeAlert,
     hasFeatureAccess
   } = usePlanFeatures();
+  const { hideValues, toggleHideValues } = useHideValues();
   const canExportPdf = hasFeatureAccess('exportPdf');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterClient, setFilterClient] = useState<string>('all');
@@ -403,6 +405,11 @@ export default function Finalizados() {
           <p className="text-muted-foreground">Histórico completo de projetos concluídos</p>
         </div>
         <div className="flex items-center gap-2">
+          {canViewAllFinancials && (
+            <Button variant="ghost" size="icon" onClick={toggleHideValues} className="h-9 w-9">
+              {hideValues ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+          )}
           <Button variant="outline" size="sm" className="gap-2" onClick={exportToExcel} disabled={completedProjects.length === 0}>
             <FileSpreadsheet className="h-4 w-4" />
             Excel
@@ -662,13 +669,13 @@ export default function Finalizados() {
             <Card className="glass-card">
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Receita Total</p>
-                <p className="text-2xl font-bold text-success">{formatCurrency(totalRevenue)}</p>
+                <p className={cn("text-2xl font-bold text-success", hideValues && "blur-md select-none")}>{formatCurrency(totalRevenue)}</p>
               </CardContent>
             </Card>
             <Card className="glass-card hidden md:block">
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Média por Projeto</p>
-                <p className="text-2xl font-bold">
+                <p className={cn("text-2xl font-bold", hideValues && "blur-md select-none")}>
                   {formatCurrency(completedProjects.length > 0 ? totalRevenue / completedProjects.length : 0)}
                 </p>
               </CardContent>

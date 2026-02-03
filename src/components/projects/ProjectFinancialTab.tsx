@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
+import { useHideValues } from '@/hooks/useHideValues';
 import { cn } from '@/lib/utils';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -70,6 +71,7 @@ export function ProjectFinancialTab({
 }: ProjectFinancialTabProps) {
   const { toast } = useToast();
   const { canViewAllFinancials, canViewOwnFinancials, userId } = useFinancialPermissions();
+  const { hideValues } = useHideValues();
   const [clientPayment, setClientPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -478,7 +480,7 @@ export function ProjectFinancialTab({
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <DollarSign className="h-3 w-3" /> Preço Cliente
                   </span>
-                  <p className="text-xl font-bold text-success mt-1">
+                  <p className={cn("text-xl font-bold text-success mt-1", hideValues && "blur-md select-none")}>
                     €{agreedValue.toFixed(2)}
                   </p>
                 </div>
@@ -486,7 +488,7 @@ export function ProjectFinancialTab({
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <Camera className="h-3 w-3" /> Custo Captação
                   </span>
-                  <p className="text-xl font-bold text-destructive mt-1">
+                  <p className={cn("text-xl font-bold text-destructive mt-1", hideValues && "blur-md select-none")}>
                     €{custoCaptacao.toFixed(2)}
                   </p>
                 </div>
@@ -494,7 +496,7 @@ export function ProjectFinancialTab({
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <Film className="h-3 w-3" /> Custo Edição
                   </span>
-                  <p className="text-xl font-bold text-destructive mt-1">
+                  <p className={cn("text-xl font-bold text-destructive mt-1", hideValues && "blur-md select-none")}>
                     €{custoEdicao.toFixed(2)}
                   </p>
                 </div>
@@ -506,13 +508,13 @@ export function ProjectFinancialTab({
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <Package className="h-3 w-3" /> Custos Extras
                   </span>
-                  <p className="text-xl font-bold text-destructive mt-1">
+                  <p className={cn("text-xl font-bold text-destructive mt-1", hideValues && "blur-md select-none")}>
                     €{custosExtras.toFixed(2)}
                   </p>
                 </div>
                 <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
                   <span className="text-xs text-muted-foreground">Lucro</span>
-                  <p className={cn("text-xl font-bold mt-1", profit >= 0 ? "text-primary" : "text-destructive")}>
+                  <p className={cn("text-xl font-bold mt-1", profit >= 0 ? "text-primary" : "text-destructive", hideValues && "blur-md select-none")}>
                     €{profit.toFixed(2)}
                   </p>
                 </div>

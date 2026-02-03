@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { Lead, LeadStatus } from '@/hooks/useLeads';
 import { LEAD_SOURCES } from '@/hooks/useLeads';
+import { useHideValues } from '@/hooks/useHideValues';
 
 interface LeadCardProps {
   lead: Lead;
@@ -47,6 +48,7 @@ export function LeadCard({
   onDelete,
   formatCurrency,
 }: LeadCardProps) {
+  const { hideValues } = useHideValues();
   const {
     attributes,
     listeners,
@@ -154,7 +156,7 @@ export function LeadCard({
           </Badge>
         )}
         {lead.estimated_value && lead.estimated_value > 0 && (
-          <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-emerald-600 border-emerald-200">
+          <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 text-emerald-600 border-emerald-200", hideValues && "blur-md select-none")}>
             <Euro className="h-2.5 w-2.5 mr-0.5" />
             {formatCurrency(lead.estimated_value)}
           </Badge>

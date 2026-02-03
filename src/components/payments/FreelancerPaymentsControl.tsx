@@ -22,6 +22,7 @@ import {
 import { PaymentFilters, FilterState } from './PaymentFilters';
 import { PaymentExportButtons } from './PaymentExportButtons';
 import { cn } from '@/lib/utils';
+import { useHideValues } from '@/hooks/useHideValues';
 
 const statusLabels: Record<string, string> = {
   pendente: 'Pendente',
@@ -85,6 +86,7 @@ export function FreelancerPaymentsControl({
   workspaceName = 'WillFlow',
   filterByUserId,
 }: FreelancerPaymentsControlProps) {
+  const { hideValues } = useHideValues();
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: null,
     dateTo: null,
@@ -181,7 +183,7 @@ export function FreelancerPaymentsControl({
         </div>
         {totalPending > 0 && (
           <div className="mt-2 text-sm text-muted-foreground">
-            Total pendente: <span className="font-semibold text-destructive">{formatCurrency(totalPending)}</span>
+            Total pendente: <span className={cn("font-semibold text-destructive", hideValues && "blur-md select-none")}>{formatCurrency(totalPending)}</span>
           </div>
         )}
       </CardHeader>
@@ -240,7 +242,7 @@ export function FreelancerPaymentsControl({
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell className="text-right font-medium text-destructive">
+                    <TableCell className={cn("text-right font-medium text-destructive", hideValues && "blur-md select-none")}>
                       -{formatCurrency(tp.payment_amount || 0)}
                     </TableCell>
                   </TableRow>
