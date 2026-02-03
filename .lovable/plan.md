@@ -1,119 +1,45 @@
 
+# Plano: Corrigir Redirecionamento Após Login com Google
 
-# Plano: Configurar Credenciais Google Próprias (White-Label)
+## Problema Identificado
+Após o login com Google, o utilizador é redirecionado para a **landing page** (`/`) em vez de ir para `/app`. 
 
-## Objectivo
+Isto acontece porque:
+1. O `redirect_uri` no login OAuth está configurado como `window.location.origin` (ex: `https://willflow.app`)
+2. Após autenticação, o Google redireciona para `/` (raíz)
+3. A landing page não tem lógica para detetar utilizadores autenticados e redireccionar para `/app`
 
-Fazer com que o ecrã de autenticação do Google mostre o **nome da sua empresa** (WillFlow) em vez de "Lovable" quando os utilizadores:
-1. Fazem login com Google
-2. Conectam o Google Calendar
+## Solução
+Alterar o `redirect_uri` para incluir `/auth` no final, garantindo que após o OAuth, o utilizador volta à página `/auth`, onde já existe um `useEffect` que detecta se o utilizador está autenticado e navega automaticamente para `/app`.
 
----
+## Alteração Técnica
 
-## Configuração Actual
+**Ficheiro:** `src/contexts/AuthContext.tsx`
 
-| Funcionalidade | Estado Actual | Credenciais |
-|---------------|---------------|-------------|
-| **Login com Google** | Usa credenciais Lovable (mostra "Lovable") | Geridas pelo Lovable Cloud |
-| **Google Calendar** | Já usa credenciais próprias ✅ | `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` |
+```typescript
+// ANTES (linha 148-149)
+const signInWithGoogle = useCallback(async () => {
+  const { error } = await lovable.auth.signInWithOAuth('google', {
+    redirect_uri: window.location.origin,
+  });
+  return { error: error as Error | null };
+}, []);
 
----
-
-## Passos de Configuração
-
-### Parte 1: Configurar Projecto no Google Cloud Console
-
-1. Aceda à [Google Cloud Console](https://console.cloud.google.com/)
-
-2. Crie um projecto ou seleccione o existente ("WillFlow" ou similar)
-
-3. Vá a **APIs & Services → OAuth consent screen**:
-   - **App name**: WillFlow (ou o nome da sua empresa)
-   - **User support email**: O seu email
-   - **Authorized domains**: Adicione `willflow.app` e `lovable.app`
-   - **Developer contact email**: O seu email
-
-4. Em **Scopes**, adicione:
-   - `.../auth/userinfo.email`
-   - `.../auth/userinfo.profile`
-   - `openid`
-   - `.../auth/calendar` (para o Calendar)
-   - `.../auth/calendar.events` (para o Calendar)
-
-5. Vá a **APIs & Services → Credentials**:
-   - Clique em **Create Credentials → OAuth Client ID**
-   - Seleccione **Web application**
-   - **Name**: WillFlow Web App
-
----
-
-### Parte 2: Configurar URIs de Redirect
-
-No Google Cloud Console, adicione estes **Authorized redirect URIs**:
-
-**Para Login com Google (Lovable Cloud):**
-```
-https://wppfmyseeigsdqutkgyc.supabase.co/auth/v1/callback
+// DEPOIS
+const signInWithGoogle = useCallback(async () => {
+  const { error } = await lovable.auth.signInWithOAuth('google', {
+    redirect_uri: `${window.location.origin}/auth`,
+  });
+  return { error: error as Error | null };
+}, []);
 ```
 
-**Para Google Calendar (Edge Function):**
-```
-https://wppfmyseeigsdqutkgyc.supabase.co/functions/v1/google-calendar-sync?action=callback
-```
+## Como Funciona Após a Correção
+1. Utilizador clica "Entrar com Google"
+2. OAuth abre popup/redireciona para Google
+3. Google redireciona de volta para `https://willflow.app/auth`
+4. A página `/auth` detecta que o utilizador está autenticado (`user` existe)
+5. O `useEffect` existente navega automaticamente para `/app`
 
----
-
-### Parte 3: Configurar Login com Google (BYOK)
-
-1. No Lovable, abra o **Backend Dashboard**:
-
-2. Navegue para: **Users → Authentication Settings → Sign In Methods → Google**
-
-3. Desactive a opção "Use Lovable managed credentials"
-
-4. Introduza as credenciais do Google Cloud Console:
-   - **Client ID**: O valor do OAuth Client ID
-   - **Client Secret**: O valor do OAuth Client Secret
-
-5. Guarde as alterações
-
----
-
-### Parte 4: Verificar Credenciais do Google Calendar
-
-As credenciais do Google Calendar já estão configuradas via secrets:
-- `GOOGLE_CLIENT_ID` ✅
-- `GOOGLE_CLIENT_SECRET` ✅
-
-**Importante**: Pode usar o **mesmo Client ID e Secret** para ambas as funcionalidades, desde que ambos os redirect URIs estejam configurados no Google Cloud Console.
-
----
-
-## Resultado Esperado
-
-| Ecrã | Antes | Depois |
-|------|-------|--------|
-| Login com Google | Mostra "Lovable quer aceder..." | Mostra "WillFlow quer aceder..." |
-| Conectar Google Calendar | Já mostra nome correcto | Mostra "WillFlow quer aceder..." |
-
----
-
-## Verificação Final
-
-Após configurar, teste:
-
-1. **Logout** da aplicação
-2. Clique em **"Entrar com Google"**
-3. Verifique que o popup mostra o nome da sua empresa
-4. Vá às **Definições → Google Calendar**
-5. Clique em **"Conectar Google Calendar"**
-6. Verifique que o popup mostra o nome da sua empresa
-
----
-
-## Notas Importantes
-
-- Se a app ainda estiver em modo "Testing" no Google Cloud Console, apenas emails adicionados como test users podem fazer login
-- Para produção, submeta a app para verificação do Google (pode demorar alguns dias)
-- Enquanto estiver em "Testing", utilizadores verão um aviso "App não verificada" - podem clicar em "Avançar" → "Ir para WillFlow (não seguro)" para continuar
-
+## Importante
+Não é necessário adicionar `/auth` aos redirect URIs no Google Cloud Console pois o redirect é feito pelo módulo Lovable que usa os callbacks já configurados. O `redirect_uri` passado é apenas para onde a aplicação deve navegar após receber os tokens.
