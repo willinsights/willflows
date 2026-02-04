@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppToast } from '@/hooks/useAppToast';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { chatDebug, chatDebugError, isChatDebugEnabled } from '@/lib/debug-flags';
 
 export type ConversationType = 'channel' | 'project' | 'dm';
@@ -31,14 +32,15 @@ export function useConversations() {
   const { user } = useAuth();
   const toast = useAppToast();
   const queryClient = useQueryClient();
+  const { canViewAllProjects, isLoading: permissionsLoading } = useFinancialPermissions();
   
   // Utilizadores sem permissão visibility.all_projects só veem canais onde são membros
-  // Nota: A verificação dinâmica será feita na query abaixo
+  // Agora usa permissão dinâmica em vez de verificação hardcoded
 
   const { data: conversations = [], isLoading, error, refetch } = useQuery({
-    queryKey: ['conversations', workspace?.id, membership?.role],
+    queryKey: ['conversations', workspace?.id, membership?.role, canViewAllProjects],
     queryFn: async () => {
-      if (!workspace?.id || !user?.id) return [];
+      if (!workspace?.id || !user?.id || permissionsLoading) return [];
 
       const { data: memberConversations } = await supabase
         .from('conversation_members')
@@ -69,8 +71,8 @@ export function useConversations() {
       // - Chats de projeto: só aparecem se is_active = true
       // - Utilizadores restritos: só veem conversas onde são membros
       // - Outros: veem as suas conversas + canais públicos
-      // Nota: No futuro, esta verificação pode usar permissões dinâmicas
-      const isUserRestricted = !['admin', 'editor', 'captacao'].includes(membership?.role || '');
+      // Usa permissão dinâmica canViewAllProjects em vez de verificação hardcoded
+      const isUserRestricted = !canViewAllProjects;
       const filtered = (data || []).filter((c: any) => {
         // Chats de projeto só aparecem se is_active = true
         if (c.type === 'project') {
@@ -219,7 +221,7 @@ export function useConversations() {
         } as Conversation;
       });
     },
-    enabled: !!workspace?.id && !!user?.id,
+    enabled: !!workspace?.id && !!user?.id && !permissionsLoading,
     staleTime: 30000,
   });
 

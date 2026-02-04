@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { handleDatabaseError } from '@/lib/error-handler';
 import { projectSchema, projectUpdateSchema, validateWithSchema } from '@/lib/validation-schemas';
 import { logger } from '@/lib/logger';
@@ -17,9 +18,10 @@ export interface ProjectWithClient extends Project {
 }
 
 export function useProjects() {
-  const { currentWorkspace, fetchError, membership } = useWorkspace();
+  const { currentWorkspace, fetchError } = useWorkspace();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { canViewAllProjects, isLoading: permissionsLoading } = useFinancialPermissions();
   const [projects, setProjects] = useState<ProjectWithClient[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -28,11 +30,13 @@ export function useProjects() {
   const lastFetchedWorkspaceIdRef = useRef<string | null>(null);
   
   // Check if user is a collaborator (non-admin) - they only see projects they're assigned to
-  const isCollaborator = membership?.role !== 'admin';
+  // Usar permissão dinâmica em vez de verificação hardcoded
+  const isCollaborator = !canViewAllProjects;
   const userId = user?.id;
 
   const fetchProjects = useCallback(async () => {
-    if (!currentWorkspace?.id || fetchError) return;
+    // Esperar que permissões carreguem antes de fetch
+    if (!currentWorkspace?.id || fetchError || permissionsLoading) return;
     if (isFetchingRef.current) return;
 
     try {
@@ -78,16 +82,19 @@ export function useProjects() {
       isFetchingRef.current = false;
       setLoading(false);
     }
-  }, [currentWorkspace?.id, fetchError, isCollaborator, userId]);
+  }, [currentWorkspace?.id, fetchError, isCollaborator, userId, permissionsLoading, canViewAllProjects]);
 
   useEffect(() => {
+    // Só fetch quando permissões estiverem carregadas
+    if (permissionsLoading) return;
+    
     // Only fetch if workspace ID changed
     if (currentWorkspace?.id && currentWorkspace.id !== lastFetchedWorkspaceIdRef.current && !fetchError) {
       fetchProjects();
     } else if (!currentWorkspace) {
       setLoading(false);
     }
-  }, [currentWorkspace?.id, fetchError]);
+  }, [currentWorkspace?.id, fetchError, permissionsLoading, canViewAllProjects]);
 
   const createProject = async (project: Omit<ProjectInsert, 'workspace_id'>) => {
     if (!currentWorkspace) return null;

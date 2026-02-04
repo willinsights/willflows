@@ -78,6 +78,13 @@ const FETCH_COOLDOWN_MS = 30000;
 const MAX_RETRIES = 3;
 const CACHE_VALID_MS = 1000 * 60 * 5; // Cache válido por 5 minutos - evita re-fetches ao navegar
 
+// Roles válidos do enum app_role no banco de dados
+const VALID_ROLES = ['admin', 'editor', 'captacao', 'freelancer', 'visualizador'] as const;
+
+function isValidRole(role: unknown): role is WorkspaceMember['role'] {
+  return typeof role === 'string' && VALID_ROLES.includes(role as any);
+}
+
 interface CachedWorkspaceData {
   userId: string;
   workspace: Workspace;
@@ -139,18 +146,32 @@ function getInitialStateFromCache(): {
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
       const data = JSON.parse(cached) as CachedWorkspaceData;
-      if (data.workspace && data.membership) {
+      
+      // VALIDAR role antes de usar cache - previne erros de enum inválido
+      if (data.workspace && data.membership && isValidRole(data.membership.role)) {
+        // Também validar roles de allWorkspaces
+        const validWorkspaces = (data.allWorkspaces || []).filter(ws => isValidRole(ws.role));
+        
         return {
           workspace: data.workspace,
           membership: data.membership,
-          allWorkspaces: data.allWorkspaces || [],
+          allWorkspaces: validWorkspaces,
           hasValidCache: true,
           cachedUserId: data.userId,
         };
+      } else {
+        // Cache com role inválido - limpar automaticamente
+        logger.warn('[WorkspaceContext] Cache with invalid role detected, clearing cache');
+        localStorage.removeItem(CACHE_KEY);
       }
     }
   } catch {
-    // Ignore
+    // Cache corrompido - limpar
+    try {
+      localStorage.removeItem(CACHE_KEY);
+    } catch {
+      // Ignore
+    }
   }
   return {
     workspace: null,
