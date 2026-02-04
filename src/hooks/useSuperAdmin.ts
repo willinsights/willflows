@@ -1,29 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
+// Fallback allowlist for primary system admins (prevents UI gates from breaking if RPC is slow/fails)
+const SUPER_ADMIN_EMAILS = ['geral@willflow.app'];
+
 export function useSuperAdmin() {
   const { user } = useAuth();
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
 
-  // Fallback allowlist for primary system admins (prevents UI gates from breaking if RPC is slow/fails)
-  const SUPER_ADMIN_EMAILS = ['geral@willflow.app'];
-
-  useEffect(() => {
-    const checkSuperAdmin = async () => {
-      if (!user) {
-        setIsSuperAdmin(false);
-        setLoading(false);
-        return;
-      }
+  const { data: isSuperAdmin = false, isLoading: loading } = useQuery({
+    queryKey: ['super-admin-status', user?.id],
+    queryFn: async () => {
+      if (!user) return false;
 
       // Fast-path for known system admins
       const email = (user.email || '').toLowerCase();
       if (email && SUPER_ADMIN_EMAILS.includes(email)) {
-        setIsSuperAdmin(true);
-        setLoading(false);
-        return;
+        return true;
       }
 
       try {
@@ -31,20 +24,19 @@ export function useSuperAdmin() {
         
         if (error) {
           console.error('Error checking super admin status:', error);
-          setIsSuperAdmin(false);
-        } else {
-          setIsSuperAdmin(data === true);
+          return false;
         }
+        
+        return data === true;
       } catch (err) {
         console.error('Error checking super admin status:', err);
-        setIsSuperAdmin(false);
-      } finally {
-        setLoading(false);
+        return false;
       }
-    };
-
-    checkSuperAdmin();
-  }, [user]);
+    },
+    enabled: !!user,
+    staleTime: 1000 * 60 * 30, // 30 minutes - avoid duplicate RPC calls
+    gcTime: 1000 * 60 * 60, // 1 hour
+  });
 
   return { isSuperAdmin, loading };
 }

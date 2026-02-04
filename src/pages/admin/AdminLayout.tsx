@@ -52,7 +52,11 @@ export default function AdminLayout() {
     }
   }, [loading, user, isSuperAdmin, navigate]);
 
-  if (loading) {
+  // Show content immediately if we have cached super admin status
+  const showContent = user && isSuperAdmin;
+  const showLoading = loading && !showContent;
+
+  if (showLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -60,7 +64,7 @@ export default function AdminLayout() {
     );
   }
 
-  if (!isSuperAdmin) {
+  if (!loading && !isSuperAdmin) {
     return null;
   }
 
