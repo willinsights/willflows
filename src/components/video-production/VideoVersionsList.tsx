@@ -9,10 +9,12 @@ import {
   User,
   HardDrive,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VideoVersion } from '@/hooks/useVideoVersions';
+import { useVideoDownload } from '@/hooks/useVideoDownload';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import {
@@ -52,6 +54,7 @@ export function VideoVersionsList({
   className
 }: VideoVersionsListProps) {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const { downloadVideo, isDownloading } = useVideoDownload();
 
   const formatFileSize = (bytes: number): string => {
     if (bytes >= 1024 * 1024 * 1024) {
@@ -66,6 +69,11 @@ export function VideoVersionsList({
   const handleDelete = (versionId: string) => {
     onDeleteVersion(versionId);
     setDeleteConfirmId(null);
+  };
+
+  const handleDownload = (version: VideoVersion) => {
+    if (!version.cloudflare_stream_uid) return;
+    downloadVideo(version.id, version.file_name);
   };
 
   if (versions.length === 0) {
@@ -100,7 +108,9 @@ export function VideoVersionsList({
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className={cn(
-                    "flex items-center justify-center rounded-full w-8 h-8 text-sm font-bold",
+                    "flex items-center justify-center rounded-full",
+                    "w-8 h-8 min-w-[2rem] min-h-[2rem] aspect-square flex-shrink-0",
+                    "text-sm font-bold",
                     selectedVersionId === version.id
                       ? "bg-primary text-primary-foreground"
                       : hasStreamError
@@ -130,6 +140,33 @@ export function VideoVersionsList({
                 </div>
 
                 <div className="flex items-center gap-1">
+                  {/* Download button for Cloudflare Stream videos */}
+                  {version.cloudflare_stream_uid && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-primary"
+                          disabled={isDownloading === version.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownload(version);
+                          }}
+                        >
+                          {isDownloading === version.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Download className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Descarregar vídeo</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                  
                   {/* Fix button for videos with issues */}
                   {version.cloudflare_stream_uid && onFixVideo && (
                     <Tooltip>

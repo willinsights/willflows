@@ -83,7 +83,12 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const hideControlsTimeout = useRef<NodeJS.Timeout>();
+  
+  // Enhanced recovery tracking
   const retryCountRef = useRef(0);
+  const lastTimeRef = useRef(0);
+  const maxRecoveryAttempts = 3;
+  const maxReinitAttempts = 5;
 
   // Memoize video source to prevent unnecessary re-renders and HLS destruction
   const videoSource = useMemo((): { type: 'hls' | 'native' | 'none'; url: string | null } => {
@@ -115,6 +120,54 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
 
     return { type: 'none', url: null };
   }, [src, streamUid, hlsUrl]);
+  
+  // Function to reinitialize HLS while preserving timestamp
+  const reinitializeHls = useCallback((preservedTime: number) => {
+    const video = videoRef.current;
+    if (!video || !videoSource.url || videoSource.type !== 'hls') return;
+    
+    console.log('[VideoPlayer] Reinitializing HLS at timestamp:', preservedTime);
+    
+    // Cleanup existing HLS instance
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+    
+    // Check if browser supports HLS natively (Safari)
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = videoSource.url;
+      video.load();
+      video.currentTime = preservedTime;
+      return;
+    }
+    
+    if (!Hls.isSupported()) return;
+    
+    const hls = new Hls({
+      enableWorker: true,
+      lowLatencyMode: false,
+    });
+    
+    hls.loadSource(videoSource.url);
+    hls.attachMedia(video);
+    
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      video.currentTime = preservedTime;
+      setIsLoading(false);
+      setLoadError(null);
+    });
+    
+    hls.on(Hls.Events.ERROR, (_, data) => {
+      if (data.fatal) {
+        console.error('[VideoPlayer] HLS fatal error during reinit:', data);
+        setLoadError('Falha ao carregar o vídeo. Tenta atualizar a página.');
+        setIsLoading(false);
+      }
+    });
+    
+    hlsRef.current = hls;
+  }, [videoSource.url, videoSource.type]);
 
   // Reset retry count when source changes
   useEffect(() => {
@@ -273,25 +326,39 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     const video = videoRef.current;
     const mediaError = video?.error;
     
-    // Try to recover from Error Code 4 (MEDIA_ERR_SRC_NOT_SUPPORTED) once
-    if (mediaError?.code === 4 && hlsRef.current && retryCountRef.current < 1) {
+    // Save current position for recovery
+    if (video && video.currentTime > 0) {
+      lastTimeRef.current = video.currentTime;
+    }
+    
+    // Phase 1: Try HLS media error recovery (up to maxRecoveryAttempts times)
+    if (mediaError?.code === 4 && hlsRef.current && retryCountRef.current < maxRecoveryAttempts) {
       retryCountRef.current++;
-      console.log('Recovering from media error code 4...');
+      console.log(`[VideoPlayer] Recovery attempt ${retryCountRef.current}/${maxRecoveryAttempts}...`);
       try {
         hlsRef.current.recoverMediaError();
         return;
       } catch (e) {
-        console.error('Failed to recover from media error:', e);
+        console.error('[VideoPlayer] Failed to recover from media error:', e);
       }
     }
     
+    // Phase 2: Try full HLS reinitialization (up to maxReinitAttempts total)
+    if (retryCountRef.current < maxReinitAttempts && videoSource.type === 'hls' && videoSource.url) {
+      retryCountRef.current++;
+      console.log(`[VideoPlayer] Reinit attempt ${retryCountRef.current}/${maxReinitAttempts}...`);
+      reinitializeHls(lastTimeRef.current);
+      return;
+    }
+    
+    // All recovery attempts exhausted - show error
     const message = mediaError
       ? `Falha ao carregar o vídeo (código ${mediaError.code}).`
       : 'Falha ao carregar o vídeo.';
     setIsLoading(false);
     setIsPlaying(false);
     setLoadError(message);
-  }, []);
+  }, [reinitializeHls, videoSource.type, videoSource.url]);
 
   const handleSeek = useCallback((value: number[]) => {
     if (videoRef.current) {

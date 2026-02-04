@@ -114,3 +114,6 @@ verify_jwt = false
 
 [functions.export-report]
 verify_jwt = false
+
+[functions.video-download-url]
+verify_jwt = false

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { DollarSign, User, Camera, Film, CreditCard, Calendar, Package, Lock, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useHideValues } from '@/hooks/useHideValues';
 import { cn } from '@/lib/utils';
+import { TeamMemberPaymentInput } from './TeamMemberPaymentInput';
 import type { Tables } from '@/integrations/supabase/types';
 
 type ProjectTeam = Tables<'project_team'>;
@@ -170,21 +171,38 @@ export function ProjectFinancialTab({
     }
   };
 
-  const handleTeamMemberPaymentChange = async (
+  // Handler for payment amount - used by TeamMemberPaymentInput
+  const handleTeamMemberPaymentAmountChange = useCallback(async (
     memberId: string, 
-    field: 'payment_status' | 'payment_amount',
-    value: PaymentStatus | number
+    amount: number
+  ) => {
+    try {
+      const { error } = await supabase
+        .from('project_team')
+        .update({ payment_amount: amount })
+        .eq('id', memberId);
+
+      if (error) throw error;
+
+      toast({ title: 'Pagamento atualizado' });
+      onTeamPaymentUpdate();
+    } catch (error: any) {
+      toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
+      throw error; // Re-throw so the input can handle the error state
+    }
+  }, [toast, onTeamPaymentUpdate]);
+
+  // Handler for payment status changes (Select component)
+  const handleTeamMemberPaymentStatusChange = async (
+    memberId: string, 
+    status: PaymentStatus
   ) => {
     setLoading(true);
 
     try {
-      const updates: Partial<ProjectTeam> = {
-        [field]: value,
-      };
-
       const { error } = await supabase
         .from('project_team')
-        .update(updates)
+        .update({ payment_status: status })
         .eq('id', memberId);
 
       if (error) throw error;
@@ -344,46 +362,19 @@ export function ProjectFinancialTab({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <div className="relative w-24">
-                    <CurrencyInput
-                      placeholder="€0.00"
-                      value={member.payment_amount}
-                      onChange={(value) => handleTeamMemberPaymentChange(
-                        member.id, 
-                        'payment_amount', 
-                        value || 0
-                      )}
-                      className="h-8 text-sm pr-7"
-                      disabled={loading}
-                    />
-                    {isManuallyEdited && suggestedAmount > 0 && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="absolute right-0 top-0 h-8 w-7 p-0"
-                            onClick={() => handleTeamMemberPaymentChange(
-                              member.id, 
-                              'payment_amount', 
-                              suggestedAmount
-                            )}
-                            disabled={loading}
-                          >
-                            <RotateCcw className="h-3 w-3 text-muted-foreground" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Restaurar valor automático (€{suggestedAmount.toFixed(2)})
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                  </div>
+                  <TeamMemberPaymentInput
+                    memberId={member.id}
+                    initialAmount={member.payment_amount}
+                    suggestedAmount={suggestedAmount}
+                    isManuallyEdited={isManuallyEdited}
+                    disabled={loading}
+                    onSave={handleTeamMemberPaymentAmountChange}
+                  />
                   
                   <Select
                     value={member.payment_status}
                     onValueChange={(value: PaymentStatus) => 
-                      handleTeamMemberPaymentChange(member.id, 'payment_status', value)
+                      handleTeamMemberPaymentStatusChange(member.id, value)
                     }
                     disabled={loading}
                   >

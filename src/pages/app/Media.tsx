@@ -12,7 +12,8 @@ import {
   Youtube,
   Cloud,
   Link2,
-  Film
+  Film,
+  Settings
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -20,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -34,6 +35,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
+import { StorageManagerTab } from '@/components/storage/StorageManagerTab';
 
 interface MediaLink {
   id: string;
@@ -92,6 +94,7 @@ export default function Media() {
   const [filterProject, setFilterProject] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [tabMode, setTabMode] = useState<'all' | 'by-project'>('all');
+  const [mainTab, setMainTab] = useState<'links' | 'storage'>('links');
 
   // Fetch all media links for the workspace
   const { data: mediaLinks = [], isLoading, refetch } = useQuery({
@@ -215,11 +218,32 @@ export default function Media() {
             </p>
           </div>
         </div>
-        <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
-          <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
-          Atualizar
-        </Button>
+        <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as 'links' | 'storage')}>
+          <TabsList>
+            <TabsTrigger value="links" className="gap-2">
+              <Link2 className="h-4 w-4" />
+              Links
+            </TabsTrigger>
+            <TabsTrigger value="storage" className="gap-2">
+              <HardDrive className="h-4 w-4" />
+              Armazenamento
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
+
+      {/* Storage Manager Tab */}
+      {mainTab === 'storage' ? (
+        <StorageManagerTab />
+      ) : (
+        <>
+          {/* Refresh button */}
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
+              <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
+              Atualizar
+            </Button>
+          </div>
 
       {/* Type Filter Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
@@ -346,6 +370,8 @@ export default function Media() {
             <MediaCard key={link.id} link={link} index={index} showProject />
           ))}
         </div>
+      )}
+        </>
       )}
     </div>
   );
