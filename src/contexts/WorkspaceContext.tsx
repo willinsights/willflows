@@ -97,10 +97,26 @@ function getCachedWorkspace(): CachedWorkspaceData | null {
   try {
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
-      return JSON.parse(cached);
+      const data = JSON.parse(cached) as CachedWorkspaceData;
+
+      // VALIDAR role também aqui (este helper é usado como fallback em erros de fetch)
+      // para evitar reintroduzir roles inválidos (ex: "gestor") e causar erros de enum.
+      if (data?.membership && !isValidRole((data.membership as any).role)) {
+        logger.warn('[WorkspaceContext] Cached membership has invalid role, clearing cache');
+        clearCachedWorkspace();
+        return null;
+      }
+
+      // Validar roles do allWorkspaces (se existirem)
+      if (Array.isArray(data?.allWorkspaces)) {
+        data.allWorkspaces = data.allWorkspaces.filter(ws => isValidRole((ws as any).role));
+      }
+
+      return data;
     }
   } catch {
-    // Ignore cache errors
+    // Cache corrompido - limpar
+    clearCachedWorkspace();
   }
   return null;
 }
