@@ -99,9 +99,11 @@ export function StorageManagerTab() {
             clients (name)
           ),
           tasks!task_id (
-            title,
-            client_approval_status,
-            client_approved_at
+            title
+          ),
+          video_approvals (
+            approved_by_client,
+            approved_at
           )
         `)
         .eq('workspace_id', currentWorkspace.id)
@@ -109,21 +111,25 @@ export function StorageManagerTab() {
 
       if (error) throw error;
 
-      return (data || []).map((v: any) => ({
-        id: v.id,
-        version_number: v.version_number,
-        file_name: v.file_name,
-        file_size_bytes: v.file_size_bytes,
-        created_at: v.created_at,
-        cloudflare_stream_uid: v.cloudflare_stream_uid,
-        stream_status: v.stream_status,
-        project_id: v.project_id,
-        project_name: v.projects?.name,
-        client_name: v.projects?.clients?.name,
-        task_title: v.tasks?.title,
-        approval_status: v.tasks?.client_approval_status,
-        approved_at: v.tasks?.client_approved_at,
-      })) as VideoVersionWithProject[];
+      return (data || []).map((v: any) => {
+        const latestApproval = v.video_approvals?.[0];
+        
+        return {
+          id: v.id,
+          version_number: v.version_number,
+          file_name: v.file_name,
+          file_size_bytes: v.file_size_bytes,
+          created_at: v.created_at,
+          cloudflare_stream_uid: v.cloudflare_stream_uid,
+          stream_status: v.stream_status,
+          project_id: v.project_id,
+          project_name: v.projects?.name,
+          client_name: v.projects?.clients?.name,
+          task_title: v.tasks?.title,
+          approval_status: latestApproval?.approved_by_client ? 'approved' : null,
+          approved_at: latestApproval?.approved_at,
+        };
+      }) as VideoVersionWithProject[];
     },
     enabled: !!currentWorkspace?.id,
   });
