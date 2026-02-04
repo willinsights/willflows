@@ -57,10 +57,16 @@ export function useVideoDownload(options: UseVideoDownloadOptions = {}) {
         throw new Error(errorData.error || 'Erro ao obter link de download');
       }
 
-      const { download_url, file_name } = await response.json();
+      const data = await response.json();
+      const { download_url, file_name } = data;
 
       if (!download_url) {
-        throw new Error('Link de download não disponível');
+        // Download not ready yet - show informative message instead of error
+        toast({
+          title: 'Download em preparação',
+          description: 'O ficheiro está a ser processado. Tenta novamente em alguns segundos.',
+        });
+        return;
       }
 
       // Trigger download
