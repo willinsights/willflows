@@ -1,13 +1,15 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-interface CurrencyInputProps extends Omit<React.ComponentProps<"input">, 'onChange' | 'value'> {
+interface CurrencyInputProps extends Omit<React.ComponentProps<"input">, 'onChange' | 'value' | 'onBlur' | 'onKeyDown'> {
   value: number | string | null | undefined;
   onChange: (value: number | null) => void;
+  onBlur?: () => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
 const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
-  ({ className, value, onChange, placeholder = "0.00", ...props }, ref) => {
+  ({ className, value, onChange, onBlur, onKeyDown, placeholder = "0.00", ...props }, ref) => {
     const [displayValue, setDisplayValue] = React.useState('');
 
     // Sync display value with prop value
@@ -56,6 +58,8 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
         ref={ref}
         value={displayValue}
         onChange={handleChange}
+        onBlur={onBlur}
+        onKeyDown={onKeyDown}
         placeholder={placeholder}
         {...props}
       />
