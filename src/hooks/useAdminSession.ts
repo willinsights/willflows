@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
 
+// Fast-path allowlist for known system admins
+const SUPER_ADMIN_EMAILS = ['geral@willflow.app'];
+
 interface AdminSession {
   user: User | null;
   session: Session | null;
@@ -42,7 +45,22 @@ export function useAdminSession() {
           return;
         }
 
-        // Check if user is super admin
+        // Fast-path for known system admins - skip RPC call
+        const email = (session.user.email || '').toLowerCase();
+        if (SUPER_ADMIN_EMAILS.includes(email)) {
+          if (mounted) {
+            setState({
+              user: session.user,
+              session,
+              isSuperAdmin: true,
+              loading: false,
+              error: null,
+            });
+          }
+          return;
+        }
+
+        // Only call RPC if not in fast-path
         const { data: isAdmin, error: adminError } = await supabase.rpc('is_system_admin');
         
         if (adminError) {
@@ -93,6 +111,21 @@ export function useAdminSession() {
         }
         navigate('/admin');
       } else if (session) {
+        // Fast-path check on auth state change
+        const email = (session.user.email || '').toLowerCase();
+        if (SUPER_ADMIN_EMAILS.includes(email)) {
+          if (mounted) {
+            setState({
+              user: session.user,
+              session,
+              isSuperAdmin: true,
+              loading: false,
+              error: null,
+            });
+          }
+          return;
+        }
+
         // Re-check admin status on session change
         const { data: isAdmin } = await supabase.rpc('is_system_admin');
         if (mounted) {
@@ -130,7 +163,20 @@ export function useAdminSession() {
       return { success: false, error: error.message };
     }
 
-    // Check if user is super admin
+    // Fast-path for known admins
+    const userEmail = (data.user?.email || '').toLowerCase();
+    if (SUPER_ADMIN_EMAILS.includes(userEmail)) {
+      setState({
+        user: data.user,
+        session: data.session,
+        isSuperAdmin: true,
+        loading: false,
+        error: null,
+      });
+      return { success: true };
+    }
+
+    // Check if user is super admin via RPC
     const { data: isAdmin, error: adminError } = await supabase.rpc('is_system_admin');
 
     if (adminError || !isAdmin) {
