@@ -13,7 +13,8 @@ import {
   Clock,
   CheckCircle2,
   Loader2,
-  Sparkles
+  Sparkles,
+  CheckSquare
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -21,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   AlertDialog,
@@ -75,6 +77,11 @@ export function StorageManagerTab() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  
+  // Bulk selection state
+  const [selectedVersionIds, setSelectedVersionIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // Fetch all video versions with project info
   const { data: videoVersions = [], isLoading } = useQuery({
@@ -178,6 +185,13 @@ export function StorageManagerTab() {
     };
   }, [videoVersions]);
 
+  // Calculate selected total bytes
+  const selectedTotalBytes = useMemo(() => {
+    return videoVersions
+      .filter(v => selectedVersionIds.has(v.id))
+      .reduce((sum, v) => sum + v.file_size_bytes, 0);
+  }, [videoVersions, selectedVersionIds]);
+
   const formatBytes = (bytes: number): string => {
     if (bytes >= 1024 * 1024 * 1024) {
       return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
@@ -199,6 +213,32 @@ export function StorageManagerTab() {
       return next;
     });
   };
+
+  // Selection handlers
+  const handleToggleSelect = (versionId: string) => {
+    setSelectedVersionIds(prev => {
+      const next = new Set(prev);
+      if (next.has(versionId)) next.delete(versionId);
+      else next.add(versionId);
+      return next;
+    });
+  };
+
+  const handleSelectAllProject = (projectId: string, versions: VideoVersionWithProject[]) => {
+    setSelectedVersionIds(prev => {
+      const next = new Set(prev);
+      const allSelected = versions.every(v => prev.has(v.id));
+      
+      if (allSelected) {
+        versions.forEach(v => next.delete(v.id));
+      } else {
+        versions.forEach(v => next.add(v.id));
+      }
+      return next;
+    });
+  };
+
+  const handleClearSelection = () => setSelectedVersionIds(new Set());
 
   const handleDeleteVersion = async (versionId: string) => {
     setIsDeleting(true);
@@ -238,6 +278,55 @@ export function StorageManagerTab() {
     } finally {
       setIsDeleting(false);
       setDeleteConfirm(null);
+    }
+  };
+
+  // Bulk delete handler
+  const handleBulkDelete = async () => {
+    setIsBulkDeleting(true);
+    const ids = Array.from(selectedVersionIds);
+    
+    try {
+      // Delete in parallel (batches of 5)
+      for (let i = 0; i < ids.length; i += 5) {
+        const batch = ids.slice(i, i + 5);
+        await Promise.all(batch.map(async (id) => {
+          const version = videoVersions.find(v => v.id === id);
+          
+          // Delete from Cloudflare Stream if exists
+          if (version?.cloudflare_stream_uid) {
+            try {
+              await supabase.functions.invoke('stream-delete-video', {
+                body: { streamUid: version.cloudflare_stream_uid }
+              });
+            } catch (e) {
+              console.warn('Failed to delete from Cloudflare Stream:', e);
+            }
+          }
+          
+          // Delete from database
+          await supabase.from('video_versions').delete().eq('id', id);
+        }));
+      }
+      
+      toast({
+        title: 'Vídeos eliminados',
+        description: `${ids.length} vídeo(s) removido(s) do armazenamento.`,
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ['storage-manager-videos', currentWorkspace?.id] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-storage', currentWorkspace?.id] });
+      
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao eliminar',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsBulkDeleting(false);
+      setShowBulkDeleteModal(false);
+      setSelectedVersionIds(new Set());
     }
   };
 
@@ -345,6 +434,34 @@ export function StorageManagerTab() {
           <CardTitle className="text-lg">Mídias por Projeto</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
+          {/* Bulk selection action bar */}
+          {selectedVersionIds.size > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="sticky top-0 z-10 flex items-center justify-between p-3 rounded-xl bg-primary/10 border border-primary/20 mb-4"
+            >
+              <div className="flex items-center gap-3">
+                <CheckSquare className="h-5 w-5 text-primary" />
+                <span className="font-medium">
+                  {selectedVersionIds.size} vídeo{selectedVersionIds.size > 1 ? 's' : ''} selecionado{selectedVersionIds.size > 1 ? 's' : ''}
+                  <span className="text-muted-foreground ml-2">
+                    ({formatBytes(selectedTotalBytes)})
+                  </span>
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={handleClearSelection}>
+                  Limpar
+                </Button>
+                <Button variant="destructive" size="sm" onClick={() => setShowBulkDeleteModal(true)}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Eliminar {selectedVersionIds.size}
+                </Button>
+              </div>
+            </motion.div>
+          )}
+
           {isLoading ? (
             <div className="flex items-center justify-center h-32">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -390,7 +507,21 @@ export function StorageManagerTab() {
                   </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="pl-10 pr-4 pb-2">
-                  <div className="space-y-2 border-l-2 border-muted pl-4">
+                  {/* Select all for this project */}
+                  <div 
+                    className="flex items-center gap-3 px-3 py-2 border-b border-muted cursor-pointer hover:bg-muted/30 rounded-t-lg"
+                    onClick={() => handleSelectAllProject(group.projectId, group.versions)}
+                  >
+                    <Checkbox
+                      checked={group.versions.length > 0 && group.versions.every(v => selectedVersionIds.has(v.id))}
+                      onCheckedChange={() => handleSelectAllProject(group.projectId, group.versions)}
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      Selecionar todos ({group.versions.length})
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-2 border-l-2 border-muted pl-4 mt-2">
                     {group.versions.map(version => {
                       const status = getVersionStatus(version);
                       
@@ -399,9 +530,16 @@ export function StorageManagerTab() {
                           key={version.id}
                           initial={{ opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
-                          className="flex items-center justify-between py-2 px-3 rounded-lg bg-background/50 hover:bg-muted/30 transition-colors"
+                          className={cn(
+                            "flex items-center justify-between py-2 px-3 rounded-lg bg-background/50 hover:bg-muted/30 transition-colors",
+                            selectedVersionIds.has(version.id) && "bg-primary/5 border border-primary/20"
+                          )}
                         >
                           <div className="flex items-center gap-3 min-w-0">
+                            <Checkbox
+                              checked={selectedVersionIds.has(version.id)}
+                              onCheckedChange={() => handleToggleSelect(version.id)}
+                            />
                             <div className="w-8 h-8 min-w-[2rem] rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary flex-shrink-0 aspect-square">
                               V{version.version_number}
                             </div>
@@ -440,7 +578,7 @@ export function StorageManagerTab() {
         </CardContent>
       </Card>
 
-      {/* Delete confirmation */}
+      {/* Single delete confirmation */}
       <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -461,6 +599,33 @@ export function StorageManagerTab() {
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
               Apagar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk delete confirmation */}
+      <AlertDialog open={showBulkDeleteModal} onOpenChange={setShowBulkDeleteModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Apagar {selectedVersionIds.size} vídeos?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação irá libertar <strong>{formatBytes(selectedTotalBytes)}</strong> de espaço.
+              Os vídeos serão removidos permanentemente e não podem ser recuperados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isBulkDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Apagar {selectedVersionIds.size}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
