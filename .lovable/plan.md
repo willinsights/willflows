@@ -1,233 +1,154 @@
 
-# Plano: Seleção em Massa para Eliminar Mídia
+# Plano: Corrigir Erros na Página de Pagamentos para Colaboradores
 
-## Contexto
+## Problema Identificado
 
-A página **Media & Uploads** → aba **Armazenamento** permite gerir vídeos armazenados por projeto. Atualmente só é possível eliminar um vídeo de cada vez. Vamos adicionar seleção em massa seguindo o padrão já existente na página de Leads.
+Um utilizador com role `freelancer` (com label customizado "Gestores 🖥️") está a ver o erro "Algo correu mal" ao aceder à página de **Pagamentos**. 
+
+O erro nos logs do Postgres mostra:
+```
+invalid input value for enum app_role: "gestor"
+```
+
+### Causa Raiz
+
+O erro ocorre porque o **cache do localStorage** pode estar corrompido ou desatualizado, contendo "gestor" (parte do label personalizado) em vez do role real "freelancer". Quando este valor é usado em queries à tabela `workspace_role_permissions`, o enum rejeita o valor.
+
+Adicionalmente, há verificações **hardcoded** no código que comparam roles diretamente em vez de usar o sistema de permissões dinâmicas.
 
 ---
 
-## O que será implementado
+## Ficheiros com Problemas
 
-1. **Checkboxes de seleção** em cada linha de vídeo
-2. **Opção "Selecionar todos"** ao expandir um projeto
-3. **Barra de ação flutuante** quando há itens selecionados
-4. **Modal de confirmação** para eliminação em massa
-5. **Eliminação paralela** dos vídeos selecionados (incluindo Cloudflare Stream)
+### 1. `src/hooks/useProjects.ts` (Linha 31)
+```typescript
+// PROBLEMA: Verificação hardcoded
+const isCollaborator = membership?.role !== 'admin';
+```
+
+Deveria usar `hasPermission('visibility.all_projects')` do sistema dinâmico.
+
+### 2. `src/contexts/WorkspaceContext.tsx` (Linha 576)
+```typescript
+// PROBLEMA: Verificação hardcoded
+const canEdit = isAdmin || membership?.role === 'editor' || membership?.role === 'captacao';
+```
+
+### 3. `src/hooks/useConversations.ts` (Linha 73)
+```typescript
+// PROBLEMA: Verificação hardcoded
+const isUserRestricted = !['admin', 'editor', 'captacao'].includes(membership?.role || '');
+```
+
+### 4. Cache Corrompido
+O utilizador pode ter uma entrada no localStorage com um role inválido que causa o erro.
 
 ---
 
-## Design da Interface
+## Solução
 
-Quando expandires um projeto:
+### Parte 1: Adicionar Validação de Role no WorkspaceContext
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│ ☑ Selecionar todos (3)                                          │
-├─────────────────────────────────────────────────────────────────┤
-│ ☐  V1  video_final.mp4     │  250 MB  │  15 Jan 2026  │  🗑️   │
-│ ☐  V2  video_v2_cor.mp4    │  280 MB  │  18 Jan 2026  │  🗑️   │
-│ ☑  V3  video_final_ok.mp4  │  290 MB  │  20 Jan 2026  │  🗑️   │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-Barra de ação (quando há seleção):
-
-```text
-┌──────────────────────────────────────────────────────────────────┐
-│  ✓ 3 vídeos selecionados (820 MB)     [Limpar]  [Eliminar 3]    │
-└──────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Alterações
-
-### 1. StorageManagerTab.tsx - Estado de Seleção
-
-Adicionar estado para controlar seleção:
+Garantir que o role vindo do cache é um valor válido do enum antes de usar:
 
 ```typescript
-const [selectedVersionIds, setSelectedVersionIds] = useState<Set<string>>(new Set());
-const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
-const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+// src/contexts/WorkspaceContext.tsx
+
+const VALID_ROLES = ['admin', 'editor', 'captacao', 'freelancer', 'visualizador'] as const;
+
+function isValidRole(role: unknown): role is WorkspaceMember['role'] {
+  return typeof role === 'string' && VALID_ROLES.includes(role as any);
+}
+
+// No cache loading
+if (cached && cached.membership && isValidRole(cached.membership.role)) {
+  // ... usar cache
+} else {
+  // Cache inválido - limpar e fazer refetch
+  clearCachedWorkspace();
+}
 ```
 
-### 2. StorageManagerTab.tsx - Handlers de Seleção
+### Parte 2: Sincronizar useProjects com Permissões Dinâmicas
 
 ```typescript
-// Toggle individual
-const handleToggleSelect = (versionId: string) => {
-  setSelectedVersionIds(prev => {
-    const next = new Set(prev);
-    if (next.has(versionId)) next.delete(versionId);
-    else next.add(versionId);
-    return next;
-  });
-};
+// src/hooks/useProjects.ts
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 
-// Toggle todos de um projeto
-const handleSelectAllProject = (projectId: string, versions: VideoVersionWithProject[]) => {
-  setSelectedVersionIds(prev => {
-    const next = new Set(prev);
-    const allSelected = versions.every(v => prev.has(v.id));
-    
-    if (allSelected) {
-      versions.forEach(v => next.delete(v.id));
-    } else {
-      versions.forEach(v => next.add(v.id));
-    }
-    return next;
-  });
-};
-
-// Limpar seleção
-const handleClearSelection = () => setSelectedVersionIds(new Set());
-```
-
-### 3. StorageManagerTab.tsx - Eliminação em Massa
-
-```typescript
-const handleBulkDelete = async () => {
-  setIsBulkDeleting(true);
-  const ids = Array.from(selectedVersionIds);
+export function useProjects() {
+  const { canViewAllProjects, isLoading: permissionsLoading } = useFinancialPermissions();
   
+  // Usar permissão dinâmica em vez de hardcoded
+  const isCollaborator = !canViewAllProjects;
+  
+  // Esperar que permissões carreguem
+  const fetchProjects = useCallback(async () => {
+    if (!currentWorkspace?.id || fetchError || permissionsLoading) return;
+    // ...
+  }, [currentWorkspace?.id, fetchError, permissionsLoading, canViewAllProjects, userId]);
+}
+```
+
+### Parte 3: Limpeza Automática de Cache Corrompido
+
+Adicionar uma verificação no `WorkspaceContext` para detetar e limpar cache com roles inválidos:
+
+```typescript
+// Em getInitialStateFromCache()
+function getInitialStateFromCache() {
   try {
-    // Eliminar em paralelo (batches de 5)
-    for (let i = 0; i < ids.length; i += 5) {
-      const batch = ids.slice(i, i + 5);
-      await Promise.all(batch.map(async (id) => {
-        const version = videoVersions.find(v => v.id === id);
-        
-        // Eliminar do Cloudflare Stream se existir
-        if (version?.cloudflare_stream_uid) {
-          await supabase.functions.invoke('stream-delete-video', {
-            body: { streamUid: version.cloudflare_stream_uid }
-          });
-        }
-        
-        // Eliminar da base de dados
-        await supabase.from('video_versions').delete().eq('id', id);
-      }));
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const data = JSON.parse(cached) as CachedWorkspaceData;
+      
+      // VALIDAR role antes de usar cache
+      if (data.workspace && data.membership && isValidRole(data.membership.role)) {
+        return {
+          workspace: data.workspace,
+          membership: data.membership,
+          // ...
+        };
+      } else {
+        // Cache inválido - limpar
+        localStorage.removeItem(CACHE_KEY);
+      }
     }
-    
-    toast({
-      title: 'Vídeos eliminados',
-      description: `${ids.length} vídeo(s) removido(s) do armazenamento.`,
-    });
-    
-    queryClient.invalidateQueries({ queryKey: ['storage-manager-videos'] });
-    queryClient.invalidateQueries({ queryKey: ['workspace-storage'] });
-    
-  } catch (error: any) {
-    toast({
-      title: 'Erro ao eliminar',
-      description: error.message,
-      variant: 'destructive',
-    });
-  } finally {
-    setIsBulkDeleting(false);
-    setShowBulkDeleteModal(false);
-    setSelectedVersionIds(new Set());
+  } catch {
+    // Limpar cache corrompido
+    localStorage.removeItem(CACHE_KEY);
   }
-};
+  // ... retornar valores default
+}
 ```
 
-### 4. StorageManagerTab.tsx - UI Atualizada
+### Parte 4: Tratamento de Erro Gracioso na Página de Pagamentos
 
-**Checkbox em cada linha de vídeo:**
+Em vez de deixar o ErrorBoundary apanhar o erro, tratar erros específicos de permissões:
 
-```tsx
-<motion.div className="flex items-center justify-between...">
-  <div className="flex items-center gap-3 min-w-0">
-    <Checkbox
-      checked={selectedVersionIds.has(version.id)}
-      onCheckedChange={() => handleToggleSelect(version.id)}
-    />
-    <div className="w-8 h-8...">V{version.version_number}</div>
-    {/* resto */}
-  </div>
-</motion.div>
-```
+```typescript
+// src/pages/app/Pagamentos.tsx
 
-**Selecionar todos no topo do projeto expandido:**
+// Se isLoading está true por mais de 10 segundos, mostrar mensagem
+const [loadingTimeout, setLoadingTimeout] = useState(false);
 
-```tsx
-<CollapsibleContent>
-  <div className="flex items-center gap-3 px-4 py-2 border-b border-muted">
-    <Checkbox
-      checked={group.versions.every(v => selectedVersionIds.has(v.id))}
-      onCheckedChange={() => handleSelectAllProject(group.projectId, group.versions)}
-    />
-    <span className="text-sm text-muted-foreground">
-      Selecionar todos ({group.versions.length})
-    </span>
-  </div>
-  {/* lista de versões */}
-</CollapsibleContent>
-```
+useEffect(() => {
+  if (loading || permissionsLoading) {
+    const timer = setTimeout(() => setLoadingTimeout(true), 10000);
+    return () => clearTimeout(timer);
+  }
+  setLoadingTimeout(false);
+}, [loading, permissionsLoading]);
 
-**Barra de ação flutuante:**
-
-```tsx
-{selectedVersionIds.size > 0 && (
-  <motion.div
-    initial={{ opacity: 0, y: -10 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="sticky top-0 z-10 flex items-center justify-between p-3 rounded-xl bg-primary/10 border border-primary/20 mb-4"
-  >
-    <div className="flex items-center gap-3">
-      <CheckSquare className="h-5 w-5 text-primary" />
-      <span className="font-medium">
-        {selectedVersionIds.size} vídeo{selectedVersionIds.size > 1 ? 's' : ''} selecionado{selectedVersionIds.size > 1 ? 's' : ''}
-        <span className="text-muted-foreground ml-2">
-          ({formatBytes(selectedTotalBytes)})
-        </span>
-      </span>
+if (loadingTimeout) {
+  return (
+    <div className="p-6 text-center">
+      <p className="text-muted-foreground">
+        A carregar permissões... Se este erro persistir, tente fazer logout e login novamente.
+      </p>
+      <Button onClick={() => window.location.reload()}>Recarregar</Button>
     </div>
-    <div className="flex items-center gap-2">
-      <Button variant="ghost" size="sm" onClick={handleClearSelection}>
-        Limpar
-      </Button>
-      <Button variant="destructive" size="sm" onClick={() => setShowBulkDeleteModal(true)}>
-        <Trash2 className="h-4 w-4 mr-2" />
-        Eliminar {selectedVersionIds.size}
-      </Button>
-    </div>
-  </motion.div>
-)}
-```
-
-### 5. Modal de Confirmação em Massa
-
-Reutilizar o AlertDialog existente, modificando para suportar múltiplos:
-
-```tsx
-<AlertDialog open={showBulkDeleteModal} onOpenChange={setShowBulkDeleteModal}>
-  <AlertDialogContent>
-    <AlertDialogHeader>
-      <AlertDialogTitle className="flex items-center gap-2">
-        <AlertTriangle className="h-5 w-5 text-destructive" />
-        Apagar {selectedVersionIds.size} vídeos?
-      </AlertDialogTitle>
-      <AlertDialogDescription>
-        Esta ação irá libertar <strong>{formatBytes(selectedTotalBytes)}</strong> de espaço.
-        Os vídeos serão removidos permanentemente.
-      </AlertDialogDescription>
-    </AlertDialogHeader>
-    <AlertDialogFooter>
-      <AlertDialogCancel disabled={isBulkDeleting}>Cancelar</AlertDialogCancel>
-      <AlertDialogAction
-        onClick={handleBulkDelete}
-        disabled={isBulkDeleting}
-        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-      >
-        {isBulkDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-        Apagar {selectedVersionIds.size}
-      </AlertDialogAction>
-    </AlertDialogFooter>
-  </AlertDialogContent>
-</AlertDialog>
+  );
+}
 ```
 
 ---
@@ -236,45 +157,45 @@ Reutilizar o AlertDialog existente, modificando para suportar múltiplos:
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `src/components/storage/StorageManagerTab.tsx` | Adicionar estado, handlers, UI de seleção em massa |
+| `src/contexts/WorkspaceContext.tsx` | Adicionar validação de role no cache |
+| `src/hooks/useProjects.ts` | Usar permissões dinâmicas |
+| `src/pages/app/Pagamentos.tsx` | Adicionar tratamento de timeout |
 
 ---
 
-## Funcionalidades Incluídas
+## Impacto
 
-- ☑ Checkbox individual por vídeo
-- ☑ "Selecionar todos" por projeto
-- ☑ Barra flutuante com contagem e tamanho total
-- ☑ Botão "Limpar seleção"
-- ☑ Botão "Eliminar X"
-- ☑ Modal de confirmação com espaço a libertar
-- ☑ Eliminação em batches para performance
-- ☑ Eliminação do Cloudflare Stream (se aplicável)
-- ☑ Feedback visual durante eliminação
-- ☑ Atualização automática após eliminação
+| Problema | Antes | Depois |
+|----------|-------|--------|
+| Cache com role inválido | Erro "gestor" no enum | Cache limpo automaticamente |
+| Verificações hardcoded | Roles fixos no código | Usa permissões dinâmicas |
+| Loading infinito | ErrorBoundary genérico | Mensagem de recuperação |
 
 ---
 
 ## Secção Técnica
 
-### Padrão seguido
-O mesmo padrão de seleção em massa do `src/pages/app/Leads.tsx`:
-- Estado com Set de IDs selecionados
-- Checkbox individual e "selecionar todos"
-- Barra de ação animada com motion
-- Modal AlertDialog para confirmação
+### Porque o erro acontece
 
-### Imports necessários
-```typescript
-import { Checkbox } from '@/components/ui/checkbox';
-import { CheckSquare } from 'lucide-react';
-```
+1. **Labels personalizados**: O admin renomeou "Freelancer" para "Gestores 🖥️"
+2. **Cache bug potencial**: Em algum momento, o label pode ter sido guardado no cache em vez do role real
+3. **Query RLS**: Quando o `useRolePermissions` faz query com role "gestor", o Postgres rejeita porque não é um valor válido do enum
 
-### Cálculo do tamanho selecionado
-```typescript
-const selectedTotalBytes = useMemo(() => {
-  return videoVersions
-    .filter(v => selectedVersionIds.has(v.id))
-    .reduce((sum, v) => sum + v.file_size_bytes, 0);
-}, [videoVersions, selectedVersionIds]);
-```
+### Validação de Roles
+
+Os únicos valores válidos são:
+- `admin`
+- `editor`
+- `captacao`
+- `freelancer`
+- `visualizador`
+
+Qualquer outro valor (incluindo labels customizados como "Gestores", "Gestor", etc.) não deve ser aceite.
+
+### Ação Imediata para o Utilizador
+
+Enquanto o fix não é implementado, o utilizador pode:
+1. Abrir DevTools (F12)
+2. Ir a Application → Local Storage
+3. Limpar entrada `willflow_workspace_cache`
+4. Fazer refresh da página
