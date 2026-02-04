@@ -42,6 +42,16 @@ export function useVideoDownload(options: UseVideoDownloadOptions = {}) {
         }
       );
 
+      // Handle 202 - download is being prepared
+      if (response.status === 202) {
+        const data = await response.json();
+        toast({
+          title: 'Preparando download',
+          description: data.error || 'Aguarde alguns segundos e tente novamente.',
+        });
+        return;
+      }
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Erro ao obter link de download');

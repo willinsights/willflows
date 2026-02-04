@@ -160,24 +160,87 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Check if default download is available
-    const defaultDownload = videoInfo.result.defaultCreator?.downloadUrl || 
-                            `https://videodelivery.net/${version.cloudflare_stream_uid}/downloads/default.mp4`;
+    // Check if downloads exist for this video
+    const downloadsListUrl = `https://api.cloudflare.com/client/v4/accounts/${cloudflareAccountId}/stream/${version.cloudflare_stream_uid}/downloads`;
+
+    const downloadsResponse = await fetch(downloadsListUrl, {
+      headers: { 'Authorization': `Bearer ${cloudflareStreamToken}` },
+    });
+
+    const downloadsData = await downloadsResponse.json();
+    console.log('[video-download-url] Downloads status:', downloadsData);
+
+    let downloadUrl: string | null = null;
+
+    // Check if default download exists and is ready
+    if (downloadsData.success && downloadsData.result?.default) {
+      const defaultDownload = downloadsData.result.default;
+      
+      if (defaultDownload.status === 'ready' && defaultDownload.url) {
+        downloadUrl = defaultDownload.url;
+        console.log('[video-download-url] Download already ready');
+      } else if (defaultDownload.status === 'pendingUrl' || defaultDownload.status === 'inprogress') {
+        // Still processing, inform user to try again
+        return new Response(
+          JSON.stringify({ 
+            error: 'Download em preparação. Aguarde alguns segundos e tente novamente.',
+            status: 'processing',
+            percentComplete: defaultDownload.percentComplete || 0
+          }),
+          { status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // If no download exists or not ready, create it
+    if (!downloadUrl) {
+      console.log('[video-download-url] Creating download...');
+      
+      const createDownloadResponse = await fetch(downloadsListUrl, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${cloudflareStreamToken}` },
+      });
+      
+      const createData = await createDownloadResponse.json();
+      console.log('[video-download-url] Create download response:', createData);
+      
+      if (createData.success && createData.result) {
+        if (createData.result.status === 'ready' && createData.result.url) {
+          downloadUrl = createData.result.url;
+        } else {
+          // Download is being created, user needs to wait
+          return new Response(
+            JSON.stringify({ 
+              error: 'Download iniciado. Aguarde alguns segundos e tente novamente.',
+              status: 'initiated',
+              percentComplete: createData.result.percentComplete || 0
+            }),
+            { status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } else {
+        console.error('[video-download-url] Failed to create download:', createData);
+        return new Response(
+          JSON.stringify({ error: 'Não foi possível criar o download' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     // Log download for audit
-    console.log('[video-download-url] Download initiated', {
+    console.log('[video-download-url] Download URL ready', {
       video_version_id,
       user_id: userId,
       is_public: isPublicApproval,
       stream_uid: version.cloudflare_stream_uid,
     });
 
-    // Return download URL
+    // Return the valid download URL
     return new Response(
       JSON.stringify({
-        download_url: defaultDownload,
+        download_url: downloadUrl,
         file_name: version.file_name || 'video.mp4',
-        expires_in: 3600, // 1 hour
+        expires_in: 3600,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
