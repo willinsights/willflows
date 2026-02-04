@@ -94,6 +94,62 @@ export default function Auth() {
     }
   }, [urlMode]);
 
+  // Handle OAuth callback from custom domain flow
+  useEffect(() => {
+    const tokenHash = searchParams.get('token_hash');
+    const type = searchParams.get('type');
+    const error = searchParams.get('error');
+    const isNewUser = searchParams.get('new_user') === 'true';
+    
+    if (error) {
+      console.error('[Auth] OAuth error:', error);
+      toast({
+        title: 'Erro no login com Google',
+        description: 'Não foi possível completar o login. Por favor, tente novamente.',
+        variant: 'destructive',
+      });
+      // Clean up URL params
+      navigate('/auth', { replace: true });
+      return;
+    }
+    
+    if (tokenHash && type) {
+      console.log('[Auth] Processing OAuth callback with token_hash');
+      
+      // Verify the OTP token to establish the session
+      supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: type as 'magiclink' | 'email',
+      }).then(({ data, error: verifyError }) => {
+        if (verifyError) {
+          console.error('[Auth] OTP verification failed:', verifyError);
+          toast({
+            title: 'Erro na verificação',
+            description: 'Não foi possível verificar a sessão. Por favor, tente novamente.',
+            variant: 'destructive',
+          });
+          navigate('/auth', { replace: true });
+          return;
+        }
+        
+        if (data.session) {
+          console.log('[Auth] Session established successfully');
+          toast({
+            title: 'Login com sucesso!',
+            description: 'Bem-vindo ao WillFlow.',
+          });
+          
+          // Navigate based on whether this is a new user
+          if (isNewUser) {
+            navigate('/onboarding', { replace: true });
+          } else {
+            navigate('/app', { replace: true });
+          }
+        }
+      });
+    }
+  }, [searchParams, navigate, toast]);
+
   // Handle beta mode restrictions
   useEffect(() => {
     // In beta mode, if user tries to signup without valid invite, force login mode

@@ -145,6 +145,22 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
+    // Check if we're on a custom domain (not *.lovable.app)
+    const isCustomDomain = !window.location.hostname.includes('lovable.app');
+    
+    if (isCustomDomain) {
+      // Use direct OAuth via edge function for custom domains
+      // The Lovable OAuth broker only works on *.lovable.app domains
+      const redirectUri = `${window.location.origin}/auth`;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const oauthUrl = `${supabaseUrl}/functions/v1/google-oauth?action=initiate&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      
+      console.log('[Auth] Using direct OAuth for custom domain:', window.location.hostname);
+      window.location.href = oauthUrl;
+      return { error: null };
+    }
+    
+    // Use Lovable OAuth broker for *.lovable.app domains
     const { error } = await lovable.auth.signInWithOAuth('google', {
       redirect_uri: `${window.location.origin}/auth`,
     });
