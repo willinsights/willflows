@@ -39,7 +39,7 @@ export function AccountTeamTab() {
   const { getRoleLabel } = useRoleLabels();
   
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<AppRole>('editor');
+  const [inviteRole, setInviteRole] = useState<AppRole>('edicao');
   const [inviting, setInviting] = useState(false);
 
   const handleInvite = async () => {
@@ -62,7 +62,7 @@ export function AccountTeamTab() {
         description: `Convite enviado para ${inviteEmail}`,
       });
       setInviteEmail('');
-      setInviteRole('editor');
+      setInviteRole('edicao');
     } else {
       toast({
         title: 'Erro ao enviar convite',

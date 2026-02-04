@@ -28,10 +28,10 @@ const planLabels: Record<string, string> = {
 
 const roleLabels: Record<string, string> = {
   admin: 'Admin',
-  editor: 'Editor',
+  edicao: 'Edição',
   captacao: 'Captação',
-  freelancer: 'Freelancer',
-  visualizador: 'Visualizador',
+  gestao: 'Gestão',
+  visualizacao: 'Visualização',
 };
 
 // Helper to calculate trial days remaining

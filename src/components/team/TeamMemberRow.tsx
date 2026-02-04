@@ -38,10 +38,10 @@ type AppRole = Database['public']['Enums']['app_role'];
 
 const roleColors: Record<AppRole, string> = {
   admin: 'bg-primary/10 text-primary border-primary/20',
-  editor: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+  edicao: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
   captacao: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
-  freelancer: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
-  visualizador: 'bg-muted text-muted-foreground border-border',
+  gestao: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
+  visualizacao: 'bg-muted text-muted-foreground border-border',
 };
 
 interface TeamMemberRowProps {
@@ -65,7 +65,7 @@ export function TeamMemberRow({
   const { canViewTeamContacts } = useFinancialPermissions();
   const { getRoleLabel } = useRoleLabels();
 
-  const roleColor = roleColors[member.role as AppRole] || roleColors.visualizador;
+  const roleColor = roleColors[member.role as AppRole] || roleColors.visualizacao;
 
   const getInitials = (name: string | null, email: string) => {
     if (name) {

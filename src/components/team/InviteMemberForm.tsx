@@ -26,7 +26,7 @@ interface InviteMemberFormProps {
 
 export function InviteMemberForm({ onSuccess }: InviteMemberFormProps) {
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<AppRole>('editor');
+  const [role, setRole] = useState<AppRole>('edicao');
   const [loading, setLoading] = useState(false);
   const [showUpgradeAlert, setShowUpgradeAlert] = useState(false);
   const { createInvitation, userLimits } = useWorkspaceInvitations();
@@ -57,7 +57,7 @@ export function InviteMemberForm({ onSuccess }: InviteMemberFormProps) {
       });
 
       setEmail('');
-      setRole('editor');
+      setRole('edicao');
       onSuccess?.();
     } catch (err: any) {
       toast({

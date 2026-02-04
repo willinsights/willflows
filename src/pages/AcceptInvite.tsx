@@ -247,10 +247,10 @@ export default function AcceptInvite() {
   const getRoleLabel = (role: string) => {
     const labels: Record<string, string> = {
       admin: 'Administrador',
-      editor: 'Editor',
+      edicao: 'Edição',
       captacao: 'Captação',
-      freelancer: 'Freelancer',
-      visualizador: 'Visualizador',
+      gestao: 'Gestão',
+      visualizacao: 'Visualização',
     };
     return labels[role] || role;
   };

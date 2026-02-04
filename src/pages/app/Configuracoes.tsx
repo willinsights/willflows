@@ -87,7 +87,7 @@ export default function Configuracoes() {
   
   // Team invite state
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<AppRole>('editor');
+  const [inviteRole, setInviteRole] = useState<AppRole>('edicao');
   const [inviting, setInviting] = useState(false);
 
   // Workspace management modals
@@ -332,18 +332,18 @@ export default function Configuracoes() {
 
   // Roles disponíveis para atribuir - admin removido para convidados
   const roles: { id: AppRole; name: string; description: string }[] = [
-    { id: 'editor', name: 'Editor', description: 'Edita projetos e tarefas' },
+    { id: 'edicao', name: 'Edição', description: 'Edita projetos e tarefas' },
     { id: 'captacao', name: 'Captação', description: 'Apenas fase de captação' },
-    { id: 'freelancer', name: 'Freelancer', description: 'Vê tarefas atribuídas e ganhos próprios' },
-    { id: 'visualizador', name: 'Visualizador', description: 'Apenas visualização' },
+    { id: 'gestao', name: 'Gestão', description: 'Vê tarefas atribuídas e ganhos próprios' },
+    { id: 'visualizacao', name: 'Visualização', description: 'Apenas visualização' },
   ];
 
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
       case 'admin': return 'default';
-      case 'editor': return 'secondary';
+      case 'edicao': return 'secondary';
       case 'captacao': return 'outline';
-      case 'freelancer': return 'outline';
+      case 'gestao': return 'outline';
       default: return 'outline';
     }
   };
@@ -368,7 +368,7 @@ export default function Configuracoes() {
         description: `Convite enviado para ${inviteEmail}`,
       });
       setInviteEmail('');
-      setInviteRole('editor');
+      setInviteRole('edicao');
     } else {
       toast({
         title: 'Erro ao enviar convite',
