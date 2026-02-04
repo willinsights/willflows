@@ -89,6 +89,10 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   const lastTimeRef = useRef(0);
   const maxRecoveryAttempts = 3;
   const maxReinitAttempts = 5;
+  
+  // Seek detection for smarter error recovery
+  const seekDetectedRef = useRef(false);
+  const lastSeekPositionRef = useRef(0);
 
   // Memoize video source to prevent unnecessary re-renders and HLS destruction
   const videoSource = useMemo((): { type: 'hls' | 'native' | 'none'; url: string | null } => {
@@ -326,9 +330,20 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     const video = videoRef.current;
     const mediaError = video?.error;
     
-    // Save current position for recovery
-    if (video && video.currentTime > 0) {
-      lastTimeRef.current = video.currentTime;
+    // Determine best position for recovery
+    const preserveTime = seekDetectedRef.current 
+      ? lastSeekPositionRef.current 
+      : (video?.currentTime && video.currentTime > 0 ? video.currentTime : lastTimeRef.current);
+    
+    lastTimeRef.current = preserveTime;
+    
+    // Priority: If error happened after a seek, reinitialize immediately (faster recovery)
+    if (seekDetectedRef.current && videoSource.type === 'hls' && videoSource.url) {
+      console.log('[VideoPlayer] Seek-triggered error, reinitializing at:', preserveTime);
+      seekDetectedRef.current = false;
+      retryCountRef.current++; // Still count to prevent infinite loops
+      reinitializeHls(preserveTime);
+      return;
     }
     
     // Phase 1: Try HLS media error recovery (up to maxRecoveryAttempts times)
@@ -347,7 +362,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     if (retryCountRef.current < maxReinitAttempts && videoSource.type === 'hls' && videoSource.url) {
       retryCountRef.current++;
       console.log(`[VideoPlayer] Reinit attempt ${retryCountRef.current}/${maxReinitAttempts}...`);
-      reinitializeHls(lastTimeRef.current);
+      reinitializeHls(preserveTime);
       return;
     }
     
@@ -361,10 +376,15 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   }, [reinitializeHls, videoSource.type, videoSource.url]);
 
   const handleSeek = useCallback((value: number[]) => {
+    const newTime = value[0];
+    // Track seek for smarter error recovery
+    seekDetectedRef.current = true;
+    lastSeekPositionRef.current = newTime;
+    
     if (videoRef.current) {
-      videoRef.current.currentTime = value[0];
+      videoRef.current.currentTime = newTime;
     }
-    setCurrentTime(value[0]);
+    setCurrentTime(newTime);
   }, []);
 
   const handleVolumeChange = useCallback((value: number[]) => {
@@ -436,9 +456,15 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
 
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
+    const handlePlaying = () => {
+      // Reset seek flag and retry count on successful playback
+      seekDetectedRef.current = false;
+      retryCountRef.current = 0;
+    };
 
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
+    video.addEventListener('playing', handlePlaying);
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
     video.addEventListener('loadeddata', handleLoadedData);
@@ -448,6 +474,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     return () => {
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
+      video.removeEventListener('playing', handlePlaying);
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('loadeddata', handleLoadedData);
