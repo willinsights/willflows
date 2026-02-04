@@ -1,149 +1,206 @@
 
 
-# Plano: Habilitar Downloads Automaticamente Após Processamento
+# Plano: Corrigir Erros de Reprodução e Download de Vídeo
 
-## Objetivo
+## Problemas Identificados
 
-Criar automaticamente o download do vídeo no Cloudflare Stream assim que o processamento estiver concluído, para que os utilizadores não precisem de esperar quando clicarem em "Download".
+### 1. Erro de Vídeo (Código 4) ao Pausar e Voltar Atrás
 
-## Análise
+O erro acontece quando o utilizador:
+1. Pausa o vídeo
+2. Arrasta o slider para trás no timeline
+3. Tenta reproduzir
 
-### Melhor Local para Implementar
+O HLS.js perde a conexão com o stream e a recuperação atual falha.
 
-| Opção | Quando executa | Problema |
-|-------|----------------|----------|
-| `stream-process-video` | No upload | Vídeo ainda está em "processing" - download falha |
-| `stream-get-status` | Quando status muda para "ready" | ✓ Momento ideal |
+**Causa raiz**: A lógica de recuperação atual tenta `recoverMediaError()` que não funciona bem para erros de seek. É necessário forçar um reload do stream quando o erro acontece após um seek.
 
-A edge function `stream-get-status` já faz polling e atualiza o registo quando o status muda para `ready` (linhas 102-123). É aqui que devemos adicionar a criação automática do download.
+### 2. Erro de Download (Toast Vermelho)
+
+O frontend mostra "Link de download não disponível" mesmo quando a edge function está a devolver códigos corretos.
+
+**Causa raiz**: O `useVideoDownload` foi atualizado para tratar 202, mas pode haver um problema com a forma como o erro é tratado quando a resposta não tem `download_url`.
 
 ---
 
 ## Solução
 
-### Alteração na Edge Function `stream-get-status`
+### Parte 1: Melhorar Resiliência do VideoPlayer
 
-Adicionar chamada para criar download quando o vídeo está pronto:
+**Ficheiro:** `src/components/video-production/VideoPlayer.tsx`
 
-**Ficheiro:** `supabase/functions/stream-get-status/index.ts`
+Modificar a lógica de recuperação para:
+1. Detetar quando o erro acontece após um seek (mudança de `currentTime`)
+2. Forçar reinicialização completa do HLS após seek + erro
+3. Preservar a posição do timeline durante a recuperação
 
 ```typescript
-// After detecting status === "ready" (around line 102)
+// Adicionar tracking de seek recente
+const lastSeekTimeRef = useRef(0);
+const seekDetectedRef = useRef(false);
 
-if (versionId && (status === "ready" || status === "error")) {
-  const updateData: Record<string, unknown> = {
-    stream_status: status,
-  };
+// No handleSeek, marcar que houve seek
+const handleSeek = useCallback((value: number[]) => {
+  seekDetectedRef.current = true;
+  lastSeekTimeRef.current = value[0];
+  // ... resto
+}, []);
 
-  // ... existing update code ...
-
-  // NEW: Auto-enable downloads when video is ready
-  if (status === "ready") {
-    logStep("Enabling download for ready video", { streamUid });
-    
-    try {
-      const downloadsUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${streamUid}/downloads`;
-      
-      // Check if download already exists
-      const checkResponse = await fetch(downloadsUrl, {
-        headers: { "Authorization": `Bearer ${streamToken}` },
-      });
-      
-      const checkData = await checkResponse.json();
-      
-      // Only create if not exists
-      if (!checkData.result?.default) {
-        const createResponse = await fetch(downloadsUrl, {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${streamToken}` },
-        });
-        
-        const createData = await createResponse.json();
-        logStep("Download creation initiated", { 
-          success: createData.success,
-          status: createData.result?.status 
-        });
-      } else {
-        logStep("Download already exists", { 
-          status: checkData.result.default.status 
-        });
-      }
-    } catch (downloadError) {
-      // Non-fatal - log and continue
-      logStep("Download creation error (non-fatal)", { 
-        error: downloadError instanceof Error ? downloadError.message : String(downloadError) 
-      });
-    }
+// No handleVideoError, priorizar reinicialização se houve seek recente
+const handleVideoError = useCallback(() => {
+  // Se houve seek recente, ir direto para reinicialização
+  if (seekDetectedRef.current) {
+    seekDetectedRef.current = false;
+    reinitializeHls(lastSeekTimeRef.current);
+    return;
   }
+  // ... resto da lógica existente
+}, [...]);
+```
+
+### Parte 2: Corrigir Mensagem de Erro do Download
+
+**Ficheiro:** `src/hooks/useVideoDownload.ts`
+
+O código atual já trata o 202, mas precisa de ajustar a mensagem de erro quando `download_url` é null:
+
+```typescript
+// Garantir que o erro é mais específico
+if (!download_url) {
+  // Verificar se há mensagem da API
+  const apiMessage = data.error || 'Download ainda não está disponível';
+  toast({
+    title: 'Download em preparação',
+    description: apiMessage,
+  });
+  return;
 }
 ```
 
+### Parte 3: Verificar Edge Function
+
+A edge function `video-download-url` pode estar a falhar silenciosamente. Adicionar melhor logging e garantir que o GET inicial ao endpoint `/downloads` funciona corretamente.
+
 ---
 
-## Fluxo Após Implementação
+## Alterações Detalhadas
 
-```text
-Upload de Vídeo
-    │
-    ▼
-stream-process-video
-    │ (vídeo em "processing")
-    ▼
-Frontend faz polling via stream-get-status
-    │
-    ▼
-stream-get-status deteta status = "ready"
-    │
-    ├─→ Atualiza BD (duration, thumbnail, playback)
-    │
-    └─→ POST /stream/{uid}/downloads   ← NOVO
-           │
-           └─→ Download começa a preparar em background
-    
-~30-60 segundos depois...
-    
-Utilizador clica "Download"
-    │
-    ▼
-video-download-url verifica status
-    │
-    └─→ Download já está "ready" → Retorna URL imediatamente ✓
+### 1. VideoPlayer.tsx - Recuperação Aprimorada
+
+Adicionar ao estado:
+```typescript
+const seekDetectedRef = useRef(false);
+const lastSeekPositionRef = useRef(0);
+```
+
+Modificar `handleSeek`:
+```typescript
+const handleSeek = useCallback((value: number[]) => {
+  const newTime = value[0];
+  seekDetectedRef.current = true;
+  lastSeekPositionRef.current = newTime;
+  
+  if (videoRef.current) {
+    videoRef.current.currentTime = newTime;
+  }
+  setCurrentTime(newTime);
+}, []);
+```
+
+Modificar `handleVideoError`:
+```typescript
+const handleVideoError = useCallback(() => {
+  const video = videoRef.current;
+  const mediaError = video?.error;
+  
+  // Save current position for recovery
+  const preserveTime = seekDetectedRef.current 
+    ? lastSeekPositionRef.current 
+    : (video?.currentTime || lastTimeRef.current);
+  
+  lastTimeRef.current = preserveTime;
+  
+  // Se foi um seek recente, reinicializar imediatamente
+  if (seekDetectedRef.current && videoSource.type === 'hls') {
+    console.log('[VideoPlayer] Seek-triggered error, reinitializing at:', preserveTime);
+    seekDetectedRef.current = false;
+    reinitializeHls(preserveTime);
+    return;
+  }
+  
+  // ... resto da lógica existente
+}, [reinitializeHls, videoSource.type, videoSource.url]);
+```
+
+Resetar flag após sucesso:
+```typescript
+// No evento 'canplay' ou 'playing', resetar a flag
+video.addEventListener('playing', () => {
+  seekDetectedRef.current = false;
+  retryCountRef.current = 0;
+});
+```
+
+### 2. useVideoDownload.ts - Melhor Tratamento de Erros
+
+```typescript
+// Após receber resposta 200
+const { download_url, file_name } = await response.json();
+
+if (!download_url) {
+  // Download ainda não disponível mas não é erro
+  toast({
+    title: 'Download em preparação',
+    description: 'O ficheiro está a ser processado. Tenta novamente em alguns segundos.',
+  });
+  return;
+}
 ```
 
 ---
 
 ## Impacto
 
-| Antes | Depois |
-|-------|--------|
-| 1º download: 202 "Aguarde..." | 1º download: URL imediato |
-| Utilizador precisa clicar 2x | Download funciona à primeira |
-| ~30-60s de espera | 0s de espera |
+| Problema | Antes | Depois |
+|----------|-------|--------|
+| Erro código 4 após seek | Player fica bloqueado | Reinicializa automaticamente |
+| Toast "Link não disponível" | Mensagem de erro genérica | Mensagem informativa "Em preparação" |
+| Múltiplos erros de recovery | 5 tentativas todas falham | Reinicialização direta após seek |
 
 ---
 
 ## Ficheiros a Modificar
 
-1. `supabase/functions/stream-get-status/index.ts` - Adicionar criação automática de download
+1. `src/components/video-production/VideoPlayer.tsx` - Melhorar lógica de recuperação após seek
+2. `src/hooks/useVideoDownload.ts` - Melhorar mensagens de erro/status
 
 ---
 
 ## Secção Técnica
 
-### Timing do Download
+### Porque o Código 4 acontece após Seek
 
-O Cloudflare Stream leva algum tempo para preparar o ficheiro de download:
-- Vídeos curtos (< 1 min): ~5-10 segundos
-- Vídeos médios (1-10 min): ~30-60 segundos
-- Vídeos longos (> 10 min): ~2-5 minutos
+O HLS.js mantém um buffer de segmentos. Quando fazes seek para uma posição fora do buffer:
+1. O player tenta carregar novos segmentos
+2. Se a conexão falhou (por qualquer razão), o `mediaError` é disparado
+3. O `recoverMediaError()` tenta recuperar mas não funciona se o source foi perdido
 
-Ao iniciar o processo assim que o vídeo fica "ready", garantimos que quando o utilizador clicar em download, o ficheiro já estará pronto na maioria dos casos.
+A solução é detetar que o erro foi causado por um seek e forçar reinicialização completa do HLS, preservando a posição desejada.
 
-### Idempotência
+### Download API Cloudflare
 
-A implementação verifica primeiro se o download já existe antes de criar, evitando chamadas desnecessárias à API do Cloudflare em caso de múltiplas chamadas ao `stream-get-status`.
+A resposta do endpoint `/downloads` contém:
+```json
+{
+  "result": {
+    "default": {
+      "status": "ready|inprogress|pendingUrl",
+      "url": "https://...",
+      "percentComplete": 0-100
+    }
+  }
+}
+```
 
-### Erro Non-Fatal
-
-Se a criação do download falhar, o processo continua normalmente. O fallback na `video-download-url` continua a funcionar (cria o download on-demand).
+Quando `status` não é `ready`, não há URL disponível e devemos informar o utilizador para tentar novamente.
 
