@@ -120,6 +120,45 @@ serve(async (req) => {
       if (updateError) {
         logStep("Error updating version", { error: updateError.message });
       }
+
+      // Auto-enable downloads when video is ready
+      if (status === "ready") {
+        logStep("Enabling download for ready video", { streamUid });
+        
+        try {
+          const downloadsUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${streamUid}/downloads`;
+          
+          // Check if download already exists
+          const checkResponse = await fetch(downloadsUrl, {
+            headers: { "Authorization": `Bearer ${streamToken}` },
+          });
+          
+          const checkData = await checkResponse.json();
+          
+          // Only create if not exists
+          if (!checkData.result?.default) {
+            const createResponse = await fetch(downloadsUrl, {
+              method: "POST",
+              headers: { "Authorization": `Bearer ${streamToken}` },
+            });
+            
+            const createData = await createResponse.json();
+            logStep("Download creation initiated", { 
+              success: createData.success,
+              status: createData.result?.status 
+            });
+          } else {
+            logStep("Download already exists", { 
+              status: checkData.result.default.status 
+            });
+          }
+        } catch (downloadError) {
+          // Non-fatal - log and continue
+          logStep("Download creation error (non-fatal)", { 
+            error: downloadError instanceof Error ? downloadError.message : String(downloadError) 
+          });
+        }
+      }
     }
 
     return new Response(JSON.stringify({
