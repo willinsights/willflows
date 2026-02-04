@@ -1,201 +1,184 @@
 
-# Plano: Corrigir Erros na Página de Pagamentos para Colaboradores
+# Plano: Corrigir OAuth Google no Domínio Personalizado (willflow.app)
 
 ## Problema Identificado
 
-Um utilizador com role `freelancer` (com label customizado "Gestores 🖥️") está a ver o erro "Algo correu mal" ao aceder à página de **Pagamentos**. 
+O login com Google está a retornar **404** quando acedido a partir do domínio personalizado `willflow.app`. 
 
-O erro nos logs do Postgres mostra:
+O URL problemático:
 ```
-invalid input value for enum app_role: "gestor"
-```
-
-### Causa Raiz
-
-O erro ocorre porque o **cache do localStorage** pode estar corrompido ou desatualizado, contendo "gestor" (parte do label personalizado) em vez do role real "freelancer". Quando este valor é usado em queries à tabela `workspace_role_permissions`, o enum rejeita o valor.
-
-Adicionalmente, há verificações **hardcoded** no código que comparam roles diretamente em vez de usar o sistema de permissões dinâmicas.
-
----
-
-## Ficheiros com Problemas
-
-### 1. `src/hooks/useProjects.ts` (Linha 31)
-```typescript
-// PROBLEMA: Verificação hardcoded
-const isCollaborator = membership?.role !== 'admin';
+willflow.app/~oauth/initiate?provider=google&redirect_uri=https%3A%2F%2Fwillflow.app%2Fauth
 ```
 
-Deveria usar `hasPermission('visibility.all_projects')` do sistema dinâmico.
+### Causa
 
-### 2. `src/contexts/WorkspaceContext.tsx` (Linha 576)
-```typescript
-// PROBLEMA: Verificação hardcoded
-const canEdit = isAdmin || membership?.role === 'editor' || membership?.role === 'captacao';
-```
-
-### 3. `src/hooks/useConversations.ts` (Linha 73)
-```typescript
-// PROBLEMA: Verificação hardcoded
-const isUserRestricted = !['admin', 'editor', 'captacao'].includes(membership?.role || '');
-```
-
-### 4. Cache Corrompido
-O utilizador pode ter uma entrada no localStorage com um role inválido que causa o erro.
+1. A biblioteca `@lovable.dev/cloud-auth-js` usa a rota `/~oauth/initiate` como broker OAuth
+2. Esta rota é gerida pelo proxy Lovable Cloud **apenas em domínios `*.lovable.app`**
+3. No domínio personalizado `willflow.app`, a rota não existe - retorna 404
 
 ---
 
 ## Solução
 
-### Parte 1: Adicionar Validação de Role no WorkspaceContext
+Para domínios personalizados com **credenciais Google OAuth próprias** (como o WillFlow já tem configurado segundo a memória do projeto), devemos contornar o broker Lovable e redirecionar diretamente para o Google OAuth.
 
-Garantir que o role vindo do cache é um valor válido do enum antes de usar:
+### Opção A: Configurar o Broker URL nas Configurações do Lovable Cloud
 
-```typescript
-// src/contexts/WorkspaceContext.tsx
+A forma mais simples é garantir que o domínio `willflow.app` está corretamente configurado no Lovable Cloud para que o broker OAuth funcione. Isto requer:
 
-const VALID_ROLES = ['admin', 'editor', 'captacao', 'freelancer', 'visualizador'] as const;
+1. Aceder às definições do Lovable Cloud
+2. Verificar se `willflow.app` está adicionado como domínio autorizado
+3. Verificar se a rota `~oauth` está ativa para o domínio personalizado
 
-function isValidRole(role: unknown): role is WorkspaceMember['role'] {
-  return typeof role === 'string' && VALID_ROLES.includes(role as any);
-}
+### Opção B: Implementar OAuth Direto com Google (Recomendado)
 
-// No cache loading
-if (cached && cached.membership && isValidRole(cached.membership.role)) {
-  // ... usar cache
-} else {
-  // Cache inválido - limpar e fazer refetch
-  clearCachedWorkspace();
-}
-```
+Como já tens credenciais Google Cloud personalizadas configuradas, podemos implementar OAuth direto sem depender do broker Lovable:
 
-### Parte 2: Sincronizar useProjects com Permissões Dinâmicas
+```text
+Fluxo atual (falha em domínio personalizado):
+┌──────────┐     ┌─────────────────┐     ┌────────────┐
+│ willflow │ ──► │ /~oauth/initiate│ ──► │   404      │
+│   .app   │     │   (não existe)  │     │            │
+└──────────┘     └─────────────────┘     └────────────┘
 
-```typescript
-// src/hooks/useProjects.ts
-import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
-
-export function useProjects() {
-  const { canViewAllProjects, isLoading: permissionsLoading } = useFinancialPermissions();
-  
-  // Usar permissão dinâmica em vez de hardcoded
-  const isCollaborator = !canViewAllProjects;
-  
-  // Esperar que permissões carreguem
-  const fetchProjects = useCallback(async () => {
-    if (!currentWorkspace?.id || fetchError || permissionsLoading) return;
-    // ...
-  }, [currentWorkspace?.id, fetchError, permissionsLoading, canViewAllProjects, userId]);
-}
-```
-
-### Parte 3: Limpeza Automática de Cache Corrompido
-
-Adicionar uma verificação no `WorkspaceContext` para detetar e limpar cache com roles inválidos:
-
-```typescript
-// Em getInitialStateFromCache()
-function getInitialStateFromCache() {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      const data = JSON.parse(cached) as CachedWorkspaceData;
-      
-      // VALIDAR role antes de usar cache
-      if (data.workspace && data.membership && isValidRole(data.membership.role)) {
-        return {
-          workspace: data.workspace,
-          membership: data.membership,
-          // ...
-        };
-      } else {
-        // Cache inválido - limpar
-        localStorage.removeItem(CACHE_KEY);
-      }
-    }
-  } catch {
-    // Limpar cache corrompido
-    localStorage.removeItem(CACHE_KEY);
-  }
-  // ... retornar valores default
-}
-```
-
-### Parte 4: Tratamento de Erro Gracioso na Página de Pagamentos
-
-Em vez de deixar o ErrorBoundary apanhar o erro, tratar erros específicos de permissões:
-
-```typescript
-// src/pages/app/Pagamentos.tsx
-
-// Se isLoading está true por mais de 10 segundos, mostrar mensagem
-const [loadingTimeout, setLoadingTimeout] = useState(false);
-
-useEffect(() => {
-  if (loading || permissionsLoading) {
-    const timer = setTimeout(() => setLoadingTimeout(true), 10000);
-    return () => clearTimeout(timer);
-  }
-  setLoadingTimeout(false);
-}, [loading, permissionsLoading]);
-
-if (loadingTimeout) {
-  return (
-    <div className="p-6 text-center">
-      <p className="text-muted-foreground">
-        A carregar permissões... Se este erro persistir, tente fazer logout e login novamente.
-      </p>
-      <Button onClick={() => window.location.reload()}>Recarregar</Button>
-    </div>
-  );
-}
+Fluxo corrigido (OAuth direto):
+┌──────────┐     ┌─────────────────┐     ┌────────────┐
+│ willflow │ ──► │ Edge Function   │ ──► │ Google     │
+│   .app   │     │ google-oauth    │     │ OAuth      │
+└──────────┘     └─────────────────┘     └────────────┘
 ```
 
 ---
 
-## Ficheiros a Modificar
+## Implementação (Opção B)
 
-| Ficheiro | Alteração |
-|----------|-----------|
-| `src/contexts/WorkspaceContext.tsx` | Adicionar validação de role no cache |
-| `src/hooks/useProjects.ts` | Usar permissões dinâmicas |
-| `src/pages/app/Pagamentos.tsx` | Adicionar tratamento de timeout |
+### 1. Criar Edge Function: `google-oauth`
+
+Nova edge function para iniciar o fluxo OAuth diretamente:
+
+```typescript
+// supabase/functions/google-oauth/index.ts
+
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID')!;
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+
+serve(async (req) => {
+  const url = new URL(req.url);
+  const action = url.searchParams.get('action');
+  
+  if (action === 'initiate') {
+    const redirectUri = url.searchParams.get('redirect_uri') || 'https://willflow.app/auth';
+    
+    const scopes = [
+      'openid',
+      'email',
+      'profile',
+    ].join(' ');
+    
+    const state = btoa(JSON.stringify({ redirectUri, timestamp: Date.now() }));
+    
+    const oauthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    oauthUrl.searchParams.set('client_id', GOOGLE_CLIENT_ID);
+    oauthUrl.searchParams.set('redirect_uri', `${SUPABASE_URL}/functions/v1/google-oauth?action=callback`);
+    oauthUrl.searchParams.set('response_type', 'code');
+    oauthUrl.searchParams.set('scope', scopes);
+    oauthUrl.searchParams.set('access_type', 'offline');
+    oauthUrl.searchParams.set('prompt', 'select_account');
+    oauthUrl.searchParams.set('state', state);
+    
+    return new Response(null, {
+      status: 302,
+      headers: { 'Location': oauthUrl.toString() },
+    });
+  }
+  
+  // ... callback handling para trocar code por tokens e criar sessão
+});
+```
+
+### 2. Atualizar AuthContext para Usar OAuth Direto
+
+Modificar `signInWithGoogle` para usar a nova edge function quando em domínio personalizado:
+
+```typescript
+// src/contexts/AuthContext.tsx
+
+const signInWithGoogle = useCallback(async () => {
+  const isCustomDomain = !window.location.hostname.includes('lovable.app');
+  
+  if (isCustomDomain) {
+    // Usar OAuth direto via edge function
+    const redirectUri = `${window.location.origin}/auth`;
+    const oauthUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth?action=initiate&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    window.location.href = oauthUrl;
+    return { error: null };
+  }
+  
+  // Usar Lovable OAuth broker em domínios *.lovable.app
+  const { error } = await lovable.auth.signInWithOAuth('google', {
+    redirect_uri: `${window.location.origin}/auth`,
+  });
+  return { error: error as Error | null };
+}, []);
+```
+
+### 3. Atualizar Edge Function: Callback e Criação de Sessão
+
+A edge function precisa:
+1. Receber o callback do Google com o `code`
+2. Trocar o `code` por tokens (usando `GOOGLE_CLIENT_SECRET`)
+3. Criar/atualizar utilizador no Supabase Auth
+4. Redirecionar para `/auth` com sessão válida
 
 ---
 
-## Impacto
+## Ficheiros a Criar/Modificar
 
-| Problema | Antes | Depois |
-|----------|-------|--------|
-| Cache com role inválido | Erro "gestor" no enum | Cache limpo automaticamente |
-| Verificações hardcoded | Roles fixos no código | Usa permissões dinâmicas |
-| Loading infinito | ErrorBoundary genérico | Mensagem de recuperação |
+| Ficheiro | Ação |
+|----------|------|
+| `supabase/functions/google-oauth/index.ts` | Criar |
+| `src/contexts/AuthContext.tsx` | Modificar |
+| `src/pages/Auth.tsx` | Modificar (tratar callback) |
+
+---
+
+## Verificações Necessárias
+
+Antes de implementar, é necessário confirmar:
+
+1. **Secrets configurados**: `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` estão nas secrets do projeto?
+2. **Redirect URI no Google Cloud Console**: O URL `https://{SUPABASE_URL}/functions/v1/google-oauth?action=callback` está adicionado?
+3. **Domínio autorizado**: `willflow.app` está na lista de "Authorized JavaScript origins"?
+
+---
+
+## Alternativa Mais Simples
+
+Se o OAuth gerido pelo Lovable Cloud deveria funcionar em domínios personalizados, pode haver uma configuração em falta. Recomendo verificar primeiro no Lovable Cloud:
+
+```xml
+<lov-actions>
+  <lov-open-backend>Ver Configurações Cloud</lov-open-backend>
+</lov-actions>
+```
+
+Em **Authentication Settings**, verificar se:
+- O domínio `willflow.app` está autorizado
+- As credenciais Google personalizadas estão configuradas corretamente
+- O redirect URI `https://willflow.app/auth` está permitido
 
 ---
 
 ## Secção Técnica
 
-### Porque o erro acontece
+### Porque o broker Lovable não funciona em domínios personalizados
 
-1. **Labels personalizados**: O admin renomeou "Freelancer" para "Gestores 🖥️"
-2. **Cache bug potencial**: Em algum momento, o label pode ter sido guardado no cache em vez do role real
-3. **Query RLS**: Quando o `useRolePermissions` faz query com role "gestor", o Postgres rejeita porque não é um valor válido do enum
+A rota `/~oauth/initiate` é interceptada pelo **edge worker** do Lovable Cloud que faz proxy do tráfego. Este proxy está configurado apenas para domínios `*.lovable.app`. 
 
-### Validação de Roles
+Quando um domínio personalizado (como `willflow.app`) é usado, o request vai diretamente para a aplicação React (servida via CDN), que não tem uma rota React definida para `/~oauth/initiate`, resultando em 404.
 
-Os únicos valores válidos são:
-- `admin`
-- `editor`
-- `captacao`
-- `freelancer`
-- `visualizador`
+### Solução a longo prazo
 
-Qualquer outro valor (incluindo labels customizados como "Gestores", "Gestor", etc.) não deve ser aceite.
-
-### Ação Imediata para o Utilizador
-
-Enquanto o fix não é implementado, o utilizador pode:
-1. Abrir DevTools (F12)
-2. Ir a Application → Local Storage
-3. Limpar entrada `willflow_workspace_cache`
-4. Fazer refresh da página
+A solução ideal seria o Lovable Cloud suportar automaticamente o broker OAuth em domínios personalizados. Enquanto isso não acontece, a implementação de uma edge function própria garante que o OAuth funciona em qualquer domínio.
