@@ -1,136 +1,232 @@
 
-# Plano: Corrigir OAuth Google no Domínio Personalizado (willflow.app)
+# Plano: Normalizar Roles e Corrigir Sistema de Permissões
 
-## Problema Identificado
+## Resumo Executivo
 
-O login com Google está a retornar **404** quando acedido a partir do domínio personalizado `willflow.app`. 
+O objetivo é padronizar os roles técnicos do sistema para:
 
-O URL problemático:
-```
-willflow.app/~oauth/initiate?provider=google&redirect_uri=https%3A%2F%2Fwillflow.app%2Fauth
-```
+| Role Atual | Novo Role | Label Padrão |
+|------------|-----------|--------------|
+| `admin` | `admin` | Admin |
+| `editor` | `edicao` | Edição |
+| `captacao` | `captacao` | Captação |
+| `freelancer` | `gestao` | Gestão |
+| `visualizador` | `visualizacao` | Visualização |
 
-### Causa
-
-1. A biblioteca `@lovable.dev/cloud-auth-js` usa a rota `/~oauth/initiate` como broker OAuth
-2. Esta rota é gerida pelo proxy Lovable Cloud **apenas em domínios `*.lovable.app`**
-3. No domínio personalizado `willflow.app`, a rota não existe - retorna 404
+Esta alteração envolve:
+1. Migração do enum `app_role` no Postgres
+2. Atualização de todas as referências no código TypeScript
+3. Correção de verificações hardcoded para usar permissões dinâmicas
+4. Atualização das funções SQL e RLS policies
 
 ---
 
-## Solução
+## Fase 1: Migração do Banco de Dados
 
-Para domínios personalizados com **credenciais Google OAuth próprias** (como o WillFlow já tem configurado segundo a memória do projeto), devemos contornar o broker Lovable e redirecionar diretamente para o Google OAuth.
+### 1.1 Alterar o Enum `app_role`
 
-### Opção A: Configurar o Broker URL nas Configurações do Lovable Cloud
+```sql
+-- Renomear valores do enum (Postgres 10+)
+ALTER TYPE app_role RENAME VALUE 'editor' TO 'edicao';
+ALTER TYPE app_role RENAME VALUE 'freelancer' TO 'gestao';
+ALTER TYPE app_role RENAME VALUE 'visualizador' TO 'visualizacao';
+```
 
-A forma mais simples é garantir que o domínio `willflow.app` está corretamente configurado no Lovable Cloud para que o broker OAuth funcione. Isto requer:
+### 1.2 Atualizar Funções SQL
 
-1. Aceder às definições do Lovable Cloud
-2. Verificar se `willflow.app` está adicionado como domínio autorizado
-3. Verificar se a rota `~oauth` está ativa para o domínio personalizado
+A função `initialize_workspace_permissions` precisa ser atualizada:
 
-### Opção B: Implementar OAuth Direto com Google (Recomendado)
+```sql
+CREATE OR REPLACE FUNCTION initialize_workspace_permissions(_workspace_id uuid)
+RETURNS void AS $$
+DECLARE
+  permission_keys text[] := ARRAY[...];
+  roles app_role[] := ARRAY['admin', 'edicao', 'captacao', 'gestao', 'visualizacao']::app_role[];
+  -- resto da lógica...
+```
 
-Como já tens credenciais Google Cloud personalizadas configuradas, podemos implementar OAuth direto sem depender do broker Lovable:
+### 1.3 Atualizar Labels Padrão
+
+A tabela `workspace_role_labels` mantém os labels personalizáveis. Os defaults no código serão:
+
+```typescript
+export const DEFAULT_ROLE_LABELS: Record<AppRole, string> = {
+  admin: 'Admin',
+  edicao: 'Edição',
+  captacao: 'Captação',
+  gestao: 'Gestão',
+  visualizacao: 'Visualização',
+};
+```
+
+---
+
+## Fase 2: Atualização do Frontend
+
+### 2.1 Ficheiros a Modificar (Tipos e Constantes)
+
+| Ficheiro | Alteração |
+|----------|-----------|
+| `src/contexts/WorkspaceContext.tsx` | Atualizar `VALID_ROLES` e interface `WorkspaceMember` |
+| `src/hooks/useRoleLabels.ts` | Atualizar `DEFAULT_ROLE_LABELS`, `CUSTOMIZABLE_ROLES`, `INVITE_ROLES` |
+| `src/hooks/useRolePermissions.ts` | Atualizar `ALL_ROLES`, `ROLE_LABELS`, `DEFAULT_PERMISSIONS` |
+| `src/hooks/useCurrentWorkspace.ts` | Atualizar tipo `userRole` e verificações hardcoded |
+
+### 2.2 Verificações Hardcoded a Corrigir
+
+Ficheiros com verificações diretas de role que devem usar permissões dinâmicas:
+
+| Ficheiro | Linha | Problema | Solução |
+|----------|-------|----------|---------|
+| `src/contexts/WorkspaceContext.tsx` | 613 | `canEdit` hardcoded | Manter para retrocompatibilidade, mas documentar uso de `useWorkspacePermissions` |
+| `src/hooks/useCurrentWorkspace.ts` | 86-89 | `isEditor`, `canManageTeam` hardcoded | Substituir por `hasPermission()` |
+| `src/hooks/useDashboardMetrics.ts` | 278 | `role === 'freelancer'` | Substituir por verificação de `canViewOwnFinancials` |
+| `src/pages/app/Faturacao.tsx` | 69 | `isAdmin` local | Usar `useWorkspace().isAdmin` |
+| `src/components/dashboard/MonthlyGoalsCard.tsx` | 39 | `userRole === 'admin'` | Já usa `userRole`, mas deve verificar permissão dinâmica |
+
+### 2.3 Ficheiros com Referências a Roles Antigos
+
+Todos os ficheiros que mencionam `'editor'`, `'freelancer'`, `'visualizador'` precisam ser atualizados:
 
 ```text
-Fluxo atual (falha em domínio personalizado):
-┌──────────┐     ┌─────────────────┐     ┌────────────┐
-│ willflow │ ──► │ /~oauth/initiate│ ──► │   404      │
-│   .app   │     │   (não existe)  │     │            │
-└──────────┘     └─────────────────┘     └────────────┘
-
-Fluxo corrigido (OAuth direto):
-┌──────────┐     ┌─────────────────┐     ┌────────────┐
-│ willflow │ ──► │ Edge Function   │ ──► │ Google     │
-│   .app   │     │ google-oauth    │     │ OAuth      │
-└──────────┘     └─────────────────┘     └────────────┘
+src/pages/AcceptInvite.tsx
+src/pages/app/Equipa.tsx
+src/components/team/TeamMemberRow.tsx
+src/components/workspace/WorkspaceSelector.tsx
+supabase/functions/send-invitation-email/index.ts
+supabase/functions/create-test-accounts/index.ts
+... (37 ficheiros no total)
 ```
 
 ---
 
-## Implementação (Opção B)
+## Fase 3: Mapeamento de Permissões
 
-### 1. Criar Edge Function: `google-oauth`
+### 3.1 Permissões Default por Role
 
-Nova edge function para iniciar o fluxo OAuth diretamente:
-
-```typescript
-// supabase/functions/google-oauth/index.ts
-
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID')!;
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-
-serve(async (req) => {
-  const url = new URL(req.url);
-  const action = url.searchParams.get('action');
-  
-  if (action === 'initiate') {
-    const redirectUri = url.searchParams.get('redirect_uri') || 'https://willflow.app/auth';
-    
-    const scopes = [
-      'openid',
-      'email',
-      'profile',
-    ].join(' ');
-    
-    const state = btoa(JSON.stringify({ redirectUri, timestamp: Date.now() }));
-    
-    const oauthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-    oauthUrl.searchParams.set('client_id', GOOGLE_CLIENT_ID);
-    oauthUrl.searchParams.set('redirect_uri', `${SUPABASE_URL}/functions/v1/google-oauth?action=callback`);
-    oauthUrl.searchParams.set('response_type', 'code');
-    oauthUrl.searchParams.set('scope', scopes);
-    oauthUrl.searchParams.set('access_type', 'offline');
-    oauthUrl.searchParams.set('prompt', 'select_account');
-    oauthUrl.searchParams.set('state', state);
-    
-    return new Response(null, {
-      status: 302,
-      headers: { 'Location': oauthUrl.toString() },
-    });
-  }
-  
-  // ... callback handling para trocar code por tokens e criar sessão
-});
+```text
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                               MATRIZ DE PERMISSÕES                                   │
+├──────────────────────────────┬───────┬────────┬─────────┬────────┬──────────────────┤
+│ Permissão                    │ admin │ edicao │ captacao│ gestao │ visualizacao     │
+├──────────────────────────────┼───────┼────────┼─────────┼────────┼──────────────────┤
+│ projects.view                │   ✓   │   ✓    │    ✓    │   ✓    │        ✓         │
+│ projects.create              │   ✓   │   ✓    │         │        │                  │
+│ projects.edit                │   ✓   │   ✓    │    ✓    │        │                  │
+│ projects.delete              │   ✓   │        │         │        │                  │
+├──────────────────────────────┼───────┼────────┼─────────┼────────┼──────────────────┤
+│ clients.view                 │   ✓   │   ✓    │    ✓    │        │        ✓         │
+│ clients.create               │   ✓   │   ✓    │    ✓    │        │                  │
+│ clients.edit                 │   ✓   │   ✓    │    ✓    │        │                  │
+│ clients.view_financials      │   ✓   │   ✓    │         │        │                  │
+├──────────────────────────────┼───────┼────────┼─────────┼────────┼──────────────────┤
+│ team.view                    │   ✓   │   ✓    │    ✓    │   ✓    │        ✓         │
+│ team.invite                  │   ✓   │        │         │        │                  │
+│ team.manage                  │   ✓   │        │         │        │                  │
+├──────────────────────────────┼───────┼────────┼─────────┼────────┼──────────────────┤
+│ payments.view                │   ✓   │   ✓    │         │        │                  │
+│ payments.manage              │   ✓   │   ✓    │         │        │                  │
+├──────────────────────────────┼───────┼────────┼─────────┼────────┼──────────────────┤
+│ reports.view                 │   ✓   │   ✓    │         │        │        ✓         │
+├──────────────────────────────┼───────┼────────┼─────────┼────────┼──────────────────┤
+│ visibility.leads             │   ✓   │   ✓    │    ✓    │        │                  │
+│ visibility.contracts         │   ✓   │   ✓    │         │        │                  │
+│ visibility.all_projects      │   ✓   │   ✓    │         │        │                  │
+├──────────────────────────────┼───────┼────────┼─────────┼────────┼──────────────────┤
+│ dashboard.view_global_fin    │   ✓   │   ✓    │         │        │                  │
+│ dashboard.view_own_earnings  │   ✓   │   ✓    │    ✓    │   ✓    │        ✓         │
+│ dashboard.view_performance   │   ✓   │   ✓    │         │        │        ✓         │
+└──────────────────────────────┴───────┴────────┴─────────┴────────┴──────────────────┘
 ```
 
-### 2. Atualizar AuthContext para Usar OAuth Direto
+---
 
-Modificar `signInWithGoogle` para usar a nova edge function quando em domínio personalizado:
+## Fase 4: Correção das Verificações Hardcoded
 
+### 4.1 useCurrentWorkspace.ts
+
+**Antes:**
 ```typescript
-// src/contexts/AuthContext.tsx
-
-const signInWithGoogle = useCallback(async () => {
-  const isCustomDomain = !window.location.hostname.includes('lovable.app');
-  
-  if (isCustomDomain) {
-    // Usar OAuth direto via edge function
-    const redirectUri = `${window.location.origin}/auth`;
-    const oauthUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-oauth?action=initiate&redirect_uri=${encodeURIComponent(redirectUri)}`;
-    window.location.href = oauthUrl;
-    return { error: null };
-  }
-  
-  // Usar Lovable OAuth broker em domínios *.lovable.app
-  const { error } = await lovable.auth.signInWithOAuth('google', {
-    redirect_uri: `${window.location.origin}/auth`,
-  });
-  return { error: error as Error | null };
-}, []);
+const isEditor = userRole === 'editor';
+const canManageTeam = ['admin', 'editor'].includes(userRole || '');
+const canManagePayments = ['admin', 'editor'].includes(userRole || '');
+const canViewReports = ['admin', 'editor', 'visualizador'].includes(userRole || '');
 ```
 
-### 3. Atualizar Edge Function: Callback e Criação de Sessão
+**Depois:**
+```typescript
+// Importar useWorkspacePermissions ou receber como prop
+const isEditor = userRole === 'edicao';
+// Nota: Idealmente estas flags devem vir de permissões dinâmicas
+// Manter por retrocompatibilidade, mas marcar como deprecated
+```
 
-A edge function precisa:
-1. Receber o callback do Google com o `code`
-2. Trocar o `code` por tokens (usando `GOOGLE_CLIENT_SECRET`)
-3. Criar/atualizar utilizador no Supabase Auth
-4. Redirecionar para `/auth` com sessão válida
+### 4.2 useDashboardMetrics.ts (Linha 278)
+
+**Antes:**
+```typescript
+if (user?.id && membership?.role === 'freelancer') {
+```
+
+**Depois:**
+```typescript
+// Usar flag de permissão em vez de role específico
+if (user?.id && !canViewGlobalFinancials && canViewOwnFinancials) {
+```
+
+---
+
+## Fase 5: Ordem de Execução
+
+1. **Migração SQL** - Alterar enum e funções
+2. **Regenerar tipos** - `types.ts` será atualizado automaticamente
+3. **Atualizar constantes** - `VALID_ROLES`, `DEFAULT_ROLE_LABELS`, etc.
+4. **Atualizar hooks** - `useRolePermissions`, `useRoleLabels`, `useCurrentWorkspace`
+5. **Corrigir verificações hardcoded** - Usar permissões dinâmicas
+6. **Atualizar edge functions** - Labels de email, etc.
+7. **Testar** - Verificar que colaboradores acedem corretamente
+
+---
+
+## Secção Técnica
+
+### Impacto nas Tabelas
+
+| Tabela | Coluna | Impacto |
+|--------|--------|---------|
+| `workspace_members` | `role` | Valores migrados automaticamente pelo ALTER TYPE |
+| `workspace_invitations` | `role` | Valores migrados automaticamente |
+| `workspace_role_permissions` | `role` | Valores migrados automaticamente |
+| `workspace_role_labels` | `role` | Valores migrados automaticamente |
+| `pending_invitations` | `role` | Valores migrados automaticamente |
+
+### Funções SQL a Atualizar
+
+1. `initialize_workspace_permissions` - Lista de roles
+2. `has_workspace_permission` - Já genérica, não precisa alteração
+3. `get_workspace_role` - Já genérica, não precisa alteração
+4. `is_workspace_admin` - Já verifica `'admin'`, não precisa alteração
+
+### RLS Policies
+
+As políticas RLS que usam `get_workspace_role()` com comparações explícitas precisam atualização:
+
+```sql
+-- Antes
+get_workspace_role(auth.uid(), workspace_id) = ANY (ARRAY['admin'::app_role, 'editor'::app_role])
+
+-- Depois
+get_workspace_role(auth.uid(), workspace_id) = ANY (ARRAY['admin'::app_role, 'edicao'::app_role])
+```
+
+Políticas afetadas em ~18 ficheiros de migração (já aplicadas), mas futuras policies devem usar `has_workspace_permission()`.
+
+### Retrocompatibilidade
+
+Para evitar quebrar sessões ativas:
+1. A migração do enum é instantânea e preserva dados
+2. O frontend deve limpar cache local se detetar role inválido (já implementado)
+3. Utilizadores ativos terão roles atualizados no próximo login
 
 ---
 
@@ -138,47 +234,15 @@ A edge function precisa:
 
 | Ficheiro | Ação |
 |----------|------|
-| `supabase/functions/google-oauth/index.ts` | Criar |
-| `src/contexts/AuthContext.tsx` | Modificar |
-| `src/pages/Auth.tsx` | Modificar (tratar callback) |
-
----
-
-## Verificações Necessárias
-
-Antes de implementar, é necessário confirmar:
-
-1. **Secrets configurados**: `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` estão nas secrets do projeto?
-2. **Redirect URI no Google Cloud Console**: O URL `https://{SUPABASE_URL}/functions/v1/google-oauth?action=callback` está adicionado?
-3. **Domínio autorizado**: `willflow.app` está na lista de "Authorized JavaScript origins"?
-
----
-
-## Alternativa Mais Simples
-
-Se o OAuth gerido pelo Lovable Cloud deveria funcionar em domínios personalizados, pode haver uma configuração em falta. Recomendo verificar primeiro no Lovable Cloud:
-
-```xml
-<lov-actions>
-  <lov-open-backend>Ver Configurações Cloud</lov-open-backend>
-</lov-actions>
-```
-
-Em **Authentication Settings**, verificar se:
-- O domínio `willflow.app` está autorizado
-- As credenciais Google personalizadas estão configuradas corretamente
-- O redirect URI `https://willflow.app/auth` está permitido
-
----
-
-## Secção Técnica
-
-### Porque o broker Lovable não funciona em domínios personalizados
-
-A rota `/~oauth/initiate` é interceptada pelo **edge worker** do Lovable Cloud que faz proxy do tráfego. Este proxy está configurado apenas para domínios `*.lovable.app`. 
-
-Quando um domínio personalizado (como `willflow.app`) é usado, o request vai diretamente para a aplicação React (servida via CDN), que não tem uma rota React definida para `/~oauth/initiate`, resultando em 404.
-
-### Solução a longo prazo
-
-A solução ideal seria o Lovable Cloud suportar automaticamente o broker OAuth em domínios personalizados. Enquanto isso não acontece, a implementação de uma edge function própria garante que o OAuth funciona em qualquer domínio.
+| Nova migração SQL | Criar - Alterar enum e funções |
+| `src/contexts/WorkspaceContext.tsx` | Modificar - Atualizar VALID_ROLES, tipos |
+| `src/hooks/useRoleLabels.ts` | Modificar - Atualizar DEFAULT_ROLE_LABELS |
+| `src/hooks/useRolePermissions.ts` | Modificar - Atualizar ALL_ROLES, ROLE_LABELS, DEFAULT_PERMISSIONS |
+| `src/hooks/useCurrentWorkspace.ts` | Modificar - Atualizar tipo userRole, remover hardcoded |
+| `src/hooks/useDashboardMetrics.ts` | Modificar - Usar permissão em vez de role |
+| `src/pages/AcceptInvite.tsx` | Modificar - Atualizar labels |
+| `src/pages/app/Equipa.tsx` | Modificar - Atualizar ALL_ROLES |
+| `src/components/team/TeamMemberRow.tsx` | Modificar - Atualizar roleColors |
+| `src/components/workspace/WorkspaceSelector.tsx` | Modificar - Atualizar roleLabels |
+| `supabase/functions/send-invitation-email/index.ts` | Modificar - Atualizar roleLabels |
+| `supabase/functions/create-test-accounts/index.ts` | Modificar - Atualizar roles |
