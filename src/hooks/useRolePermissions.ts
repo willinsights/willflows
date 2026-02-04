@@ -51,20 +51,20 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
   { key: 'dashboard.view_performance', name: 'Ver Métricas de Desempenho', description: 'Ver gráficos de performance', category: 'Dashboard' },
 ];
 
-export const ALL_ROLES: AppRole[] = ['admin', 'editor', 'captacao', 'freelancer', 'visualizador'];
+export const ALL_ROLES: AppRole[] = ['admin', 'edicao', 'captacao', 'gestao', 'visualizacao'];
 
 export const ROLE_LABELS: Record<AppRole, string> = {
   admin: 'Admin',
-  editor: 'Editor',
+  edicao: 'Edição',
   captacao: 'Captação',
-  freelancer: 'Freelancer',
-  visualizador: 'Visualizador',
+  gestao: 'Gestão',
+  visualizacao: 'Visualização',
 };
 
 // Default permissions by role
 const DEFAULT_PERMISSIONS: Record<AppRole, string[]> = {
   admin: PERMISSION_DEFINITIONS.map(p => p.key), // All permissions
-  editor: [
+  edicao: [
     'projects.view', 'projects.create', 'projects.edit',
     'clients.view', 'clients.create', 'clients.edit', 'clients.view_financials',
     'team.view', 'payments.view', 'payments.manage', 'reports.view',
@@ -78,11 +78,11 @@ const DEFAULT_PERMISSIONS: Record<AppRole, string[]> = {
     'visibility.leads',
     'dashboard.view_own_earnings'
   ],
-  freelancer: [
+  gestao: [
     'projects.view', 'team.view',
     'dashboard.view_own_earnings'
   ],
-  visualizador: [
+  visualizacao: [
     'projects.view', 'clients.view', 'team.view', 'reports.view',
     'dashboard.view_own_earnings', 'dashboard.view_performance'
   ],

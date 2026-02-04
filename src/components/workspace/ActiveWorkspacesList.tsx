@@ -12,7 +12,7 @@ interface WorkspaceWithRole {
   subscription_plan: 'starter' | 'pro' | 'studio';
   subscription_status: string;
   trial_ends_at?: string | null;
-  role: 'admin' | 'editor' | 'captacao' | 'freelancer' | 'visualizador';
+  role: 'admin' | 'edicao' | 'captacao' | 'gestao' | 'visualizacao';
   logo_url?: string | null;
 }
 
@@ -31,10 +31,10 @@ const planLabels: Record<string, string> = {
 
 const roleLabels: Record<string, string> = {
   admin: 'Admin',
-  editor: 'Editor',
+  edicao: 'Edição',
   captacao: 'Captação',
-  freelancer: 'Freelancer',
-  visualizador: 'Visualizador',
+  gestao: 'Gestão',
+  visualizacao: 'Visualização',
 };
 
 export function ActiveWorkspacesList({

@@ -13,17 +13,17 @@ interface RoleLabel {
 // Labels padrão para cada role
 export const DEFAULT_ROLE_LABELS: Record<AppRole, string> = {
   admin: 'Admin',
-  editor: 'Editor',
+  edicao: 'Edição',
   captacao: 'Captação',
-  freelancer: 'Freelancer',
-  visualizador: 'Visualizador',
+  gestao: 'Gestão',
+  visualizacao: 'Visualização',
 };
 
 // Roles que podem ser personalizados (exclui admin)
-export const CUSTOMIZABLE_ROLES: AppRole[] = ['editor', 'captacao', 'freelancer', 'visualizador'];
+export const CUSTOMIZABLE_ROLES: AppRole[] = ['edicao', 'captacao', 'gestao', 'visualizacao'];
 
 // Roles disponíveis para convite (exclui admin)
-export const INVITE_ROLES: AppRole[] = ['editor', 'captacao', 'freelancer', 'visualizador'];
+export const INVITE_ROLES: AppRole[] = ['edicao', 'captacao', 'gestao', 'visualizacao'];
 
 export function useRoleLabels() {
   const { workspace } = useWorkspace();

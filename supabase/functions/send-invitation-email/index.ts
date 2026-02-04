@@ -22,10 +22,10 @@ interface InvitationEmailRequest {
 const getRoleLabel = (role: string): string => {
   const labels: Record<string, string> = {
     admin: "Administrador",
-    editor: "Editor",
+    edicao: "Edição",
     captacao: "Captação",
-    freelancer: "Freelancer",
-    visualizador: "Visualizador",
+    gestao: "Gestão",
+    visualizacao: "Visualização",
   };
   return labels[role] || role;
 };

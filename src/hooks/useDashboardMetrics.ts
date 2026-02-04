@@ -275,7 +275,7 @@ export function useDashboardMetrics() {
 
       // Calculate personal earnings for collaborators (meusGanhos)
       let meusGanhos = 0;
-      if (user?.id && membership?.role === 'freelancer') {
+      if (user?.id && membership?.role === 'gestao') {
         const { data: myTeamPayments } = await supabase
           .from('project_team')
           .select('payment_amount, payment_status, projects!inner(created_at, workspace_id)')

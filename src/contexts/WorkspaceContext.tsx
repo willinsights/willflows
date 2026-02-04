@@ -22,7 +22,7 @@ interface WorkspaceMember {
   id: string;
   workspace_id: string;
   user_id: string;
-  role: 'admin' | 'editor' | 'captacao' | 'freelancer' | 'visualizador';
+  role: 'admin' | 'edicao' | 'captacao' | 'gestao' | 'visualizacao';
   is_active: boolean;
 }
 
@@ -79,7 +79,7 @@ const MAX_RETRIES = 3;
 const CACHE_VALID_MS = 1000 * 60 * 5; // Cache válido por 5 minutos - evita re-fetches ao navegar
 
 // Roles válidos do enum app_role no banco de dados
-const VALID_ROLES = ['admin', 'editor', 'captacao', 'freelancer', 'visualizador'] as const;
+const VALID_ROLES = ['admin', 'edicao', 'captacao', 'gestao', 'visualizacao'] as const;
 
 function isValidRole(role: unknown): role is WorkspaceMember['role'] {
   return typeof role === 'string' && VALID_ROLES.includes(role as any);
@@ -610,7 +610,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   // canEdit is now dynamic - will be computed by useWorkspacePermissions hook
   // For backward compatibility, we still provide a basic check here
   // but components should use useWorkspacePermissions for accurate permissions
-  const canEdit = isAdmin || membership?.role === 'editor' || membership?.role === 'captacao';
+  const canEdit = isAdmin || membership?.role === 'edicao' || membership?.role === 'captacao';
 
   // Filter to only active workspaces (not expired)
   const activeWorkspaces = useMemo(() => 

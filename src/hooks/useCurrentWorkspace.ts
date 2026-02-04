@@ -26,7 +26,7 @@ interface CurrentWorkspaceData {
   hasActiveSubscription: boolean;
   
   // Permissions
-  userRole: 'admin' | 'editor' | 'captacao' | 'freelancer' | 'visualizador' | null;
+  userRole: 'admin' | 'edicao' | 'captacao' | 'gestao' | 'visualizacao' | null;
   isAdmin: boolean;
   isEditor: boolean;
   canEdit: boolean;
@@ -83,10 +83,10 @@ export function useCurrentWorkspace(): CurrentWorkspaceData {
     
     // Permission helpers
     const userRole = membership?.role || null;
-    const isEditor = userRole === 'editor';
-    const canManageTeam = ['admin', 'editor'].includes(userRole || '');
-    const canManagePayments = ['admin', 'editor'].includes(userRole || '');
-    const canViewReports = ['admin', 'editor', 'visualizador'].includes(userRole || '');
+    const isEditor = userRole === 'edicao';
+    const canManageTeam = ['admin', 'edicao'].includes(userRole || '');
+    const canManagePayments = ['admin', 'edicao'].includes(userRole || '');
+    const canViewReports = ['admin', 'edicao', 'visualizacao'].includes(userRole || '');
 
     // Currency formatter
     const formatCurrency = (amount: number): string => {

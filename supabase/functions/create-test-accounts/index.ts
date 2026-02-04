@@ -42,19 +42,19 @@ const EDITOR_ACCOUNTS = [
     email: 'editor+starter@test.willflow.local',
     password: 'Teste1234!',
     workspaceSlug: 'test-starter',
-    role: 'editor',
+    role: 'edicao',
   },
   {
     email: 'editor+pro@test.willflow.local',
     password: 'Teste1234!',
     workspaceSlug: 'test-pro',
-    role: 'editor',
+    role: 'edicao',
   },
   {
     email: 'editor+studio@test.willflow.local',
     password: 'Teste1234!',
     workspaceSlug: 'test-studio',
-    role: 'editor',
+    role: 'edicao',
   },
 ];
 
@@ -417,7 +417,7 @@ async function createTestAccounts(supabaseAdmin: any, includeEditors: boolean) {
           })
           .eq('id', userId);
 
-        // Add as editor to corresponding workspace
+        // Add as edicao role to corresponding workspace
         const workspaceId = workspaceMap[editor.workspaceSlug];
         if (workspaceId) {
           await supabaseAdmin
@@ -425,7 +425,7 @@ async function createTestAccounts(supabaseAdmin: any, includeEditors: boolean) {
             .insert({
               workspace_id: workspaceId,
               user_id: userId,
-              role: 'editor',
+              role: 'edicao',
               is_active: true,
               joined_at: new Date().toISOString(),
             });
@@ -435,7 +435,7 @@ async function createTestAccounts(supabaseAdmin: any, includeEditors: boolean) {
             password: editor.password,
             plan: editor.workspaceSlug.replace('test-', ''),
             workspace: `Test ${editor.workspaceSlug.replace('test-', '').charAt(0).toUpperCase() + editor.workspaceSlug.replace('test-', '').slice(1)}`,
-            role: 'editor',
+            role: 'edicao',
             userId,
             workspaceId,
           });
