@@ -138,9 +138,17 @@ export function CreateEventModal({
         ? format(date, "yyyy-MM-dd'T'00:00:00")
         : `${format(date, 'yyyy-MM-dd')}T${startTime}:00`;
       
+      // Auto-correct endTime if it's <= startTime (non all-day events)
+      let correctedEndTime = endTime;
+      if (!allDay && endTime <= startTime) {
+        const [h, m] = startTime.split(':').map(Number);
+        const correctedHour = (h + 1) % 24;
+        correctedEndTime = `${correctedHour.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      }
+      
       const endAt = allDay
         ? format(date, "yyyy-MM-dd'T'23:59:59")
-        : `${format(date, 'yyyy-MM-dd')}T${endTime}:00`;
+        : `${format(date, 'yyyy-MM-dd')}T${correctedEndTime}:00`;
 
       const result = await onSubmit({
         title: title.trim(),

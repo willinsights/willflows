@@ -235,7 +235,13 @@ serve(async (req) => {
 
     // Calculate end time (default 1 hour if not provided)
     const startDate = new Date(startAt);
-    const endDate = endAt ? new Date(endAt) : new Date(startDate.getTime() + 60 * 60 * 1000);
+    let endDate = endAt ? new Date(endAt) : new Date(startDate.getTime() + 60 * 60 * 1000);
+    
+    // Ensure endDate > startDate to avoid "The specified time range is empty" error
+    if (endDate.getTime() <= startDate.getTime()) {
+      console.log('endDate <= startDate, auto-correcting to startDate + 1 hour');
+      endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+    }
 
     // Create event with Meet
     const result = await createGoogleMeetEvent(

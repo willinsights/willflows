@@ -177,6 +177,12 @@ export function useCalendarEvents() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
+          // Ensure end_at > start_at for Google Meet creation
+          const startAtDate = new Date(validation.data.start_at);
+          const endAtForMeet = validation.data.end_at && new Date(validation.data.end_at) > startAtDate
+            ? validation.data.end_at
+            : new Date(startAtDate.getTime() + 3600000).toISOString();
+
           const response = await fetch(
             `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-google-meet`,
             {
@@ -190,7 +196,7 @@ export function useCalendarEvents() {
                 workspaceId: currentWorkspace.id,
                 title: validation.data.title,
                 startAt: validation.data.start_at,
-                endAt: validation.data.end_at,
+                endAt: endAtForMeet,
                 description: validation.data.description,
               }),
             }
