@@ -1,48 +1,58 @@
 
-# Plano: Adicionar "Comparação A/B de versões" ao texto de Aprovação de Vídeo
+
+# Plano: Enviar Emails do Formulário de Contacto
 
 ## Problema
 
-Nas páginas `/planos` e Landing page, a caixa "Exclusivo Studio" diz apenas "Aprovação de vídeo", sem mencionar a comparação A/B de versões -- uma funcionalidade diferenciadora importante.
+O formulário de contacto em `/contato` simula o envio com um `setTimeout` mas **nunca envia nenhum email**. O código actual:
 
-## Alterações
+```typescript
+// Apenas simula - não envia nada
+await new Promise((resolve) => setTimeout(resolve, 1500));
+```
 
-### 1. Pricing.tsx (linha 355) e Landing.tsx (linha 832)
+## Solução
 
-Actualizar o texto na caixa "Exclusivo Studio" de:
-- `Aprovação de vídeo`
-
-Para:
-- `Aprovação de vídeo e comparação A/B`
-
-### 2. src/lib/plans.ts (linhas 199, 235, 271)
-
-Actualizar o nome da feature `videoApproval` de:
-- `Aprovação de vídeo`
-
-Para:
-- `Aprovação de vídeo e comparação A/B`
-
-Isto actualiza automaticamente a tabela de comparação detalhada na página `/planos` (que usa `PLANS.studio.features`).
-
-### 3. Landing.tsx (linha 78-79) -- Secção de features
-
-Actualizar a descrição do card de "Aprovação de Vídeo" para incluir a comparação:
-- De: `Portal de review para clientes com comentários por timecode.`
-- Para: `Portal de review com comparação A/B de versões e comentários por timecode.`
+Criar uma backend function `send-contact-email` que recebe os dados do formulário e envia um email real para `geral@willflow.app` usando Resend (já configurado com `RESEND_API_KEY`).
 
 ---
 
-## Ficheiros a Modificar
+## Alterações
+
+### 1. Criar `supabase/functions/send-contact-email/index.ts`
+
+Nova backend function que:
+- Recebe `name`, `email`, `subject`, `message` do formulário
+- Valida o email do remetente com o validador existente (`email-validator.ts`)
+- Envia email para `geral@willflow.app` via Resend com:
+  - **From**: `WillFlow <noreply@willflow.app>`
+  - **Reply-To**: email do visitante (para poder responder directamente)
+  - **Subject**: `[Contacto WillFlow] {assunto}`
+  - **Body**: HTML formatado com nome, email, assunto e mensagem
+- Retorna sucesso/erro com CORS headers
+- Inclui rate limiting básico (não envia se campos vazios)
+
+### 2. Actualizar `src/pages/Contact.tsx`
+
+Substituir a simulação por uma chamada real:
+- Importar o cliente Supabase
+- No `handleSubmit`, chamar `supabase.functions.invoke('send-contact-email', { body: { name, email, subject, message } })`
+- Tratar erros e mostrar mensagem apropriada
+- Manter o estado de loading e sucesso existente
+
+---
+
+## Ficheiros
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `src/lib/plans.ts` | Renomear feature `videoApproval` para incluir "e comparação A/B" |
-| `src/pages/Pricing.tsx` | Actualizar texto na caixa Studio |
-| `src/pages/Landing.tsx` | Actualizar texto na caixa Studio + descrição do card de features |
+| `supabase/functions/send-contact-email/index.ts` | Novo — backend function para enviar email via Resend |
+| `src/pages/Contact.tsx` | Substituir simulação por chamada real à backend function |
 
-## Impacto
+## Segurança
 
-- A tabela de comparação detalhada na página `/planos` reflecte automaticamente a mudança via `plans.ts`
-- Ambas as caixas "Exclusivo Studio" (Landing + Pricing) ficam alinhadas
-- Visitantes vêem claramente que a aprovação inclui comparação de versões
+- A function não requer autenticação (formulário público)
+- Validação de email do remetente para evitar spam
+- Campos obrigatórios validados no backend
+- `RESEND_API_KEY` já está configurado como secret
+
