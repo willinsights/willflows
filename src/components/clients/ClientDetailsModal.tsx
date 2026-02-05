@@ -19,7 +19,8 @@ import {
   Pencil,
   X,
   Save,
-  MapPin
+  MapPin,
+  HelpCircle
 } from 'lucide-react';
 import {
   Dialog,
@@ -35,6 +36,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useClientCommunications } from '@/hooks/useClientCommunications';
@@ -51,8 +58,9 @@ interface Client {
   company?: string | null;
   email?: string | null;
   phone?: string | null;
-  city?: string | null;
   address?: string | null;
+  postal_code?: string | null;
+  country?: string | null;
   nif?: string | null;
   notes?: string | null;
   created_at: string;
@@ -115,8 +123,9 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
     phone: '',
     company: '',
     nif: '',
-    city: '',
     address: '',
+    postal_code: '',
+    country: '',
     notes: '',
   });
   
@@ -134,8 +143,9 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
         phone: client.phone || '',
         company: client.company || '',
         nif: client.nif || '',
-        city: client.city || '',
         address: client.address || '',
+        postal_code: client.postal_code || '',
+        country: client.country || '',
         notes: client.notes || '',
       });
     }
@@ -172,8 +182,9 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
       phone: editForm.phone.trim() || null,
       company: editForm.company.trim() || null,
       nif: editForm.nif.trim() || null,
-      city: editForm.city.trim() || null,
       address: editForm.address.trim() || null,
+      postal_code: editForm.postal_code.trim() || null,
+      country: editForm.country.trim() || null,
       notes: editForm.notes.trim() || null,
     });
     
@@ -191,8 +202,9 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
         phone: client.phone || '',
         company: client.company || '',
         nif: client.nif || '',
-        city: client.city || '',
         address: client.address || '',
+        postal_code: client.postal_code || '',
+        country: client.country || '',
         notes: client.notes || '',
       });
     }
@@ -376,80 +388,108 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
                 {/* Edit Form */}
                 {isEditing ? (
                   <div className="space-y-4">
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="edit-name">Nome *</Label>
-                        <Input
-                          id="edit-name"
-                          value={editForm.name}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                          placeholder="Nome do cliente"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="edit-company">Empresa</Label>
-                        <Input
-                          id="edit-company"
-                          value={editForm.company}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, company: e.target.value }))}
-                          placeholder="Nome da empresa"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="edit-email">Email</Label>
-                        <Input
-                          id="edit-email"
-                          type="email"
-                          value={editForm.email}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
-                          placeholder="email@exemplo.com"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="edit-phone">Telefone</Label>
-                        <Input
-                          id="edit-phone"
-                          value={editForm.phone}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
-                          placeholder="+351 900 000 000"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="edit-nif">NIF/VAT</Label>
-                        <Input
-                          id="edit-nif"
-                          value={editForm.nif}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, nif: e.target.value }))}
-                          placeholder="Número de contribuinte"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="edit-city">Cidade</Label>
-                        <Input
-                          id="edit-city"
-                          value={editForm.city}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, city: e.target.value }))}
-                          placeholder="Cidade"
-                        />
-                      </div>
-                    </div>
-                    
+                    {/* Nome */}
                     <div className="space-y-2">
-                      <Label htmlFor="edit-address">Morada</Label>
+                      <Label htmlFor="edit-name">Nome *</Label>
+                      <Input
+                        id="edit-name"
+                        value={editForm.name}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Nome do contacto"
+                      />
+                    </div>
+
+                    {/* Nome da Empresa */}
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-company">Nome da Empresa *</Label>
+                      <Input
+                        id="edit-company"
+                        value={editForm.company}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, company: e.target.value }))}
+                        placeholder="Nome da empresa"
+                      />
+                    </div>
+
+                    {/* Tax ID com Tooltip */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <Label htmlFor="edit-nif">Tax ID *</Label>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>Número fiscal do país (ex.: NIF, VAT, CNPJ, CPF, EIN…)</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <Input
+                        id="edit-nif"
+                        value={editForm.nif}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, nif: e.target.value }))}
+                        placeholder="ex.: NIF, VAT, CNPJ, CPF, EIN…"
+                      />
+                    </div>
+
+                    {/* Morada Fiscal */}
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-address">Morada Fiscal *</Label>
                       <Input
                         id="edit-address"
                         value={editForm.address}
                         onChange={(e) => setEditForm(prev => ({ ...prev, address: e.target.value }))}
-                        placeholder="Morada completa"
+                        placeholder="Rua, número, andar..."
+                      />
+                    </div>
+
+                    {/* Código Postal e País */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-postal_code">Código Postal *</Label>
+                        <Input
+                          id="edit-postal_code"
+                          value={editForm.postal_code}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, postal_code: e.target.value }))}
+                          placeholder="1000-001"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-country">País *</Label>
+                        <Input
+                          id="edit-country"
+                          value={editForm.country}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, country: e.target.value }))}
+                          placeholder="Portugal"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Email de Faturação */}
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-email">Email de Faturação *</Label>
+                      <Input
+                        id="edit-email"
+                        type="email"
+                        value={editForm.email}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                        placeholder="faturacao@empresa.pt"
+                      />
+                    </div>
+
+                    {/* Contacto Telefónico */}
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-phone">Contacto Telefónico</Label>
+                      <Input
+                        id="edit-phone"
+                        value={editForm.phone}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                        placeholder="+351 912 345 678"
                       />
                     </div>
                     
+                    {/* Notas Internas */}
                     <div className="space-y-2">
                       <Label htmlFor="edit-notes">Notas Internas</Label>
                       <Textarea
