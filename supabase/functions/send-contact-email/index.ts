@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
-import { validateEmail } from "../_shared/email-validator.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -10,6 +9,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
+function isValidEmail(email: string): boolean {
+  if (!email || typeof email !== 'string') return false;
+  const normalized = email.trim().toLowerCase();
+  return EMAIL_REGEX.test(normalized) && normalized.length <= 254;
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -18,21 +25,16 @@ serve(async (req: Request) => {
   try {
     const { name, email, subject, message } = await req.json();
 
-    // Validate required fields
     if (!name?.trim() || !email?.trim() || !subject?.trim() || !message?.trim()) {
-      console.error("Missing required fields", { name: !!name, email: !!email, subject: !!subject, message: !!message });
       return new Response(
         JSON.stringify({ error: "Todos os campos são obrigatórios" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    // Validate sender email
-    const emailValidation = await validateEmail(email);
-    if (!emailValidation.valid) {
-      console.error("Invalid email:", emailValidation.error);
+    if (!isValidEmail(email)) {
       return new Response(
-        JSON.stringify({ error: emailValidation.error || "Email inválido" }),
+        JSON.stringify({ error: "Formato de email inválido" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
