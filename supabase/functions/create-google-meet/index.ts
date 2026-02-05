@@ -162,6 +162,8 @@ serve(async (req) => {
 
     const { workspaceId, title, startAt, endAt, description, attendees } = await req.json();
 
+    console.log('[create-google-meet] Received:', JSON.stringify({ workspaceId, title, startAt, endAt }));
+
     if (!workspaceId || !title || !startAt) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400,
@@ -233,15 +235,34 @@ serve(async (req) => {
 
     const calendarId = connection.calendar_id || 'primary';
 
-    // Calculate end time (default 1 hour if not provided)
-    const startDate = new Date(startAt);
-    let endDate = endAt ? new Date(endAt) : new Date(startDate.getTime() + 60 * 60 * 1000);
-    
-    // Ensure endDate > startDate to avoid "The specified time range is empty" error
-    if (endDate.getTime() <= startDate.getTime()) {
-      console.log('endDate <= startDate, auto-correcting to startDate + 1 hour');
-      endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+    // Build start/end timestamps - use raw strings to avoid UTC/timezone conflicts
+    // Frontend sends "2026-02-05T09:00:00" without Z suffix
+    // We pass it directly with timeZone so Google interprets it correctly
+    let startDateTime = startAt;
+    let endDateTime = endAt;
+
+    // If no endAt provided, calculate 1 hour after start
+    if (!endDateTime) {
+      const startDate = new Date(startAt);
+      const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+      // Format without Z: YYYY-MM-DDTHH:mm:ss
+      endDateTime = endDate.toISOString().replace('Z', '').replace(/\.\d{3}$/, '');
     }
+
+    // Validate end > start using Date objects
+    const startCheck = new Date(startDateTime);
+    const endCheck = new Date(endDateTime);
+    if (endCheck.getTime() <= startCheck.getTime()) {
+      console.log('[create-google-meet] endDateTime <= startDateTime, auto-correcting +1h');
+      const corrected = new Date(startCheck.getTime() + 60 * 60 * 1000);
+      endDateTime = corrected.toISOString().replace('Z', '').replace(/\.\d{3}$/, '');
+    }
+
+    // Remove any trailing Z from frontend timestamps
+    startDateTime = startDateTime.replace(/\.000Z$/, '').replace(/Z$/, '');
+    endDateTime = endDateTime.replace(/\.000Z$/, '').replace(/Z$/, '');
+
+    console.log('[create-google-meet] Final timestamps:', JSON.stringify({ startDateTime, endDateTime }));
 
     // Create event with Meet
     const result = await createGoogleMeetEvent(
@@ -251,11 +272,11 @@ serve(async (req) => {
         summary: `📅 ${title}`,
         description: description || 'Reunião criada via WillFlow',
         start: {
-          dateTime: startDate.toISOString(),
+          dateTime: startDateTime,
           timeZone: 'Europe/Lisbon',
         },
         end: {
-          dateTime: endDate.toISOString(),
+          dateTime: endDateTime,
           timeZone: 'Europe/Lisbon',
         },
         attendees: attendees?.map((email: string) => ({ email })),
