@@ -117,7 +117,8 @@ export default function Calendario() {
           });
         }
 
-        if (project.delivery_date) {
+        // Só mostrar entrega se o projeto NÃO foi entregue
+        if (project.delivery_date && !project.is_delivered) {
           items.push({
             id: `delivery-${project.id}`,
             projectId: project.id,
