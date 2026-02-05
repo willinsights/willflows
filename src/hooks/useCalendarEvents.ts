@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { handleDatabaseError } from '@/lib/error-handler';
 import { calendarEventSchema, validateWithSchema } from '@/lib/validation-schemas';
 import { logger } from '@/lib/logger';
+import { useAuth } from '@/contexts/AuthContext';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 export type CalendarEvent = Tables<'calendar_events'>;
@@ -18,6 +19,7 @@ export type CalendarSourceFilter = 'all' | 'willflow' | 'google';
 
 export function useCalendarEvents() {
   const { currentWorkspace, fetchError } = useWorkspace();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [events, setEvents] = useState<CalendarEventWithProject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +44,16 @@ export function useCalendarEvents() {
         .order('start_at', { ascending: true });
 
       if (error) throw error;
-      setEvents(data || []);
+      
+      // Filter events based on privacy (defense in depth):
+      // - Public events (is_private = false): visible to all
+      // - Private events (is_private = true): only visible to creator
+      const filteredData = (data || []).filter(event => {
+        if (!event.is_private) return true;
+        return event.created_by === user?.id;
+      });
+      
+      setEvents(filteredData);
       lastFetchedWorkspaceIdRef.current = currentWorkspace.id;
     } catch (error) {
       logger.error('Error fetching calendar events:', error);
@@ -50,7 +61,7 @@ export function useCalendarEvents() {
       isFetchingRef.current = false;
       setLoading(false);
     }
-  }, [currentWorkspace?.id, fetchError]);
+  }, [currentWorkspace?.id, fetchError, user?.id]);
 
   // Initial fetch when workspace changes
   useEffect(() => {
@@ -87,9 +98,13 @@ export function useCalendarEvents() {
               .single()
               .then(({ data }) => {
                 if (data) {
-                  setEvents(prev => [...prev, data].sort((a, b) => 
-                    new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
-                  ));
+                  // Check privacy before adding to state
+                  const canView = !data.is_private || data.created_by === user?.id;
+                  if (canView) {
+                    setEvents(prev => [...prev, data].sort((a, b) => 
+                      new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
+                    ));
+                  }
                 }
               });
           } else if (payload.eventType === 'UPDATE') {
@@ -100,10 +115,17 @@ export function useCalendarEvents() {
               .single()
               .then(({ data }) => {
                 if (data) {
-                  setEvents(prev => 
-                    prev.map(e => e.id === data.id ? data : e)
-                      .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime())
-                  );
+                  // Check privacy before updating state
+                  const canView = !data.is_private || data.created_by === user?.id;
+                  if (canView) {
+                    setEvents(prev => 
+                      prev.map(e => e.id === data.id ? data : e)
+                        .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime())
+                    );
+                  } else {
+                    // Event became private, remove from view
+                    setEvents(prev => prev.filter(e => e.id !== data.id));
+                  }
                 }
               });
           } else if (payload.eventType === 'DELETE') {
@@ -116,7 +138,7 @@ export function useCalendarEvents() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentWorkspace?.id]);
+  }, [currentWorkspace?.id, user?.id]);
 
   // Filter events based on source
   const filteredEvents = events.filter(event => {
