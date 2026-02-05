@@ -479,6 +479,14 @@
     cursor: pointer !important;
     opacity: 1 !important;
   }
+
+  /* Safari video aspect ratio fix */
+  /* Force Safari to respect object-fit before metadata loads */
+  @supports (-webkit-touch-callout: none) {
+    video {
+      min-height: 1px;
+    }
+  }
 }
 
 /* Theme transition animation - smooth color changes */
