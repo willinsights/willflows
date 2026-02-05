@@ -2264,6 +2264,51 @@ export type Database = {
         }
         Relationships: []
       }
+      push_notification_queue: {
+        Row: {
+          attempts: number
+          body: string
+          created_at: string
+          data: Json | null
+          error: string | null
+          id: string
+          last_attempt_at: string | null
+          processed_at: string | null
+          status: string
+          tag: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          body: string
+          created_at?: string
+          data?: Json | null
+          error?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          processed_at?: string | null
+          status?: string
+          tag?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          body?: string
+          created_at?: string
+          data?: Json | null
+          error?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          processed_at?: string | null
+          status?: string
+          tag?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       stripe_webhook_log: {
         Row: {
           created_at: string | null
