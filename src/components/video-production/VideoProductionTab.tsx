@@ -201,21 +201,25 @@ function VideoProductionTabContent({
         <div className="lg:col-span-2 space-y-4">
           {/* Video Player */}
           {selectedVersion && (selectedVersion.cloudflare_stream_uid || videoUrl) ? (
-            <VideoPlayer
-              ref={videoPlayerRef}
-              src={videoUrl || undefined}
-              streamUid={selectedVersion.cloudflare_stream_uid || undefined}
-              hlsUrl={selectedVersion.stream_playback_url || undefined}
-              isProcessing={isVersionProcessing}
-              onAddComment={handleAddComment}
-              className="aspect-video w-full"
-            />
+            <div className="relative w-full flex justify-center">
+              <VideoPlayer
+                ref={videoPlayerRef}
+                src={videoUrl || undefined}
+                streamUid={selectedVersion.cloudflare_stream_uid || undefined}
+                hlsUrl={selectedVersion.stream_playback_url || undefined}
+                isProcessing={isVersionProcessing}
+                onAddComment={handleAddComment}
+                className="w-full max-h-[70vh]"
+              />
+            </div>
           ) : isVersionProcessing ? (
-            <VideoPlayer
-              ref={videoPlayerRef}
-              isProcessing={true}
-              className="aspect-video w-full"
-            />
+            <div className="relative w-full flex justify-center">
+              <VideoPlayer
+                ref={videoPlayerRef}
+                isProcessing={true}
+                className="w-full max-h-[70vh]"
+              />
+            </div>
           ) : loadingUrl ? (
             <div className="aspect-video w-full rounded-lg bg-muted flex items-center justify-center">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />

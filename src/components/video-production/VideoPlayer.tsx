@@ -84,6 +84,10 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   const [loadError, setLoadError] = useState<string | null>(null);
   const hideControlsTimeout = useRef<NodeJS.Timeout>();
   
+  // Video aspect ratio detection for portrait/landscape layout
+  const [videoAspectRatio, setVideoAspectRatio] = useState<number | null>(null);
+  const [isPortrait, setIsPortrait] = useState(false);
+  
   // Enhanced recovery tracking
   const retryCountRef = useRef(0);
   const lastTimeRef = useRef(0);
@@ -315,6 +319,12 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
 
   const handleLoadedMetadata = useCallback(() => {
     if (videoRef.current) {
+      const { videoWidth, videoHeight } = videoRef.current;
+      if (videoWidth && videoHeight) {
+        const ratio = videoWidth / videoHeight;
+        setVideoAspectRatio(ratio);
+        setIsPortrait(ratio < 1); // Vertical if width < height
+      }
       setDuration(videoRef.current.duration);
       setIsLoading(false);
       setLoadError(null);
@@ -518,18 +528,31 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   return (
     <div 
       ref={containerRef}
-      className={cn("relative group bg-black rounded-lg overflow-hidden", className)}
+      className={cn(
+        "relative group bg-black rounded-lg overflow-hidden",
+        // For portrait videos, limit height and center
+        isPortrait ? "max-h-[70vh] mx-auto" : "w-full",
+        className
+      )}
+      style={{
+        // Dynamic aspect ratio based on video dimensions
+        aspectRatio: videoAspectRatio ? `${videoAspectRatio}` : '16/9',
+      }}
       onMouseMove={handleMouseMove}
       onMouseLeave={() => isPlaying && setShowControls(false)}
     >
       {/* Native video element with HLS support */}
       <video
         ref={videoRef}
-        className="w-full h-full object-contain"
+        className="w-full h-full"
+        style={{ 
+          objectFit: 'contain',
+          // Safari fix: min-height prevents collapse before metadata loads
+          minHeight: '1px',
+        }}
         onClick={togglePlay}
         preload="metadata"
         playsInline
-        style={{ aspectRatio: '16/9' }}
       />
 
       {/* Loading spinner */}

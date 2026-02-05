@@ -825,11 +825,15 @@ export default function VideoApproval() {
               ) : (
                 <>
                   <Card className="overflow-hidden">
-                    <div className="relative bg-black aspect-video">
+                    <div className="relative bg-black flex justify-center" style={{ minHeight: '300px', maxHeight: '70vh' }}>
                       {videoUrl ? (
                         <video
                           ref={videoRef}
                           className="w-full h-full"
+                          style={{ 
+                            objectFit: 'contain',
+                            minHeight: '1px', // Safari fix
+                          }}
                           onTimeUpdate={handleTimeUpdate}
                           onLoadedMetadata={handleLoadedMetadata}
                           onPlay={() => setIsPlaying(true)}
