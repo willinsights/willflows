@@ -1,58 +1,66 @@
 
 
-# Plano: Enviar Emails do Formulário de Contacto
+# Plano: Marcar Integrações como Feitas e Remover Frame.io
 
-## Problema
+## Resumo
 
-O formulário de contacto em `/contato` simula o envio com um `setTimeout` mas **nunca envia nenhum email**. O código actual:
-
-```typescript
-// Apenas simula - não envia nada
-await new Promise((resolve) => setTimeout(resolve, 1500));
-```
-
-## Solução
-
-Criar uma backend function `send-contact-email` que recebe os dados do formulário e envia um email real para `geral@willflow.app` usando Resend (já configurado com `RESEND_API_KEY`).
+Duas alterações principais:
+1. **Google Calendar e Google Drive** passam de "Em breve" para integração disponível/conectável
+2. **Frame.io** é removido de todas as páginas e referências visíveis ao utilizador (já substituído pela funcionalidade nativa de Aprovação de Vídeo)
 
 ---
 
-## Alterações
+## Alterações por Ficheiro
 
-### 1. Criar `supabase/functions/send-contact-email/index.ts`
+### 1. `src/components/account/AccountIntegrationsTab.tsx` (modal da conta)
 
-Nova backend function que:
-- Recebe `name`, `email`, `subject`, `message` do formulário
-- Valida o email do remetente com o validador existente (`email-validator.ts`)
-- Envia email para `geral@willflow.app` via Resend com:
-  - **From**: `WillFlow <noreply@willflow.app>`
-  - **Reply-To**: email do visitante (para poder responder directamente)
-  - **Subject**: `[Contacto WillFlow] {assunto}`
-  - **Body**: HTML formatado com nome, email, assunto e mensagem
-- Retorna sucesso/erro com CORS headers
-- Inclui rate limiting básico (não envia se campos vazios)
+- Remover Frame.io da lista `integrations`
+- Remover `'frameio'` do mapeamento `integrationToFeature`
+- Google Calendar: `comingSoon: false`
+- Google Drive: `comingSoon: false`
 
-### 2. Actualizar `src/pages/Contact.tsx`
+### 2. `src/pages/Integrations.tsx` (pagina publica /integracoes)
 
-Substituir a simulação por uma chamada real:
-- Importar o cliente Supabase
-- No `handleSubmit`, chamar `supabase.functions.invoke('send-contact-email', { body: { name, email, subject, message } })`
-- Tratar erros e mostrar mensagem apropriada
-- Manter o estado de loading e sucesso existente
+- Remover Frame.io da lista `comingSoon`
+- Adicionar Google Drive a lista `integrations` (integrações disponíveis), ao lado do Google Calendar
+- Actualizar meta tags SEO para remover menção a Frame.io no title e description
+
+### 3. `src/pages/app/Configuracoes.tsx` (configurações da app, linhas 1094-1113)
+
+- Remover o card de Frame.io da secção de integrações
+
+### 4. `src/pages/About.tsx` (roadmap, linha 85)
+
+- Remover "Integração Frame.io" do roadmap Q1 2026
+
+### 5. `src/hooks/usePlanFeatures.ts`
+
+- Remover `'frameio'` do tipo `FeatureKey`
+- Remover a descrição de `frameio` do mapeamento de features
+
+### 6. `supabase/functions/send-friend-invite/index.ts` (email de convite)
+
+- Remover a linha que menciona Frame.io na lista de integrações do email HTML
+
+### 7. `src/pages/app/Media.tsx`
+
+- Remover o filtro/tab "Frame.io" da lista de sources de media
+- Remover as cores associadas a `frameio`
+
+### 8. `src/lib/__tests__/plans.test.ts`
+
+- Remover o teste "Studio: frameio should be TRUE"
 
 ---
 
-## Ficheiros
+## Ficheiros que NAO sao alterados
 
-| Ficheiro | Alteração |
-|----------|-----------|
-| `supabase/functions/send-contact-email/index.ts` | Novo — backend function para enviar email via Resend |
-| `src/pages/Contact.tsx` | Substituir simulação por chamada real à backend function |
+- `src/pages/features/VideoApproval.tsx` -- Mantém as menções a "Alternativa ao Frame.io" porque é posicionamento de marketing (comparação com concorrente), não uma integração
+- `src/integrations/supabase/types.ts` -- Não editável (auto-gerado). A coluna `frameio_project_id` na base de dados fica sem uso mas não causa problemas
+- `src/lib/validation-schemas.ts` -- O campo `frameio_project_id` fica no schema de validação como optional/nullable, sem impacto
 
-## Segurança
+## Resultado
 
-- A function não requer autenticação (formulário público)
-- Validação de email do remetente para evitar spam
-- Campos obrigatórios validados no backend
-- `RESEND_API_KEY` já está configurado como secret
-
+- Google Calendar e Google Drive aparecem como integracões activas (com botão "Conectar")
+- Frame.io desaparece de todas as páginas visíveis ao utilizador
+- A página de Video Approval mantém a referência como posicionamento competitivo
