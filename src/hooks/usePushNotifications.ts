@@ -58,41 +58,41 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     'serviceWorker' in navigator && 
     'PushManager' in window;
 
-  // IMPORTANT:
-  // We must NOT register a second Service Worker with the same scope ("/") as the main PWA SW,
-  // otherwise the browser will keep swapping registrations (causing controllerchange/reloads).
-  // We register the push SW under a dedicated scope.
-  const PUSH_SW_SCOPE = '/push/';
-
+  // Use the main service worker for push - this allows background push to work
   const getOrRegisterPushSW = useCallback(async (): Promise<ServiceWorkerRegistration | null> => {
     if (!isSupported) return null;
-    // Avoid registering during dev to prevent HMR quirks.
-    if (import.meta.env.DEV) return null;
 
     try {
+      // First check for existing sw-push.js registration
       const registrations = await navigator.serviceWorker.getRegistrations();
-      const existing = registrations.find((r) => r.active?.scriptURL?.endsWith('/sw-push.js'));
+      let existing = registrations.find((r) => r.active?.scriptURL?.endsWith('/sw-push.js'));
+      
       if (existing) {
-        // If an older version was registered on scope "/", unregister it to avoid scope conflicts.
-        // (registration.scope is a full URL like "https://domain/" or "https://domain/push/")
-        const scopePath = (() => {
-          try {
-            return new URL(existing.scope).pathname;
-          } catch {
-            return '';
-          }
-        })();
-
-        if (scopePath === '/') {
-          await existing.unregister();
-        } else {
-          return existing;
-        }
+        console.log('[Push] Found existing sw-push.js registration:', existing.scope);
+        return existing;
       }
 
+      // Also check for sw.js (Vite PWA) - we can use it for push too
+      const pwaRegistration = registrations.find((r) => 
+        r.active?.scriptURL?.endsWith('/sw.js') || 
+        r.active?.scriptURL?.includes('workbox')
+      );
+      
+      if (pwaRegistration) {
+        console.log('[Push] Using PWA service worker for push:', pwaRegistration.scope);
+        return pwaRegistration;
+      }
+
+      // Register sw-push.js with root scope for background push to work
+      console.log('[Push] Registering sw-push.js...');
       const registration = await navigator.serviceWorker.register('/sw-push.js', {
-        scope: PUSH_SW_SCOPE,
+        scope: '/',
       });
+      
+      // Wait for the service worker to be ready
+      await navigator.serviceWorker.ready;
+      console.log('[Push] Service worker registered and ready:', registration.scope);
+      
       return registration;
     } catch (error) {
       console.error('[Push] SW registration failed:', error);
@@ -196,12 +196,14 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   // Subscribe to push notifications
   const subscribeToPush = useCallback(async (): Promise<boolean> => {
     if (!isSupported || !user?.id) {
+      console.log('[Push] Not supported or no user');
       return false;
     }
 
     try {
       const registration = (await getOrRegisterPushSW()) ?? swRegistrationRef.current;
       if (!registration) {
+        console.error('[Push] No service worker registration available');
         toast.error('Não foi possível preparar o Service Worker');
         return false;
       }
@@ -209,19 +211,43 @@ export function usePushNotifications(): UsePushNotificationsReturn {
 
       // Check existing subscription
       let subscription = await registration.pushManager.getSubscription();
+      console.log('[Push] Existing subscription:', subscription ? 'found' : 'none');
       
       if (!subscription) {
-        // Subscribe to push - use ArrayBuffer directly
+        // Subscribe to push with VAPID key
+        console.log('[Push] Creating new subscription with VAPID key...');
         const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: applicationServerKey.buffer as ArrayBuffer,
         });
-        console.log('[Push] New subscription created');
+        console.log('[Push] New subscription created:', subscription.endpoint.substring(0, 50));
       }
 
-      // Save subscription to database
-      const subscriptionJSON = subscription.toJSON();
+      // Save subscription to database - ensure proper JSON format
+      const subscriptionData = subscription.toJSON();
+      
+      // Validate subscription has required fields
+      if (!subscriptionData.endpoint || !subscriptionData.keys?.p256dh || !subscriptionData.keys?.auth) {
+        console.error('[Push] Invalid subscription format:', subscriptionData);
+        toast.error('Erro na subscrição push - formato inválido');
+        return false;
+      }
+      
+      console.log('[Push] Subscription data:', {
+        endpoint: subscriptionData.endpoint.substring(0, 50) + '...',
+        hasP256dh: !!subscriptionData.keys?.p256dh,
+        hasAuth: !!subscriptionData.keys?.auth,
+      });
+      
+      // Prepare the subscription object to save
+      const subscriptionToSave = {
+        endpoint: subscriptionData.endpoint,
+        keys: {
+          p256dh: subscriptionData.keys.p256dh,
+          auth: subscriptionData.keys.auth,
+        },
+      };
       
       // First try to update existing record
       const { data: existing } = await supabase
@@ -234,25 +260,44 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         const { error } = await supabase
           .from('user_push_preferences')
           .update({
-            push_subscription: JSON.parse(JSON.stringify(subscriptionJSON)),
+            push_subscription: subscriptionToSave,
             push_enabled: true,
             updated_at: new Date().toISOString(),
           })
           .eq('user_id', user.id);
-        if (error) throw error;
+        if (error) {
+          console.error('[Push] Failed to update subscription:', error);
+          throw error;
+        }
       } else {
         const { error } = await supabase
           .from('user_push_preferences')
           .insert([{
             user_id: user.id,
-            push_subscription: JSON.parse(JSON.stringify(subscriptionJSON)),
+            push_subscription: subscriptionToSave,
             push_enabled: true,
           }]);
-        if (error) throw error;
+        if (error) {
+          console.error('[Push] Failed to insert subscription:', error);
+          throw error;
+        }
+      }
+
+      // Verify the subscription was saved
+      const { data: saved } = await supabase
+        .from('user_push_preferences')
+        .select('push_subscription')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!saved?.push_subscription) {
+        console.error('[Push] Subscription NOT saved to database!');
+        toast.error('Erro ao guardar subscrição');
+        return false;
       }
 
       setIsSubscribed(true);
-      console.log('[Push] Subscription saved to database');
+      console.log('[Push] Subscription verified and saved to database');
       return true;
     } catch (error) {
       console.error('[Push] Subscription error:', error);
