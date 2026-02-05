@@ -12,7 +12,6 @@ import {
   Shield,
   RefreshCw,
   Settings,
-  Cloud,
   FolderSync,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -43,32 +42,26 @@ const integrations = [
     ],
   },
   {
-    name: 'Google Drive',
-    description: 'Sincronize pastas de projetos automaticamente com o Google Drive. Organização automática por cliente e projeto.',
-    icon: Cloud,
+    name: 'Google Meet',
+    description: 'Crie links de reunião automáticos ao agendar eventos e comunicações. Integrado com o calendário.',
+    icon: Video,
     plan: 'Pro',
     features: [
-      'Pastas criadas automaticamente por projeto',
-      'Organização por cliente',
-      'Sincronização de ficheiros de produção',
-      'Acesso rápido a partir do projeto',
+      'Links de reunião criados automaticamente',
+      'Integração com Google Calendar',
+      'Um clique para criar a sala',
+      'Links incluídos nos eventos do calendário',
     ],
     status: 'available',
     benefits: [
-      'Ficheiros sempre organizados',
-      'Acesso rápido da equipa',
-      'Backup automático na cloud',
+      'Reuniões organizadas sem esforço',
+      'Clientes acedem facilmente',
+      'Integrado no fluxo de trabalho',
     ],
   },
 ];
 
 const comingSoon = [
-  { 
-    name: 'Google Meet', 
-    description: 'Links de reunião automáticos integrados no calendário. Um clique para criar a sala.', 
-    icon: Video,
-    priority: 'alta',
-  },
   { 
     name: 'Dropbox', 
     description: 'Sincronização de ficheiros de projeto. Pastas criadas automaticamente por projeto.',
@@ -124,7 +117,7 @@ export default function Integrations() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Integrações | WillFlow - Google Calendar, Google Drive e Mais</title>
-        <meta name="description" content="Integre o WillFlow com Google Calendar e Google Drive para sincronização automática. Dropbox, Zapier e mais integrações em desenvolvimento." />
+        <meta name="description" content="Integre o WillFlow com Google Calendar e Google Meet para sincronização automática. Dropbox, Zapier e mais integrações em desenvolvimento." />
         <link rel="canonical" href="https://willflow.app/integracoes" />
         <meta property="og:title" content="Integrações | WillFlow - Google Calendar e Mais" />
         <meta property="og:description" content="Integre o WillFlow com as suas apps favoritas: Google Calendar para sincronização de eventos e muito mais em desenvolvimento." />
