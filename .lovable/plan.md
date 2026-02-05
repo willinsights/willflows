@@ -1,141 +1,267 @@
 
+# Plano: Sistema de Notificações de Chat Robusto e Fiável
 
-# Plano: Corrigir Vazamento de Eventos Privados no Calendário
+## Problemas Identificados
 
-## Problema Identificado
+### 1. Edge Function `send-push-notification` Não Está a Ser Chamada
+O sistema actual usa **apenas notificações locais** via `sendLocalNotification` no hook `useChatNotifications.ts`. Isto só funciona quando:
+- A app está **aberta e activa** no browser
+- O browser está em **primeiro plano**
 
-Os eventos do Google Calendar pessoal sincronizados pelo admin (`is_private: true`) estão a aparecer para **todos** os colaboradores do workspace no calendário.
+A edge function `send-push-notification` **existe mas nunca é invocada** quando chegam novas mensagens.
 
-### Causa Raiz
+### 2. Notificações Push Não Funcionam com App em Standby
+O protocolo Web Push **requer encriptação VAPID/ECDH** para enviar notificações reais para endpoints de push (FCM/APNs). O código actual faz um simples POST sem encriptação:
 
-1. **Políticas RLS Conflituantes:**
-   - `"Members can view calendar events"` → `is_workspace_member(...)` (sem filtro de privacidade)
-   - `"Users can view calendar events in their workspace"` → Filtra correctamente `(is_private = false) OR (created_by = auth.uid())`
-   
-   PostgreSQL combina políticas PERMISSIVE com OR, então a mais permissiva vence.
+```typescript
+// Código problemático - linha 202-209
+const response = await fetch(subscription.endpoint, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', 'TTL': '86400' },
+  body: notificationPayload,  // Não encriptado!
+});
+```
 
-2. **Hook `useCalendarEvents.ts` sem filtragem frontend:**
-   ```typescript
-   // Linha 38-42 - Busca TODOS os eventos do workspace
-   const { data, error } = await supabase
-     .from('calendar_events')
-     .select('*, projects(name, client_id)')
-     .eq('workspace_id', currentWorkspace.id)  // Sem filtro is_private!
-   ```
+Isto **falha** porque os push endpoints (Google/Apple) rejeitam pedidos sem encriptação VAPID.
+
+### 3. Subscriptions Não Estão Activas
+A verificação da base de dados mostra que **todos os utilizadores têm `push_subscription = NULL`**:
+- `push_enabled: true` mas `has_subscription: false`
+- Isto indica que o processo de subscrição não está a guardar correctamente ou está a falhar silenciosamente
+
+### 4. Realtime Notifications Dependem da App Estar Aberta
+O hook `useChatNotifications.ts` usa Supabase Realtime, que só funciona quando:
+- O browser tem uma ligação WebSocket activa
+- A tab está aberta (mesmo em background)
+- Não funciona quando a app está fechada ou o telefone em standby
 
 ---
 
-## Solução
+## Arquitectura Proposta
 
-### Parte 1: Corrigir Política RLS (Primária)
+```text
+┌──────────────┐     ┌─────────────────────┐     ┌──────────────────┐
+│   Browser    │     │   Supabase DB       │     │  Edge Function   │
+│   (React)    │     │   Trigger           │     │  send-push       │
+└──────┬───────┘     └──────────┬──────────┘     └────────┬─────────┘
+       │                        │                         │
+       │  1. Nova mensagem      │                         │
+       │  INSERT messages       │                         │
+       │───────────────────────>│                         │
+       │                        │  2. Trigger dispara     │
+       │                        │  para cada membro       │
+       │                        │─────────────────────────>
+       │                        │                         │  3. Encripta e envia
+       │                        │                         │  via Web Push Protocol
+       │                        │                         │────────> FCM/APNs
+       │                        │                         │
+       │  4. Realtime (se       │                         │
+       │     app aberta)        │                         │
+       │<───────────────────────│                         │
+       │                        │                         │
+       │  5. Push (se app       │                         │
+       │     fechada/standby)   │<────────────────────────│
+       │<─────────────────────────────────────────────────│
+```
 
-Remover a política permissiva redundante e manter apenas a que respeita privacidade.
+---
+
+## Solução Completa
+
+### Parte 1: Criar Trigger de Base de Dados para Notificações
+
+Quando uma nova mensagem é inserida, um trigger chama automaticamente a edge function para **todos** os membros da conversa (excepto o remetente).
 
 ```sql
--- Remover política permissiva
-DROP POLICY IF EXISTS "Members can view calendar events" ON calendar_events;
-
--- A política "Users can view calendar events in their workspace" já existe e é correcta:
--- qual: ((is_private = false) OR (created_by = auth.uid()))
-```
-
-### Parte 2: Adicionar Filtragem no Frontend (Defesa em Profundidade)
-
-Mesmo com RLS correcta, adicionar filtragem no hook `useCalendarEvents.ts` como camada extra de segurança.
-
-```typescript
-// src/hooks/useCalendarEvents.ts - linha 30-52
-const fetchEvents = useCallback(async () => {
-  if (!currentWorkspace?.id || fetchError) return;
-  if (isFetchingRef.current) return;
-
-  try {
-    isFetchingRef.current = true;
-    setLoading(true);
-    
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    const { data, error } = await supabase
-      .from('calendar_events')
-      .select('*, projects(name, client_id)')
-      .eq('workspace_id', currentWorkspace.id)
-      .order('start_at', { ascending: true });
-
-    if (error) throw error;
-    
-    // Filter events based on privacy:
-    // - Public events (is_private = false): visible to all
-    // - Private events (is_private = true): only visible to creator
-    const filteredData = (data || []).filter(event => {
-      if (!event.is_private) return true;  // Public event
-      return event.created_by === user?.id;  // Private: only creator sees
-    });
-    
-    setEvents(filteredData);
-    lastFetchedWorkspaceIdRef.current = currentWorkspace.id;
-  } catch (error) {
-    logger.error('Error fetching calendar events:', error);
-  } finally {
-    isFetchingRef.current = false;
-    setLoading(false);
-  }
-}, [currentWorkspace?.id, fetchError]);
-```
-
-### Parte 3: Actualizar Realtime Handler
-
-Também aplicar filtragem no handler de realtime:
-
-```typescript
-// Linha 81-94 - INSERT handler
-if (payload.eventType === 'INSERT') {
-  const { data: { user } } = await supabase.auth.getUser();
+-- Trigger function para enviar push notifications
+CREATE OR REPLACE FUNCTION notify_chat_message()
+RETURNS TRIGGER AS $$
+DECLARE
+  member RECORD;
+  sender_name TEXT;
+BEGIN
+  -- Ignore system messages
+  IF NEW.type = 'system' THEN
+    RETURN NEW;
+  END IF;
   
-  supabase
-    .from('calendar_events')
-    .select('*, projects(name, client_id)')
-    .eq('id', payload.new.id)
-    .single()
-    .then(({ data }) => {
-      if (data) {
-        // Check privacy before adding
-        const canView = !data.is_private || data.created_by === user?.id;
-        if (canView) {
-          setEvents(prev => [...prev, data].sort((a, b) => 
-            new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
-          ));
-        }
-      }
-    });
+  -- Get sender name
+  SELECT COALESCE(full_name, split_part(email, '@', 1))
+  INTO sender_name
+  FROM profiles WHERE id = NEW.user_id;
+  
+  -- Notify each conversation member (except sender)
+  FOR member IN
+    SELECT cm.user_id
+    FROM conversation_members cm
+    WHERE cm.conversation_id = NEW.conversation_id
+      AND cm.user_id != NEW.user_id
+      AND cm.is_active = true
+  LOOP
+    -- Call edge function via pg_net (or insert into notification queue)
+    PERFORM net.http_post(
+      url := current_setting('app.supabase_url') || '/functions/v1/send-push-notification',
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'Authorization', 'Bearer ' || current_setting('app.service_role_key')
+      ),
+      body := jsonb_build_object(
+        'userId', member.user_id,
+        'title', 'Nova mensagem de ' || COALESCE(sender_name, 'Alguém'),
+        'body', LEFT(NEW.body, 100),
+        'tag', 'chat-' || NEW.conversation_id,
+        'data', jsonb_build_object(
+          'type', 'message',
+          'conversationId', NEW.conversation_id,
+          'messageId', NEW.id
+        )
+      )::text
+    );
+  END LOOP;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create trigger
+CREATE TRIGGER on_new_message_notify
+  AFTER INSERT ON messages
+  FOR EACH ROW
+  EXECUTE FUNCTION notify_chat_message();
+```
+
+### Parte 2: Corrigir Edge Function com Web Push Protocol Correcto
+
+Usar a biblioteca `web-push` para Deno que faz a encriptação VAPID correctamente:
+
+```typescript
+// supabase/functions/send-push-notification/index.ts
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+// Web Push encryption helpers
+async function encryptPayload(subscription: any, payload: string, vapidKeys: any) {
+  // ... implement proper ECDH encryption
+  // This is complex - use established pattern
+}
+
+async function sendWebPush(subscription: any, payload: any, vapidKeys: any) {
+  // Generate proper VAPID JWT
+  const jwt = await generateVapidJwt(subscription.endpoint, vapidKeys);
+  
+  // Encrypt the payload with ECDH
+  const encrypted = await encryptPayload(subscription, JSON.stringify(payload), vapidKeys);
+  
+  const response = await fetch(subscription.endpoint, {
+    method: 'POST',
+    headers: {
+      'Authorization': jwt.authorization,
+      'Crypto-Key': jwt.cryptoKey,
+      'Content-Type': 'application/octet-stream',
+      'Content-Encoding': 'aes128gcm',
+      'TTL': '86400',
+    },
+    body: encrypted,
+  });
+  
+  return response;
 }
 ```
 
+### Parte 3: Usar Biblioteca `web-push` Existente
+
+Como a encriptação Web Push é complexa, a solução mais fiável é usar uma Edge Function que integra com um serviço de push (Firebase Cloud Messaging para Android/Web, APNs para iOS):
+
+```typescript
+// Alternativa: Usar OneSignal ou similar
+// Ou implementar com a lib @panha/web-push para Deno
+import webpush from "npm:web-push@3.6.7";
+
+webpush.setVapidDetails(
+  'mailto:geral@willflow.app',
+  Deno.env.get('VAPID_PUBLIC_KEY')!,
+  Deno.env.get('VAPID_PRIVATE_KEY')!
+);
+
+// Enviar push
+await webpush.sendNotification(subscription, JSON.stringify(payload));
+```
+
+### Parte 4: Garantir Subscrições São Guardadas Correctamente
+
+Actualizar o hook `usePushNotifications.ts` para:
+1. Verificar se a subscrição foi guardada
+2. Retry em caso de falha
+3. Logging mais detalhado
+
+```typescript
+// Após subscription.toJSON()
+console.log('[Push] Subscription created:', subscriptionJSON.endpoint);
+
+// Verificar que foi guardado
+const { data: saved } = await supabase
+  .from('user_push_preferences')
+  .select('push_subscription')
+  .eq('user_id', user.id)
+  .single();
+
+if (!saved?.push_subscription) {
+  console.error('[Push] Subscription NOT saved!');
+  throw new Error('Failed to save subscription');
+}
+```
+
+### Parte 5: Service Worker para Push Real
+
+O `sw-push.js` actual está correcto, mas precisa de estar no scope principal para funcionar quando a app está fechada. Alterar:
+
+```typescript
+// usePushNotifications.ts - Mudar scope
+const registration = await navigator.serviceWorker.register('/sw-push.js', {
+  scope: '/',  // Scope principal para funcionar em background
+});
+```
+
 ---
 
-## Resumo das Alterações
+## Ficheiros a Modificar
 
-| Ficheiro/Recurso | Alteração |
-|------------------|-----------|
-| RLS `calendar_events` | Remover política "Members can view calendar events" |
-| `useCalendarEvents.ts` | Adicionar filtro `is_private` + `created_by` |
-| `useCalendarEvents.ts` | Filtrar eventos no handler realtime |
-
----
-
-## Regras de Visibilidade Final
-
-| Tipo de Evento | Quem Vê |
-|----------------|---------|
-| Evento público (`is_private = false`) | Todos os membros do workspace |
-| Evento Google pessoal (`is_private = true`) | Apenas o utilizador que sincronizou |
-| Captações de projecto | Todos (via tabela `projects`) |
+| Ficheiro | Alteração |
+|----------|-----------|
+| `supabase/functions/send-push-notification/index.ts` | Implementar Web Push protocol com encriptação ECDH |
+| `src/hooks/usePushNotifications.ts` | Corrigir scope do SW + verificação de subscrição |
+| `src/hooks/useChatNotifications.ts` | Adicionar fallback para chamar edge function quando necessário |
+| **Novo** Migration SQL | Criar trigger `on_new_message_notify` |
 
 ---
 
-## Impacto
+## Alternativa Simplificada
 
-- Os eventos do calendário pessoal do Google sincronizados pelo admin deixarão de aparecer para colaboradores
-- Eventos criados manualmente no WillFlow (reuniões, etc.) continuam visíveis para todos
-- A correcção é imediata após aplicar a migração RLS
+Se a implementação do Web Push protocol for muito complexa, podemos:
 
+1. **Usar OneSignal/Firebase Cloud Messaging**: Serviços geridos que tratam da encriptação
+2. **Usar Supabase Edge Function + Database Webhook**: Trigger que notifica via webhook
+
+A opção mais simples é usar `web-push` npm package via Deno, que já trata de toda a encriptação.
+
+---
+
+## Impacto Esperado
+
+- Notificações push **reais** quando a app está fechada
+- Som e toast instantâneos quando a app está aberta
+- Funciona em iOS Safari, Android Chrome, e browsers desktop
+- Notificações mesmo com telefone em standby (desde que push permissions concedidas)
+
+---
+
+## Próximos Passos
+
+1. Actualizar edge function com `web-push` npm package
+2. Criar trigger de base de dados para novas mensagens
+3. Corrigir registo do service worker
+4. Testar em dispositivo móvel real com app em standby
