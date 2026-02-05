@@ -1,109 +1,141 @@
 
-# Plano: Corrigir Incoerência de Vídeos e Aba Armazenamento Padrão
+
+# Plano: Corrigir Vazamento de Eventos Privados no Calendário
 
 ## Problema Identificado
 
-### 1. Incoerência de Vídeos na Aba "Produção"
-Na aba "Produção" do projeto:
-- O sistema seleciona automaticamente a **primeira tarefa** (`tasks[0].id`)
-- Os vídeos são filtrados por `task_id` quando uma tarefa está selecionada
-- **Problema**: Os 3 vídeos do "Park Hyatt Sydney" têm `task_id = null` (foram carregados directamente no projeto, não numa tarefa)
-- **Resultado**: Mostra "Nenhuma versão carregada" apesar de existirem vídeos no projeto
+Os eventos do Google Calendar pessoal sincronizados pelo admin (`is_private: true`) estão a aparecer para **todos** os colaboradores do workspace no calendário.
 
-### 2. Aba Padrão Incorrecta
-- Actualmente a aba padrão é "Links" (`mainTab: 'links'`)
-- O utilizador quer que "Armazenamento" seja a aba padrão
+### Causa Raiz
+
+1. **Políticas RLS Conflituantes:**
+   - `"Members can view calendar events"` → `is_workspace_member(...)` (sem filtro de privacidade)
+   - `"Users can view calendar events in their workspace"` → Filtra correctamente `(is_private = false) OR (created_by = auth.uid())`
+   
+   PostgreSQL combina políticas PERMISSIVE com OR, então a mais permissiva vence.
+
+2. **Hook `useCalendarEvents.ts` sem filtragem frontend:**
+   ```typescript
+   // Linha 38-42 - Busca TODOS os eventos do workspace
+   const { data, error } = await supabase
+     .from('calendar_events')
+     .select('*, projects(name, client_id)')
+     .eq('workspace_id', currentWorkspace.id)  // Sem filtro is_private!
+   ```
 
 ---
 
-## Alterações Necessárias
+## Solução
 
-### Ficheiro 1: `src/pages/app/Media.tsx`
-**Alteração**: Mudar aba padrão para "storage"
+### Parte 1: Corrigir Política RLS (Primária)
 
-```typescript
-// Linha 97 - Mudar de 'links' para 'storage'
-const [mainTab, setMainTab] = useState<'links' | 'storage'>('storage');
+Remover a política permissiva redundante e manter apenas a que respeita privacidade.
+
+```sql
+-- Remover política permissiva
+DROP POLICY IF EXISTS "Members can view calendar events" ON calendar_events;
+
+-- A política "Users can view calendar events in their workspace" já existe e é correcta:
+-- qual: ((is_private = false) OR (created_by = auth.uid()))
 ```
 
-### Ficheiro 2: `src/hooks/useVideoVersions.ts`
-**Alteração**: Quando `taskId` é fornecido mas vazio/null, dar prioridade ao `projectId`
+### Parte 2: Adicionar Filtragem no Frontend (Defesa em Profundidade)
 
-A lógica actual:
+Mesmo com RLS correcta, adicionar filtragem no hook `useCalendarEvents.ts` como camada extra de segurança.
+
 ```typescript
-if (taskId) {
-  query = query.eq('task_id', taskId);
-} else if (projectId) {
-  query = query.eq('project_id', projectId);
+// src/hooks/useCalendarEvents.ts - linha 30-52
+const fetchEvents = useCallback(async () => {
+  if (!currentWorkspace?.id || fetchError) return;
+  if (isFetchingRef.current) return;
+
+  try {
+    isFetchingRef.current = true;
+    setLoading(true);
+    
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    const { data, error } = await supabase
+      .from('calendar_events')
+      .select('*, projects(name, client_id)')
+      .eq('workspace_id', currentWorkspace.id)
+      .order('start_at', { ascending: true });
+
+    if (error) throw error;
+    
+    // Filter events based on privacy:
+    // - Public events (is_private = false): visible to all
+    // - Private events (is_private = true): only visible to creator
+    const filteredData = (data || []).filter(event => {
+      if (!event.is_private) return true;  // Public event
+      return event.created_by === user?.id;  // Private: only creator sees
+    });
+    
+    setEvents(filteredData);
+    lastFetchedWorkspaceIdRef.current = currentWorkspace.id;
+  } catch (error) {
+    logger.error('Error fetching calendar events:', error);
+  } finally {
+    isFetchingRef.current = false;
+    setLoading(false);
+  }
+}, [currentWorkspace?.id, fetchError]);
+```
+
+### Parte 3: Actualizar Realtime Handler
+
+Também aplicar filtragem no handler de realtime:
+
+```typescript
+// Linha 81-94 - INSERT handler
+if (payload.eventType === 'INSERT') {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  supabase
+    .from('calendar_events')
+    .select('*, projects(name, client_id)')
+    .eq('id', payload.new.id)
+    .single()
+    .then(({ data }) => {
+      if (data) {
+        // Check privacy before adding
+        const canView = !data.is_private || data.created_by === user?.id;
+        if (canView) {
+          setEvents(prev => [...prev, data].sort((a, b) => 
+            new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
+          ));
+        }
+      }
+    });
 }
 ```
-
-Esta lógica já está correcta - se `taskId` for `null`, usa `projectId`.
-
-### Ficheiro 3: `src/components/projects/ProjectDetailsSheet.tsx`
-**Alteração Principal**: Adicionar opção para ver **todos os vídeos do projeto** ou filtrar por tarefa
-
-Opção A (Recomendada): **Não selecionar tarefa por defeito**
-```typescript
-// Linha 192-199 - Mudar para não seleccionar tarefa automaticamente
-useEffect(() => {
-  if (!open) return;
-  // Não seleccionar tarefa automaticamente - mostrar todos os vídeos do projecto
-  setSelectedVideoTaskId(null);
-}, [open]);
-```
-
-Opção B: **Adicionar selector de tarefa com opção "Todos"**
-- Adicionar um Select com opção "Todos os vídeos" + lista de tarefas
-- Quando "Todos" selecionado, `taskId = null` → mostra vídeos por `project_id`
-
----
-
-## Solução Proposta
-
-Implementar **Opção A** (mais simples) com melhoria visual:
-
-1. **Não seleccionar tarefa automaticamente** → mostra todos os vídeos do projeto
-2. **Adicionar indicador opcional** de qual tarefa está associada a cada vídeo na lista
-
-### Alterações no `ProjectDetailsSheet.tsx`:
-
-```typescript
-// Linha 192-199 - Remover auto-selecção de tarefa
-useEffect(() => {
-  if (!open) return;
-  // Mostrar todos os vídeos do projecto por defeito
-  setSelectedVideoTaskId(null);
-}, [open]);
-```
-
-### Alterações no `VideoVersionsList` (se necessário):
-- Mostrar o nome da tarefa associada a cada vídeo (se existir)
-- Isto ajuda a identificar a que tarefa cada versão pertence
 
 ---
 
 ## Resumo das Alterações
 
-| Ficheiro | Alteração |
-|----------|-----------|
-| `Media.tsx` | `useState('links')` → `useState('storage')` |
-| `ProjectDetailsSheet.tsx` | Remover auto-selecção de tarefa |
-| `ProjectDetailsModal.tsx` | Mesma alteração (consistência) |
+| Ficheiro/Recurso | Alteração |
+|------------------|-----------|
+| RLS `calendar_events` | Remover política "Members can view calendar events" |
+| `useCalendarEvents.ts` | Adicionar filtro `is_private` + `created_by` |
+| `useCalendarEvents.ts` | Filtrar eventos no handler realtime |
 
 ---
 
-## Resultado Esperado
+## Regras de Visibilidade Final
 
-1. **Página Media** abre directamente na aba "Armazenamento"
-2. **Aba Produção** mostra todos os vídeos do projecto (não filtra por tarefa)
-3. **Mídias por Projeto** continua a mostrar apenas projectos que têm vídeos
-4. Sem incoerência entre as abas
+| Tipo de Evento | Quem Vê |
+|----------------|---------|
+| Evento público (`is_private = false`) | Todos os membros do workspace |
+| Evento Google pessoal (`is_private = true`) | Apenas o utilizador que sincronizou |
+| Captações de projecto | Todos (via tabela `projects`) |
 
 ---
 
-## Detalhes Técnicos
+## Impacto
 
-A query no `useVideoVersions` já suporta isto correctamente:
-- `taskId = null` + `projectId` → `query.eq('project_id', projectId)`
-- Isto retorna todos os vídeos do projecto, independentemente de terem ou não `task_id`
+- Os eventos do calendário pessoal do Google sincronizados pelo admin deixarão de aparecer para colaboradores
+- Eventos criados manualmente no WillFlow (reuniões, etc.) continuam visíveis para todos
+- A correcção é imediata após aplicar a migração RLS
+
