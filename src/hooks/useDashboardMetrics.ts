@@ -491,6 +491,18 @@ export function useDashboardMetrics() {
       // Check if user is admin
       const isAdmin = membership?.role === 'admin';
 
+     // Fetch user's project team memberships for captação (for non-admins)
+     let userCaptacaoProjectIds: string[] = [];
+     if (!isAdmin && user?.id) {
+       const { data: teamData } = await supabase
+         .from('project_team')
+         .select('project_id')
+         .eq('user_id', user.id)
+         .eq('phase', 'captacao');
+       
+       userCaptacaoProjectIds = teamData?.map(t => t.project_id) || [];
+     }
+
       // 1. Fetch calendar events (RLS filters: public workspace events OR private events created by user)
       const { data: eventsData } = await supabase
         .from('calendar_events')
@@ -513,7 +525,7 @@ export function useDashboardMetrics() {
         return isAdmin;
       }) || [];
 
-      // 2. Fetch project shoots (visible to all workspace members)
+     // 2. Fetch project shoots
       const { data: shootsData } = await supabase
         .from('projects')
         .select('id, name, shoot_date, shoot_start_time, clients(name)')
@@ -524,7 +536,34 @@ export function useDashboardMetrics() {
         .order('shoot_date', { ascending: true })
         .limit(10);
 
-      // 3. Combine filtered calendar events + project shoots
+     // Filter shoots: Admin sees all, collaborators only see their assigned captures
+     const filteredShoots = isAdmin 
+       ? shootsData || []
+       : (shootsData || []).filter(p => userCaptacaoProjectIds.includes(p.id));
+
+     // 3. Fetch tasks with due_date in next 7 days
+     const { data: tasksData } = await supabase
+       .from('tasks')
+       .select(`
+         id, title, due_date, due_time, project_id, is_completed,
+         projects(name),
+         task_assignees(user_id)
+       `)
+       .eq('workspace_id', currentWorkspace.id)
+       .eq('is_completed', false)
+       .gte('due_date', format(todayStart, 'yyyy-MM-dd'))
+       .lte('due_date', format(nextWeekDate, 'yyyy-MM-dd'))
+       .order('due_date', { ascending: true })
+       .limit(15);
+
+     // Filter tasks: Admin sees all, collaborators only see assigned tasks
+     const filteredTasks = isAdmin
+       ? tasksData || []
+       : (tasksData || []).filter(task => 
+           (task.task_assignees as any[])?.some(a => a.user_id === user?.id)
+         );
+
+     // 4. Combine filtered calendar events + filtered shoots + tasks
       const calendarEvents: UpcomingEvent[] = filteredEvents.map(e => ({
         id: e.id,
         title: e.title,
@@ -538,7 +577,7 @@ export function useDashboardMetrics() {
         allDay: e.all_day,
       }));
 
-      const shootEvents: UpcomingEvent[] = shootsData?.map(p => ({
+     const shootEvents: UpcomingEvent[] = filteredShoots.map(p => ({
         id: `shoot-${p.id}`,
         title: p.name,
         startAt: new Date(`${p.shoot_date}T${p.shoot_start_time || '09:00:00'}`),
@@ -549,10 +588,23 @@ export function useDashboardMetrics() {
         description: `Captação: ${(p.clients as any)?.name || 'Sem cliente'}`,
         videoCallUrl: null,
         allDay: !p.shoot_start_time,
-      })) || [];
+     }));
+
+     const taskEvents: UpcomingEvent[] = filteredTasks.map(t => ({
+       id: `task-${t.id}`,
+       title: t.title,
+       startAt: new Date(`${t.due_date}T${t.due_time || '09:00:00'}`),
+       endAt: null,
+       location: null,
+       eventType: 'deadline',
+       projectName: (t.projects as any)?.name,
+       description: 'Tarefa',
+       videoCallUrl: null,
+       allDay: !t.due_time,
+     }));
 
       // Combine, sort by date, limit to 5
-      const allEvents = [...calendarEvents, ...shootEvents]
+     const allEvents = [...calendarEvents, ...shootEvents, ...taskEvents]
         .sort((a, b) => a.startAt.getTime() - b.startAt.getTime())
         .slice(0, 5);
 
