@@ -13,14 +13,19 @@ const Toaster = ({ ...props }: ToasterProps) => {
       position="bottom-right"
       expand={true}
       richColors
+      closeButton
       toastOptions={{
         duration: 4000,
+        style: {
+          zIndex: 9999,
+        },
         classNames: {
           toast:
             "group toast group-[.toaster]:bg-background/80 group-[.toaster]:dark:bg-background/70 group-[.toaster]:backdrop-blur-xl group-[.toaster]:backdrop-saturate-150 group-[.toaster]:text-foreground group-[.toaster]:border-border/50 group-[.toaster]:shadow-xl group-[.toaster]:shadow-black/10 group-[.toaster]:dark:shadow-black/30",
           description: "group-[.toast]:text-muted-foreground",
           actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground group-[.toast]:hover:bg-primary/90",
           cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground group-[.toast]:hover:bg-muted/80",
+          closeButton: "!bg-background !border-border hover:!bg-muted !text-foreground",
           success:
             "group-[.toaster]:!bg-success/10 group-[.toaster]:dark:!bg-success/20 group-[.toaster]:!backdrop-blur-xl group-[.toaster]:!border-success/30 group-[.toaster]:!text-success-foreground group-[.toaster]:dark:!text-success",
           error:
