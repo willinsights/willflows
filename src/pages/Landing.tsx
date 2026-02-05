@@ -76,7 +76,7 @@ const features = [
   {
     icon: Film,
     title: '🎬 Aprovação de Vídeo',
-    description: 'Portal de review para clientes com comentários por timecode. Exclusivo Studio.',
+    description: 'Portal de review com comparação A/B de versões e comentários por timecode. Exclusivo Studio.',
     badge: 'Studio',
   },
   {
@@ -829,7 +829,7 @@ export default function Landing() {
                       <div className="space-y-2">
                         <div className="flex items-center gap-3">
                           <span className="text-lg">🎬</span>
-                          <span className="text-sm font-semibold text-foreground">Aprovação de vídeo</span>
+                          <span className="text-sm font-semibold text-foreground">Aprovação de vídeo e comparação A/B</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-lg">🎞️</span>
