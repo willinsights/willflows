@@ -48,15 +48,11 @@ import { AccessDenied } from '@/components/ui/access-denied';
 import { cn } from '@/lib/utils';
 
 export default function Clientes() {
-  const { canViewClients, canViewAllFinancials } = useFinancialPermissions();
+  const { canViewClients, canViewClientFinancials, canEditClients, canCreateClients } = useFinancialPermissions();
   const { clients, loading, deleteClient, updateClient, refresh } = useClients();
   const { projects } = useProjects();
   const { currentWorkspace } = useWorkspace();
 
-  // Block access for collaborators
-  if (!canViewClients) {
-    return <AccessDenied description="Apenas administradores, editores e captação podem aceder aos Clientes." />;
-  }
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
@@ -213,6 +209,11 @@ export default function Clientes() {
   const selectedClientData = selectedClient ? clients.find(c => c.id === selectedClient) : null;
   const selectedClientProjects = selectedClient ? projects.filter(p => p.client_id === selectedClient) : [];
 
+  // Block access for collaborators - MUST come after all hooks
+  if (!canViewClients) {
+    return <AccessDenied description="Apenas administradores, editores e captação podem aceder aos Clientes." />;
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -229,10 +230,12 @@ export default function Clientes() {
           <h1 className="text-2xl font-bold">Clientes</h1>
           <p className="text-muted-foreground">Gestão de clientes e análise de receitas</p>
         </div>
-        <Button className="gradient-primary" onClick={() => setShowCreateModal(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Cliente
-        </Button>
+        {canCreateClients && (
+          <Button className="gradient-primary" onClick={() => setShowCreateModal(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Cliente
+          </Button>
+        )}
       </div>
 
       {/* Filters Row */}
@@ -295,13 +298,13 @@ export default function Clientes() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-muted-foreground">Receita Total</p>
-              {canViewAllFinancials ? (
+              {canViewClientFinancials ? (
                 <Euro className="h-5 w-5 text-success" />
               ) : (
                 <Lock className="h-5 w-5 text-muted-foreground" />
               )}
             </div>
-            {canViewAllFinancials ? (
+            {canViewClientFinancials ? (
               <>
                 <p className="text-2xl font-bold text-success">{formatCurrency(globalStats.totalRevenue)}</p>
                 {globalStats.revenueChange !== null ? (
@@ -330,13 +333,13 @@ export default function Clientes() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-muted-foreground">Valor Médio/Projeto</p>
-              {canViewAllFinancials ? (
+              {canViewClientFinancials ? (
                 <TrendingUp className="h-5 w-5 text-primary" />
               ) : (
                 <Lock className="h-5 w-5 text-muted-foreground" />
               )}
             </div>
-            {canViewAllFinancials ? (
+            {canViewClientFinancials ? (
               <>
                 <p className="text-2xl font-bold">{formatCurrency(globalStats.avgProjectValue)}</p>
                 {globalStats.avgValueChange !== null ? (
@@ -445,8 +448,8 @@ export default function Clientes() {
                           </div>
                           
                           <div className="flex items-center gap-4">
-                            {/* Revenue - only visible to admin */}
-                            {canViewAllFinancials && (
+                            {/* Revenue - only visible with client financials permission */}
+                            {canViewClientFinancials && (
                               <div className="text-right">
                                 <p className="text-xs text-muted-foreground">Receita</p>
                                 <p className="font-semibold text-success">{formatCurrency(stats.totalRevenue)}</p>
@@ -478,13 +481,15 @@ export default function Clientes() {
                                   <Eye className="h-4 w-4 mr-2" />
                                   Ver detalhes
                                 </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  className="text-destructive"
-                                  onClick={(e) => { e.stopPropagation(); deleteClient(client.id); }}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Eliminar
-                                </DropdownMenuItem>
+                                {canEditClients && (
+                                  <DropdownMenuItem 
+                                    className="text-destructive"
+                                    onClick={(e) => { e.stopPropagation(); deleteClient(client.id); }}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Eliminar
+                                  </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>

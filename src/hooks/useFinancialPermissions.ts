@@ -36,6 +36,12 @@ export interface FinancialPermissions {
   userId: string | null;
   /** Whether permissions are still loading */
   isLoading: boolean;
+  /** Can view client financial values (estimated_value, revenue) */
+  canViewClientFinancials: boolean;
+  /** Can edit clients */
+  canEditClients: boolean;
+  /** Can create clients */
+  canCreateClients: boolean;
 }
 
 /**
@@ -82,6 +88,11 @@ export function useFinancialPermissions(): FinancialPermissions {
     const canViewClientContacts = hasPermission('clients.view');
     const canViewTeamContacts = hasPermission('team.view');
 
+    // Permissões granulares de clientes
+    const canViewClientFinancials = hasPermission('clients.view_financials');
+    const canEditClients = hasPermission('clients.edit');
+    const canCreateClients = hasPermission('clients.create');
+
     // Identificar se é colaborador (não tem visão financeira global, mas pode ver próprios ganhos)
     const isCollaborator = !canViewAllFinancials && canViewOwnFinancials && role !== null;
 
@@ -102,6 +113,9 @@ export function useFinancialPermissions(): FinancialPermissions {
       userRole: role,
       userId,
       isLoading,
+      canViewClientFinancials,
+      canEditClients,
+      canCreateClients,
     };
   }, [membership?.role, user?.id, workspaceLoading, permissionsLoading, permissions]);
 }
