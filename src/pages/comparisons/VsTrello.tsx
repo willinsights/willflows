@@ -1,7 +1,7 @@
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Check, X, Minus, Camera, Video, TrendingUp, CreditCard, Calendar, ArrowRight } from 'lucide-react';
+import { Check, X, Minus, Camera, Video, TrendingUp, CreditCard, Calendar, ArrowRight, Film } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
@@ -22,6 +22,9 @@ const comparisonData: Array<{ feature: string; trello: ComparisonStatus; willflo
   { feature: 'Alertas de prazos automáticos', trello: 'partial', willflow: true },
   { feature: 'Dashboard com métricas', trello: false, willflow: true },
   { feature: 'Interface em português', trello: true, willflow: true },
+  { feature: 'Aprovação de vídeo com link para cliente', trello: false, willflow: true },
+  { feature: 'Comparação A/B de versões', trello: false, willflow: true },
+  { feature: 'Desenho de Timeline para edição', trello: false, willflow: true },
 ];
 
 const StatusIcon = ({ status }: { status: boolean | 'partial' }) => {
@@ -66,6 +69,11 @@ const keyDifferences = [
     icon: Calendar,
     title: 'Calendário Inteligente',
     description: 'Eventos criados automaticamente a partir de projetos. Sincronização bidirecional com Google Calendar incluída.',
+  },
+  {
+    icon: Film,
+    title: 'Produção de Vídeo Completa',
+    description: 'Envie um link ao cliente para aprovar vídeos, compare versões A/B lado a lado e defina a estrutura de edição com a Timeline. O Trello não tem funcionalidades de vídeo.',
   },
 ];
 

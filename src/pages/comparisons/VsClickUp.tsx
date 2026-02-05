@@ -1,7 +1,7 @@
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Check, X, Minus, Camera, Video, DollarSign, Users, Zap, ArrowRight } from 'lucide-react';
+import { Check, X, Minus, Camera, Video, DollarSign, Users, Zap, ArrowRight, Film } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
@@ -22,6 +22,9 @@ const comparisonData: Array<{ feature: string; clickup: ComparisonStatus; willfl
   { feature: 'Interface simples e focada', clickup: false, willflow: true },
   { feature: 'Curva de aprendizagem baixa', clickup: false, willflow: true },
   { feature: 'Interface em português', clickup: 'partial', willflow: true },
+  { feature: 'Aprovação de vídeo com link para cliente', clickup: false, willflow: true },
+  { feature: 'Comparação A/B de versões', clickup: false, willflow: true },
+  { feature: 'Desenho de Timeline para edição', clickup: false, willflow: true },
 ];
 
 const StatusIcon = ({ status }: { status: boolean | 'partial' }) => {
@@ -66,6 +69,11 @@ const keyDifferences = [
     icon: Users,
     title: 'CRM para Clientes Criativos',
     description: 'Histórico de sessões, comunicações e projetos por cliente. ClickUp precisa de add-ons pagos para isso.',
+  },
+  {
+    icon: Film,
+    title: 'Review de Vídeo Nativo',
+    description: 'Clientes aprovam vídeos via link seguro, com comparação A/B de versões e timeline de segmentos para guiar a edição. O ClickUp não oferece nada disto.',
   },
 ];
 
