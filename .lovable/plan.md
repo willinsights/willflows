@@ -1,17 +1,17 @@
 
 
-# Plano: Próximos Compromissos com Visibilidade Diferenciada
+# Plano: Visibilidade de Compromissos Baseada em Participação
 
 ## Objetivo
 
-Modificar o widget "Próximos Compromissos" no Dashboard para:
-1. **Captações de projetos** → Visíveis para **todos** os membros do workspace
-2. **Eventos pessoais Google** → Visíveis apenas para o **próprio utilizador** que sincronizou
-3. **Eventos do workspace (reuniões, etc.)** → Visíveis apenas para **admins**
+Refinar as regras de visibilidade do widget "Próximos Compromissos" para:
+1. **Captações** → Só aparecem se o utilizador está na equipa do projeto na fase "captacao"
+2. **Tarefas** → Só aparecem se o utilizador está assignado à tarefa
+3. **Admin** → Vê tudo, mesmo sem estar adicionado como responsável
 
 ---
 
-## Regras de Visibilidade
+## Regras de Visibilidade Atualizadas
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
@@ -19,14 +19,16 @@ Modificar o widget "Próximos Compromissos" no Dashboard para:
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │   Admin:                                                        │
-│   ├── ✓ Captações do workspace (todos os projetos)             │
-│   ├── ✓ Eventos públicos do workspace (reuniões, etc.)         │
-│   └── ✓ Eventos privados do seu Google (só os seus)            │
+│   ├── ✓ Todas as captações do workspace                        │
+│   ├── ✓ Eventos públicos do workspace (reuniões)               │
+│   ├── ✓ Eventos privados do seu Google                         │
+│   └── ✓ Todas as tarefas com due_date                          │
 │                                                                 │
 │   Colaborador (edicao, captacao, gestao, visualizacao):         │
-│   ├── ✓ Captações do workspace (projetos que participa)         │
+│   ├── ✓ Captações onde sou responsável (phase='captacao')      │
 │   ├── ✗ Eventos públicos do workspace (NÃO vê)                 │
-│   └── ✓ Eventos privados do seu Google (só os seus)            │
+│   ├── ✓ Eventos privados do seu Google                         │
+│   └── ✓ Tarefas onde estou assignado (task_assignees)          │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -37,46 +39,28 @@ Modificar o widget "Próximos Compromissos" no Dashboard para:
 
 ### Ficheiro: `src/hooks/useDashboardMetrics.ts`
 
-#### 1. Importar hooks de permissões
+#### 1. Buscar membros de equipa do utilizador atual
 
-O hook já importa `useAuth`, precisamos usar o `user.id` para filtrar eventos.
-
-#### 2. Expandir lógica de eventos (linhas 487-513)
+Antes de filtrar captações, buscar em que projectos e fases o utilizador está:
 
 ```typescript
-// Fetch UPCOMING EVENTS (next 7 days) - com lógica de visibilidade
-const todayStart = startOfDay(now);
-const nextWeekDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+// Fetch user's project team memberships (for non-admins)
+let userCaptacaoProjectIds: string[] = [];
+if (!isAdmin && user?.id) {
+  const { data: teamData } = await supabase
+    .from('project_team')
+    .select('project_id')
+    .eq('user_id', user.id)
+    .eq('phase', 'captacao');
+  
+  userCaptacaoProjectIds = teamData?.map(t => t.project_id) || [];
+}
+```
 
-// Verificar se é admin
-const isAdmin = membership?.role === 'admin';
+#### 2. Filtrar captações baseado em participação
 
-// 1. Buscar eventos do calendário
-// A RLS já filtra: eventos públicos do workspace OU eventos privados criados pelo utilizador
-let eventsQuery = supabase
-  .from('calendar_events')
-  .select('id, title, start_at, end_at, location, event_type, project_id, description, video_call_url, all_day, is_private, created_by, projects(name)')
-  .eq('workspace_id', currentWorkspace.id)
-  .gte('start_at', todayStart.toISOString())
-  .lte('start_at', nextWeekDate.toISOString())
-  .order('start_at', { ascending: true })
-  .limit(10);
-
-const { data: eventsData } = await eventsQuery;
-
-// Filtrar eventos conforme permissões:
-// - Eventos privados (Google pessoal): só o criador vê
-// - Eventos públicos (workspace): só admin vê
-const filteredEvents = eventsData?.filter(event => {
-  // Evento privado: só o criador vê (RLS já garante, mas confirmamos)
-  if (event.is_private) {
-    return event.created_by === user?.id;
-  }
-  // Evento público do workspace: só admin vê
-  return isAdmin;
-}) || [];
-
-// 2. Buscar captações de projetos não entregues (visível para todos)
+```typescript
+// Fetch project shoots
 const { data: shootsData } = await supabase
   .from('projects')
   .select('id, name, shoot_date, shoot_start_time, clients(name)')
@@ -87,35 +71,60 @@ const { data: shootsData } = await supabase
   .order('shoot_date', { ascending: true })
   .limit(10);
 
-// 3. Combinar eventos do calendário filtrados + captações
-const calendarEvents: UpcomingEvent[] = filteredEvents.map(e => ({
-  id: e.id,
-  title: e.title,
-  startAt: new Date(e.start_at),
-  endAt: e.end_at ? new Date(e.end_at) : null,
-  location: e.location,
-  eventType: e.event_type,
-  projectName: (e.projects as any)?.name,
-  description: e.description,
-  videoCallUrl: e.video_call_url,
-  allDay: e.all_day,
-}));
+// Filter shoots: Admin sees all, collaborators only see their assigned captures
+const filteredShoots = isAdmin 
+  ? shootsData || []
+  : (shootsData || []).filter(p => userCaptacaoProjectIds.includes(p.id));
+```
 
-const shootEvents: UpcomingEvent[] = shootsData?.map(p => ({
-  id: `shoot-${p.id}`,
-  title: p.name,
-  startAt: new Date(`${p.shoot_date}T${p.shoot_start_time || '09:00:00'}`),
+#### 3. Adicionar tarefas com due_date nos próximos 7 dias
+
+```typescript
+// Fetch tasks with due_date in next 7 days
+const { data: tasksData } = await supabase
+  .from('tasks')
+  .select(`
+    id, title, due_date, due_time, project_id, is_completed,
+    projects(name),
+    task_assignees(user_id)
+  `)
+  .eq('workspace_id', currentWorkspace.id)
+  .eq('is_completed', false)
+  .gte('due_date', format(todayStart, 'yyyy-MM-dd'))
+  .lte('due_date', format(nextWeekDate, 'yyyy-MM-dd'))
+  .order('due_date', { ascending: true })
+  .limit(15);
+
+// Filter tasks: Admin sees all, collaborators only see assigned tasks
+const filteredTasks = isAdmin
+  ? tasksData || []
+  : (tasksData || []).filter(task => 
+      (task.task_assignees as any[])?.some(a => a.user_id === user?.id)
+    );
+```
+
+#### 4. Converter tarefas para UpcomingEvent
+
+```typescript
+const taskEvents: UpcomingEvent[] = filteredTasks.map(t => ({
+  id: `task-${t.id}`,
+  title: t.title,
+  startAt: new Date(`${t.due_date}T${t.due_time || '09:00:00'}`),
   endAt: null,
   location: null,
-  eventType: 'sessao',
-  projectName: p.name,
-  description: `Captação: ${(p.clients as any)?.name || 'Sem cliente'}`,
+  eventType: 'deadline',
+  projectName: (t.projects as any)?.name,
+  description: 'Tarefa',
   videoCallUrl: null,
-  allDay: !p.shoot_start_time,
-})) || [];
+  allDay: !t.due_time,
+}));
+```
 
-// Combinar, ordenar por data, limitar a 5
-const allEvents = [...calendarEvents, ...shootEvents]
+#### 5. Combinar tudo ordenado
+
+```typescript
+// Combine all events, sort by date, limit to 5
+const allEvents = [...calendarEvents, ...shootEvents, ...taskEvents]
   .sort((a, b) => a.startAt.getTime() - b.startAt.getTime())
   .slice(0, 5);
 
@@ -124,13 +133,14 @@ setUpcomingEvents(allEvents);
 
 ---
 
-## Resumo das Regras
+## Resumo das Regras Finais
 
-| Tipo de Evento | is_private | Admin Vê | Colaborador Vê |
-|----------------|------------|----------|----------------|
-| Captação (projeto) | N/A | ✓ | ✓ (todos) |
-| Evento público workspace | false | ✓ | ✗ |
-| Evento Google pessoal | true | ✓ (só os seus) | ✓ (só os seus) |
+| Tipo | Condição para Colaborador | Admin |
+|------|---------------------------|-------|
+| Captação | Está em `project_team` com `phase='captacao'` | Vê todas |
+| Tarefa | Está em `task_assignees` para a tarefa | Vê todas |
+| Evento Workspace | Não vê | Vê todas |
+| Evento Google Pessoal | Só os seus (`created_by`) | Só os seus |
 
 ---
 
@@ -138,18 +148,17 @@ setUpcomingEvents(allEvents);
 
 | Componente | Alteração |
 |------------|-----------|
-| `useDashboardMetrics.ts` | Lógica de filtragem expandida |
-| `UpcomingEventsCard.tsx` | Sem alteração |
+| `useDashboardMetrics.ts` | Nova lógica de filtragem + tarefas |
+| `UpcomingEventsCard.tsx` | Sem alteração (já suporta `eventType: 'deadline'`) |
 | `MobileUpcomingEvents.tsx` | Sem alteração |
-| Dashboard | Mostra diferentes eventos conforme permissões |
 
 ---
 
 ## Testes Esperados
 
-1. **Admin** vê captações + reuniões do workspace + seus eventos Google
-2. **Colaborador** vê captações + apenas seus eventos Google pessoais
-3. **Eventos públicos** (reuniões criadas no WillFlow) não aparecem para colaboradores
-4. **Ordenação** cronológica correta
-5. **Limite de 5** eventos mantido
+1. **Colaborador de captação** vê apenas captações dos projectos onde está assignado com `phase='captacao'`
+2. **Colaborador** vê apenas tarefas onde está em `task_assignees`
+3. **Admin** vê todas as captações e tarefas do workspace
+4. **Eventos Google pessoais** continuam visíveis apenas para o proprietário
+5. **Ordenação cronológica** correcta com todos os tipos de compromissos
 
