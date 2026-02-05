@@ -35,7 +35,6 @@ export type FeatureKey =
   | 'googleCalendar'
   | 'googleMeet'
   | 'templates'
-  | 'frameio'
   | 'automations'
   | 'permissions'
   | 'api'
@@ -70,7 +69,6 @@ function buildFeatureInfo(): Record<FeatureKey, FeatureInfo> {
     googleCalendar: 'Sincronização com Google Calendar',
     googleMeet: 'Criar reuniões automaticamente',
     templates: 'Templates de projeto personalizados',
-    frameio: 'Integração com Frame.io para revisão de vídeos',
     automations: 'Fluxos de trabalho automatizados',
     permissions: 'Permissões avançadas por cargo',
     api: 'Acesso à API e Webhooks',

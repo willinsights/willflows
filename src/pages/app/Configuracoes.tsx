@@ -1091,26 +1091,6 @@ export default function Configuracoes() {
               </CardContent>
             </Card>
 
-            <Card className="glass-card opacity-60">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Film className="h-5 w-5" />
-                    Frame.io
-                  </CardTitle>
-                  <Badge variant="outline" className="text-xs">
-                    <Clock className="h-3 w-3 mr-1" />
-                    Em breve
-                  </Badge>
-                </div>
-                <CardDescription>Review de vídeos integrado (em desenvolvimento)</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Esta integração permitirá ver comentários e aprovações do Frame.io diretamente no WillFlow.
-                </p>
-              </CardContent>
-            </Card>
           </div>
         </TabsContent>
 

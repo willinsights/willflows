@@ -115,7 +115,7 @@ describe("usePlanFeatures", () => {
       expect(result.current.hasFeatureAccess("chat")).toBe(true);
       
       // Pro plan should NOT have access to studio features
-      expect(result.current.hasFeatureAccess("frameio")).toBe(false);
+      expect(result.current.hasFeatureAccess("automations")).toBe(false);
       expect(result.current.hasFeatureAccess("automations")).toBe(false);
       expect(result.current.hasFeatureAccess("api")).toBe(false);
       expect(result.current.hasFeatureAccess("videoApproval")).toBe(false);
@@ -139,7 +139,6 @@ describe("usePlanFeatures", () => {
       expect(result.current.getRequiredPlan("chat")).toBe("pro");
       
       // Features that require studio plan
-      expect(result.current.getRequiredPlan("frameio")).toBe("studio");
       expect(result.current.getRequiredPlan("automations")).toBe("studio");
       expect(result.current.getRequiredPlan("api")).toBe("studio");
       expect(result.current.getRequiredPlan("videoApproval")).toBe("studio");
@@ -155,13 +154,13 @@ describe("usePlanFeatures", () => {
 
       // Check a feature that requires studio plan
       act(() => {
-        const canUse = result.current.checkFeature("frameio");
+        const canUse = result.current.checkFeature("videoApproval");
         expect(canUse).toBe(false);
       });
 
       // Alert should now be open
       expect(result.current.upgradeAlert.isOpen).toBe(true);
-      expect(result.current.upgradeAlert.feature?.key).toBe("frameio");
+      expect(result.current.upgradeAlert.feature?.key).toBe("videoApproval");
       expect(result.current.upgradeAlert.requiredPlan).toBe("studio");
     });
 
@@ -172,7 +171,7 @@ describe("usePlanFeatures", () => {
 
       // Trigger alert
       act(() => {
-        result.current.checkFeature("frameio");
+        result.current.checkFeature("videoApproval");
       });
       expect(result.current.upgradeAlert.isOpen).toBe(true);
 
@@ -203,7 +202,7 @@ describe("usePlanFeatures", () => {
       expect(result.current.features.exportPdf.hasAccess).toBe(true);
       
       // Studio features should not be available for Pro plan
-      expect(result.current.features.frameio.hasAccess).toBe(false);
+      expect(result.current.features.videoApproval.hasAccess).toBe(false);
     });
   });
 
@@ -299,7 +298,6 @@ describe("usePlanFeatures", () => {
       });
       expect(result.current.hasFeatureAccess("videoApproval")).toBe(true);
       expect(result.current.hasFeatureAccess("api")).toBe(true);
-      expect(result.current.hasFeatureAccess("frameio")).toBe(true);
       expect(result.current.hasFeatureAccess("automations")).toBe(true);
     });
 
@@ -343,7 +341,6 @@ describe("usePlanFeatures", () => {
       expect(result.current.hasFeatureAccess("googleCalendar")).toBe(true);
       expect(result.current.hasFeatureAccess("videoApproval")).toBe(true);
       expect(result.current.hasFeatureAccess("api")).toBe(true);
-      expect(result.current.hasFeatureAccess("frameio")).toBe(true);
     });
 
     it("Super Admin canUseFeature should always return true", () => {
@@ -353,7 +350,7 @@ describe("usePlanFeatures", () => {
 
       const features: FeatureKey[] = [
         "chat", "exportExcel", "exportPdf", "googleCalendar",
-        "videoApproval", "api", "frameio", "automations"
+        "videoApproval", "api", "automations"
       ];
 
       features.forEach(feature => {
@@ -402,7 +399,6 @@ describe("usePlanFeatures", () => {
       // Integration features
       expect(result.current.features.googleCalendar).toBeDefined();
       expect(result.current.features.googleMeet).toBeDefined();
-      expect(result.current.features.frameio).toBeDefined();
       expect(result.current.features.api).toBeDefined();
       
       // Studio features

@@ -82,7 +82,7 @@ const stats = [
 const roadmap = [
   {
     quarter: 'Q1 2026',
-    items: ['Integração Frame.io', 'App mobile iOS/Android', 'Relatórios personalizados'],
+    items: ['App mobile iOS/Android', 'Relatórios personalizados'],
     status: 'in-progress',
   },
   {
