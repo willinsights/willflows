@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { Mail, MessageSquare, HelpCircle, Send, CheckCircle } from 'lucide-react';
@@ -34,12 +35,28 @@ export default function Contact() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate form submission
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const formData = new FormData(e.currentTarget);
+    const name = formData.get('name') as string;
+    const email = formData.get('email') as string;
+    const subject = formData.get('subject') as string;
+    const message = formData.get('message') as string;
 
-    setIsSubmitting(false);
-    setIsSubmitted(true);
-    toast.success('Mensagem enviada com sucesso!');
+    try {
+      const { data, error } = await supabase.functions.invoke('send-contact-email', {
+        body: { name, email, subject, message },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      setIsSubmitted(true);
+      toast.success('Mensagem enviada com sucesso!');
+    } catch (err: any) {
+      console.error('Error sending contact form:', err);
+      toast.error(err?.message || 'Erro ao enviar mensagem. Tente novamente.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const schemaData = {
