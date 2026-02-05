@@ -1,136 +1,66 @@
 
-# Plano: Mostrar Detalhes dos Segmentos na Timeline
+
+# Plano: Adicionar Aprovacao de Video, Comparacao de Versoes e Timeline as Paginas de Comparacao
 
 ## Problema
 
-Actualmente, cada segmento da timeline só mostra o nome e a duração. Os campos adicionais como **descrição** e **notas** não são visíveis sem clicar para editar.
+As paginas de comparacao (vs Asana, ClickUp, Trello) e o hub de comparacoes nao mencionam tres funcionalidades diferenciadoras do WillFlow:
 
-## Dados Disponíveis por Segmento
+1. **Aprovacao de video com link para cliente** -- portal seguro onde clientes aprovam videos
+2. **Comparacao A/B de versoes** -- reproduzir duas versoes lado a lado sincronizadas
+3. **Desenho de Timeline** -- estrutura visual de segmentos para guiar a edicao
 
-| Campo | Visível Actualmente | Proposta |
-|-------|:-------------------:|:--------:|
-| Nome | Sim | Sim |
-| Duração | Sim | Sim |
-| Descrição | Nao | Tooltip/HoverCard |
-| Notas | Nao | Tooltip/HoverCard |
+Nenhum dos concorrentes tem estas funcionalidades nativamente.
 
 ---
 
-## Solucao Proposta
+## Alteracoes por Ficheiro
 
-### Opcao Recomendada: HoverCard (Popover ao Passar o Rato)
+### 1. ComparisonsHub.tsx -- Adicionar ao resumo de cada concorrente
 
-Ao passar o rato sobre cada segmento, aparece um painel com todos os detalhes:
+Adicionar nas limitacoes e vantagens de cada card:
 
-```text
-┌────────────────────────────────────┐
-│  Fachada                           │
-│  Duracao: 4s                       │
-├────────────────────────────────────┤
-│  Descricao:                        │
-│  Mostrar fachada do edificio...    │
-├────────────────────────────────────┤
-│  Notas:                            │
-│  Usar drone se disponivel          │
-└────────────────────────────────────┘
-```
+| Concorrente | Nova limitacao | Nova vantagem WillFlow |
+|-------------|---------------|----------------------|
+| Asana | Sem aprovacao de video | Aprovacao de video com comparacao A/B |
+| ClickUp | Sem review nativo de video | Timeline de edicao + aprovacao de video |
+| Trello | Sem producao de video | Aprovacao de video + comparacao de versoes |
 
-### Vantagens
-- Nao ocupa espaco extra na UI
-- Detalhes completos disponiveis instantaneamente
-- Mantém o design limpo da timeline
-- Funciona em desktop (hover) e mobile (lista ja mostra detalhes)
+### 2. VsAsana.tsx -- Tabela de comparacao + key differences
 
----
+Adicionar 3 linhas a `comparisonData`:
+- `Aprovacao de video com link para cliente` -- Asana: false, WillFlow: true
+- `Comparacao A/B de versoes` -- Asana: false, WillFlow: true
+- `Desenho de Timeline para edicao` -- Asana: false, WillFlow: true
 
-## Implementacao
+Adicionar 1 card novo em `keyDifferences`:
+- Icone: Film
+- Titulo: "Producao de Video Integrada"
+- Descricao: Mencionar aprovacao com link seguro, comparacao de versoes lado a lado e timeline de edicao. Asana nao tem nenhuma destas funcionalidades.
 
-### Parte 1: Actualizar TimelineSegment com HoverCard
+### 3. VsClickUp.tsx -- Tabela de comparacao + key differences
 
-Envolver cada segmento num `HoverCard` que mostra os detalhes ao passar o rato:
+Adicionar 3 linhas a `comparisonData`:
+- `Aprovacao de video com link para cliente` -- ClickUp: false, WillFlow: true
+- `Comparacao A/B de versoes` -- ClickUp: false, WillFlow: true
+- `Desenho de Timeline para edicao` -- ClickUp: false, WillFlow: true
 
-```typescript
-// TimelineSegment.tsx
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from '@/components/ui/hover-card';
+Adicionar 1 card novo em `keyDifferences`:
+- Icone: Film
+- Titulo: "Review de Video Nativo"
+- Descricao: Clientes aprovam videos via link seguro, com comparacao A/B de versoes e timeline de segmentos. ClickUp nao oferece nada disto.
 
-export function TimelineSegment({ segment, width, index, onClick }) {
-  const colorClass = segmentColors[index % segmentColors.length];
-  const hasDetails = segment.description || segment.notes;
-  
-  return (
-    <HoverCard openDelay={200} closeDelay={100}>
-      <HoverCardTrigger asChild>
-        <motion.div ...>
-          {/* Conteudo actual do segmento */}
-        </motion.div>
-      </HoverCardTrigger>
-      
-      {hasDetails && (
-        <HoverCardContent className="w-72" side="top">
-          <div className="space-y-2">
-            <div>
-              <h4 className="font-semibold">{segment.name}</h4>
-              <p className="text-xs text-muted-foreground">
-                {formatDurationRange(...)}
-              </p>
-            </div>
-            
-            {segment.description && (
-              <div>
-                <p className="text-xs font-medium">Descricao</p>
-                <p className="text-sm">{segment.description}</p>
-              </div>
-            )}
-            
-            {segment.notes && (
-              <div>
-                <p className="text-xs font-medium">Notas</p>
-                <p className="text-sm text-muted-foreground">
-                  {segment.notes}
-                </p>
-              </div>
-            )}
-          </div>
-        </HoverCardContent>
-      )}
-    </HoverCard>
-  );
-}
-```
+### 4. VsTrello.tsx -- Tabela de comparacao + key differences
 
-### Parte 2: Indicador Visual de Detalhes
+Adicionar 3 linhas a `comparisonData`:
+- `Aprovacao de video com link para cliente` -- Trello: false, WillFlow: true
+- `Comparacao A/B de versoes` -- Trello: false, WillFlow: true
+- `Desenho de Timeline para edicao` -- Trello: false, WillFlow: true
 
-Adicionar um pequeno icone ou indicador quando o segmento tem descricao ou notas:
-
-```typescript
-// Dentro do segmento, mostrar um ponto ou icone
-{hasDetails && (
-  <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-white/60 rounded-full" />
-)}
-```
-
-### Parte 3: Melhorar Vista Mobile
-
-A vista mobile (lista vertical) ja mostra a descricao, mas podemos adicionar as notas tambem:
-
-```typescript
-// ProjectTimelineTab.tsx - Vista mobile
-<div>
-  <p className="font-medium">{segment.name}</p>
-  {segment.description && (
-    <p className="text-xs text-muted-foreground">{segment.description}</p>
-  )}
-  {segment.notes && (
-    <p className="text-xs text-muted-foreground/70 italic mt-1">
-      Notas: {segment.notes}
-    </p>
-  )}
-</div>
-```
+Adicionar 1 card novo em `keyDifferences`:
+- Icone: Film
+- Titulo: "Producao de Video Completa"
+- Descricao: Envie um link ao cliente para aprovar videos, compare versoes A/B e defina a estrutura de edicao com a Timeline. O Trello nao tem funcionalidades de video.
 
 ---
 
@@ -138,27 +68,17 @@ A vista mobile (lista vertical) ja mostra a descricao, mas podemos adicionar as 
 
 | Ficheiro | Alteracao |
 |----------|-----------|
-| `src/components/projects/timeline/TimelineSegment.tsx` | Adicionar HoverCard com detalhes e indicador visual |
-| `src/components/projects/ProjectTimelineTab.tsx` | Adicionar notas na vista mobile |
+| `src/pages/comparisons/ComparisonsHub.tsx` | Adicionar mencoes a video nas vantagens/limitacoes dos cards |
+| `src/pages/comparisons/VsAsana.tsx` | +3 linhas na tabela, +1 card "key difference" |
+| `src/pages/comparisons/VsClickUp.tsx` | +3 linhas na tabela, +1 card "key difference" |
+| `src/pages/comparisons/VsTrello.tsx` | +3 linhas na tabela, +1 card "key difference" |
 
 ---
 
-## Comportamento Esperado
+## Resultado
 
-### Desktop
-1. Timeline mostra segmentos com nome e duracao
-2. Segmentos com detalhes mostram um pequeno indicador (ponto)
-3. Ao passar o rato, aparece um painel com descricao e notas
-4. Clicar ainda abre o modal de edicao
+Todas as paginas de comparacao passam a destacar claramente que o WillFlow oferece:
+- Aprovacao de video com link seguro para clientes (incluindo comparacao de versoes A/B)
+- Desenho de Timeline para estruturar a edicao
 
-### Mobile
-1. Lista vertical mostra nome, descricao e notas directamente
-2. Tocar abre o modal de edicao
-
----
-
-## Impacto
-
-- Detalhes de cada segmento visiveis sem necessidade de clicar
-- Interface limpa mantida na timeline horizontal
-- Experiencia melhorada para editores que precisam ver notas rapidamente
+Estas funcionalidades nao existem em nenhum dos concorrentes comparados.
