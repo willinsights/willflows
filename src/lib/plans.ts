@@ -196,7 +196,7 @@ export const PLANS: Record<PlanId, PlanInfo> = {
       { key: 'reportsAdvanced', name: 'Relatórios avançados', value: false, included: false, category: 'core' },
       { key: 'automations', name: 'Automações', value: false, included: false, category: 'core' },
       { key: 'timeline', name: 'Desenho de Timeline', value: false, included: false, category: 'studio' },
-      { key: 'videoApproval', name: 'Aprovação de vídeo', value: false, included: false, category: 'studio' },
+      { key: 'videoApproval', name: 'Aprovação de vídeo e comparação A/B', value: false, included: false, category: 'studio' },
     ],
   },
   pro: {
@@ -232,7 +232,7 @@ export const PLANS: Record<PlanId, PlanInfo> = {
       { key: 'googleMeet', name: 'Meet integrado', value: true, included: true, category: 'integration' },
       { key: 'automations', name: 'Automações avançadas', value: false, included: false, category: 'core' },
       { key: 'timeline', name: 'Desenho de Timeline', value: false, included: false, category: 'studio' },
-      { key: 'videoApproval', name: 'Aprovação de vídeo', value: false, included: false, category: 'studio' },
+      { key: 'videoApproval', name: 'Aprovação de vídeo e comparação A/B', value: false, included: false, category: 'studio' },
     ],
   },
   studio: {
@@ -268,7 +268,7 @@ export const PLANS: Record<PlanId, PlanInfo> = {
       { key: 'automations', name: 'Automações avançadas', value: true, included: true, category: 'core' },
       { key: 'permissions', name: 'Permissões avançadas', value: true, included: true, category: 'core' },
       { key: 'timeline', name: 'Desenho de Timeline', value: true, included: true, category: 'studio' },
-      { key: 'videoApproval', name: 'Aprovação de vídeo', value: true, included: true, category: 'studio' },
+      { key: 'videoApproval', name: 'Aprovação de vídeo e comparação A/B', value: true, included: true, category: 'studio' },
       { key: 'videoStorage', name: 'Armazenamento de vídeos', value: '10GB', included: true, category: 'limit' },
     ],
   },
