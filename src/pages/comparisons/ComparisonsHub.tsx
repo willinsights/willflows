@@ -12,22 +12,22 @@ const comparisons = [
     name: 'Asana',
     slug: 'asana',
     tagline: 'Gestão de projetos generalista vs especializada',
-    highlights: ['Sem CRM integrado', 'Sem gestão financeira', 'Curva de aprendizagem alta'],
-    willflowWins: ['CRM nativo', 'Pagamentos integrados', 'Fases de produção visual'],
+    highlights: ['Sem CRM integrado', 'Sem gestão financeira', 'Sem aprovação de vídeo'],
+    willflowWins: ['CRM nativo', 'Pagamentos integrados', 'Aprovação de vídeo com comparação A/B'],
   },
   {
     name: 'ClickUp',
     slug: 'clickup',
     tagline: 'Complexidade vs simplicidade focada',
-    highlights: ['Centenas de funcionalidades', 'Configuração demorada', 'Precisa de add-ons'],
-    willflowWins: ['Interface simples', 'Pronto a usar', 'Tudo incluído'],
+    highlights: ['Centenas de funcionalidades', 'Configuração demorada', 'Sem review nativo de vídeo'],
+    willflowWins: ['Interface simples', 'Timeline de edição + aprovação de vídeo', 'Tudo incluído'],
   },
   {
     name: 'Trello',
     slug: 'trello',
     tagline: 'Kanban simples vs sistema completo',
-    highlights: ['Apenas quadros Kanban', 'Sem finanças', 'Power-Ups pagos'],
-    willflowWins: ['CRM + Kanban + Finanças', 'Relatórios incluídos', 'Dashboard completo'],
+    highlights: ['Apenas quadros Kanban', 'Sem finanças', 'Sem produção de vídeo'],
+    willflowWins: ['CRM + Kanban + Finanças', 'Aprovação de vídeo + comparação de versões', 'Dashboard completo'],
   },
 ];
 

@@ -1,7 +1,7 @@
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Check, X, Minus, Camera, Video, Users, CreditCard, Calendar, BarChart3, ArrowRight } from 'lucide-react';
+import { Check, X, Minus, Camera, Video, Users, CreditCard, Calendar, BarChart3, ArrowRight, Film } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
@@ -22,6 +22,9 @@ const comparisonData: Array<{ feature: string; asana: ComparisonStatus; willflow
   { feature: 'Export Excel/PDF', asana: true, willflow: true },
   { feature: 'Preço acessível para freelancers', asana: false, willflow: true },
   { feature: 'Interface em português', asana: false, willflow: true },
+  { feature: 'Aprovação de vídeo com link para cliente', asana: false, willflow: true },
+  { feature: 'Comparação A/B de versões', asana: false, willflow: true },
+  { feature: 'Desenho de Timeline para edição', asana: false, willflow: true },
 ];
 
 const StatusIcon = ({ status }: { status: boolean | 'partial' }) => {
@@ -66,6 +69,11 @@ const keyDifferences = [
     icon: BarChart3,
     title: 'Relatórios de Margem',
     description: 'Veja a margem de lucro real de cada projeto. No Asana, não há cálculos financeiros automáticos.',
+  },
+  {
+    icon: Film,
+    title: 'Produção de Vídeo Integrada',
+    description: 'Envie um link seguro ao cliente para aprovar vídeos, compare versões A/B lado a lado e defina a estrutura de edição com a Timeline. O Asana não tem nenhuma destas funcionalidades.',
   },
 ];
 
