@@ -191,12 +191,9 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
   // Keep a stable default task selected for the video production tab
   useEffect(() => {
     if (!open) return;
-    if (tasks.length === 0) {
-      setSelectedVideoTaskId(null);
-      return;
-    }
-    setSelectedVideoTaskId((prev) => (prev && tasks.some((t) => t.id === prev) ? prev : tasks[0].id));
-  }, [open, tasks]);
+   // Show all project videos by default (not filtered by task)
+   setSelectedVideoTaskId(null);
+  }, [open]);
 
   const fetchRelatedData = async () => {
     if (!project) return;

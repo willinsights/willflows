@@ -94,7 +94,7 @@ export default function Media() {
   const [filterProject, setFilterProject] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [tabMode, setTabMode] = useState<'all' | 'by-project'>('all');
-  const [mainTab, setMainTab] = useState<'links' | 'storage'>('links');
+ const [mainTab, setMainTab] = useState<'links' | 'storage'>('storage');
 
   // Fetch all media links for the workspace
   const { data: mediaLinks = [], isLoading, refetch } = useQuery({
