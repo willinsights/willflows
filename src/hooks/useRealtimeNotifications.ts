@@ -92,7 +92,6 @@ export function useRealtimeNotifications() {
     toastFn(title, {
       description: message,
       duration: 8000,
-      closeButton: true,
     });
     
     // Send push notification if enabled

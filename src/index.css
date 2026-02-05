@@ -458,6 +458,27 @@
     border: 2px solid hsl(var(--primary));
     box-shadow: var(--glass-glow), var(--glass-shadow-hover);
   }
+
+  /* Sonner toast fixes - ensure interactivity */
+  [data-sonner-toaster] {
+    z-index: 9999 !important;
+    pointer-events: auto !important;
+  }
+
+  [data-sonner-toast] {
+    pointer-events: auto !important;
+  }
+
+  [data-sonner-toast] button {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+  }
+
+  [data-sonner-toast] [data-close-button] {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    opacity: 1 !important;
+  }
 }
 
 /* Theme transition animation - smooth color changes */
