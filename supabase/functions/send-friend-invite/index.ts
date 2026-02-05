@@ -148,13 +148,6 @@ const generateEmailHTML = (recipientName: string, senderName: string, customMess
                 </tr>
                 <tr>
                   <td style="padding: 8px 0; border-bottom: 1px solid #3f3f46;">
-                    <span style="color: #a78bfa; font-size: 16px; margin-right: 8px;">🎥</span>
-                    <span style="color: #fafafa; font-size: 14px;"><strong>Frame.io</strong></span>
-                    <span style="color: #71717a; font-size: 14px;"> — review de vídeos integrado</span>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; border-bottom: 1px solid #3f3f46;">
                     <span style="color: #00E5E5; font-size: 16px; margin-right: 8px;">📊</span>
                     <span style="color: #fafafa; font-size: 14px;"><strong>Relatórios</strong></span>
                     <span style="color: #71717a; font-size: 14px;"> — analisa performance e metas</span>

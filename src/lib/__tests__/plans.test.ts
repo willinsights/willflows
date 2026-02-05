@@ -129,11 +129,6 @@ describe('plans.ts - Plan Configuration', () => {
       expect(api?.included).toBe(true);
     });
 
-    it('Studio: frameio should be TRUE (included)', () => {
-      const studioFeatures = PLANS.studio.features;
-      const frameio = studioFeatures.find(f => f.key === 'frameio');
-      expect(frameio?.included).toBe(true);
-    });
   });
 
   describe('isPlanAtLeast', () => {

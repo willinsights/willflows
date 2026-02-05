@@ -51,7 +51,6 @@ interface MediaLink {
 const mediaTypes = [
   { value: 'all', label: 'Todos', icon: FolderOpen },
   { value: 'nas', label: 'NAS', icon: HardDrive },
-  { value: 'frameio', label: 'Frame.io', icon: Film },
   { value: 'vimeo', label: 'Vimeo', icon: Video },
   { value: 'youtube', label: 'YouTube', icon: Youtube },
   { value: 'drive', label: 'Google Drive', icon: Cloud },
@@ -66,7 +65,6 @@ const getMediaIcon = (type: string) => {
 const getMediaColor = (type: string) => {
   switch (type) {
     case 'nas': return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
-    case 'frameio': return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
     case 'vimeo': return 'bg-sky-500/10 text-sky-500 border-sky-500/20';
     case 'youtube': return 'bg-red-500/10 text-red-500 border-red-500/20';
     case 'drive': return 'bg-green-500/10 text-green-500 border-green-500/20';
@@ -77,7 +75,6 @@ const getMediaColor = (type: string) => {
 const getMediaBgColor = (type: string) => {
   switch (type) {
     case 'nas': return 'bg-amber-500';
-    case 'frameio': return 'bg-purple-500';
     case 'vimeo': return 'bg-sky-500';
     case 'youtube': return 'bg-red-500';
     case 'drive': return 'bg-green-500';

@@ -28,7 +28,6 @@ interface Integration {
 // Mapeamento de integração para feature key
 const integrationToFeature: Record<string, FeatureKey> = {
   'google-calendar': 'googleCalendar',
-  'frameio': 'frameio',
 };
 
 export function AccountIntegrationsTab({ planName }: AccountIntegrationsTabProps) {
@@ -42,16 +41,6 @@ export function AccountIntegrationsTab({ planName }: AccountIntegrationsTabProps
       icon: <Calendar className="h-5 w-5" />,
       connected: false,
       featureKey: 'googleCalendar',
-      comingSoon: true,
-    },
-    {
-      id: 'frameio',
-      name: 'Frame.io',
-      description: 'Revisão de vídeos com clientes',
-      icon: <Video className="h-5 w-5" />,
-      connected: false,
-      featureKey: 'frameio',
-      comingSoon: true,
     },
     {
       id: 'drive',
@@ -59,7 +48,6 @@ export function AccountIntegrationsTab({ planName }: AccountIntegrationsTabProps
       description: 'Sincronize pastas de projetos',
       icon: <Cloud className="h-5 w-5" />,
       connected: false,
-      comingSoon: true,
     },
   ];
 
