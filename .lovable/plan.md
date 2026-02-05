@@ -1,39 +1,68 @@
 
+# Corrigir Google Meet: "The specified time range is empty"
 
-# Plano: Activar Google Meet e Remover Google Drive
+## Problema Encontrado
 
-## Contexto
+Ao criar um evento com Meet, os logs mostram este erro do Google Calendar API:
 
-O Google Meet **já funciona** -- a edge function `create-google-meet` é chamada ao criar eventos e comunicações com reunião. O que está desactualizado é a UI que ainda mostra "Em breve" em vários sítios, e o Google Drive foi adicionado por engano.
+```
+"The specified time range is empty."
+```
 
-## Alterações
+Isto significa que a data/hora de fim e igual ou anterior a data de inicio. O Google rejeita o pedido e o Meet nao e criado.
 
-### 1. `src/components/account/AccountIntegrationsTab.tsx`
-- Remover Google Drive da lista de integrações
-- Adicionar Google Meet como integração disponível (com ícone Video)
-- Adicionar `'google-meet': 'googleMeet'` ao mapeamento `integrationToFeature`
+## Causa
 
-### 2. `src/pages/Integrations.tsx` (página pública)
-- Remover Google Drive da lista `integrations` (integrações disponíveis)
-- Mover Google Meet de `comingSoon` para `integrations` (disponível)
-- Adicionar features e benefícios do Meet (links automáticos, integração com calendário, etc.)
+1. **Frontend**: O `CreateEventModal` permite seleccionar uma hora de fim igual ou anterior a hora de inicio (ex: inicio 09:00, fim 09:00). Nao ha validacao.
+2. **Backend**: O edge function `create-google-meet` nao valida se `endDate > startDate` antes de chamar o Google API. Se receber timestamps invalidos, passa-os directamente.
 
-### 3. `src/pages/app/Configuracoes.tsx` (configurações da app)
-- Remover o card de Google Meet com badge "Em breve" e `opacity-60`
-- Substituir por um card activo mostrando que o Meet está disponível (sem opacity, sem badge "Em breve")
+## Correcoes
 
----
+### 1. `src/components/calendar/CreateEventModal.tsx`
+- Adicionar validacao no `handleSubmit`: se `endTime <= startTime` (e nao for dia inteiro), ajustar automaticamente o `endTime` para startTime + 1 hora
+- Alternativa visual: ao mudar o `startTime`, ajustar automaticamente o `endTime` para 1h depois se ficar invalido
+
+### 2. `supabase/functions/create-google-meet/index.ts`
+- Adicionar validacao de seguranca: se `endDate <= startDate`, forcar `endDate = startDate + 1 hora`
+- Isto protege contra qualquer caso edge que passe pelo frontend
+
+### 3. `src/hooks/useCalendarEvents.ts`
+- Antes de chamar o edge function, validar e corrigir os timestamps se necessario
+
+## Detalhes Tecnicos
+
+**CreateEventModal.tsx** - No `handleSubmit`, antes de submeter:
+```
+if (!allDay && endTime <= startTime) {
+  // Auto-corrigir: end = start + 1h
+}
+```
+
+**create-google-meet/index.ts** - Linha ~238:
+```
+// Garantir que endDate > startDate
+if (endDate.getTime() <= startDate.getTime()) {
+  endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+}
+```
+
+**useCalendarEvents.ts** - Antes da chamada fetch (~linha 189):
+```
+// Corrigir end_at se invalido
+const endAt = validation.data.end_at && new Date(validation.data.end_at) > new Date(validation.data.start_at)
+  ? validation.data.end_at
+  : new Date(new Date(validation.data.start_at).getTime() + 3600000).toISOString();
+```
 
 ## Ficheiros a Modificar
 
-| Ficheiro | Alteração |
+| Ficheiro | Alteracao |
 |----------|-----------|
-| `src/components/account/AccountIntegrationsTab.tsx` | Remover Drive, adicionar Meet |
-| `src/pages/Integrations.tsx` | Mover Meet para disponível, remover Drive |
-| `src/pages/app/Configuracoes.tsx` | Activar card do Meet |
+| `src/components/calendar/CreateEventModal.tsx` | Validacao de hora fim > hora inicio |
+| `supabase/functions/create-google-meet/index.ts` | Validacao de seguranca no backend |
+| `src/hooks/useCalendarEvents.ts` | Corrigir timestamps antes de chamar edge function |
 
 ## Resultado
 
-- Google Meet aparece como integração activa em todas as páginas
-- Google Drive é removido
-- O funcionamento interno (edge function, hooks) não muda -- já está tudo a funcionar
+- O Google Meet e sempre criado com sucesso quando o utilizador activa a opcao
+- Timestamps invalidos sao corrigidos automaticamente em 3 niveis (UI, hook, edge function)
