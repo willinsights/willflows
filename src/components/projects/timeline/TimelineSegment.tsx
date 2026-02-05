@@ -2,6 +2,11 @@ import { motion } from 'framer-motion';
 import { formatDurationRange } from '@/lib/duration-utils';
 import type { VideoStructure } from '@/hooks/useVideoStructure';
 import { cn } from '@/lib/utils';
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card';
 
 interface TimelineSegmentProps {
   segment: VideoStructure;
@@ -24,8 +29,9 @@ const segmentColors = [
 
 export function TimelineSegment({ segment, width, index, onClick }: TimelineSegmentProps) {
   const colorClass = segmentColors[index % segmentColors.length];
+  const hasDetails = segment.description || segment.notes;
   
-  return (
+  const segmentContent = (
     <motion.div
       layout
       initial={{ opacity: 0, scale: 0.9 }}
@@ -33,7 +39,7 @@ export function TimelineSegment({ segment, width, index, onClick }: TimelineSegm
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.2 }}
       className={cn(
-        'h-full flex flex-col items-center justify-center cursor-pointer transition-all duration-200',
+        'h-full flex flex-col items-center justify-center cursor-pointer transition-all duration-200 relative',
         'border-r border-background/50 last:border-r-0',
         'text-white',
         colorClass
@@ -42,6 +48,10 @@ export function TimelineSegment({ segment, width, index, onClick }: TimelineSegm
       onClick={onClick}
       whileHover={{ scale: 1.02, zIndex: 10 }}
     >
+      {/* Indicator for segments with details */}
+      {hasDetails && (
+        <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-white/60 rounded-full" />
+      )}
       <span className="text-xs font-medium truncate px-1 max-w-full">
         {segment.name}
       </span>
@@ -49,5 +59,42 @@ export function TimelineSegment({ segment, width, index, onClick }: TimelineSegm
         {formatDurationRange(segment.min_duration_seconds, segment.max_duration_seconds)}
       </span>
     </motion.div>
+  );
+
+  // If no details, just return the segment without HoverCard
+  if (!hasDetails) {
+    return segmentContent;
+  }
+
+  return (
+    <HoverCard openDelay={200} closeDelay={100}>
+      <HoverCardTrigger asChild>
+        {segmentContent}
+      </HoverCardTrigger>
+      <HoverCardContent className="w-72" side="top" sideOffset={8}>
+        <div className="space-y-3">
+          <div>
+            <h4 className="font-semibold text-sm">{segment.name}</h4>
+            <p className="text-xs text-muted-foreground">
+              Duração: {formatDurationRange(segment.min_duration_seconds, segment.max_duration_seconds)}
+            </p>
+          </div>
+          
+          {segment.description && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Descrição</p>
+              <p className="text-sm">{segment.description}</p>
+            </div>
+          )}
+          
+          {segment.notes && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Notas</p>
+              <p className="text-sm text-muted-foreground">{segment.notes}</p>
+            </div>
+          )}
+        </div>
+      </HoverCardContent>
+    </HoverCard>
   );
 }

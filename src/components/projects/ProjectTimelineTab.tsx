@@ -253,6 +253,11 @@ export function ProjectTimelineTab({ projectId, workspaceId }: ProjectTimelineTa
                           {segment.description && (
                             <p className="text-xs text-muted-foreground">{segment.description}</p>
                           )}
+                          {segment.notes && (
+                            <p className="text-xs text-muted-foreground/70 italic mt-1">
+                              Notas: {segment.notes}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <Badge variant="secondary">
