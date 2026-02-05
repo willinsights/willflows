@@ -488,29 +488,75 @@ export function useDashboardMetrics() {
       const todayStart = startOfDay(now);
       const nextWeekDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       
+      // Check if user is admin
+      const isAdmin = membership?.role === 'admin';
+
+      // 1. Fetch calendar events (RLS filters: public workspace events OR private events created by user)
       const { data: eventsData } = await supabase
         .from('calendar_events')
-        .select('id, title, start_at, end_at, location, event_type, project_id, description, video_call_url, all_day, projects(name)')
+        .select('id, title, start_at, end_at, location, event_type, project_id, description, video_call_url, all_day, is_private, created_by, projects(name)')
         .eq('workspace_id', currentWorkspace.id)
         .gte('start_at', todayStart.toISOString())
         .lte('start_at', nextWeekDate.toISOString())
         .order('start_at', { ascending: true })
-        .limit(5);
+        .limit(10);
 
-      setUpcomingEvents(
-        eventsData?.map(e => ({
-          id: e.id,
-          title: e.title,
-          startAt: new Date(e.start_at),
-          endAt: e.end_at ? new Date(e.end_at) : null,
-          location: e.location,
-          eventType: e.event_type,
-          projectName: (e.projects as any)?.name,
-          description: e.description,
-          videoCallUrl: e.video_call_url,
-          allDay: e.all_day,
-        })) || []
-      );
+      // Filter events based on permissions:
+      // - Private events (Google personal): only creator sees
+      // - Public workspace events (meetings): only admin sees
+      const filteredEvents = eventsData?.filter(event => {
+        // Private event: only creator sees (RLS already guarantees, but we confirm)
+        if (event.is_private) {
+          return event.created_by === user?.id;
+        }
+        // Public workspace event: only admin sees
+        return isAdmin;
+      }) || [];
+
+      // 2. Fetch project shoots (visible to all workspace members)
+      const { data: shootsData } = await supabase
+        .from('projects')
+        .select('id, name, shoot_date, shoot_start_time, clients(name)')
+        .eq('workspace_id', currentWorkspace.id)
+        .eq('is_delivered', false)
+        .gte('shoot_date', format(todayStart, 'yyyy-MM-dd'))
+        .lte('shoot_date', format(nextWeekDate, 'yyyy-MM-dd'))
+        .order('shoot_date', { ascending: true })
+        .limit(10);
+
+      // 3. Combine filtered calendar events + project shoots
+      const calendarEvents: UpcomingEvent[] = filteredEvents.map(e => ({
+        id: e.id,
+        title: e.title,
+        startAt: new Date(e.start_at),
+        endAt: e.end_at ? new Date(e.end_at) : null,
+        location: e.location,
+        eventType: e.event_type,
+        projectName: (e.projects as any)?.name,
+        description: e.description,
+        videoCallUrl: e.video_call_url,
+        allDay: e.all_day,
+      }));
+
+      const shootEvents: UpcomingEvent[] = shootsData?.map(p => ({
+        id: `shoot-${p.id}`,
+        title: p.name,
+        startAt: new Date(`${p.shoot_date}T${p.shoot_start_time || '09:00:00'}`),
+        endAt: null,
+        location: null,
+        eventType: 'sessao',
+        projectName: p.name,
+        description: `Captação: ${(p.clients as any)?.name || 'Sem cliente'}`,
+        videoCallUrl: null,
+        allDay: !p.shoot_start_time,
+      })) || [];
+
+      // Combine, sort by date, limit to 5
+      const allEvents = [...calendarEvents, ...shootEvents]
+        .sort((a, b) => a.startAt.getTime() - b.startAt.getTime())
+        .slice(0, 5);
+
+      setUpcomingEvents(allEvents);
 
       // Fetch urgent projects
       const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
