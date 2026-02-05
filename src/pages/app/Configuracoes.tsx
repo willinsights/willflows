@@ -1070,24 +1070,21 @@ export default function Configuracoes() {
               </CardContent>
             </Card>
 
-            <Card className="glass-card opacity-60">
+            <Card className="glass-card">
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Video className="h-5 w-5" />
-                    Google Meet
-                  </CardTitle>
-                  <Badge variant="outline" className="text-xs">
-                    <Clock className="h-3 w-3 mr-1" />
-                    Em breve
-                  </Badge>
-                </div>
-                <CardDescription>Links de reunião automáticos (em desenvolvimento)</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <Video className="h-5 w-5" />
+                  Google Meet
+                </CardTitle>
+                <CardDescription>Links de reunião automáticos ao agendar eventos e comunicações</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Esta integração permitirá criar links do Google Meet automaticamente ao agendar reuniões.
-                </p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Status: Activo</p>
+                  </div>
+                  <Badge variant="default" className="bg-success text-xs">Activo</Badge>
+                </div>
               </CardContent>
             </Card>
 

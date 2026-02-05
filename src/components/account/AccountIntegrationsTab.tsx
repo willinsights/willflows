@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Calendar, Video, Cloud, ExternalLink, Lock, Crown } from 'lucide-react';
+import { Calendar, Video, ExternalLink, Lock, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -28,6 +28,7 @@ interface Integration {
 // Mapeamento de integração para feature key
 const integrationToFeature: Record<string, FeatureKey> = {
   'google-calendar': 'googleCalendar',
+  'google-meet': 'googleMeet',
 };
 
 export function AccountIntegrationsTab({ planName }: AccountIntegrationsTabProps) {
@@ -43,11 +44,12 @@ export function AccountIntegrationsTab({ planName }: AccountIntegrationsTabProps
       featureKey: 'googleCalendar',
     },
     {
-      id: 'drive',
-      name: 'Google Drive',
-      description: 'Sincronize pastas de projetos',
-      icon: <Cloud className="h-5 w-5" />,
+      id: 'google-meet',
+      name: 'Google Meet',
+      description: 'Links de reunião automáticos',
+      icon: <Video className="h-5 w-5" />,
       connected: false,
+      featureKey: 'googleMeet',
     },
   ];
 
