@@ -1,146 +1,82 @@
 
-# Plano: Corrigir Apresentação de Vídeos Verticais no Safari
+# Plano: Corrigir Permissões de Clientes para Colaboradores
 
-## Problema Identificado
+## Problemas Identificados
 
-O vídeo vertical (formato Reels 9:16) está a ser apresentado incorrectamente no Safari. No Chrome aparece correctamente centrado com pillarboxing (barras pretas laterais), mas no Safari o vídeo fica distorcido ou com crop errado.
+### 1. Política RLS de INSERT Incorrecta
+A política de INSERT na tabela `clients` usa `clients.edit` em vez de `clients.create`:
 
-### Causas Raiz
+```sql
+-- Política actual (INCORRECTA)
+WITH CHECK: has_workspace_permission(auth.uid(), workspace_id, 'clients.edit')
 
-1. **Aspect ratio forçado 16:9**: O `VideoPlayer.tsx` define `style={{ aspectRatio: '16/9' }}` directamente no elemento `<video>` (linha 532), ignorando a proporção nativa do vídeo
+-- Deveria ser
+WITH CHECK: has_workspace_permission(auth.uid(), workspace_id, 'clients.create')
+```
 
-2. **Container fixo 16:9**: O `VideoProductionTab.tsx` passa `className="aspect-video w-full"` que força `aspect-ratio: 16/9` no container
+**Impacto**: Utilizadores com permissão `clients.create` mas sem `clients.edit` não conseguem criar clientes.
 
-3. **Bug do Safari com object-fit**: O Safari tem problemas conhecidos onde o `object-fit: contain` não funciona correctamente até os metadados do vídeo estarem completamente carregados, causando o "salto" visual
+### 2. Falta de Permissão `clients.view_financials` no Frontend
+A página de Clientes usa `canViewAllFinancials` (permissão global de dashboard) para esconder valores financeiros, mas deveria usar a permissão específica `clients.view_financials`.
 
-4. **Falta de detecção de orientação**: O sistema não detecta se o vídeo é horizontal (16:9) ou vertical (9:16) para ajustar o layout
-
----
-
-## Análise das Screenshots
-
-| Browser | Comportamento |
-|---------|---------------|
-| **Chrome** (Screenshot 2) | Vídeo vertical centrado correctamente com barras pretas laterais (pillarboxing) |
-| **Safari** (Screenshot 1) | Vídeo aparece "zoomed in" apenas na água, perdendo o conteúdo principal |
+### 3. Campos Financeiros na Tabela Clients
+A tabela `clients` tem um campo `estimated_value` que é valor financeiro e não deveria ser visível a colaboradores sem permissão financeira.
 
 ---
 
 ## Solução
 
-### Parte 1: Detectar Aspect Ratio Nativo do Vídeo
+### Parte 1: Corrigir Políticas RLS da Tabela `clients`
 
-Adicionar detecção do aspect ratio do vídeo quando os metadados carregam:
+Actualizar as políticas para usar as permissões correctas:
 
-```typescript
-// VideoPlayer.tsx
-const [videoAspectRatio, setVideoAspectRatio] = useState<number | null>(null);
-const [isPortrait, setIsPortrait] = useState(false);
+```sql
+-- DROP e recriar política INSERT
+DROP POLICY IF EXISTS "Members with edit permission can create clients" ON public.clients;
 
-const handleLoadedMetadata = useCallback(() => {
-  if (videoRef.current) {
-    const { videoWidth, videoHeight } = videoRef.current;
-    const ratio = videoWidth / videoHeight;
-    setVideoAspectRatio(ratio);
-    setIsPortrait(ratio < 1); // Vertical if width < height
-    setDuration(videoRef.current.duration);
-    setIsLoading(false);
-    setLoadError(null);
-  }
-}, []);
+CREATE POLICY "Members with create permission can create clients"
+ON public.clients FOR INSERT
+WITH CHECK (has_workspace_permission(auth.uid(), workspace_id, 'clients.create'));
+
+-- Manter políticas existentes de SELECT, UPDATE e DELETE
+-- SELECT já usa 'clients.view' (correcto)
+-- UPDATE já usa 'clients.edit' (correcto)
+-- DELETE já usa 'clients.edit' (correcto)
 ```
 
-### Parte 2: Container com Aspect Ratio Dinâmico
+### Parte 2: Adicionar Permissão `clients.view_financials` ao Hook
 
-Usar altura máxima fixa com aspect ratio dinâmico:
-
-```typescript
-// VideoPlayer.tsx - Container principal
-<div 
-  ref={containerRef}
-  className={cn(
-    "relative group bg-black rounded-lg overflow-hidden",
-    // Para vídeos verticais, limitar altura e centrar
-    isPortrait ? "max-h-[70vh] mx-auto" : "w-full",
-    className
-  )}
-  style={{
-    aspectRatio: videoAspectRatio 
-      ? `${videoAspectRatio}` 
-      : undefined,
-  }}
->
-```
-
-### Parte 3: Remover Aspect Ratio Fixo do Elemento Video
-
-Usar `object-fit: contain` sem forçar 16:9:
+Actualizar `useFinancialPermissions.ts` para incluir verificação de `clients.view_financials`:
 
 ```typescript
-// VideoPlayer.tsx - Elemento <video>
-<video
-  ref={videoRef}
-  className="w-full h-full"
-  style={{ 
-    objectFit: 'contain',
-    // Safari fix: usar min-height para evitar colapso
-    minHeight: isPortrait ? 'auto' : undefined,
-  }}
-  onClick={togglePlay}
-  preload="metadata"
-  playsInline
-/>
+// Adicionar nova permissão
+const canViewClientFinancials = hasPermission('clients.view_financials');
 ```
 
-### Parte 4: Actualizar VideoProductionTab para Layout Flexível
+### Parte 3: Actualizar Página de Clientes
 
-Em vez de forçar `aspect-video`, usar container flexível:
+Na página `Clientes.tsx`, usar `canViewClientFinancials` específico em vez de `canViewAllFinancials` para os valores de receita dos clientes:
 
 ```typescript
-// VideoProductionTab.tsx
-{selectedVersion && (selectedVersion.cloudflare_stream_uid || videoUrl) ? (
-  <div className="relative w-full flex justify-center">
-    <VideoPlayer
-      ref={videoPlayerRef}
-      src={videoUrl || undefined}
-      streamUid={selectedVersion.cloudflare_stream_uid || undefined}
-      hlsUrl={selectedVersion.stream_playback_url || undefined}
-      isProcessing={isVersionProcessing}
-      onAddComment={handleAddComment}
-      className="w-full max-h-[70vh]"  // Altura máxima, não aspect-ratio fixo
-    />
-  </div>
-) : ...}
-```
+// Em vez de
+const { canViewClients, canViewAllFinancials } = useFinancialPermissions();
 
-### Parte 5: Fix Safari com min-height Workaround
+// Usar também
+const { canViewClients, canViewAllFinancials, canViewClientFinancials } = useFinancialPermissions();
 
-Adicionar CSS específico para Safari:
-
-```css
-/* src/index.css */
-/* Safari video aspect ratio fix */
-@supports (-webkit-touch-callout: none) {
-  video {
-    min-height: 1px; /* Force Safari to respect object-fit */
-  }
-}
-```
-
-### Parte 6: Placeholder com Aspect Ratio Consistente
-
-Enquanto o vídeo carrega, mostrar placeholder que depois se adapta:
-
-```typescript
-// VideoPlayer.tsx - Estado de loading
-{isLoading && !videoAspectRatio && (
-  <div 
-    className="absolute inset-0 flex items-center justify-center bg-black"
-    style={{ aspectRatio: '16/9' }} // Placeholder 16:9 enquanto carrega
-  >
-    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-  </div>
+// Usar canViewClientFinancials para mostrar/esconder receita na lista de clientes
+{canViewClientFinancials && (
+  <p className="font-semibold text-success">{formatCurrency(stats.totalRevenue)}</p>
 )}
+```
+
+### Parte 4: Adicionar Permissão `clients.edit` ao Hook para UI de Edição
+
+Adicionar verificação para esconder botões de edição/eliminação se não tiver permissão:
+
+```typescript
+const canEditClients = hasPermission('clients.edit');
+const canCreateClients = hasPermission('clients.create');
 ```
 
 ---
@@ -149,27 +85,40 @@ Enquanto o vídeo carrega, mostrar placeholder que depois se adapta:
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `src/components/video-production/VideoPlayer.tsx` | Detectar aspect ratio, remover 16:9 fixo, adaptar layout |
-| `src/components/video-production/VideoProductionTab.tsx` | Remover `aspect-video` fixo, usar layout flexível |
-| `src/pages/public/VideoApproval.tsx` | Mesma lógica para portal de aprovação |
-| `src/index.css` | CSS fix para Safari |
+| **Migration SQL** | Corrigir política INSERT de `clients.edit` → `clients.create` |
+| `src/hooks/useFinancialPermissions.ts` | Adicionar `canViewClientFinancials`, `canEditClients`, `canCreateClients` |
+| `src/pages/app/Clientes.tsx` | Usar permissões granulares para valores financeiros e botões de edição |
+| `src/components/projects/CreateProjectModal.tsx` | Verificar `clients.view` para mostrar dropdown de clientes |
+| `src/components/projects/ProjectDetailsSheet.tsx` | Idem |
 
 ---
 
-## Comportamento Esperado
+## Lógica de Permissões Final
 
-| Tipo de Vídeo | Apresentação |
-|---------------|--------------|
-| Horizontal 16:9 | Ocupa largura total, altura proporcional |
-| Vertical 9:16 (Reels) | Centrado horizontalmente, altura máxima 70vh |
-| Quadrado 1:1 | Centrado, adapta ao container |
-| Ultra-wide 21:9 | Ocupa largura total com letterbox |
+| Role | Ver Clientes | Criar Clientes | Editar Clientes | Ver Valores Financeiros |
+|------|--------------|----------------|-----------------|------------------------|
+| Admin | ✅ | ✅ | ✅ | ✅ |
+| Edição | ✅ (default) | ✅ (default) | ✅ (default) | ✅ (default) |
+| Captação | ✅ (default) | ✅ (default) | ✅ (default) | ❌ (default) |
+| Gestão | ✅ (default) | ❌ | ❌ | ❌ |
+| Visualização | ✅ (default) | ❌ | ❌ | ❌ |
+
+**Nota**: Estas são as permissões por omissão. O admin do workspace pode personalizar através da página de Permissões.
+
+---
+
+## Comportamento Esperado Após Correcção
+
+1. **Colaboradores com `clients.view`**: Podem ver a lista de clientes e seleccionar clientes em projectos
+2. **Colaboradores com `clients.create`**: Podem criar novos clientes
+3. **Colaboradores com `clients.edit`**: Podem editar e eliminar clientes
+4. **Colaboradores sem `clients.view_financials`**: Vêem a lista de clientes mas valores de receita aparecem como "---"
 
 ---
 
 ## Impacto
 
-- Vídeos verticais (Reels, TikTok, Stories) exibidos correctamente em **todos os browsers**
-- Safari deixa de mostrar vídeos com crop errado
-- O layout adapta-se automaticamente ao tipo de conteúdo
-- Mantém compatibilidade com vídeos horizontais existentes
+- Colaboradores autorizados acedem à página Clientes sem erros
+- Podem seleccionar/criar clientes em projectos
+- Valores financeiros ficam ocultos para quem não tem permissão
+- Botões de edição/eliminação só aparecem para quem tem permissão
