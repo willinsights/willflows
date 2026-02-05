@@ -1,162 +1,164 @@
 
-# Plano: Alinhar Modal de Edição com Modal de Criação de Cliente
+# Plano: Mostrar Detalhes dos Segmentos na Timeline
 
-## Problema Identificado
+## Problema
 
-O formulário de edição de cliente (dentro do `ClientDetailsModal`) tem campos diferentes do formulário de criação (`CreateClientModal`):
+Actualmente, cada segmento da timeline só mostra o nome e a duração. Os campos adicionais como **descrição** e **notas** não são visíveis sem clicar para editar.
 
-| Campo | Criar | Editar | Acção |
-|-------|:-----:|:------:|-------|
-| Nome * | ✅ | ✅ | Manter |
-| Nome da Empresa * | ✅ | ✅ (label diferente) | Alinhar label |
-| Tax ID * (NIF) | ✅ | ✅ (label "NIF/VAT") | Adicionar tooltip |
-| Morada Fiscal * | ✅ | ✅ (label "Morada") | Alinhar label |
-| Código Postal * | ✅ | ❌ | **Adicionar** |
-| País * | ✅ | ❌ | **Adicionar** |
-| Email de Faturação * | ✅ | ✅ (label diferente) | Alinhar label |
-| Contacto Telefónico | ✅ | ✅ | Manter |
-| Cidade | ❌ | ✅ | **Remover** |
-| Notas Internas | ❌ | ✅ | Manter (útil) |
+## Dados Disponíveis por Segmento
+
+| Campo | Visível Actualmente | Proposta |
+|-------|:-------------------:|:--------:|
+| Nome | Sim | Sim |
+| Duração | Sim | Sim |
+| Descrição | Nao | Tooltip/HoverCard |
+| Notas | Nao | Tooltip/HoverCard |
 
 ---
 
-## Solução
+## Solucao Proposta
 
-### Parte 1: Actualizar Estado do Formulário de Edição
+### Opcao Recomendada: HoverCard (Popover ao Passar o Rato)
 
-Adicionar os campos `postal_code` e `country`, remover `city`:
+Ao passar o rato sobre cada segmento, aparece um painel com todos os detalhes:
 
-```typescript
-const [editForm, setEditForm] = useState({
-  name: '',
-  email: '',
-  phone: '',
-  company: '',
-  nif: '',
-  address: '',
-  postal_code: '',  // Novo
-  country: '',      // Novo
-  notes: '',
-});
+```text
+┌────────────────────────────────────┐
+│  Fachada                           │
+│  Duracao: 4s                       │
+├────────────────────────────────────┤
+│  Descricao:                        │
+│  Mostrar fachada do edificio...    │
+├────────────────────────────────────┤
+│  Notas:                            │
+│  Usar drone se disponivel          │
+└────────────────────────────────────┘
 ```
 
-### Parte 2: Sincronizar com Dados do Cliente
+### Vantagens
+- Nao ocupa espaco extra na UI
+- Detalhes completos disponiveis instantaneamente
+- Mantém o design limpo da timeline
+- Funciona em desktop (hover) e mobile (lista ja mostra detalhes)
 
-Actualizar o `useEffect` para incluir os novos campos:
+---
 
-```typescript
-useEffect(() => {
-  if (client) {
-    setEditForm({
-      name: client.name || '',
-      email: client.email || '',
-      phone: client.phone || '',
-      company: client.company || '',
-      nif: client.nif || '',
-      address: client.address || '',
-      postal_code: client.postal_code || '',  // Novo
-      country: client.country || '',          // Novo
-      notes: client.notes || '',
-    });
-  }
-}, [client]);
-```
+## Implementacao
 
-### Parte 3: Actualizar Interface do Cliente
+### Parte 1: Actualizar TimelineSegment com HoverCard
 
-Expandir o type `Client` para incluir os campos:
+Envolver cada segmento num `HoverCard` que mostra os detalhes ao passar o rato:
 
 ```typescript
-interface Client {
-  id: string;
-  name: string;
-  company?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  address?: string | null;
-  postal_code?: string | null;  // Novo
-  country?: string | null;      // Novo
-  nif?: string | null;
-  notes?: string | null;
-  created_at: string;
+// TimelineSegment.tsx
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card';
+
+export function TimelineSegment({ segment, width, index, onClick }) {
+  const colorClass = segmentColors[index % segmentColors.length];
+  const hasDetails = segment.description || segment.notes;
+  
+  return (
+    <HoverCard openDelay={200} closeDelay={100}>
+      <HoverCardTrigger asChild>
+        <motion.div ...>
+          {/* Conteudo actual do segmento */}
+        </motion.div>
+      </HoverCardTrigger>
+      
+      {hasDetails && (
+        <HoverCardContent className="w-72" side="top">
+          <div className="space-y-2">
+            <div>
+              <h4 className="font-semibold">{segment.name}</h4>
+              <p className="text-xs text-muted-foreground">
+                {formatDurationRange(...)}
+              </p>
+            </div>
+            
+            {segment.description && (
+              <div>
+                <p className="text-xs font-medium">Descricao</p>
+                <p className="text-sm">{segment.description}</p>
+              </div>
+            )}
+            
+            {segment.notes && (
+              <div>
+                <p className="text-xs font-medium">Notas</p>
+                <p className="text-sm text-muted-foreground">
+                  {segment.notes}
+                </p>
+              </div>
+            )}
+          </div>
+        </HoverCardContent>
+      )}
+    </HoverCard>
+  );
 }
 ```
 
-### Parte 4: Redesenhar Formulário de Edição
+### Parte 2: Indicador Visual de Detalhes
 
-Reorganizar campos para seguir a mesma ordem e labels do formulário de criação:
-
-```
-┌─────────────────────────────────────────┐
-│ Nome *                                  │
-├─────────────────────────────────────────┤
-│ Nome da Empresa *                       │
-├─────────────────────────────────────────┤
-│ Tax ID * [?] (tooltip igual ao criar)   │
-├─────────────────────────────────────────┤
-│ Morada Fiscal *                         │
-├───────────────────┬─────────────────────┤
-│ Código Postal *   │ País *              │
-├───────────────────┴─────────────────────┤
-│ Email de Faturação *                    │
-├─────────────────────────────────────────┤
-│ Contacto Telefónico                     │
-├─────────────────────────────────────────┤
-│ Notas Internas (apenas no editar)       │
-└─────────────────────────────────────────┘
-```
-
-### Parte 5: Actualizar Função de Guardar
-
-Incluir os novos campos no update:
+Adicionar um pequeno icone ou indicador quando o segmento tem descricao ou notas:
 
 ```typescript
-const handleSaveEdit = async () => {
-  if (!client || !onClientUpdate) return;
-  
-  setSavingEdit(true);
-  const result = await onClientUpdate(client.id, {
-    name: editForm.name.trim(),
-    email: editForm.email.trim() || null,
-    phone: editForm.phone.trim() || null,
-    company: editForm.company.trim() || null,
-    nif: editForm.nif.trim() || null,
-    address: editForm.address.trim() || null,
-    postal_code: editForm.postal_code.trim() || null,  // Novo
-    country: editForm.country.trim() || null,          // Novo
-    notes: editForm.notes.trim() || null,
-  });
-  // ...
-};
+// Dentro do segmento, mostrar um ponto ou icone
+{hasDetails && (
+  <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-white/60 rounded-full" />
+)}
+```
+
+### Parte 3: Melhorar Vista Mobile
+
+A vista mobile (lista vertical) ja mostra a descricao, mas podemos adicionar as notas tambem:
+
+```typescript
+// ProjectTimelineTab.tsx - Vista mobile
+<div>
+  <p className="font-medium">{segment.name}</p>
+  {segment.description && (
+    <p className="text-xs text-muted-foreground">{segment.description}</p>
+  )}
+  {segment.notes && (
+    <p className="text-xs text-muted-foreground/70 italic mt-1">
+      Notas: {segment.notes}
+    </p>
+  )}
+</div>
 ```
 
 ---
 
-## Ficheiro a Modificar
+## Ficheiros a Modificar
 
-| Ficheiro | Alteração |
+| Ficheiro | Alteracao |
 |----------|-----------|
-| `src/components/clients/ClientDetailsModal.tsx` | Actualizar interface, estado, useEffect, formulário e função de guardar |
+| `src/components/projects/timeline/TimelineSegment.tsx` | Adicionar HoverCard com detalhes e indicador visual |
+| `src/components/projects/ProjectTimelineTab.tsx` | Adicionar notas na vista mobile |
 
 ---
 
-## Resultado Esperado
+## Comportamento Esperado
 
-O formulário de edição terá os mesmos campos obrigatórios que o formulário de criação:
-- Nome
-- Nome da Empresa  
-- Tax ID (com tooltip explicativo)
-- Morada Fiscal
-- Código Postal
-- País
-- Email de Faturação
-- Contacto Telefónico
-- Notas Internas (mantido apenas em edição como campo extra)
+### Desktop
+1. Timeline mostra segmentos com nome e duracao
+2. Segmentos com detalhes mostram um pequeno indicador (ponto)
+3. Ao passar o rato, aparece um painel com descricao e notas
+4. Clicar ainda abre o modal de edicao
+
+### Mobile
+1. Lista vertical mostra nome, descricao e notas directamente
+2. Tocar abre o modal de edicao
 
 ---
 
 ## Impacto
 
-- Consistência entre criação e edição de clientes
-- Utilizadores podem editar todos os campos que definiram na criação
-- Dados fiscais completos (postal_code e country) editáveis
+- Detalhes de cada segmento visiveis sem necessidade de clicar
+- Interface limpa mantida na timeline horizontal
+- Experiencia melhorada para editores que precisam ver notas rapidamente
