@@ -1,95 +1,107 @@
-# Plano: Normalizar Roles e Corrigir Sistema de Permissões ✅ CONCLUÍDO
 
-## Resumo Executivo
+# Plano: Ocultar Entregas de Projetos Já Concluídos no Calendário
 
-O sistema de roles foi **normalizado com sucesso**. Os novos roles técnicos são:
+## Problema Identificado
 
-| Role Técnico | Label Padrão |
-|--------------|--------------|
-| `admin` | Admin |
-| `edicao` | Edição |
-| `captacao` | Captação |
-| `gestao` | Gestão |
-| `visualizacao` | Visualização |
+O calendário está a mostrar a **data de entrega prevista** (`delivery_date`) de um projeto que já foi entregue há vários dias. O problema é que:
 
----
+1. **O campo `delivery_date`** representa a data **planeada/prevista** para entrega
+2. **O campo `is_delivered`** marca se o projeto foi realmente entregue
+3. **O calendário não verifica** se o projeto já foi entregue antes de mostrar a data de entrega
 
-## Alterações Realizadas ✅
-
-### 1. Migração SQL ✅
-- Enum `app_role` atualizado: `editor→edicao`, `freelancer→gestao`, `visualizador→visualizacao`
-- Função `initialize_workspace_permissions` atualizada com novos roles
-- Função `has_workspace_permission` recriada para garantir compatibilidade
-
-### 2. Frontend - Contextos e Hooks ✅
-- `src/contexts/WorkspaceContext.tsx` - VALID_ROLES e WorkspaceMember interface
-- `src/hooks/useRoleLabels.ts` - DEFAULT_ROLE_LABELS, CUSTOMIZABLE_ROLES, INVITE_ROLES
-- `src/hooks/useRolePermissions.ts` - ALL_ROLES, ROLE_LABELS, DEFAULT_PERMISSIONS
-- `src/hooks/useCurrentWorkspace.ts` - userRole type e verificações
-
-### 3. Frontend - Componentes ✅
-- `src/components/team/TeamMemberRow.tsx` - roleColors
-- `src/components/team/InviteMemberForm.tsx` - role default state
-- `src/components/account/AccountTeamTab.tsx` - role default state
-- `src/components/workspace/ActiveWorkspacesList.tsx` - WorkspaceWithRole interface e roleLabels
-- `src/components/workspace/WorkspaceSelector.tsx` - roleLabels
-
-### 4. Frontend - Páginas ✅
-- `src/pages/app/Equipa.tsx` - ALL_ROLES
-- `src/pages/app/Configuracoes.tsx` - roles array e getRoleBadgeVariant
-- `src/pages/AcceptInvite.tsx` - getRoleLabel
-
-### 5. Hooks com Verificações Hardcoded ✅
-- `src/hooks/useDashboardMetrics.ts` - Atualizado `freelancer` → `gestao` para cálculo de ganhos próprios
-
-### 6. Edge Functions ✅
-- `supabase/functions/send-invitation-email/index.ts` - getRoleLabel
-- `supabase/functions/create-test-accounts/index.ts` - roles de teste
+Resultado: Um projeto entregue há dias continua a aparecer no calendário como se a entrega fosse hoje.
 
 ---
 
-## Matriz de Permissões
+## Solução
+
+Filtrar projectos entregues das exibições de "Entrega" no calendário, mantendo apenas:
+- Captações de projetos não entregues
+- Entregas de projetos **ainda não entregues**
+
+---
+
+## Alterações Necessárias
+
+### 1. Modificar `src/pages/app/Calendario.tsx`
+
+Na construção dos `calendarItems` (linhas 98-164), adicionar verificação de `is_delivered` antes de incluir itens de entrega:
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                               MATRIZ DE PERMISSÕES                                   │
-├──────────────────────────────┬───────┬────────┬─────────┬────────┬──────────────────┤
-│ Permissão                    │ admin │ edicao │ captacao│ gestao │ visualizacao     │
-├──────────────────────────────┼───────┼────────┼─────────┼────────┼──────────────────┤
-│ projects.view                │   ✓   │   ✓    │    ✓    │   ✓    │        ✓         │
-│ projects.create              │   ✓   │   ✓    │         │        │                  │
-│ projects.edit                │   ✓   │   ✓    │    ✓    │        │                  │
-│ projects.delete              │   ✓   │        │         │        │                  │
-├──────────────────────────────┼───────┼────────┼─────────┼────────┼──────────────────┤
-│ clients.view                 │   ✓   │   ✓    │    ✓    │        │        ✓         │
-│ clients.create               │   ✓   │   ✓    │    ✓    │        │                  │
-│ clients.edit                 │   ✓   │   ✓    │    ✓    │        │                  │
-│ clients.view_financials      │   ✓   │   ✓    │         │        │                  │
-├──────────────────────────────┼───────┼────────┼─────────┼────────┼──────────────────┤
-│ team.view                    │   ✓   │   ✓    │    ✓    │   ✓    │        ✓         │
-│ team.invite                  │   ✓   │        │         │        │                  │
-│ team.manage                  │   ✓   │        │         │        │                  │
-├──────────────────────────────┼───────┼────────┼─────────┼────────┼──────────────────┤
-│ payments.view                │   ✓   │   ✓    │         │        │                  │
-│ payments.manage              │   ✓   │   ✓    │         │        │                  │
-├──────────────────────────────┼───────┼────────┼─────────┼────────┼──────────────────┤
-│ reports.view                 │   ✓   │   ✓    │         │        │        ✓         │
-├──────────────────────────────┼───────┼────────┼─────────┼────────┼──────────────────┤
-│ visibility.leads             │   ✓   │   ✓    │    ✓    │        │                  │
-│ visibility.contracts         │   ✓   │   ✓    │         │        │                  │
-│ visibility.all_projects      │   ✓   │   ✓    │         │        │                  │
-├──────────────────────────────┼───────┼────────┼─────────┼────────┼──────────────────┤
-│ dashboard.view_global_fin    │   ✓   │   ✓    │         │        │                  │
-│ dashboard.view_own_earnings  │   ✓   │   ✓    │    ✓    │   ✓    │        ✓         │
-│ dashboard.view_performance   │   ✓   │   ✓    │         │        │        ✓         │
-└──────────────────────────────┴───────┴────────┴─────────┴────────┴──────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│  ANTES (linha 120-131)                                  │
+├─────────────────────────────────────────────────────────┤
+│  if (project.delivery_date) {                           │
+│    items.push({                                         │
+│      id: `delivery-${project.id}`,                      │
+│      ...                                                │
+│    });                                                  │
+│  }                                                      │
+└─────────────────────────────────────────────────────────┘
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│  DEPOIS                                                 │
+├─────────────────────────────────────────────────────────┤
+│  // Só mostrar entrega se o projeto NÃO foi entregue   │
+│  if (project.delivery_date && !project.is_delivered) { │
+│    items.push({                                         │
+│      id: `delivery-${project.id}`,                      │
+│      ...                                                │
+│    });                                                  │
+│  }                                                      │
+└─────────────────────────────────────────────────────────┘
 ```
+
+### 2. (Opcional) Aplicar mesma lógica às Captações
+
+Dependendo do comportamento desejado, captações de projetos entregues também podem ser ocultadas:
+
+```typescript
+// Opção A: Manter captações mesmo após entrega (histórico)
+if (project.shoot_date) { ... }
+
+// Opção B: Ocultar captações de projetos entregues
+if (project.shoot_date && !project.is_delivered) { ... }
+```
+
+**Recomendação**: Manter captações visíveis como histórico, ocultar apenas entregas pendentes.
 
 ---
 
-## Notas de Compatibilidade
+## Impacto
 
-1. **Migração automática de dados**: O `ALTER TYPE RENAME VALUE` migra automaticamente todos os dados existentes nas tabelas
-2. **Cache local**: O sistema já tem proteção para limpar cache corrompido em `WorkspaceContext.tsx` (valida roles contra VALID_ROLES)
-3. **Sessões ativas**: Utilizadores ativos terão roles atualizados automaticamente no próximo refresh
-4. **Labels personalizados**: Workspaces com labels customizados mantêm funcionamento normal através da tabela `workspace_role_labels`
+| Área | Mudança |
+|------|---------|
+| Calendário Mensal | Entregas de projetos entregues deixam de aparecer |
+| Calendário Semanal | Idem |
+| Calendário Diário | Idem |
+| Google Calendar Sync | Sem alteração necessária (já filtra `is_delivered = false`) |
+
+---
+
+## Detalhes Técnicos
+
+### Ficheiro a Modificar
+- `src/pages/app/Calendario.tsx` (linha ~120)
+
+### Lógica
+```typescript
+// Linha 120-131: Adicionar verificação is_delivered
+if (project.delivery_date && !project.is_delivered) {
+  items.push({
+    id: `delivery-${project.id}`,
+    projectId: project.id,
+    title: project.name,
+    date: parseISO(project.delivery_date),
+    type: 'delivery',
+    projectType: project.type,
+    clientName: project.clients?.name,
+    isGoogleImport: false,
+  });
+}
+```
+
+### Teste Esperado
+1. Projetos entregues não mostram "Entrega" no calendário
+2. Projectos com `is_delivered = true` e `delivery_date` no passado são ignorados
+3. Projectos ainda não entregues continuam a mostrar a data de entrega prevista
