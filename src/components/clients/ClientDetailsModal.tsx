@@ -20,7 +20,9 @@ import {
   X,
   Save,
   MapPin,
-  HelpCircle
+  HelpCircle,
+  Copy,
+  Check,
 } from 'lucide-react';
 import {
   Dialog,
@@ -50,7 +52,9 @@ import { useConversations } from '@/hooks/useConversations';
 import { useAuth } from '@/contexts/AuthContext';
 import { CreateCommunicationModal } from './CreateCommunicationModal';
 import { CreateNoteModal } from './CreateNoteModal';
+import { MeetingRoomModal } from '@/components/calendar/MeetingRoomModal';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface Client {
   id: string;
@@ -117,6 +121,8 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
   const [openingChat, setOpeningChat] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [meetingRoomUrl, setMeetingRoomUrl] = useState<string | null>(null);
+  const [meetingRoomSubject, setMeetingRoomSubject] = useState<string>('');
   const [editForm, setEditForm] = useState({
     name: '',
     email: '',
@@ -679,16 +685,17 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
                                       {typeInfo.label}
                                     </Badge>
                                     {comm.meet_url && (
-                                      <a
-                                        href={comm.meet_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={(e) => e.stopPropagation()}
-                                        className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setMeetingRoomUrl(comm.meet_url);
+                                          setMeetingRoomSubject(comm.subject);
+                                        }}
+                                        className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                                       >
                                         <Video className="h-3 w-3" />
                                         Meet
-                                      </a>
+                                      </button>
                                     )}
                                   </div>
                                   {comm.description && (
@@ -943,6 +950,17 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
         onOpenChange={setShowNoteModal}
         onSubmit={handleCreateNote}
       />
+
+      {meetingRoomUrl && (
+        <MeetingRoomModal
+          open={!!meetingRoomUrl}
+          onOpenChange={(open) => {
+            if (!open) setMeetingRoomUrl(null);
+          }}
+          meetUrl={meetingRoomUrl}
+          title={meetingRoomSubject}
+        />
+      )}
     </>
   );
 }
