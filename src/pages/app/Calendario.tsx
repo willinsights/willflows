@@ -18,7 +18,7 @@ import {
 } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { ChevronLeft, ChevronRight, Camera, Film, Video, Calendar as CalendarIcon, Clock, ExternalLink, Plus, GripVertical, Lock, Crown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Camera, Film, Video, Calendar as CalendarIcon, Clock, ExternalLink, Plus, GripVertical, Lock, Crown, Trash2, CheckSquare, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -41,6 +41,17 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { GoogleCalendarSettings } from '@/components/calendar/GoogleCalendarSettings';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const typeIcons: Record<string, any> = {
   fotografia: Camera,
@@ -85,6 +96,37 @@ export default function Calendario() {
   const [newEventDate, setNewEventDate] = useState<Date | undefined>();
   const [newEventHour, setNewEventHour] = useState<number | undefined>();
   const [activeItem, setActiveItem] = useState<CalendarItem | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+
+  // Toggle selection of an event
+  const toggleEventSelection = (eventId: string) => {
+    setSelectedEventIds(prev => {
+      const next = new Set(prev);
+      if (next.has(eventId)) next.delete(eventId);
+      else next.add(eventId);
+      return next;
+    });
+  };
+
+  // Exit selection mode
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedEventIds(new Set());
+  };
+
+  // Bulk delete selected events
+  const handleBulkDelete = async () => {
+    for (const id of selectedEventIds) {
+      await deleteEvent(id);
+    }
+    exitSelectionMode();
+    setShowBulkDeleteConfirm(false);
+  };
+
+  // Get deletable calendar events (not Google imports, only calendar_events)
+  const deletableEvents = events.filter(e => !e.google_event_id);
 
   // Configure DnD sensors
   const sensors = useSensors(
@@ -425,6 +467,22 @@ export default function Calendario() {
           <Button variant="outline" size="icon" onClick={handleNext}>
             <ChevronRight className="h-4 w-4" />
           </Button>
+          {selectionMode ? (
+            <Button variant="outline" onClick={exitSelectionMode} className="gap-2">
+              <X className="h-4 w-4" />
+              Cancelar
+            </Button>
+          ) : (
+            <Button 
+              variant="outline" 
+              onClick={() => setSelectionMode(true)} 
+              className="gap-2"
+              disabled={deletableEvents.length === 0}
+            >
+              <CheckSquare className="h-4 w-4" />
+              Selecionar
+            </Button>
+          )}
           <Button onClick={() => handleSlotClick(currentDate)} className="gap-2">
             <Plus className="h-4 w-4" />
             Novo Evento
@@ -540,6 +598,9 @@ export default function Calendario() {
                             item={item}
                             onClick={handleItemClick}
                             variant="compact"
+                            selectionMode={selectionMode}
+                            isSelected={selectedEventIds.has(item.id.replace('event-', ''))}
+                            onToggleSelect={toggleEventSelection}
                           />
                         ))}
                         {dayItems.length > 3 && (
@@ -653,6 +714,9 @@ export default function Calendario() {
                               item={item}
                               onClick={handleItemClick}
                               variant="compact"
+                              selectionMode={selectionMode}
+                              isSelected={selectedEventIds.has(item.id.replace('event-', ''))}
+                              onToggleSelect={toggleEventSelection}
                             />
                           ))}
                         </DroppableCalendarSlot>
@@ -726,6 +790,9 @@ export default function Calendario() {
                             item={item}
                             onClick={handleItemClick}
                             variant="full"
+                            selectionMode={selectionMode}
+                            isSelected={selectedEventIds.has(item.id.replace('event-', ''))}
+                            onToggleSelect={toggleEventSelection}
                           />
                         ))}
                         {dayItems.length === 0 && hour === 8 && getItemsForDate(currentDate).length === 0 && (
@@ -794,12 +861,39 @@ export default function Calendario() {
                   return (
                     <div
                       key={item.id}
-                      onClick={() => handleItemClick(item)}
+                      onClick={() => {
+                        if (selectionMode) {
+                          const eventId = item.id.replace('event-', '');
+                          const isCalendarEvent = item.type === 'event' || item.type === 'meeting';
+                          const event = isCalendarEvent ? events.find(e => e.id === eventId) : null;
+                          if (event && !event.google_event_id) {
+                            toggleEventSelection(eventId);
+                          }
+                          return;
+                        }
+                        handleItemClick(item);
+                      }}
                       className={cn(
                         "flex items-start gap-3 p-3 rounded-lg bg-muted/50 transition-colors",
-                        item.projectId && "cursor-pointer hover:bg-muted/70"
+                        !selectionMode && item.projectId && "cursor-pointer hover:bg-muted/70",
+                        selectionMode && "cursor-pointer hover:bg-muted/70",
+                        selectionMode && selectedEventIds.has(item.id.replace('event-', '')) && "ring-2 ring-primary bg-primary/10"
                       )}
                     >
+                      {selectionMode && (() => {
+                        const eventId = item.id.replace('event-', '');
+                        const isCalendarEvent = item.type === 'event' || item.type === 'meeting';
+                        const event = isCalendarEvent ? events.find(e => e.id === eventId) : null;
+                        const isDeletable = event && !event.google_event_id;
+                        return isDeletable ? (
+                          <Checkbox
+                            checked={selectedEventIds.has(eventId)}
+                            onCheckedChange={() => toggleEventSelection(eventId)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="mt-2"
+                          />
+                        ) : null;
+                      })()}
                       <div className={cn(
                         'w-10 h-10 rounded-lg flex items-center justify-center',
                         item.type === 'shoot' && 'bg-primary/10',
@@ -891,6 +985,56 @@ export default function Calendario() {
         onEdit={handleEditEvent}
         onDelete={deleteEvent}
       />
+
+      {/* Bulk Selection Action Bar */}
+      {selectionMode && selectedEventIds.size > 0 && (
+        <motion.div
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 100, opacity: 0 }}
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 bg-background border border-border rounded-xl shadow-xl px-6 py-3"
+        >
+          <span className="text-sm font-medium">
+            {selectedEventIds.size} evento{selectedEventIds.size > 1 ? 's' : ''} selecionado{selectedEventIds.size > 1 ? 's' : ''}
+          </span>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="gap-2"
+            onClick={() => setShowBulkDeleteConfirm(true)}
+          >
+            <Trash2 className="h-4 w-4" />
+            Eliminar
+          </Button>
+          <Button variant="ghost" size="sm" onClick={exitSelectionMode}>
+            Cancelar
+          </Button>
+        </motion.div>
+      )}
+
+      {/* Bulk Delete Confirmation */}
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Eliminar {selectedEventIds.size} evento{selectedEventIds.size > 1 ? 's' : ''}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é irreversível. Os eventos selecionados serão removidos permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar {selectedEventIds.size}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
