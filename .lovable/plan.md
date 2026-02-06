@@ -1,33 +1,34 @@
 
+# Sidebar Minimizado: Apenas Icones com Separadores
 
-# Mostrar Thumbnails nas Versoes do Review Studio
-
-## Problema
-Quando se carrega um video, a thumbnail e gerada automaticamente pelo Cloudflare Stream e guardada no campo `thumbnail_path` da base de dados (ex: `https://videodelivery.net/{uid}/thumbnails/thumbnail.jpg`). No entanto, a lista de versoes mostra apenas um circulo com "V1", "V2", etc., sem mostrar a thumbnail.
+## Problema Actual
+No sidebar colapsado, cada item mostra o icone E um texto pequeno (10px) por baixo. Isto ocupa espaco desnecessario e fica visualmente pesado.
 
 ## Solucao
-Alterar o componente `VideoVersionsList` para exibir a thumbnail do video em vez do circulo com o numero da versao. O numero da versao aparecera como badge sobreposto.
-
-## Resultado Visual
-
-```text
-+--------------------------------------------------+
-|  [thumbnail]  nome-do-video.mp4        [icons]    |
-|  [V1 badge ]  12 Jan, 14:30 · 245 MB             |
-+--------------------------------------------------+
-```
+Remover os textos dos itens no modo colapsado, mantendo apenas os icones. Adicionar separadores finos (`<Separator />`) entre os segmentos para manter a organizacao visual.
 
 ## Alteracoes
 
 | Ficheiro | Alteracao |
 |----------|-----------|
-| `src/components/video-production/VideoVersionsList.tsx` | Substituir o circulo com numero por uma imagem thumbnail (usando `thumbnail_path`). Adicionar badge "V1" sobreposto. Fallback para o circulo actual se nao houver thumbnail. |
+| `src/components/layout/AppSidebar.tsx` | Remover o `<span>` com label no modo colapsado (linha 249). Mostrar apenas o icone. Adicionar `<Separator />` entre secoes no modo colapsado. Ajustar padding/gap dos itens colapsados. |
 
-### Detalhe Tecnico
+### Detalhes
 
-- Usar `version.thumbnail_path` como `src` da imagem thumbnail
-- Dimensoes da thumbnail: ~64x36px (ratio 16:9) com `rounded` e `object-cover`
-- Badge com numero da versao posicionado no canto inferior esquerdo da thumbnail
-- Se `thumbnail_path` for `null` (video ainda a processar ou legacy), manter o circulo actual como fallback
-- Nenhuma alteracao de backend necessaria - as thumbnails ja sao geradas e guardadas pelo Cloudflare Stream
+**Itens colapsados** - antes:
+```
+[icone]
+texto
+```
+**Itens colapsados** - depois:
+```
+[icone]
+```
 
+**Separadores** - entre cada grupo de secoes no modo colapsado, um `<Separator />` horizontal fino substituira o espaco vazio onde estava o titulo da secao.
+
+**Ajustes de estilo**:
+- Remover `flex-col` e `gap-0.5` do item colapsado (fica centrado sem texto)
+- Usar `justify-center` para centrar o icone
+- Icone sobe ligeiramente para `h-5 w-5` (mesmo tamanho que expandido) para melhor visibilidade
+- `space-y-6` entre secoes reduz para `space-y-1` no colapsado, com `Separator` a fazer a divisao visual
