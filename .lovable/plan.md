@@ -1,37 +1,26 @@
 
 
-## Correcao: Link Google Meet nao aparece no evento
+## Adicionar botao de Eliminar no modal de detalhes do evento
 
-### Problema
+### Alteracao
 
-O evento foi criado com sucesso, mas o link do Google Meet nao apareceu porque a funcao backend `create-google-meet` nao esta deployada no servidor. O pedido falhou com "Failed to fetch" (funcao retorna 404 - Not Found).
+Adicionar um botao "Eliminar" no `EventDetailsModal`, ao lado dos botoes "Editar" e "Fechar", com confirmacao antes de apagar.
 
-O fluxo no codigo esta correcto: o toggle "Criar Google Meet automaticamente" activa, a chamada e feita, mas como a funcao nao existe no servidor, falha silenciosamente e o evento e criado sem link.
+### Detalhes
 
-### Plano
+- Adicionar uma prop `onDelete` ao `EventDetailsModal` (similar ao `onEdit`)
+- Adicionar um botao vermelho "Eliminar" com icone de lixo (Trash2)
+- Usar um `AlertDialog` para pedir confirmacao antes de eliminar
+- Nao mostrar o botao em eventos importados do Google (`isGoogleImport`)
+- Passar a funcao `deleteEvent` do hook `useCalendarEvents` como `onDelete` na pagina do Calendario
 
-**1. Redeployar a funcao `create-google-meet`**
-- A funcao ja existe em `supabase/functions/create-google-meet/index.ts` e o codigo esta correcto
-- Basta fazer o deploy para que fique disponivel no servidor
+### Ficheiros a alterar
 
-**2. Verificar que funcoes relacionadas tambem estao deployadas**
-- `google-calendar-auth` (necessaria para a conexao OAuth)
-- `google-calendar-sync` (necessaria para sincronizacao)
+1. **`src/components/calendar/EventDetailsModal.tsx`**
+   - Adicionar prop `onDelete?: (eventId: string) => void`
+   - Adicionar botao "Eliminar" com `AlertDialog` de confirmacao
+   - Importar `Trash2` do lucide-react e componentes do AlertDialog
 
-**3. Testar o fluxo completo**
-- Criar um evento com tipo "Reuniao" e toggle Meet activado
-- Confirmar que o link aparece no EventDetailsModal
+2. **`src/pages/app/Calendario.tsx`** (ou onde o modal e usado)
+   - Passar `onDelete={deleteEvent}` ao `EventDetailsModal`
 
-### Seccao Tecnica
-
-A funcao `create-google-meet` faz:
-1. Valida o JWT do utilizador
-2. Verifica membership no workspace
-3. Busca a conexao Google Calendar do utilizador
-4. Faz refresh do token OAuth se necessario (tokens encriptados na BD)
-5. Cria um evento no Google Calendar com `conferenceDataVersion=1` (Google Meet)
-6. Retorna o `meetUrl` e `googleEventId`
-
-O frontend em `useCalendarEvents.ts` recebe o `meetUrl`, guarda-o no campo `video_call_url` da tabela `calendar_events`, e o `EventDetailsModal` mostra o botao "Abrir Sala de Reuniao" quando esse campo tem valor.
-
-Nenhuma alteracao de codigo e necessaria -- apenas o deploy da funcao.
