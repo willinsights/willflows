@@ -307,8 +307,9 @@ export default function Landing() {
           })}
         </script>
       </Helmet>
+      <PublicHeader />
       {/* Hero Section - Split Layout */}
-      <section className="relative min-h-[90vh] pt-24 pb-20 overflow-hidden">
+      <section className="relative min-h-[90vh] pt-24 pb-20 overflow-visible">
         {/* Gradient Background */}
         <div className="absolute inset-0 -z-10">
           <div 
