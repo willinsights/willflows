@@ -1,48 +1,33 @@
 
-# Renomear "Producao" para "Review Studio" e Adicionar Download pos-aprovacao
 
-## 1. Renomear tab "Producao" para "Review Studio"
+# Mostrar Thumbnails nas Versoes do Review Studio
 
-Alterar o nome da tab em todos os locais onde aparece como "Producao" no contexto de video/aprovacao:
+## Problema
+Quando se carrega um video, a thumbnail e gerada automaticamente pelo Cloudflare Stream e guardada no campo `thumbnail_path` da base de dados (ex: `https://videodelivery.net/{uid}/thumbnails/thumbnail.jpg`). No entanto, a lista de versoes mostra apenas um circulo com "V1", "V2", etc., sem mostrar a thumbnail.
 
-| Ficheiro | Linha | Antes | Depois |
-|----------|-------|-------|--------|
-| `src/components/projects/ProjectDetailsSheet.tsx` | 613 | `Produção` | `Review Studio` |
-| `src/components/projects/ProjectDetailsModal.tsx` | 619 | `Produção` | `Review Studio` |
-| `src/components/tasks/TaskModal.tsx` | 261 | `Produção` | `Review Studio` |
-| `src/components/projects/ProjectDetailsSheet.tsx` | 709 | mensagem de plano | Atualizar texto |
-| `src/components/projects/ProjectDetailsModal.tsx` | 1252 | mensagem de plano | Atualizar texto |
+## Solucao
+Alterar o componente `VideoVersionsList` para exibir a thumbnail do video em vez do circulo com o numero da versao. O numero da versao aparecera como badge sobreposto.
 
-**Nota:** Os menus laterais ("PRODUCAO" no sidebar e mobile nav) referem-se a secao de producao geral (Captacao/Edicao), nao ao tab de video, por isso nao serao alterados.
+## Resultado Visual
 
-## 2. Pagina de aprovacao do cliente: pos-aprovacao com aviso de retencao e download
-
-No ficheiro `src/pages/public/VideoApproval.tsx`, na secao que renderiza o estado "aprovado" (linhas 592-636), adicionar:
-
-- Aviso informativo de que o video sera eliminado automaticamente apos 7 dias
-- Botao de download da versao aprovada utilizando o hook `useVideoDownload` (que ja suporta `approvalToken`)
-
-O resultado visual sera:
-
-```
-[check icon] Video Aprovado!
-Este video foi aprovado por [nome]
-
-Projeto: ...
-Versao: V1
-Aprovado em: ...
-
-[icone alerta] Retencao de ficheiros
-Este video sera automaticamente eliminado 7 dias apos a aprovacao.
-Recomendamos que faca o download agora.
-
-[botao] Descarregar versao aprovada
+```text
++--------------------------------------------------+
+|  [thumbnail]  nome-do-video.mp4        [icons]    |
+|  [V1 badge ]  12 Jan, 14:30 · 245 MB             |
++--------------------------------------------------+
 ```
 
-### Detalhes tecnicos
+## Alteracoes
 
-- Importar `Download, AlertTriangle` do lucide-react
-- Importar `useVideoDownload` de `@/hooks/useVideoDownload`
-- Usar `useVideoDownload({ approvalToken: token })` para autenticar o download publico
-- Identificar o `videoVersionId` da versao aprovada a partir de `data.approval.version_number` cruzado com `data.versions`
-- O botao tera estado de loading enquanto o download e preparado (status 202)
+| Ficheiro | Alteracao |
+|----------|-----------|
+| `src/components/video-production/VideoVersionsList.tsx` | Substituir o circulo com numero por uma imagem thumbnail (usando `thumbnail_path`). Adicionar badge "V1" sobreposto. Fallback para o circulo actual se nao houver thumbnail. |
+
+### Detalhe Tecnico
+
+- Usar `version.thumbnail_path` como `src` da imagem thumbnail
+- Dimensoes da thumbnail: ~64x36px (ratio 16:9) com `rounded` e `object-cover`
+- Badge com numero da versao posicionado no canto inferior esquerdo da thumbnail
+- Se `thumbnail_path` for `null` (video ainda a processar ou legacy), manter o circulo actual como fallback
+- Nenhuma alteracao de backend necessaria - as thumbnails ja sao geradas e guardadas pelo Cloudflare Stream
+
