@@ -1,48 +1,33 @@
 
-# Corrigir UI dos Proximos Compromissos
+# Corrigir eventos a sair fora do card
 
 ## Problema
-Os eventos mostram "Hoje - 00:00" quando nao tem hora especifica. A hora "00:00" nao e informativa e polui a interface.
+O card "Proximos Compromissos" tem altura fixa `h-[280px]` mas nao tem overflow scroll no conteudo. Quando ha muitos eventos, eles saem fora do card.
+
+Alem disso, a screenshot mostra que os eventos ainda aparecem com "00:00" — isto indica que a correcao anterior pode nao estar a ser aplicada correctamente (possivelmente o campo `allDay` nao esta a ser passado ou os dados nao estao actualizados).
 
 ## Alteracoes
 
-### 1. `src/components/dashboard/UpcomingEventsCard.tsx` (linhas 142-154)
-- Adicionar logica para verificar se o evento e `allDay` ou tem hora `00:00`
-- Se sim, mostrar badge "Dia inteiro" em vez de "- 00:00"
-- Se nao, mostrar a hora normalmente
+### 1. `src/components/dashboard/UpcomingEventsCard.tsx`
+- Adicionar `overflow-y-auto` ao `CardContent` ou ao container dos eventos
+- Limitar a area scrollavel para caber dentro do `h-[280px]` do card
+- Alterar para algo como `max-h-[200px] overflow-y-auto` no div que contem os eventos
 
-### 2. `src/components/mobile/MobileUpcomingEvents.tsx` (linhas 155-170)
-- Mesma logica aplicada ao componente mobile
+### 2. Verificar passagem do campo `allDay`
+- Confirmar que o hook que fornece os eventos esta a passar correctamente o campo `allDay` para que a logica "Dia inteiro" funcione
 
 ## Detalhe Tecnico
 
-Substituir o bloco de hora em ambos os ficheiros:
+No `UpcomingEventsCard.tsx`, envolver a lista de eventos num container com scroll:
 
-**Antes:**
 ```typescript
-<span>•</span>
-<span>{format(event.startAt, 'HH:mm')}</span>
+<div className="space-y-2 max-h-[195px] overflow-y-auto pr-1">
+  {events.map((event) => { ... })}
+</div>
 ```
 
-**Depois:**
-```typescript
-{(() => {
-  const time = format(event.startAt, 'HH:mm');
-  const isAllDay = event.allDay || time === '00:00';
-  return isAllDay ? (
-    <span className="text-muted-foreground">Dia inteiro</span>
-  ) : (
-    <>
-      <span>•</span>
-      <span>{time}</span>
-    </>
-  );
-})()}
-```
-
-Isto remove o separador "." quando e dia inteiro, mostrando apenas "Hoje Dia inteiro" em vez de "Hoje - 00:00".
+Isto garante que mesmo com 5+ eventos, o conteudo fica contido dentro do card com scroll suave.
 
 | Ficheiro | Alteracao |
 |----------|-----------|
-| `src/components/dashboard/UpcomingEventsCard.tsx` | Tratar hora 00:00 como "Dia inteiro" |
-| `src/components/mobile/MobileUpcomingEvents.tsx` | Mesma logica no mobile |
+| `src/components/dashboard/UpcomingEventsCard.tsx` | Adicionar overflow scroll ao container de eventos |
