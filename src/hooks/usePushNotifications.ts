@@ -68,7 +68,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       let existing = registrations.find((r) => r.active?.scriptURL?.endsWith('/sw-push.js'));
       
       if (existing) {
-        console.log('[Push] Found existing sw-push.js registration:', existing.scope);
+        if (import.meta.env.DEV) console.log('[Push] Found existing sw-push.js registration:', existing.scope);
         return existing;
       }
 
@@ -79,19 +79,19 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       );
       
       if (pwaRegistration) {
-        console.log('[Push] Using PWA service worker for push:', pwaRegistration.scope);
+        if (import.meta.env.DEV) console.log('[Push] Using PWA service worker for push:', pwaRegistration.scope);
         return pwaRegistration;
       }
 
       // Register sw-push.js with root scope for background push to work
-      console.log('[Push] Registering sw-push.js...');
+      if (import.meta.env.DEV) console.log('[Push] Registering sw-push.js...');
       const registration = await navigator.serviceWorker.register('/sw-push.js', {
         scope: '/',
       });
       
       // Wait for the service worker to be ready
       await navigator.serviceWorker.ready;
-      console.log('[Push] Service worker registered and ready:', registration.scope);
+      if (import.meta.env.DEV) console.log('[Push] Service worker registered and ready:', registration.scope);
       
       return registration;
     } catch (error) {
@@ -109,7 +109,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       if (!registration) return;
 
       swRegistrationRef.current = registration;
-      console.log('[Push] Service Worker registered:', registration.scope);
+      if (import.meta.env.DEV) console.log('[Push] Service Worker registered:', registration.scope);
 
       // Check if already subscribed
       const subscription = await registration.pushManager.getSubscription();
@@ -134,7 +134,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
 
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'PUSH_SUBSCRIPTION_CHANGED') {
-        console.log('[Push] Subscription changed, re-subscribing...');
+        if (import.meta.env.DEV) console.log('[Push] Subscription changed, re-subscribing...');
         subscribeToPushRef.current?.();
       }
     };
@@ -196,7 +196,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   // Subscribe to push notifications
   const subscribeToPush = useCallback(async (): Promise<boolean> => {
     if (!isSupported || !user?.id) {
-      console.log('[Push] Not supported or no user');
+      if (import.meta.env.DEV) console.log('[Push] Not supported or no user');
       return false;
     }
 
@@ -211,17 +211,17 @@ export function usePushNotifications(): UsePushNotificationsReturn {
 
       // Check existing subscription
       let subscription = await registration.pushManager.getSubscription();
-      console.log('[Push] Existing subscription:', subscription ? 'found' : 'none');
+      if (import.meta.env.DEV) console.log('[Push] Existing subscription:', subscription ? 'found' : 'none');
       
       if (!subscription) {
         // Subscribe to push with VAPID key
-        console.log('[Push] Creating new subscription with VAPID key...');
+        if (import.meta.env.DEV) console.log('[Push] Creating new subscription with VAPID key...');
         const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: applicationServerKey.buffer as ArrayBuffer,
         });
-        console.log('[Push] New subscription created:', subscription.endpoint.substring(0, 50));
+        if (import.meta.env.DEV) console.log('[Push] New subscription created');
       }
 
       // Save subscription to database - ensure proper JSON format
@@ -234,11 +234,6 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         return false;
       }
       
-      console.log('[Push] Subscription data:', {
-        endpoint: subscriptionData.endpoint.substring(0, 50) + '...',
-        hasP256dh: !!subscriptionData.keys?.p256dh,
-        hasAuth: !!subscriptionData.keys?.auth,
-      });
       
       // Prepare the subscription object to save
       const subscriptionToSave = {
@@ -297,7 +292,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       }
 
       setIsSubscribed(true);
-      console.log('[Push] Subscription verified and saved to database');
+      if (import.meta.env.DEV) console.log('[Push] Subscription verified and saved');
       return true;
     } catch (error) {
       console.error('[Push] Subscription error:', error);
@@ -335,7 +330,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         .eq('user_id', user.id);
 
       setIsSubscribed(false);
-      console.log('[Push] Unsubscribed successfully');
+      if (import.meta.env.DEV) console.log('[Push] Unsubscribed successfully');
     } catch (error) {
       console.error('[Push] Unsubscribe error:', error);
     }
@@ -439,7 +434,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   // Send a local notification
   const sendLocalNotification = useCallback((title: string, options?: NotificationOptions) => {
     if (!isSupported || permission !== 'granted') {
-      console.log('Notifications not available or not permitted');
+      if (import.meta.env.DEV) console.log('Notifications not available or not permitted');
       return;
     }
 
