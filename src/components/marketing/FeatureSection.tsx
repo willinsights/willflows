@@ -81,13 +81,12 @@ export function FeatureSection({
             viewport={{ once: true }}
             className={reversed ? 'md:order-1' : ''}
           >
-            <div className="relative">
-              <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 to-accent/20 rounded-3xl blur-2xl opacity-50" />
+            <div>
               <img
                 src={screenshot}
                 alt={altText}
                 title={title}
-                className="relative rounded-2xl shadow-2xl border border-border/50 w-full"
+                className="rounded-2xl shadow-xl w-full"
                 loading="lazy"
                 decoding="async"
               />

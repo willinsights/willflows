@@ -137,7 +137,7 @@ export default function CRMFeature() {
         icon={UserCircle}
         title="Ficha de Cliente Completa"
         description="Todos os dados do cliente organizados. Nome, empresa, contactos, morada, NIF para faturação — tudo acessível instantaneamente."
-        screenshot="/screenshots/screenshot-dashboard-light-full.png"
+        screenshot="/screenshots/banner-crm.png"
         features={[
           'Dados de contacto completos',
           'Empresa e NIF para faturação',
@@ -150,7 +150,7 @@ export default function CRMFeature() {
         icon={History}
         title="Histórico de Projetos"
         description="Veja todos os projetos realizados para cada cliente. Saiba exatamente o que foi feito, quando, e quanto rendeu."
-        screenshot="/screenshots/screenshot-projeto-modal.png"
+        screenshot="/screenshots/banner-crm.png"
         features={[
           'Lista de todos os projetos',
           'Status atual de cada projeto',
@@ -164,7 +164,7 @@ export default function CRMFeature() {
         icon={BarChart3}
         title="Métricas por Cliente"
         description="Saiba quanto cada cliente vale para o seu negócio. Receita total, projetos ativos, média por projeto."
-        screenshot="/screenshots/screenshot-relatorios-6m.png"
+        screenshot="/screenshots/banner-relatorios.png"
         features={[
           'Receita total do cliente',
           'Número de projetos',
@@ -177,7 +177,7 @@ export default function CRMFeature() {
         icon={FileText}
         title="Notas e Comunicações"
         description="Registe notas internas e histórico de comunicações. Nunca mais esqueça detalhes importantes sobre um cliente."
-        screenshot="/screenshots/screenshot-calendario-full.png"
+        screenshot="/screenshots/banner-crm.png"
         features={[
           'Notas internas por cliente',
           'Histórico de contactos',

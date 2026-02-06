@@ -81,12 +81,11 @@ export function FeatureHero({
             transition={{ duration: 0.6, delay: 0.2 }}
             className="relative"
           >
-            <div className="absolute -inset-8 bg-gradient-to-r from-primary/30 via-accent/20 to-primary/30 rounded-3xl blur-3xl opacity-40" />
             <img
               src={screenshot}
               alt={altText}
               title={fullTitle}
-              className="relative rounded-2xl shadow-2xl border border-border/50 w-full"
+              className="rounded-2xl shadow-2xl w-full"
               loading="eager"
               decoding="async"
               fetchPriority="high"

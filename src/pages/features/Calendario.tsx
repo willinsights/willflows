@@ -137,7 +137,7 @@ export default function CalendarioFeature() {
         icon={CalendarDays}
         title="Vistas Flexíveis"
         description="Veja a sua agenda como preferir. Vista de mês para planeamento, semana para gestão diária, ou dia para foco total."
-        screenshot="/screenshots/screenshot-calendario-full.png"
+        screenshot="/screenshots/banner-calendario.png"
         features={[
           'Vista de mês completo',
           'Vista de semana detalhada',
@@ -150,7 +150,7 @@ export default function CalendarioFeature() {
         icon={RefreshCw}
         title="Sincronização Google Calendar"
         description="Conecte o seu Google Calendar e veja todos os eventos num só lugar. Sincronização bidirecional — crie no WillFlow, aparece no Google e vice-versa."
-        screenshot="/screenshots/screenshot-dashboard-light-full.png"
+        screenshot="/screenshots/banner-calendario.png"
         features={[
           'Sincronização bidirecional',
           'Múltiplos calendários Google',
