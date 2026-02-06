@@ -1,18 +1,48 @@
 
+# Renomear "Producao" para "Review Studio" e Adicionar Download pos-aprovacao
 
-# Corrigir "Failed to fetch" no portal de aprovacao
+## 1. Renomear tab "Producao" para "Review Studio"
 
-## Problema
-As edge functions `submit-video-feedback` e `delete-video-comment` nao estao deployed. O portal de aprovacao consegue carregar os dados (porque o `get-video-approval-data` ja foi re-deployed), mas qualquer accao (submeter comentario, apagar comentario, aprovar) falha com "Failed to fetch".
+Alterar o nome da tab em todos os locais onde aparece como "Producao" no contexto de video/aprovacao:
 
-## Solucao
-Forcar o redeploy das duas funcoes adicionando um comentario no topo de cada ficheiro, tal como fizemos com `get-video-approval-data`.
+| Ficheiro | Linha | Antes | Depois |
+|----------|-------|-------|--------|
+| `src/components/projects/ProjectDetailsSheet.tsx` | 613 | `Produção` | `Review Studio` |
+| `src/components/projects/ProjectDetailsModal.tsx` | 619 | `Produção` | `Review Studio` |
+| `src/components/tasks/TaskModal.tsx` | 261 | `Produção` | `Review Studio` |
+| `src/components/projects/ProjectDetailsSheet.tsx` | 709 | mensagem de plano | Atualizar texto |
+| `src/components/projects/ProjectDetailsModal.tsx` | 1252 | mensagem de plano | Atualizar texto |
 
-## Alteracoes
+**Nota:** Os menus laterais ("PRODUCAO" no sidebar e mobile nav) referem-se a secao de producao geral (Captacao/Edicao), nao ao tab de video, por isso nao serao alterados.
 
-| Ficheiro | Alteracao |
-|----------|-----------|
-| `supabase/functions/submit-video-feedback/index.ts` | Adicionar comentario `// v2` no topo para forcar redeploy |
-| `supabase/functions/delete-video-comment/index.ts` | Adicionar comentario `// v2` no topo para forcar redeploy |
+## 2. Pagina de aprovacao do cliente: pos-aprovacao com aviso de retencao e download
 
-Apos o build, as funcoes ficarao disponveis e as accoes no portal de aprovacao (comentarios, aprovacao) voltarao a funcionar.
+No ficheiro `src/pages/public/VideoApproval.tsx`, na secao que renderiza o estado "aprovado" (linhas 592-636), adicionar:
+
+- Aviso informativo de que o video sera eliminado automaticamente apos 7 dias
+- Botao de download da versao aprovada utilizando o hook `useVideoDownload` (que ja suporta `approvalToken`)
+
+O resultado visual sera:
+
+```
+[check icon] Video Aprovado!
+Este video foi aprovado por [nome]
+
+Projeto: ...
+Versao: V1
+Aprovado em: ...
+
+[icone alerta] Retencao de ficheiros
+Este video sera automaticamente eliminado 7 dias apos a aprovacao.
+Recomendamos que faca o download agora.
+
+[botao] Descarregar versao aprovada
+```
+
+### Detalhes tecnicos
+
+- Importar `Download, AlertTriangle` do lucide-react
+- Importar `useVideoDownload` de `@/hooks/useVideoDownload`
+- Usar `useVideoDownload({ approvalToken: token })` para autenticar o download publico
+- Identificar o `videoVersionId` da versao aprovada a partir de `data.approval.version_number` cruzado com `data.versions`
+- O botao tera estado de loading enquanto o download e preparado (status 202)
