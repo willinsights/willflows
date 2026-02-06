@@ -114,7 +114,7 @@ export function UpcomingEventsCard({ events, loading, onRefresh }: UpcomingEvent
                 <p className="text-sm">Sem eventos próximos</p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-[195px] overflow-y-auto pr-1">
                 {events.map((event) => {
                   const Icon = eventTypeIcons[event.eventType] || Calendar;
                   const isEventToday = isToday(event.startAt);
