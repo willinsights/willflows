@@ -11,6 +11,7 @@ import {
   Camera,
   Users,
   Pencil,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +21,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { MeetingRoomModal } from './MeetingRoomModal';
 
@@ -51,6 +62,7 @@ interface EventDetailsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onEdit?: (event: EventDetails) => void;
+  onDelete?: (eventId: string) => void;
 }
 
 const eventTypeConfig: Record<string, { icon: typeof CalendarIcon; label: string; color: string }> = {
@@ -69,8 +81,9 @@ function isGoogleMeetUrl(url?: string | null): boolean {
   return url.includes('meet.google.com') || url.includes('hangouts.google.com');
 }
 
-export function EventDetailsModal({ event, open, onOpenChange, onEdit }: EventDetailsModalProps) {
+export function EventDetailsModal({ event, open, onOpenChange, onEdit, onDelete }: EventDetailsModalProps) {
   const [showMeetingRoom, setShowMeetingRoom] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   if (!event) return null;
 
@@ -196,6 +209,16 @@ export function EventDetailsModal({ event, open, onOpenChange, onEdit }: EventDe
           </div>
 
           <div className="flex justify-end gap-2 mt-6">
+            {onDelete && !event.isGoogleImport && (
+              <Button 
+                variant="destructive" 
+                onClick={() => setShowDeleteConfirm(true)}
+                className="gap-2 mr-auto"
+              >
+                <Trash2 className="h-4 w-4" />
+                Eliminar
+              </Button>
+            )}
             {onEdit && !event.isGoogleImport && (
               <Button 
                 variant="outline" 
@@ -215,6 +238,31 @@ export function EventDetailsModal({ event, open, onOpenChange, onEdit }: EventDe
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar evento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem a certeza que deseja eliminar "{event.title}"? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                onDelete?.(event.id);
+                setShowDeleteConfirm(false);
+                onOpenChange(false);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Meeting Room Modal */}
       {event.videoCallUrl && (
