@@ -616,7 +616,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
               <TabsTrigger value="timeline">Timeline</TabsTrigger>
               <TabsTrigger value="media">Links</TabsTrigger>
               {canViewOwnFinancials && <TabsTrigger value="financial">Financeiro</TabsTrigger>}
-              {showVideoProductionTab && <TabsTrigger value="video">Produção</TabsTrigger>}
+              {showVideoProductionTab && <TabsTrigger value="video">Review Studio</TabsTrigger>}
             </TabsList>
 
             <ScrollArea className="h-[calc(90vh-280px)]">
@@ -1249,7 +1249,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                   ) : !canUseVideoProductionTab ? (
                     <div className="rounded-lg border border-border/60 bg-card/50 p-4">
                       <p className="text-sm text-muted-foreground">
-                        A funcionalidade de Produção/Aprovação de vídeo não está disponível no seu plano atual.
+                        A funcionalidade de Review Studio não está disponível no seu plano atual.
                       </p>
                     </div>
                   ) : (

@@ -47,12 +47,16 @@ import {
   ArrowLeftRight,
   X,
   Trash2,
+  Download,
+  AlertTriangle,
 } from 'lucide-react';
 import { formatTimecode } from '@/lib/duration-utils';
 import { cn } from '@/lib/utils';
 import logoIconCyan from '@/assets/logo-willflow-icon-cyan.png';
 import logoIconPurple from '@/assets/logo-willflow-icon-purple.png';
 import { ComparisonPlayer } from '@/components/video/ComparisonPlayer';
+import { useVideoDownload } from '@/hooks/useVideoDownload';
+import { ApprovedState } from '@/pages/public/ApprovedState';
 
 interface VideoVersion {
   id: string;
@@ -591,47 +595,7 @@ export default function VideoApproval() {
   // Render approved state
   if (data.approval) {
     return (
-      <>
-        <Helmet>
-          <meta name="robots" content="noindex, nofollow, noarchive" />
-          <meta name="googlebot" content="noindex, nofollow, noarchive" />
-          <title>Studio Review | WillFlow</title>
-        </Helmet>
-        <div className="min-h-screen bg-background">
-        <header className="border-b bg-card/50 backdrop-blur-sm">
-          <div className="container py-4 flex items-center justify-between">
-            <img src={logoIconPurple} alt="WillFlow" className="h-8 w-8 dark:hidden" />
-            <img src={logoIconCyan} alt="WillFlow" className="h-8 w-8 hidden dark:block" />
-            <Badge variant="default" className="bg-green-500/10 text-green-600 border-green-500/20">
-              <CheckCircle2 className="h-3 w-3 mr-1" />
-              Aprovado
-            </Badge>
-          </div>
-        </header>
-
-        <main className="container py-12">
-          <Card className="max-w-2xl mx-auto">
-            <CardContent className="pt-6 text-center">
-              <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
-              <h1 className="text-2xl font-bold mb-2">Vídeo Aprovado!</h1>
-              <p className="text-muted-foreground mb-6">
-                Este vídeo foi aprovado por <strong>{data.approval.client_name}</strong>
-              </p>
-              <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-1">
-                <p><strong>Projeto:</strong> {data.task.project_name}</p>
-                {data.approval.version_number && (
-                  <p><strong>Versão:</strong> V{data.approval.version_number}</p>
-                )}
-                <p><strong>Aprovado em:</strong> {new Date(data.approval.approved_at).toLocaleString('pt-PT')}</p>
-                {data.approval.notes && (
-                  <p className="mt-2"><strong>Notas:</strong> {data.approval.notes}</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </main>
-        </div>
-      </>
+      <ApprovedState data={data} token={token} />
     );
   }
 
