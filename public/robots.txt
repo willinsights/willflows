@@ -21,6 +21,7 @@ Allow: /
 
 # Block app routes (require authentication)
 Disallow: /app/
+Disallow: /admin/
 Disallow: /auth
 Disallow: /onboarding
 Disallow: /convite
