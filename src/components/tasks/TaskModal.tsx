@@ -581,12 +581,6 @@ function TaskDetailsForm({
         <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
           Cancelar
         </Button>
-        {isEditing && task && (
-          <Button type="button" variant="outline" onClick={() => setShowCreateEvent(true)}>
-            <CalendarIcon className="h-4 w-4 mr-2" />
-            Agendar
-          </Button>
-        )}
         <Button
           type="submit"
           disabled={!title.trim() || !projectId || isSubmitting}
@@ -595,25 +589,6 @@ function TaskDetailsForm({
           {isEditing ? 'Guardar' : 'Criar Tarefa'}
         </Button>
       </DialogFooter>
-
-      {/* Create Event Modal from Task */}
-      {isEditing && task && (
-        <CreateEventModal
-          open={showCreateEvent}
-          onOpenChange={setShowCreateEvent}
-          onSubmit={async (eventData, options) => {
-            const result = await createEvent({
-              ...eventData,
-              project_id: task.project_id,
-              task_id: task.id,
-            }, options);
-            return result;
-          }}
-          initialProjectId={task.project_id}
-          initialTaskId={task.id}
-          initialProjectName={projects.find(p => p.id === task.project_id)?.name}
-        />
-      )}
     </form>
   );
 }
