@@ -30,6 +30,7 @@ import {
 import { useTotalUnreadMessages } from '@/hooks/useTotalUnreadMessages';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Logo } from '@/components/ui/logo';
 import { TrialBadge } from '@/components/dashboard/TrialBadge';
@@ -210,11 +211,15 @@ export function AppSidebar({ collapsed, onToggle, isMobile, autoCollapseOnNav = 
 
       {/* Navigation */}
       <ScrollArea hideScrollbar className="flex-1 py-4">
-        <nav className="px-3 space-y-6">
-          {sections.map((section) => (
+        <nav className={cn('px-3', collapsed && !isMobile ? 'space-y-1' : 'space-y-6')}>
+          {sections.map((section, sectionIndex) => (
             <div key={section.title}>
-              {/* Section Title */}
-              {(!collapsed || isMobile) && (
+              {/* Section Title (expanded) or Separator (collapsed) */}
+              {collapsed && !isMobile ? (
+                sectionIndex > 0 && (
+                  <Separator className="my-2 mx-auto w-2/3 opacity-40" />
+                )
+              ) : (
                 <div className="px-3 mb-2">
                   <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/60 uppercase">
                     {section.title}
@@ -238,16 +243,14 @@ export function AppSidebar({ collapsed, onToggle, isMobile, autoCollapseOnNav = 
                       className={cn(
                         'relative',
                         collapsed && !isMobile 
-                          ? 'flex flex-col items-center gap-0.5 px-1 py-2 rounded-lg transition-all duration-200'
+                          ? 'flex items-center justify-center px-1 py-2.5 rounded-lg transition-all duration-200'
                           : 'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
                         'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                         active && 'bg-primary/10 text-primary font-medium'
                       )}
                     >
-                      <item.icon className={cn('flex-shrink-0', collapsed && !isMobile ? 'h-4 w-4' : 'h-5 w-5', active && 'text-primary')} />
-                      {collapsed && !isMobile ? (
-                        <span className="text-[10px] truncate max-w-full text-center leading-tight font-medium">{item.label}</span>
-                      ) : (
+                      <item.icon className={cn('flex-shrink-0 h-5 w-5', active && 'text-primary')} />
+                      {collapsed && !isMobile ? null : (
                         <>
                           <span className="truncate">{item.label}</span>
                           {/* Badge for chat unread messages - expanded sidebar */}
