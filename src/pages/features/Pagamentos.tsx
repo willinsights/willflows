@@ -123,7 +123,7 @@ export default function PagamentosFeature() {
         title="Pagamentos sob"
         titleHighlight="Controlo Total"
         subtitle="Saiba exatamente o que tem a receber e a pagar. Alertas de vencido, previsão de cash flow e export para faturação."
-        screenshot="/screenshots/screenshot-pagamentos.png"
+        screenshot="/screenshots/banner-pagamentos.png"
       />
 
       <FlowDiagram

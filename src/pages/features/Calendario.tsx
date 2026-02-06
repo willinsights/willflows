@@ -123,7 +123,7 @@ export default function CalendarioFeature() {
         title="Calendário que"
         titleHighlight="Trabalha Consigo"
         subtitle="Todos os seus compromissos num só lugar. Sincronização com Google Calendar, eventos de projeto automáticos e vistas flexíveis."
-        screenshot="/screenshots/screenshot-calendario-full.png"
+        screenshot="/screenshots/banner-calendario.png"
       />
 
       <FlowDiagram

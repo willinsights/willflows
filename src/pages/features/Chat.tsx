@@ -126,7 +126,7 @@ export default function ChatFeature() {
         title="Chat de Equipa que"
         titleHighlight="Cria Resultados"
         subtitle="Comunicação interna integrada aos projetos. Cada mensagem conectada ao contexto. Transforma conversas em ações sem sair do chat."
-        screenshot="/screenshots/screenshot-dashboard-light-full.png"
+        screenshot="/screenshots/banner-chat.png"
       />
 
       {/* Clarificação */}

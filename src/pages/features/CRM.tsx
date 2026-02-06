@@ -123,7 +123,7 @@ export default function CRMFeature() {
         title="CRM Feito para"
         titleHighlight="Criativos"
         subtitle="Conheça os seus clientes como nunca. Histórico completo de projetos, pagamentos e comunicações — tudo num só lugar."
-        screenshot="/screenshots/screenshot-dashboard-light-full.png"
+        screenshot="/screenshots/banner-crm.png"
       />
 
       <FlowDiagram
