@@ -240,7 +240,7 @@ export default function VideoApprovalFeature() {
         icon={GitCompare}
         title="Comparação de Versões A/B"
         description="Carregue múltiplas versões (V1, V2, V3...) e alterne instantaneamente mantendo o mesmo timecode."
-        screenshot="/screenshots/screenshot-calendario-full.png"
+        screenshot="/screenshots/banner-video-approval.png"
         screenshotAlt="Comparação de versões A/B no WillFlow permitindo alternar entre V1 e V2 do vídeo no mesmo timestamp"
         features={[
           'Upload ilimitado de versões',
@@ -255,7 +255,7 @@ export default function VideoApprovalFeature() {
         icon={Shield}
         title="Portal Seguro para Clientes"
         description="Links únicos por projeto. Protegidos contra indexação e com política de retenção automática."
-        screenshot="/screenshots/screenshot-dashboard-estudio.png"
+        screenshot="/screenshots/banner-studio-review.png"
         screenshotAlt="Portal seguro Studio Review do WillFlow com link único para cliente visualizar e aprovar vídeos"
         features={[
           'Token único por cliente',

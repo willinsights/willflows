@@ -164,12 +164,11 @@ export default function ParaFotografos() {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="relative"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded-3xl blur-3xl" />
               <img
-                src="/screenshots/screenshot-dashboard-light-full.png"
+                src="/screenshots/banner-dashboard-overview.png"
                 alt="Dashboard WillFlow para fotógrafos mostrando métricas de sessões, receitas mensais e projetos pendentes organizados por fase"
                 title="Dashboard WillFlow para Fotógrafos"
-                className="relative rounded-2xl shadow-2xl border border-border/50"
+                className="w-full screenshot-fog-hero"
                 loading="eager"
                 decoding="async"
                 fetchPriority="high"
@@ -211,7 +210,7 @@ export default function ParaFotografos() {
         icon={Image}
         title="Kanban Visual de Sessões"
         description="Visualize todas as suas sessões organizadas por fase: Agendadas, Em Captação, Edição, Prontas para Entrega."
-        screenshot="/screenshots/screenshot-kanban-full.png"
+        screenshot="/screenshots/banner-kanban.png"
         screenshotAlt="Quadro Kanban WillFlow para fotógrafos com sessões fotográficas organizadas por fases de produção: agendamento, captação, edição e entrega"
         features={[
           'Arraste sessões entre fases',
@@ -225,7 +224,7 @@ export default function ParaFotografos() {
         icon={CalendarCheck}
         title="Calendário Sincronizado"
         description="Todas as sessões e entregas num calendário visual com sincronização Google Calendar bidirecional."
-        screenshot="/screenshots/screenshot-calendario-full.png"
+        screenshot="/screenshots/banner-calendario.png"
         screenshotAlt="Calendário WillFlow sincronizado com Google Calendar mostrando sessões fotográficas agendadas, datas de entrega e eventos de produção"
         features={[
           'Vista mensal, semanal e diária',
@@ -240,7 +239,7 @@ export default function ParaFotografos() {
         icon={Users}
         title="CRM para Fotógrafos"
         description="Mantenha o histórico completo de cada cliente: sessões anteriores, preferências e comunicações."
-        screenshot="/screenshots/screenshot-captacao-estudio.png"
+        screenshot="/screenshots/banner-crm.png"
         screenshotAlt="CRM WillFlow para fotógrafos com ficha de cliente, histórico de sessões anteriores, notas de preferências e registo de comunicações"
         features={[
           'Ficha de cliente completa',
@@ -254,7 +253,7 @@ export default function ParaFotografos() {
         icon={CreditCard}
         title="Controlo de Pagamentos"
         description="Nunca perca um pagamento. Visualize o que está pendente, vencido e quanto tem a receber."
-        screenshot="/screenshots/screenshot-pagamentos.png"
+        screenshot="/screenshots/banner-pagamentos.png"
         screenshotAlt="Gestão de pagamentos WillFlow para fotógrafos mostrando valores pendentes, pagamentos vencidos e relatório de cash flow por sessão"
         features={[
           'Pagamentos por sessão',

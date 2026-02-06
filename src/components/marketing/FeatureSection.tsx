@@ -73,7 +73,7 @@ export function FeatureSection({
             </ul>
           </motion.div>
           
-          {/* Screenshot with SEO-optimized alt text */}
+          {/* Screenshot with fog overlay */}
           <motion.div
             initial={{ opacity: 0, x: reversed ? -20 : 20 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -81,16 +81,14 @@ export function FeatureSection({
             viewport={{ once: true }}
             className={reversed ? 'md:order-1' : ''}
           >
-            <div>
-              <img
-                src={screenshot}
-                alt={altText}
-                title={title}
-                className="rounded-2xl shadow-xl w-full"
-                loading="lazy"
-                decoding="async"
-              />
-            </div>
+            <img
+              src={screenshot}
+              alt={altText}
+              title={title}
+              className="w-full screenshot-fog"
+              loading="lazy"
+              decoding="async"
+            />
           </motion.div>
         </div>
       </div>

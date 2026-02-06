@@ -181,11 +181,10 @@ export default function ParaAgencias() {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="relative"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded-3xl blur-3xl" />
               <img
-                src="/screenshots/screenshot-dashboard-dark-full.png"
+                src="/screenshots/banner-dashboard-overview.png"
                 alt="Dashboard WillFlow para agências de produção mostrando múltiplos projetos e métricas financeiras"
-                className="relative rounded-2xl shadow-2xl border border-border/50"
+                className="w-full screenshot-fog-hero"
                 loading="eager"
               />
             </motion.div>
@@ -239,7 +238,7 @@ export default function ParaAgencias() {
         icon={Users}
         title="Gestão de Equipas e Permissões"
         description="Defina quem pode ver o quê. Permissões granulares por projeto, área financeira e dados sensíveis."
-        screenshot="/screenshots/screenshot-permissoes.png"
+        screenshot="/screenshots/banner-crm.png"
         features={[
           'Roles personalizáveis (admin, gestor, produtor)',
           'Permissões por projeto',
@@ -252,7 +251,7 @@ export default function ParaAgencias() {
         icon={CreditCard}
         title="Pagamentos a Freelancers"
         description="Registe quanto deve a cada freelancer, marque como pago e tenha histórico completo."
-        screenshot="/screenshots/screenshot-pagamentos-estudio.png"
+        screenshot="/screenshots/banner-pagamentos.png"
         features={[
           'Controlo por projeto e freelancer',
           'Alertas de pagamentos pendentes',
@@ -266,7 +265,7 @@ export default function ParaAgencias() {
         icon={BarChart3}
         title="Relatórios em Tempo Real"
         description="Saiba exatamente como está a performance da sua agência. Receita, margem, projetos e muito mais."
-        screenshot="/screenshots/screenshot-relatorios-6m.png"
+        screenshot="/screenshots/banner-relatorios.png"
         features={[
           'Dashboard financeiro completo',
           'Margem por projeto calculada',
@@ -279,7 +278,7 @@ export default function ParaAgencias() {
         icon={MessageSquare}
         title="Chat Interno por Projeto"
         description="Mantenha toda a comunicação da equipa organizada. Cada projeto tem o seu canal dedicado."
-        screenshot="/screenshots/screenshot-dashboard-estudio.png"
+        screenshot="/screenshots/banner-chat.png"
         features={[
           'Canais por projeto',
           'Mensagens diretas',

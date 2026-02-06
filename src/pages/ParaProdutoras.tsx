@@ -196,11 +196,10 @@ export default function ParaProdutoras() {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="relative"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded-3xl blur-3xl" />
               <img
-                src="/screenshots/screenshot-kanban-full.png"
+                src="/screenshots/banner-kanban.png"
                 alt="Kanban WillFlow para produtoras mostrando fases de pré-produção, produção e pós-produção"
-                className="relative rounded-2xl shadow-2xl border border-border/50"
+                className="w-full screenshot-fog-hero"
                 loading="eager"
               />
             </motion.div>
@@ -271,7 +270,7 @@ export default function ParaProdutoras() {
         icon={FolderKanban}
         title="Kanban por Fases de Produção"
         description="Visualize todas as suas produções organizadas por fase: Pré-Produção, Em Filmagem, Edição, Revisão, Entregue."
-        screenshot="/screenshots/screenshot-kanban-full.png"
+        screenshot="/screenshots/banner-kanban.png"
         features={[
           'Colunas personalizáveis por fase',
           'Arraste projetos entre fases',
@@ -284,7 +283,7 @@ export default function ParaProdutoras() {
         icon={Calendar}
         title="Calendário de Produções"
         description="Veja todas as filmagens e entregas num calendário visual. Sincronização bidirecional com Google Calendar."
-        screenshot="/screenshots/screenshot-calendario-full.png"
+        screenshot="/screenshots/banner-calendario.png"
         features={[
           'Vista mensal, semanal e diária',
           'Dias de filmagem destacados',
@@ -298,7 +297,7 @@ export default function ParaProdutoras() {
         icon={Users}
         title="Gestão de Equipa de Produção"
         description="Aloque realizadores, diretores de fotografia, operadores de câmara e editores por projeto."
-        screenshot="/screenshots/screenshot-permissoes.png"
+        screenshot="/screenshots/banner-crm.png"
         features={[
           'Equipas por produção',
           'Freelancers integrados',
@@ -311,7 +310,7 @@ export default function ParaProdutoras() {
         icon={BarChart3}
         title="Orçamentos e Margens"
         description="Saiba exatamente quanto ganha em cada produção. Custos de equipa, equipamento e locações centralizados."
-        screenshot="/screenshots/screenshot-relatorios-3m.png"
+        screenshot="/screenshots/banner-relatorios.png"
         features={[
           'Orçamento por produção',
           'Despesas categorizadas',

@@ -170,12 +170,11 @@ export default function ParaVideomakers() {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="relative"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded-3xl blur-3xl" />
               <img
-                src="/screenshots/screenshot-kanban-full.png"
+                src="/screenshots/banner-kanban.png"
                 alt="Quadro Kanban WillFlow para produção de vídeo mostrando projetos organizados por fases: briefing, pré-produção, filmagem, edição, colorização e entrega"
                 title="Kanban WillFlow para Videomakers"
-                className="relative rounded-2xl shadow-2xl border border-border/50"
+                className="w-full screenshot-fog-hero"
                 loading="eager"
                 decoding="async"
                 fetchPriority="high"
@@ -217,7 +216,7 @@ export default function ParaVideomakers() {
         icon={Clapperboard}
         title="Kanban com Fases de Produção"
         description="Colunas específicas para vídeo: Briefing, Pré-produção, Filmagem, Edição, Color, Som e Entrega."
-        screenshot="/screenshots/screenshot-kanban-full.png"
+        screenshot="/screenshots/banner-kanban.png"
         screenshotAlt="Quadro Kanban WillFlow com fases de produção de vídeo personalizáveis: briefing, pré-produção, filmagem, edição, colorização, design de som e entrega"
         features={[
           'Fases personalizáveis',
@@ -231,7 +230,7 @@ export default function ParaVideomakers() {
         icon={CalendarCheck}
         title="Timeline de Produções"
         description="Visualize todas as filmagens e deadlines num calendário visual com sync Google Calendar."
-        screenshot="/screenshots/screenshot-calendario-full.png"
+        screenshot="/screenshots/banner-calendario.png"
         screenshotAlt="Timeline WillFlow para videomakers com calendário de filmagens, deadlines de entrega e sincronização bidirecional com Google Calendar"
         features={[
           'Vista de timeline',
@@ -246,7 +245,7 @@ export default function ParaVideomakers() {
         icon={Users}
         title="Gestão de Equipa"
         description="Atribua tarefas a operadores, editores, coloristas e designers de som. Veja quem está livre."
-        screenshot="/screenshots/screenshot-dashboard-estudio.png"
+        screenshot="/screenshots/banner-dashboard-overview.png"
         screenshotAlt="Dashboard WillFlow para gestão de equipa de vídeo mostrando atribuição de tarefas a operadores de câmara, editores, coloristas e designers de som"
         features={[
           'Membros por projeto',
@@ -260,7 +259,7 @@ export default function ParaVideomakers() {
         icon={CreditCard}
         title="Orçamentos & Pagamentos"
         description="Controle custos de produção, pagamentos a freelancers e faturas de clientes num só lugar."
-        screenshot="/screenshots/screenshot-pagamentos-estudio.png"
+        screenshot="/screenshots/banner-pagamentos.png"
         screenshotAlt="Gestão de orçamentos e pagamentos WillFlow para produção de vídeo com controlo de custos de freelancers, faturas de clientes e cálculo automático de margem"
         features={[
           'Orçamento por projeto',
@@ -275,7 +274,7 @@ export default function ParaVideomakers() {
         icon={FolderOpen}
         title="Media Hub Centralizado"
         description="Centralize todos os links: drives, proxies, masters, entregas Vimeo/YouTube e mais."
-        screenshot="/screenshots/screenshot-relatorios-6m.png"
+        screenshot="/screenshots/banner-chat.png"
         screenshotAlt="Media Hub WillFlow para videomakers centralizando links de drives, proxies, masters, entregas Vimeo, YouTube e outros ficheiros de produção"
         features={[
           'Links por projeto',
@@ -289,7 +288,7 @@ export default function ParaVideomakers() {
         icon={BarChart3}
         title="Relatórios de Produção"
         description="Veja a performance da sua produtora: projetos por mês, receita, margens e tendências."
-        screenshot="/screenshots/screenshot-relatorios-3m.png"
+        screenshot="/screenshots/banner-relatorios.png"
         features={[
           'Dashboard financeiro',
           'Projetos por categoria',
