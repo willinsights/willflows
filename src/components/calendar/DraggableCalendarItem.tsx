@@ -2,6 +2,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Camera, Film, Video, Calendar as CalendarIcon, ExternalLink, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Tooltip,
   TooltipContent,
@@ -41,6 +42,9 @@ interface DraggableCalendarItemProps {
   onClick: (item: CalendarItem, e?: React.MouseEvent) => void;
   variant?: 'compact' | 'full';
   isDragDisabled?: boolean;
+  selectionMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (itemId: string) => void;
 }
 
 export function getTypeColor(type: CalendarItem['type']) {
@@ -72,9 +76,13 @@ export function DraggableCalendarItem({
   item, 
   onClick, 
   variant = 'compact',
-  isDragDisabled = false 
+  isDragDisabled = false,
+  selectionMode = false,
+  isSelected = false,
+  onToggleSelect,
 }: DraggableCalendarItemProps) {
-  const canDrag = (item.type === 'shoot' || item.type === 'delivery') && item.projectId && !isDragDisabled;
+  const canDrag = (item.type === 'shoot' || item.type === 'delivery') && item.projectId && !isDragDisabled && !selectionMode;
+  const isDeletable = (item.type === 'event' || item.type === 'meeting') && !item.isGoogleImport;
   
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: item.id,
@@ -99,9 +107,17 @@ export function DraggableCalendarItem({
           'text-xs px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-1',
           getTypeColor(item.type),
           item.isGoogleImport && 'border border-dashed border-current/50 bg-opacity-60',
-          isDragging && 'opacity-50 shadow-lg ring-2 ring-primary'
+          isDragging && 'opacity-50 shadow-lg ring-2 ring-primary',
+          selectionMode && isSelected && 'ring-2 ring-primary-foreground'
         )}
-        onClick={(e) => onClick(item, e)}
+        onClick={(e) => {
+          if (selectionMode && isDeletable && onToggleSelect) {
+            e.stopPropagation();
+            onToggleSelect(item.id.replace('event-', ''));
+            return;
+          }
+          onClick(item, e);
+        }}
       >
         {canDrag && (
           <span
