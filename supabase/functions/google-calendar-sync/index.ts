@@ -133,6 +133,15 @@ async function refreshTokenIfNeeded(connection: any, supabaseAdmin: any, userId:
 // Delay utility for rate limiting
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+/**
+ * Strip emoji prefixes from event titles to avoid stacking on re-sync.
+ * Removes leading emoji sequences like "📌 📌 📌 📅 " or "📸 " etc.
+ */
+function stripEmojiPrefix(title: string): string {
+  // Remove leading emoji + space sequences (common emojis used in sync)
+  return title.replace(/^(?:[\u{1F4CC}\u{1F4F8}\u{1F3AC}\u{1F4C5}\u{1F4CD}]\s*)+/u, '').trim();
+}
+
 // Create or update Google Calendar event with rate limiting and retry
 async function upsertGoogleEvent(
   accessToken: string,
@@ -171,9 +180,9 @@ async function upsertGoogleEvent(
     const errorBody = await response.text();
     console.error(`Google Calendar API error (${response.status}):`, errorBody);
     
-    // Handle rate limit (429) with exponential backoff
-    if (response.status === 429 && attempt < maxRetries - 1) {
-      const waitTime = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
+    // Handle rate limit (429 or 403 with rateLimitExceeded) with exponential backoff
+    if ((response.status === 429 || (response.status === 403 && errorBody.includes('rateLimitExceeded'))) && attempt < maxRetries - 1) {
+      const waitTime = Math.pow(2, attempt + 2) * 1000; // 4s, 8s, 16s
       console.log(`Rate limited, waiting ${waitTime}ms before retry...`);
       await delay(waitTime);
       continue;
@@ -217,6 +226,7 @@ async function fetchGoogleEvents(
   url.searchParams.set('timeMax', timeMax);
   url.searchParams.set('singleEvents', 'true');
   url.searchParams.set('orderBy', 'startTime');
+  url.searchParams.set('maxResults', '250');
 
   const response = await fetch(url.toString(), {
     headers: {
@@ -384,7 +394,7 @@ serve(async (req) => {
 
             results.synced++;
             // Rate limiting delay between API calls
-            await delay(200);
+            await delay(500);
           } catch (e: any) {
             console.error(`Error syncing shoot for ${project.name}:`, e.message);
             results.errors.push(`Shoot "${project.name}": ${e.message}`);
@@ -429,7 +439,7 @@ serve(async (req) => {
             results.synced++;
             
             // Rate limiting delay between API calls
-            await delay(200);
+            await delay(500);
           } catch (e: any) {
             console.error(`Error syncing delivery for ${project.name}:`, e.message);
             results.errors.push(`Entrega "${project.name}": ${e.message}`);
@@ -437,20 +447,25 @@ serve(async (req) => {
         }
       }
 
-      // Sync calendar events
+      // Sync calendar events (limit to recent/upcoming to avoid rate limits)
       if (connection.sync_events || connection.sync_meetings) {
+        const todayStr = new Date().toISOString().split('T')[0];
         const { data: calendarEvents } = await supabaseAdmin
           .from('calendar_events')
           .select('*')
-          .eq('workspace_id', workspaceId);
+          .eq('workspace_id', workspaceId)
+          .gte('start_at', `${todayStr}T00:00:00`)
+          .order('start_at', { ascending: true })
+          .limit(50);
 
         for (const calEvent of calendarEvents || []) {
           if (calEvent.event_type === 'meeting' && !connection.sync_meetings) continue;
           if (calEvent.event_type !== 'meeting' && !connection.sync_events) continue;
 
           try {
+            const cleanTitle = stripEmojiPrefix(calEvent.title);
             const event: any = {
-              summary: `${calEvent.event_type === 'meeting' ? '📅' : '📌'} ${calEvent.title}`,
+              summary: `${calEvent.event_type === 'meeting' ? '📅' : '📌'} ${cleanTitle}`,
               description: calEvent.description || 'Gerido por WillFlow',
             };
 
@@ -485,8 +500,8 @@ serve(async (req) => {
 
             results.synced++;
             
-            // Rate limiting delay between API calls
-            await delay(200);
+            // Rate limiting delay between API calls (500ms to stay well under quota)
+            await delay(500);
           } catch (e: any) {
             console.error(`Error syncing event ${calEvent.title}:`, e.message);
             results.errors.push(`Evento "${calEvent.title}": ${e.message}`);
