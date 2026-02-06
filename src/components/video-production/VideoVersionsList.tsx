@@ -107,22 +107,40 @@ export function VideoVersionsList({
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={cn(
-                    "flex items-center justify-center rounded-full",
-                    "w-8 h-8 min-w-[2rem] min-h-[2rem] aspect-square flex-shrink-0",
-                    "text-sm font-bold",
-                    selectedVersionId === version.id
-                      ? "bg-primary text-primary-foreground"
-                      : hasStreamError
-                        ? "bg-destructive/10 text-destructive"
-                        : "bg-muted text-muted-foreground"
-                  )}>
-                    {hasStreamError ? (
-                      <AlertTriangle className="h-4 w-4" />
-                    ) : (
-                      `V${version.version_number}`
-                    )}
-                  </div>
+                  {version.thumbnail_path ? (
+                    <div className="relative w-16 h-9 min-w-[4rem] flex-shrink-0 rounded overflow-hidden bg-muted">
+                      <img 
+                        src={version.thumbnail_path} 
+                        alt={`V${version.version_number}`}
+                        className="w-full h-full object-cover"
+                      />
+                      <span className={cn(
+                        "absolute bottom-0 left-0 text-[10px] font-bold px-1 py-px leading-tight",
+                        selectedVersionId === version.id
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-black/70 text-white"
+                      )}>
+                        V{version.version_number}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className={cn(
+                      "flex items-center justify-center rounded-full",
+                      "w-8 h-8 min-w-[2rem] min-h-[2rem] aspect-square flex-shrink-0",
+                      "text-sm font-bold",
+                      selectedVersionId === version.id
+                        ? "bg-primary text-primary-foreground"
+                        : hasStreamError
+                          ? "bg-destructive/10 text-destructive"
+                          : "bg-muted text-muted-foreground"
+                    )}>
+                      {hasStreamError ? (
+                        <AlertTriangle className="h-4 w-4" />
+                      ) : (
+                        `V${version.version_number}`
+                      )}
+                    </div>
+                  )}
                   
                   <div className="min-w-0">
                     <p className="font-medium line-clamp-2 break-all">{version.file_name}</p>
