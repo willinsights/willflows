@@ -123,7 +123,7 @@ export default function KanbanFeature() {
         title="Kanban que Entende"
         titleHighlight="Produção Visual"
         subtitle="Quadro visual desenhado para o fluxo de trabalho de fotografia e vídeo. Da captação à entrega, com transições automáticas entre fases."
-        screenshot="/screenshots/screenshot-kanban-full.png"
+        screenshot="/screenshots/banner-kanban.png"
       />
 
       <FlowDiagram

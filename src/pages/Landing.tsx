@@ -349,69 +349,25 @@ export default function Landing() {
           />
         </div>
 
-        {/* Floating Screenshots - Desktop */}
-        <div className="hidden lg:block">
-          {/* Left side - Dashboard (partially visible) */}
-          <FloatingScreenshot
-            src={screenshotDashboard}
-            alt="Dashboard WillFlow mostrando métricas e gráficos financeiros"
-            className="left-[-8%] top-[20%] w-[380px] rotate-[-6deg]"
-            delay={0}
-            displayWidth={380}
-            onClick={() => setSelectedImage(screenshotDashboard)}
-          />
-          
-          {/* Right side - Kanban (larger, more visible) - Priority for LCP */}
-          <FloatingScreenshot
-            src={screenshotKanban}
-            alt="Quadro Kanban WillFlow com projetos organizados por fase"
-            className="right-[-5%] top-[18%] w-[420px] rotate-[4deg]"
-            delay={0.3}
-            displayWidth={420}
-            priority
-            onClick={() => setSelectedImage(screenshotKanban)}
-          />
-          
-          {/* Bottom left - Calendar */}
-          <FloatingScreenshot
-            src={screenshotCalendar}
-            alt="Calendário WillFlow com sessões e entregas agendadas"
-            className="left-[2%] bottom-[5%] w-[320px] rotate-[-3deg]"
-            delay={0.6}
-            displayWidth={320}
-            onClick={() => setSelectedImage(screenshotCalendar)}
-          />
-          
-          {/* Bottom right - Payments */}
-          <FloatingScreenshot
-            src={screenshotPayments}
-            alt="Controlo de pagamentos WillFlow com valores a receber"
-            className="right-[3%] bottom-[8%] w-[340px] rotate-[5deg]"
-            delay={0.9}
-            displayWidth={340}
-            onClick={() => setSelectedImage(screenshotPayments)}
-          />
-        </div>
-
-        {/* Floating Screenshots - Tablet */}
-        <div className="hidden md:block lg:hidden">
-          <FloatingScreenshot
-            src={screenshotDashboard}
-            alt="Dashboard WillFlow mostrando métricas e gráficos financeiros"
-            className="left-[-15%] top-[25%] w-[280px] rotate-[-6deg] opacity-70"
-            delay={0}
-            displayWidth={280}
-            onClick={() => setSelectedImage(screenshotDashboard)}
-          />
-          <FloatingScreenshot
-            src={screenshotKanban}
-            alt="Quadro Kanban WillFlow com projetos organizados por fase"
-            className="right-[-12%] top-[22%] w-[300px] rotate-[4deg] opacity-70"
-            delay={0.3}
-            displayWidth={300}
-            onClick={() => setSelectedImage(screenshotKanban)}
-          />
-        </div>
+      {/* Hero Screenshot - Single centralized image */}
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          className="hidden md:block absolute inset-x-0 bottom-0 px-4"
+        >
+          <div className="container mx-auto relative">
+            <div className="absolute -inset-8 bg-gradient-to-t from-primary/20 via-accent/10 to-transparent rounded-3xl blur-3xl opacity-50" />
+            <img
+              src="/screenshots/banner-dashboard-overview.png"
+              alt="Dashboard WillFlow mostrando visão geral do produto com Kanban, CRM, Calendário e Finanças"
+              className="relative rounded-2xl shadow-2xl shadow-black/40 border border-white/10 w-full max-w-5xl mx-auto"
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
+            />
+          </div>
+        </motion.div>
 
         {/* Central Content */}
         <div className="container mx-auto px-4 relative z-10">

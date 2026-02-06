@@ -121,7 +121,7 @@ export default function RelatoriosFeature() {
         title="Dados que"
         titleHighlight="Contam Histórias"
         subtitle="Entenda o seu negócio com relatórios visuais. Top clientes, tendências, performance da equipa — tudo atualizado em tempo real."
-        screenshot="/screenshots/screenshot-relatorios-6m.png"
+        screenshot="/screenshots/banner-relatorios.png"
       />
 
       <FlowDiagram
