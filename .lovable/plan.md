@@ -1,33 +1,37 @@
 
 
-## Limpeza de Eventos Duplicados e Correção do Sync
+## Correcao: Link Google Meet nao aparece no evento
 
-### Problema Identificado
+### Problema
 
-A sincronização do Google Calendar estava a importar o mesmo evento repetidamente a cada ciclo, criando duplicados. O evento "teeste" tem **15 cópias** com emojis acumulados (ex: "📌 📌 📌 📌 📌 📅 teeste"). O mesmo aconteceu com outros eventos como "reuniao teste" e "BARBEARIA DOM CLUB".
+O evento foi criado com sucesso, mas o link do Google Meet nao apareceu porque a funcao backend `create-google-meet` nao esta deployada no servidor. O pedido falhou com "Failed to fetch" (funcao retorna 404 - Not Found).
 
-A causa raiz: a importacao do Google Calendar nao verificava correctamente se o evento ja existia na base de dados, criando um novo registo em vez de atualizar o existente.
+O fluxo no codigo esta correcto: o toggle "Criar Google Meet automaticamente" activa, a chamada e feita, mas como a funcao nao existe no servidor, falha silenciosamente e o evento e criado sem link.
 
 ### Plano
 
-**1. Limpar duplicados da base de dados**
-- Executar uma migração SQL que mantém apenas o evento original (mais antigo) de cada grupo de duplicados
-- Apagar todos os duplicados com títulos que contenham emojis empilhados
-- Corrigir os títulos dos eventos originais removendo os emojis acumulados
+**1. Redeployar a funcao `create-google-meet`**
+- A funcao ja existe em `supabase/functions/create-google-meet/index.ts` e o codigo esta correcto
+- Basta fazer o deploy para que fique disponivel no servidor
 
-**2. Corrigir a lógica de importação no edge function**
-- Na função `google-calendar-sync`, melhorar a detecção de duplicados durante a importação do Google
-- Usar o `google_event_id` como chave única para evitar reimportações
-- Fazer UPSERT em vez de INSERT na importação, garantindo que eventos existentes são atualizados e não duplicados
+**2. Verificar que funcoes relacionadas tambem estao deployadas**
+- `google-calendar-auth` (necessaria para a conexao OAuth)
+- `google-calendar-sync` (necessaria para sincronizacao)
 
-**3. Redeployar a função corrigida**
+**3. Testar o fluxo completo**
+- Criar um evento com tipo "Reuniao" e toggle Meet activado
+- Confirmar que o link aparece no EventDetailsModal
 
-### Secção Técnica
+### Seccao Tecnica
 
-**SQL de limpeza** - Identifica duplicados pelo `google_event_id` e mantém apenas o registo mais antigo de cada grupo. Remove emojis acumulados dos títulos restantes.
+A funcao `create-google-meet` faz:
+1. Valida o JWT do utilizador
+2. Verifica membership no workspace
+3. Busca a conexao Google Calendar do utilizador
+4. Faz refresh do token OAuth se necessario (tokens encriptados na BD)
+5. Cria um evento no Google Calendar com `conferenceDataVersion=1` (Google Meet)
+6. Retorna o `meetUrl` e `googleEventId`
 
-**Edge function** - O ficheiro `supabase/functions/google-calendar-sync/index.ts` será atualizado na secção de importação (onde eventos do Google sao inseridos na BD) para:
-- Verificar por `google_event_id` antes de inserir
-- Usar `.upsert()` com `onConflict: 'google_event_id'` ou verificação manual prévia
-- Limpar emojis do título antes de guardar
+O frontend em `useCalendarEvents.ts` recebe o `meetUrl`, guarda-o no campo `video_call_url` da tabela `calendar_events`, e o `EventDetailsModal` mostra o botao "Abrir Sala de Reuniao" quando esse campo tem valor.
 
+Nenhuma alteracao de codigo e necessaria -- apenas o deploy da funcao.
