@@ -329,7 +329,7 @@ export default function Landing() {
         </div>
 
         <div className="container mx-auto px-4 relative z-10">
-          <div className="grid lg:grid-cols-[1fr_1.2fr] gap-12 items-center pt-12 lg:pt-20">
+          <div className="grid lg:grid-cols-[1fr_1.1fr] gap-8 lg:gap-16 items-center pt-12 lg:pt-20">
             {/* Left - Text Content */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -397,17 +397,17 @@ export default function Landing() {
               )}
             </motion.div>
 
-            {/* Right - Dashboard Banner */}
+            {/* Right - Dashboard Banner - No box, integrated */}
             <motion.div
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-              className="hidden lg:block"
+              initial={{ opacity: 0, x: 40, scale: 0.95 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              transition={{ duration: 0.9, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              className="hidden lg:block relative lg:-mr-20 xl:-mr-32"
             >
               <img
                 src="/screenshots/banner-dashboard-overview.png"
                 alt="Dashboard WillFlow mostrando visão geral do produto com Kanban, CRM, Calendário e Finanças"
-                className="rounded-2xl shadow-2xl w-full"
+                className="w-full rounded-l-2xl"
                 loading="eager"
                 decoding="async"
                 fetchPriority="high"
@@ -425,7 +425,7 @@ export default function Landing() {
               <img
                 src="/screenshots/banner-dashboard-overview.png"
                 alt="Dashboard WillFlow"
-                className="rounded-2xl shadow-2xl w-full"
+                className="rounded-2xl w-full"
                 loading="eager"
                 decoding="async"
                 fetchPriority="high"
