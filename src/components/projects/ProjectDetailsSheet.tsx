@@ -51,6 +51,8 @@ import { DeliverConfirmDialog } from '@/components/kanban/DeliverConfirmDialog';
 import { useConversations } from '@/hooks/useConversations';
 import { useAuth } from '@/contexts/AuthContext';
 import { VideoProductionTab } from '@/components/video-production/VideoProductionTab';
+import { CreateEventModal } from '@/components/calendar/CreateEventModal';
+import { useCalendarEvents } from '@/hooks/useCalendarEvents';
 
 type Task = Tables<'tasks'>;
 type TaskChecklist = Tables<'task_checklists'>;
@@ -111,6 +113,7 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
   const { hasFeatureAccess, loading: planLoading } = usePlanFeatures();
   const { projectChats, createProjectChat } = useConversations();
   const { user } = useAuth();
+  const { createEvent } = useCalendarEvents();
   const [openingChat, setOpeningChat] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -118,6 +121,7 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
   const [showDeliverConfirmDialog, setShowDeliverConfirmDialog] = useState(false);
   const [showReopenDialog, setShowReopenDialog] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [showCreateEvent, setShowCreateEvent] = useState(false);
   const [duplicateName, setDuplicateName] = useState('');
   const [duplicating, setDuplicating] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -752,6 +756,10 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
                 </>
               ) : (
                 <>
+                  <Button variant="outline" size="sm" onClick={() => setShowCreateEvent(true)}>
+                    <Calendar className="h-4 w-4 mr-1" />
+                    Agendar
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
                     <Edit className="h-4 w-4 mr-1" />
                     Editar
@@ -858,6 +866,23 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create Event Modal from Project */}
+      {project && (
+        <CreateEventModal
+          open={showCreateEvent}
+          onOpenChange={setShowCreateEvent}
+          onSubmit={async (eventData, options) => {
+            const result = await createEvent({
+              ...eventData,
+              project_id: project.id,
+            }, options);
+            return result;
+          }}
+          initialProjectId={project.id}
+          initialProjectName={project.name}
+        />
+      )}
     </>
   );
 }

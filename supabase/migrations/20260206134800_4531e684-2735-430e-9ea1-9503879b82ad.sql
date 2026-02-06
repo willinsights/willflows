@@ -1,0 +1,1 @@
+ALTER TABLE public.calendar_events ADD COLUMN attendees_emails text[] DEFAULT '{}';

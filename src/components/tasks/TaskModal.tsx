@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Loader2, CalendarIcon, User, FolderOpen, ListChecks, Film, Settings2 } from 'lucide-react';
+import { CreateEventModal } from '@/components/calendar/CreateEventModal';
+import { useCalendarEvents } from '@/hooks/useCalendarEvents';
 import { TaskChatIndicator } from './TaskChatIndicator';
 import {
   Dialog,
@@ -81,6 +83,8 @@ export function TaskModal({
   const [priority, setPriority] = useState<PriorityLevel>('media');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
+  const [showCreateEvent, setShowCreateEvent] = useState(false);
+  const { createEvent } = useCalendarEvents();
 
   const isEditing = !!task;
   // Wait for plan features to load before checking video approval access
@@ -326,6 +330,25 @@ export function TaskModal({
           />
         )}
       </DialogContent>
+
+      {/* Create Event Modal from Task */}
+      {task && (
+        <CreateEventModal
+          open={showCreateEvent}
+          onOpenChange={setShowCreateEvent}
+          onSubmit={async (eventData, options) => {
+            const result = await createEvent({
+              ...eventData,
+              project_id: task.project_id,
+              task_id: task.id,
+            }, options);
+            return result;
+          }}
+          initialProjectId={task.project_id}
+          initialTaskId={task.id}
+          initialProjectName={projects.find(p => p.id === task.project_id)?.name}
+        />
+      )}
     </Dialog>
   );
 }
@@ -558,6 +581,12 @@ function TaskDetailsForm({
         <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
           Cancelar
         </Button>
+        {isEditing && task && (
+          <Button type="button" variant="outline" onClick={() => setShowCreateEvent(true)}>
+            <CalendarIcon className="h-4 w-4 mr-2" />
+            Agendar
+          </Button>
+        )}
         <Button
           type="submit"
           disabled={!title.trim() || !projectId || isSubmitting}
@@ -566,6 +595,25 @@ function TaskDetailsForm({
           {isEditing ? 'Guardar' : 'Criar Tarefa'}
         </Button>
       </DialogFooter>
+
+      {/* Create Event Modal from Task */}
+      {isEditing && task && (
+        <CreateEventModal
+          open={showCreateEvent}
+          onOpenChange={setShowCreateEvent}
+          onSubmit={async (eventData, options) => {
+            const result = await createEvent({
+              ...eventData,
+              project_id: task.project_id,
+              task_id: task.id,
+            }, options);
+            return result;
+          }}
+          initialProjectId={task.project_id}
+          initialTaskId={task.id}
+          initialProjectName={projects.find(p => p.id === task.project_id)?.name}
+        />
+      )}
     </form>
   );
 }

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { CalendarIcon, Clock, MapPin, Video, FileText, Lock, Loader2 } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, Video, FileText, Lock, Loader2, X, Mail, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,10 @@ const GoogleMeetIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 export interface CreateEventModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -51,10 +56,16 @@ export interface CreateEventModalProps {
     event_type: string;
     video_call_url?: string;
     is_private?: boolean;
+    attendees_emails?: string[];
+    project_id?: string;
+    task_id?: string;
   }, options?: { autoCreateMeet?: boolean }) => Promise<any>;
   initialDate?: Date;
   initialHour?: number;
   editingEvent?: CalendarEventWithProject;
+  initialProjectId?: string;
+  initialTaskId?: string;
+  initialProjectName?: string;
 }
 
 export function CreateEventModal({
@@ -64,6 +75,9 @@ export function CreateEventModal({
   initialDate,
   initialHour,
   editingEvent,
+  initialProjectId,
+  initialTaskId,
+  initialProjectName,
 }: CreateEventModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [title, setTitle] = useState('');
@@ -81,6 +95,8 @@ export function CreateEventModal({
   const [videoCallUrl, setVideoCallUrl] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
   const [autoCreateMeet, setAutoCreateMeet] = useState(false);
+  const [attendeesEmails, setAttendeesEmails] = useState<string[]>([]);
+  const [emailInput, setEmailInput] = useState('');
 
   const { connection, loading: loadingConnection } = useGoogleCalendar();
   const isGoogleConnected = connection?.is_connected;
@@ -98,6 +114,7 @@ export function CreateEventModal({
       setEventType(editingEvent.event_type);
       setVideoCallUrl(editingEvent.video_call_url || '');
       setIsPrivate(editingEvent.is_private);
+      setAttendeesEmails((editingEvent as any).attendees_emails || []);
       
       const startDate = new Date(editingEvent.start_at);
       setStartTime(`${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`);
@@ -108,11 +125,22 @@ export function CreateEventModal({
       }
     } else if (!editingEvent && open) {
       // Reset for new event
+      setTitle('');
+      setDescription('');
       setDate(initialDate || new Date());
       setStartTime(initialHour ? `${initialHour.toString().padStart(2, '0')}:00` : '09:00');
       setEndTime(initialHour ? `${(initialHour + 1).toString().padStart(2, '0')}:00` : '10:00');
+      setAllDay(false);
+      setLocation('');
+      setEventType('meeting');
+      setVideoCallUrl('');
+      setIsPrivate(false);
+      setAttendeesEmails([]);
+      setEmailInput('');
+      // Default Meet ON when Google connected and new event
+      setAutoCreateMeet(!!isGoogleConnected);
     }
-  }, [editingEvent, open, initialDate, initialHour]);
+  }, [editingEvent, open, initialDate, initialHour, isGoogleConnected]);
 
   // Reset autoCreateMeet when event type changes
   useEffect(() => {
@@ -128,9 +156,31 @@ export function CreateEventModal({
     }
   }, [autoCreateMeet]);
 
+  const addEmail = (raw: string) => {
+    const email = raw.trim().toLowerCase();
+    if (email && isValidEmail(email) && !attendeesEmails.includes(email)) {
+      setAttendeesEmails(prev => [...prev, email]);
+    }
+    setEmailInput('');
+  };
+
+  const handleEmailKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addEmail(emailInput);
+    }
+  };
+
+  const removeEmail = (email: string) => {
+    setAttendeesEmails(prev => prev.filter(e => e !== email));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !date) return;
+
+    // Add any pending email
+    if (emailInput.trim()) addEmail(emailInput);
 
     setIsSubmitting(true);
     try {
@@ -138,7 +188,6 @@ export function CreateEventModal({
         ? format(date, "yyyy-MM-dd'T'00:00:00")
         : `${format(date, 'yyyy-MM-dd')}T${startTime}:00`;
       
-      // Auto-correct endTime if it's <= startTime (non all-day events)
       let correctedEndTime = endTime;
       if (!allDay && endTime <= startTime) {
         const [h, m] = startTime.split(':').map(Number);
@@ -160,21 +209,12 @@ export function CreateEventModal({
         event_type: eventType,
         video_call_url: videoCallUrl.trim() || undefined,
         is_private: isPrivate,
+        attendees_emails: attendeesEmails.length > 0 ? attendeesEmails : undefined,
+        project_id: initialProjectId || undefined,
+        task_id: initialTaskId || undefined,
       }, { autoCreateMeet });
 
       if (result) {
-        // Reset form
-        setTitle('');
-        setDescription('');
-        setDate(new Date());
-        setStartTime('09:00');
-        setEndTime('10:00');
-        setAllDay(false);
-        setLocation('');
-        setEventType('meeting');
-        setVideoCallUrl('');
-        setIsPrivate(false);
-        setAutoCreateMeet(false);
         onOpenChange(false);
       }
     } finally {
@@ -200,6 +240,15 @@ export function CreateEventModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Project/Task context badge */}
+          {initialProjectName && (
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
+              <FolderOpen className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Projeto:</span>
+              <Badge variant="secondary" className="text-xs">{initialProjectName}</Badge>
+            </div>
+          )}
+
           {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="title">Título *</Label>
@@ -253,6 +302,31 @@ export function CreateEventModal({
               )}
             </>
           )}
+
+          {/* Attendees */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1">
+              <Mail className="h-3 w-3" />
+              Participantes
+            </Label>
+            <div className="flex flex-wrap gap-1.5 mb-1.5">
+              {attendeesEmails.map(email => (
+                <Badge key={email} variant="secondary" className="gap-1 text-xs">
+                  {email}
+                  <button type="button" onClick={() => removeEmail(email)} className="ml-0.5 hover:text-destructive">
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+            <Input
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
+              onKeyDown={handleEmailKeyDown}
+              onBlur={() => { if (emailInput.trim()) addEmail(emailInput); }}
+              placeholder="email@exemplo.com (Enter para adicionar)"
+            />
+          </div>
 
           {/* Date */}
           <div className="space-y-2">

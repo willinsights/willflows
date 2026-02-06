@@ -198,6 +198,7 @@ export function useCalendarEvents() {
                 startAt: validation.data.start_at,
                 endAt: endAtForMeet,
                 description: validation.data.description,
+                attendees: (event as any).attendees_emails ?? [],
               }),
             }
           );
@@ -224,7 +225,7 @@ export function useCalendarEvents() {
     }
 
     try {
-      const insertData: CalendarEventInsert = {
+      const insertData: any = {
         title: validation.data.title,
         start_at: validation.data.start_at,
         workspace_id: currentWorkspace.id,
@@ -237,6 +238,7 @@ export function useCalendarEvents() {
         project_id: validation.data.project_id ?? null,
         task_id: validation.data.task_id ?? null,
         google_event_id: googleEventId,
+        attendees_emails: (event as any).attendees_emails ?? [],
       };
 
       const { data, error } = await supabase
