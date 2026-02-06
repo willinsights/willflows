@@ -1,33 +1,30 @@
 
-# Corrigir eventos a sair fora do card
+
+# Corrigir Edge Function de Aprovacao de Video
 
 ## Problema
-O card "Proximos Compromissos" tem altura fixa `h-[280px]` mas nao tem overflow scroll no conteudo. Quando ha muitos eventos, eles saem fora do card.
+A edge function `get-video-approval-data` nao esta deployed no servidor. Quando o link de aprovacao e acedido, retorna erro 404 porque a funcao nao existe no ambiente de producao.
 
-Alem disso, a screenshot mostra que os eventos ainda aparecem com "00:00" — isto indica que a correcao anterior pode nao estar a ser aplicada correctamente (possivelmente o campo `allDay` nao esta a ser passado ou os dados nao estao actualizados).
+O token existe e esta ativo na base de dados, mas a funcao que serve os dados nao esta disponivel.
+
+## Solucao
+
+A funcao precisa de ser re-deployed. Para forcar o deploy atraves do ciclo de build do Lovable, vou fazer uma alteracao minima no ficheiro da edge function (adicionar um comentario com timestamp) que vai triggerar o rebuild e deploy automatico.
 
 ## Alteracoes
 
-### 1. `src/components/dashboard/UpcomingEventsCard.tsx`
-- Adicionar `overflow-y-auto` ao `CardContent` ou ao container dos eventos
-- Limitar a area scrollavel para caber dentro do `h-[280px]` do card
-- Alterar para algo como `max-h-[200px] overflow-y-auto` no div que contem os eventos
-
-### 2. Verificar passagem do campo `allDay`
-- Confirmar que o hook que fornece os eventos esta a passar correctamente o campo `allDay` para que a logica "Dia inteiro" funcione
+| Ficheiro | Alteracao |
+|----------|-----------|
+| `supabase/functions/get-video-approval-data/index.ts` | Adicionar comentario para forcar redeploy |
 
 ## Detalhe Tecnico
 
-No `UpcomingEventsCard.tsx`, envolver a lista de eventos num container com scroll:
+Adicionar um comentario no topo do ficheiro para forcar o sistema de build a detectar uma alteracao e fazer o deploy:
 
 ```typescript
-<div className="space-y-2 max-h-[195px] overflow-y-auto pr-1">
-  {events.map((event) => { ... })}
-</div>
+// Edge function: get-video-approval-data - v2
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 ```
 
-Isto garante que mesmo com 5+ eventos, o conteudo fica contido dentro do card com scroll suave.
+Apos o build, a funcao ficara disponivel e os links de aprovacao voltarao a funcionar.
 
-| Ficheiro | Alteracao |
-|----------|-----------|
-| `src/components/dashboard/UpcomingEventsCard.tsx` | Adicionar overflow scroll ao container de eventos |
