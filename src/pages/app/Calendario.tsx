@@ -72,7 +72,7 @@ export default function Calendario() {
       .eq('id', id);
     if (!error) refresh();
   };
-  const { events, createEvent, updateEvent, refresh: refreshEvents, sourceFilter, setSourceFilter } = useCalendarEvents();
+  const { events, createEvent, updateEvent, deleteEvent, refresh: refreshEvents, sourceFilter, setSourceFilter } = useCalendarEvents();
   const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
@@ -889,6 +889,7 @@ export default function Calendario() {
         open={showEventDetails}
         onOpenChange={setShowEventDetails}
         onEdit={handleEditEvent}
+        onDelete={deleteEvent}
       />
     </div>
   );
