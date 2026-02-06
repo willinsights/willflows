@@ -43,6 +43,7 @@ export interface EventDetails {
   allDay?: boolean;
   projectName?: string;
   isGoogleImport?: boolean;
+  attendeesEmails?: string[];
 }
 
 interface EventDetailsModalProps {
@@ -163,6 +164,21 @@ export function EventDetailsModal({ event, open, onOpenChange, onEdit }: EventDe
                 <div>
                   <p className="text-sm text-muted-foreground">Projeto</p>
                   <p className="font-medium">{event.projectName}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Attendees */}
+            {event.attendeesEmails && event.attendeesEmails.length > 0 && (
+              <div className="flex items-start gap-3">
+                <Users className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Participantes</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {event.attendeesEmails.map(email => (
+                      <Badge key={email} variant="secondary" className="text-xs">{email}</Badge>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

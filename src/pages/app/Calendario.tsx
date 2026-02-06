@@ -60,6 +60,7 @@ interface CalendarEventDetails {
   description?: string | null;
   videoCallUrl?: string | null;
   allDay?: boolean;
+  attendeesEmails?: string[];
 }
 
 export default function Calendario() {
@@ -274,6 +275,7 @@ export default function Calendario() {
           description: event.description,
           videoCallUrl: event.video_call_url,
           allDay: event.all_day,
+          attendeesEmails: (event as any).attendees_emails || [],
         });
         setShowEventDetails(true);
         setSelectedDate(null);
@@ -289,7 +291,7 @@ export default function Calendario() {
     setShowCreateEvent(true);
   };
 
-  // Handle event creation
+  // Handle event creation with auto-open details
   const handleCreateEvent = async (eventData: {
     title: string;
     description?: string;
@@ -299,10 +301,29 @@ export default function Calendario() {
     location?: string;
     event_type: string;
     video_call_url?: string;
-  }) => {
-    const result = await createEvent(eventData);
+    attendees_emails?: string[];
+    project_id?: string;
+    task_id?: string;
+  }, options?: { autoCreateMeet?: boolean }) => {
+    const result = await createEvent(eventData, options);
     if (result) {
       refreshEvents();
+      // Auto-open event details after creation
+      setSelectedEvent({
+        id: result.id,
+        title: result.title,
+        startAt: new Date(result.start_at),
+        endAt: result.end_at ? new Date(result.end_at) : null,
+        location: result.location,
+        eventType: result.event_type,
+        projectName: result.projects?.name,
+        description: result.description,
+        videoCallUrl: result.video_call_url,
+        allDay: result.all_day,
+        attendeesEmails: (result as any).attendees_emails || [],
+      });
+      setShowEventDetails(true);
+      setCurrentDate(new Date(result.start_at));
     }
     return result;
   };
@@ -333,14 +354,17 @@ export default function Calendario() {
     location?: string;
     event_type: string;
     video_call_url?: string;
-  }) => {
+    attendees_emails?: string[];
+    project_id?: string;
+    task_id?: string;
+  }, options?: { autoCreateMeet?: boolean }) => {
     if (editingEventId) {
       await updateEvent(editingEventId, eventData);
       setEditingEventId(null);
       refreshEvents();
       return { id: editingEventId } as any;
     }
-    return handleCreateEvent(eventData);
+    return handleCreateEvent(eventData, options);
   };
 
   // Navigation handlers based on view mode
