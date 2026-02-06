@@ -156,8 +156,18 @@ export function MobileUpcomingEvents({
                           <span className={cn(isEventToday && "text-primary font-medium")}>
                             {formatEventDate(event.startAt)}
                           </span>
-                          <span>•</span>
-                          <span>{format(event.startAt, 'HH:mm')}</span>
+                          {(() => {
+                            const time = format(event.startAt, 'HH:mm');
+                            const isAllDay = event.allDay || time === '00:00';
+                            return isAllDay ? (
+                              <span className="text-muted-foreground">Dia inteiro</span>
+                            ) : (
+                              <>
+                                <span>•</span>
+                                <span>{time}</span>
+                              </>
+                            );
+                          })()}
                           {event.location && (
                             <>
                               <span>•</span>
