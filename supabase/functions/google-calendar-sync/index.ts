@@ -483,7 +483,9 @@ serve(async (req) => {
               event.location = calEvent.location;
             }
 
-            const existingEventId = syncLogMap.get(`calendar_event:${calEvent.id}`);
+            // IMPORTANT: Use the event's own google_event_id first (set by create-google-meet),
+            // then fall back to sync log. This prevents creating duplicate Google events.
+            const existingEventId = calEvent.google_event_id || syncLogMap.get(`calendar_event:${calEvent.id}`);
             const result = await upsertGoogleEvent(accessToken, calendarId, event, existingEventId);
 
             await supabaseAdmin
