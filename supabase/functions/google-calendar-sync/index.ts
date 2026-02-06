@@ -546,15 +546,6 @@ serve(async (req) => {
         !e.description?.includes('Gerido por WillFlow')
       );
 
-      // Get existing imported events to avoid duplicates
-      const { data: existingImported } = await supabaseAdmin
-        .from('calendar_events')
-        .select('google_event_id')
-        .eq('workspace_id', workspaceId)
-        .not('google_event_id', 'is', null);
-
-      const existingGoogleIds = new Set(existingImported?.map(e => e.google_event_id) || []);
-
       let imported = 0;
       let updated = 0;
       const importErrors: string[] = [];
@@ -565,39 +556,46 @@ serve(async (req) => {
           const startAt = gEvent.start?.dateTime || `${gEvent.start?.date}T00:00:00`;
           const endAt = gEvent.end?.dateTime || (gEvent.end?.date ? `${gEvent.end.date}T23:59:59` : startAt);
 
+          const cleanTitle = stripEmojiPrefix(gEvent.summary || 'Evento do Google');
+
           const eventData = {
             workspace_id: workspaceId,
-            title: gEvent.summary || 'Evento do Google',
+            title: cleanTitle,
             description: gEvent.description || null,
             start_at: startAt,
             end_at: endAt,
             all_day: isAllDay,
             location: gEvent.location || null,
-            event_type: 'event', // Default type for imported events
+            event_type: 'event',
             google_event_id: gEvent.id,
             created_by: userId,
-            is_private: true, // Eventos importados são privados por defeito
+            is_private: true,
           };
 
-          if (existingGoogleIds.has(gEvent.id)) {
-            // Update existing event
+          // Use upsert: if google_event_id already exists in this workspace, update it
+          const { data: existing } = await supabaseAdmin
+            .from('calendar_events')
+            .select('id')
+            .eq('google_event_id', gEvent.id)
+            .eq('workspace_id', workspaceId)
+            .maybeSingle();
+
+          if (existing) {
             const { error } = await supabaseAdmin
               .from('calendar_events')
               .update({
-                title: eventData.title,
+                title: cleanTitle,
                 description: eventData.description,
                 start_at: eventData.start_at,
                 end_at: eventData.end_at,
                 all_day: eventData.all_day,
                 location: eventData.location,
               })
-              .eq('google_event_id', gEvent.id)
-              .eq('workspace_id', workspaceId);
+              .eq('id', existing.id);
 
             if (error) throw error;
             updated++;
           } else {
-            // Insert new event
             const { error } = await supabaseAdmin
               .from('calendar_events')
               .insert(eventData);
