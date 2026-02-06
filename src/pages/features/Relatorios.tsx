@@ -148,7 +148,7 @@ export default function RelatoriosFeature() {
         icon={PieChart}
         title="Projetos por Categoria"
         description="Entenda que tipos de projeto dominam o seu negócio. Fotografia vs vídeo, eventos vs comercial, hotéis vs restaurantes."
-        screenshot="/screenshots/screenshot-relatorios-3m.png"
+        screenshot="/screenshots/banner-relatorios.png"
         features={[
           'Distribuição por tipo',
           'Distribuição por categoria',
@@ -175,7 +175,7 @@ export default function RelatoriosFeature() {
         icon={ArrowUpDown}
         title="Performance da Equipa"
         description="Acompanhe a produtividade de cada membro. Projetos atribuídos, concluídos, tempo médio por fase."
-        screenshot="/screenshots/screenshot-permissoes.png"
+        screenshot="/screenshots/banner-relatorios.png"
         features={[
           'Projetos por membro',
           'Taxa de conclusão',

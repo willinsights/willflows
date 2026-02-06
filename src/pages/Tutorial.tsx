@@ -32,7 +32,7 @@ const tutorialSteps = [
     icon: UserPlus,
     title: '1. Criar Conta',
     description: 'Acesse willflow.app e clique em "Começar teste grátis". Preencha o seu email e crie uma password segura. Pode também registar-se com a sua conta Google.',
-    screenshot: '/screenshots/screenshot-onboarding-regiao.png',
+    screenshot: '/screenshots/banner-dashboard-overview.png',
     tips: [
       'Use um email válido para receber notificações',
       'A password deve ter pelo menos 6 caracteres',
@@ -44,7 +44,7 @@ const tutorialSteps = [
     icon: MapPin,
     title: '2. Escolher Região',
     description: 'Selecione Portugal (EUR) ou Brasil (BRL) como a sua região. Isto define a moeda e o fuso horário do seu workspace.',
-    screenshot: '/screenshots/screenshot-onboarding-planos.png',
+    screenshot: '/screenshots/banner-dashboard-overview.png',
     tips: [
       'A moeda pode ser alterada depois nas configurações',
       'O fuso horário afeta os lembretes e notificações',
@@ -55,7 +55,7 @@ const tutorialSteps = [
     icon: LayoutDashboard,
     title: '3. Conhecer o Dashboard',
     description: 'O Dashboard é a sua página inicial. Aqui vê um resumo de projetos, pagamentos pendentes, eventos próximos e atividade recente.',
-    screenshot: '/screenshots/screenshot-dashboard-dark-full.png',
+    screenshot: '/screenshots/banner-dashboard-overview.png',
     tips: [
       'Os cards são clicáveis e levam à secção correspondente',
       'O gráfico mostra a evolução financeira dos últimos meses',
@@ -67,7 +67,7 @@ const tutorialSteps = [
     icon: Plus,
     title: '4. Criar o Primeiro Projeto',
     description: 'Clique em "Novo Projeto" para criar o seu primeiro trabalho. Preencha o nome, cliente, tipo (Foto/Vídeo) e categoria.',
-    screenshot: '/screenshots/screenshot-projeto-modal.png',
+    screenshot: '/screenshots/banner-kanban.png',
     tips: [
       'Se o cliente não existir, pode criar um novo no momento',
       'O tipo define se o projeto passa pela fase de Edição',
@@ -79,7 +79,7 @@ const tutorialSteps = [
     icon: Kanban,
     title: '5. Usar o Kanban de Captação',
     description: 'O Kanban mostra os seus projetos em colunas por estado. Arraste os cards entre colunas para atualizar o progresso.',
-    screenshot: '/screenshots/screenshot-kanban-full.png',
+    screenshot: '/screenshots/banner-kanban.png',
     tips: [
       'Clique num card para ver detalhes e adicionar tarefas',
       'Use os filtros para encontrar projetos rapidamente',
@@ -91,7 +91,7 @@ const tutorialSteps = [
     icon: Film,
     title: '6. Fase de Edição',
     description: 'Projetos de vídeo passam automaticamente para o Kanban de Edição quando a captação é concluída. Gerencie a pós-produção aqui.',
-    screenshot: '/screenshots/screenshot-kanban-full.png',
+    screenshot: '/screenshots/banner-kanban.png',
     tips: [
       'Projetos só de fotografia pulam esta fase',
       'Adicione editores como freelancers para rastrear pagamentos',
@@ -103,7 +103,7 @@ const tutorialSteps = [
     icon: Users,
     title: '7. Gerir Clientes',
     description: 'O CRM guarda todos os dados dos seus clientes: contactos, histórico de projetos e métricas de faturação.',
-    screenshot: '/screenshots/screenshot-captacao-estudio.png',
+    screenshot: '/screenshots/banner-crm.png',
     tips: [
       'Adicione notas para lembrar preferências do cliente',
       'Veja o total faturado por cliente ao longo do tempo',
@@ -115,7 +115,7 @@ const tutorialSteps = [
     icon: Calendar,
     title: '8. Calendário',
     description: 'Visualize todas as sessões, reuniões e prazos de entrega. Sincronize com o Google Calendar para manter tudo atualizado.',
-    screenshot: '/screenshots/screenshot-calendario-full.png',
+    screenshot: '/screenshots/banner-calendario.png',
     tips: [
       'Arraste eventos para reagendar rapidamente',
       'Eventos de projeto são criados automaticamente',
@@ -127,7 +127,7 @@ const tutorialSteps = [
     icon: CreditCard,
     title: '9. Controlar Pagamentos',
     description: 'Registe valores a receber de clientes e a pagar a freelancers. Acompanhe o status e evite atrasos.',
-    screenshot: '/screenshots/screenshot-pagamentos.png',
+    screenshot: '/screenshots/banner-pagamentos.png',
     tips: [
       'Associe pagamentos a projetos para melhor rastreamento',
       'Use filtros para ver apenas pendentes ou vencidos',
@@ -139,7 +139,7 @@ const tutorialSteps = [
     icon: BarChart3,
     title: '10. Analisar Relatórios',
     description: 'Veja métricas do seu negócio: receita por período, top clientes, projetos por categoria e performance da equipa.',
-    screenshot: '/screenshots/screenshot-relatorios-6m.png',
+    screenshot: '/screenshots/banner-relatorios.png',
     tips: [
       'Alterne entre períodos de 3, 6 ou 12 meses',
       'Identifique os clientes mais rentáveis',
@@ -151,7 +151,7 @@ const tutorialSteps = [
     icon: UserCog,
     title: '11. Convidar Equipa',
     description: 'Adicione membros à sua equipa com diferentes níveis de acesso. Editores, captadores, freelancers ou apenas visualizadores.',
-    screenshot: '/screenshots/screenshot-permissoes.png',
+    screenshot: '/screenshots/banner-dashboard-overview.png',
     tips: [
       'Cada função tem permissões específicas',
       'Freelancers só veem as suas próprias tarefas e ganhos',
@@ -163,7 +163,7 @@ const tutorialSteps = [
     icon: Settings,
     title: '12. Configurações e Planos',
     description: 'Personalize o seu workspace, gerencie integrações e escolha o plano ideal para as suas necessidades.',
-    screenshot: '/screenshots/screenshot-conta-planos.png',
+    screenshot: '/screenshots/banner-dashboard-overview.png',
     tips: [
       'O trial de 30 dias dá acesso a todas as funcionalidades',
       'Pode fazer upgrade a qualquer momento',

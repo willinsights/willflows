@@ -74,7 +74,7 @@ export function FeatureHero({
             </div>
           </motion.div>
 
-          {/* Screenshot */}
+          {/* Screenshot with fog overlay */}
           <motion.div
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
@@ -85,7 +85,7 @@ export function FeatureHero({
               src={screenshot}
               alt={altText}
               title={fullTitle}
-              className="rounded-2xl shadow-2xl w-full"
+              className="w-full screenshot-fog-hero"
               loading="eager"
               decoding="async"
               fetchPriority="high"

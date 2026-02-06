@@ -121,7 +121,7 @@ export default function MediaHubFeature() {
         title="Todos os Ficheiros,"
         titleHighlight="Um Só Lugar"
         subtitle="Links do NAS, Vimeo, YouTube, Google Drive — organizados por projeto e pesquisáveis em segundos. Acabou a caça ao ficheiro."
-        screenshot="/screenshots/screenshot-dashboard-light-full.png"
+        screenshot="/screenshots/banner-dashboard-overview.png"
       />
 
       <FlowDiagram
@@ -135,7 +135,7 @@ export default function MediaHubFeature() {
         icon={HardDrive}
         title="Links de NAS Organizados"
         description="O seu NAS continua a ser o armazém. O WillFlow é o índice. Cole links para pastas do NAS e aceda rapidamente por projeto."
-        screenshot="/screenshots/screenshot-projeto-modal.png"
+        screenshot="/screenshots/banner-chat.png"
         features={[
           'Links para pastas do NAS',
           'Organização por projeto',
@@ -148,7 +148,7 @@ export default function MediaHubFeature() {
         icon={Video}
         title="Integração Vimeo e YouTube"
         description="Cole links de vídeos finais publicados. Mantenha referência ao trabalho entregue junto com o projeto."
-        screenshot="/screenshots/screenshot-captacao-estudio.png"
+        screenshot="/screenshots/banner-video-approval.png"
         features={[
           'Links Vimeo privados',
           'Links YouTube',
@@ -162,7 +162,7 @@ export default function MediaHubFeature() {
         icon={Cloud}
         title="Google Drive e Dropbox"
         description="Links para pastas partilhadas com clientes ou colaboradores. Tudo centralizado na ficha do projeto."
-        screenshot="/screenshots/screenshot-kanban-full.png"
+        screenshot="/screenshots/banner-crm.png"
         features={[
           'Links Google Drive',
           'Links Dropbox',
@@ -175,7 +175,7 @@ export default function MediaHubFeature() {
         icon={Search}
         title="Pesquisa Centralizada"
         description="Encontre ficheiros de qualquer projeto em segundos. Pesquise por nome do projeto, cliente ou tipo de media."
-        screenshot="/screenshots/screenshot-dashboard-dark-full.png"
+        screenshot="/screenshots/banner-dashboard-overview.png"
         features={[
           'Pesquisa instantânea',
           'Filtros por projeto',

@@ -191,7 +191,7 @@ export default function ChatFeature() {
         icon={Clock}
         title="Follow-ups e Lembretes"
         description="Marque mensagens para follow-up e receba lembretes. Nunca mais esqueça um compromisso ou pedido importante."
-        screenshot="/screenshots/screenshot-calendario-full.png"
+        screenshot="/screenshots/banner-calendario.png"
         features={[
           'Marcar mensagem para follow-up',
           'Definir data e hora do lembrete',
@@ -204,7 +204,7 @@ export default function ChatFeature() {
         icon={Reply}
         title="Threads e Reações"
         description="Mantenha conversas organizadas com threads. Reaja a mensagens sem poluir o feed principal."
-        screenshot="/screenshots/screenshot-dashboard-dark-full.png"
+        screenshot="/screenshots/banner-chat.png"
         features={[
           'Threads para discussões paralelas',
           'Reações com emojis',
@@ -218,7 +218,7 @@ export default function ChatFeature() {
         icon={Paperclip}
         title="Anexos e Pesquisa"
         description="Partilhe ficheiros, imagens e vídeos diretamente no chat. Pesquise em todas as conversas instantaneamente."
-        screenshot="/screenshots/screenshot-captacao-estudio.png"
+        screenshot="/screenshots/banner-chat.png"
         features={[
           'Upload de imagens e vídeos',
           'Partilha de documentos',

@@ -164,7 +164,7 @@ export default function PagamentosFeature() {
         icon={AlertTriangle}
         title="Alertas de Vencido"
         description="Receba notificações quando um pagamento está vencido. Cores visuais indicam o status de cada item."
-        screenshot="/screenshots/screenshot-dashboard-light-full.png"
+        screenshot="/screenshots/banner-pagamentos.png"
         features={[
           'Alerta visual de vencido',
           'Notificações automáticas',

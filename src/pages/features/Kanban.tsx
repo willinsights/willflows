@@ -164,7 +164,7 @@ export default function KanbanFeature() {
         icon={Filter}
         title="Filtros Avançados"
         description="Encontre projetos instantaneamente. Filtre por cliente, tipo (foto/vídeo), prioridade, responsável ou qualquer combinação."
-        screenshot="/screenshots/screenshot-projeto-modal.png"
+        screenshot="/screenshots/banner-kanban.png"
         features={[
           'Filtro por cliente',
           'Filtro por tipo de projeto',
@@ -177,7 +177,7 @@ export default function KanbanFeature() {
         icon={AlertTriangle}
         title="Alertas de Checklist"
         description="Não deixe projetos avançar sem cumprir requisitos. Alertas visuais quando há itens de checklist pendentes."
-        screenshot="/screenshots/screenshot-calendario-full.png"
+        screenshot="/screenshots/banner-calendario.png"
         features={[
           'Checklist por fase do projeto',
           'Alerta visual no cartão',

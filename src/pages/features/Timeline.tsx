@@ -272,7 +272,7 @@ export default function TimelineFeature() {
         icon={Move}
         title="Arraste e Reorganize"
         description="Interface drag & drop intuitiva. Mova segmentos e veja a timeline actualizar automaticamente."
-        screenshot="/screenshots/screenshot-kanban-full.png"
+        screenshot="/screenshots/banner-kanban.png"
         screenshotAlt="Interface drag and drop do WillFlow para reorganizar segmentos de timeline de vídeo"
         features={[
           'Drag & drop fluido',
@@ -286,7 +286,7 @@ export default function TimelineFeature() {
         icon={Copy}
         title="Templates Reutilizáveis"
         description="Guarde estruturas como templates. Aplique a novos projetos com um clique."
-        screenshot="/screenshots/screenshot-calendario-full.png"
+        screenshot="/screenshots/banner-calendario.png"
         screenshotAlt="Biblioteca de templates de timeline do WillFlow para reutilizar estruturas de vídeo"
         features={[
           'Guardar como template',

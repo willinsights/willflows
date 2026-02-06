@@ -164,7 +164,7 @@ export default function CalendarioFeature() {
         icon={CalendarClock}
         title="Eventos de Projeto"
         description="Quando cria um projeto com data de sessão, o evento aparece automaticamente no calendário. Com todos os detalhes do projeto visíveis."
-        screenshot="/screenshots/screenshot-projeto-modal.png"
+        screenshot="/screenshots/banner-calendario.png"
         features={[
           'Eventos criados automaticamente',
           'Detalhes do projeto no evento',
@@ -177,7 +177,7 @@ export default function CalendarioFeature() {
         icon={GripVertical}
         title="Reagendar com Drag & Drop"
         description="Mudou a data da sessão? Arraste o evento para o novo dia. O projeto é atualizado automaticamente."
-        screenshot="/screenshots/screenshot-kanban-full.png"
+        screenshot="/screenshots/banner-calendario.png"
         features={[
           'Arrastar para nova data',
           'Ajustar horário facilmente',

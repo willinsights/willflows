@@ -407,7 +407,7 @@ export default function Landing() {
               <img
                 src="/screenshots/banner-dashboard-overview.png"
                 alt="Dashboard WillFlow mostrando visão geral do produto com Kanban, CRM, Calendário e Finanças"
-                className="w-full rounded-l-2xl"
+                className="w-full screenshot-fog-hero"
                 loading="eager"
                 decoding="async"
                 fetchPriority="high"
@@ -425,7 +425,7 @@ export default function Landing() {
               <img
                 src="/screenshots/banner-dashboard-overview.png"
                 alt="Dashboard WillFlow"
-                className="rounded-2xl w-full"
+                className="w-full screenshot-fog"
                 loading="eager"
                 decoding="async"
                 fetchPriority="high"
