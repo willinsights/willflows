@@ -135,7 +135,7 @@ export default function RelatoriosFeature() {
         icon={Users}
         title="Top Clientes por Receita"
         description="Saiba quem são os seus melhores clientes. Veja quem gera mais receita, quantos projetos fizeram, e como evoluem ao longo do tempo."
-        screenshot="/screenshots/screenshot-relatorios-6m.png"
+        screenshot="/screenshots/banner-relatorios.png"
         features={[
           'Ranking de clientes por receita',
           'Número de projetos por cliente',
@@ -162,7 +162,7 @@ export default function RelatoriosFeature() {
         icon={TrendingUp}
         title="Tendências Mensais"
         description="Veja como o seu negócio evolui mês a mês. Receita, número de projetos, margem média — tudo em gráficos claros."
-        screenshot="/screenshots/screenshot-dashboard-light-full.png"
+        screenshot="/screenshots/banner-relatorios.png"
         features={[
           'Gráfico de receita mensal',
           'Comparação com período anterior',

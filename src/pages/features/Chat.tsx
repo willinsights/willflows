@@ -164,7 +164,7 @@ export default function ChatFeature() {
         icon={Hash}
         title="Canais por Projeto"
         description="Cada projeto tem automaticamente o seu próprio canal. O contexto está sempre visível — nunca mais perca tempo a procurar conversas."
-        screenshot="/screenshots/screenshot-kanban-full.png"
+        screenshot="/screenshots/banner-chat.png"
         features={[
           'Canal criado automaticamente com cada projeto',
           'Painel lateral com detalhes do projeto',
@@ -177,7 +177,7 @@ export default function ChatFeature() {
         icon={CheckSquare}
         title="Criar Tarefas de Mensagens"
         description="Transforme qualquer mensagem numa tarefa com um clique. Atribua a um membro, defina prazo e veja-a aparecer no Kanban."
-        screenshot="/screenshots/screenshot-projeto-modal.png"
+        screenshot="/screenshots/banner-chat.png"
         features={[
           'Um clique para criar tarefa',
           'Atribuir a qualquer membro da equipa',

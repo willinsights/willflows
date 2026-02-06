@@ -36,15 +36,10 @@ import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
 import { WaitlistForm } from '@/components/marketing/WaitlistForm';
 import { LaunchBannerOptimized } from '@/components/marketing/LaunchBannerOptimized';
-import { FloatingScreenshot } from '@/components/marketing/FloatingScreenshot';
+
 import { TestimonialsSection } from '@/components/marketing/TestimonialsSection';
 import { SocialProofBanner } from '@/components/marketing/SocialProofBanner';
 
-// Dark mode screenshots for the new hero
-import screenshotDashboard from '@/assets/screenshot-dark-dashboard.png';
-import screenshotKanban from '@/assets/screenshot-dark-kanban.png';
-import screenshotCalendar from '@/assets/screenshot-dark-calendar.png';
-import screenshotPayments from '@/assets/screenshot-dark-payments.png';
 
 // Detail screenshots for modal
 import screenshotKanbanDetail from '@/assets/screenshot-kanban-detail.png';
@@ -229,10 +224,7 @@ export default function Landing() {
   };
 
   const heroScreenshots = [
-    { src: screenshotDashboard, alt: 'Dashboard WillFlow' },
-    { src: screenshotKanban, alt: 'Kanban WillFlow' },
-    { src: screenshotCalendar, alt: 'Calendário WillFlow' },
-    { src: screenshotPayments, alt: 'Pagamentos WillFlow' },
+    { src: '/screenshots/banner-dashboard-overview.png', alt: 'Dashboard WillFlow' },
   ];
 
   return (
@@ -315,13 +307,10 @@ export default function Landing() {
           })}
         </script>
       </Helmet>
-      <PublicHeader />
-
-      {/* Hero Section - ClickUp Style with Floating Screenshots */}
+      {/* Hero Section - Split Layout */}
       <section className="relative min-h-[90vh] pt-24 pb-20 overflow-hidden">
         {/* Gradient Background */}
         <div className="absolute inset-0 -z-10">
-          {/* Main mesh gradient */}
           <div 
             className="absolute inset-0"
             style={{
@@ -333,45 +322,14 @@ export default function Landing() {
               `,
             }}
           />
-          
-          {/* Animated gradient orbs - CSS animations for better performance */}
-          <div 
-            className="gradient-orb gradient-orb-1 absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full opacity-30"
-            aria-hidden="true"
-          />
-          <div 
-            className="gradient-orb gradient-orb-2 absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full opacity-25"
-            aria-hidden="true"
-          />
-          <div 
-            className="gradient-orb gradient-orb-3 absolute top-1/2 left-0 w-[400px] h-[400px] rounded-full opacity-20"
-            aria-hidden="true"
-          />
+          <div className="gradient-orb gradient-orb-1 absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full opacity-30" aria-hidden="true" />
+          <div className="gradient-orb gradient-orb-2 absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full opacity-25" aria-hidden="true" />
+          <div className="gradient-orb gradient-orb-3 absolute top-1/2 left-0 w-[400px] h-[400px] rounded-full opacity-20" aria-hidden="true" />
         </div>
 
-      {/* Hero Screenshot - Single centralized image */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          className="hidden md:block absolute inset-x-0 bottom-0 px-4"
-        >
-          <div className="container mx-auto relative">
-            <div className="absolute -inset-8 bg-gradient-to-t from-primary/20 via-accent/10 to-transparent rounded-3xl blur-3xl opacity-50" />
-            <img
-              src="/screenshots/banner-dashboard-overview.png"
-              alt="Dashboard WillFlow mostrando visão geral do produto com Kanban, CRM, Calendário e Finanças"
-              className="relative rounded-2xl shadow-2xl shadow-black/40 border border-white/10 w-full max-w-5xl mx-auto"
-              loading="eager"
-              decoding="async"
-              fetchPriority="high"
-            />
-          </div>
-        </motion.div>
-
-        {/* Central Content */}
         <div className="container mx-auto px-4 relative z-10">
-          <div className="max-w-3xl mx-auto text-center pt-12 lg:pt-20">
+          <div className="grid lg:grid-cols-[1fr_1.2fr] gap-12 items-center pt-12 lg:pt-20">
+            {/* Left - Text Content */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
@@ -392,11 +350,11 @@ export default function Landing() {
                 <span className="gradient-text">Foto e Vídeo</span>
               </h1>
               
-              <p className="text-lg sm:text-xl text-muted-foreground mb-6 max-w-2xl mx-auto leading-relaxed">
+              <p className="text-lg sm:text-xl text-muted-foreground mb-6 max-w-2xl leading-relaxed">
                 Captação → Edição → Entrega. Gerencie projetos, clientes, calendário e finanças num só lugar.
               </p>
               
-              <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground mb-10">
+              <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-10">
                 <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border/50">
                   <Check className="h-4 w-4 text-success" /> 30 dias grátis
                 </span>
@@ -409,9 +367,9 @@ export default function Landing() {
               </div>
               
               {isBetaMode ? (
-                <div className="max-w-xl mx-auto">
+                <div className="max-w-xl">
                   <WaitlistForm variant="hero" />
-                  <div className="mt-4 flex items-center justify-center gap-4">
+                  <div className="mt-4 flex items-center gap-4">
                     <span className="text-muted-foreground">Já tem convite?</span>
                     <Link to="/auth">
                       <Button variant="ghost" size="sm">
@@ -422,7 +380,7 @@ export default function Landing() {
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <div className="flex flex-col sm:flex-row items-start gap-4">
                   <Link to="/auth?trial=true" onClick={() => trackCtaClick('hero')}>
                     <Button size="lg" className="gradient-primary text-lg px-8 h-14 glow-ring lens-flare">
                       Começar teste grátis
@@ -437,21 +395,41 @@ export default function Landing() {
                 </div>
               )}
             </motion.div>
-          </div>
-        </div>
 
-        {/* Mobile Screenshots Preview */}
-        <div className="lg:hidden mt-12 px-4">
-          <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide">
-            {heroScreenshots.map((screenshot, index) => (
-              <MobileScreenshotCard
-                key={screenshot.alt}
-                src={screenshot.src}
-                alt={screenshot.alt}
-                index={index}
-                onClick={() => setSelectedImage(screenshot.src)}
+            {/* Right - Dashboard Banner */}
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              className="hidden lg:block"
+            >
+              <img
+                src="/screenshots/banner-dashboard-overview.png"
+                alt="Dashboard WillFlow mostrando visão geral do produto com Kanban, CRM, Calendário e Finanças"
+                className="rounded-2xl shadow-2xl w-full"
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
               />
-            ))}
+            </motion.div>
+          </div>
+
+          {/* Mobile Screenshot */}
+          <div className="lg:hidden mt-12">
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+            >
+              <img
+                src="/screenshots/banner-dashboard-overview.png"
+                alt="Dashboard WillFlow"
+                className="rounded-2xl shadow-2xl w-full"
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
+              />
+            </motion.div>
           </div>
         </div>
       </section>

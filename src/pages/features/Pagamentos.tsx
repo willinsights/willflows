@@ -137,7 +137,7 @@ export default function PagamentosFeature() {
         icon={ArrowDownCircle}
         title="A Receber (Clientes)"
         description="Veja todos os pagamentos que tem a receber de clientes. Organize por projeto, data de vencimento ou status."
-        screenshot="/screenshots/screenshot-pagamentos.png"
+        screenshot="/screenshots/banner-pagamentos.png"
         features={[
           'Lista de receitas pendentes',
           'Filtros por cliente e projeto',
@@ -150,7 +150,7 @@ export default function PagamentosFeature() {
         icon={ArrowUpCircle}
         title="A Pagar (Freelancers)"
         description="Controle os pagamentos que tem a fazer a colaboradores e fornecedores. Nunca mais atrase um pagamento."
-        screenshot="/screenshots/screenshot-pagamentos-estudio.png"
+        screenshot="/screenshots/banner-pagamentos.png"
         features={[
           'Lista de custos pendentes',
           'Dados bancários do freelancer',
@@ -177,7 +177,7 @@ export default function PagamentosFeature() {
         icon={FileSpreadsheet}
         title="Export Excel e PDF"
         description="Exporte dados para a sua contabilidade ou faturação. Excel para trabalhar os dados, PDF para partilhar relatórios."
-        screenshot="/screenshots/screenshot-relatorios-6m.png"
+        screenshot="/screenshots/banner-relatorios.png"
         features={[
           'Export Excel completo',
           'Export PDF formatado',

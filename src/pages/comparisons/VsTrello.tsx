@@ -127,23 +127,37 @@ export default function VsTrello() {
           />
 
           {/* Hero */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center max-w-3xl mx-auto mb-16"
-          >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
-              <Video className="h-4 w-4" />
-              Comparação 2026
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              WillFlow vs Trello
-            </h1>
-            <p className="text-xl text-muted-foreground">
-              Trello é perfeito para listas e quadros simples. Mas para gerir 
-              <span className="text-foreground font-medium"> projetos de foto e vídeo profissionalmente</span>, precisa de mais.
-            </p>
-          </motion.div>
+          <div className="grid lg:grid-cols-[1fr_1.1fr] gap-12 items-center mb-16">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
+                <Video className="h-4 w-4" />
+                Comparação 2026
+              </div>
+              <h1 className="text-4xl md:text-5xl font-bold mb-6">
+                WillFlow vs Trello
+              </h1>
+              <p className="text-xl text-muted-foreground">
+                Trello é perfeito para listas e quadros simples. Mas para gerir 
+                <span className="text-foreground font-medium"> projetos de foto e vídeo profissionalmente</span>, precisa de mais.
+              </p>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="hidden lg:block"
+            >
+              <img
+                src="/screenshots/banner-dashboard-overview.png"
+                alt="Dashboard WillFlow - sistema completo de gestão para produção visual"
+                className="rounded-2xl shadow-2xl w-full"
+                loading="eager"
+              />
+            </motion.div>
+          </div>
 
           {/* Comparison Table */}
           <motion.div

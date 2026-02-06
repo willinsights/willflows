@@ -137,7 +137,7 @@ export default function KanbanFeature() {
         icon={Columns}
         title="Colunas Customizáveis"
         description="Adapte o quadro ao seu fluxo de trabalho. Crie colunas para cada fase do seu processo — orçamento, aprovação, captação, edição, revisão."
-        screenshot="/screenshots/screenshot-kanban-full.png"
+        screenshot="/screenshots/banner-kanban.png"
         features={[
           'Criar colunas ilimitadas',
           'Cores personalizadas por coluna',
@@ -150,7 +150,7 @@ export default function KanbanFeature() {
         icon={GripVertical}
         title="Drag & Drop Intuitivo"
         description="Mova projetos entre colunas com um simples arrasto. Veja instantaneamente onde cada projeto está no pipeline."
-        screenshot="/screenshots/screenshot-dashboard-light-full.png"
+        screenshot="/screenshots/banner-kanban.png"
         features={[
           'Arrastar projetos entre colunas',
           'Reordenar dentro da mesma coluna',
