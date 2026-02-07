@@ -225,7 +225,8 @@ serve(async (req) => {
     const streamUid = streamData.result.uid;
     // Use canonical videodelivery.net domain for better compatibility
     const playbackUrl = `https://videodelivery.net/${streamUid}/manifest/video.m3u8`;
-    const thumbnailUrl = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg`;
+    // Default thumbnail at 50% of video to avoid black fade-in frames
+    const thumbnailUrl = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg?time=50p`;
 
     // Update version with Stream information
     const { error: updateError } = await supabase

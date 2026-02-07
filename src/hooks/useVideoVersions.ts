@@ -24,6 +24,7 @@ export interface VideoVersion {
   stream_status: string | null;
   stream_playback_url: string | null;
   is_deleted: boolean;
+  thumbnail_time_seconds: number | null;
 }
 
 interface UploadVideoInput {
@@ -384,6 +385,30 @@ export function useVideoVersions(
     return version.stream_status === 'processing' || version.stream_status === 'pending';
   }, []);
 
+  // Set thumbnail time for a version
+  const setThumbnailTime = useCallback(async (versionId: string, seconds: number) => {
+    const version = versions.find(v => v.id === versionId);
+    if (!version?.cloudflare_stream_uid) return;
+
+    const thumbnailPath = `https://videodelivery.net/${version.cloudflare_stream_uid}/thumbnails/thumbnail.jpg?time=${seconds}s`;
+
+    const { error } = await supabase
+      .from('video_versions')
+      .update({ 
+        thumbnail_time_seconds: seconds,
+        thumbnail_path: thumbnailPath,
+      })
+      .eq('id', versionId);
+
+    if (error) {
+      toast({ title: 'Erro ao definir thumbnail', description: error.message, variant: 'destructive' });
+      return;
+    }
+
+    toast({ title: 'Thumbnail atualizada' });
+    await fetchVersions();
+  }, [versions, fetchVersions, toast]);
+
   return {
     versions,
     loading,
@@ -396,6 +421,7 @@ export function useVideoVersions(
     getPlaybackUrl,
     isCloudflareVersion,
     isProcessing,
+    setThumbnailTime,
     refetch: fetchVersions,
   };
 }
