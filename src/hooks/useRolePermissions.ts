@@ -32,6 +32,7 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
   { key: 'clients.create', name: 'Criar clientes', description: 'Adicionar novos clientes', category: 'Clientes' },
   { key: 'clients.edit', name: 'Editar clientes', description: 'Modificar dados de clientes', category: 'Clientes' },
   { key: 'clients.view_financials', name: 'Ver valores financeiros', description: 'Aceder a informação financeira', category: 'Clientes' },
+  { key: 'clients.view_contacts', name: 'Ver contactos de clientes', description: 'Ver email, telefone, NIF e morada dos clientes', category: 'Clientes' },
   // Equipa
   { key: 'team.view', name: 'Ver equipa', description: 'Visualizar membros da equipa', category: 'Equipa' },
   { key: 'team.invite', name: 'Convidar membros', description: 'Enviar convites para novos membros', category: 'Equipa' },
@@ -66,7 +67,7 @@ const DEFAULT_PERMISSIONS: Record<AppRole, string[]> = {
   admin: PERMISSION_DEFINITIONS.map(p => p.key), // All permissions
   edicao: [
     'projects.view', 'projects.create', 'projects.edit',
-    'clients.view', 'clients.create', 'clients.edit', 'clients.view_financials',
+    'clients.view', 'clients.create', 'clients.edit', 'clients.view_financials', 'clients.view_contacts',
     'team.view', 'payments.view', 'payments.manage', 'reports.view',
     'visibility.leads', 'visibility.contracts', 'visibility.all_projects',
     'dashboard.view_global_financials', 'dashboard.view_performance'

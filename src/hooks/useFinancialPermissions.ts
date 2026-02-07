@@ -85,7 +85,7 @@ export function useFinancialPermissions(): FinancialPermissions {
     const canViewAllProjects = hasPermission('visibility.all_projects');
 
     // Contactos - verificação dinâmica (admin tem sempre acesso via hasPermission)
-    const canViewClientContacts = hasPermission('clients.view');
+    const canViewClientContacts = hasPermission('clients.view_contacts');
     const canViewTeamContacts = hasPermission('team.view');
 
     // Permissões granulares de clientes
