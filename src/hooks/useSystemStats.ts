@@ -65,7 +65,7 @@ export const useSystemStats = () => {
       const activeCount = subscriptions.filter(s => s.subscription_status === 'active').length;
       const trialCount = subscriptions.filter(s => s.subscription_status === 'trialing').length;
       const paidCount = subscriptions.filter(s => 
-        s.subscription_status === 'active' && s.subscription_plan !== 'essencial'
+        s.subscription_status === 'active' && s.subscription_plan !== 'essencial' && s.subscription_plan !== 'starter'
       ).length;
 
       return {

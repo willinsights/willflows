@@ -4,6 +4,7 @@ import {
   Crown, Users, Globe, LogOut, Moon, Sun, Settings
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { getDisplayPlanName } from '@/lib/plans';
 import {
   Dialog,
   DialogContent,
@@ -73,7 +74,7 @@ export function AccountModal({ open, onOpenChange, initialTab = 'equipa' }: Acco
 
   const userEmail = user?.email || '';
   const userName = user?.user_metadata?.full_name || userEmail.split('@')[0];
-  const planName = subscription?.plan || 'essencial';
+  const planName = subscription?.plan || 'starter';
 
   const getInitials = (name: string) => {
     return name
@@ -85,12 +86,7 @@ export function AccountModal({ open, onOpenChange, initialTab = 'equipa' }: Acco
   };
 
   const getPlanDisplayName = (plan: string) => {
-    const plans: Record<string, string> = {
-      essencial: 'Essencial',
-      pro: 'Pro',
-      studio: 'Studio',
-    };
-    return plans[plan] || plan;
+    return getDisplayPlanName(plan);
   };
 
   return (

@@ -85,7 +85,7 @@ export default function Onboarding() {
     setError(null);
 
     try {
-      // Create workspace (comes with trial from backend - essencial plan, trialing status)
+      // Create workspace (comes with trial from backend - starter plan, trialing status)
       const { data: workspaceId, error: rpcError } = await supabase.rpc('create_workspace_with_admin', {
         p_name: finalName,
         p_slug: createSlug(finalName),

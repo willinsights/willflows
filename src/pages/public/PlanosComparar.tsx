@@ -43,11 +43,10 @@ const featureCategories = [
   {
     name: 'Funcionalidades Core',
     features: [
-      { key: 'kanban', label: 'Kanban Visual', tooltip: 'Quadro visual para gerir fases do projeto' },
-      { key: 'crm', label: 'CRM Integrado', tooltip: 'Gestão completa de clientes e contactos' },
+      { key: 'kanban', label: 'Kanban Visual', tooltip: 'Quadro visual para gerir fases do projeto (Captação → Edição → Finalizados)' },
+      { key: 'crm', label: 'CRM Integrado', tooltip: 'Gestão de clientes, leads e contactos' },
       { key: 'calendar', label: 'Calendário', tooltip: 'Visualização de eventos, sessões e deadlines' },
-      { key: 'mediaHub', label: 'Media Hub', tooltip: 'Gestão centralizada de ficheiros multimédia' },
-      { key: 'contracts', label: 'Contratos Digitais', tooltip: 'Criação e assinatura digital de contratos' },
+      { key: 'mediaHub', label: 'Media Hub', tooltip: 'Gestão centralizada de links de media por projeto' },
       { key: 'financialReports', label: 'Relatórios Financeiros', tooltip: 'Análise de receitas, custos e margens' },
     ],
   },
@@ -56,17 +55,19 @@ const featureCategories = [
     features: [
       { key: 'exportExcel', label: 'Export Excel', tooltip: 'Exportar dados para folhas de cálculo' },
       { key: 'exportPdf', label: 'Export PDF', tooltip: 'Gerar relatórios e documentos em PDF' },
-      { key: 'chat', label: 'Chat da Equipa', tooltip: 'Comunicação interna com a equipa' },
-      { key: 'googleCalendar', label: 'Integração Google Calendar', tooltip: 'Sincronização bidirecional com Google Calendar' },
+      { key: 'chat', label: 'Chat da Equipa', tooltip: 'Comunicação interna com canais por projeto' },
+      { key: 'googleCalendar', label: 'Google Calendar + Meet', tooltip: 'Sincronização bidirecional e criação automática de reuniões' },
+      { key: 'reportsAdvanced', label: 'Relatórios Avançados', tooltip: 'Dashboards detalhados e análises de performance' },
     ],
   },
   {
-    name: 'Avançado (Studio)',
+    name: 'Exclusivo Studio',
     features: [
-      { key: 'videoApproval', label: 'Aprovação de Vídeo', tooltip: 'Sistema de review e aprovação de vídeos por clientes' },
-      { key: 'videoStorage', label: 'Armazenamento de Vídeo', tooltip: 'Storage dedicado para ficheiros de vídeo' },
-      { key: 'aiFeatures', label: 'Funcionalidades IA', tooltip: 'Geração automática de conteúdo com IA' },
-      { key: 'apiAccess', label: 'Acesso API', tooltip: 'Integração com sistemas externos via API' },
+      { key: 'videoApproval', label: 'Aprovação de Vídeo + A/B', tooltip: 'Portal de review com comentários por timecode e comparação de versões' },
+      { key: 'timeline', label: 'Desenho de Timeline', tooltip: 'Estrutura visual para planear a edição de vídeo' },
+      { key: 'videoStorage', label: 'Armazenamento de Vídeo', tooltip: '10 GB incluídos, com opção de expansão' },
+      { key: 'automations', label: 'Automações', tooltip: 'Fluxos de trabalho automatizados' },
+      { key: 'permissions', label: 'Permissões Avançadas', tooltip: 'Controlo granular de permissões por função' },
     ],
   },
 ];
@@ -76,23 +77,23 @@ function getFeatureValue(planId: PlanId, featureKey: string): string | boolean {
   const plan = PLANS[planId];
   
   // Handle limit features
-  if (featureKey === 'workspaces') {
-    return plan.limitsDisplay.workspaces;
-  }
-  if (featureKey === 'users') {
-    return plan.limitsDisplay.users;
-  }
-  if (featureKey === 'projects') {
-    return plan.limitsDisplay.projects;
+  if (featureKey === 'workspaces') return plan.limitsDisplay.workspaces;
+  if (featureKey === 'users') return plan.limitsDisplay.users;
+  if (featureKey === 'projects') return plan.limitsDisplay.projects;
+  
+  // Handle CRM which maps to crmBasic/crmComplete in plans config
+  if (featureKey === 'crm') {
+    const complete = plan.features.find(f => f.key === 'crmComplete');
+    if (complete?.included) return true;
+    const basic = plan.features.find(f => f.key === 'crmBasic');
+    return basic?.included ?? false;
   }
   
   // Handle regular features
   const feature = plan.features.find(f => f.key === featureKey);
   if (!feature) return false;
   
-  if (typeof feature.value === 'string') {
-    return feature.value;
-  }
+  if (typeof feature.value === 'string') return feature.value;
   
   return feature.included;
 }

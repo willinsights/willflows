@@ -113,7 +113,7 @@ export function AccountPlanTab() {
   };
 
   // Use user subscription data
-  const currentPlan = subscription?.plan || 'essencial';
+  const currentPlan = subscription?.plan || 'starter';
   const isSubscribed = subscription?.status === 'active';
   const isTrial = subscription?.status === 'trialing';
 
@@ -256,9 +256,8 @@ export function AccountPlanTab() {
         <div className="grid gap-2">
           {(['starter', 'pro', 'studio'] as const).map((planId) => {
             const plan = PLAN_INFO[planId];
-            // Map PLAN_INFO keys to our internal plan names
-            const internalPlanId = planId === 'starter' ? 'essencial' : planId;
-            const isCurrentPlan = currentPlan === internalPlanId && !trialExpired;
+            // Compare using normalized plan names (handle legacy 'essencial' in DB)
+            const isCurrentPlan = (currentPlan === planId || ((currentPlan as string) === 'essencial' && planId === 'starter')) && !trialExpired;
             const currencyKey = (currentWorkspace?.currency?.toLowerCase() === 'brl' ? 'brl' : 'eur') as 'eur' | 'brl';
             const price = plan.prices[currencyKey].monthly;
             const currencySymbol = currencyKey === 'eur' ? '€' : 'R$';
