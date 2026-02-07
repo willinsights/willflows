@@ -1,67 +1,77 @@
 
 
-## Separar "acesso a pagina Clientes" de "ver dados de contacto"
+## Recriar pagina de permissoes: eliminar redundancias e adaptar ao sistema atual
 
-### Problema Atual
-A permissao `clients.view` controla **duas coisas ao mesmo tempo**:
-1. Acesso a pagina "/app/clientes" (sidebar + rota)
-2. Visibilidade de emails e telefones do cliente (`canViewClientContacts`)
+### Problemas identificados
 
-Quando desativas `clients.view` para um perfil, esse utilizador perde acesso a pagina **e tambem** deixa de ver emails/telefones nos detalhes. Mas o **nome do cliente** ja aparece corretamente em projetos, tarefas, calendario e relatorios (via join `clients(name)`) -- isso nao e afetado e nao precisa mudar.
+**Hooks duplicados:**
+- `useWorkspacePermissions` e `useFinancialPermissions` fazem exatamente a mesma coisa (criam `hasPermission`, consultam a mesma tabela, retornam campos quase identicos). So `MobileBottomNav` usa `useWorkspacePermissions`; todo o resto usa `useFinancialPermissions`.
+- Solucao: eliminar `useWorkspacePermissions` e migrar `MobileBottomNav` para usar `useFinancialPermissions`.
 
-### O que vai mudar
+**Permissoes definidas mas nunca usadas no codigo:**
+- `payments.view` — definido mas nunca verificado (so `payments.manage` e usado)
+- `projects.delete` — definido mas nunca verificado (eliminacao de projetos nao e controlada por esta key)
+- `team.invite` — definido mas nunca verificado
+- `team.manage` — definido mas nunca verificado
 
-**1. Nova permissao: `clients.view_contacts`**
+Estas aparecem na UI de permissoes mas nao fazem nada. Confundem o admin.
 
-Criar uma nova permissao granular que controla especificamente a visibilidade de email, telefone, NIF e morada do cliente. Separada da permissao de acesso a pagina.
+**Categorias confusas na UI:**
+- "Visibilidade" mistura acesso a paginas (`visibility.leads`, `visibility.contracts`) com filtragem de dados (`visibility.all_projects`)
+- "Dashboard" e "Pagamentos" e "Relatorios" estao separados quando fazem parte do mesmo contexto (financeiro)
+- "Clientes" tem 5 permissoes granulares que podiam ser agrupadas de forma mais clara
 
-- Adicionar a `PERMISSION_DEFINITIONS` em `useRolePermissions.ts`
-- Adicionar aos defaults: admin e edicao terao ativa por defeito; captacao, gestao e visualizacao terao desativada
-- Migrar a tabela `workspace_role_permissions` para incluir a nova permissao nos workspaces existentes
+### Plano de implementacao
 
-**2. Desacoplar `canViewClientContacts`**
+#### 1. Eliminar `useWorkspacePermissions.ts`
+- Apagar o ficheiro `src/hooks/useWorkspacePermissions.ts`
+- Em `src/components/layout/MobileBottomNav.tsx`: substituir `useWorkspacePermissions` por `useFinancialPermissions`
+- Em `src/contexts/WorkspaceContext.tsx`: remover comentario referente ao hook
 
-No hook `useFinancialPermissions.ts`, linha 88:
-- **Antes:** `canViewClientContacts = hasPermission('clients.view')`
-- **Depois:** `canViewClientContacts = hasPermission('clients.view_contacts')`
+#### 2. Limpar `PERMISSION_DEFINITIONS` em `useRolePermissions.ts`
+Remover permissoes que nao sao usadas em lado nenhum do codigo:
+- `payments.view` (remover — so `payments.manage` importa)
+- `projects.delete` (remover — nao e verificado)
+- `team.invite` (remover — convites sao geridos apenas por admin)
+- `team.manage` (remover — gestao de membros e admin-only)
 
-Isto significa que um utilizador pode:
-- Ter `clients.view` desativado (nao ve a pagina Clientes no menu)
-- Mas continuar a ver **nomes** de clientes em projetos, tarefas, kanban, calendario, relatorios e exports
-- E **nao ver** emails, telefones e dados sensiveis (controlado por `clients.view_contacts`)
+Resultado: de 20 permissoes para **16 permissoes reais e usadas**.
 
-**3. Onde os dados de contacto sao protegidos (ja existente)**
+#### 3. Reorganizar categorias para a UI
+Nova organizacao mais clara e adaptada ao sistema:
 
-O componente `ClientDetailsModal.tsx` ja usa `canViewClientContacts` para esconder email e telefone -- isso continua a funcionar. Os locais que mostram apenas `client.name` (selects em projetos, filtros no kanban, colunas em relatorios, calendario) nao sao afetados.
+| Categoria | Permissoes |
+|-----------|-----------|
+| **Projetos** | `projects.view`, `projects.create`, `projects.edit` |
+| **Clientes** | `clients.view` (pagina), `clients.create`, `clients.edit`, `clients.view_contacts` (email/tel), `clients.view_financials` (valores) |
+| **Paginas e Navegacao** | `visibility.leads`, `visibility.contracts`, `visibility.all_projects`, `team.view`, `reports.view` |
+| **Financeiro e Dashboard** | `dashboard.view_global_financials`, `dashboard.view_own_earnings`, `dashboard.view_performance`, `payments.manage` |
+
+#### 4. Reescrever `PermissionsMatrix.tsx`
+- Usar as novas categorias reorganizadas
+- Melhorar descricoes para serem mais claras (ex: "Ver pagina de Clientes" em vez de "Visualizar lista de clientes")
+- Corrigir `colSpan` hardcoded (era `6`, deve ser dinamico: `2 + rolesWithoutAdmin.length`)
+- Atualizar notas informativas no rodape para refletir o sistema atual
+- Manter toda a logica existente de guardar/restaurar/labels
+
+#### 5. Atualizar `DEFAULT_PERMISSIONS`
+Remover as keys eliminadas dos defaults de cada role.
 
 ### Ficheiros a alterar
 
-| Ficheiro | Alteracao |
-|----------|-----------|
-| `src/hooks/useRolePermissions.ts` | Adicionar `clients.view_contacts` a `PERMISSION_DEFINITIONS` e `DEFAULT_PERMISSIONS` |
-| `src/hooks/useFinancialPermissions.ts` | Linha 88: usar `clients.view_contacts` em vez de `clients.view` |
-| Migracao SQL | Inserir a nova permissao em workspaces existentes com valores default |
+| Ficheiro | Acao |
+|----------|------|
+| `src/hooks/useWorkspacePermissions.ts` | Apagar |
+| `src/hooks/useRolePermissions.ts` | Remover 4 permissoes nao usadas, reorganizar categorias |
+| `src/hooks/useFinancialPermissions.ts` | Sem alteracoes (ja esta correto) |
+| `src/components/settings/PermissionsMatrix.tsx` | Reescrever UI com novas categorias e descricoes |
+| `src/components/layout/MobileBottomNav.tsx` | Migrar de `useWorkspacePermissions` para `useFinancialPermissions` |
 
-### Migracao SQL
+### Sem migracao SQL necessaria
+As permissoes removidas (`payments.view`, `projects.delete`, `team.invite`, `team.manage`) ficam na tabela `workspace_role_permissions` como registos orfaos — nao causam problemas. Opcionalmente podem ser limpas depois, mas nao e urgente.
 
-```sql
--- Inserir nova permissao para todos os workspaces existentes
-INSERT INTO workspace_role_permissions (workspace_id, role, permission_key, enabled)
-SELECT ws.id, r.role, 'clients.view_contacts', 
-  CASE 
-    WHEN r.role IN ('admin', 'edicao') THEN true
-    ELSE false
-  END
-FROM workspaces ws
-CROSS JOIN (VALUES ('edicao'::app_role), ('captacao'::app_role), ('gestao'::app_role), ('visualizacao'::app_role)) AS r(role)
-WHERE NOT EXISTS (
-  SELECT 1 FROM workspace_role_permissions wrp 
-  WHERE wrp.workspace_id = ws.id AND wrp.role = r.role AND wrp.permission_key = 'clients.view_contacts'
-);
-```
-
-### Resultado
-
-- Desativar `clients.view` = esconde a pagina Clientes do menu lateral. O nome do cliente continua visivel em projetos, tarefas, kanban, calendario, relatorios e exports.
-- Desativar `clients.view_contacts` = esconde email, telefone e dados sensiveis, mesmo que o utilizador tenha acesso a pagina.
-- Admin configura ambas independentemente no painel de permissoes.
+### Resultado final
+- 1 hook de permissoes em vez de 2 (elimina duplicacao)
+- 16 permissoes reais em vez de 20 (elimina confusao)
+- Categorias reorganizadas para fazer sentido no contexto do WillFlow
+- Admin ve apenas toggles que realmente controlam algo no sistema
