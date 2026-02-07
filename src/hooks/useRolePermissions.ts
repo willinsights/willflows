@@ -23,33 +23,26 @@ export interface PermissionDefinition {
 
 export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
   // Projetos
-  { key: 'projects.view', name: 'Ver projetos', description: 'Visualizar lista de projetos', category: 'Projetos' },
+  { key: 'projects.view', name: 'Ver projetos', description: 'Visualizar lista de projetos no kanban', category: 'Projetos' },
   { key: 'projects.create', name: 'Criar projetos', description: 'Criar novos projetos', category: 'Projetos' },
-  { key: 'projects.edit', name: 'Editar projetos', description: 'Modificar detalhes de projetos', category: 'Projetos' },
-  { key: 'projects.delete', name: 'Eliminar projetos', description: 'Remover projetos permanentemente', category: 'Projetos' },
+  { key: 'projects.edit', name: 'Editar projetos', description: 'Modificar detalhes e mover no kanban', category: 'Projetos' },
   // Clientes
-  { key: 'clients.view', name: 'Ver clientes', description: 'Visualizar lista de clientes', category: 'Clientes' },
+  { key: 'clients.view', name: 'Página de Clientes', description: 'Aceder à página /clientes no menu', category: 'Clientes' },
   { key: 'clients.create', name: 'Criar clientes', description: 'Adicionar novos clientes', category: 'Clientes' },
-  { key: 'clients.edit', name: 'Editar clientes', description: 'Modificar dados de clientes', category: 'Clientes' },
-  { key: 'clients.view_financials', name: 'Ver valores financeiros', description: 'Aceder a informação financeira', category: 'Clientes' },
-  { key: 'clients.view_contacts', name: 'Ver contactos de clientes', description: 'Ver email, telefone, NIF e morada dos clientes', category: 'Clientes' },
-  // Equipa
-  { key: 'team.view', name: 'Ver equipa', description: 'Visualizar membros da equipa', category: 'Equipa' },
-  { key: 'team.invite', name: 'Convidar membros', description: 'Enviar convites para novos membros', category: 'Equipa' },
-  { key: 'team.manage', name: 'Gerir membros', description: 'Alterar funções e remover membros', category: 'Equipa' },
-  // Pagamentos
-  { key: 'payments.view', name: 'Ver pagamentos', description: 'Visualizar pagamentos e faturas', category: 'Pagamentos' },
-  { key: 'payments.manage', name: 'Gerir pagamentos', description: 'Criar e editar pagamentos', category: 'Pagamentos' },
-  // Relatórios
-  { key: 'reports.view', name: 'Ver relatórios', description: 'Aceder a relatórios e métricas', category: 'Relatórios' },
-  // Visibilidade (nova categoria)
-  { key: 'visibility.leads', name: 'Ver Leads', description: 'Aceder à página de Leads', category: 'Visibilidade' },
-  { key: 'visibility.contracts', name: 'Ver Contratos', description: 'Aceder à página de Contratos', category: 'Visibilidade' },
-  { key: 'visibility.all_projects', name: 'Ver Todos os Projetos', description: 'Ver todos os projetos (se desativado, vê apenas os seus)', category: 'Visibilidade' },
-  // Dashboard (nova categoria)
-  { key: 'dashboard.view_global_financials', name: 'Ver Financeiro Global', description: 'Ver receita, custos e lucro total', category: 'Dashboard' },
-  { key: 'dashboard.view_own_earnings', name: 'Ver Meus Ganhos', description: 'Ver os próprios ganhos no dashboard', category: 'Dashboard' },
-  { key: 'dashboard.view_performance', name: 'Ver Métricas de Desempenho', description: 'Ver gráficos de performance', category: 'Dashboard' },
+  { key: 'clients.edit', name: 'Editar clientes', description: 'Modificar dados de clientes existentes', category: 'Clientes' },
+  { key: 'clients.view_contacts', name: 'Ver contactos', description: 'Ver email, telefone, NIF e morada', category: 'Clientes' },
+  { key: 'clients.view_financials', name: 'Ver valores financeiros', description: 'Ver valor acordado e receita do cliente', category: 'Clientes' },
+  // Páginas e Navegação
+  { key: 'visibility.leads', name: 'Página de Leads', description: 'Aceder à página de Leads no menu', category: 'Páginas e Navegação' },
+  { key: 'visibility.contracts', name: 'Página de Contratos', description: 'Aceder à página de Contratos no menu', category: 'Páginas e Navegação' },
+  { key: 'visibility.all_projects', name: 'Ver todos os projetos', description: 'Se desativado, vê apenas os projetos atribuídos', category: 'Páginas e Navegação' },
+  { key: 'team.view', name: 'Página de Equipa', description: 'Aceder à página da equipa e ver membros', category: 'Páginas e Navegação' },
+  { key: 'reports.view', name: 'Página de Relatórios', description: 'Aceder à página de relatórios e métricas', category: 'Páginas e Navegação' },
+  // Financeiro e Dashboard
+  { key: 'dashboard.view_global_financials', name: 'Financeiro global', description: 'Ver receita total, custos e lucro no dashboard', category: 'Financeiro e Dashboard' },
+  { key: 'dashboard.view_own_earnings', name: 'Meus ganhos', description: 'Ver os próprios ganhos no dashboard', category: 'Financeiro e Dashboard' },
+  { key: 'dashboard.view_performance', name: 'Métricas de desempenho', description: 'Ver gráficos de performance', category: 'Financeiro e Dashboard' },
+  { key: 'payments.manage', name: 'Gerir pagamentos', description: 'Criar, editar e registar pagamentos', category: 'Financeiro e Dashboard' },
 ];
 
 export const ALL_ROLES: AppRole[] = ['admin', 'edicao', 'captacao', 'gestao', 'visualizacao'];
@@ -68,7 +61,7 @@ const DEFAULT_PERMISSIONS: Record<AppRole, string[]> = {
   edicao: [
     'projects.view', 'projects.create', 'projects.edit',
     'clients.view', 'clients.create', 'clients.edit', 'clients.view_financials', 'clients.view_contacts',
-    'team.view', 'payments.view', 'payments.manage', 'reports.view',
+    'team.view', 'payments.manage', 'reports.view',
     'visibility.leads', 'visibility.contracts', 'visibility.all_projects',
     'dashboard.view_global_financials', 'dashboard.view_performance'
   ],

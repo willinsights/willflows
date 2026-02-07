@@ -292,7 +292,7 @@ export function PermissionsMatrix() {
               {Object.entries(groupedPermissions).map(([category, perms]) => (
                 <React.Fragment key={`cat-${category}`}>
                   <tr className="bg-muted/30">
-                    <td colSpan={6} className="py-2 px-2 font-semibold text-sm uppercase tracking-wide text-muted-foreground">
+                    <td colSpan={2 + rolesWithoutAdmin.length} className="py-2 px-2 font-semibold text-sm uppercase tracking-wide text-muted-foreground">
                       {category}
                     </td>
                   </tr>
@@ -388,11 +388,11 @@ export function PermissionsMatrix() {
             <div className="space-y-1 text-sm">
               <p className="font-medium text-info">Notas sobre permissões:</p>
               <ul className="text-muted-foreground space-y-1 list-disc list-inside">
-                <li>Admin tem sempre todas as permissões ativas por padrão</li>
-                <li><strong>Visibilidade:</strong> Controla o acesso às páginas (Leads, Contratos, etc.) e se vê todos os projetos</li>
-                <li><strong>Dashboard:</strong> Define se o utilizador vê métricas financeiras globais ou apenas "Meus Ganhos"</li>
-                <li>Freelancers por padrão só visualizam projetos atribuídos e os seus ganhos</li>
-                <li>As alterações são aplicadas imediatamente após guardar</li>
+                <li>Admin tem sempre todas as permissões ativas e não pode ser alterado</li>
+                <li><strong>Páginas:</strong> Controla quais páginas aparecem no menu (Leads, Contratos, Equipa, Relatórios)</li>
+                <li><strong>Clientes:</strong> Separado entre acesso à página, edição e visualização de dados sensíveis (contactos e valores)</li>
+                <li><strong>Financeiro:</strong> "Financeiro global" mostra receita/custos totais; "Meus ganhos" mostra apenas os ganhos pessoais</li>
+                <li>O nome do cliente aparece sempre em projetos e tarefas, independentemente das permissões</li>
               </ul>
             </div>
           </div>

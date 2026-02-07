@@ -607,9 +607,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [user, refreshWorkspace]);
 
   const isAdmin = membership?.role === 'admin';
-  // canEdit is now dynamic - will be computed by useWorkspacePermissions hook
+  // canEdit is now dynamic - will be computed by useFinancialPermissions hook
   // For backward compatibility, we still provide a basic check here
-  // but components should use useWorkspacePermissions for accurate permissions
+  // but components should use useFinancialPermissions for accurate permissions
   const canEdit = isAdmin || membership?.role === 'edicao' || membership?.role === 'captacao';
 
   // Filter to only active workspaces (not expired)
