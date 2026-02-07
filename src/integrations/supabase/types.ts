@@ -3258,6 +3258,7 @@ export type Database = {
           stream_thumbnail_url: string | null
           task_id: string | null
           thumbnail_path: string | null
+          thumbnail_time_seconds: number | null
           uploaded_by: string | null
           version_number: number
           workspace_id: string
@@ -3280,6 +3281,7 @@ export type Database = {
           stream_thumbnail_url?: string | null
           task_id?: string | null
           thumbnail_path?: string | null
+          thumbnail_time_seconds?: number | null
           uploaded_by?: string | null
           version_number?: number
           workspace_id: string
@@ -3302,6 +3304,7 @@ export type Database = {
           stream_thumbnail_url?: string | null
           task_id?: string | null
           thumbnail_path?: string | null
+          thumbnail_time_seconds?: number | null
           uploaded_by?: string | null
           version_number?: number
           workspace_id?: string

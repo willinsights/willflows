@@ -56,7 +56,7 @@ function VideoProductionTabContent({
   projectId,
   className,
 }: VideoProductionTabProps) {
-  const { versions, loading, deleteVersion, getSignedUrl, isProcessing, refetch } = useVideoVersions(taskId, workspaceId, projectId);
+  const { versions, loading, deleteVersion, getSignedUrl, isProcessing, refetch, setThumbnailTime } = useVideoVersions(taskId, workspaceId, projectId);
   const [selectedVersion, setSelectedVersion] = useState<VideoVersion | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [loadingUrl, setLoadingUrl] = useState(false);
@@ -209,6 +209,7 @@ function VideoProductionTabContent({
                 hlsUrl={selectedVersion.stream_playback_url || undefined}
                 isProcessing={isVersionProcessing}
                 onAddComment={handleAddComment}
+                onSetThumbnail={selectedVersion?.cloudflare_stream_uid ? (seconds) => setThumbnailTime(selectedVersion.id, seconds) : undefined}
                 className="w-full max-h-[70vh]"
               />
             </div>

@@ -100,7 +100,20 @@ serve(async (req) => {
 
     // Always use canonical videodelivery.net URL for best compatibility
     const canonicalPlaybackUrl = `https://videodelivery.net/${streamUid}/manifest/video.m3u8`;
-    const canonicalThumbnail = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg`;
+
+    // Preserve custom thumbnail time if set
+    let thumbnailTimeParam = '?time=50p';
+    if (versionId) {
+      const { data: versionRow } = await supabase
+        .from("video_versions")
+        .select("thumbnail_time_seconds")
+        .eq("id", versionId)
+        .single();
+      if (versionRow?.thumbnail_time_seconds != null) {
+        thumbnailTimeParam = `?time=${versionRow.thumbnail_time_seconds}s`;
+      }
+    }
+    const canonicalThumbnail = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg${thumbnailTimeParam}`;
 
     logStep("Video updated successfully", { 
       streamUid, 

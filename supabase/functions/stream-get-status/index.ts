@@ -108,8 +108,18 @@ serve(async (req) => {
         updateData.duration_seconds = Math.round(duration);
       }
 
-      // Always use canonical videodelivery.net URL
-      updateData.thumbnail_path = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg`;
+      // Preserve custom thumbnail time if set, otherwise default to 50%
+      const { data: versionRow } = await supabase
+        .from("video_versions")
+        .select("thumbnail_time_seconds")
+        .eq("id", versionId)
+        .single();
+
+      const timeParam = versionRow?.thumbnail_time_seconds != null
+        ? `?time=${versionRow.thumbnail_time_seconds}s`
+        : '?time=50p';
+
+      updateData.thumbnail_path = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg${timeParam}`;
       updateData.stream_playback_url = `https://videodelivery.net/${streamUid}/manifest/video.m3u8`;
 
       const { error: updateError } = await supabase

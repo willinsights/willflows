@@ -11,7 +11,8 @@ import {
   MessageSquare,
   SkipBack,
   SkipForward,
-  Loader2
+  Loader2,
+  Camera
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VideoComment } from '@/hooks/useVideoComments';
@@ -25,6 +26,7 @@ interface VideoPlayerProps {
   comments?: VideoComment[];
   onCommentClick?: (comment: VideoComment) => void;
   onAddComment?: (timestampSeconds: number) => void;
+  onSetThumbnail?: (timestampSeconds: number) => void;
   className?: string;
 }
 
@@ -68,6 +70,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   comments = [], 
   onCommentClick, 
   onAddComment,
+  onSetThumbnail,
   className 
 }, ref) => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -638,6 +641,19 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Set thumbnail button */}
+            {onSetThumbnail && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => onSetThumbnail(currentTime)}
+                className="text-white hover:bg-white/20"
+                title="Definir este frame como thumbnail"
+              >
+                <Camera className="h-4 w-4" />
+              </Button>
+            )}
+
             {/* Add comment button */}
             {onAddComment && (
               <Button 

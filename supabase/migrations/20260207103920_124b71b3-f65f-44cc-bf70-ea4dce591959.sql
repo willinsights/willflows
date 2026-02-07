@@ -1,0 +1,1 @@
+ALTER TABLE public.video_versions ADD COLUMN thumbnail_time_seconds double precision DEFAULT NULL;
