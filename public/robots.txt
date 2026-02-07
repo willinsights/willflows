@@ -29,6 +29,5 @@ Disallow: /checkout-success
 Disallow: /tutorial
 Disallow: /video-approval/
 
-# Sitemaps - Static and Dynamic
+# Sitemap Index
 Sitemap: https://willflow.app/sitemap.xml
-Sitemap: https://wppfmyseeigsdqutkgyc.supabase.co/functions/v1/sitemap
