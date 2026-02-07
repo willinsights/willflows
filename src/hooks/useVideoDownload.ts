@@ -42,15 +42,7 @@ export function useVideoDownload(options: UseVideoDownloadOptions = {}) {
         }
       );
 
-      // Handle 202 - download is being prepared
-      if (response.status === 202) {
-        const data = await response.json();
-        toast({
-          title: 'Preparando download',
-          description: data.error || 'Aguarde alguns segundos e tente novamente.',
-        });
-        return;
-      }
+      // R2 signed URLs are instant, no 202 handling needed
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
