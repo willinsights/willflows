@@ -1,17 +1,44 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 interface DownloadRequest {
   video_version_id: string;
-  approval_token?: string; // For public review page
+  approval_token?: string;
+}
+
+async function generateSignedR2Url(
+  accountId: string,
+  accessKeyId: string,
+  secretAccessKey: string,
+  bucket: string,
+  key: string,
+  expiresIn: number = 3600
+): Promise<string> {
+  const r2 = new AwsClient({
+    accessKeyId,
+    secretAccessKey,
+    region: 'auto',
+    service: 's3',
+  });
+
+  const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
+  const url = new URL(`/${bucket}/${key}`, endpoint);
+  url.searchParams.set('X-Amz-Expires', String(expiresIn));
+
+  const signedRequest = await r2.sign(
+    new Request(url.toString(), { method: 'GET' }),
+    { aws: { signQuery: true } }
+  );
+
+  return signedRequest.url.toString();
 }
 
 Deno.serve(async (req: Request) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -20,19 +47,19 @@ Deno.serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const cloudflareAccountId = Deno.env.get('CLOUDFLARE_ACCOUNT_ID');
-    const cloudflareStreamToken = Deno.env.get('CLOUDFLARE_STREAM_TOKEN');
+    const r2AccessKeyId = Deno.env.get('CLOUDFLARE_R2_ACCESS_KEY');
+    const r2SecretAccessKey = Deno.env.get('CLOUDFLARE_R2_SECRET_KEY');
+    const r2Bucket = Deno.env.get('CLOUDFLARE_R2_BUCKET');
 
-    if (!cloudflareAccountId || !cloudflareStreamToken) {
-      console.error('[video-download-url] Missing Cloudflare credentials');
+    if (!cloudflareAccountId || !r2AccessKeyId || !r2SecretAccessKey || !r2Bucket) {
+      console.error('[video-download-url] Missing R2 credentials');
       return new Response(
-        JSON.stringify({ error: 'Cloudflare configuration missing' }),
+        JSON.stringify({ error: 'R2 configuration missing' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Parse request body
     const { video_version_id, approval_token }: DownloadRequest = await req.json();
 
     if (!video_version_id) {
@@ -42,12 +69,11 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Authentication check
+    // --- Authentication ---
     let userId: string | null = null;
     let workspaceId: string | null = null;
     let isPublicApproval = false;
 
-    // Check for approval token (public review page)
     if (approval_token) {
       const { data: task } = await supabase
         .from('tasks')
@@ -62,7 +88,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // If not public approval, check JWT auth
     if (!isPublicApproval) {
       const authHeader = req.headers.get('Authorization');
       if (!authHeader) {
@@ -85,10 +110,10 @@ Deno.serve(async (req: Request) => {
       userId = user.id;
     }
 
-    // Fetch video version details
+    // --- Fetch video version (including r2_key) ---
     const { data: version, error: versionError } = await supabase
       .from('video_versions')
-      .select('id, cloudflare_stream_uid, file_name, workspace_id, project_id')
+      .select('id, file_name, workspace_id, project_id, r2_key')
       .eq('id', video_version_id)
       .single();
 
@@ -100,7 +125,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Authorization check for authenticated users
+    // --- Authorization ---
     if (!isPublicApproval && userId) {
       const { data: membership } = await supabase
         .from('workspace_members')
@@ -117,7 +142,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // For public approval, verify workspaceId matches
     if (isPublicApproval && workspaceId !== version.workspace_id) {
       return new Response(
         JSON.stringify({ error: 'Not authorized to download this video' }),
@@ -125,117 +149,30 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (!version.cloudflare_stream_uid) {
+    // --- Generate signed R2 URL for original file ---
+    if (!version.r2_key) {
       return new Response(
-        JSON.stringify({ error: 'Video not available for download (no stream UID)' }),
+        JSON.stringify({ error: 'Ficheiro original não disponível para download (sem r2_key)' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Generate signed download URL from Cloudflare Stream
-    // First, check if downloads are enabled for this video
-    const videoInfoUrl = `https://api.cloudflare.com/client/v4/accounts/${cloudflareAccountId}/stream/${version.cloudflare_stream_uid}`;
-    
-    const videoInfoResponse = await fetch(videoInfoUrl, {
-      headers: {
-        'Authorization': `Bearer ${cloudflareStreamToken}`,
-      },
-    });
+    const downloadUrl = await generateSignedR2Url(
+      cloudflareAccountId,
+      r2AccessKeyId,
+      r2SecretAccessKey,
+      r2Bucket,
+      version.r2_key,
+      3600
+    );
 
-    if (!videoInfoResponse.ok) {
-      const errorText = await videoInfoResponse.text();
-      console.error('[video-download-url] Failed to get video info:', errorText);
-      return new Response(
-        JSON.stringify({ error: 'Failed to get video information' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const videoInfo = await videoInfoResponse.json();
-    
-    if (!videoInfo.success || !videoInfo.result) {
-      return new Response(
-        JSON.stringify({ error: 'Video not found in Cloudflare' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Check if downloads exist for this video
-    const downloadsListUrl = `https://api.cloudflare.com/client/v4/accounts/${cloudflareAccountId}/stream/${version.cloudflare_stream_uid}/downloads`;
-
-    const downloadsResponse = await fetch(downloadsListUrl, {
-      headers: { 'Authorization': `Bearer ${cloudflareStreamToken}` },
-    });
-
-    const downloadsData = await downloadsResponse.json();
-    console.log('[video-download-url] Downloads status:', downloadsData);
-
-    let downloadUrl: string | null = null;
-
-    // Check if default download exists and is ready
-    if (downloadsData.success && downloadsData.result?.default) {
-      const defaultDownload = downloadsData.result.default;
-      
-      if (defaultDownload.status === 'ready' && defaultDownload.url) {
-        downloadUrl = defaultDownload.url;
-        console.log('[video-download-url] Download already ready');
-      } else if (defaultDownload.status === 'pendingUrl' || defaultDownload.status === 'inprogress') {
-        // Still processing, inform user to try again
-        return new Response(
-          JSON.stringify({ 
-            error: 'Download em preparação. Aguarde alguns segundos e tente novamente.',
-            status: 'processing',
-            percentComplete: defaultDownload.percentComplete || 0
-          }),
-          { status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
-    // If no download exists or not ready, create it
-    if (!downloadUrl) {
-      console.log('[video-download-url] Creating download...');
-      
-      const createDownloadResponse = await fetch(downloadsListUrl, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${cloudflareStreamToken}` },
-      });
-      
-      const createData = await createDownloadResponse.json();
-      console.log('[video-download-url] Create download response:', createData);
-      
-      if (createData.success && createData.result) {
-        if (createData.result.status === 'ready' && createData.result.url) {
-          downloadUrl = createData.result.url;
-        } else {
-          // Download is being created, user needs to wait
-          return new Response(
-            JSON.stringify({ 
-              error: 'Download iniciado. Aguarde alguns segundos e tente novamente.',
-              status: 'initiated',
-              percentComplete: createData.result.percentComplete || 0
-            }),
-            { status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-      } else {
-        console.error('[video-download-url] Failed to create download:', createData);
-        return new Response(
-          JSON.stringify({ error: 'Não foi possível criar o download' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
-    // Log download for audit
-    console.log('[video-download-url] Download URL ready', {
+    console.log('[video-download-url] Signed R2 URL generated', {
       video_version_id,
       user_id: userId,
       is_public: isPublicApproval,
-      stream_uid: version.cloudflare_stream_uid,
+      r2_key: version.r2_key,
     });
 
-    // Return the valid download URL
     return new Response(
       JSON.stringify({
         download_url: downloadUrl,
