@@ -10,7 +10,8 @@ import {
   HardDrive,
   RefreshCw,
   AlertTriangle,
-  Loader2
+  Loader2,
+  ImageOff
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VideoVersion } from '@/hooks/useVideoVersions';
@@ -42,6 +43,38 @@ interface VideoVersionsListProps {
   onFixVideo?: (version: VideoVersion) => void;
   isFixingVideo?: boolean;
   className?: string;
+}
+
+function ThumbnailImage({ src, versionNumber, isSelected }: { src: string; versionNumber: number; isSelected: boolean }) {
+  const [hasError, setHasError] = useState(false);
+
+  if (hasError) {
+    return (
+      <div className="relative w-16 h-9 min-w-[4rem] flex-shrink-0 rounded overflow-hidden bg-muted flex items-center justify-center">
+        <ImageOff className="h-4 w-4 text-muted-foreground" />
+        <span className="absolute bottom-0 left-0 text-[10px] font-bold px-1 py-px leading-tight bg-black/70 text-white">
+          V{versionNumber}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-16 h-9 min-w-[4rem] flex-shrink-0 rounded overflow-hidden bg-muted">
+      <img
+        src={src}
+        alt={`V${versionNumber}`}
+        className="w-full h-full object-cover"
+        onError={() => setHasError(true)}
+      />
+      <span className={cn(
+        "absolute bottom-0 left-0 text-[10px] font-bold px-1 py-px leading-tight",
+        isSelected ? "bg-primary text-primary-foreground" : "bg-black/70 text-white"
+      )}>
+        V{versionNumber}
+      </span>
+    </div>
+  );
 }
 
 export function VideoVersionsList({
@@ -92,6 +125,7 @@ export function VideoVersionsList({
         {versions.map((version) => {
           const hasStreamError = version.stream_status === 'error' || 
             (version.cloudflare_stream_uid && !version.stream_playback_url);
+          const isProcessing = ['processing', 'downloading', 'inprogress', 'pending'].includes(version.stream_status || '');
           
           return (
             <button
@@ -107,22 +141,19 @@ export function VideoVersionsList({
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  {version.thumbnail_path ? (
-                    <div className="relative w-16 h-9 min-w-[4rem] flex-shrink-0 rounded overflow-hidden bg-muted">
-                      <img 
-                        src={version.thumbnail_path} 
-                        alt={`V${version.version_number}`}
-                        className="w-full h-full object-cover"
-                      />
-                      <span className={cn(
-                        "absolute bottom-0 left-0 text-[10px] font-bold px-1 py-px leading-tight",
-                        selectedVersionId === version.id
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-black/70 text-white"
-                      )}>
+                  {isProcessing ? (
+                    <div className="relative w-16 h-9 min-w-[4rem] flex-shrink-0 rounded overflow-hidden bg-muted flex items-center justify-center">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      <span className="absolute bottom-0 left-0 text-[10px] font-bold px-1 py-px leading-tight bg-black/70 text-white">
                         V{version.version_number}
                       </span>
                     </div>
+                  ) : version.thumbnail_path ? (
+                    <ThumbnailImage
+                      src={version.thumbnail_path}
+                      versionNumber={version.version_number}
+                      isSelected={selectedVersionId === version.id}
+                    />
                   ) : (
                     <div className={cn(
                       "flex items-center justify-center rounded-full",
