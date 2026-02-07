@@ -25,7 +25,7 @@ import { CreateProjectModal } from '@/components/projects/CreateProjectModal';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { useWorkspacePermissions } from '@/hooks/useWorkspacePermissions';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 
 const mainNavItems = [
   { icon: LayoutDashboard, label: 'Início', path: '/app' },
@@ -74,7 +74,7 @@ export function MobileBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const { totalUnread } = useTotalUnreadMessages();
-  const { hasPermission, userRole } = useWorkspacePermissions();
+  const { canViewLeads, canViewContracts, userRole } = useFinancialPermissions();
   const isAdmin = userRole === 'admin';
   const [menuOpen, setMenuOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -187,7 +187,10 @@ export function MobileBottomNav() {
                 // Filter items based on permissions
                 const visibleItems = section.items.filter(item => {
                   if (!item.permission) return true;
-                  return isAdmin || hasPermission(item.permission);
+                  if (isAdmin) return true;
+                  if (item.permission === 'visibility.leads') return canViewLeads;
+                  if (item.permission === 'visibility.contracts') return canViewContracts;
+                  return true;
                 });
 
                 if (visibleItems.length === 0) return null;
