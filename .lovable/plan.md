@@ -1,77 +1,57 @@
 
 
-## Recriar pagina de permissoes: eliminar redundancias e adaptar ao sistema atual
+## Corrigir thumbnail quebrado durante processamento
 
-### Problemas identificados
+### Problema
+Quando um video e carregado, a edge function `stream-process-video` define imediatamente o `thumbnail_path` com o URL do Cloudflare Stream (ex: `https://videodelivery.net/{uid}/thumbnails/thumbnail.jpg?time=50p`). Porem, nesse momento o video ainda esta em estado "downloading" ou "inprogress" -- o Cloudflare Stream ainda nao gerou o thumbnail, e o URL devolve erro/imagem quebrada.
 
-**Hooks duplicados:**
-- `useWorkspacePermissions` e `useFinancialPermissions` fazem exatamente a mesma coisa (criam `hasPermission`, consultam a mesma tabela, retornam campos quase identicos). So `MobileBottomNav` usa `useWorkspacePermissions`; todo o resto usa `useFinancialPermissions`.
-- Solucao: eliminar `useWorkspacePermissions` e migrar `MobileBottomNav` para usar `useFinancialPermissions`.
+A lista de versoes (`VideoVersionsList.tsx`) mostra o `<img>` com esse URL partido, resultando num thumbnail em branco ou com icone de erro.
 
-**Permissoes definidas mas nunca usadas no codigo:**
-- `payments.view` — definido mas nunca verificado (so `payments.manage` e usado)
-- `projects.delete` — definido mas nunca verificado (eliminacao de projetos nao e controlada por esta key)
-- `team.invite` — definido mas nunca verificado
-- `team.manage` — definido mas nunca verificado
+### Solucao
 
-Estas aparecem na UI de permissoes mas nao fazem nada. Confundem o admin.
+**1. `stream-process-video` -- nao definir `thumbnail_path` durante o upload**
 
-**Categorias confusas na UI:**
-- "Visibilidade" mistura acesso a paginas (`visibility.leads`, `visibility.contracts`) com filtragem de dados (`visibility.all_projects`)
-- "Dashboard" e "Pagamentos" e "Relatorios" estao separados quando fazem parte do mesmo contexto (financeiro)
-- "Clientes" tem 5 permissoes granulares que podiam ser agrupadas de forma mais clara
+Na edge function, remover a atribuicao de `thumbnail_path` no `update` apos submeter ao Stream. Deixar como `null` ate o video estar pronto.
 
-### Plano de implementacao
+Antes:
+```
+update({ cloudflare_stream_uid, stream_playback_url, thumbnail_path, stream_status })
+```
 
-#### 1. Eliminar `useWorkspacePermissions.ts`
-- Apagar o ficheiro `src/hooks/useWorkspacePermissions.ts`
-- Em `src/components/layout/MobileBottomNav.tsx`: substituir `useWorkspacePermissions` por `useFinancialPermissions`
-- Em `src/contexts/WorkspaceContext.tsx`: remover comentario referente ao hook
+Depois:
+```
+update({ cloudflare_stream_uid, stream_playback_url, stream_status })
+// thumbnail_path fica null -- sera preenchido pelo stream-get-status quando ready
+```
 
-#### 2. Limpar `PERMISSION_DEFINITIONS` em `useRolePermissions.ts`
-Remover permissoes que nao sao usadas em lado nenhum do codigo:
-- `payments.view` (remover — so `payments.manage` importa)
-- `projects.delete` (remover — nao e verificado)
-- `team.invite` (remover — convites sao geridos apenas por admin)
-- `team.manage` (remover — gestao de membros e admin-only)
+**2. `stream-get-status` -- ja esta correto**
 
-Resultado: de 20 permissoes para **16 permissoes reais e usadas**.
+Esta edge function ja define `thumbnail_path` quando o status muda para "ready". Nao precisa de alteracoes.
 
-#### 3. Reorganizar categorias para a UI
-Nova organizacao mais clara e adaptada ao sistema:
+**3. `VideoVersionsList.tsx` -- mostrar placeholder durante processamento**
 
-| Categoria | Permissoes |
-|-----------|-----------|
-| **Projetos** | `projects.view`, `projects.create`, `projects.edit` |
-| **Clientes** | `clients.view` (pagina), `clients.create`, `clients.edit`, `clients.view_contacts` (email/tel), `clients.view_financials` (valores) |
-| **Paginas e Navegacao** | `visibility.leads`, `visibility.contracts`, `visibility.all_projects`, `team.view`, `reports.view` |
-| **Financeiro e Dashboard** | `dashboard.view_global_financials`, `dashboard.view_own_earnings`, `dashboard.view_performance`, `payments.manage` |
+Adicionar uma verificacao: se a versao esta em processamento (`stream_status` e "processing"/"downloading"/"inprogress"/"pending"), mostrar um placeholder animado em vez de tentar carregar o thumbnail. Tambem adicionar `onError` ao `<img>` para tratar casos onde o URL existe mas a imagem falha.
 
-#### 4. Reescrever `PermissionsMatrix.tsx`
-- Usar as novas categorias reorganizadas
-- Melhorar descricoes para serem mais claras (ex: "Ver pagina de Clientes" em vez de "Visualizar lista de clientes")
-- Corrigir `colSpan` hardcoded (era `6`, deve ser dinamico: `2 + rolesWithoutAdmin.length`)
-- Atualizar notas informativas no rodape para refletir o sistema atual
-- Manter toda a logica existente de guardar/restaurar/labels
+```text
+Antes:
+  thumbnail_path existe -> mostra <img>
+  thumbnail_path null   -> mostra circulo com V{n}
 
-#### 5. Atualizar `DEFAULT_PERMISSIONS`
-Remover as keys eliminadas dos defaults de cada role.
+Depois:
+  stream_status e processing/downloading/inprogress/pending -> mostra placeholder animado (spinner)
+  thumbnail_path existe E stream_status e ready              -> mostra <img> com onError fallback
+  thumbnail_path null                                        -> mostra circulo com V{n}
+```
 
 ### Ficheiros a alterar
 
-| Ficheiro | Acao |
-|----------|------|
-| `src/hooks/useWorkspacePermissions.ts` | Apagar |
-| `src/hooks/useRolePermissions.ts` | Remover 4 permissoes nao usadas, reorganizar categorias |
-| `src/hooks/useFinancialPermissions.ts` | Sem alteracoes (ja esta correto) |
-| `src/components/settings/PermissionsMatrix.tsx` | Reescrever UI com novas categorias e descricoes |
-| `src/components/layout/MobileBottomNav.tsx` | Migrar de `useWorkspacePermissions` para `useFinancialPermissions` |
+| Ficheiro | Alteracao |
+|----------|-----------|
+| `supabase/functions/stream-process-video/index.ts` | Remover `thumbnail_path` do update apos submissao ao Stream (linhas 233-239) |
+| `src/components/video-production/VideoVersionsList.tsx` | Adicionar placeholder animado para versoes em processamento e `onError` fallback no `<img>` |
 
-### Sem migracao SQL necessaria
-As permissoes removidas (`payments.view`, `projects.delete`, `team.invite`, `team.manage`) ficam na tabela `workspace_role_permissions` como registos orfaos — nao causam problemas. Opcionalmente podem ser limpas depois, mas nao e urgente.
+### Resultado
+- Durante o processamento: mostra um placeholder com spinner em vez de imagem quebrada
+- Quando o video fica pronto: `stream-get-status` preenche `thumbnail_path` e o realtime atualiza a UI automaticamente com o thumbnail real
+- Se o thumbnail falhar por outro motivo: `onError` esconde a imagem e mostra o fallback circular
 
-### Resultado final
-- 1 hook de permissoes em vez de 2 (elimina duplicacao)
-- 16 permissoes reais em vez de 20 (elimina confusao)
-- Categorias reorganizadas para fazer sentido no contexto do WillFlow
-- Admin ve apenas toggles que realmente controlam algo no sistema
