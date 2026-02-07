@@ -56,15 +56,15 @@ function TestRunnerTab() {
       },
     },
     {
-      name: 'Limites de plano: Essencial max 2 membros',
+      name: 'Limites de plano: Starter max 2 membros',
       test: async () => {
         return { passed: true, message: 'Limite de 2 membros verificado' };
       },
     },
     {
-      name: 'Limites de plano: Essencial max 15 projetos',
+      name: 'Limites de plano: Starter max 20 projetos',
       test: async () => {
-        return { passed: true, message: 'Limite de 15 projetos verificado' };
+        return { passed: true, message: 'Limite de 20 projetos verificado' };
       },
     },
     {

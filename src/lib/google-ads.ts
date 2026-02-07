@@ -24,11 +24,12 @@ export const CONVERSION_IDS = {
   CTA_CLICK: `${GOOGLE_ADS_ID}/4K9lCJrR8OYbEOu02MUo`,
 } as const;
 
-// Plan values for conversion tracking
+// Plan values for conversion tracking (must match actual prices in plans.ts)
 export const PLAN_VALUES: Record<string, { EUR: number; BRL: number }> = {
-  starter: { EUR: 19, BRL: 95 },
-  pro: { EUR: 39, BRL: 195 },
-  studio: { EUR: 79, BRL: 395 },
+  starter: { EUR: 14, BRL: 79 },
+  essencial: { EUR: 14, BRL: 79 }, // Legacy alias
+  pro: { EUR: 24, BRL: 149 },
+  studio: { EUR: 42, BRL: 247 },
 };
 
 /**
@@ -69,12 +70,12 @@ export function trackConversion(
 /**
  * Track a checkout success conversion
  * 
- * @param plan - The subscription plan (essencial, pro, studio)
+ * @param plan - The subscription plan (starter, pro, studio)
  * @param country - The country code (PT or BR)
  */
 export function trackCheckoutSuccess(plan: string, country?: string): void {
   const currency = getCurrencyByCountry(country);
-  const planValues = PLAN_VALUES[plan] || PLAN_VALUES.essencial;
+  const planValues = PLAN_VALUES[plan] || PLAN_VALUES.starter;
   const value = planValues[currency];
   trackConversion(CONVERSION_IDS.CHECKOUT_SUCCESS, value, currency);
 }

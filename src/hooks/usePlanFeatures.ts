@@ -117,7 +117,7 @@ function buildFeatureInfo(): Record<FeatureKey, FeatureInfo> {
 
 const FEATURES = buildFeatureInfo();
 
-// DB uses 'essencial', UI sometimes uses 'starter' - normalize for comparison
+// Legacy DB may still have 'essencial' - normalize to 'starter' for comparison
 function normalizePlan(plan: string): PlanId {
   return PLAN_DB_MAPPING[plan] || 'starter';
 }
