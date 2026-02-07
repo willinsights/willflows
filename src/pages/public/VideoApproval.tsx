@@ -109,6 +109,7 @@ export default function VideoApproval() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
+  const hideControlsTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -122,6 +123,7 @@ export default function VideoApproval() {
   const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [showControls, setShowControls] = useState(true);
 
   // Inline comment state (Frame.io style - always visible)
   const [commentTimestamp, setCommentTimestamp] = useState(0);
@@ -327,6 +329,38 @@ export default function VideoApproval() {
       }
     }
   };
+
+  // Hover controls logic
+  const handlePlayerMouseMove = useCallback(() => {
+    setShowControls(true);
+    if (hideControlsTimeout.current) {
+      clearTimeout(hideControlsTimeout.current);
+    }
+    hideControlsTimeout.current = setTimeout(() => {
+      if (videoRef.current && !videoRef.current.paused) {
+        setShowControls(false);
+      }
+    }, 3000);
+  }, []);
+
+  const handlePlayerMouseLeave = useCallback(() => {
+    if (hideControlsTimeout.current) {
+      clearTimeout(hideControlsTimeout.current);
+    }
+    if (videoRef.current && !videoRef.current.paused) {
+      setShowControls(false);
+    }
+  }, []);
+
+  // Extract Cloudflare Stream UID for thumbnail
+  const posterUrl = (() => {
+    if (!videoUrl) return undefined;
+    const match = videoUrl.match(/videodelivery\.net\/([a-f0-9]+)/i);
+    if (match) {
+      return `https://videodelivery.net/${match[1]}/thumbnails/thumbnail.jpg?time=50p`;
+    }
+    return undefined;
+  })();
 
   // Handle comment text change - auto-capture timecode on first keystroke
   const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -789,20 +823,27 @@ export default function VideoApproval() {
               ) : (
                 <>
                   <Card className="overflow-hidden">
-                    <div className="relative bg-black flex justify-center" style={{ minHeight: '300px', maxHeight: '70vh' }}>
+                    <div
+                      className="relative bg-black flex justify-center cursor-pointer"
+                      style={{ minHeight: '300px', maxHeight: '70vh' }}
+                      onMouseMove={handlePlayerMouseMove}
+                      onMouseLeave={handlePlayerMouseLeave}
+                    >
                       {videoUrl ? (
                         <video
                           ref={videoRef}
                           className="w-full h-full"
                           style={{ 
                             objectFit: 'contain',
-                            minHeight: '1px', // Safari fix
+                            minHeight: '1px',
                           }}
+                          poster={posterUrl}
                           onTimeUpdate={handleTimeUpdate}
                           onLoadedMetadata={handleLoadedMetadata}
-                          onPlay={() => setIsPlaying(true)}
-                          onPause={() => setIsPlaying(false)}
-                          onEnded={() => setIsPlaying(false)}
+                          onPlay={() => { setIsPlaying(true); setShowControls(true); }}
+                          onPause={() => { setIsPlaying(false); setShowControls(true); }}
+                          onEnded={() => { setIsPlaying(false); setShowControls(true); }}
+                          onClick={togglePlay}
                         />
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center">
@@ -810,8 +851,22 @@ export default function VideoApproval() {
                         </div>
                       )}
 
-                      {/* Controls overlay */}
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                      {/* Central play overlay when paused */}
+                      {videoUrl && !isPlaying && (
+                        <div
+                          className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                        >
+                          <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                            <Play className="h-7 w-7 text-black ml-1" />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Controls overlay with hover transition */}
+                      <div className={cn(
+                        "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity duration-300",
+                        showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                      )}>
                         {/* Progress bar with comment markers */}
                         <div className="relative mb-3">
                           <div
@@ -882,9 +937,6 @@ export default function VideoApproval() {
                             <Button variant="ghost" size="icon" className="text-white" onClick={toggleMute}>
                               {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
                             </Button>
-                            <span className="text-white text-sm font-mono">
-                              {formatTimecode(currentTime)} / {formatTimecode(duration)}
-                            </span>
                           </div>
 
                           <div className="flex items-center gap-2">
@@ -896,6 +948,13 @@ export default function VideoApproval() {
                       </div>
                     </div>
                   </Card>
+
+                  {/* Timecode below player, always visible */}
+                  <div className="text-center mt-2">
+                    <span className="font-mono text-sm text-muted-foreground">
+                      {formatTimecode(currentTime)} / {formatTimecode(duration)}
+                    </span>
+                  </div>
 
                   {/* Always visible comment input (Frame.io style) */}
                   <Card className="p-4">
