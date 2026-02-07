@@ -1,74 +1,53 @@
 
 
-## Melhorar indexacao no Google Search Console
+## Escolher thumbnail personalizado para cada versao de video
 
-### Problema atual
-O site e uma SPA (Single Page Application) sem pre-renderizacao. O Google consegue indexar SPAs, mas de forma mais lenta. Alem disso:
-- O **sitemap.xml estatico** nao inclui nenhum artigo do blog
-- O **sitemap dinamico** (edge function) esta num dominio diferente (supabase), o que pode confundir o Google
-- O **robots.txt** aponta para dois sitemaps separados
+### Problema
+As thumbnails usam o primeiro frame do video (URL padrao do Cloudflare Stream: `/thumbnails/thumbnail.jpg`). Se o video comeca com fade-in preto, a miniatura fica escura/invisivel.
 
 ### Solucao
-
-#### 1. Unificar sitemaps com Sitemap Index
-Converter o `public/sitemap.xml` estatico num **Sitemap Index** que aponta para dois sub-sitemaps:
-- `sitemap-pages.xml` (paginas estaticas, servido localmente)
-- Sitemap dinamico do blog (edge function, com posts da base de dados)
-
-Atualizar o `robots.txt` para apontar apenas para o sitemap index principal.
-
-#### 2. Atualizar a edge function do sitemap
-Corrigir o `baseUrl` na edge function para usar `https://willflow.app` (atualmente usa `willflows.lovable.app` no RSS). Garantir que retorna URLs corretas.
-
-#### 3. Atualizar robots.txt
+O Cloudflare Stream suporta um parametro `time` no URL da thumbnail:
 ```text
-Sitemap: https://willflow.app/sitemap.xml
-```
-Remover a referencia direta ao sitemap do supabase — fica referenciado dentro do sitemap index.
-
-#### 4. Adicionar Google Search Console verification tag
-Adicionar a meta tag de verificacao do Google Search Console no `index.html` (se ainda nao estiver — confirmar com o utilizador se tem o codigo).
-
-#### 5. Criar pagina de ping para indexacao
-Adicionar um link `<link rel="alternate" type="application/rss+xml">` no Blog.tsx e BlogPost.tsx apontando para o feed RSS, para que o Google descubra novos conteudos mais rapidamente.
-
-#### 6. Corrigir lastmod no sitemap estatico
-As datas estao fixas em janeiro 2026. Atualizar para a data atual para que o Google saiba que o conteudo e recente.
-
----
-
-### Detalhes tecnicos
-
-**Ficheiros a alterar:**
-
-1. **`public/sitemap.xml`** — Converter para Sitemap Index:
-```text
-<?xml version="1.0" encoding="UTF-8"?>
-<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <sitemap>
-    <loc>https://willflow.app/sitemap-pages.xml</loc>
-    <lastmod>2026-02-07</lastmod>
-  </sitemap>
-  <sitemap>
-    <loc>https://wppfmyseeigsdqutkgyc.supabase.co/functions/v1/sitemap</loc>
-    <lastmod>2026-02-07</lastmod>
-  </sitemap>
-</sitemapindex>
+https://videodelivery.net/{uid}/thumbnails/thumbnail.jpg?time=5s
 ```
 
-2. **`public/sitemap-pages.xml`** (novo ficheiro) — Mover todo o conteudo atual do sitemap.xml para aqui, com datas `lastmod` atualizadas para `2026-02-07`.
+Vamos adicionar um seletor de thumbnail no player: o utilizador pausa no frame desejado, clica num botao "Definir thumbnail", e o sistema guarda o timestamp escolhido.
 
-3. **`public/robots.txt`** — Simplificar para um unico sitemap:
-```text
-Sitemap: https://willflow.app/sitemap.xml
-```
+### Alteracoes
 
-4. **`supabase/functions/sitemap/index.ts`** — Verificar que `baseUrl` e `https://willflow.app` (ja esta correto).
+#### 1. Base de dados
+Adicionar coluna `thumbnail_time_seconds` (float, nullable, default null) na tabela `video_versions`. Quando preenchida, o URL da thumbnail passa a incluir `?time=Xs`.
 
-5. **`supabase/functions/blog-rss/index.ts`** — Corrigir `baseUrl` de `https://willflows.lovable.app` para `https://willflow.app`.
+#### 2. Hook `useVideoVersions.ts`
+- Adicionar `thumbnail_time_seconds` ao tipo `VideoVersion`
+- Criar funcao `setThumbnailTime(versionId, seconds)` que faz update na base de dados e reconstroi o `thumbnail_path` com o parametro `?time=`
 
-6. **`index.html`** — Adicionar RSS discovery link e atualizar preloads de imagens obsoletas (linhas 96-97 apontam para assets que podem ja nao existir).
+#### 3. Componente `VideoProductionTab.tsx`
+- Passar callback `onSetThumbnail` ao `VideoPlayer`
+- Quando acionado, chamar `setThumbnailTime` com o tempo atual do player
 
-7. **`src/pages/Blog.tsx`** — Ja tem link RSS, confirmar que URL esta correta.
+#### 4. Componente `VideoPlayer.tsx`
+- Adicionar botao "Definir thumbnail" (icone Camera/Image) na barra de controlos
+- Ao clicar, chama `onSetThumbnail(currentTime)` com o segundo atual do video
 
-**Resultado:** O Google Search Console vai encontrar um unico sitemap index que agrega todas as paginas estaticas e todos os artigos do blog dinamicamente. O feed RSS ajuda na descoberta rapida de novos artigos.
+#### 5. Componente `VideoVersionsList.tsx`
+- Ja usa `version.thumbnail_path` para exibir a miniatura — nao precisa de alteracao, o URL atualizado ja inclui o `?time=`
+
+#### 6. Edge functions (`stream-process-video`, `stream-get-status`, `stream-update-video`)
+- Ao construir `thumbnail_path`, verificar se existe `thumbnail_time_seconds` na versao e anexar `?time=Xs` ao URL
+- No upload inicial, usar `?time=50%` como default inteligente (meio do video) em vez do primeiro frame
+
+### Ficheiros a alterar
+1. **Migracao SQL** — adicionar coluna `thumbnail_time_seconds`
+2. `src/hooks/useVideoVersions.ts` — tipo + funcao `setThumbnailTime`
+3. `src/components/video-production/VideoPlayer.tsx` — botao "Definir thumbnail"
+4. `src/components/video-production/VideoProductionTab.tsx` — passar callback
+5. `supabase/functions/stream-process-video/index.ts` — default `?time=50%`  no thumbnail URL
+6. `supabase/functions/stream-get-status/index.ts` — preservar time param
+7. `supabase/functions/stream-update-video/index.ts` — preservar time param
+
+### Resultado
+- Thumbnails deixam de ser pretas por defeito (usam meio do video)
+- O utilizador pode escolher qualquer frame como thumbnail
+- Sem necessidade de gerar/armazenar imagens extra — tudo via parametro URL do Cloudflare
+
