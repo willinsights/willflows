@@ -294,22 +294,37 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       if (videoRef.current) {
         videoRef.current.pause();
       }
-      setIsPlaying(false);
     },
     play: () => {
       if (videoRef.current) {
-        videoRef.current.play();
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((err) => {
+            if (err.name !== 'AbortError') {
+              console.error('[VideoPlayer] Play error via ref:', err);
+            }
+          });
+        }
       }
-      setIsPlaying(true);
     },
   }), [currentTime]);
 
   const togglePlay = useCallback(() => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (isPlaying) {
+      video.pause();
+    } else {
+      // play() returns a Promise - must catch AbortError when pause() is called quickly after play()
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          // AbortError is expected when pause() interrupts play() - silently ignore
+          if (err.name !== 'AbortError') {
+            console.error('[VideoPlayer] Play error:', err);
+          }
+        });
       }
     }
   }, [isPlaying]);
