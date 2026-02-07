@@ -229,12 +229,14 @@ serve(async (req) => {
     const thumbnailUrl = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg?time=50p`;
 
     // Update version with Stream information
+    // NOTE: thumbnail_path is NOT set here because the video is still processing
+    // and Cloudflare Stream hasn't generated the thumbnail yet.
+    // It will be populated by stream-get-status when the video reaches "ready" state.
     const { error: updateError } = await supabase
       .from("video_versions")
       .update({
         cloudflare_stream_uid: streamUid,
         stream_playback_url: playbackUrl,
-        thumbnail_path: thumbnailUrl,
         stream_status: streamData.result.status?.state || "processing",
       })
       .eq("id", versionData.id);
