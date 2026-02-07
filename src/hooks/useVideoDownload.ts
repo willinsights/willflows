@@ -69,15 +69,16 @@ export function useVideoDownload(options: UseVideoDownloadOptions = {}) {
         return;
       }
 
-      // Trigger download
+      // Fetch as blob so the download attribute works (cross-origin URLs ignore it)
+      const blob = await fetch(download_url).then(r => r.blob());
+      const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = download_url;
+      link.href = blobUrl;
       link.download = fileName || file_name || 'video.mp4';
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
 
       toast({
         title: 'Download iniciado',
