@@ -1,57 +1,65 @@
 
 
-## Corrigir thumbnail quebrado durante processamento
+## Melhorar player do portal externo (Studio Review)
 
-### Problema
-Quando um video e carregado, a edge function `stream-process-video` define imediatamente o `thumbnail_path` com o URL do Cloudflare Stream (ex: `https://videodelivery.net/{uid}/thumbnails/thumbnail.jpg?time=50p`). Porem, nesse momento o video ainda esta em estado "downloading" ou "inprogress" -- o Cloudflare Stream ainda nao gerou o thumbnail, e o URL devolve erro/imagem quebrada.
+### Problemas atuais
 
-A lista de versoes (`VideoVersionsList.tsx`) mostra o `<img>` com esse URL partido, resultando num thumbnail em branco ou com icone de erro.
+1. **Thumbnails**: O player externo (`VideoApproval.tsx`) nao mostra thumbnail -- o video e um bloco preto ate o utilizador carregar play. O player interno (`VideoPlayer.tsx`) tambem nao tem poster/thumbnail visivel antes do play.
 
-### Solucao
+2. **Controlos sempre visiveis**: No portal externo, a barra de controlos (play, volume, fullscreen, progress bar) esta **sempre visivel** sobreposta ao video. No player interno, os controlos ja seguem a logica de hover (aparecem com o rato, desaparecem apos 3s).
 
-**1. `stream-process-video` -- nao definir `thumbnail_path` durante o upload**
+3. **Timecode dentro da barra de controlos**: O timecode (HH:MM:SS:FF) esta dentro do overlay de controlos, junto aos botoes. Deve estar **abaixo do player, centrado**, sempre visivel independentemente do hover.
 
-Na edge function, remover a atribuicao de `thumbnail_path` no `update` apos submeter ao Stream. Deixar como `null` ate o video estar pronto.
+### Alteracoes
 
-Antes:
-```
-update({ cloudflare_stream_uid, stream_playback_url, thumbnail_path, stream_status })
-```
+**1. Thumbnail/poster antes do play**
 
-Depois:
-```
-update({ cloudflare_stream_uid, stream_playback_url, stream_status })
-// thumbnail_path fica null -- sera preenchido pelo stream-get-status quando ready
-```
+Usar o URL `https://videodelivery.net/{streamUid}/thumbnails/thumbnail.jpg?time=50p` como poster do `<video>`. No portal externo, os videos vem como signed URLs (HLS), por isso vamos extrair o stream UID do URL para construir o thumbnail. Se nao for possivel extrair (URL nao e do Cloudflare), manter sem poster.
 
-**2. `stream-get-status` -- ja esta correto**
+**2. Controlos com hover (como o player interno)**
 
-Esta edge function ja define `thumbnail_path` quando o status muda para "ready". Nao precisa de alteracoes.
+Adicionar logica de `onMouseMove` / `onMouseLeave` ao container do video:
+- Controlos aparecem ao mover o rato
+- Desaparecem apos 3 segundos sem movimento (so quando o video esta a reproduzir)
+- Overlay de play (botao grande central) aparece quando pausado
 
-**3. `VideoVersionsList.tsx` -- mostrar placeholder durante processamento**
+**3. Timecode abaixo do player, centrado**
 
-Adicionar uma verificacao: se a versao esta em processamento (`stream_status` e "processing"/"downloading"/"inprogress"/"pending"), mostrar um placeholder animado em vez de tentar carregar o thumbnail. Tambem adicionar `onError` ao `<img>` para tratar casos onde o URL existe mas a imagem falha.
+Mover o `formatTimecode(currentTime) / formatTimecode(duration)` para fora do overlay de controlos. Colocar como elemento independente abaixo do `<Card>` do video, centrado horizontalmente. Visivel sempre, sem depender do hover.
 
-```text
-Antes:
-  thumbnail_path existe -> mostra <img>
-  thumbnail_path null   -> mostra circulo com V{n}
-
-Depois:
-  stream_status e processing/downloading/inprogress/pending -> mostra placeholder animado (spinner)
-  thumbnail_path existe E stream_status e ready              -> mostra <img> com onError fallback
-  thumbnail_path null                                        -> mostra circulo com V{n}
-```
-
-### Ficheiros a alterar
+### Ficheiro a alterar
 
 | Ficheiro | Alteracao |
 |----------|-----------|
-| `supabase/functions/stream-process-video/index.ts` | Remover `thumbnail_path` do update apos submissao ao Stream (linhas 233-239) |
-| `src/components/video-production/VideoVersionsList.tsx` | Adicionar placeholder animado para versoes em processamento e `onError` fallback no `<img>` |
+| `src/pages/public/VideoApproval.tsx` | Linhas 791-898: adicionar hover controls, thumbnail poster, mover timecode para baixo |
 
-### Resultado
-- Durante o processamento: mostra um placeholder com spinner em vez de imagem quebrada
-- Quando o video fica pronto: `stream-get-status` preenche `thumbnail_path` e o realtime atualiza a UI automaticamente com o thumbnail real
-- Se o thumbnail falhar por outro motivo: `onError` esconde a imagem e mostra o fallback circular
+### Detalhes tecnicos
+
+No `VideoApproval.tsx`:
+
+1. Adicionar estados:
+   - `showControls` (boolean, default true)
+   - `hideControlsTimeout` (ref)
+
+2. Adicionar handlers:
+   - `handleMouseMove`: mostra controlos, reseta timer de 3s
+   - `handleMouseLeave`: esconde controlos se playing
+
+3. Na div container (`relative bg-black`):
+   - Adicionar `onMouseMove={handleMouseMove}` e `onMouseLeave`
+   - No `<video>`: adicionar `onClick={togglePlay}` para click-to-play
+
+4. No overlay de controlos (div `absolute bottom-0`):
+   - Adicionar transicao `opacity-0`/`opacity-100` baseada em `showControls`
+   - **Remover** o timecode daqui (`formatTimecode(currentTime) / formatTimecode(duration)`)
+
+5. Adicionar play overlay central (quando pausado e nao loading):
+   - Botao circular branco com icone Play, como no player interno
+
+6. Apos o `</Card>` do player:
+   - Novo `<div className="text-center mt-2">` com o timecode em `font-mono text-sm text-muted-foreground`
+
+7. Poster/thumbnail:
+   - Tentar extrair stream UID do `videoUrl` usando regex
+   - Se encontrado, adicionar `poster={thumbnailUrl}` ao `<video>`
 
