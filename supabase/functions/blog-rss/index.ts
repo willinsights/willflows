@@ -43,7 +43,7 @@ serve(async (req) => {
       throw error;
     }
 
-    const baseUrl = 'https://willflows.lovable.app';
+    const baseUrl = 'https://willflow.app';
     const now = new Date().toUTCString();
 
     const rssItems = (posts || []).map(post => {
