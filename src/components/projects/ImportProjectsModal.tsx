@@ -278,7 +278,9 @@ export function ImportProjectsModal({ open, onOpenChange, phase, onSuccess }: Im
         workspace_id: currentWorkspace.id,
         created_by: user.id,
         current_phase: phase,
-        kanban_column_id: columnId,
+        ...(phase === 'captacao'
+          ? { captacao_column_id: columnId }
+          : { edicao_column_id: columnId }),
         client_id: p.clientId || null,
         priority: (p.priority || 'media') as 'baixa' | 'media' | 'alta' | 'urgente',
         item_type: (p.itemType || 'projeto_completo') as 'projeto_captacao' | 'projeto_edicao' | 'projeto_completo' | 'reuniao',
