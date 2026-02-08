@@ -1,57 +1,87 @@
 
 
-## Importacao Inteligente de Tarefas com IA
+## Importar Projetos no Kanban (CSV/Texto)
 
-### Conceito
-O utilizador cola texto livre (briefing de cliente, notas de reuniao, email, etc.) e a IA analisa o conteudo, extraindo automaticamente tarefas estruturadas com titulo, descricao, fase, prioridade e sub-itens de checklist.
+### O que muda
+O botao "Importar" aparece no header de cada Kanban (Captacao e Edicao), ao lado do botao "+ Novo". Permite criar multiplos projetos de uma vez a partir de texto colado ou ficheiro CSV.
 
 ### Fluxo do utilizador
 
 ```text
-[Colar texto livre] --> [IA processa] --> [Pre-visualizacao com tarefas extraidas]
+[Kanban Header] --> [Clica "Importar"] --> [Modal abre]
                                               |
-                                    [Editar/selecionar] --> [Importar]
+                              [Cola texto ou upload CSV]
+                                              |
+                              [Pre-visualizacao em tabela]
+                                              |
+                         [Selecionar/editar] --> [Importar]
 ```
 
-1. Abre o modal "Importar Tarefas" no ProjectChecklistTab
-2. Cola texto livre (ex: "Precisamos gravar a entrevista com o CEO na sexta, depois editar o video com correcao de cor e adicionar legendas")
-3. Clica "Analisar com IA"
-4. A IA devolve tarefas estruturadas em tabela de pre-visualizacao
-5. O utilizador pode editar, remover ou adicionar tarefas antes de confirmar
-6. Clica "Importar" para criar tudo no projeto
+1. No Kanban, clica no botao "Importar" (ao lado de "+ Novo")
+2. Modal abre com duas opcoes: colar texto ou upload CSV
+3. Pre-visualizacao com tabela editavel
+4. Seleciona quais projetos importar
+5. Projetos sao criados na primeira coluna do Kanban atual
+
+### Formato de entrada
+
+**Texto simples (um projeto por linha):**
+```
+Casamento Ana e Pedro
+Video Corporativo Empresa X
+Sessao Recem-Nascido Maria
+```
+
+**CSV com headers:**
+```
+nome,cliente,prioridade,tipo,data_captacao,data_entrega,cidade,notas
+Casamento Ana,Ana Silva,alta,projeto_completo,2026-03-15,2026-04-15,Lisboa,Cerimonia + festa
+Video Corp,Empresa X,media,projeto_edicao,,,Porto,
+```
+
+### Campos suportados no CSV
+- `nome` / `name` (obrigatorio)
+- `cliente` / `client` (match por nome existente)
+- `prioridade` / `priority` (baixa/media/alta/urgente)
+- `tipo` / `type` / `item_type` (projeto_captacao/projeto_edicao/projeto_completo/reuniao)
+- `data_captacao` / `shoot_date`
+- `data_entrega` / `delivery_date`
+- `cidade` / `city`
+- `notas` / `notes`
+- `codigo` / `project_code`
+- `valor` / `agreed_value`
+
+### Validacao e duplicados
+- Nome obrigatorio (linhas sem nome sao ignoradas)
+- Detecao de duplicados por nome dentro do workspace
+- Match de clientes por nome (case-insensitive) contra clientes existentes
+- Prioridade default: "media"
+- Tipo default: "projeto_completo"
+- Limite: 50 projetos por importacao
 
 ### Ficheiros a criar/alterar
 
 | Ficheiro | Acao |
 |----------|------|
-| `supabase/functions/ai-parse-tasks/index.ts` | Criar -- edge function que usa Lovable AI (Gemini) para extrair tarefas de texto livre |
-| `src/components/tasks/ImportTasksModal.tsx` | Criar -- modal com textarea, botao IA, pre-visualizacao e importacao |
-| `src/components/projects/ProjectChecklistTab.tsx` | Alterar -- adicionar botao "Importar Tarefas" |
-| `supabase/config.toml` | Alterar -- registar nova edge function |
+| `src/components/projects/ImportProjectsModal.tsx` | **Criar** -- modal de importacao de projetos (CSV/texto) |
+| `src/components/kanban/KanbanBoard.tsx` | **Alterar** -- adicionar botao "Importar" no header ao lado de "+ Novo" |
+| `src/components/projects/ProjectChecklistTab.tsx` | **Alterar** -- remover botao de importar tarefas (estava no local errado) |
 
 ### Detalhes tecnicos
 
-**Edge Function `ai-parse-tasks`:**
-- Usa Lovable AI Gateway (`LOVABLE_API_KEY` ja configurado) com modelo `google/gemini-3-flash-preview`
-- Recebe `{ text: string, currentPhase: string }` no body
-- Usa tool calling para obter output estruturado com schema:
-  - `tasks[]`: titulo, descricao, fase (captacao/edicao), prioridade (baixa/media/alta/urgente), checklist_items[]
-- Prompt de sistema contextualizado para producao audiovisual (captacao = filmagem/gravacao, edicao = pos-producao)
-- Autenticacao obrigatoria (valida JWT)
-- Tratamento de erros 429/402 com mensagens claras
+**ImportProjectsModal.tsx:**
+- Props: `open`, `onOpenChange`, `phase` (captacao/edicao), `onSuccess`
+- Dois modos: textarea para colar texto, ou input file para CSV
+- Parser inteligente: detecta se tem headers CSV (presenca de virgulas + header row) ou texto simples
+- Mapeamento automatico de colunas PT/EN
+- Match de clientes por nome contra lista existente (useClients hook)
+- Pre-visualizacao em tabela com checkbox por linha, campos editaveis inline (nome, cliente, prioridade, tipo)
+- Badge "Duplicado" amarelo quando nome ja existe no workspace
+- Insercao batch via useProjects ou supabase.from('projects').insert()
+- Projetos criados com `current_phase` = phase do Kanban, coluna = primeira coluna nao-final
+- workspace_id e created_by obtidos do contexto
 
-**ImportTasksModal.tsx:**
-- Dois modos: "Texto com IA" (default) e "CSV manual" (fallback)
-- No modo IA: textarea grande + botao "Analisar com IA" com loading
-- Pre-visualizacao em tabela editavel: titulo, descricao, fase, prioridade, sub-itens
-- Cada tarefa tem checkbox para selecao
-- Campos editaveis inline antes de importar
-- Detecao de duplicados por titulo contra tarefas existentes do projeto
-- Importacao batch: insere tarefas na tabela `tasks` e sub-itens em `task_checklists`
-- Limite de 50 tarefas por importacao
-- Fase default: usa `currentPhase` do projeto
-
-**ProjectChecklistTab.tsx:**
-- Novo botao "Importar" com icone Upload ao lado dos botoes existentes em cada PhaseChecklistSection
-- Abre o ImportTasksModal passando projectId, workspaceId, currentPhase e tarefas existentes
-
+**KanbanBoard.tsx:**
+- Novo botao `Upload` com icone ao lado do "+ Novo"
+- Abre ImportProjectsModal passando phase e callback onSuccess = refresh
+- Estilo compacto, consistente com o botao Novo existente
