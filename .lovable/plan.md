@@ -1,87 +1,52 @@
 
 
-## Importar Projetos no Kanban (CSV/Texto)
+## Corrigir mapeamento inteligente do CSV
 
-### O que muda
-O botao "Importar" aparece no header de cada Kanban (Captacao e Edicao), ao lado do botao "+ Novo". Permite criar multiplos projetos de uma vez a partir de texto colado ou ficheiro CSV.
+### Problema actual
+Com o CSV real (`amazorial_reels_2026_v2.csv`), os dados ficam mal distribuidos:
+- `id` (ex: `AMAZORIAL_REELS_2026_001`) vai para o **nome** do projeto -- devia ir para **codigo**
+- `titulo` (ex: "The Amazon in 50 Seconds") nao e reconhecido -- devia ser o **nome**
+- `tipo_projeto` (ex: "SO EDICAO") nao e reconhecido -- devia definir o **tipo**
+- Valores como `SO EDICAO`, `REELS` nao existem no mapa de tipos
+- A deteccao de CSV so reconhece `nome`/`name`/`cliente`/`client` como headers validos
 
-### Fluxo do utilizador
+### O que vai mudar
 
-```text
-[Kanban Header] --> [Clica "Importar"] --> [Modal abre]
-                                              |
-                              [Cola texto ou upload CSV]
-                                              |
-                              [Pre-visualizacao em tabela]
-                                              |
-                         [Selecionar/editar] --> [Importar]
-```
+**1. Corrigir COLUMN_MAP** (mapeamento de headers para campos):
 
-1. No Kanban, clica no botao "Importar" (ao lado de "+ Novo")
-2. Modal abre com duas opcoes: colar texto ou upload CSV
-3. Pre-visualizacao com tabela editavel
-4. Seleciona quais projetos importar
-5. Projetos sao criados na primeira coluna do Kanban atual
+| Header CSV | Antes | Depois |
+|---|---|---|
+| `id` | name (errado) | projectCode |
+| `titulo` / `title` | nao reconhecido | name |
+| `tipo_projeto` | nao reconhecido | itemType |
 
-### Formato de entrada
+**2. Expandir TYPE_MAP** (valores de tipo aceites):
 
-**Texto simples (um projeto por linha):**
-```
-Casamento Ana e Pedro
-Video Corporativo Empresa X
-Sessao Recem-Nascido Maria
-```
+| Valor no CSV | Tipo atribuido |
+|---|---|
+| `so edicao` / `só edição` | projeto_edicao |
+| `so captacao` / `só captação` | projeto_captacao |
+| `reels` / `shortform` | projeto_edicao |
 
-**CSV com headers:**
-```
-nome,cliente,prioridade,tipo,data_captacao,data_entrega,cidade,notas
-Casamento Ana,Ana Silva,alta,projeto_completo,2026-03-15,2026-04-15,Lisboa,Cerimonia + festa
-Video Corp,Empresa X,media,projeto_edicao,,,Porto,
-```
+**3. Melhorar deteccao de CSV** -- aceitar qualquer header reconhecido pelo COLUMN_MAP (em vez de apenas `nome`/`cliente`).
 
-### Campos suportados no CSV
-- `nome` / `name` (obrigatorio)
-- `cliente` / `client` (match por nome existente)
-- `prioridade` / `priority` (baixa/media/alta/urgente)
-- `tipo` / `type` / `item_type` (projeto_captacao/projeto_edicao/projeto_completo/reuniao)
-- `data_captacao` / `shoot_date`
-- `data_entrega` / `delivery_date`
-- `cidade` / `city`
-- `notas` / `notes`
-- `codigo` / `project_code`
-- `valor` / `agreed_value`
+### Resultado esperado
 
-### Validacao e duplicados
-- Nome obrigatorio (linhas sem nome sao ignoradas)
-- Detecao de duplicados por nome dentro do workspace
-- Match de clientes por nome (case-insensitive) contra clientes existentes
-- Prioridade default: "media"
-- Tipo default: "projeto_completo"
-- Limite: 50 projetos por importacao
+Com o CSV fornecido, cada linha sera importada assim:
+- **Nome**: "The Amazon in 50 Seconds" (de `titulo`)
+- **Codigo**: "AMAZORIAL_REELS_2026_001" (de `id`)
+- **Cliente**: "Amazorial" (de `cliente`)
+- **Tipo**: projeto_edicao (de `tipo_projeto` = "SO EDICAO")
+- **Data entrega**: 2026-02-11 (de `data_entrega`)
+- **Cidade**: Amazon (de `cidade`)
+- **Notas**: descricao completa do reel (de `descricao`)
 
-### Ficheiros a criar/alterar
+### Detalhe tecnico
 
-| Ficheiro | Acao |
-|----------|------|
-| `src/components/projects/ImportProjectsModal.tsx` | **Criar** -- modal de importacao de projetos (CSV/texto) |
-| `src/components/kanban/KanbanBoard.tsx` | **Alterar** -- adicionar botao "Importar" no header ao lado de "+ Novo" |
-| `src/components/projects/ProjectChecklistTab.tsx` | **Alterar** -- remover botao de importar tarefas (estava no local errado) |
+Alteracoes apenas em `src/components/projects/ImportProjectsModal.tsx`:
 
-### Detalhes tecnicos
-
-**ImportProjectsModal.tsx:**
-- Props: `open`, `onOpenChange`, `phase` (captacao/edicao), `onSuccess`
-- Dois modos: textarea para colar texto, ou input file para CSV
-- Parser inteligente: detecta se tem headers CSV (presenca de virgulas + header row) ou texto simples
-- Mapeamento automatico de colunas PT/EN
-- Match de clientes por nome contra lista existente (useClients hook)
-- Pre-visualizacao em tabela com checkbox por linha, campos editaveis inline (nome, cliente, prioridade, tipo)
-- Badge "Duplicado" amarelo quando nome ja existe no workspace
-- Insercao batch via useProjects ou supabase.from('projects').insert()
-- Projetos criados com `current_phase` = phase do Kanban, coluna = primeira coluna nao-final
-- workspace_id e created_by obtidos do contexto
-
-**KanbanBoard.tsx:**
-- Novo botao `Upload` com icone ao lado do "+ Novo"
-- Abre ImportProjectsModal passando phase e callback onSuccess = refresh
-- Estilo compacto, consistente com o botao Novo existente
+- Linha 60: mudar `id: 'name'` para `id: 'projectCode'`
+- Adicionar `titulo: 'name'` e `title: 'name'` ao COLUMN_MAP
+- Adicionar `tipo_projeto: 'itemType'` ao COLUMN_MAP
+- Adicionar ao TYPE_MAP: `so edicao`, `só edição`, `reels`, `so captacao`, `só captação`
+- Linhas 185-188: mudar deteccao de CSV para verificar se pelo menos 2 headers da primeira linha existem no COLUMN_MAP (em vez de verificar nomes fixos)
