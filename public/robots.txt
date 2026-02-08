@@ -29,5 +29,5 @@ Disallow: /checkout-success
 Disallow: /tutorial
 Disallow: /video-approval/
 
-# Sitemap Index
-Sitemap: https://willflow.app/sitemap.xml
+# Sitemap (dynamic edge function)
+Sitemap: https://wppfmyseeigsdqutkgyc.supabase.co/functions/v1/sitemap
