@@ -1,33 +1,57 @@
 
 
-## Corrigir sitemap -- remover ficheiros estaticos que dao 404
+## Importacao Inteligente de Tarefas com IA
 
-### Problema
-Os ficheiros `sitemap.xml` e `sitemap-pages.xml` na pasta `public/` nao sao servidos corretamente pelo hosting SPA -- o React Router interceta os pedidos e mostra a pagina 404. O Google nao consegue ler o sitemap.
+### Conceito
+O utilizador cola texto livre (briefing de cliente, notas de reuniao, email, etc.) e a IA analisa o conteudo, extraindo automaticamente tarefas estruturadas com titulo, descricao, fase, prioridade e sub-itens de checklist.
 
-A edge function (`/functions/v1/sitemap`) ja inclui todas as paginas estaticas E os artigos do blog num unico sitemap funcional.
+### Fluxo do utilizador
 
-### Solucao
-
-**1. Atualizar `robots.txt`** -- remover referencia ao `sitemap.xml` que da 404 e manter apenas o URL da edge function:
-
-```
-Sitemap: https://wppfmyseeigsdqutkgyc.supabase.co/functions/v1/sitemap
+```text
+[Colar texto livre] --> [IA processa] --> [Pre-visualizacao com tarefas extraidas]
+                                              |
+                                    [Editar/selecionar] --> [Importar]
 ```
 
-**2. Remover ficheiros estaticos desnecessarios:**
-- `public/sitemap.xml` (sitemapindex que da 404)
-- `public/sitemap-pages.xml` (paginas duplicadas que ja estao na edge function)
+1. Abre o modal "Importar Tarefas" no ProjectChecklistTab
+2. Cola texto livre (ex: "Precisamos gravar a entrevista com o CEO na sexta, depois editar o video com correcao de cor e adicionar legendas")
+3. Clica "Analisar com IA"
+4. A IA devolve tarefas estruturadas em tabela de pre-visualizacao
+5. O utilizador pode editar, remover ou adicionar tarefas antes de confirmar
+6. Clica "Importar" para criar tudo no projeto
 
-### Ficheiros a alterar
+### Ficheiros a criar/alterar
 
-| Ficheiro | Alteracao |
-|----------|-----------|
-| `public/robots.txt` | Remover linha `Sitemap: https://willflow.app/sitemap.xml`, manter apenas a edge function |
-| `public/sitemap.xml` | Eliminar |
-| `public/sitemap-pages.xml` | Eliminar |
+| Ficheiro | Acao |
+|----------|------|
+| `supabase/functions/ai-parse-tasks/index.ts` | Criar -- edge function que usa Lovable AI (Gemini) para extrair tarefas de texto livre |
+| `src/components/tasks/ImportTasksModal.tsx` | Criar -- modal com textarea, botao IA, pre-visualizacao e importacao |
+| `src/components/projects/ProjectChecklistTab.tsx` | Alterar -- adicionar botao "Importar Tarefas" |
+| `supabase/config.toml` | Alterar -- registar nova edge function |
 
-### Resultado
-- Google Search Console consegue aceder ao sitemap via edge function
-- Sem ficheiros 404 referenciados no robots.txt
-- Sitemap unico e dinamico com todas as paginas + blog
+### Detalhes tecnicos
+
+**Edge Function `ai-parse-tasks`:**
+- Usa Lovable AI Gateway (`LOVABLE_API_KEY` ja configurado) com modelo `google/gemini-3-flash-preview`
+- Recebe `{ text: string, currentPhase: string }` no body
+- Usa tool calling para obter output estruturado com schema:
+  - `tasks[]`: titulo, descricao, fase (captacao/edicao), prioridade (baixa/media/alta/urgente), checklist_items[]
+- Prompt de sistema contextualizado para producao audiovisual (captacao = filmagem/gravacao, edicao = pos-producao)
+- Autenticacao obrigatoria (valida JWT)
+- Tratamento de erros 429/402 com mensagens claras
+
+**ImportTasksModal.tsx:**
+- Dois modos: "Texto com IA" (default) e "CSV manual" (fallback)
+- No modo IA: textarea grande + botao "Analisar com IA" com loading
+- Pre-visualizacao em tabela editavel: titulo, descricao, fase, prioridade, sub-itens
+- Cada tarefa tem checkbox para selecao
+- Campos editaveis inline antes de importar
+- Detecao de duplicados por titulo contra tarefas existentes do projeto
+- Importacao batch: insere tarefas na tabela `tasks` e sub-itens em `task_checklists`
+- Limite de 50 tarefas por importacao
+- Fase default: usa `currentPhase` do projeto
+
+**ProjectChecklistTab.tsx:**
+- Novo botao "Importar" com icone Upload ao lado dos botoes existentes em cada PhaseChecklistSection
+- Abre o ImportTasksModal passando projectId, workspaceId, currentPhase e tarefas existentes
+
