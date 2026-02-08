@@ -1,52 +1,47 @@
 
+## Detectar colunas correctamente ao colar texto
 
-## Corrigir mapeamento inteligente do CSV
+### Problema
+Quando colas texto copiado de uma spreadsheet (Excel, Google Sheets), os dados vem separados por **tabs** (`\t`), nao por virgulas. O parser actual so reconhece virgulas como separador, por isso trata cada linha como um unico nome de projeto e perde toda a informacao das colunas.
 
-### Problema actual
-Com o CSV real (`amazorial_reels_2026_v2.csv`), os dados ficam mal distribuidos:
-- `id` (ex: `AMAZORIAL_REELS_2026_001`) vai para o **nome** do projeto -- devia ir para **codigo**
-- `titulo` (ex: "The Amazon in 50 Seconds") nao e reconhecido -- devia ser o **nome**
-- `tipo_projeto` (ex: "SO EDICAO") nao e reconhecido -- devia definir o **tipo**
-- Valores como `SO EDICAO`, `REELS` nao existem no mapa de tipos
-- A deteccao de CSV so reconhece `nome`/`name`/`cliente`/`client` como headers validos
+### Solucao
+Expandir o parser para detectar automaticamente o separador (virgula, tab, ou ponto-e-virgula) e usar o correcto.
 
-### O que vai mudar
+### Alteracoes em `src/components/projects/ImportProjectsModal.tsx`
 
-**1. Corrigir COLUMN_MAP** (mapeamento de headers para campos):
+**1. Criar funcao `detectSeparator`**
+- Analisa a primeira linha do texto
+- Verifica se tem tabs (`\t`), ponto-e-virgulas (`;`), ou virgulas (`,`)
+- Retorna o separador mais provavel baseado na frequencia
 
-| Header CSV | Antes | Depois |
-|---|---|---|
-| `id` | name (errado) | projectCode |
-| `titulo` / `title` | nao reconhecido | name |
-| `tipo_projeto` | nao reconhecido | itemType |
+**2. Actualizar `parseCSVLine` para aceitar separador customizado**
+- Adicionar parametro `separator` (default: `,`)
+- Usar esse separador em vez de virgula fixa
 
-**2. Expandir TYPE_MAP** (valores de tipo aceites):
-
-| Valor no CSV | Tipo atribuido |
-|---|---|
-| `so edicao` / `só edição` | projeto_edicao |
-| `so captacao` / `só captação` | projeto_captacao |
-| `reels` / `shortform` | projeto_edicao |
-
-**3. Melhorar deteccao de CSV** -- aceitar qualquer header reconhecido pelo COLUMN_MAP (em vez de apenas `nome`/`cliente`).
+**3. Actualizar `parseInput` para usar deteccao automatica**
+- Detectar o separador antes de verificar se parece header
+- Usar o separador detectado em vez de assumir virgulas
+- Manter a logica existente de matching de headers (COLUMN_MAP)
 
 ### Resultado esperado
-
-Com o CSV fornecido, cada linha sera importada assim:
-- **Nome**: "The Amazon in 50 Seconds" (de `titulo`)
-- **Codigo**: "AMAZORIAL_REELS_2026_001" (de `id`)
-- **Cliente**: "Amazorial" (de `cliente`)
-- **Tipo**: projeto_edicao (de `tipo_projeto` = "SO EDICAO")
-- **Data entrega**: 2026-02-11 (de `data_entrega`)
-- **Cidade**: Amazon (de `cidade`)
-- **Notas**: descricao completa do reel (de `descricao`)
+- Colar texto copiado de Excel/Sheets: detecta tabs, mapeia colunas correctamente
+- Colar CSV com virgulas: continua a funcionar como antes
+- Colar CSV com ponto-e-virgulas (comum em PT/BR): tambem funciona
+- Texto simples (um nome por linha): continua a funcionar como fallback
 
 ### Detalhe tecnico
 
-Alteracoes apenas em `src/components/projects/ImportProjectsModal.tsx`:
+```text
+Nova funcao detectSeparator(line):
+  - conta tabs, virgulas, ponto-e-virgulas
+  - retorna o que aparece mais vezes (minimo 1)
+  - prioridade: tab > ponto-e-virgula > virgula
 
-- Linha 60: mudar `id: 'name'` para `id: 'projectCode'`
-- Adicionar `titulo: 'name'` e `title: 'name'` ao COLUMN_MAP
-- Adicionar `tipo_projeto: 'itemType'` ao COLUMN_MAP
-- Adicionar ao TYPE_MAP: `so edicao`, `só edição`, `reels`, `so captacao`, `só captação`
-- Linhas 185-188: mudar deteccao de CSV para verificar se pelo menos 2 headers da primeira linha existem no COLUMN_MAP (em vez de verificar nomes fixos)
+parseCSVLine(line, separator = ','):
+  - usa separator em vez de ',' fixo
+
+parseInput(text):
+  - detecta separador na primeira linha
+  - usa separador detectado para split de headers e valores
+  - resto da logica mantem-se igual
+```
