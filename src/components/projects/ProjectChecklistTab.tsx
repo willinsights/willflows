@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, GripVertical, Pencil, Trash2, CheckSquare, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, GripVertical, Pencil, Trash2, CheckSquare, AlertTriangle, ChevronDown, ChevronUp, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -28,6 +28,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Tables } from '@/integrations/supabase/types';
+import { ImportTasksModal } from '@/components/tasks/ImportTasksModal';
 
 type TaskChecklist = Tables<'task_checklists'>;
 type Task = Tables<'tasks'>;
@@ -160,8 +161,10 @@ interface PhaseChecklistSectionProps {
   taskIds: string[];
   projectId: string;
   workspaceId: string;
+  tasks: Task[];
   onTaskCreated?: (task: Task) => void;
   onChecklistsChange: (updater: (prev: TaskChecklist[]) => TaskChecklist[]) => void;
+  onTasksImported?: () => void;
   defaultOpen?: boolean;
 }
 
@@ -172,8 +175,10 @@ function PhaseChecklistSection({
   taskIds,
   projectId,
   workspaceId,
+  tasks: phaseTasks,
   onTaskCreated,
   onChecklistsChange,
+  onTasksImported,
   defaultOpen = true,
 }: PhaseChecklistSectionProps) {
   const { toast } = useToast();
@@ -181,6 +186,7 @@ function PhaseChecklistSection({
   const [newItemTitle, setNewItemTitle] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const [editTitle, setEditTitle] = useState('');
 
   const sensors = useSensors(
@@ -477,16 +483,36 @@ function PhaseChecklistSection({
             </Button>
           </div>
         ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={() => setIsAdding(true)}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Adicionar item
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={() => setIsAdding(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar item
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setImportModalOpen(true)}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Importar com IA
+            </Button>
+          </div>
         )}
+
+        <ImportTasksModal
+          open={importModalOpen}
+          onOpenChange={setImportModalOpen}
+          projectId={projectId}
+          workspaceId={workspaceId}
+          currentPhase={phase}
+          existingTasks={phaseTasks}
+          onSuccess={() => onTasksImported?.()}
+        />
       </CollapsibleContent>
     </Collapsible>
   );
@@ -539,10 +565,12 @@ export function ProjectChecklistTab({
           taskIds={captacaoTaskIds}
           projectId={projectId}
           workspaceId={workspaceId}
+          tasks={captacaoTasks}
           onTaskCreated={(task) =>
             setTasks?.((prev) => (prev.some((t) => t.id === task.id) ? prev : [...prev, task]))
           }
           onChecklistsChange={setChecklists}
+          onTasksImported={() => window.location.reload()}
           defaultOpen={currentPhase === 'captacao'}
         />
       )}
@@ -555,10 +583,12 @@ export function ProjectChecklistTab({
           taskIds={edicaoTaskIds}
           projectId={projectId}
           workspaceId={workspaceId}
+          tasks={edicaoTasks}
           onTaskCreated={(task) =>
             setTasks?.((prev) => (prev.some((t) => t.id === task.id) ? prev : [...prev, task]))
           }
           onChecklistsChange={setChecklists}
+          onTasksImported={() => window.location.reload()}
           defaultOpen={currentPhase === 'edicao'}
         />
       )}
