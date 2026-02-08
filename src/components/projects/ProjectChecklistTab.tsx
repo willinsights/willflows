@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, GripVertical, Pencil, Trash2, CheckSquare, AlertTriangle, ChevronDown, ChevronUp, Upload } from 'lucide-react';
+import { Plus, GripVertical, Pencil, Trash2, CheckSquare, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -28,7 +28,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Tables } from '@/integrations/supabase/types';
-import { ImportTasksModal } from '@/components/tasks/ImportTasksModal';
+
 
 type TaskChecklist = Tables<'task_checklists'>;
 type Task = Tables<'tasks'>;
@@ -186,7 +186,7 @@ function PhaseChecklistSection({
   const [newItemTitle, setNewItemTitle] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [importModalOpen, setImportModalOpen] = useState(false);
+  
   const [editTitle, setEditTitle] = useState('');
 
   const sensors = useSensors(
@@ -493,26 +493,8 @@ function PhaseChecklistSection({
               <Plus className="h-4 w-4 mr-2" />
               Adicionar item
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setImportModalOpen(true)}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Importar com IA
-            </Button>
           </div>
         )}
-
-        <ImportTasksModal
-          open={importModalOpen}
-          onOpenChange={setImportModalOpen}
-          projectId={projectId}
-          workspaceId={workspaceId}
-          currentPhase={phase}
-          existingTasks={phaseTasks}
-          onSuccess={() => onTasksImported?.()}
-        />
       </CollapsibleContent>
     </Collapsible>
   );

@@ -17,7 +17,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { motion } from 'framer-motion';
-import { Plus, Search, Loader2 } from 'lucide-react';
+import { Plus, Search, Loader2, Upload } from 'lucide-react';
 import { isToday, isThisWeek, isThisMonth, isPast } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +27,7 @@ import { KanbanFilters, KanbanFilterState } from './KanbanFilters';
 import { CreateProjectModal } from '@/components/projects/CreateProjectModal';
 import { ProjectDetailsSheet } from '@/components/projects/ProjectDetailsSheet';
 import { ChecklistPendingAlert } from '@/components/projects/ChecklistPendingAlert';
+import { ImportProjectsModal } from '@/components/projects/ImportProjectsModal';
 import { DeliverConfirmDialog } from './DeliverConfirmDialog';
 import { useKanban, KanbanPhase, ProjectWithClient } from '@/hooks/useKanban';
 import { useCategories } from '@/hooks/useCategories';
@@ -58,6 +59,7 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<KanbanFilterState>(defaultFilters);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   const [activeProject, setActiveProject] = useState<ProjectWithClient | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -327,6 +329,15 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
             categories={categories}
           />
           <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-[11px] px-2"
+            onClick={() => setImportModalOpen(true)}
+          >
+            <Upload className="h-3 w-3 mr-0.5" />
+            <span className="hidden sm:inline">Importar</span>
+          </Button>
+          <Button
             size="sm"
             className="gradient-primary h-7 text-[11px] px-2"
             onClick={() => {
@@ -413,6 +424,14 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
         onSuccess={handleProjectCreated}
         defaultColumnId={selectedColumnId}
         phase={phase}
+      />
+
+      {/* Import Projects Modal */}
+      <ImportProjectsModal
+        open={importModalOpen}
+        onOpenChange={setImportModalOpen}
+        phase={phase}
+        onSuccess={() => { refresh(); setImportModalOpen(false); }}
       />
 
       {/* Project Details Sheet */}
