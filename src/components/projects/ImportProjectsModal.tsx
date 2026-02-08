@@ -57,7 +57,9 @@ interface ParsedProject {
 const COLUMN_MAP: Record<string, keyof ParsedProject> = {
   nome: 'name',
   name: 'name',
-  id: 'name',
+  titulo: 'name',
+  title: 'name',
+  id: 'projectCode',
   cliente: 'clientName',
   client: 'clientName',
   prioridade: 'priority',
@@ -65,6 +67,7 @@ const COLUMN_MAP: Record<string, keyof ParsedProject> = {
   tipo: 'itemType',
   type: 'itemType',
   item_type: 'itemType',
+  tipo_projeto: 'itemType',
   categoria: 'itemType',
   category: 'itemType',
   data_captacao: 'shootDate',
@@ -103,6 +106,12 @@ const TYPE_MAP: Record<string, string> = {
   captacao: 'projeto_captacao',
   edicao: 'projeto_edicao',
   completo: 'projeto_completo',
+  'so edicao': 'projeto_edicao',
+  'só edição': 'projeto_edicao',
+  'so captacao': 'projeto_captacao',
+  'só captação': 'projeto_captacao',
+  reels: 'projeto_edicao',
+  shortform: 'projeto_edicao',
 };
 
 function parseCSVLine(line: string): string[] {
@@ -182,10 +191,9 @@ export function ImportProjectsModal({ open, onOpenChange, phase, onSuccess }: Im
     // Detect if CSV (first line has commas and looks like headers)
     const firstLine = lines[0].toLowerCase();
     const hasCommas = firstLine.includes(',');
-    const looksLikeHeader = hasCommas && (
-      firstLine.includes('nome') || firstLine.includes('name') ||
-      firstLine.includes('cliente') || firstLine.includes('client')
-    );
+    const headerCandidates = firstLine.split(',').map(h => h.trim().toLowerCase());
+    const matchedHeaders = headerCandidates.filter(h => h in COLUMN_MAP).length;
+    const looksLikeHeader = hasCommas && matchedHeaders >= 2;
 
     if (looksLikeHeader && lines.length > 1) {
       // CSV mode
