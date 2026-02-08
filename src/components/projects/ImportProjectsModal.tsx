@@ -114,7 +114,16 @@ const TYPE_MAP: Record<string, string> = {
   shortform: 'projeto_edicao',
 };
 
-function parseCSVLine(line: string): string[] {
+function detectSeparator(line: string): string {
+  const tabs = (line.match(/\t/g) || []).length;
+  const semicolons = (line.match(/;/g) || []).length;
+  const commas = (line.match(/,/g) || []).length;
+  if (tabs >= 1) return '\t';
+  if (semicolons >= commas && semicolons > 0) return ';';
+  return ',';
+}
+
+function parseCSVLine(line: string, separator: string = ','): string[] {
   const result: string[] = [];
   let current = '';
   let inQuotes = false;
@@ -122,7 +131,7 @@ function parseCSVLine(line: string): string[] {
     const char = line[i];
     if (char === '"') {
       inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
+    } else if (char === separator && !inQuotes) {
       result.push(current.trim());
       current = '';
     } else {
@@ -188,20 +197,20 @@ export function ImportProjectsModal({ open, onOpenChange, phase, onSuccess }: Im
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     if (lines.length === 0) return [];
 
-    // Detect if CSV (first line has commas and looks like headers)
     const firstLine = lines[0].toLowerCase();
-    const hasCommas = firstLine.includes(',');
-    const headerCandidates = firstLine.split(',').map(h => h.trim().toLowerCase());
+    // Detect separator (tab, semicolon, or comma)
+    const separator = detectSeparator(firstLine);
+    const headerCandidates = firstLine.split(separator === '\t' ? '\t' : separator).map(h => h.trim().toLowerCase());
     const matchedHeaders = headerCandidates.filter(h => h in COLUMN_MAP).length;
-    const looksLikeHeader = hasCommas && matchedHeaders >= 2;
+    const looksLikeHeader = headerCandidates.length >= 2 && matchedHeaders >= 2;
 
     if (looksLikeHeader && lines.length > 1) {
-      // CSV mode
-      const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().trim());
+      // CSV/TSV mode
+      const headers = parseCSVLine(lines[0], separator).map(h => h.toLowerCase().trim());
       const mappedHeaders = headers.map(h => COLUMN_MAP[h] || null);
 
       return lines.slice(1).slice(0, 50).map((line, idx) => {
-        const values = parseCSVLine(line);
+        const values = parseCSVLine(line, separator);
         const project = createEmptyProject(`import-${idx}`);
 
         mappedHeaders.forEach((field, colIdx) => {
