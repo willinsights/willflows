@@ -93,7 +93,9 @@ export function ProjectRevenueControl({
         if (new Date(dateToCheck) < filters.dateFrom) return false;
       }
       if (filters.dateTo && dateToCheck) {
-        if (new Date(dateToCheck) > filters.dateTo) return false;
+        const endOfDay = new Date(filters.dateTo);
+        endOfDay.setHours(23, 59, 59, 999);
+        if (new Date(dateToCheck) > endOfDay) return false;
       }
       if (filters.clientId && project.client_id !== filters.clientId) return false;
       if (filters.status && project.client_payment_status !== filters.status) return false;

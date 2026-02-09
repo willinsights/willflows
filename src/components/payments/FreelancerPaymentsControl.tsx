@@ -52,6 +52,7 @@ interface Project {
   name: string;
   project_code?: string | null;
   client_id?: string | null;
+  delivery_date?: string | null;
 }
 
 interface Client {
@@ -129,9 +130,22 @@ export function FreelancerPaymentsControl({
     return baseTeamPayments.filter(tp => {
       if (filters.memberId && tp.user_id !== filters.memberId) return false;
       if (filters.status && tp.payment_status !== filters.status) return false;
+      // Date filter using project's delivery_date
+      if (filters.dateFrom || filters.dateTo) {
+        const project = projects.find(p => p.id === tp.project_id);
+        const dateValue = project?.delivery_date;
+        if (dateValue) {
+          if (filters.dateFrom && new Date(dateValue) < filters.dateFrom) return false;
+          if (filters.dateTo) {
+            const endOfDay = new Date(filters.dateTo);
+            endOfDay.setHours(23, 59, 59, 999);
+            if (new Date(dateValue) > endOfDay) return false;
+          }
+        }
+      }
       return true;
     });
-  }, [baseTeamPayments, filters]);
+  }, [baseTeamPayments, filters, projects]);
 
   // Pagination
   const pagination = usePagination({
@@ -172,6 +186,7 @@ export function FreelancerPaymentsControl({
               members={members}
               showMemberFilter
               showStatusFilter
+              showDateFilter
             />
             <PaymentExportButtons
               data={exportData}

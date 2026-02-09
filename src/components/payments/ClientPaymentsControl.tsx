@@ -82,7 +82,9 @@ export function ClientPaymentsControl({
         if (new Date(payment.due_date) < filters.dateFrom) return false;
       }
       if (filters.dateTo && payment.due_date) {
-        if (new Date(payment.due_date) > filters.dateTo) return false;
+        const endOfDay = new Date(filters.dateTo);
+        endOfDay.setHours(23, 59, 59, 999);
+        if (new Date(payment.due_date) > endOfDay) return false;
       }
       if (filters.clientId && payment.client_id !== filters.clientId) return false;
       if (filters.status && payment.status !== filters.status) return false;

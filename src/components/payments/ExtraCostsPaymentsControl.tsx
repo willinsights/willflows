@@ -44,6 +44,7 @@ export interface ProjectCustoExtra {
   custos_extras_payment_status: string | null;
   client_id?: string | null;
   clients?: { name: string } | null;
+  delivery_date?: string | null;
 }
 
 interface ExtraCostsPaymentsControlProps {
@@ -73,6 +74,18 @@ export function ExtraCostsPaymentsControl({
       // Filter by status
       if (filters.status && (cost.custos_extras_payment_status || 'pendente') !== filters.status) {
         return false;
+      }
+      // Date filter using delivery_date
+      if (filters.dateFrom || filters.dateTo) {
+        const dateValue = cost.delivery_date;
+        if (dateValue) {
+          if (filters.dateFrom && new Date(dateValue) < filters.dateFrom) return false;
+          if (filters.dateTo) {
+            const endOfDay = new Date(filters.dateTo);
+            endOfDay.setHours(23, 59, 59, 999);
+            if (new Date(dateValue) > endOfDay) return false;
+          }
+        }
       }
       return true;
     });
@@ -109,7 +122,7 @@ export function ExtraCostsPaymentsControl({
               showClientFilter={false}
               showMemberFilter={false}
               showStatusFilter={true}
-              showDateFilter={false}
+              showDateFilter={true}
             />
             <PaymentExportButtons
               data={exportData}
