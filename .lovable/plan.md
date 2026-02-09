@@ -1,66 +1,58 @@
 
-## Corrigir filtro de datas nos relatorios de pagamentos
 
-### Problemas encontrados
+## Actualizar pagamentos de Janeiro com dados do Excel
 
-1. **FreelancerPaymentsControl**: O filtro de datas e completamente ignorado -- so filtra por membro e status, nunca por `dateFrom`/`dateTo`
-2. **ExtraCostsPaymentsControl**: O filtro de datas tambem e ignorado -- so filtra por status
-3. **ClientPaymentsControl**: O filtro `dateTo` nao inclui o dia inteiro -- um pagamento com vencimento no dia seleccionado pode ser excluido porque `new Date('2026-02-09') > new Date('2026-02-09')` e `false` mas horas podem causar exclusao
-4. **ProjectRevenueControl**: Mesmo problema do `dateTo` que o ClientPaymentsControl
+### Resumo
+Operacao de dados na base de dados para fechar Janeiro: marcar 65 projectos do Excel como pagos (cliente + colaboradores) e mover os restantes projectos pendentes de Janeiro para 28 de Fevereiro.
 
-### Solucao
+### Passo 1 -- Marcar 65 projectos como pagos (cliente)
+Actualizar `client_payment_status = 'pago'` e `client_paid_at = now()` para todos os 65 projectos listados no Excel, incluindo:
+- 9 projectos TempoVip (Hotel Lince, Cooking class, Matriarca, Chocopalha, etc.)
+- 3 projectos The Dispatcher (Reels)
+- 13 projectos Amazorial Luxury Brazil (Caiman, Pantanal, LILA, etc.)
+- 20 projectos Bespoke Sardinia (Villa Las Tronas, Forte Village, etc.)
+- 10 projectos Landzery (LLoA, Finniss, Tasmania, etc.)
+- 1 projecto Pick off Tempovip (Christian Coelho)
+- Barco Invictus, Walking tour, Cooking class, etc.
 
-**1. FreelancerPaymentsControl (src/components/payments/FreelancerPaymentsControl.tsx)**
-- Adicionar filtro de datas no `filteredPayments` usando a `delivery_date` do projecto associado (via lookup na lista de `projects`)
-- Expandir a interface `Project` para incluir `delivery_date`
-- Logica: comparar `dateFrom`/`dateTo` com a `delivery_date` do projecto
+Nota: alguns ja estao marcados como pago -- o UPDATE nao causa problemas nesses.
 
-**2. ExtraCostsPaymentsControl (src/components/payments/ExtraCostsPaymentsControl.tsx)**
-- Adicionar campo `delivery_date` a interface `ProjectCustoExtra`
-- Adicionar filtro de datas no `filteredCosts` usando `delivery_date`
-- Activar `showDateFilter={true}` no componente PaymentFilters
+### Passo 2 -- Marcar pagamentos de colaboradores como pagos
+Actualizar `payment_status = 'pago'` na tabela `project_team` para todos os membros dos 65 projectos do Excel. Isto inclui:
+- Rafaela Nunes (edicao)
+- Morais (edicao)
+- Christian Coelho (edicao)
+- Savio Macedo (captacao)
+- Luke Cavalcante (captacao)
+- wilker oliveira (captacao)
 
-**3. ClientPaymentsControl (src/components/payments/ClientPaymentsControl.tsx)**
-- Corrigir comparacao `dateTo`: definir hora para 23:59:59 para incluir o dia completo
+### Passo 3 -- Mover projectos pendentes de Janeiro para Fevereiro
+Os seguintes projectos NAO constam no Excel e vao ter `delivery_date` alterada para **2026-02-28**:
+1. Teaser Redes Sociais - Rita (era 4/Jan)
+2. Timelapse - Joao (era 9/Jan)
+3. Sessao de Produto - Hotel (era 12/Jan)
+4. Fotos Gastronomicas - Resort (era 14/Jan)
+5. Video de Lancamento - Hotel (era 17/Jan)
+6. Documentario - Sunset (era 21/Jan)
+7. Ensaio Lifestyle - Pedro (era 27/Jan)
+8. Retrato Corporativo - Hotel (era 28/Jan)
+9. Captacao Dubai (era 29/Jan)
+10. BIRIBEIRO_15012026 (era 30/Jan)
+11. CHARLENE TEIXEIRA BRANDING (era 30/Jan)
+12. Ciosp - Dra. Mariana Risemberg (era 30/Jan)
+13. Ciosp - Dra. Juliani Tibolla (era 31/Jan)
 
-**4. ProjectRevenueControl (src/components/payments/ProjectRevenueControl.tsx)**
-- Mesma correccao do `dateTo` para incluir o dia completo
+Projectos ja pagos ou cancelados em Janeiro ficam como estao.
 
 ### Detalhe tecnico
 
-```text
-Correccao dateTo (ClientPayments e ProjectRevenue):
-  const endOfDay = new Date(filters.dateTo);
-  endOfDay.setHours(23, 59, 59, 999);
-  if (new Date(dateValue) > endOfDay) return false;
+Uma unica migracao SQL com 3 blocos:
 
-FreelancerPaymentsControl - adicionar ao filteredPayments:
-  if (filters.dateFrom || filters.dateTo) {
-    const project = projects.find(p => p.id === tp.project_id);
-    const dateValue = project?.delivery_date;
-    if (dateValue) {
-      if (filters.dateFrom && new Date(dateValue) < filters.dateFrom) return false;
-      if (filters.dateTo) {
-        const endOfDay = new Date(filters.dateTo);
-        endOfDay.setHours(23, 59, 59, 999);
-        if (new Date(dateValue) > endOfDay) return false;
-      }
-    }
-  }
+**Bloco 1** -- UPDATE projects SET client_payment_status, client_paid_at para os 65 IDs do Excel
 
-ExtraCostsPaymentsControl - adicionar ao filteredCosts:
-  if (filters.dateFrom || filters.dateTo) {
-    const dateValue = cost.delivery_date;
-    if (dateValue) {
-      if (filters.dateFrom && new Date(dateValue) < filters.dateFrom) return false;
-      if (filters.dateTo) { ... mesmo padrao ... }
-    }
-  }
-  + showDateFilter={true} no PaymentFilters
-```
+**Bloco 2** -- UPDATE project_team SET payment_status = 'pago' WHERE project_id IN (lista dos 65 IDs)
 
-### Ficheiros a alterar
-- `src/components/payments/FreelancerPaymentsControl.tsx`
-- `src/components/payments/ExtraCostsPaymentsControl.tsx`
-- `src/components/payments/ClientPaymentsControl.tsx`
-- `src/components/payments/ProjectRevenueControl.tsx`
+**Bloco 3** -- UPDATE projects SET delivery_date = '2026-02-28' para os 13 projectos pendentes de Janeiro
+
+Sem alteracoes de codigo -- apenas dados na base de dados.
+
