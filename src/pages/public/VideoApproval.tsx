@@ -824,19 +824,14 @@ export default function VideoApproval() {
                 <>
                   <Card className="overflow-hidden">
                     <div
-                      className="relative bg-black flex justify-center cursor-pointer"
-                      style={{ minHeight: '300px', maxHeight: '70vh' }}
+                      className="relative bg-black flex justify-center items-center cursor-pointer min-h-[300px] max-h-[70vh]"
                       onMouseMove={handlePlayerMouseMove}
                       onMouseLeave={handlePlayerMouseLeave}
                     >
                       {videoUrl ? (
                         <video
                           ref={videoRef}
-                          className="w-full h-full"
-                          style={{ 
-                            objectFit: 'contain',
-                            minHeight: '1px',
-                          }}
+                          className="max-w-full max-h-[70vh] object-contain"
                           poster={posterUrl}
                           onTimeUpdate={handleTimeUpdate}
                           onLoadedMetadata={handleLoadedMetadata}
