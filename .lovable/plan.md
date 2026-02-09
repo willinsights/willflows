@@ -1,47 +1,22 @@
 
-## Detectar colunas correctamente ao colar texto
+## Tornar o canal "acessos" visível para toda a equipa
 
 ### Problema
-Quando colas texto copiado de uma spreadsheet (Excel, Google Sheets), os dados vem separados por **tabs** (`\t`), nao por virgulas. O parser actual so reconhece virgulas como separador, por isso trata cada linha como um unico nome de projeto e perde toda a informacao das colunas.
+O canal **#acessos** está configurado como privado e só tem 4 dos 9 membros do workspace.
 
-### Solucao
-Expandir o parser para detectar automaticamente o separador (virgula, tab, ou ponto-e-virgula) e usar o correcto.
+### Solução (2 passos via base de dados)
 
-### Alteracoes em `src/components/projects/ImportProjectsModal.tsx`
+**1. Tornar o canal público**
+- Actualizar `is_private` de `true` para `false` na tabela `conversations`
 
-**1. Criar funcao `detectSeparator`**
-- Analisa a primeira linha do texto
-- Verifica se tem tabs (`\t`), ponto-e-virgulas (`;`), ou virgulas (`,`)
-- Retorna o separador mais provavel baseado na frequencia
+**2. Adicionar todos os membros em falta**
+- Inserir os 5 membros do workspace que ainda não estão no canal na tabela `conversation_members`
+- Isto garante que todos vêem o canal imediatamente, incluindo utilizadores com permissões restritas
 
-**2. Actualizar `parseCSVLine` para aceitar separador customizado**
-- Adicionar parametro `separator` (default: `,`)
-- Usar esse separador em vez de virgula fixa
+### Detalhe técnico
 
-**3. Actualizar `parseInput` para usar deteccao automatica**
-- Detectar o separador antes de verificar se parece header
-- Usar o separador detectado em vez de assumir virgulas
-- Manter a logica existente de matching de headers (COLUMN_MAP)
+Uma única migração SQL que:
+1. Faz `UPDATE conversations SET is_private = false` para o canal "acessos"
+2. Faz `INSERT INTO conversation_members` para todos os membros do workspace que ainda não são membros do canal (usando `NOT EXISTS` para evitar duplicados)
 
-### Resultado esperado
-- Colar texto copiado de Excel/Sheets: detecta tabs, mapeia colunas correctamente
-- Colar CSV com virgulas: continua a funcionar como antes
-- Colar CSV com ponto-e-virgulas (comum em PT/BR): tambem funciona
-- Texto simples (um nome por linha): continua a funcionar como fallback
-
-### Detalhe tecnico
-
-```text
-Nova funcao detectSeparator(line):
-  - conta tabs, virgulas, ponto-e-virgulas
-  - retorna o que aparece mais vezes (minimo 1)
-  - prioridade: tab > ponto-e-virgula > virgula
-
-parseCSVLine(line, separator = ','):
-  - usa separator em vez de ',' fixo
-
-parseInput(text):
-  - detecta separador na primeira linha
-  - usa separador detectado para split de headers e valores
-  - resto da logica mantem-se igual
-```
+Sem alterações de código -- apenas dados na base de dados.
