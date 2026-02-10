@@ -18,12 +18,16 @@ import {
   Euro,
   Eye,
   EyeOff,
+  Calendar,
+  Wallet,
+  Info,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePayments, useTeamPayments } from '@/hooks/usePayments';
 import { useProjects } from '@/hooks/useProjects';
 import { useClients } from '@/hooks/useClients';
@@ -56,6 +60,7 @@ const statusColors: Record<string, string> = {
   cancelado: 'bg-muted text-muted-foreground',
 };
 
+type PaymentViewMode = 'vencimento' | 'pagamento';
 
 export default function Pagamentos() {
   const { payments, loading, summaries, updatePaymentStatus } = usePayments();
@@ -71,16 +76,13 @@ export default function Pagamentos() {
   const [activeTab, setActiveTab] = useState('previsao');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  const [paymentViewMode, setPaymentViewMode] = useState<PaymentViewMode>('vencimento');
   
   const canExportPdf = hasFeatureAccess('exportPdf');
   
   // Data for extra costs
   const [projectCosts, setProjectCosts] = useState<ProjectCustoExtra[]>([]);
-  
-  // Fetch all project costs (not just pending)
   const [allProjectCosts, setAllProjectCosts] = useState<ProjectCustoExtra[]>([]);
-
-  // Project revenue data (Preço Cliente)
   const [projectRevenue, setProjectRevenue] = useState<ProjectRevenue[]>([]);
 
   const currency = currentWorkspace?.currency || 'EUR';
@@ -97,7 +99,6 @@ export default function Pagamentos() {
     const fetchAdditionalData = async () => {
       if (!currentWorkspace?.id) return;
       
-      // Fetch projects with pending extra costs (for summaries)
       const { data: costsData } = await supabase
         .from('projects')
         .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, delivery_date, clients(name)')
@@ -109,7 +110,6 @@ export default function Pagamentos() {
         setProjectCosts(costsData as ProjectCustoExtra[]);
       }
       
-      // Fetch ALL projects with extra costs (for the tab)
       const { data: allCostsData } = await supabase
         .from('projects')
         .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, delivery_date, clients(name)')
@@ -120,7 +120,6 @@ export default function Pagamentos() {
         setAllProjectCosts(allCostsData as ProjectCustoExtra[]);
       }
 
-      // Fetch projects with agreed_value for revenue (Preço Cliente)
       const { data: revenueData } = await supabase
         .from('projects')
         .select('id, name, project_code, agreed_value, client_payment_status, client_payment_due_date, client_id, delivery_date, clients(name)')
@@ -135,8 +134,7 @@ export default function Pagamentos() {
     fetchAdditionalData();
   }, [currentWorkspace?.id]);
 
-  // Filter projects for current month view (by delivery_date or client_payment_due_date)
-  // Projects WITHOUT a due date show in current month only (as "undated/pending scheduling")
+  // Filter projects for current month view
   const monthProjectRevenue = useMemo(() => {
     const start = startOfMonth(currentMonth);
     const end = endOfMonth(currentMonth);
@@ -146,7 +144,6 @@ export default function Pagamentos() {
     return projectRevenue.filter(project => {
       const dateToCheck = project.client_payment_due_date || project.delivery_date;
       
-      // If no date, show in current month view (fallback for undated projects)
       if (!dateToCheck) {
         return isCurrentMonthView;
       }
@@ -156,8 +153,7 @@ export default function Pagamentos() {
     });
   }, [projectRevenue, currentMonth]);
 
-  // Filter payments for the current month view (for non-client payments)
-  // Non-admins only see their own payments (where collaborator_id matches userId)
+  // Filter payments for the current month view
   const monthPayments = useMemo(() => {
     const start = startOfMonth(currentMonth);
     const end = endOfMonth(currentMonth);
@@ -168,7 +164,6 @@ export default function Pagamentos() {
       return isWithinInterval(dueDate, { start, end });
     });
 
-    // Non-admins only see their own receivable payments
     if (!canViewAllFinancials && userId) {
       filteredPayments = filteredPayments.filter(p => 
         p.is_receivable && p.collaborator_id === userId
@@ -178,28 +173,20 @@ export default function Pagamentos() {
     return filteredPayments;
   }, [payments, currentMonth, canViewAllFinancials, userId]);
 
-  // Cast teamPayments to the correct type
   const typedTeamPayments = teamPayments as ProjectTeamPayment[];
 
-  // Calculate monthly forecasts using PROJECT REVENUE (agreed_value) as main income source
+  // Calculate monthly forecasts
   const monthlyForecast = useMemo(() => {
-    // === REVENUE FROM PROJECTS (Preço Cliente) ===
-    // Total revenue from projects (ALL statuses)
     const totalReceivable = monthProjectRevenue.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
-    // Already received (status = pago)
     const alreadyReceived = monthProjectRevenue
       .filter(p => p.client_payment_status === 'pago')
       .reduce((sum, p) => sum + (p.agreed_value || 0), 0);
-    // Pending revenue (status !== pago)
     const pendingReceivable = monthProjectRevenue
       .filter(p => p.client_payment_status !== 'pago')
       .reduce((sum, p) => sum + (p.agreed_value || 0), 0);
     
-    // === EXPENSES ===
-    // Payable amounts from payments table (non-receivable)
     const payable = monthPayments.filter(p => !p.is_receivable && p.status !== 'pago').reduce((sum, p) => sum + p.amount, 0);
     
-    // Team payments by phase
     const teamCaptacao = typedTeamPayments
       .filter(tp => tp.phase === 'captacao' && tp.payment_status !== 'pago')
       .reduce((sum, tp) => sum + (tp.payment_amount || 0), 0);
@@ -210,14 +197,12 @@ export default function Pagamentos() {
     
     const teamTotal = teamCaptacao + teamEdicao;
     
-    // Extra costs
     const custosExtras = projectCosts
       .filter(p => p.custos_extras_payment_status !== 'pago')
       .reduce((sum, p) => sum + (p.custos_extras || 0), 0);
     
     const totalPayable = payable + teamTotal + custosExtras;
 
-    // Lucro Previsto calculation
     const lucroPrevisto = pendingReceivable - totalPayable;
     const margemPercent = pendingReceivable > 0 
       ? Math.round((lucroPrevisto / pendingReceivable) * 100)
@@ -227,7 +212,7 @@ export default function Pagamentos() {
       totalReceivable,
       alreadyReceived,
       pendingReceivable,
-      receivable: pendingReceivable, // Keep backward compatibility
+      receivable: pendingReceivable,
       payable, 
       teamTotal,
       teamCaptacao,
@@ -240,38 +225,48 @@ export default function Pagamentos() {
     };
   }, [monthProjectRevenue, monthPayments, typedTeamPayments, projectCosts]);
 
-  // Calculate total receivable and payable for summary cards (all time, not just current month)
-  const totalRevenueFromProjects = useMemo(() => {
-    const total = projectRevenue.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
-    const received = projectRevenue
-      .filter(p => p.client_payment_status === 'pago')
-      .reduce((sum, p) => sum + (p.agreed_value || 0), 0);
-    const pending = projectRevenue
+  // Global summary stats (all-time)
+  const globalSummary = useMemo(() => {
+    const totalDueReceivable = projectRevenue
       .filter(p => p.client_payment_status !== 'pago')
       .reduce((sum, p) => sum + (p.agreed_value || 0), 0);
-    const overdue = projectRevenue
-      .filter(p => p.client_payment_status === 'vencido')
-      .length;
-    
-    return { total, received, pending, overdue };
-  }, [projectRevenue]);
+    const totalPaidReceivable = projectRevenue
+      .filter(p => p.client_payment_status === 'pago')
+      .reduce((sum, p) => sum + (p.agreed_value || 0), 0);
 
-  // Calculate total payable including team and extra costs for summary
-  const totalPayableWithExtras = useMemo(() => {
-    const basePayable = summaries.totalPayable;
-    
-    const teamTotal = typedTeamPayments
+    const teamPending = typedTeamPayments
       .filter(tp => tp.payment_status !== 'pago')
       .reduce((sum, tp) => sum + (tp.payment_amount || 0), 0);
-    
-    const custosExtras = projectCosts
-      .filter(p => p.custos_extras_payment_status !== 'pago')
+    const teamPaid = typedTeamPayments
+      .filter(tp => tp.payment_status === 'pago')
+      .reduce((sum, tp) => sum + (tp.payment_amount || 0), 0);
+    const extrasPending = projectCosts
+      .filter(p => (p.custos_extras_payment_status || 'pendente') !== 'pago')
       .reduce((sum, p) => sum + (p.custos_extras || 0), 0);
-    
-    return basePayable + teamTotal + custosExtras;
-  }, [summaries.totalPayable, typedTeamPayments, projectCosts]);
+    const extrasPaid = allProjectCosts
+      .filter(p => p.custos_extras_payment_status === 'pago')
+      .reduce((sum, p) => sum + (p.custos_extras || 0), 0);
 
-  // Projects available for invoicing
+    const totalDuePayable = teamPending + extrasPending;
+    const totalPaidPayable = teamPaid + extrasPaid;
+
+    const overdueReceivable = projectRevenue.filter(p => p.client_payment_status === 'vencido');
+    const overduePayable = typedTeamPayments.filter(tp => tp.payment_status === 'vencido');
+
+    const overdueCount = overdueReceivable.length + overduePayable.length;
+    const overdueAmount = overdueReceivable.reduce((s, p) => s + (p.agreed_value || 0), 0)
+      + overduePayable.reduce((s, tp) => s + (tp.payment_amount || 0), 0);
+
+    return {
+      totalDueReceivable,
+      totalPaidReceivable,
+      totalDuePayable,
+      totalPaidPayable,
+      overdueCount,
+      overdueAmount,
+    };
+  }, [projectRevenue, typedTeamPayments, projectCosts, allProjectCosts]);
+
   const invoiceableProjects = useMemo(() => {
     return projects.filter(p => p.agreed_value && p.agreed_value > 0);
   }, [projects]);
@@ -290,9 +285,8 @@ export default function Pagamentos() {
       .reduce((sum, p) => sum + (p.agreed_value || 0), 0);
   }, [invoiceableProjects, selectedProjects]);
 
-  // Export data for previsão tab - includes both project revenue and payments
+  // Export data for previsão tab
   const previsaoExportData = useMemo(() => {
-    // 1. Project Revenue (Receita de Clientes)
     const revenueData = monthProjectRevenue.map(project => ({
       id: project.project_code || project.id.slice(0, 8).toUpperCase(),
       projeto: project.name,
@@ -307,7 +301,6 @@ export default function Pagamentos() {
       valor: `+${formatCurrency(project.agreed_value || 0)}`,
     }));
 
-    // 2. Other Payments
     const paymentsData = monthPayments.map(payment => ({
       id: payment.id.slice(0, 8).toUpperCase(),
       projeto: payment.description || payment.projects?.name || 'Pagamento',
@@ -320,11 +313,9 @@ export default function Pagamentos() {
       valor: `${payment.is_receivable ? '+' : '-'}${formatCurrency(payment.amount)}`,
     }));
 
-    // Combine both arrays
     return [...revenueData, ...paymentsData];
   }, [monthProjectRevenue, monthPayments, formatCurrency]);
 
-  // Forecast summary for export
   const forecastSummary = useMemo(() => ({
     totalReceivable: formatCurrency(monthlyForecast.totalReceivable),
     alreadyReceived: formatCurrency(monthlyForecast.alreadyReceived),
@@ -345,22 +336,46 @@ export default function Pagamentos() {
     await updatePaymentStatus(paymentId, newStatus);
   };
 
-  // Handle freelancer payment status change
+  // Handle freelancer payment status change (Fase 7: set/clear paid_at)
   const handleFreelancerStatusChange = async (teamId: string, newStatus: string) => {
-    await updateTeamPaymentStatus(teamId, newStatus);
+    // The DB trigger handles paid_at auto-fill, but we also set it explicitly for immediate consistency
+    const updates: Record<string, unknown> = {
+      payment_status: newStatus,
+    };
+    if (newStatus === 'pago') {
+      updates.paid_at = new Date().toISOString();
+    } else {
+      updates.paid_at = null;
+    }
+
+    await supabase
+      .from('project_team')
+      .update(updates)
+      .eq('id', teamId);
+
+    queryClient.invalidateQueries({ queryKey: ['team-payments'] });
   };
 
-  // Handle extra costs status change
+  // Handle extra costs status change (Fase 7: set/clear custos_extras_paid_at)
   const handleCostStatusChange = async (projectId: string, newStatus: string) => {
+    const updates: Record<string, unknown> = {
+      custos_extras_payment_status: newStatus,
+    };
+    if (newStatus === 'pago') {
+      updates.custos_extras_paid_at = new Date().toISOString();
+    } else {
+      updates.custos_extras_paid_at = null;
+    }
+
     await supabase
       .from('projects')
-      .update({ custos_extras_payment_status: newStatus })
+      .update(updates)
       .eq('id', projectId);
     
     // Refresh data
     const { data: costsData } = await supabase
       .from('projects')
-      .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, clients(name)')
+      .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, delivery_date, clients(name)')
       .eq('workspace_id', currentWorkspace?.id)
       .gt('custos_extras', 0);
     
@@ -376,13 +391,12 @@ export default function Pagamentos() {
     queryClient.invalidateQueries({ queryKey: ['projects'] });
   };
 
-  // Handle project revenue (Preço Cliente) status change
+  // Handle project revenue status change
   const handleProjectRevenueStatusChange = async (projectId: string, newStatus: string) => {
     const updates: Record<string, unknown> = {
       client_payment_status: newStatus,
     };
     
-    // If marking as paid, record the timestamp
     if (newStatus === 'pago') {
       updates.client_paid_at = new Date().toISOString();
     } else {
@@ -394,7 +408,6 @@ export default function Pagamentos() {
       .update(updates)
       .eq('id', projectId);
     
-    // Refresh revenue data
     const { data: revenueData } = await supabase
       .from('projects')
       .select('id, name, project_code, agreed_value, client_payment_status, client_payment_due_date, client_id, delivery_date, clients(name)')
@@ -408,17 +421,14 @@ export default function Pagamentos() {
     queryClient.invalidateQueries({ queryKey: ['projects'] });
   };
 
-  // Prepare clients list for filters
   const clientsList = useMemo(() => {
     return clients.map(c => ({ id: c.id, name: c.name }));
   }, [clients]);
 
-  // Prepare members list for filters
   const membersList = useMemo(() => {
     return members.map(m => ({ user_id: m.user_id, full_name: m.full_name }));
   }, [members]);
 
-  // Prepare projects list for freelancer component (include client_id for lookup)
   const projectsList = useMemo(() => {
     return projects.map(p => ({ id: p.id, name: p.name, project_code: p.project_code, client_id: p.client_id, delivery_date: p.delivery_date }));
   }, [projects]);
@@ -431,7 +441,6 @@ export default function Pagamentos() {
     );
   }
 
-  // Visualizador não pode ver pagamentos
   if (!canViewOwnFinancials) {
     return (
       <div className="p-6">
@@ -458,58 +467,103 @@ export default function Pagamentos() {
               : 'Os seus pagamentos e receitas'}
           </p>
         </div>
-        <Button variant="ghost" size="icon" onClick={toggleHideValues} className="h-9 w-9">
-          {hideValues ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Payment View Mode Toggle */}
+          {canViewAllFinancials && (
+            <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={paymentViewMode === 'vencimento' ? 'default' : 'ghost'}
+                    size="sm"
+                    className="h-8 text-xs gap-1.5"
+                    onClick={() => setPaymentViewMode('vencimento')}
+                  >
+                    <Calendar className="h-3.5 w-3.5" />
+                    Por Vencimento
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Agrupa por data de vencimento (due_date / delivery_date)</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={paymentViewMode === 'pagamento' ? 'default' : 'ghost'}
+                    size="sm"
+                    className="h-8 text-xs gap-1.5"
+                    onClick={() => setPaymentViewMode('pagamento')}
+                  >
+                    <Wallet className="h-3.5 w-3.5" />
+                    Por Pagamento
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Agrupa por data de pagamento efectivo (paid_at)</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          )}
+          <Button variant="ghost" size="icon" onClick={toggleHideValues} className="h-9 w-9">
+            {hideValues ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </Button>
+        </div>
       </div>
 
-      {/* Summary Cards - Only for admins - Using Project Revenue */}
+      {/* Fixed Summary Cards - Global Overview */}
       {canViewAllFinancials && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="glass-card">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <TrendingUp className="h-5 w-5 text-success" />
-                <span className={cn("text-2xl font-bold text-success", hideValues && "blur-md select-none")}>{formatCurrency(totalRevenueFromProjects.pending)}</span>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">A Receber</p>
-              <p className="text-xs text-muted-foreground/70">Preço Cliente pendente</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <Card className="glass-card border-success/20">
+            <CardContent className="p-3 text-center">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">A Receber</p>
+              <p className={cn("text-lg font-bold text-success", hideValues && "blur-md select-none")}>
+                {formatCurrency(globalSummary.totalDueReceivable)}
+              </p>
             </CardContent>
           </Card>
-          <Card className="glass-card">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <TrendingDown className="h-5 w-5 text-destructive" />
-                <span className={cn("text-2xl font-bold text-destructive", hideValues && "blur-md select-none")}>{formatCurrency(totalPayableWithExtras)}</span>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">A Pagar</p>
-              <p className="text-xs text-muted-foreground/70">Colaboradores + Custos</p>
+          <Card className="glass-card border-success/30 bg-success/5">
+            <CardContent className="p-3 text-center">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Recebido</p>
+              <p className={cn("text-lg font-bold text-success/80", hideValues && "blur-md select-none")}>
+                {formatCurrency(globalSummary.totalPaidReceivable)}
+              </p>
             </CardContent>
           </Card>
-          <Card className="glass-card">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <CheckCircle2 className="h-5 w-5 text-success" />
-                <span className={cn("text-2xl font-bold", hideValues && "blur-md select-none")}>{formatCurrency(totalRevenueFromProjects.received)}</span>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">Recebido</p>
-              <p className="text-xs text-muted-foreground/70">Total recebido</p>
+          <Card className="glass-card border-destructive/20">
+            <CardContent className="p-3 text-center">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">A Pagar</p>
+              <p className={cn("text-lg font-bold text-destructive", hideValues && "blur-md select-none")}>
+                {formatCurrency(globalSummary.totalDuePayable)}
+              </p>
             </CardContent>
           </Card>
-          <Card className="glass-card">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <AlertCircle className="h-5 w-5 text-warning" />
-                <span className="text-2xl font-bold">{totalRevenueFromProjects.overdue}</span>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">Vencidos</p>
-              <p className="text-xs text-muted-foreground/70">Pagamentos atrasados</p>
+          <Card className="glass-card border-destructive/30 bg-destructive/5">
+            <CardContent className="p-3 text-center">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Pago</p>
+              <p className={cn("text-lg font-bold text-destructive/80", hideValues && "blur-md select-none")}>
+                {formatCurrency(globalSummary.totalPaidPayable)}
+              </p>
+            </CardContent>
+          </Card>
+          <Card className={cn("glass-card", globalSummary.overdueCount > 0 ? "border-warning/30 bg-warning/5" : "")}>
+            <CardContent className="p-3 text-center">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Atrasados</p>
+              <p className="text-lg font-bold text-warning">{globalSummary.overdueCount}</p>
+            </CardContent>
+          </Card>
+          <Card className={cn("glass-card", globalSummary.overdueCount > 0 ? "border-warning/20" : "")}>
+            <CardContent className="p-3 text-center">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Valor Atraso</p>
+              <p className={cn("text-lg font-bold text-warning", hideValues && "blur-md select-none")}>
+                {formatCurrency(globalSummary.overdueAmount)}
+              </p>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Tabs - Limit tabs for collaborators */}
+      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="previsao">
@@ -528,10 +582,9 @@ export default function Pagamentos() {
           )}
         </TabsList>
 
-        {/* Previsão Tab - For users without global financials, show simplified "My Payments" view */}
+        {/* Previsão Tab */}
         <TabsContent value="previsao" className="space-y-6">
           {!canViewAllFinancials ? (
-            // Collaborator-specific: show only their payments from project_team
             <FreelancerPaymentsControl
               teamPayments={typedTeamPayments}
               onStatusChange={handleFreelancerStatusChange}
@@ -563,250 +616,239 @@ export default function Pagamentos() {
                 />
               </div>
 
-          {/* Monthly Financial Summary */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* Total Receivable */}
-            <Card className="glass-card border-success/20">
-              <CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground mb-1">Receita Total</p>
-                <p className={cn("text-2xl font-bold text-success", hideValues && "blur-md select-none")}>{formatCurrency(monthlyForecast.totalReceivable)}</p>
-                <p className="text-[10px] text-muted-foreground/70 mt-1">Todos os pagamentos</p>
-              </CardContent>
-            </Card>
-            
-            {/* Already Received */}
-            <Card className="glass-card border-success/30 bg-success/5">
-              <CardContent className="p-4 text-center">
-                <div className="flex items-center justify-center gap-1 mb-1">
-                  <CheckCircle2 className="h-3 w-3 text-success" />
-                  <p className="text-xs text-muted-foreground">Já Recebido</p>
-                </div>
-                <p className={cn("text-2xl font-bold text-success/80", hideValues && "blur-md select-none")}>{formatCurrency(monthlyForecast.alreadyReceived)}</p>
-                <p className="text-[10px] text-muted-foreground/70 mt-1">Status: Pago</p>
-              </CardContent>
-            </Card>
-            
-            {/* Pending Receivable */}
-            <Card className="glass-card border-warning/20">
-              <CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground mb-1">Por Receber</p>
-                <p className={cn("text-2xl font-bold text-warning", hideValues && "blur-md select-none")}>{formatCurrency(monthlyForecast.pendingReceivable)}</p>
-                <p className="text-[10px] text-muted-foreground/70 mt-1">Pendentes + Vencidos</p>
-              </CardContent>
-            </Card>
-            
-            {/* Total Payable */}
-            <Card className="glass-card border-destructive/20">
-              <CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground mb-1">Total a Pagar</p>
-                <p className={cn("text-2xl font-bold text-destructive", hideValues && "blur-md select-none")}>{formatCurrency(monthlyForecast.totalPayable)}</p>
-                <p className="text-[10px] text-muted-foreground/70 mt-1">Colaboradores + Custos</p>
-              </CardContent>
-            </Card>
-          </div>
-          
-          {/* Net Balance Card */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="glass-card border-primary/20">
-              <CardContent className="py-4 px-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Saldo Líquido Previsto</p>
-                    <p className="text-xs text-muted-foreground/70">Por Receber - Total a Pagar</p>
-                  </div>
-                  <p className={cn('text-3xl font-bold', monthlyForecast.net >= 0 ? 'text-success' : 'text-destructive', hideValues && "blur-md select-none")}>
-                    {monthlyForecast.net >= 0 ? '+' : ''}{formatCurrency(monthlyForecast.net)}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Lucro Previsto Card */}
-            <Card className="glass-card border-primary/30 bg-primary/5">
-              <CardContent className="py-4 px-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Lucro Previsto</p>
-                    <p className="text-xs text-muted-foreground/70">Margem: {monthlyForecast.margemPercent}%</p>
-                  </div>
-                  <p className={cn('text-3xl font-bold', monthlyForecast.lucroPrevisto >= 0 ? 'text-primary' : 'text-destructive', hideValues && "blur-md select-none")}>
-                    {monthlyForecast.lucroPrevisto >= 0 ? '+' : ''}{formatCurrency(monthlyForecast.lucroPrevisto)}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Empty State for Month */}
-          {monthPayments.length === 0 && monthProjectRevenue.length === 0 && (
-            <Card className="glass-card">
-              <CardContent className="py-12">
-                <div className="flex flex-col items-center justify-center text-center">
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <CreditCard className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2">Sem pagamentos neste mês</h3>
-                  <p className="text-muted-foreground text-sm max-w-sm">
-                    Não há pagamentos registados para {format(currentMonth, 'MMMM yyyy', { locale: pt })}. Os pagamentos serão exibidos quando tiver projetos com valores definidos.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Project Revenue Section */}
-          {monthProjectRevenue.length > 0 && (
-            <Card className="glass-card">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Euro className="h-5 w-5 text-success" />
-                  Receita de Clientes (Preço Projeto)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {monthProjectRevenue.map(project => (
-                    <div
-                      key={project.id}
-                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-success/10">
-                          <TrendingUp className="h-5 w-5 text-success" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{project.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {project.clients?.name || 'Cliente'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Badge variant="outline" className={cn(statusColors[project.client_payment_status || 'pendente'])}>
-                          {statusLabels[project.client_payment_status || 'pendente']}
-                        </Badge>
-                        <span className={cn("font-medium text-success", hideValues && "blur-md select-none")}>
-                          +{formatCurrency(project.agreed_value || 0)}
-                        </span>
-                      </div>
+              {/* Monthly Financial Summary */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card className="glass-card border-success/20">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Receita Total</p>
+                    <p className={cn("text-2xl font-bold text-success", hideValues && "blur-md select-none")}>{formatCurrency(monthlyForecast.totalReceivable)}</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-1">Todos os pagamentos</p>
+                  </CardContent>
+                </Card>
+                <Card className="glass-card border-success/30 bg-success/5">
+                  <CardContent className="p-4 text-center">
+                    <div className="flex items-center justify-center gap-1 mb-1">
+                      <CheckCircle2 className="h-3 w-3 text-success" />
+                      <p className="text-xs text-muted-foreground">Já Recebido</p>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Breakdown of Payable */}
-          {(monthlyForecast.teamTotal > 0 || monthlyForecast.custosExtras > 0) && (
-            <Card className="glass-card">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <TrendingDown className="h-5 w-5 text-destructive" />
-                  Detalhes de Saídas Previstas
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Collaborator Payments */}
-                {monthlyForecast.teamTotal > 0 && (
-                  <div className="space-y-2">
+                    <p className={cn("text-2xl font-bold text-success/80", hideValues && "blur-md select-none")}>{formatCurrency(monthlyForecast.alreadyReceived)}</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-1">Status: Pago</p>
+                  </CardContent>
+                </Card>
+                <Card className="glass-card border-warning/20">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Por Receber</p>
+                    <p className={cn("text-2xl font-bold text-warning", hideValues && "blur-md select-none")}>{formatCurrency(monthlyForecast.pendingReceivable)}</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-1">Pendentes + Vencidos</p>
+                  </CardContent>
+                </Card>
+                <Card className="glass-card border-destructive/20">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Total a Pagar</p>
+                    <p className={cn("text-2xl font-bold text-destructive", hideValues && "blur-md select-none")}>{formatCurrency(monthlyForecast.totalPayable)}</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-1">Colaboradores + Custos</p>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              {/* Net Balance Card */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="glass-card border-primary/20">
+                  <CardContent className="py-4 px-6">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">A Pagar Colaboradores</span>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Saldo Líquido Previsto</p>
+                        <p className="text-xs text-muted-foreground/70">Por Receber - Total a Pagar</p>
                       </div>
-                      <span className="font-bold text-destructive">{formatCurrency(monthlyForecast.teamTotal)}</span>
+                      <p className={cn('text-3xl font-bold', monthlyForecast.net >= 0 ? 'text-success' : 'text-destructive', hideValues && "blur-md select-none")}>
+                        {monthlyForecast.net >= 0 ? '+' : ''}{formatCurrency(monthlyForecast.net)}
+                      </p>
                     </div>
-                    <div className="ml-6 space-y-1">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Captação</span>
-                        <span>{formatCurrency(monthlyForecast.teamCaptacao)}</span>
+                  </CardContent>
+                </Card>
+                <Card className="glass-card border-primary/30 bg-primary/5">
+                  <CardContent className="py-4 px-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Lucro Previsto</p>
+                        <p className="text-xs text-muted-foreground/70">Margem: {monthlyForecast.margemPercent}%</p>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Edição</span>
-                        <span>{formatCurrency(monthlyForecast.teamEdicao)}</span>
-                      </div>
+                      <p className={cn('text-3xl font-bold', monthlyForecast.lucroPrevisto >= 0 ? 'text-primary' : 'text-destructive', hideValues && "blur-md select-none")}>
+                        {monthlyForecast.lucroPrevisto >= 0 ? '+' : ''}{formatCurrency(monthlyForecast.lucroPrevisto)}
+                      </p>
                     </div>
-                  </div>
-                )}
-                
-                {/* Extra Costs */}
-                {monthlyForecast.custosExtras > 0 && (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Package className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">Custos Extras</span>
-                    </div>
-                    <span className="font-bold text-destructive">{formatCurrency(monthlyForecast.custosExtras)}</span>
-                  </div>
-                )}
-                
-                {/* Other payments */}
-                {monthlyForecast.payable > 0 && (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">Outros Pagamentos</span>
-                    </div>
-                    <span className="font-bold text-destructive">{formatCurrency(monthlyForecast.payable)}</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                  </CardContent>
+                </Card>
+              </div>
 
-          {/* Other Month Payments */}
-          {monthPayments.length > 0 && (
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="text-lg">Outros Movimentos</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {monthPayments.map(payment => (
-                    <div
-                      key={payment.id}
-                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={cn(
-                          'w-10 h-10 rounded-lg flex items-center justify-center',
-                          payment.is_receivable ? 'bg-success/10' : 'bg-destructive/10'
-                        )}>
-                          {payment.is_receivable ? (
-                            <TrendingUp className="h-5 w-5 text-success" />
-                          ) : (
-                            <TrendingDown className="h-5 w-5 text-destructive" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-medium">{payment.description || payment.projects?.name || 'Pagamento'}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {payment.clients?.name || payment.freelancer_name || 'N/A'}
-                          </p>
-                        </div>
+              {/* Empty State */}
+              {monthPayments.length === 0 && monthProjectRevenue.length === 0 && (
+                <Card className="glass-card">
+                  <CardContent className="py-12">
+                    <div className="flex flex-col items-center justify-center text-center">
+                      <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                        <CreditCard className="h-8 w-8 text-muted-foreground" />
                       </div>
-                      <div className="flex items-center gap-3">
-                        <Badge variant="outline" className={cn(statusColors[payment.status])}>
-                          {statusLabels[payment.status]}
-                        </Badge>
-                        <span className={cn(
-                          'font-medium',
-                          payment.is_receivable ? 'text-success' : 'text-destructive'
-                        )}>
-                          {payment.is_receivable ? '+' : '-'}{formatCurrency(payment.amount)}
-                        </span>
-                      </div>
+                      <h3 className="text-lg font-semibold mb-2">Sem pagamentos neste mês</h3>
+                      <p className="text-muted-foreground text-sm max-w-sm">
+                        Não há pagamentos registados para {format(currentMonth, 'MMMM yyyy', { locale: pt })}.
+                      </p>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Project Revenue Section */}
+              {monthProjectRevenue.length > 0 && (
+                <Card className="glass-card">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Euro className="h-5 w-5 text-success" />
+                      Receita de Clientes (Preço Projeto)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {monthProjectRevenue.map(project => (
+                        <div
+                          key={project.id}
+                          className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-success/10">
+                              <TrendingUp className="h-5 w-5 text-success" />
+                            </div>
+                            <div>
+                              <p className="font-medium">{project.name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {project.clients?.name || 'Cliente'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Badge variant="outline" className={cn(statusColors[project.client_payment_status || 'pendente'])}>
+                              {statusLabels[project.client_payment_status || 'pendente']}
+                            </Badge>
+                            <span className={cn("font-medium text-success", hideValues && "blur-md select-none")}>
+                              +{formatCurrency(project.agreed_value || 0)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Breakdown of Payable */}
+              {(monthlyForecast.teamTotal > 0 || monthlyForecast.custosExtras > 0) && (
+                <Card className="glass-card">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <TrendingDown className="h-5 w-5 text-destructive" />
+                      Detalhes de Saídas Previstas
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {monthlyForecast.teamTotal > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">A Pagar Colaboradores</span>
+                          </div>
+                          <span className={cn("font-bold text-destructive", hideValues && "blur-md select-none")}>{formatCurrency(monthlyForecast.teamTotal)}</span>
+                        </div>
+                        <div className="ml-6 space-y-1">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Captação</span>
+                            <span className={cn(hideValues && "blur-md select-none")}>{formatCurrency(monthlyForecast.teamCaptacao)}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Edição</span>
+                            <span className={cn(hideValues && "blur-md select-none")}>{formatCurrency(monthlyForecast.teamEdicao)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {monthlyForecast.custosExtras > 0 && (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Package className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">Custos Extras</span>
+                        </div>
+                        <span className={cn("font-bold text-destructive", hideValues && "blur-md select-none")}>{formatCurrency(monthlyForecast.custosExtras)}</span>
+                      </div>
+                    )}
+                    
+                    {monthlyForecast.payable > 0 && (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">Outros Pagamentos</span>
+                        </div>
+                        <span className={cn("font-bold text-destructive", hideValues && "blur-md select-none")}>{formatCurrency(monthlyForecast.payable)}</span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Other Month Payments */}
+              {monthPayments.length > 0 && (
+                <Card className="glass-card">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Outros Movimentos</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {monthPayments.map(payment => (
+                        <div
+                          key={payment.id}
+                          className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={cn(
+                              'w-10 h-10 rounded-lg flex items-center justify-center',
+                              payment.is_receivable ? 'bg-success/10' : 'bg-destructive/10'
+                            )}>
+                              {payment.is_receivable ? (
+                                <TrendingUp className="h-5 w-5 text-success" />
+                              ) : (
+                                <TrendingDown className="h-5 w-5 text-destructive" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-medium">{payment.description || payment.projects?.name || 'Pagamento'}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {payment.clients?.name || payment.freelancer_name || 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Badge variant="outline" className={cn(statusColors[payment.status])}>
+                              {statusLabels[payment.status]}
+                            </Badge>
+                            <span className={cn(
+                              'font-medium',
+                              payment.is_receivable ? 'text-success' : 'text-destructive',
+                              hideValues && "blur-md select-none"
+                            )}>
+                              {payment.is_receivable ? '+' : '-'}{formatCurrency(payment.amount)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </>
           )}
         </TabsContent>
 
-        {/* Receita de Projetos (Preço Cliente) Tab */}
+        {/* Receita de Projetos Tab */}
         <TabsContent value="clientes" className="space-y-6">
           <ProjectRevenueControl
             projects={projectRevenue}
@@ -867,7 +909,7 @@ export default function Pagamentos() {
                           </p>
                         </div>
                       </div>
-                      <span className="font-medium">{formatCurrency(project.agreed_value || 0)}</span>
+                      <span className={cn("font-medium", hideValues && "blur-md select-none")}>{formatCurrency(project.agreed_value || 0)}</span>
                     </div>
                   ))}
                 </div>
@@ -875,7 +917,6 @@ export default function Pagamentos() {
             </CardContent>
           </Card>
 
-          {/* Export Actions */}
           {selectedProjects.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -886,7 +927,7 @@ export default function Pagamentos() {
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div>
                       <p className="font-medium">{selectedProjects.length} projeto(s) selecionado(s)</p>
-                      <p className="text-2xl font-bold text-primary">{formatCurrency(selectedTotal)}</p>
+                      <p className={cn("text-2xl font-bold text-primary", hideValues && "blur-md select-none")}>{formatCurrency(selectedTotal)}</p>
                     </div>
                     <div className="flex gap-2">
                       <Button variant="outline">
