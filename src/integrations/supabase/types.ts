@@ -1893,6 +1893,7 @@ export type Database = {
           id: string
           invitation_id: string | null
           is_external: boolean | null
+          paid_at: string | null
           payment_amount: number | null
           payment_status: Database["public"]["Enums"]["payment_status"]
           phase: Database["public"]["Enums"]["kanban_phase"]
@@ -1905,6 +1906,7 @@ export type Database = {
           id?: string
           invitation_id?: string | null
           is_external?: boolean | null
+          paid_at?: string | null
           payment_amount?: number | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           phase: Database["public"]["Enums"]["kanban_phase"]
@@ -1917,6 +1919,7 @@ export type Database = {
           id?: string
           invitation_id?: string | null
           is_external?: boolean | null
+          paid_at?: string | null
           payment_amount?: number | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           phase?: Database["public"]["Enums"]["kanban_phase"]
@@ -2019,6 +2022,7 @@ export type Database = {
           custo_edicao: number | null
           custom_category_id: string | null
           custos_extras: number | null
+          custos_extras_paid_at: string | null
           custos_extras_payment_status: string | null
           delivered_at: string | null
           delivery_date: string | null
@@ -2063,6 +2067,7 @@ export type Database = {
           custo_edicao?: number | null
           custom_category_id?: string | null
           custos_extras?: number | null
+          custos_extras_paid_at?: string | null
           custos_extras_payment_status?: string | null
           delivered_at?: string | null
           delivery_date?: string | null
@@ -2107,6 +2112,7 @@ export type Database = {
           custo_edicao?: number | null
           custom_category_id?: string | null
           custos_extras?: number | null
+          custos_extras_paid_at?: string | null
           custos_extras_payment_status?: string | null
           delivered_at?: string | null
           delivery_date?: string | null

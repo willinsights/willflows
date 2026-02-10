@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ProductTour } from '@/components/tour/ProductTour';
 import { TrialBanner } from '@/components/dashboard/TrialBanner';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { QuickActionsCard } from '@/components/dashboard/QuickActionsCard';
 import { ProjectCounters } from '@/components/dashboard/ProjectCounters';
 import { FinancialForecastCards } from '@/components/dashboard/FinancialForecastCards';
+import { FinancialViewSelector } from '@/components/dashboard/FinancialViewSelector';
+import { MonthlySummaryBar } from '@/components/dashboard/MonthlySummaryBar';
 import { CollaboratorForecastCards } from '@/components/dashboard/CollaboratorForecastCards';
 import { FinancialChart } from '@/components/dashboard/FinancialChart';
 import { MonthlyGoalsCard } from '@/components/dashboard/MonthlyGoalsCard';
@@ -15,11 +17,13 @@ import { RecentActivityCard } from '@/components/dashboard/RecentActivityCard';
 import { PerformanceMetricsCard } from '@/components/dashboard/PerformanceMetricsCard';
 import { useProductTour } from '@/hooks/useProductTour';
 import { useDashboardMetrics, UrgentProject } from '@/hooks/useDashboardMetrics';
+import { useFinancialEngine } from '@/hooks/useFinancialEngine';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ProjectDetailsSheet } from '@/components/projects/ProjectDetailsSheet';
 import type { ProjectWithClient } from '@/hooks/useKanban';
+import type { FinancialViewMode } from '@/lib/finance/types';
 
 // Mobile-specific components
 import { MobileKPICarousel } from '@/components/mobile/MobileKPICarousel';
@@ -31,12 +35,50 @@ import { MobilePendingPayments } from '@/components/mobile/MobilePendingPayments
 import { MobileRecentActivity } from '@/components/mobile/MobileRecentActivity';
 import { MobileCollaboratorForecast } from '@/components/mobile/MobileCollaboratorForecast';
 
+const VIEW_MODE_KEY = 'wf_financial_view_mode';
+
+function getInitialViewMode(): FinancialViewMode {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get('view')?.toUpperCase();
+    if (fromUrl === 'REALIZADO' || fromUrl === 'PREVISAO' || fromUrl === 'CAIXA') return fromUrl;
+    const stored = localStorage.getItem(VIEW_MODE_KEY) as FinancialViewMode | null;
+    if (stored === 'REALIZADO' || stored === 'PREVISAO' || stored === 'CAIXA') return stored;
+  } catch {}
+  return 'PREVISAO';
+}
+
 export default function Dashboard() {
   const { currentWorkspace } = useWorkspace();
   const { canViewAllFinancials, isCollaborator } = useFinancialPermissions();
   const [currentTime, setCurrentTime] = useState(new Date());
   const { showTour, completeTour, skipTour } = useProductTour();
   const isMobile = useIsMobile();
+
+  // Financial view mode state
+  const [viewMode, setViewMode] = useState<FinancialViewMode>(getInitialViewMode);
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
+
+  const handleViewModeChange = useCallback((mode: FinancialViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem(VIEW_MODE_KEY, mode);
+    const url = new URL(window.location.href);
+    url.searchParams.set('view', mode.toLowerCase());
+    window.history.replaceState({}, '', url.toString());
+  }, []);
+
+  // Financial engine (unified metrics)
+  const {
+    metrics: engineMetrics,
+    summary,
+    timeSeries,
+    revenueChange,
+    costChange,
+    profitChange,
+    loading: engineLoading,
+  } = useFinancialEngine(viewMode, selectedMonth);
+
+  // Legacy dashboard metrics (for non-financial data: urgent projects, events, activity, etc.)
   const { 
     metrics, 
     performanceMetrics,
@@ -56,8 +98,19 @@ export default function Dashboard() {
 
   const currentYear = new Date().getFullYear();
 
+  const goToPreviousMonth = useCallback(() => {
+    setSelectedMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  }, []);
+
+  const goToNextMonth = useCallback(() => {
+    setSelectedMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  }, []);
+
+  const goToCurrentMonth = useCallback(() => {
+    setSelectedMonth(new Date());
+  }, []);
+
   const handleProjectClick = (project: UrgentProject) => {
-    // Convert UrgentProject to minimal ProjectWithClient for modal
     const projectForModal: ProjectWithClient = {
       id: project.id,
       name: project.name,
@@ -99,6 +152,7 @@ export default function Dashboard() {
       item_type: null,
       custos_extras: null,
       custos_extras_payment_status: null,
+      custos_extras_paid_at: null,
       client_payment_status: null,
       client_payment_due_date: null,
       client_paid_at: null,
@@ -116,21 +170,12 @@ export default function Dashboard() {
   if (isMobile) {
     return (
       <div className="p-4 space-y-4 pb-24">
-        {/* Product Tour */}
         {showTour && (
           <ProductTour onComplete={completeTour} onSkip={skipTour} />
         )}
-
-        {/* Trial Banner */}
         <TrialBanner />
-        
-        {/* Header */}
         <DashboardHeader currentTime={currentTime} />
-
-        {/* KPIs Carousel */}
         <MobileKPICarousel metrics={metrics} loading={loading} />
-
-        {/* Collapsible Charts - Hidden for collaborators */}
         {!isCollaborator && canViewAllFinancials && (
           <>
             <MobileFinancialSummary
@@ -147,29 +192,21 @@ export default function Dashboard() {
             />
           </>
         )}
-
-        {/* Collaborator Forecast - Only for collaborators */}
         {isCollaborator && (
           <MobileCollaboratorForecast />
         )}
-
-        {/* Urgent Projects */}
         <MobileUrgentProjects
           urgentProjects={urgentProjects}
           loading={loading}
           onProjectClick={handleProjectClick}
           maxItems={3}
         />
-
-        {/* Upcoming Events */}
         <MobileUpcomingEvents
           events={upcomingEvents}
           loading={loading}
           maxItems={3}
           onRefresh={refresh}
         />
-
-        {/* Pending Payments - Hidden for collaborators */}
         {!isCollaborator && canViewAllFinancials && (
           <MobilePendingPayments
             payments={pendingPaymentItems}
@@ -178,15 +215,11 @@ export default function Dashboard() {
             maxItems={3}
           />
         )}
-
-        {/* Recent Activity */}
         <MobileRecentActivity
           recentActivity={recentActivity}
           loading={loading}
           maxItems={4}
         />
-
-        {/* Project Details Sheet */}
         <ProjectDetailsSheet
           open={isModalOpen}
           onOpenChange={setIsModalOpen}
@@ -200,12 +233,9 @@ export default function Dashboard() {
   // Desktop Dashboard Layout
   return (
     <div className="p-3 md:p-4 space-y-3 md:space-y-4 max-w-[1400px] mx-auto">
-      {/* Product Tour */}
       {showTour && (
         <ProductTour onComplete={completeTour} onSkip={skipTour} />
       )}
-
-      {/* Trial Banner */}
       <TrialBanner />
       
       {/* Header with Quick Actions */}
@@ -217,9 +247,24 @@ export default function Dashboard() {
       {/* Project Counters Row */}
       <ProjectCounters metrics={metrics} loading={loading} />
 
-      {/* Financial Forecast Row - Only for admins */}
+      {/* Financial View Selector + Forecast Cards - Only for admins */}
       {!isCollaborator && canViewAllFinancials && (
-        <FinancialForecastCards />
+        <>
+          <FinancialViewSelector value={viewMode} onChange={handleViewModeChange} />
+          <FinancialForecastCards
+            viewMode={viewMode}
+            metrics={engineMetrics}
+            revenueChange={revenueChange}
+            costChange={costChange}
+            profitChange={profitChange}
+            loading={engineLoading}
+            selectedMonth={selectedMonth}
+            onPreviousMonth={goToPreviousMonth}
+            onNextMonth={goToNextMonth}
+            onCurrentMonth={goToCurrentMonth}
+          />
+          <MonthlySummaryBar summary={summary} loading={engineLoading} />
+        </>
       )}
 
       {/* Collaborator Forecast Row - Only for collaborators */}
@@ -227,15 +272,17 @@ export default function Dashboard() {
         <CollaboratorForecastCards />
       )}
 
-      {/* Charts Row - Financial (with tabs) + Monthly Goals - Hidden for collaborators */}
+      {/* Charts Row */}
       {!isCollaborator && (
         <div className="grid lg:grid-cols-2 gap-3">
           <FinancialChart 
             monthlyData={monthlyData} 
             annualComparison={annualComparison}
-            loading={loading}
+            loading={loading || engineLoading}
             currentYearLabel={String(currentYear)}
             previousYearLabel={String(currentYear - 1)}
+            viewMode={viewMode}
+            timeSeries={timeSeries}
           />
           {canViewAllFinancials && (
             <MonthlyGoalsCard 
@@ -261,7 +308,7 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Bottom Row - Performance, Payments, Activity */}
+      {/* Bottom Row */}
       <div className={`grid gap-3 ${canViewAllFinancials ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-2'}`}>
         {canViewAllFinancials && (
           <PerformanceMetricsCard 
@@ -282,7 +329,6 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Project Details Sheet */}
       <ProjectDetailsSheet
         open={isModalOpen}
         onOpenChange={setIsModalOpen}

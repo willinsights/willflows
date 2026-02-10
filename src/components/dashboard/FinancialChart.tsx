@@ -8,6 +8,7 @@ import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useHideValues } from '@/hooks/useHideValues';
 import { cn } from '@/lib/utils';
 import type { MonthlyData, AnnualComparisonData } from '@/hooks/useDashboardMetrics';
+import type { FinancialViewMode, TimeSeriesPoint } from '@/lib/finance/types';
 import {
   AreaChart,
   Area,
@@ -25,7 +26,16 @@ interface FinancialChartProps {
   loading: boolean;
   currentYearLabel?: string;
   previousYearLabel?: string;
+  // New engine-driven props
+  viewMode?: FinancialViewMode;
+  timeSeries?: TimeSeriesPoint[];
 }
+
+const modeLabels: Record<FinancialViewMode, { revenue: string; cost: string; profit: string }> = {
+  REALIZADO: { revenue: 'Receita', cost: 'Custos', profit: 'Lucro' },
+  PREVISAO: { revenue: 'Receita Prev.', cost: 'Custos Prev.', profit: 'Lucro Prev.' },
+  CAIXA: { revenue: 'Entradas', cost: 'Saídas', profit: 'Saldo' },
+};
 
 export function FinancialChart({ 
   monthlyData, 
@@ -33,12 +43,13 @@ export function FinancialChart({
   loading,
   currentYearLabel = new Date().getFullYear().toString(),
   previousYearLabel = (new Date().getFullYear() - 1).toString(),
+  viewMode = 'REALIZADO',
+  timeSeries,
 }: FinancialChartProps) {
   const { formatCurrency } = useCurrentWorkspace();
   const { canViewAllFinancials } = useFinancialPermissions();
   const { hideValues } = useHideValues();
 
-  // Se não for admin, não mostra o gráfico
   if (!canViewAllFinancials) {
     return (
       <motion.div
@@ -68,12 +79,21 @@ export function FinancialChart({
     );
   }
 
-  // Calculate annual totals for legend
   const currentYearTotal = annualComparison.reduce((sum, d) => sum + d.currentYear, 0);
   const previousYearTotal = annualComparison.reduce((sum, d) => sum + d.previousYear, 0);
   const growthPercentage = previousYearTotal > 0 
     ? ((currentYearTotal - previousYearTotal) / previousYearTotal) * 100 
     : 0;
+
+  // Use timeSeries data from engine when available
+  const chartData = timeSeries || monthlyData;
+  const labels = modeLabels[viewMode];
+
+  // Determine chart data keys based on source
+  const useEngineData = !!timeSeries;
+  const revenueKey = useEngineData ? 'revenue' : 'receita';
+  const costKey = useEngineData ? 'cost' : 'custos';
+  const profitKey = useEngineData ? 'profit' : 'lucro';
 
   return (
     <motion.div
@@ -106,10 +126,9 @@ export function FinancialChart({
               <Skeleton className="h-[200px] w-full rounded-lg" />
             ) : (
               <>
-                {/* 6 Months Chart */}
                 <TabsContent value="6months" className="mt-0">
                   <ResponsiveContainer width="100%" height={200}>
-                    <AreaChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                       <defs>
                         <linearGradient id="colorReceita" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.3}/>
@@ -121,15 +140,6 @@ export function FinancialChart({
                         </linearGradient>
                         <linearGradient id="colorLucro" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/>
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                        </linearGradient>
-                        {/* Forecast gradients - lighter opacity */}
-                        <linearGradient id="colorReceitaPrevisao" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.15}/>
-                          <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0}/>
-                        </linearGradient>
-                        <linearGradient id="colorLucroPrevisao" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2}/>
                           <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
                         </linearGradient>
                       </defs>
@@ -155,10 +165,7 @@ export function FinancialChart({
                           boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                           fontSize: '12px',
                         }}
-                        formatter={(value: number, name: string) => [
-                          formatCurrency(value), 
-                          name.includes('Prev.') ? `${name} (previsto)` : name
-                        ]}
+                        formatter={(value: number, name: string) => [formatCurrency(value), name]}
                         labelStyle={{ fontWeight: 600, marginBottom: 4 }}
                       />
                       <Legend 
@@ -166,11 +173,10 @@ export function FinancialChart({
                         iconType="circle"
                         iconSize={8}
                       />
-                      {/* Realized data - solid lines */}
                       <Area
                         type="monotone"
-                        dataKey="receita"
-                        name="Receita"
+                        dataKey={revenueKey}
+                        name={labels.revenue}
                         stroke="hsl(var(--success))"
                         strokeWidth={2}
                         fillOpacity={1}
@@ -178,8 +184,8 @@ export function FinancialChart({
                       />
                       <Area
                         type="monotone"
-                        dataKey="custos"
-                        name="Custos"
+                        dataKey={costKey}
+                        name={labels.cost}
                         stroke="hsl(var(--destructive))"
                         strokeWidth={2}
                         fillOpacity={1}
@@ -187,41 +193,17 @@ export function FinancialChart({
                       />
                       <Area
                         type="monotone"
-                        dataKey="lucro"
-                        name="Lucro"
+                        dataKey={profitKey}
+                        name={labels.profit}
                         stroke="hsl(var(--primary))"
                         strokeWidth={2.5}
                         fillOpacity={1}
                         fill="url(#colorLucro)"
                       />
-                      {/* Forecast data - dashed lines (current month only) */}
-                      <Area
-                        type="monotone"
-                        dataKey="receitaPrevisao"
-                        name="Prev. Receita"
-                        stroke="hsl(var(--success))"
-                        strokeWidth={1.5}
-                        strokeDasharray="4 4"
-                        fillOpacity={1}
-                        fill="url(#colorReceitaPrevisao)"
-                        connectNulls={false}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="lucroPrevisao"
-                        name="Prev. Lucro"
-                        stroke="hsl(var(--primary))"
-                        strokeWidth={1.5}
-                        strokeDasharray="4 4"
-                        fillOpacity={1}
-                        fill="url(#colorLucroPrevisao)"
-                        connectNulls={false}
-                      />
                     </AreaChart>
                   </ResponsiveContainer>
                 </TabsContent>
 
-                {/* Annual Comparison Chart - Overlay 6 months */}
                 <TabsContent value="annual" className="mt-0">
                   <ResponsiveContainer width="100%" height={200}>
                     <AreaChart data={annualComparison} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -287,7 +269,6 @@ export function FinancialChart({
                     </AreaChart>
                   </ResponsiveContainer>
                   
-                  {/* Annual Totals Summary */}
                   <div className="flex items-center justify-center gap-6 mt-2 pt-2 border-t border-border/50">
                     <div className="text-center">
                       <p className="text-xs text-muted-foreground">{currentYearLabel}</p>
