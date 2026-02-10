@@ -318,8 +318,10 @@ export function useKanban(phase: KanbanPhase) {
               return dateA - dateB;
             }
             
-            // Non-urgent: maintain original order (by created_at)
-            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+            // Non-urgent: sort by delivery date (closest first), no date goes to bottom
+            const dateA = a.delivery_date ? new Date(a.delivery_date).getTime() : Infinity;
+            const dateB = b.delivery_date ? new Date(b.delivery_date).getTime() : Infinity;
+            return dateA - dateB;
           }),
       }));
 
