@@ -101,7 +101,7 @@ export default function Pagamentos() {
       
       const { data: costsData } = await supabase
         .from('projects')
-        .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, delivery_date, clients(name)')
+        .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, delivery_date, delivered_at, clients(name)')
         .eq('workspace_id', currentWorkspace.id)
         .gt('custos_extras', 0)
         .in('custos_extras_payment_status', ['pendente', 'vencido', null]);
@@ -112,7 +112,7 @@ export default function Pagamentos() {
       
       const { data: allCostsData } = await supabase
         .from('projects')
-        .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, delivery_date, clients(name)')
+        .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, delivery_date, delivered_at, clients(name)')
         .eq('workspace_id', currentWorkspace.id)
         .gt('custos_extras', 0);
       
@@ -428,7 +428,7 @@ export default function Pagamentos() {
   }, [members]);
 
   const projectsList = useMemo(() => {
-    return projects.map(p => ({ id: p.id, name: p.name, project_code: p.project_code, client_id: p.client_id, delivery_date: p.delivery_date }));
+    return projects.map(p => ({ id: p.id, name: p.name, project_code: p.project_code, client_id: p.client_id, delivery_date: p.delivery_date, delivered_at: p.delivered_at }));
   }, [projects]);
 
   if (loading || permissionsLoading) {
