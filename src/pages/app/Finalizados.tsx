@@ -181,15 +181,13 @@ export default function Finalizados() {
       // Date range filter
       if ((startDate || endDate) && project.delivered_at) {
         const deliveredDate = parseISO(project.delivered_at);
-        if (startDate && endDate) {
-          if (!isWithinInterval(deliveredDate, {
-            start: startDate,
-            end: endDate
-          })) return false;
-        } else if (startDate && deliveredDate < startDate) {
+        if (startDate && deliveredDate < startDate) {
           return false;
-        } else if (endDate && deliveredDate > endDate) {
-          return false;
+        }
+        if (endDate) {
+          const endOfDay = new Date(endDate);
+          endOfDay.setHours(23, 59, 59, 999);
+          if (deliveredDate > endOfDay) return false;
         }
       }
       return true;
