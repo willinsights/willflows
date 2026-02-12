@@ -53,6 +53,7 @@ interface Project {
   project_code?: string | null;
   client_id?: string | null;
   delivery_date?: string | null;
+  delivered_at?: string | null;
 }
 
 interface Client {
@@ -133,7 +134,7 @@ export function FreelancerPaymentsControl({
       // Date filter using project's delivery_date
       if (filters.dateFrom || filters.dateTo) {
         const project = projects.find(p => p.id === tp.project_id);
-        const dateValue = project?.delivery_date;
+        const dateValue = project?.delivery_date || project?.delivered_at;
         if (dateValue) {
           if (filters.dateFrom && new Date(dateValue) < filters.dateFrom) return false;
           if (filters.dateTo) {
@@ -141,6 +142,8 @@ export function FreelancerPaymentsControl({
             endOfDay.setHours(23, 59, 59, 999);
             if (new Date(dateValue) > endOfDay) return false;
           }
+        } else {
+          return false;
         }
       }
       return true;

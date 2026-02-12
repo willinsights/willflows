@@ -45,6 +45,7 @@ export interface ProjectCustoExtra {
   client_id?: string | null;
   clients?: { name: string } | null;
   delivery_date?: string | null;
+  delivered_at?: string | null;
 }
 
 interface ExtraCostsPaymentsControlProps {
@@ -77,7 +78,7 @@ export function ExtraCostsPaymentsControl({
       }
       // Date filter using delivery_date
       if (filters.dateFrom || filters.dateTo) {
-        const dateValue = cost.delivery_date;
+        const dateValue = cost.delivery_date || cost.delivered_at;
         if (dateValue) {
           if (filters.dateFrom && new Date(dateValue) < filters.dateFrom) return false;
           if (filters.dateTo) {
@@ -85,6 +86,8 @@ export function ExtraCostsPaymentsControl({
             endOfDay.setHours(23, 59, 59, 999);
             if (new Date(dateValue) > endOfDay) return false;
           }
+        } else {
+          return false;
         }
       }
       return true;
