@@ -122,7 +122,7 @@ export default function Pagamentos() {
 
       const { data: revenueData } = await supabase
         .from('projects')
-        .select('id, name, project_code, agreed_value, client_payment_status, client_payment_due_date, client_id, delivery_date, clients(name)')
+        .select('id, name, project_code, agreed_value, client_payment_status, client_payment_due_date, client_id, delivery_date, delivered_at, clients(name)')
         .eq('workspace_id', currentWorkspace.id)
         .gt('agreed_value', 0);
       
@@ -138,14 +138,12 @@ export default function Pagamentos() {
   const monthProjectRevenue = useMemo(() => {
     const start = startOfMonth(currentMonth);
     const end = endOfMonth(currentMonth);
-    const now = new Date();
-    const isCurrentMonthView = isWithinInterval(now, { start, end });
     
     return projectRevenue.filter(project => {
-      const dateToCheck = project.client_payment_due_date || project.delivery_date;
+      const dateToCheck = project.client_payment_due_date || project.delivery_date || project.delivered_at;
       
       if (!dateToCheck) {
-        return isCurrentMonthView;
+        return false;
       }
       
       const date = new Date(dateToCheck);

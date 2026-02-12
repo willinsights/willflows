@@ -53,6 +53,7 @@ export interface ProjectRevenue {
   client_payment_due_date: string | null;
   client_id: string | null;
   delivery_date: string | null;
+  delivered_at: string | null;
   clients: { name: string } | null;
 }
 
