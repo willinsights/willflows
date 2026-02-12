@@ -1,72 +1,59 @@
 
 
-# Corrigir Projetos Finalizados de Janeiro
+# Ajustar Lista Final de Janeiro (62 projetos + 1 novo)
 
 ## Resumo
 
-Ajustar a base de dados para que **apenas os 65 projetos do ficheiro** estejam como entregues e pagos em Janeiro, e nenhum outro.
+Alinhar a base de dados com o PDF final: **62 projetos** entregues e pagos em Janeiro, **remover 3 projetos** que estavam em Janeiro mas nao constam no PDF, e **criar 1 novo projeto** para as diarias de estudio.
 
-## Situacao Atual
+## Alteracoes
 
-### Projetos do ficheiro que precisam de ajuste:
-- **9 projetos com `delivered_at` em Fevereiro** precisam ser movidos para Janeiro:
-  - Hotel Lince, Cooking class, Matriarca Bar, Chocopalha meet owner, Master class chef, Meet the owner chef, Matriarca prova vinho, Chocopalha visita, Walking tour gastronomico
-  - Estes ja estao `pago` mas com `delivered_at` em 04-06/Fev
+### 1. Remover 3 projetos de Janeiro (mover para Fevereiro)
+Estes projetos foram movidos para Janeiro anteriormente mas NAO constam no PDF final:
 
-- **56 projetos ja em Janeiro** -- ja estao corretos (entregues e pagos em Jan), nao precisam de alteracao
+| Projeto | ID | Acao |
+|---|---|---|
+| Hotel Lince | e9d69614 | Reverter delivered_at para Fevereiro |
+| Master class chef cantora | 47876472 | Reverter delivered_at para Fevereiro |
+| Meet the owner chef | e3152749 | Reverter delivered_at para Fevereiro |
 
-### Projetos que NAO estao no ficheiro mas estao em Janeiro (a remover):
-1. **Captacao Dubai** -- delivered_at: 12/Jan, pendente
-2. **VIDEO 4 - B SOUZA** -- delivered_at: 20/Jan, pago (paid_at: 5/Fev)
-3. **Edicao Insta** -- delivered_at: 26/Jan, pago (paid_at: 26/Jan)
-4. **Ecommerce Moises** -- delivered_at: 27/Jan, pago (paid_at: 26/Jan)
+Serao atualizados com `delivered_at = '2026-02-04'`, `client_paid_at = '2026-02-04'` (data original aproximada antes da migracao).
 
-## Plano de Execucao
+### 2. Criar projeto "4 Diarias Edicao Estudio Janeiro"
+Novo projeto com:
+- Nome: "4 Diarias Edicao Estudio Janeiro"
+- Valor: 800 EUR
+- Entregue e pago em Janeiro (`delivered_at` e `client_paid_at` = `2026-01-31`)
+- `client_payment_status = 'pago'`
+- `is_delivered = true`
 
-### Passo 1: Mover 9 projetos de Fev para Jan
-Atualizar `delivered_at` para `2026-01-31` (ultimo dia de Janeiro) nos 9 projetos que atualmente tem `delivered_at` em Fevereiro. Manter `client_payment_status = 'pago'` e definir `client_paid_at = '2026-01-31'`.
+### 3. Resultado final
+- **62 projetos existentes** + **1 novo projeto** = **63 registos** entregues e pagos em Janeiro
+- Total de lucro conforme PDF: 4.408 EUR (incluindo os 800 EUR das diarias)
 
-IDs dos 9 projetos:
-- `e9d69614` (Hotel Lince)
-- `bbfdfb27` (Cooking class)
-- `3efbf211` (Matriarca Bar)
-- `5a483d6e` (Chocopalha meet owner)
-- `47876472` (Master class chef)
-- `e3152749` (Meet the owner chef)
-- `bc9167f4` (Matriarca prova vinho)
-- `7c3c0c7a` (Chocopalha visita)
-- `cb2efd68` (Walking tour)
+## Seccao Tecnica
 
-### Passo 2: Remover 4 projetos de Janeiro
-Reverter `is_delivered = false`, `delivered_at = null`, `client_payment_status = 'pendente'`, `client_paid_at = null` para os 4 projetos que nao constam no ficheiro:
-- `1e686ab7` (Captacao Dubai)
-- `9e4977a7` (VIDEO 4 - B SOUZA)
-- `45dd7ab5` (Edicao Insta)
-- `0535ab61` (Ecommerce Moises)
+### Queries SQL:
 
-### Passo 3: Garantir que todos os 65 projetos estao pago em Janeiro
-Verificar e atualizar os 56 projetos que ja estao em Janeiro para garantir `client_paid_at` dentro de Janeiro (muitos tem `client_paid_at: 2026-02-09`, que precisa de ser movido para Janeiro).
+```text
+-- Passo 1: Mover 3 projetos para Fevereiro
+UPDATE projects 
+SET delivered_at = '2026-02-04 12:00:00+00', 
+    client_paid_at = '2026-02-04 12:00:00+00'
+WHERE id IN (
+  'e9d69614-1b84-4f10-af26-1fd24383e15f',
+  '47876472-b7f6-42b3-83eb-5051403a4467',
+  'e3152749-d284-46fb-bd33-55a0949b0898'
+);
 
-### Passo 4: Corrigir erro de build TypeScript
-Corrigir o erro em `src/hooks/usePushNotifications.ts` onde `pushManager` nao e reconhecido no tipo `ServiceWorkerRegistration`. Solucao: adicionar cast `as any` nas 4 linhas afetadas (115, 213, 220, 316).
-
-## Secao Tecnica
-
-### Queries de dados (via insert tool):
-```sql
--- Passo 1: Mover 9 projetos de Fev para Jan
-UPDATE projects SET delivered_at = '2026-01-31 23:59:00+00', client_paid_at = '2026-01-31 23:59:00+00'
-WHERE id IN ('e9d69614-...', 'bbfdfb27-...', ...);
-
--- Passo 2: Reverter 4 projetos
-UPDATE projects SET is_delivered = false, delivered_at = null, client_payment_status = 'pendente', client_paid_at = null
-WHERE id IN ('1e686ab7-...', '9e4977a7-...', '45dd7ab5-...', '0535ab61-...');
-
--- Passo 3: Atualizar client_paid_at dos 56 projetos de Fev para Jan
-UPDATE projects SET client_paid_at = '2026-01-31 23:59:00+00'
-WHERE id IN (...) AND client_paid_at >= '2026-02-01';
+-- Passo 2: Criar projeto diarias estudio
+INSERT INTO projects (name, agreed_value, is_delivered, delivered_at, 
+  client_payment_status, client_paid_at, workspace_id, created_by)
+VALUES ('4 Diarias Edicao Estudio Janeiro', 800, true, 
+  '2026-01-31 23:59:00+00', 'pago', '2026-01-31 23:59:00+00',
+  <workspace_id>, <user_id>);
 ```
 
-### Ficheiro de codigo:
-- `src/hooks/usePushNotifications.ts` (linhas 115, 213, 220, 316): adicionar type assertion para resolver erro TS
+### Ficheiros de codigo:
+Nenhuma alteracao de codigo necessaria -- apenas operacoes na base de dados.
 
