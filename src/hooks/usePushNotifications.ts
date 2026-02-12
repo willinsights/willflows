@@ -112,7 +112,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       if (import.meta.env.DEV) console.log('[Push] Service Worker registered:', registration.scope);
 
       // Check if already subscribed
-      const subscription = await registration.pushManager.getSubscription();
+      const subscription = await (registration as any).pushManager.getSubscription();
       setIsSubscribed(!!subscription);
     };
 
@@ -210,14 +210,14 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       swRegistrationRef.current = registration;
 
       // Check existing subscription
-      let subscription = await registration.pushManager.getSubscription();
+      let subscription = await (registration as any).pushManager.getSubscription();
       if (import.meta.env.DEV) console.log('[Push] Existing subscription:', subscription ? 'found' : 'none');
       
       if (!subscription) {
         // Subscribe to push with VAPID key
         if (import.meta.env.DEV) console.log('[Push] Creating new subscription with VAPID key...');
         const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-        subscription = await registration.pushManager.subscribe({
+        subscription = await (registration as any).pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: applicationServerKey.buffer as ArrayBuffer,
         });
@@ -313,7 +313,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     try {
       const registration = (await getOrRegisterPushSW()) ?? swRegistrationRef.current;
       if (!registration) return;
-      const subscription = await registration.pushManager.getSubscription();
+      const subscription = await (registration as any).pushManager.getSubscription();
       
       if (subscription) {
         await subscription.unsubscribe();
