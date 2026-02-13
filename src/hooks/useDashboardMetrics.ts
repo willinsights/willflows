@@ -161,30 +161,43 @@ export function useDashboardMetrics() {
       // Fetch projects count by phase (include delivery_date for forecast)
       const { data: projectsData } = await supabase
         .from('projects')
-        .select('id, current_phase, is_delivered, agreed_value, custo_captacao, custo_edicao, custos_extras, created_at, delivered_at, delivery_date, type, item_type')
+        .select('id, current_phase, is_delivered, agreed_value, custo_captacao, custo_edicao, custos_extras, created_at, delivered_at, delivery_date, type, item_type, competence_month')
         .eq('workspace_id', currentWorkspace.id);
 
       const captacao = projectsData?.filter(p => p.current_phase === 'captacao' && !p.is_delivered && p.item_type !== 'reuniao').length || 0;
       const edicao = projectsData?.filter(p => p.current_phase === 'edicao' && !p.is_delivered && p.item_type !== 'reuniao').length || 0;
       
+      // Helper: get effective month for a project (competence_month > delivered_at)
+      const getEffectiveDate = (p: any): Date | null => {
+        if (p.competence_month) return new Date(p.competence_month + '-01');
+        if (p.delivered_at) return new Date(p.delivered_at);
+        return null;
+      };
+      const isInEffectiveMonth = (p: any, monthStart: Date, monthEnd: Date): boolean => {
+        const d = getEffectiveDate(p);
+        if (!d) return false;
+        // For competence_month, compare by month only
+        if (p.competence_month) {
+          return d.getFullYear() === monthStart.getFullYear() && d.getMonth() === monthStart.getMonth();
+        }
+        return d >= monthStart && d <= monthEnd;
+      };
+
       // Count delivered projects for current month
       const entregues = projectsData?.filter(p => {
-        if (!p.is_delivered || !p.delivered_at) return false;
-        const deliveredAt = new Date(p.delivered_at);
-        return deliveredAt >= currentMonthStart && deliveredAt <= currentMonthEnd;
+        if (!p.is_delivered) return false;
+        return isInEffectiveMonth(p, currentMonthStart, currentMonthEnd);
       }).length || 0;
       
       // Count delivered projects for previous month
       const entreguesPrevious = projectsData?.filter(p => {
-        if (!p.is_delivered || !p.delivered_at) return false;
-        const deliveredAt = new Date(p.delivered_at);
-        return deliveredAt >= previousMonthStart && deliveredAt <= previousMonthEnd;
+        if (!p.is_delivered) return false;
+        return isInEffectiveMonth(p, previousMonthStart, previousMonthEnd);
       }).length || 0;
       // Calculate financial metrics for CURRENT MONTH (DELIVERED projects only)
       const currentMonthProjects = projectsData?.filter(p => {
-        if (!p.is_delivered || !p.delivered_at) return false;
-        const deliveredAt = new Date(p.delivered_at);
-        return deliveredAt >= currentMonthStart && deliveredAt <= currentMonthEnd;
+        if (!p.is_delivered) return false;
+        return isInEffectiveMonth(p, currentMonthStart, currentMonthEnd);
       }) || [];
       
       const receita = currentMonthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
@@ -194,9 +207,8 @@ export function useDashboardMetrics() {
       
       // Calculate financial metrics for PREVIOUS MONTH (DELIVERED projects only)
       const previousMonthProjects = projectsData?.filter(p => {
-        if (!p.is_delivered || !p.delivered_at) return false;
-        const deliveredAt = new Date(p.delivered_at);
-        return deliveredAt >= previousMonthStart && deliveredAt <= previousMonthEnd;
+        if (!p.is_delivered) return false;
+        return isInEffectiveMonth(p, previousMonthStart, previousMonthEnd);
       }) || [];
       
       const receitaPrevious = previousMonthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
@@ -397,11 +409,10 @@ export function useDashboardMetrics() {
         const monthEnd = endOfMonth(monthDate);
         const isCurrentMonth = i === 0;
         
-        // Filter only DELIVERED projects in this month (realized revenue)
+        // Filter only DELIVERED projects in this month (by competence)
         const monthProjects = projectsData?.filter(p => {
-          if (!p.is_delivered || !p.delivered_at) return false;
-          const deliveredAt = new Date(p.delivered_at);
-          return deliveredAt >= monthStart && deliveredAt <= monthEnd;
+          if (!p.is_delivered) return false;
+          return isInEffectiveMonth(p, monthStart, monthEnd);
         }) || [];
         
         const monthReceita = monthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
@@ -464,15 +475,13 @@ export function useDashboardMetrics() {
         const previousYearEnd = endOfMonth(previousYearMonth);
         
         const currentYearRevenue = projectsData?.filter(p => {
-          if (!p.is_delivered || !p.delivered_at) return false;
-          const deliveredAt = new Date(p.delivered_at);
-          return deliveredAt >= currentYearStart && deliveredAt <= currentYearEnd;
+          if (!p.is_delivered) return false;
+          return isInEffectiveMonth(p, currentYearStart, currentYearEnd);
         }).reduce((sum, p) => sum + (p.agreed_value || 0), 0) || 0;
         
         const previousYearRevenue = projectsData?.filter(p => {
-          if (!p.is_delivered || !p.delivered_at) return false;
-          const deliveredAt = new Date(p.delivered_at);
-          return deliveredAt >= previousYearStart && deliveredAt <= previousYearEnd;
+          if (!p.is_delivered) return false;
+          return isInEffectiveMonth(p, previousYearStart, previousYearEnd);
         }).reduce((sum, p) => sum + (p.agreed_value || 0), 0) || 0;
         
         annualData.push({

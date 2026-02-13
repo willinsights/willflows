@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Filter, Calendar as CalendarIcon, FileSpreadsheet, FileText, Camera, Film, Video, Eye, EyeOff, X, Users, Lock } from 'lucide-react';
-import { format, isWithinInterval, parseISO } from 'date-fns';
+import { format, isWithinInterval, parseISO, subMonths, addMonths, startOfMonth } from 'date-fns';
 import { usePagination } from '@/hooks/usePagination';
 import { ListPagination } from '@/components/ui/list-pagination';
 import { pt } from 'date-fns/locale';
@@ -36,6 +36,49 @@ const typeLabels: Record<string, string> = {
   video: 'Vídeo',
   foto_video: 'Foto + Vídeo'
 };
+// Competence Month inline select
+function CompetenceMonthSelect({ projectId, currentValue, deliveredAt }: { projectId: string; currentValue: string | null; deliveredAt: string | null }) {
+  const [value, setValue] = useState(currentValue);
+  const displayDefault = deliveredAt ? format(new Date(deliveredAt), 'MMM yy', { locale: pt }) : '-';
+
+  // Generate last 12 months as options
+  const options = useMemo(() => {
+    const result: { value: string; label: string }[] = [];
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = subMonths(now, i);
+      const val = format(d, 'yyyy-MM');
+      const label = format(d, 'MMM yyyy', { locale: pt });
+      result.push({ value: val, label });
+    }
+    return result;
+  }, []);
+
+  const handleChange = async (newValue: string) => {
+    const actualValue = newValue === 'default' ? null : newValue;
+    setValue(actualValue);
+    await supabase.from('projects').update({ competence_month: actualValue }).eq('id', projectId);
+  };
+
+  return (
+    <Select value={value || 'default'} onValueChange={handleChange}>
+      <SelectTrigger className="h-7 w-[110px] text-xs">
+        <SelectValue>
+          {value ? format(parseISO(value + '-01'), 'MMM yy', { locale: pt }) : <span className="text-muted-foreground">{displayDefault}</span>}
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="default">
+          <span className="text-muted-foreground">Auto ({displayDefault})</span>
+        </SelectItem>
+        {options.map(opt => (
+          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 export default function Finalizados() {
   const {
     projects
@@ -229,13 +272,17 @@ export default function Finalizados() {
     
     // Build headers based on permissions
     const headers = canViewAllFinancials 
-      ? ['Código', 'Projeto', 'Cliente', 'Tipo', 'Data de Entrega', 'Captação', 'Edição', 'Preço Cliente', 'Custos', 'Lucro']
-      : ['Código', 'Projeto', 'Cliente', 'Tipo', 'Data de Entrega', 'Captação', 'Edição'];
+      ? ['Código', 'Projeto', 'Cliente', 'Tipo', 'Data de Entrega', 'Competência', 'Captação', 'Edição', 'Preço Cliente', 'Custos', 'Lucro']
+      : ['Código', 'Projeto', 'Cliente', 'Tipo', 'Data de Entrega', 'Competência', 'Captação', 'Edição'];
     
     const data = completedProjects.map(project => {
       const team = projectTeams[project.id] || { captacao: [], edicao: [] };
       const custo = (project.custo_captacao || 0) + (project.custo_edicao || 0) + (project.custos_extras || 0);
       const lucro = (project.agreed_value || 0) - custo;
+      
+      const competence = project.competence_month
+        ? format(parseISO(project.competence_month + '-01'), 'MMM yyyy', { locale: pt })
+        : project.delivered_at ? format(new Date(project.delivered_at), 'MMM yyyy', { locale: pt }) : 'N/A';
       
       const row: (string | number)[] = [
         project.project_code || project.id.slice(0, 8).toUpperCase(),
@@ -243,6 +290,7 @@ export default function Finalizados() {
         project.clients?.name || 'Sem cliente',
         typeLabels[project.type],
         project.delivered_at ? format(new Date(project.delivered_at), 'dd/MM/yyyy') : 'N/A',
+        competence,
         getTeamNames(team.captacao),
         getTeamNames(team.edicao),
       ];
@@ -350,6 +398,7 @@ export default function Finalizados() {
               <th>Cliente</th>
               <th>Tipo</th>
               <th>Data Entrega</th>
+              <th>Competência</th>
               <th>Captação</th>
               <th>Edição</th>
               ${canViewAllFinancials ? '<th class="right">Preço</th><th class="right">Custos</th><th class="right">Lucro</th>' : ''}
@@ -367,6 +416,7 @@ export default function Finalizados() {
                 <td>${project.clients?.name || 'Sem cliente'}</td>
                 <td>${typeLabels[project.type]}</td>
                 <td>${project.delivered_at ? format(new Date(project.delivered_at), 'dd/MM/yyyy') : 'N/A'}</td>
+                <td>${project.competence_month ? format(parseISO(project.competence_month + '-01'), 'MMM yyyy', { locale: pt }) : (project.delivered_at ? format(new Date(project.delivered_at), 'MMM yyyy', { locale: pt }) : 'N/A')}</td>
                 <td>${getTeamNames(team.captacao)}</td>
                 <td>${getTeamNames(team.edicao)}</td>
                 ${canViewAllFinancials ? `
@@ -566,12 +616,13 @@ export default function Finalizados() {
           </p>
         </motion.div> : <Card className="glass-card overflow-hidden">
           <Table>
-            <TableHeader>
+             <TableHeader>
               <TableRow>
                 <TableHead>Projeto</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Data de Entrega</TableHead>
+                <TableHead>Competência</TableHead>
                 <TableHead>Captação</TableHead>
                 <TableHead>Edição</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
@@ -616,6 +667,13 @@ export default function Finalizados() {
                       {project.delivered_at ? format(new Date(project.delivered_at), 'dd/MM/yyyy', {
                   locale: pt
                 }) : 'N/A'}
+                    </TableCell>
+                    <TableCell onClick={e => e.stopPropagation()}>
+                      <CompetenceMonthSelect
+                        projectId={project.id}
+                        currentValue={project.competence_month || null}
+                        deliveredAt={project.delivered_at}
+                      />
                     </TableCell>
                     <TableCell>
                       {renderTeamAvatars(team.captacao)}

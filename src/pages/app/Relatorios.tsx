@@ -291,9 +291,16 @@ export default function Relatorios() {
       if (end < dateRange.start) continue;
       
       const monthProjects = projects.filter(p => {
-        if (!p.is_delivered || !p.delivered_at) return false;
-        const delivered = new Date(p.delivered_at);
-        return isWithinInterval(delivered, { start, end });
+        if (!p.is_delivered) return false;
+        // Use competence_month with fallback to delivered_at
+        const effectiveDate = p.competence_month
+          ? new Date(p.competence_month + '-01')
+          : p.delivered_at ? new Date(p.delivered_at) : null;
+        if (!effectiveDate) return false;
+        if (p.competence_month) {
+          return effectiveDate.getFullYear() === start.getFullYear() && effectiveDate.getMonth() === start.getMonth();
+        }
+        return isWithinInterval(effectiveDate, { start, end });
       });
       
       const revenue = monthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);

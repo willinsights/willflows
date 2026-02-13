@@ -15,6 +15,7 @@ export interface FinancialProject {
   created_at: string;
   client_payment_status: string | null;
   client_paid_at: string | null;
+  competence_month: string | null;
 }
 
 export interface TeamPayment {

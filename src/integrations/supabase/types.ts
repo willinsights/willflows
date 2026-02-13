@@ -2014,6 +2014,7 @@ export type Database = {
           client_paid_at: string | null
           client_payment_due_date: string | null
           client_payment_status: string | null
+          competence_month: string | null
           country: string | null
           created_at: string
           created_by: string | null
@@ -2059,6 +2060,7 @@ export type Database = {
           client_paid_at?: string | null
           client_payment_due_date?: string | null
           client_payment_status?: string | null
+          competence_month?: string | null
           country?: string | null
           created_at?: string
           created_by?: string | null
@@ -2104,6 +2106,7 @@ export type Database = {
           client_paid_at?: string | null
           client_payment_due_date?: string | null
           client_payment_status?: string | null
+          competence_month?: string | null
           country?: string | null
           created_at?: string
           created_by?: string | null

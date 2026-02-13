@@ -50,7 +50,7 @@ export function useFinancialEngine(
           id, agreed_value, custo_captacao, custo_edicao, custos_extras,
           custos_extras_payment_status, custos_extras_paid_at,
           is_delivered, delivered_at, delivery_date, shoot_date, created_at,
-          client_payment_status, client_paid_at
+          client_payment_status, client_paid_at, competence_month
         `)
         .eq('workspace_id', currentWorkspace.id);
 
@@ -69,6 +69,7 @@ export function useFinancialEngine(
         created_at: p.created_at,
         client_payment_status: p.client_payment_status,
         client_paid_at: p.client_paid_at,
+        competence_month: p.competence_month,
       }));
 
       setProjects(mappedProjects);

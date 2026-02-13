@@ -156,6 +156,7 @@ export default function Dashboard() {
       client_payment_status: null,
       client_payment_due_date: null,
       client_paid_at: null,
+      competence_month: null,
     };
     setSelectedProject(projectForModal);
     setIsModalOpen(true);
