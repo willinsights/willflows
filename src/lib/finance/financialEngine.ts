@@ -25,6 +25,18 @@ function getAnchorDate(project: FinancialProject): Date | null {
   return raw ? parseISO(raw) : null;
 }
 
+/** Returns the effective month for competence-based grouping.
+ *  Priority: competence_month > delivered_at (start of month) */
+function getEffectiveMonth(project: FinancialProject): Date | null {
+  if (project.competence_month) {
+    return parseISO(project.competence_month + '-01');
+  }
+  if (project.delivered_at) {
+    return startOfMonth(parseISO(project.delivered_at));
+  }
+  return null;
+}
+
 function getProjectCost(p: FinancialProject): number {
   return (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0);
 }
@@ -45,9 +57,11 @@ function monthInterval(month: Date) {
 
 // === REALIZADO ===
 function getRealizadoMetrics(projects: FinancialProject[], month: Date): MonthlyMetrics {
-  const filtered = projects.filter(p =>
-    p.is_delivered && p.delivered_at && isInMonth(p.delivered_at, month)
-  );
+  const filtered = projects.filter(p => {
+    if (!p.is_delivered) return false;
+    const effectiveMonth = getEffectiveMonth(p);
+    return effectiveMonth && isSameMonth(effectiveMonth, month);
+  });
   const revenue = filtered.reduce((s, p) => s + getProjectRevenue(p), 0);
   const cost = filtered.reduce((s, p) => s + getProjectCost(p), 0);
   return {
@@ -200,10 +214,12 @@ export function getMonthlySummary(
     return anchor && isInMonth(anchor, month);
   }).length;
 
-  // Delivered in month
-  const delivered = projects.filter(p =>
-    p.is_delivered && p.delivered_at && isInMonth(p.delivered_at, month)
-  ).length;
+  // Delivered in month (by competence)
+  const delivered = projects.filter(p => {
+    if (!p.is_delivered) return false;
+    const effectiveMonth = getEffectiveMonth(p);
+    return effectiveMonth && isSameMonth(effectiveMonth, month);
+  }).length;
 
   // Postponed: anchor in month but NOT delivered by end of month
   const postponed = projects.filter(p => {
@@ -218,10 +234,11 @@ export function getMonthlySummary(
     return false;
   }).length;
 
-  // Rescued: anchor BEFORE month but delivered IN month
+  // Rescued: anchor BEFORE month but delivered IN month (by competence)
   const rescued = projects.filter(p => {
-    if (!p.is_delivered || !p.delivered_at) return false;
-    if (!isInMonth(p.delivered_at, month)) return false;
+    if (!p.is_delivered) return false;
+    const effectiveMonth = getEffectiveMonth(p);
+    if (!effectiveMonth || !isSameMonth(effectiveMonth, month)) return false;
     const anchor = getAnchorDate(p);
     return anchor && isBefore(anchor, monthStart);
   }).length;
