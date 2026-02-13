@@ -161,11 +161,11 @@ export function useDashboardMetrics() {
       // Fetch projects count by phase (include delivery_date for forecast)
       const { data: projectsData } = await supabase
         .from('projects')
-        .select('id, current_phase, is_delivered, agreed_value, custo_captacao, custo_edicao, custos_extras, created_at, delivered_at, delivery_date, type')
+        .select('id, current_phase, is_delivered, agreed_value, custo_captacao, custo_edicao, custos_extras, created_at, delivered_at, delivery_date, type, item_type')
         .eq('workspace_id', currentWorkspace.id);
 
-      const captacao = projectsData?.filter(p => p.current_phase === 'captacao' && !p.is_delivered).length || 0;
-      const edicao = projectsData?.filter(p => p.current_phase === 'edicao' && !p.is_delivered).length || 0;
+      const captacao = projectsData?.filter(p => p.current_phase === 'captacao' && !p.is_delivered && p.item_type !== 'reuniao').length || 0;
+      const edicao = projectsData?.filter(p => p.current_phase === 'edicao' && !p.is_delivered && p.item_type !== 'reuniao').length || 0;
       
       // Count delivered projects for current month
       const entregues = projectsData?.filter(p => {
