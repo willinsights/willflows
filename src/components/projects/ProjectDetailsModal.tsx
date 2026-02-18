@@ -607,24 +607,19 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
           </DialogHeader>
 
           <Tabs defaultValue="details" className="w-full">
-            <TabsList
-              className={cn(
-                "grid w-full mb-4",
-                showVideoProductionTab
-                  ? (canViewOwnFinancials ? "grid-cols-6" : "grid-cols-5")
-                  : (canViewOwnFinancials ? "grid-cols-5" : "grid-cols-4")
-              )}
-            >
-              <TabsTrigger value="details">Detalhes</TabsTrigger>
-              <TabsTrigger value="checklist">Checklist</TabsTrigger>
-              <TabsTrigger value="timeline">Timeline</TabsTrigger>
-              <TabsTrigger value="media">Links</TabsTrigger>
-              {canViewOwnFinancials && <TabsTrigger value="financial">Financeiro</TabsTrigger>}
-              {showVideoProductionTab && <TabsTrigger value="video">Review Studio</TabsTrigger>}
-            </TabsList>
+            <ScrollArea className="w-full pb-2" type="scroll">
+              <TabsList className="flex w-max min-w-full mb-4">
+                <TabsTrigger value="details">Detalhes</TabsTrigger>
+                <TabsTrigger value="checklist">Checklist</TabsTrigger>
+                <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                <TabsTrigger value="media">Links</TabsTrigger>
+                {canViewOwnFinancials && <TabsTrigger value="financial">Financeiro</TabsTrigger>}
+                {showVideoProductionTab && <TabsTrigger value="video">Review Studio</TabsTrigger>}
+              </TabsList>
+            </ScrollArea>
 
             <ScrollArea className="h-[calc(90vh-280px)]">
-              <TabsContent value="details" className="space-y-4 pr-4">
+              <TabsContent value="details" className="space-y-4 pr-2 sm:pr-4">
                 {isEditing ? (
                   <>
                     {/* Tipo de Item e ID do Projeto */}
@@ -1186,7 +1181,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
               </TabsContent>
 
               {/* Checklist Tab */}
-              <TabsContent value="checklist" className="space-y-4 pr-4">
+              <TabsContent value="checklist" className="space-y-4 pr-2 sm:pr-4">
                 <ProjectChecklistTab
                   checklists={checklists}
                   setChecklists={setChecklists}
@@ -1200,7 +1195,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
               </TabsContent>
 
               {/* Timeline Tab */}
-              <TabsContent value="timeline" className="space-y-4 pr-4">
+              <TabsContent value="timeline" className="space-y-4 pr-2 sm:pr-4">
                 <ProjectTimelineTab
                   projectId={project.id}
                   workspaceId={project.workspace_id}
@@ -1208,7 +1203,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
               </TabsContent>
 
               {/* Media Tab */}
-              <TabsContent value="media" className="space-y-4 pr-4">
+              <TabsContent value="media" className="space-y-4 pr-2 sm:pr-4">
                 <ProjectMediaTab
                   mediaLinks={mediaLinks}
                   setMediaLinks={setMediaLinks}
@@ -1219,7 +1214,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
               </TabsContent>
 
               {/* Financial Tab */}
-              <TabsContent value="financial" className="space-y-4 pr-4">
+              <TabsContent value="financial" className="space-y-4 pr-2 sm:pr-4">
                 <ProjectFinancialTab
                   projectId={project.id}
                   project={{
@@ -1245,7 +1240,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
               </TabsContent>
 
               {showVideoProductionTab && (
-                <TabsContent value="video" className="space-y-4 pr-4">
+                <TabsContent value="video" className="space-y-4 pr-2 sm:pr-4">
                   {planLoading ? (
                     <div className="flex items-center justify-center py-10">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -1269,8 +1264,8 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
           </Tabs>
 
           {/* Actions */}
-          <div className="flex justify-between gap-2 pt-4 border-t">
-            <div className="flex gap-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-2 pt-4 border-t">
+            <div className="flex flex-wrap gap-2">
               <Button 
                 variant="destructive" 
                 size="sm"
@@ -1299,7 +1294,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
               </Button>
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {isEditing ? (
                 <>
                   <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}>
