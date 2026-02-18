@@ -628,7 +628,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                 {isEditing ? (
                   <>
                     {/* Tipo de Item e ID do Projeto */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Tipo de Item</Label>
                         <Select 
@@ -657,7 +657,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                     </div>
 
                     {/* Client Selection */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Cliente</Label>
                         <Select 
@@ -700,7 +700,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                     </div>
 
                     {/* Category & Priority */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Categoria</Label>
                         <Select 
@@ -765,7 +765,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                     <Separator />
 
                     {/* Dates */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Data de Captação</Label>
                         <Popover>
@@ -809,7 +809,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Hora Início</Label>
                         <Input 
@@ -831,7 +831,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                     <Separator />
 
                     {/* Location */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Cidade</Label>
                         <Input 
@@ -855,7 +855,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                     {/* Responsáveis */}
                     <div className="space-y-4">
                       <h4 className="font-medium text-sm">Responsáveis</h4>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label className="flex items-center gap-2">
                             <Users className="h-4 w-4" />
@@ -1035,7 +1035,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                     </div>
 
                     {/* INFORMAÇÕES EM GRID 2 COLUNAS */}
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
                       {/* Linha 1: Cliente | Tipo */}
                       <div className="flex items-center py-1.5">
                         <span className="w-28 text-sm font-medium shrink-0">Cliente</span>

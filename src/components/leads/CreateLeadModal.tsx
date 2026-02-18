@@ -118,7 +118,7 @@ export function CreateLeadModal({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -139,7 +139,7 @@ export function CreateLeadModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="lead_source">Origem</Label>
               <Select

@@ -288,7 +288,7 @@ export function CreateProjectModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh]">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-xl">Criar Novo Projeto</DialogTitle>
             
@@ -325,7 +325,7 @@ export function CreateProjectModal({
             </div>
           </DialogHeader>
 
-          <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
+          <ScrollArea className="max-h-[calc(90vh-160px)] sm:max-h-[calc(90vh-120px)] pr-2 sm:pr-4">
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="space-y-2">
                 <Label>Tipo de Item *</Label>
@@ -355,7 +355,7 @@ export function CreateProjectModal({
                   Identificação
                 </h3>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Nome do Projeto *</Label>
                     <Input
@@ -380,7 +380,7 @@ export function CreateProjectModal({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Category with + Create option first */}
                   <div className="space-y-2">
                     <Label>Categoria</Label>
@@ -452,7 +452,7 @@ export function CreateProjectModal({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Prioridade</Label>
                     <Select
@@ -490,7 +490,7 @@ export function CreateProjectModal({
                   Datas e Horários
                 </h3>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {hasCaptacao && (
                     <>
                       <div className="space-y-2">
@@ -585,7 +585,7 @@ export function CreateProjectModal({
                       Responsáveis
                     </h3>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {hasCaptacao && (
                         <div className="space-y-2">
                           <Label className="flex items-center gap-2">
@@ -753,7 +753,7 @@ export function CreateProjectModal({
                       Financeiro
                     </h3>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Preço Cliente ({currencySymbol}) *</Label>
                         <CurrencyInput
