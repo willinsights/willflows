@@ -21,9 +21,9 @@ const logStep = (step: string, details?: any) => {
 
 // Plan mapping by product ID - now using 'starter'
 const PLAN_MAPPING: Record<string, string> = {
-  'prod_Tl6rw16ZNqHrWd': 'starter',
-  'prod_Tl6rsZkoz6yqYu': 'pro',
-  'prod_Tl6rxTvnCICjTL': 'studio',
+  'prod_TpNVDQjhG0wlZ4': 'starter',
+  'prod_TpNVjl9D0tQ8wQ': 'pro',
+  'prod_TpNVM1mlDtAvKA': 'studio',
 };
 
 // Very small in-memory cache to reduce Stripe calls
