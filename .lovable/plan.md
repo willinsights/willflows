@@ -1,62 +1,44 @@
 
 
-## Corrigir Subscrição Stripe — IDs de Produto + Fix Manual
+## Corrigir Relatórios e Pagamentos para Todos os Utilizadores
 
-### 1. Fix Imediato: Atualizar registo do Júnio na BD
+### Problemas Identificados
 
-```sql
-UPDATE user_subscriptions 
-SET subscription_plan = 'pro',
-    subscription_status = 'active',
-    stripe_subscription_id = 'sub_1T6yYlGr2lXbVyw9VcBUrPmb',
-    stripe_customer_id = 'cus_Tq3ROXZ7uyl9bG',
-    current_period_end = '2026-04-01T12:44:44Z',
-    trial_ends_at = NULL
-WHERE user_id = '47b648bc-0097-468a-a474-06e49048578d';
-```
+1. **Tab "Pagamentos Colaboradores"** — não mostra coluna de data de entrega, não distingue projetos entregues dos em curso, e não inclui `is_delivered` nos dados
+2. **`useTeamPayments`** — carrega equipa de TODOS os projetos (entregues e não entregues) sem distinção
+3. **Relatórios (`topClients`)** — conta receita de TODOS os projetos incluindo não entregues, inflacionando valores
+4. **Falta de sincronização** — o `projectsList` passado ao componente de pagamentos não inclui `is_delivered`
 
-Também atualizar o workspace dele:
-```sql
-UPDATE workspaces SET subscription_plan = 'pro', subscription_status = 'active',
-  stripe_customer_id = 'cus_Tq3ROXZ7uyl9bG', stripe_subscription_id = 'sub_1T6yYlGr2lXbVyw9VcBUrPmb'
-WHERE id IN (SELECT workspace_id FROM workspace_members WHERE user_id = '47b648bc-0097-468a-a474-06e49048578d' AND role = 'admin');
-```
+### Plano
 
-### 2. Corrigir Product IDs nas Edge Functions
+#### 1. Adicionar `is_delivered` e `delivered_at` ao `projectsList` (Pagamentos.tsx)
 
-**`supabase/functions/stripe-webhook/index.ts`** — Linha 11-15:
-```typescript
-const PRODUCT_TO_PLAN: Record<string, string> = {
-  'prod_TpNVDQjhG0wlZ4': 'starter',
-  'prod_TpNVjl9D0tQ8wQ': 'pro',
-  'prod_TpNVM1mlDtAvKA': 'studio',
-};
-```
+Linha 431 — incluir `is_delivered` no mapeamento para que o componente possa filtrar/mostrar estado.
 
-**`supabase/functions/check-subscription/index.ts`** — Linha 30-34:
-```typescript
-const PLAN_MAPPING: Record<string, string> = {
-  'prod_TpNVDQjhG0wlZ4': 'starter',
-  'prod_TpNVjl9D0tQ8wQ': 'pro',
-  'prod_TpNVM1mlDtAvKA': 'studio',
-};
-```
+#### 2. Adicionar coluna "Data Entrega" + badge de estado (FreelancerPaymentsControl.tsx)
 
-### 3. Verificar Webhook URL no Stripe
+- Adicionar `is_delivered` ao interface `Project` (linha 50-57)
+- Adicionar coluna **"Data Entrega"** na tabela com formatação `dd/MM/yyyy`
+- Adicionar badge visual (Entregue / Em curso) para distinguir projetos
+- Ordenar por projetos entregues primeiro, depois por data
 
-O webhook não está a receber eventos. Precisas verificar no dashboard do Stripe:
-- O endpoint URL deve ser: `https://wppfmyseeigsdqutkgyc.supabase.co/functions/v1/stripe-webhook`
-- O `STRIPE_WEBHOOK_SECRET` configurado no projeto deve corresponder ao signing secret do endpoint
+#### 3. Corrigir `topClients` no Relatórios (Relatorios.tsx)
+
+Linha 327-345 — filtrar apenas projetos entregues (`is_delivered === true`) para receita real, não previsões.
+
+#### 4. Incluir `delivered_at` na exportação de dados do FreelancerPaymentsControl
+
+Adicionar coluna "Data Entrega" ao `exportData` para que Excel/PDF incluam esta informação.
 
 ---
 
-### Ficheiros a modificar: 2
-1. `supabase/functions/stripe-webhook/index.ts` — corrigir product IDs
-2. `supabase/functions/check-subscription/index.ts` — corrigir product IDs
-
-### Operações de dados: 2 queries UPDATE (user_subscriptions + workspaces)
+### Ficheiros a modificar: 3
+1. `src/pages/app/Pagamentos.tsx` — incluir `is_delivered` no `projectsList`
+2. `src/components/payments/FreelancerPaymentsControl.tsx` — coluna de data + badge + ordenação
+3. `src/pages/app/Relatorios.tsx` — filtrar apenas entregues no `topClients`
 
 ### Impacto
-- **Crítico** — sem esta correção, nenhuma subscrição Live será reconhecida
-- Risco baixo — apenas IDs de mapeamento, sem alteração de lógica
+- Todos os utilizadores verão projetos entregues correctamente identificados com data
+- Relatórios mostrarão receita real (só projectos entregues)
+- Pagamentos de colaboradores sincronizados com estado de entrega do projecto
 
