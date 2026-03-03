@@ -23,6 +23,7 @@ import { PaymentFilters, FilterState } from './PaymentFilters';
 import { PaymentExportButtons } from './PaymentExportButtons';
 import { cn } from '@/lib/utils';
 import { useHideValues } from '@/hooks/useHideValues';
+import { format } from 'date-fns';
 
 const statusLabels: Record<string, string> = {
   pendente: 'Pendente',
@@ -54,6 +55,7 @@ interface Project {
   client_id?: string | null;
   delivery_date?: string | null;
   delivered_at?: string | null;
+  is_delivered?: boolean;
 }
 
 interface Client {
@@ -127,6 +129,14 @@ export function FreelancerPaymentsControl({
     return client?.name || '-';
   };
 
+  const getProjectDeliveryInfo = (projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    return {
+      isDelivered: project?.is_delivered ?? false,
+      deliveredAt: project?.delivered_at,
+    };
+  };
+
   const filteredPayments = useMemo(() => {
     return baseTeamPayments.filter(tp => {
       if (filters.memberId && tp.user_id !== filters.memberId) return false;
@@ -150,9 +160,29 @@ export function FreelancerPaymentsControl({
     });
   }, [baseTeamPayments, filters, projects]);
 
+  // Sort: delivered first (by delivered_at desc), then non-delivered
+  const sortedPayments = useMemo(() => {
+    return [...filteredPayments].sort((a, b) => {
+      const projA = projects.find(p => p.id === a.project_id);
+      const projB = projects.find(p => p.id === b.project_id);
+      const aDelivered = projA?.is_delivered ?? false;
+      const bDelivered = projB?.is_delivered ?? false;
+
+      if (aDelivered !== bDelivered) return aDelivered ? -1 : 1;
+
+      if (aDelivered && bDelivered) {
+        const dateA = projA?.delivered_at ? new Date(projA.delivered_at).getTime() : 0;
+        const dateB = projB?.delivered_at ? new Date(projB.delivered_at).getTime() : 0;
+        return dateB - dateA;
+      }
+
+      return 0;
+    });
+  }, [filteredPayments, projects]);
+
   // Pagination
   const pagination = usePagination({
-    items: filteredPayments,
+    items: sortedPayments,
     itemsPerPage: 50,
   });
 
@@ -163,16 +193,21 @@ export function FreelancerPaymentsControl({
   }, [filteredPayments]);
 
   const exportData = useMemo(() => {
-    return filteredPayments.map(tp => ({
-      id: getProjectCode(tp.project_id),
-      projeto: getProjectName(tp.project_id),
-      cliente: getClientName(tp.project_id),
-      contraparte: getMemberName(tp.user_id),
-      fase: tp.phase === 'captacao' ? 'Captação' : 'Edição',
-      status: statusLabels[tp.payment_status] || tp.payment_status,
-      valor: formatCurrency(tp.payment_amount || 0),
-    }));
-  }, [filteredPayments, formatCurrency, projects, clients]);
+    return sortedPayments.map(tp => {
+      const { isDelivered, deliveredAt } = getProjectDeliveryInfo(tp.project_id);
+      return {
+        id: getProjectCode(tp.project_id),
+        projeto: getProjectName(tp.project_id),
+        cliente: getClientName(tp.project_id),
+        contraparte: getMemberName(tp.user_id),
+        fase: tp.phase === 'captacao' ? 'Captação' : 'Edição',
+        estado: isDelivered ? 'Entregue' : 'Em curso',
+        'data_entrega': deliveredAt ? format(new Date(deliveredAt), 'dd/MM/yyyy') : '-',
+        status: statusLabels[tp.payment_status] || tp.payment_status,
+        valor: formatCurrency(tp.payment_amount || 0),
+      };
+    });
+  }, [sortedPayments, formatCurrency, projects, clients]);
 
   return (
     <Card className="glass-card">
@@ -220,51 +255,70 @@ export function FreelancerPaymentsControl({
                   <TableHead className="min-w-[120px]">Cliente</TableHead>
                   <TableHead className="min-w-[120px]">Colaborador</TableHead>
                   <TableHead className="min-w-[90px]">Fase</TableHead>
-                  <TableHead className="min-w-[130px]">Status</TableHead>
+                  <TableHead className="min-w-[100px]">Estado</TableHead>
+                  <TableHead className="min-w-[100px]">Data Entrega</TableHead>
+                  <TableHead className="min-w-[130px]">Status Pgto</TableHead>
                   <TableHead className="text-right min-w-[100px]">Valor</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pagination.paginatedItems.map(tp => (
-                  <TableRow key={tp.id}>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {getProjectCode(tp.project_id)}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {getProjectName(tp.project_id)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {getClientName(tp.project_id)}
-                    </TableCell>
-                    <TableCell>
-                      {getMemberName(tp.user_id)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={tp.phase === 'captacao' ? 'bg-blue-500/10 text-blue-500' : 'bg-purple-500/10 text-purple-500'}>
-                        {tp.phase === 'captacao' ? 'Captação' : 'Edição'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={tp.payment_status}
-                        onValueChange={(newStatus) => onStatusChange(tp.id, newStatus)}
-                      >
-                        <SelectTrigger className={cn('w-[130px]', statusColors[tp.payment_status] || statusColors.pendente)}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pendente">Pendente</SelectItem>
-                          <SelectItem value="pago">Pago</SelectItem>
-                          <SelectItem value="vencido">Vencido</SelectItem>
-                          <SelectItem value="cancelado">Cancelado</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className={cn("text-right font-medium text-destructive", hideValues && "blur-md select-none")}>
-                      -{formatCurrency(tp.payment_amount || 0)}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {pagination.paginatedItems.map(tp => {
+                  const { isDelivered, deliveredAt } = getProjectDeliveryInfo(tp.project_id);
+                  return (
+                    <TableRow key={tp.id}>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {getProjectCode(tp.project_id)}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {getProjectName(tp.project_id)}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {getClientName(tp.project_id)}
+                      </TableCell>
+                      <TableCell>
+                        {getMemberName(tp.user_id)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={tp.phase === 'captacao' ? 'bg-blue-500/10 text-blue-500' : 'bg-purple-500/10 text-purple-500'}>
+                          {tp.phase === 'captacao' ? 'Captação' : 'Edição'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={isDelivered
+                            ? 'bg-success/10 text-success border-success/20'
+                            : 'bg-muted text-muted-foreground border-muted-foreground/20'
+                          }
+                        >
+                          {isDelivered ? 'Entregue' : 'Em curso'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {deliveredAt ? format(new Date(deliveredAt), 'dd/MM/yyyy') : '-'}
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={tp.payment_status}
+                          onValueChange={(newStatus) => onStatusChange(tp.id, newStatus)}
+                        >
+                          <SelectTrigger className={cn('w-[130px]', statusColors[tp.payment_status] || statusColors.pendente)}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pendente">Pendente</SelectItem>
+                            <SelectItem value="pago">Pago</SelectItem>
+                            <SelectItem value="vencido">Vencido</SelectItem>
+                            <SelectItem value="cancelado">Cancelado</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className={cn("text-right font-medium text-destructive", hideValues && "blur-md select-none")}>
+                        -{formatCurrency(tp.payment_amount || 0)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
             

@@ -428,7 +428,7 @@ export default function Pagamentos() {
   }, [members]);
 
   const projectsList = useMemo(() => {
-    return projects.map(p => ({ id: p.id, name: p.name, project_code: p.project_code, client_id: p.client_id, delivery_date: p.delivery_date, delivered_at: p.delivered_at }));
+    return projects.map(p => ({ id: p.id, name: p.name, project_code: p.project_code, client_id: p.client_id, delivery_date: p.delivery_date, delivered_at: p.delivered_at, is_delivered: p.is_delivered }));
   }, [projects]);
 
   if (loading || permissionsLoading) {
