@@ -70,6 +70,7 @@ export function ClientPaymentsControl({
     clientId: null,
     memberId: null,
     status: null,
+    projectStatus: null,
   });
 
   const clientPayments = useMemo(() => {

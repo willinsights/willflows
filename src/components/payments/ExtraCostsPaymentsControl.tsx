@@ -68,6 +68,7 @@ export function ExtraCostsPaymentsControl({
     clientId: null,
     memberId: null,
     status: null,
+    projectStatus: null,
   });
 
   const filteredCosts = useMemo(() => {
@@ -76,6 +77,9 @@ export function ExtraCostsPaymentsControl({
       if (filters.status && (cost.custos_extras_payment_status || 'pendente') !== filters.status) {
         return false;
       }
+      // Project status filter
+      if (filters.projectStatus === 'entregue' && !cost.delivered_at) return false;
+      if (filters.projectStatus === 'em_curso' && cost.delivered_at) return false;
       // Date filter using delivery_date
       if (filters.dateFrom || filters.dateTo) {
         const dateValue = cost.delivery_date || cost.delivered_at;
@@ -126,6 +130,7 @@ export function ExtraCostsPaymentsControl({
               showMemberFilter={false}
               showStatusFilter={true}
               showDateFilter={true}
+              showProjectStatusFilter
             />
             <PaymentExportButtons
               data={exportData}

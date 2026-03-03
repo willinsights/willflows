@@ -24,6 +24,7 @@ export interface FilterState {
   clientId: string | null;
   memberId: string | null;
   status: string | null;
+  projectStatus: string | null;
 }
 
 interface Client {
@@ -45,6 +46,7 @@ interface PaymentFiltersProps {
   showMemberFilter?: boolean;
   showStatusFilter?: boolean;
   showDateFilter?: boolean;
+  showProjectStatusFilter?: boolean;
 }
 
 export function PaymentFilters({
@@ -56,8 +58,9 @@ export function PaymentFilters({
   showMemberFilter = false,
   showStatusFilter = true,
   showDateFilter = true,
+  showProjectStatusFilter = false,
 }: PaymentFiltersProps) {
-  const hasActiveFilters = filters.dateFrom || filters.dateTo || filters.clientId || filters.memberId || filters.status;
+  const hasActiveFilters = filters.dateFrom || filters.dateTo || filters.clientId || filters.memberId || filters.status || filters.projectStatus;
 
   const handleClearFilters = () => {
     onFilterChange({
@@ -66,6 +69,7 @@ export function PaymentFilters({
       clientId: null,
       memberId: null,
       status: null,
+      projectStatus: null,
     });
   };
 
@@ -188,6 +192,23 @@ export function PaymentFilters({
             <SelectItem value="pago">Pago</SelectItem>
             <SelectItem value="vencido">Vencido</SelectItem>
             <SelectItem value="cancelado">Cancelado</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
+
+      {/* Project Status Filter */}
+      {showProjectStatusFilter && (
+        <Select
+          value={filters.projectStatus || 'all'}
+          onValueChange={(value) => onFilterChange({ ...filters, projectStatus: value === 'all' ? null : value })}
+        >
+          <SelectTrigger className="w-[150px] h-9">
+            <SelectValue placeholder="Estado Projeto" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos projetos</SelectItem>
+            <SelectItem value="em_curso">Em Curso</SelectItem>
+            <SelectItem value="entregue">Entregue</SelectItem>
           </SelectContent>
         </Select>
       )}
