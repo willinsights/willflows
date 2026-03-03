@@ -1,91 +1,62 @@
 
-## Corrigir Responsividade dos Modais (Revisão Completa)
 
-### Problema Identificado
+## Corrigir Subscrição Stripe — IDs de Produto + Fix Manual
 
-A imagem mostra o modal "Criar Novo Projeto" a cortar conteúdo do lado direito — campos como "ID do Projeto", "Cliente", "Localização" ficam parcialmente visíveis. Isto acontece por 3 causas principais:
+### 1. Fix Imediato: Atualizar registo do Júnio na BD
 
----
-
-### Causas Raiz
-
-**1. DialogContent sem margem lateral no mobile**
-O componente base `src/components/ui/dialog.tsx` usa `w-full` e `max-w-lg`, mas não tem `mx-4` ou similar. Quando um modal usa `max-w-2xl`, em ecrãs com menos de ~700px, o modal fica mais largo que o viewport e é cortado pelo scroll do body.
-
-**2. Grelhas de 2 colunas sem breakpoint responsivo**
-Todos os `grid grid-cols-2 gap-4` dentro dos modais não colapsam para 1 coluna em mobile. Em ecrãs pequenos, cada metade fica muito estreita e o conteúdo é cortado.
-
-**3. ScrollArea com padding fixo**
-O `ScrollArea` tem `max-h-[calc(90vh-120px)]` e `pr-4` que não se adaptam ao mobile.
-
----
-
-### Ficheiros a Corrigir
-
-#### 1. `src/components/ui/dialog.tsx`
-**Problema:** Sem margem lateral no mobile — modal pode sair do viewport.
-
-**Fix:** Adicionar `mx-4 sm:mx-0` e substituir `w-full` por `w-[calc(100%-2rem)] sm:w-full` na classe base do `DialogContent`. Isto garante que todos os modais do sistema têm margem mínima de 1rem em cada lado, sem necessidade de mudar cada modal individualmente.
-
-```tsx
-// Antes:
-"fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%]"
-
-// Depois:
-"fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] sm:w-full max-w-lg translate-x-[-50%] translate-y-[-50%]"
+```sql
+UPDATE user_subscriptions 
+SET subscription_plan = 'pro',
+    subscription_status = 'active',
+    stripe_subscription_id = 'sub_1T6yYlGr2lXbVyw9VcBUrPmb',
+    stripe_customer_id = 'cus_Tq3ROXZ7uyl9bG',
+    current_period_end = '2026-04-01T12:44:44Z',
+    trial_ends_at = NULL
+WHERE user_id = '47b648bc-0097-468a-a474-06e49048578d';
 ```
 
-#### 2. `src/components/projects/CreateProjectModal.tsx`
-**Problemas múltiplos neste ficheiro:**
+Também atualizar o workspace dele:
+```sql
+UPDATE workspaces SET subscription_plan = 'pro', subscription_status = 'active',
+  stripe_customer_id = 'cus_Tq3ROXZ7uyl9bG', stripe_subscription_id = 'sub_1T6yYlGr2lXbVyw9VcBUrPmb'
+WHERE id IN (SELECT workspace_id FROM workspace_members WHERE user_id = '47b648bc-0097-468a-a474-06e49048578d' AND role = 'admin');
+```
 
-- `max-h-[90vh]` → adicionar `overflow-hidden` para conter o conteúdo
-- `ScrollArea` com `max-h-[calc(90vh-120px)]` → ajustar para `max-h-[calc(90vh-160px)] sm:max-h-[calc(90vh-120px)]`
-- `pr-4` → mudar para `pr-2 sm:pr-4`
-- Todos os `grid grid-cols-2` → mudar para `grid grid-cols-1 sm:grid-cols-2`
-- O botão de tipo de item usa `grid-cols-2` → manter em 2 colunas mas com texto menor no mobile
-- Campo nested `grid grid-cols-2 gap-2` (Hora Início / Hora Fim dentro de captação) → já está correto por ser um sub-grid dentro de um slot
+### 2. Corrigir Product IDs nas Edge Functions
 
-**Secções afetadas:**
-- Linha 332: tipo de item → `grid-cols-2` (manter, mas ajustar botões)
-- Linha 358: Nome do Projeto + ID → `grid-cols-1 sm:grid-cols-2`
-- Linha 383: Categoria + Cliente → `grid-cols-1 sm:grid-cols-2`
-- Linha 455: Prioridade + Localização → `grid-cols-1 sm:grid-cols-2`
-- Linha 493: Datas → `grid-cols-1 sm:grid-cols-2`
-- Linha 588: Responsáveis → `grid-cols-1 sm:grid-cols-2`
-- Linha 756: Financeiro → `grid-cols-1 sm:grid-cols-2`
+**`supabase/functions/stripe-webhook/index.ts`** — Linha 11-15:
+```typescript
+const PRODUCT_TO_PLAN: Record<string, string> = {
+  'prod_TpNVDQjhG0wlZ4': 'starter',
+  'prod_TpNVjl9D0tQ8wQ': 'pro',
+  'prod_TpNVM1mlDtAvKA': 'studio',
+};
+```
 
-#### 3. `src/components/leads/CreateLeadModal.tsx`
-- Linha 121: Email + Telefone → `grid-cols-1 sm:grid-cols-2`
-- Linha 142: Origem + Valor Estimado → `grid-cols-1 sm:grid-cols-2`
+**`supabase/functions/check-subscription/index.ts`** — Linha 30-34:
+```typescript
+const PLAN_MAPPING: Record<string, string> = {
+  'prod_TpNVDQjhG0wlZ4': 'starter',
+  'prod_TpNVjl9D0tQ8wQ': 'pro',
+  'prod_TpNVM1mlDtAvKA': 'studio',
+};
+```
 
-#### 4. `src/components/clients/CreateClientModal.tsx`
-- Linha 171: Código Postal + País → `grid-cols-1 sm:grid-cols-2`
+### 3. Verificar Webhook URL no Stripe
 
-#### 5. `src/components/projects/ProjectDetailsModal.tsx`
-Verificar e corrigir todos os `grid-cols-2` (linhas 631, 660, 703, 768, 812, 834, 858, 1038).
-
----
-
-### Estratégia de Implementação
-
-A correção no `dialog.tsx` resolve automaticamente o corte lateral em **todos** os modais do sistema. As correções individuais nos ficheiros garantem que o conteúdo interno também colapsa corretamente em mobile.
-
-**Regra aplicada:**
-- `grid grid-cols-2` → `grid grid-cols-1 sm:grid-cols-2` (colapsa em mobile)
-- `max-w-2xl` no CreateProjectModal é mantido (correto para desktop)
-- `DialogContent` base recebe margem automática em mobile
+O webhook não está a receber eventos. Precisas verificar no dashboard do Stripe:
+- O endpoint URL deve ser: `https://wppfmyseeigsdqutkgyc.supabase.co/functions/v1/stripe-webhook`
+- O `STRIPE_WEBHOOK_SECRET` configurado no projeto deve corresponder ao signing secret do endpoint
 
 ---
 
-### Detalhes Técnicos
+### Ficheiros a modificar: 2
+1. `supabase/functions/stripe-webhook/index.ts` — corrigir product IDs
+2. `supabase/functions/check-subscription/index.ts` — corrigir product IDs
 
-**Breakpoints afetados:** `sm` (640px) — abaixo disso, colunas colapsam para 1.
+### Operações de dados: 2 queries UPDATE (user_subscriptions + workspaces)
 
-**Impacto:** Baixo risco — apenas classes CSS. Sem lógica de negócio alterada.
+### Impacto
+- **Crítico** — sem esta correção, nenhuma subscrição Live será reconhecida
+- Risco baixo — apenas IDs de mapeamento, sem alteração de lógica
 
-**Ficheiros a modificar: 5**
-1. `src/components/ui/dialog.tsx` — fix global (afeta todos os modais)
-2. `src/components/projects/CreateProjectModal.tsx` — modal principal com mais campos
-3. `src/components/leads/CreateLeadModal.tsx` — 2 grids
-4. `src/components/clients/CreateClientModal.tsx` — 1 grid
-5. `src/components/projects/ProjectDetailsModal.tsx` — múltiplos grids
