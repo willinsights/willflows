@@ -53,6 +53,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { VideoProductionTab } from '@/components/video-production/VideoProductionTab';
 import { CreateEventModal } from '@/components/calendar/CreateEventModal';
 import { useCalendarEvents } from '@/hooks/useCalendarEvents';
+import { DeliverConfirmDialog } from '@/components/kanban/DeliverConfirmDialog';
 
 type Task = Tables<'tasks'>;
 type TaskChecklist = Tables<'task_checklists'>;
@@ -118,6 +119,7 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [showDeliverConfirmDialog, setShowDeliverConfirmDialog] = useState(false);
   const [showReopenDialog, setShowReopenDialog] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
@@ -395,7 +397,60 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
     setLoading(true);
     
     try {
-      // Buscar coluna final da fase atual
+      // Validar se pode entregar (sem entregar ainda)
+      const { data: canDeliverData, error: canDeliverError } = await supabase.rpc('can_deliver_project', {
+        p_project_id: project.id,
+        p_phase: project.current_phase
+      });
+      
+      if (canDeliverError) {
+        toast({
+          title: 'Erro ao validar',
+          description: canDeliverError.message,
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+      }
+      
+      const result = canDeliverData as { can_deliver: boolean; reason: string | null; pending_tasks: number; pending_checklists: number } | null;
+      if (result && !result.can_deliver) {
+        const itemType = project.item_type || 'projeto_completo';
+        const isFullProjectFinalDelivery = itemType === 'projeto_completo' && project.current_phase === 'edicao';
+        
+        let pending: TaskChecklist[];
+        if (isFullProjectFinalDelivery) {
+          pending = checklists.filter(c => !c.is_completed);
+        } else {
+          const tasksInPhase = tasks.filter(t => t.phase === project.current_phase);
+          const taskIdsInPhase = new Set(tasksInPhase.map(t => t.id));
+          pending = checklists.filter(c => taskIdsInPhase.has(c.task_id) && !c.is_completed);
+        }
+        
+        setPendingChecklistItems(pending);
+        setShowCompleteDialog(true);
+        setLoading(false);
+        return;
+      }
+      
+      // Validação passou — abrir diálogo de seleção de data
+      setShowDeliverConfirmDialog(true);
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao validar',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmDeliveryWithDate = async (deliveredAt: Date) => {
+    if (!project) return;
+    setLoading(true);
+    
+    try {
       const { data: finalColumn } = await supabase
         .from('kanban_columns')
         .select('id')
@@ -414,18 +469,17 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
         return;
       }
       
-      // Chamar RPC deliver_project (backend validation)
-      const { data, error } = await supabase.rpc('deliver_project', {
+      const { error } = await supabase.rpc('deliver_project', {
         p_project_id: project.id,
         p_phase: project.current_phase,
-        p_target_column_id: finalColumn.id
+        p_target_column_id: finalColumn.id,
+        p_delivered_at: deliveredAt.toISOString()
       });
       
       if (error) {
         const errorMessage = error.message.includes('CHECKLIST_INCOMPLETE')
           ? error.message.replace('CHECKLIST_INCOMPLETE: ', '')
           : error.message;
-        
         toast({
           title: 'Não é possível concluir',
           description: errorMessage,
@@ -435,31 +489,8 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
         return;
       }
       
-      const result = data as { can_deliver: boolean; reason: string | null; pending_tasks: number; pending_checklists: number } | null;
-      if (result && !result.can_deliver) {
-        // Para projeto_completo em edição (entrega final), mostrar TODOS os pendentes
-        // Para outros casos, mostrar apenas da fase atual
-        const itemType = project.item_type || 'projeto_completo';
-        const isFullProjectFinalDelivery = itemType === 'projeto_completo' && project.current_phase === 'edicao';
-        
-        let pending: TaskChecklist[];
-        if (isFullProjectFinalDelivery) {
-          // Todos os checklists pendentes do projeto
-          pending = checklists.filter(c => !c.is_completed);
-        } else {
-          // Apenas checklists da fase atual
-          const tasksInPhase = tasks.filter(t => t.phase === project.current_phase);
-          const taskIdsInPhase = new Set(tasksInPhase.map(t => t.id));
-          pending = checklists.filter(c => taskIdsInPhase.has(c.task_id) && !c.is_completed);
-        }
-        
-        setPendingChecklistItems(pending);
-        setShowCompleteDialog(true);
-        setLoading(false);
-        return;
-      }
-      
       toast({ title: 'Projeto concluído com sucesso!' });
+      setShowDeliverConfirmDialog(false);
       setShowCompleteDialog(false);
       onOpenChange(false);
       onUpdate();
@@ -1436,6 +1467,17 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
           }}
           initialProjectId={project.id}
           initialProjectName={project.name}
+        />
+      )}
+
+      {/* Deliver Confirm Dialog with Date Picker */}
+      {project && (
+        <DeliverConfirmDialog
+          open={showDeliverConfirmDialog}
+          onOpenChange={setShowDeliverConfirmDialog}
+          projectName={project.name}
+          onConfirm={confirmDeliveryWithDate}
+          loading={loading}
         />
       )}
     </>
