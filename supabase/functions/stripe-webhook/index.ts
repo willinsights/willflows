@@ -9,9 +9,9 @@ const corsHeaders = {
 
 // Product ID to Plan mapping - now using 'starter' instead of 'essencial'
 const PRODUCT_TO_PLAN: Record<string, string> = {
-  'prod_Tl6rw16ZNqHrWd': 'starter', // Starter plan
-  'prod_Tl6rsZkoz6yqYu': 'pro',
-  'prod_Tl6rxTvnCICjTL': 'studio',
+  'prod_TpNVDQjhG0wlZ4': 'starter',
+  'prod_TpNVjl9D0tQ8wQ': 'pro',
+  'prod_TpNVM1mlDtAvKA': 'studio',
 };
 
 // Storage Addon Product IDs to tier mapping
