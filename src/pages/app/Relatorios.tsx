@@ -327,7 +327,10 @@ export default function Relatorios() {
   const topClients = useMemo(() => {
     const clientRevenue: Record<string, { name: string; revenue: number; projects: number }> = {};
     
-    projects.forEach(project => {
+    // Only count delivered projects for accurate revenue reporting
+    const deliveredProjects = projects.filter(p => p.is_delivered);
+    
+    deliveredProjects.forEach(project => {
       if (!project.client_id) return;
       const clientName = project.clients?.name || 'Desconhecido';
       
