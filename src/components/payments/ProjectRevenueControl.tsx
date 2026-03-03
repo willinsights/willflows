@@ -79,6 +79,7 @@ export function ProjectRevenueControl({
     clientId: null,
     memberId: null,
     status: null,
+    projectStatus: null,
   });
 
   // Only projects with agreed_value > 0
@@ -100,6 +101,9 @@ export function ProjectRevenueControl({
       }
       if (filters.clientId && project.client_id !== filters.clientId) return false;
       if (filters.status && project.client_payment_status !== filters.status) return false;
+      // Project status filter
+      if (filters.projectStatus === 'entregue' && !project.delivered_at) return false;
+      if (filters.projectStatus === 'em_curso' && project.delivered_at) return false;
       return true;
     });
   }, [revenueProjects, filters]);
@@ -156,6 +160,7 @@ export function ProjectRevenueControl({
               clients={clients}
               showClientFilter
               showStatusFilter
+              showProjectStatusFilter
             />
             <PaymentExportButtons
               data={exportData}

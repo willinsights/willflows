@@ -97,6 +97,7 @@ export function FreelancerPaymentsControl({
     clientId: null,
     memberId: null,
     status: null,
+    projectStatus: null,
   });
   
   // If filterByUserId is provided, filter team payments to only show that user's payments
@@ -141,6 +142,12 @@ export function FreelancerPaymentsControl({
     return baseTeamPayments.filter(tp => {
       if (filters.memberId && tp.user_id !== filters.memberId) return false;
       if (filters.status && tp.payment_status !== filters.status) return false;
+      // Project status filter
+      if (filters.projectStatus) {
+        const project = projects.find(p => p.id === tp.project_id);
+        if (filters.projectStatus === 'entregue' && !project?.is_delivered) return false;
+        if (filters.projectStatus === 'em_curso' && project?.is_delivered) return false;
+      }
       // Date filter using project's delivery_date
       if (filters.dateFrom || filters.dateTo) {
         const project = projects.find(p => p.id === tp.project_id);
@@ -225,6 +232,7 @@ export function FreelancerPaymentsControl({
               showMemberFilter
               showStatusFilter
               showDateFilter
+              showProjectStatusFilter
             />
             <PaymentExportButtons
               data={exportData}
