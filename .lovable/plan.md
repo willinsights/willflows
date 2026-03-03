@@ -1,44 +1,36 @@
 
 
-## Corrigir Relatórios e Pagamentos para Todos os Utilizadores
+## Problema: Data de entrega não respeita a data selecionada
 
-### Problemas Identificados
+### Diagnóstico
 
-1. **Tab "Pagamentos Colaboradores"** — não mostra coluna de data de entrega, não distingue projetos entregues dos em curso, e não inclui `is_delivered` nos dados
-2. **`useTeamPayments`** — carrega equipa de TODOS os projetos (entregues e não entregues) sem distinção
-3. **Relatórios (`topClients`)** — conta receita de TODOS os projetos incluindo não entregues, inflacionando valores
-4. **Falta de sincronização** — o `projectsList` passado ao componente de pagamentos não inclui `is_delivered`
+O projeto "Rio de Janeiro" tem `delivered_at = 2026-03-02` (2 de Março), **não** 28 de Fevereiro. Isto acontece porque o `ProjectDetailsModal.tsx` — o modal usado para concluir projectos — **não tem o diálogo de seleção de data**. Ele chama `deliver_project` sem o parâmetro `p_delivered_at`, usando o valor padrão `now()`.
 
-### Plano
+O `DeliverConfirmDialog` (com o DatePicker) só existe em:
+- ✅ `KanbanBoard.tsx` — ao arrastar para coluna "Entregue"
+- ✅ `ProjectDetailsSheet.tsx` — botão "Concluir" no sheet
 
-#### 1. Adicionar `is_delivered` e `delivered_at` ao `projectsList` (Pagamentos.tsx)
+Mas **NÃO** existe em:
+- ❌ `ProjectDetailsModal.tsx` — botão "Concluir" no modal → usa `now()` sempre
 
-Linha 431 — incluir `is_delivered` no mapeamento para que o componente possa filtrar/mostrar estado.
+### Plano de Correção
 
-#### 2. Adicionar coluna "Data Entrega" + badge de estado (FreelancerPaymentsControl.tsx)
+#### 1. Adicionar `DeliverConfirmDialog` ao `ProjectDetailsModal.tsx`
 
-- Adicionar `is_delivered` ao interface `Project` (linha 50-57)
-- Adicionar coluna **"Data Entrega"** na tabela com formatação `dd/MM/yyyy`
-- Adicionar badge visual (Entregue / Em curso) para distinguir projetos
-- Ordenar por projetos entregues primeiro, depois por data
+- Importar `DeliverConfirmDialog`
+- Adicionar state `showDeliverConfirmDialog`
+- Modificar `handleDeliver` para apenas validar e abrir o diálogo (em vez de entregar directamente)
+- Criar `confirmDeliveryWithDate` que recebe a data do diálogo e chama a RPC com `p_delivered_at: deliveredAt.toISOString()`
 
-#### 3. Corrigir `topClients` no Relatórios (Relatorios.tsx)
+#### 2. Corrigir a data do projeto "Rio de Janeiro"
 
-Linha 327-345 — filtrar apenas projetos entregues (`is_delivered === true`) para receita real, não previsões.
+Executar UPDATE na BD para corrigir para 28 de Fevereiro:
+```sql
+UPDATE projects SET delivered_at = '2026-02-28T12:00:00Z' WHERE id = 'aefe182e-...';
+```
 
-#### 4. Incluir `delivered_at` na exportação de dados do FreelancerPaymentsControl
+### Ficheiros a modificar: 1
+- `src/components/projects/ProjectDetailsModal.tsx` — adicionar diálogo de data de entrega
 
-Adicionar coluna "Data Entrega" ao `exportData` para que Excel/PDF incluam esta informação.
-
----
-
-### Ficheiros a modificar: 3
-1. `src/pages/app/Pagamentos.tsx` — incluir `is_delivered` no `projectsList`
-2. `src/components/payments/FreelancerPaymentsControl.tsx` — coluna de data + badge + ordenação
-3. `src/pages/app/Relatorios.tsx` — filtrar apenas entregues no `topClients`
-
-### Impacto
-- Todos os utilizadores verão projetos entregues correctamente identificados com data
-- Relatórios mostrarão receita real (só projectos entregues)
-- Pagamentos de colaboradores sincronizados com estado de entrega do projecto
+### Operação de dados: 1 UPDATE para corrigir a data do projecto específico
 
