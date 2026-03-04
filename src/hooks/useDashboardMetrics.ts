@@ -5,6 +5,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { startOfMonth, endOfMonth, subMonths, format, differenceInDays, startOfDay, formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { logger } from '@/lib/logger';
+import {
+  getMonthlyMetrics,
+  getTimeSeries,
+  calculateChange,
+} from '@/lib/finance/financialEngine';
+import type { FinancialProject } from '@/lib/finance/types';
 
 export interface DashboardMetrics {
   captacao: number;
@@ -15,14 +21,11 @@ export interface DashboardMetrics {
   lucro: number;
   pendingPayments: number;
   pendingPaymentsCount: number;
-  // Month-over-month changes (null = no previous data)
   receitaChange: number | null;
   custosChange: number | null;
   lucroChange: number | null;
   entreguesChange: number | null;
-  // Personal earnings for collaborators
   meusGanhos: number;
-  // Forecast metrics (active projects rollover)
   previsaoReceita: number;
   previsaoCustos: number;
   previsaoLucro: number;
@@ -63,7 +66,6 @@ export interface MonthlyData {
   receita: number;
   custos: number;
   lucro: number;
-  // Forecast fields (only for current month)
   receitaPrevisao?: number;
   custosPrevisao?: number;
   lucroPrevisao?: number;
@@ -135,7 +137,6 @@ export function useDashboardMetrics() {
   const [pendingPaymentItems, setPendingPaymentItems] = useState<PendingPaymentItem[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Refs to prevent duplicate fetches
   const isFetchingRef = useRef(false);
   const lastFetchedWorkspaceIdRef = useRef<string | null>(null);
 
@@ -146,95 +147,70 @@ export function useDashboardMetrics() {
     try {
       isFetchingRef.current = true;
       
-      // Current month boundaries
       const now = new Date();
       const currentMonthStart = startOfMonth(now);
       const currentMonthEnd = endOfMonth(now);
-      
-      // Previous month boundaries
-      const previousMonthStart = startOfMonth(subMonths(now, 1));
-      const previousMonthEnd = endOfMonth(subMonths(now, 1));
-      
-      // 6 months ago for performance metrics
       const sixMonthsAgo = subMonths(now, 6);
       
-      // Fetch projects count by phase (include delivery_date for forecast)
+      // Fetch projects with ALL fields needed by financial engine
       const { data: projectsData } = await supabase
         .from('projects')
-        .select('id, current_phase, is_delivered, agreed_value, custo_captacao, custo_edicao, custos_extras, created_at, delivered_at, delivery_date, type, item_type, competence_month')
+        .select(`
+          id, current_phase, is_delivered, agreed_value, custo_captacao, custo_edicao,
+          custos_extras, custos_extras_payment_status, custos_extras_paid_at,
+          created_at, delivered_at, delivery_date, shoot_date, type, item_type,
+          competence_month, client_payment_status, client_paid_at
+        `)
         .eq('workspace_id', currentWorkspace.id);
 
+      // Map to FinancialProject for engine (single source of truth)
+      const mappedProjects: FinancialProject[] = (projectsData || []).map(p => ({
+        id: p.id,
+        agreed_value: p.agreed_value,
+        custo_captacao: p.custo_captacao,
+        custo_edicao: p.custo_edicao,
+        custos_extras: p.custos_extras,
+        custos_extras_payment_status: p.custos_extras_payment_status,
+        custos_extras_paid_at: p.custos_extras_paid_at,
+        is_delivered: p.is_delivered,
+        delivered_at: p.delivered_at,
+        delivery_date: p.delivery_date,
+        shoot_date: p.shoot_date,
+        created_at: p.created_at,
+        client_payment_status: p.client_payment_status,
+        client_paid_at: p.client_paid_at,
+        competence_month: p.competence_month,
+      }));
+
+      // Phase counts (non-financial, keep manual)
       const captacao = projectsData?.filter(p => p.current_phase === 'captacao' && !p.is_delivered && p.item_type !== 'reuniao').length || 0;
       const edicao = projectsData?.filter(p => p.current_phase === 'edicao' && !p.is_delivered && p.item_type !== 'reuniao').length || 0;
-      
-      // Helper: get effective month for a project (competence_month > delivered_at)
-      const getEffectiveDate = (p: any): Date | null => {
-        if (p.competence_month) return new Date(p.competence_month + '-01');
-        if (p.delivered_at) return new Date(p.delivered_at);
-        return null;
-      };
-      const isInEffectiveMonth = (p: any, monthStart: Date, monthEnd: Date): boolean => {
-        const d = getEffectiveDate(p);
-        if (!d) return false;
-        // For competence_month, compare by month only
-        if (p.competence_month) {
-          return d.getFullYear() === monthStart.getFullYear() && d.getMonth() === monthStart.getMonth();
-        }
-        return d >= monthStart && d <= monthEnd;
-      };
 
-      // Count delivered projects for current month
-      const entregues = projectsData?.filter(p => {
-        if (!p.is_delivered) return false;
-        return isInEffectiveMonth(p, currentMonthStart, currentMonthEnd);
-      }).length || 0;
+      // === FINANCIAL METRICS — delegated to engine (single source of truth) ===
+      const currentMetrics = getMonthlyMetrics(mappedProjects, 'REALIZADO', now);
+      const prevMetrics = getMonthlyMetrics(mappedProjects, 'REALIZADO', subMonths(now, 1));
       
-      // Count delivered projects for previous month
-      const entreguesPrevious = projectsData?.filter(p => {
-        if (!p.is_delivered) return false;
-        return isInEffectiveMonth(p, previousMonthStart, previousMonthEnd);
-      }).length || 0;
-      // Calculate financial metrics for CURRENT MONTH (DELIVERED projects only)
-      const currentMonthProjects = projectsData?.filter(p => {
-        if (!p.is_delivered) return false;
-        return isInEffectiveMonth(p, currentMonthStart, currentMonthEnd);
-      }) || [];
-      
-      const receita = currentMonthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
-      const custos = currentMonthProjects.reduce((sum, p) => 
-        sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
-      const lucro = receita - custos;
-      
-      // Calculate financial metrics for PREVIOUS MONTH (DELIVERED projects only)
-      const previousMonthProjects = projectsData?.filter(p => {
-        if (!p.is_delivered) return false;
-        return isInEffectiveMonth(p, previousMonthStart, previousMonthEnd);
-      }) || [];
-      
-      const receitaPrevious = previousMonthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
-      const custosPrevious = previousMonthProjects.reduce((sum, p) => 
-        sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
-      const lucroPrevious = receitaPrevious - custosPrevious;
-      
-      // Calculate percentage changes
-      const receitaChange = receitaPrevious > 0 
-        ? Math.round(((receita - receitaPrevious) / receitaPrevious) * 100)
-        : null;
-      
-      const custosChange = custosPrevious > 0 
-        ? Math.round(((custos - custosPrevious) / custosPrevious) * 100)
-        : null;
-      
-      const lucroChange = lucroPrevious !== 0 
-        ? Math.round(((lucro - lucroPrevious) / Math.abs(lucroPrevious)) * 100)
-        : null;
-      
-      const entreguesChange = entreguesPrevious > 0 
-        ? Math.round(((entregues - entreguesPrevious) / entreguesPrevious) * 100)
-        : null;
+      const receita = currentMetrics.revenue;
+      const custos = currentMetrics.cost;
+      const lucro = currentMetrics.profit;
+      const entregues = currentMetrics.projectCount;
 
-      // Fetch pending client payments from PROJECTS (source of truth for client payment tracking)
-      // Ordered from oldest to newest by due date; if due date is missing, fallback to delivered/created date.
+      const receitaChange = calculateChange(receita, prevMetrics.revenue);
+      const custosChange = calculateChange(custos, prevMetrics.cost);
+      const lucroChange = calculateChange(lucro, prevMetrics.profit);
+      const entreguesChange = calculateChange(entregues, prevMetrics.projectCount);
+
+      // === FORECAST — delegated to engine ===
+      const forecastMetrics = getMonthlyMetrics(mappedProjects, 'PREVISAO', now);
+      const previsaoReceita = forecastMetrics.revenue;
+      const previsaoCustos = forecastMetrics.cost;
+      const previsaoLucro = forecastMetrics.profit;
+      const previsaoMargemPercent = previsaoReceita > 0 
+        ? Math.round((previsaoLucro / previsaoReceita) * 100) 
+        : 0;
+      const projetosAtivos = forecastMetrics.projectCount;
+
+      // === PENDING CLIENT PAYMENTS (unique to dashboard) ===
       const { data: pendingProjectsData } = await supabase
         .from('projects')
         .select(
@@ -273,19 +249,17 @@ export function useDashboardMetrics() {
         };
       });
 
-      // Stable sort: oldest first using dueDate (or delivered/created fallback above)
       const sortedItems = normalizedItems.sort((a, b) => {
         const aTime = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
         const bTime = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
         return aTime - bTime;
       });
 
-      // List shows a subset; totals use full dataset
       setPendingPaymentItems(sortedItems.slice(0, 50));
       const pendingPayments = sortedItems.reduce((sum, p) => sum + (p.amount || 0), 0);
       const pendingPaymentsCount = sortedItems.length;
 
-      // Calculate personal earnings for collaborators (meusGanhos)
+      // === PERSONAL EARNINGS (unique to collaborators) ===
       let meusGanhos = 0;
       if (user?.id && membership?.role === 'gestao') {
         const { data: myTeamPayments } = await supabase
@@ -294,47 +268,11 @@ export function useDashboardMetrics() {
           .eq('user_id', user.id)
           .eq('projects.workspace_id', currentWorkspace.id);
         
-        // Sum payments for current month
         meusGanhos = myTeamPayments?.filter(tp => {
           const projectCreatedAt = new Date((tp.projects as any).created_at);
           return projectCreatedAt >= currentMonthStart && projectCreatedAt <= currentMonthEnd;
         }).reduce((sum, tp) => sum + (tp.payment_amount || 0), 0) || 0;
       }
-
-      // === FORECAST METRICS (Previsão com Rollover) ===
-      // Projects that contribute to forecast = not delivered
-      // Rollover logic: if delivery_date passed and not delivered, counts for current month
-      const previsaoProjects = projectsData?.filter(p => {
-        if (p.is_delivered) return false;
-        
-        // No delivery date = counts for current month (active in kanban)
-        if (!p.delivery_date) return true;
-        
-        const deliveryDate = new Date(p.delivery_date);
-        // If delivery date passed and not delivered, it counts for current month (ROLLOVER)
-        if (deliveryDate < currentMonthEnd) return true;
-        
-        // If delivery date is in current month, also counts
-        return deliveryDate >= currentMonthStart && deliveryDate <= currentMonthEnd;
-      }) || [];
-
-      const previsaoReceita = previsaoProjects.reduce(
-        (sum, p) => sum + (p.agreed_value || 0), 0
-      );
-
-      // Forecast costs from projects
-      const previsaoCustosProjeto = previsaoProjects.reduce(
-        (sum, p) => sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0
-      );
-
-      // NOTE: Project cost fields (custo_captacao, custo_edicao, custos_extras) are the source of truth
-      // Team payments (project_team.payment_amount) are NOT added separately as they're already aggregated in project costs
-      const previsaoCustos = previsaoCustosProjeto;
-      const previsaoLucro = previsaoReceita - previsaoCustos;
-      const previsaoMargemPercent = previsaoReceita > 0 
-        ? Math.round((previsaoLucro / previsaoReceita) * 100) 
-        : 0;
-      const projetosAtivos = previsaoProjects.length;
 
       setMetrics({
         captacao,
@@ -357,7 +295,7 @@ export function useDashboardMetrics() {
         projetosAtivos,
       });
 
-      // Calculate PERFORMANCE METRICS (last 6 months)
+      // === PERFORMANCE METRICS (last 6 months, unique to dashboard) ===
       const recentProjects = projectsData?.filter(p => {
         const createdAt = new Date(p.created_at);
         return createdAt >= sixMonthsAgo;
@@ -368,7 +306,6 @@ export function useDashboardMetrics() {
         ? Math.round((deliveredProjects.length / recentProjects.length) * 100)
         : 0;
       
-      // Average delivery time
       const deliveryTimes = deliveredProjects
         .map(p => differenceInDays(new Date(p.delivered_at!), new Date(p.created_at)))
         .filter(days => days >= 0);
@@ -376,7 +313,6 @@ export function useDashboardMetrics() {
         ? Math.round(deliveryTimes.reduce((sum, d) => sum + d, 0) / deliveryTimes.length)
         : 0;
       
-      // Average margin
       const projectsWithRevenue = deliveredProjects.filter(p => p.agreed_value && p.agreed_value > 0);
       const margins = projectsWithRevenue.map(p => {
         const projectCosts = (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0);
@@ -386,7 +322,6 @@ export function useDashboardMetrics() {
         ? Math.round(margins.reduce((sum, m) => sum + m, 0) / margins.length)
         : 0;
       
-      // Projects by type
       const projectsByType = {
         fotografia: recentProjects.filter(p => p.type === 'fotografia').length,
         video: recentProjects.filter(p => p.type === 'video').length,
@@ -400,119 +335,53 @@ export function useDashboardMetrics() {
         projectsByType,
       });
 
-      // Calculate monthly data for chart (last 6 months)
-      const monthlyStats: MonthlyData[] = [];
+      // === MONTHLY CHART DATA — delegated to engine ===
+      const fromMonth = subMonths(now, 5);
+      const realizadoSeries = getTimeSeries(mappedProjects, 'REALIZADO', fromMonth, now);
       
-      for (let i = 5; i >= 0; i--) {
-        const monthDate = subMonths(now, i);
-        const monthStart = startOfMonth(monthDate);
-        const monthEnd = endOfMonth(monthDate);
-        const isCurrentMonth = i === 0;
-        
-        // Filter only DELIVERED projects in this month (by competence)
-        const monthProjects = projectsData?.filter(p => {
-          if (!p.is_delivered) return false;
-          return isInEffectiveMonth(p, monthStart, monthEnd);
-        }) || [];
-        
-        const monthReceita = monthProjects.reduce((sum, p) => sum + (p.agreed_value || 0), 0);
-        const monthCustos = monthProjects.reduce((sum, p) => 
-          sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
-        
-        // FORECAST: Only for current month - active projects with rollover logic
-        let receitaPrevisao: number | undefined;
-        let custosPrevisao: number | undefined;
-        let lucroPrevisao: number | undefined;
-        
-        if (isCurrentMonth) {
-          // Projects NOT delivered (rollover logic)
-          const activeProjects = projectsData?.filter(p => {
-            if (p.is_delivered) return false;
-            // No delivery date = counts for current month
-            if (!p.delivery_date) return true;
-            const deliveryDate = new Date(p.delivery_date);
-            // If delivery date passed and not delivered = ROLLOVER
-            return deliveryDate < monthEnd;
-          }) || [];
-          
-          receitaPrevisao = activeProjects.reduce(
-            (sum, p) => sum + (p.agreed_value || 0), 0
-          );
-          // Use project cost fields as source of truth (no separate team payments)
-          custosPrevisao = activeProjects.reduce(
-            (sum, p) => sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0
-          );
-          lucroPrevisao = receitaPrevisao - custosPrevisao;
-        }
-        
-        monthlyStats.push({
-          month: format(monthDate, 'MMM', { locale: pt }),
-          receita: monthReceita,
-          custos: monthCustos,
-          lucro: monthReceita - monthCustos,
-          receitaPrevisao,
-          custosPrevisao,
-          lucroPrevisao,
-        });
-      }
-      
+      const monthlyStats: MonthlyData[] = realizadoSeries.map((point, i) => ({
+        month: point.month,
+        receita: point.revenue,
+        custos: point.cost,
+        lucro: point.profit,
+        ...(i === realizadoSeries.length - 1 ? {
+          receitaPrevisao: forecastMetrics.revenue,
+          custosPrevisao: forecastMetrics.cost,
+          lucroPrevisao: forecastMetrics.profit,
+        } : {}),
+      }));
       setMonthlyData(monthlyStats);
 
-      // Calculate ANNUAL COMPARISON (last 6 months: current year vs previous year)
+      // === ANNUAL COMPARISON — delegated to engine ===
       const currentYear = now.getFullYear();
-      const previousYear = currentYear - 1;
       const annualData: AnnualComparisonData[] = [];
-      
-      // Only last 6 months to match the 6-month chart
       for (let i = 5; i >= 0; i--) {
         const monthDate = subMonths(now, i);
-        const monthNumber = monthDate.getMonth();
-        const previousYearMonth = new Date(previousYear, monthNumber, 1);
-        
-        const currentYearStart = startOfMonth(monthDate);
-        const currentYearEnd = endOfMonth(monthDate);
-        const previousYearStart = startOfMonth(previousYearMonth);
-        const previousYearEnd = endOfMonth(previousYearMonth);
-        
-        const currentYearRevenue = projectsData?.filter(p => {
-          if (!p.is_delivered) return false;
-          return isInEffectiveMonth(p, currentYearStart, currentYearEnd);
-        }).reduce((sum, p) => sum + (p.agreed_value || 0), 0) || 0;
-        
-        const previousYearRevenue = projectsData?.filter(p => {
-          if (!p.is_delivered) return false;
-          return isInEffectiveMonth(p, previousYearStart, previousYearEnd);
-        }).reduce((sum, p) => sum + (p.agreed_value || 0), 0) || 0;
-        
+        const prevYearMonth = new Date(currentYear - 1, monthDate.getMonth(), 1);
         annualData.push({
           month: format(monthDate, 'MMM', { locale: pt }),
-          currentYear: currentYearRevenue,
-          previousYear: previousYearRevenue,
+          currentYear: getMonthlyMetrics(mappedProjects, 'REALIZADO', monthDate).revenue,
+          previousYear: getMonthlyMetrics(mappedProjects, 'REALIZADO', prevYearMonth).revenue,
         });
       }
-      
       setAnnualComparison(annualData);
 
-      // Fetch UPCOMING EVENTS (next 7 days)
+      // === UPCOMING EVENTS (next 7 days) ===
       const todayStart = startOfDay(now);
       const nextWeekDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      
-      // Check if user is admin
       const isAdmin = membership?.role === 'admin';
 
-     // Fetch user's project team memberships for captação (for non-admins)
-     let userCaptacaoProjectIds: string[] = [];
-     if (!isAdmin && user?.id) {
-       const { data: teamData } = await supabase
-         .from('project_team')
-         .select('project_id')
-         .eq('user_id', user.id)
-         .eq('phase', 'captacao');
-       
-       userCaptacaoProjectIds = teamData?.map(t => t.project_id) || [];
-     }
+      let userCaptacaoProjectIds: string[] = [];
+      if (!isAdmin && user?.id) {
+        const { data: teamData } = await supabase
+          .from('project_team')
+          .select('project_id')
+          .eq('user_id', user.id)
+          .eq('phase', 'captacao');
+        
+        userCaptacaoProjectIds = teamData?.map(t => t.project_id) || [];
+      }
 
-      // 1. Fetch calendar events (RLS filters: public workspace events OR private events created by user)
       const { data: eventsData } = await supabase
         .from('calendar_events')
         .select('id, title, start_at, end_at, location, event_type, project_id, description, video_call_url, all_day, is_private, created_by, projects(name)')
@@ -522,19 +391,13 @@ export function useDashboardMetrics() {
         .order('start_at', { ascending: true })
         .limit(10);
 
-      // Filter events based on permissions:
-      // - Private events (Google personal): only creator sees
-      // - Public workspace events (meetings): only admin sees
       const filteredEvents = eventsData?.filter(event => {
-        // Private event: only creator sees (RLS already guarantees, but we confirm)
         if (event.is_private) {
           return event.created_by === user?.id;
         }
-        // Public workspace event: only admin sees
         return isAdmin;
       }) || [];
 
-     // 2. Fetch project shoots
       const { data: shootsData } = await supabase
         .from('projects')
         .select('id, name, shoot_date, shoot_start_time, clients(name)')
@@ -545,34 +408,30 @@ export function useDashboardMetrics() {
         .order('shoot_date', { ascending: true })
         .limit(10);
 
-     // Filter shoots: Admin sees all, collaborators only see their assigned captures
-     const filteredShoots = isAdmin 
-       ? shootsData || []
-       : (shootsData || []).filter(p => userCaptacaoProjectIds.includes(p.id));
+      const filteredShoots = isAdmin 
+        ? shootsData || []
+        : (shootsData || []).filter(p => userCaptacaoProjectIds.includes(p.id));
 
-     // 3. Fetch tasks with due_date in next 7 days
-     const { data: tasksData } = await supabase
-       .from('tasks')
-       .select(`
-         id, title, due_date, due_time, project_id, is_completed,
-         projects(name),
-         task_assignees(user_id)
-       `)
-       .eq('workspace_id', currentWorkspace.id)
-       .eq('is_completed', false)
-       .gte('due_date', format(todayStart, 'yyyy-MM-dd'))
-       .lte('due_date', format(nextWeekDate, 'yyyy-MM-dd'))
-       .order('due_date', { ascending: true })
-       .limit(15);
+      const { data: tasksData } = await supabase
+        .from('tasks')
+        .select(`
+          id, title, due_date, due_time, project_id, is_completed,
+          projects(name),
+          task_assignees(user_id)
+        `)
+        .eq('workspace_id', currentWorkspace.id)
+        .eq('is_completed', false)
+        .gte('due_date', format(todayStart, 'yyyy-MM-dd'))
+        .lte('due_date', format(nextWeekDate, 'yyyy-MM-dd'))
+        .order('due_date', { ascending: true })
+        .limit(15);
 
-     // Filter tasks: Admin sees all, collaborators only see assigned tasks
-     const filteredTasks = isAdmin
-       ? tasksData || []
-       : (tasksData || []).filter(task => 
-           (task.task_assignees as any[])?.some(a => a.user_id === user?.id)
-         );
+      const filteredTasks = isAdmin
+        ? tasksData || []
+        : (tasksData || []).filter(task => 
+            (task.task_assignees as any[])?.some(a => a.user_id === user?.id)
+          );
 
-     // 4. Combine filtered calendar events + filtered shoots + tasks
       const calendarEvents: UpcomingEvent[] = filteredEvents.map(e => ({
         id: e.id,
         title: e.title,
@@ -586,7 +445,7 @@ export function useDashboardMetrics() {
         allDay: e.all_day,
       }));
 
-     const shootEvents: UpcomingEvent[] = filteredShoots.map(p => ({
+      const shootEvents: UpcomingEvent[] = filteredShoots.map(p => ({
         id: `shoot-${p.id}`,
         title: p.name,
         startAt: new Date(`${p.shoot_date}T${p.shoot_start_time || '09:00:00'}`),
@@ -597,29 +456,28 @@ export function useDashboardMetrics() {
         description: `Captação: ${(p.clients as any)?.name || 'Sem cliente'}`,
         videoCallUrl: null,
         allDay: !p.shoot_start_time,
-     }));
+      }));
 
-     const taskEvents: UpcomingEvent[] = filteredTasks.map(t => ({
-       id: `task-${t.id}`,
-       title: t.title,
-       startAt: new Date(`${t.due_date}T${t.due_time || '09:00:00'}`),
-       endAt: null,
-       location: null,
-       eventType: 'deadline',
-       projectName: (t.projects as any)?.name,
-       description: 'Tarefa',
-       videoCallUrl: null,
-       allDay: !t.due_time,
-     }));
+      const taskEvents: UpcomingEvent[] = filteredTasks.map(t => ({
+        id: `task-${t.id}`,
+        title: t.title,
+        startAt: new Date(`${t.due_date}T${t.due_time || '09:00:00'}`),
+        endAt: null,
+        location: null,
+        eventType: 'deadline',
+        projectName: (t.projects as any)?.name,
+        description: 'Tarefa',
+        videoCallUrl: null,
+        allDay: !t.due_time,
+      }));
 
-      // Combine, sort by date, limit to 5
-     const allEvents = [...calendarEvents, ...shootEvents, ...taskEvents]
+      const allEvents = [...calendarEvents, ...shootEvents, ...taskEvents]
         .sort((a, b) => a.startAt.getTime() - b.startAt.getTime())
         .slice(0, 5);
 
       setUpcomingEvents(allEvents);
 
-      // Fetch urgent projects
+      // === URGENT PROJECTS ===
       const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
       const { data: urgentData } = await supabase
@@ -643,7 +501,7 @@ export function useDashboardMetrics() {
         })) || []
       );
 
-      // Fetch recent activity
+      // === RECENT ACTIVITY ===
       const { data: recentProjectsData } = await supabase
         .from('projects')
         .select('id, name, updated_at, created_at')
@@ -676,7 +534,6 @@ export function useDashboardMetrics() {
   }, [currentWorkspace?.id, fetchError]);
 
   useEffect(() => {
-    // CRITICAL: If workspace changed, reset data IMMEDIATELY
     if (currentWorkspace?.id !== lastFetchedWorkspaceIdRef.current) {
       setMetrics({
         captacao: 0,

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, isWithinInterval } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -36,18 +36,17 @@ import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { useHideValues } from '@/hooks/useHideValues';
-import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { ClientPaymentsControl } from '@/components/payments/ClientPaymentsControl';
 import { FreelancerPaymentsControl, type ProjectTeamPayment } from '@/components/payments/FreelancerPaymentsControl';
 import { PaymentExportButtons } from '@/components/payments/PaymentExportButtons';
-import { ExtraCostsPaymentsControl, type ProjectCustoExtra } from '@/components/payments/ExtraCostsPaymentsControl';
-import { ProjectRevenueControl, type ProjectRevenue } from '@/components/payments/ProjectRevenueControl';
+import { ExtraCostsPaymentsControl } from '@/components/payments/ExtraCostsPaymentsControl';
+import { ProjectRevenueControl } from '@/components/payments/ProjectRevenueControl';
 import { ProfitControl } from '@/components/payments/ProfitControl';
 import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
-import { useQueryClient } from '@tanstack/react-query';
 import { paymentStatusLabels as statusLabels, paymentStatusColors as statusColors } from '@/lib/finance/constants';
 import { useFormatCurrency } from '@/hooks/useFormatCurrency';
+import { usePaymentsData } from '@/hooks/usePaymentsData';
 
 type PaymentViewMode = 'vencimento' | 'pagamento';
 
@@ -61,59 +60,21 @@ export default function Pagamentos() {
   const { canViewAllFinancials, canViewOwnFinancials, userId, userRole, isCollaborator, isLoading: permissionsLoading } = useFinancialPermissions();
   const { hasFeatureAccess, checkFeature, upgradeAlert, closeUpgradeAlert, getFeatureInfo, getUpgradePlan } = usePlanFeatures();
   const { hideValues, toggleHideValues } = useHideValues();
-  const queryClient = useQueryClient();
   const { formatCurrency } = useFormatCurrency();
+  const {
+    projectCosts,
+    allProjectCosts,
+    projectRevenue,
+    handleFreelancerStatusChange,
+    handleCostStatusChange,
+    handleProjectRevenueStatusChange,
+  } = usePaymentsData();
   const [activeTab, setActiveTab] = useState('previsao');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [paymentViewMode, setPaymentViewMode] = useState<PaymentViewMode>('vencimento');
   
   const canExportPdf = hasFeatureAccess('exportPdf');
-  
-  // Data for extra costs
-  const [projectCosts, setProjectCosts] = useState<ProjectCustoExtra[]>([]);
-  const [allProjectCosts, setAllProjectCosts] = useState<ProjectCustoExtra[]>([]);
-  const [projectRevenue, setProjectRevenue] = useState<ProjectRevenue[]>([]);
-
-  // Fetch project extra costs and revenue data
-  useEffect(() => {
-    const fetchAdditionalData = async () => {
-      if (!currentWorkspace?.id) return;
-      
-      const { data: costsData } = await supabase
-        .from('projects')
-        .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, delivery_date, delivered_at, clients(name)')
-        .eq('workspace_id', currentWorkspace.id)
-        .gt('custos_extras', 0)
-        .in('custos_extras_payment_status', ['pendente', 'vencido', null]);
-      
-      if (costsData) {
-        setProjectCosts(costsData as ProjectCustoExtra[]);
-      }
-      
-      const { data: allCostsData } = await supabase
-        .from('projects')
-        .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, delivery_date, delivered_at, clients(name)')
-        .eq('workspace_id', currentWorkspace.id)
-        .gt('custos_extras', 0);
-      
-      if (allCostsData) {
-        setAllProjectCosts(allCostsData as ProjectCustoExtra[]);
-      }
-
-      const { data: revenueData } = await supabase
-        .from('projects')
-        .select('id, name, project_code, agreed_value, client_payment_status, client_payment_due_date, client_id, delivery_date, delivered_at, clients(name)')
-        .eq('workspace_id', currentWorkspace.id)
-        .gt('agreed_value', 0);
-      
-      if (revenueData) {
-        setProjectRevenue(revenueData as ProjectRevenue[]);
-      }
-    };
-    
-    fetchAdditionalData();
-  }, [currentWorkspace?.id]);
 
   // Filter projects for current month view
   const monthProjectRevenue = useMemo(() => {
@@ -313,91 +274,6 @@ export default function Pagamentos() {
   // Handle client payment status change
   const handleClientStatusChange = async (paymentId: string, newStatus: string) => {
     await updatePaymentStatus(paymentId, newStatus);
-  };
-
-  // Handle freelancer payment status change (Fase 7: set/clear paid_at)
-  const handleFreelancerStatusChange = async (teamId: string, newStatus: string) => {
-    // The DB trigger handles paid_at auto-fill, but we also set it explicitly for immediate consistency
-    const updates: Record<string, unknown> = {
-      payment_status: newStatus,
-    };
-    if (newStatus === 'pago') {
-      updates.paid_at = new Date().toISOString();
-    } else {
-      updates.paid_at = null;
-    }
-
-    await supabase
-      .from('project_team')
-      .update(updates)
-      .eq('id', teamId);
-
-    queryClient.invalidateQueries({ queryKey: ['team-payments'] });
-  };
-
-  // Handle extra costs status change (Fase 7: set/clear custos_extras_paid_at)
-  const handleCostStatusChange = async (projectId: string, newStatus: string) => {
-    const updates: Record<string, unknown> = {
-      custos_extras_payment_status: newStatus,
-    };
-    if (newStatus === 'pago') {
-      updates.custos_extras_paid_at = new Date().toISOString();
-    } else {
-      updates.custos_extras_paid_at = null;
-    }
-
-    await supabase
-      .from('projects')
-      .update(updates)
-      .eq('id', projectId);
-    
-    // Refresh data
-    const { data: costsData } = await supabase
-      .from('projects')
-      .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, delivery_date, clients(name)')
-      .eq('workspace_id', currentWorkspace?.id)
-      .gt('custos_extras', 0);
-    
-    if (costsData) {
-      setAllProjectCosts(costsData as ProjectCustoExtra[]);
-      setProjectCosts(costsData.filter(c => 
-        c.custos_extras_payment_status === 'pendente' || 
-        c.custos_extras_payment_status === 'vencido' || 
-        c.custos_extras_payment_status === null
-      ) as ProjectCustoExtra[]);
-    }
-    
-    queryClient.invalidateQueries({ queryKey: ['projects'] });
-  };
-
-  // Handle project revenue status change
-  const handleProjectRevenueStatusChange = async (projectId: string, newStatus: string) => {
-    const updates: Record<string, unknown> = {
-      client_payment_status: newStatus,
-    };
-    
-    if (newStatus === 'pago') {
-      updates.client_paid_at = new Date().toISOString();
-    } else {
-      updates.client_paid_at = null;
-    }
-    
-    await supabase
-      .from('projects')
-      .update(updates)
-      .eq('id', projectId);
-    
-    const { data: revenueData } = await supabase
-      .from('projects')
-      .select('id, name, project_code, agreed_value, client_payment_status, client_payment_due_date, client_id, delivery_date, clients(name)')
-      .eq('workspace_id', currentWorkspace?.id)
-      .gt('agreed_value', 0);
-    
-    if (revenueData) {
-      setProjectRevenue(revenueData as ProjectRevenue[]);
-    }
-    
-    queryClient.invalidateQueries({ queryKey: ['projects'] });
   };
 
   const clientsList = useMemo(() => {
