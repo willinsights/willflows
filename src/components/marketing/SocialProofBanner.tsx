@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Briefcase, Star, TrendingUp } from 'lucide-react';
 
@@ -31,9 +31,9 @@ const stats: StatItem[] = [
   },
 ];
 
-export const SocialProofBanner = memo(function SocialProofBanner() {
+export const SocialProofBanner = memo(forwardRef<HTMLElement>(function SocialProofBanner(_props, ref) {
   return (
-    <section className="py-12 px-4 border-y border-border/50 bg-muted/20">
+    <section ref={ref} className="py-12 px-4 border-y border-border/50 bg-muted/20">
       <div className="container mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -66,4 +66,4 @@ export const SocialProofBanner = memo(function SocialProofBanner() {
       </div>
     </section>
   );
-});
+}));

@@ -106,9 +106,9 @@ const TestimonialCard = memo(forwardRef<HTMLDivElement, { testimonial: Testimoni
   );
 }));
 
-export const TestimonialsSection = memo(function TestimonialsSection() {
+export const TestimonialsSection = memo(forwardRef<HTMLElement>(function TestimonialsSection(_props, ref) {
   return (
-    <section className="py-20 px-4 bg-muted/30" aria-labelledby="testimonials-heading">
+    <section ref={ref} className="py-20 px-4 bg-muted/30" aria-labelledby="testimonials-heading">
       <div className="container mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -136,4 +136,4 @@ export const TestimonialsSection = memo(function TestimonialsSection() {
       </div>
     </section>
   );
-});
+}));

@@ -37,7 +37,7 @@ import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { useHideValues } from '@/hooks/useHideValues';
 import { cn } from '@/lib/utils';
-import { ClientPaymentsControl } from '@/components/payments/ClientPaymentsControl';
+
 import { FreelancerPaymentsControl, type ProjectTeamPayment } from '@/components/payments/FreelancerPaymentsControl';
 import { PaymentExportButtons } from '@/components/payments/PaymentExportButtons';
 import { ExtraCostsPaymentsControl } from '@/components/payments/ExtraCostsPaymentsControl';
@@ -51,7 +51,7 @@ import { usePaymentsData } from '@/hooks/usePaymentsData';
 type PaymentViewMode = 'vencimento' | 'pagamento';
 
 export default function Pagamentos() {
-  const { payments, loading, summaries, updatePaymentStatus } = usePayments();
+  const { payments, loading, updatePaymentStatus } = usePayments();
   const { teamPayments, updateTeamPaymentStatus } = useTeamPayments();
   const { projects } = useProjects();
   const { clients } = useClients();
@@ -426,8 +426,8 @@ export default function Pagamentos() {
           </TabsTrigger>
           {canViewAllFinancials && (
             <>
-              <TabsTrigger value="clientes">Pag. Clientes</TabsTrigger>
-              <TabsTrigger value="colaboradores">Pag. Colaboradores</TabsTrigger>
+              <TabsTrigger value="clientes">Receita Clientes</TabsTrigger>
+              <TabsTrigger value="colaboradores">Custos Colaboradores</TabsTrigger>
               <TabsTrigger value="custos-extras">Custos Extras</TabsTrigger>
               <TabsTrigger value="lucro">Lucro</TabsTrigger>
               <TabsTrigger value="faturas" disabled className="opacity-50">
