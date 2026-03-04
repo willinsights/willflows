@@ -43,6 +43,7 @@ import { FreelancerPaymentsControl, type ProjectTeamPayment } from '@/components
 import { PaymentExportButtons } from '@/components/payments/PaymentExportButtons';
 import { ExtraCostsPaymentsControl, type ProjectCustoExtra } from '@/components/payments/ExtraCostsPaymentsControl';
 import { ProjectRevenueControl, type ProjectRevenue } from '@/components/payments/ProjectRevenueControl';
+import { ProfitControl } from '@/components/payments/ProfitControl';
 import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -572,6 +573,7 @@ export default function Pagamentos() {
               <TabsTrigger value="clientes">Pag. Clientes</TabsTrigger>
               <TabsTrigger value="colaboradores">Pag. Colaboradores</TabsTrigger>
               <TabsTrigger value="custos-extras">Custos Extras</TabsTrigger>
+              <TabsTrigger value="lucro">Lucro</TabsTrigger>
               <TabsTrigger value="faturas" disabled className="opacity-50">
                 Emitir Fatura
                 <span className="ml-1 text-[10px] text-muted-foreground">(brevemente)</span>
@@ -874,6 +876,15 @@ export default function Pagamentos() {
             projectCosts={allProjectCosts}
             onStatusChange={handleCostStatusChange}
             formatCurrency={formatCurrency}
+          />
+        </TabsContent>
+
+        {/* Lucro Tab */}
+        <TabsContent value="lucro" className="space-y-6">
+          <ProfitControl
+            clients={clientsList}
+            formatCurrency={formatCurrency}
+            workspaceName={currentWorkspace?.name}
           />
         </TabsContent>
 
