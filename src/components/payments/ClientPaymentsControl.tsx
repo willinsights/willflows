@@ -26,20 +26,7 @@ import { PaymentExportButtons } from './PaymentExportButtons';
 import { cn } from '@/lib/utils';
 import { useHideValues } from '@/hooks/useHideValues';
 import type { PaymentWithDetails } from '@/hooks/usePayments';
-
-const statusLabels: Record<string, string> = {
-  pendente: 'Pendente',
-  pago: 'Pago',
-  vencido: 'Vencido',
-  cancelado: 'Cancelado',
-};
-
-const statusColors: Record<string, string> = {
-  pendente: 'bg-warning/10 text-warning border-warning/20',
-  pago: 'bg-success/10 text-success border-success/20',
-  vencido: 'bg-destructive/10 text-destructive border-destructive/20',
-  cancelado: 'bg-muted text-muted-foreground',
-};
+import { paymentStatusLabels as statusLabels, paymentStatusColors as statusColors } from '@/lib/finance/constants';
 
 interface Client {
   id: string;

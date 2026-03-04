@@ -46,6 +46,7 @@ import { CreateClientModal } from '@/components/clients/CreateClientModal';
 import { ClientDetailsModal } from '@/components/clients/ClientDetailsModal';
 import { AccessDenied } from '@/components/ui/access-denied';
 import { cn } from '@/lib/utils';
+import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 
 export default function Clientes() {
   const { canViewClients, canViewClientFinancials, canEditClients, canCreateClients } = useFinancialPermissions();
@@ -59,14 +60,7 @@ export default function Clientes() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('receita');
 
-  const currency = currentWorkspace?.currency || 'EUR';
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat(currentWorkspace?.locale || 'pt-PT', {
-      style: 'currency',
-      currency,
-    }).format(value);
-  };
+  const { formatCurrency } = useFormatCurrency();
 
   // Calculate client stats
   const clientStats = useMemo(() => {
