@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import { Star, Quote } from 'lucide-react';
 
@@ -51,9 +51,9 @@ const testimonials: Testimonial[] = [
   },
 ];
 
-const StarRating = memo(function StarRating({ rating }: { rating: number }) {
+const StarRating = memo(forwardRef<HTMLDivElement, { rating: number }>(function StarRating({ rating }, ref) {
   return (
-    <div className="flex gap-0.5">
+    <div ref={ref} className="flex gap-0.5">
       {Array.from({ length: 5 }).map((_, i) => (
         <Star
           key={i}
@@ -64,17 +64,15 @@ const StarRating = memo(function StarRating({ rating }: { rating: number }) {
       ))}
     </div>
   );
-});
+}));
 
-const TestimonialCard = memo(function TestimonialCard({ 
+const TestimonialCard = memo(forwardRef<HTMLDivElement, { testimonial: Testimonial; index: number }>(function TestimonialCard({ 
   testimonial, 
   index 
-}: { 
-  testimonial: Testimonial; 
-  index: number;
-}) {
+}, ref) {
   return (
     <motion.div
+      ref={ref}
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1, duration: 0.5 }}
@@ -106,7 +104,7 @@ const TestimonialCard = memo(function TestimonialCard({
       </blockquote>
     </motion.div>
   );
-});
+}));
 
 export const TestimonialsSection = memo(function TestimonialsSection() {
   return (
