@@ -22,6 +22,7 @@ import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { useHideValues } from '@/hooks/useHideValues';
+import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 import { ProjectDetailsSheet } from '@/components/projects/ProjectDetailsSheet';
 import { supabase } from '@/integrations/supabase/client';
@@ -115,13 +116,7 @@ export default function Finalizados() {
     captacao: string[];
     edicao: string[];
   }>>({});
-  const currency = currentWorkspace?.currency || 'EUR';
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat(currentWorkspace?.locale || 'pt-PT', {
-      style: 'currency',
-      currency
-    }).format(value);
-  };
+  const { formatCurrency } = useFormatCurrency();
 
   // Fetch project teams for all completed projects
   useEffect(() => {

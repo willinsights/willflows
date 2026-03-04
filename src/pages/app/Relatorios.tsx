@@ -53,6 +53,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { useClients } from '@/hooks/useClients';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
+import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 import { useFeatureGate } from '@/components/subscription/FeatureGate';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -103,16 +104,8 @@ export default function Relatorios() {
   // Top Collaborators data
   const [collaboratorsData, setCollaboratorsData] = useState<CollaboratorData[]>([]);
 
-  const currency = currentWorkspace?.currency || 'EUR';
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat(currentWorkspace?.locale || 'pt-PT', {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
+  const { formatCurrency: formatCurrencyFull } = useFormatCurrency();
+  const formatCurrency = (value: number) => formatCurrencyFull(value, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
   // Calculate date range based on period type
   const dateRange = useMemo(() => {

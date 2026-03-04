@@ -55,6 +55,7 @@ import { CreateNoteModal } from './CreateNoteModal';
 import { MeetingRoomModal } from '@/components/calendar/MeetingRoomModal';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 
 interface Client {
   id: string;
@@ -217,12 +218,7 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
     setIsEditing(false);
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat(currentWorkspace?.locale || 'pt-PT', {
-      style: 'currency',
-      currency: currentWorkspace?.currency || 'EUR',
-    }).format(value);
-  };
+  const { formatCurrency } = useFormatCurrency();
 
   // Calculate stats
   const stats = useMemo(() => {

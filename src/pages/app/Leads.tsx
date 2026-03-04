@@ -40,16 +40,13 @@ import { ClientDetailsModal } from '@/components/clients/ClientDetailsModal';
 import { AccessDenied } from '@/components/ui/access-denied';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { cn } from '@/lib/utils';
+import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 
 export default function Leads() {
   const { canViewLeads } = useFinancialPermissions();
   const { leads, leadsByStatus, loading, pipelineMetrics, updateLeadStatus, deleteLead, deleteMultipleLeads, importLeads, refresh } = useLeads();
-
-  // Block access for collaborators
-  if (!canViewLeads) {
-    return <AccessDenied description="Apenas administradores, editores e captação podem aceder aos Leads." />;
-  }
   const { currentWorkspace } = useWorkspace();
+  const { formatCurrency } = useFormatCurrency();
   
   const [view, setView] = useState<'kanban' | 'list'>('kanban');
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,16 +62,10 @@ export default function Leads() {
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
-  const currency = currentWorkspace?.currency || 'EUR';
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat(currentWorkspace?.locale || 'pt-PT', {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
+  // Block access for collaborators
+  if (!canViewLeads) {
+    return <AccessDenied description="Apenas administradores, editores e captação podem aceder aos Leads." />;
+  }
 
   // Filter leads for list view
   const filteredLeads = useMemo(() => {

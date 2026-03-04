@@ -46,20 +46,8 @@ import { ProjectRevenueControl, type ProjectRevenue } from '@/components/payment
 import { ProfitControl } from '@/components/payments/ProfitControl';
 import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 import { useQueryClient } from '@tanstack/react-query';
-
-const statusLabels: Record<string, string> = {
-  pendente: 'Pendente',
-  pago: 'Pago',
-  vencido: 'Vencido',
-  cancelado: 'Cancelado',
-};
-
-const statusColors: Record<string, string> = {
-  pendente: 'bg-warning/10 text-warning border-warning/20',
-  pago: 'bg-success/10 text-success border-success/20',
-  vencido: 'bg-destructive/10 text-destructive border-destructive/20',
-  cancelado: 'bg-muted text-muted-foreground',
-};
+import { paymentStatusLabels as statusLabels, paymentStatusColors as statusColors } from '@/lib/finance/constants';
+import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 
 type PaymentViewMode = 'vencimento' | 'pagamento';
 
@@ -74,6 +62,7 @@ export default function Pagamentos() {
   const { hasFeatureAccess, checkFeature, upgradeAlert, closeUpgradeAlert, getFeatureInfo, getUpgradePlan } = usePlanFeatures();
   const { hideValues, toggleHideValues } = useHideValues();
   const queryClient = useQueryClient();
+  const { formatCurrency } = useFormatCurrency();
   const [activeTab, setActiveTab] = useState('previsao');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
@@ -85,15 +74,6 @@ export default function Pagamentos() {
   const [projectCosts, setProjectCosts] = useState<ProjectCustoExtra[]>([]);
   const [allProjectCosts, setAllProjectCosts] = useState<ProjectCustoExtra[]>([]);
   const [projectRevenue, setProjectRevenue] = useState<ProjectRevenue[]>([]);
-
-  const currency = currentWorkspace?.currency || 'EUR';
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat(currentWorkspace?.locale || 'pt-PT', {
-      style: 'currency',
-      currency,
-    }).format(value);
-  };
 
   // Fetch project extra costs and revenue data
   useEffect(() => {
