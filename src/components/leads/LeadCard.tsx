@@ -89,11 +89,11 @@ export function LeadCard({
             <GripVertical className="h-4 w-4 text-muted-foreground" />
           </button>
           <div className="flex-1 min-w-0">
-            <h4 className="font-medium text-sm truncate">{lead.name}</h4>
+            <h4 className="font-medium text-sm truncate" title={lead.name}>{lead.name}</h4>
             {lead.company && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
+              <p className="text-xs text-muted-foreground flex items-center gap-1 truncate" title={lead.company}>
                 <Building2 className="h-3 w-3 flex-shrink-0" />
-                {lead.company}
+                <span className="truncate">{lead.company}</span>
               </p>
             )}
           </div>
