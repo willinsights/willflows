@@ -54,7 +54,7 @@ function DroppableColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        'flex flex-col h-full min-w-[280px] w-[280px] flex-shrink-0',
+        'flex flex-col h-full min-w-[240px] w-[240px] sm:min-w-[260px] sm:w-[260px] md:min-w-[280px] md:w-[280px] flex-shrink-0',
         'rounded-xl border bg-muted/30 transition-colors',
         isOver && 'ring-2 ring-primary bg-primary/5'
       )}
@@ -149,7 +149,7 @@ export function LeadKanban({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-280px)]">
+      <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 h-[calc(100vh-320px)] sm:h-[calc(100vh-280px)]">
         {KANBAN_COLUMNS.map(status => (
           <DroppableColumn
             key={status}
