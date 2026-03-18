@@ -115,10 +115,6 @@ export default function BlogAdmin() {
           </motion.div>
         ))}
       </div>
-            </p>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Error State */}
       {error && (
