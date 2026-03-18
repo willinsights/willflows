@@ -52,27 +52,30 @@ function DroppableColumn({
   const totalValue = leads.reduce((sum, l) => sum + (l.estimated_value || 0), 0);
 
   return (
-    <div
+    <motion.div
       ref={setNodeRef}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.05 * KANBAN_COLUMNS.indexOf(status), duration: 0.35 }}
       className={cn(
         'flex flex-col h-full min-w-[240px] w-[240px] sm:min-w-[260px] sm:w-[260px] md:min-w-[280px] md:w-[280px] flex-shrink-0',
-        'rounded-xl border bg-muted/30 transition-colors',
-        isOver && 'ring-2 ring-primary bg-primary/5'
+        'rounded-xl border bg-muted/30 transition-all',
+        isOver && 'ring-2 ring-primary bg-primary/5 scale-[1.01]'
       )}
     >
       {/* Column Header */}
-      <div className="p-3 border-b">
+      <div className="p-3 border-b bg-muted/20 rounded-t-xl">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
-            <div className={cn('w-2 h-2 rounded-full', config.bgColor)} />
+            <div className={cn('w-2.5 h-2.5 rounded-full ring-2 ring-offset-1 ring-offset-background', config.bgColor, `ring-${config.bgColor.replace('bg-', '')}/30`)} />
             <h3 className="font-semibold text-sm">{config.label}</h3>
           </div>
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-xs tabular-nums">
             {leads.length}
           </Badge>
         </div>
         {totalValue > 0 && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground font-medium tabular-nums">
             Valor: €{totalValue.toLocaleString('pt-PT')}
           </p>
         )}
@@ -82,9 +85,17 @@ function DroppableColumn({
       <ScrollArea className="flex-1 p-2">
         <div className="space-y-2">
           {children}
+          {leads.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="w-8 h-8 rounded-full bg-muted/50 flex items-center justify-center mb-2">
+                <div className={cn('w-2 h-2 rounded-full', config.bgColor)} />
+              </div>
+              <p className="text-xs text-muted-foreground">Arraste leads para aqui</p>
+            </div>
+          )}
         </div>
       </ScrollArea>
-    </div>
+    </motion.div>
   );
 }
 
