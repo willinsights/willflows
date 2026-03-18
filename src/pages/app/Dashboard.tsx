@@ -16,6 +16,7 @@ import { PendingPaymentsList } from '@/components/dashboard/PendingPaymentsList'
 import { RecentActivityCard } from '@/components/dashboard/RecentActivityCard';
 import { PerformanceMetricsCard } from '@/components/dashboard/PerformanceMetricsCard';
 import { PaymentAlertsWidget } from '@/components/dashboard/PaymentAlertsWidget';
+import { WorkspaceHealthWidget } from '@/components/dashboard/WorkspaceHealthWidget';
 import { useProductTour } from '@/hooks/useProductTour';
 import { useDashboardMetrics, UrgentProject } from '@/hooks/useDashboardMetrics';
 import { useFinancialEngine } from '@/hooks/useFinancialEngine';
