@@ -178,56 +178,61 @@ export default function VisaoGeral() {
 
       {/* Summary Cards from Engine */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="glass-card border-success/20">
-          <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground mb-1">Receita</p>
-            <p className={cn("text-2xl font-bold text-success", hideValues && "blur-md select-none")}>
-              {formatCurrency(metrics.revenue)}
-            </p>
-            {revenueChange !== null && (
-              <p className={cn("text-[10px] mt-1", revenueChange >= 0 ? "text-success" : "text-destructive")}>
-                {revenueChange >= 0 ? '▲' : '▼'} {Math.abs(revenueChange)}% vs mês anterior
-              </p>
-            )}
-          </CardContent>
-        </Card>
-        <Card className="glass-card border-destructive/20">
-          <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground mb-1">Custos</p>
-            <p className={cn("text-2xl font-bold text-destructive", hideValues && "blur-md select-none")}>
-              {formatCurrency(metrics.cost)}
-            </p>
-            {costChange !== null && (
-              <p className={cn("text-[10px] mt-1", costChange <= 0 ? "text-success" : "text-destructive")}>
-                {costChange >= 0 ? '▲' : '▼'} {Math.abs(costChange)}% vs mês anterior
-              </p>
-            )}
-          </CardContent>
-        </Card>
-        <Card className="glass-card border-primary/20">
-          <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground mb-1">Lucro</p>
-            <p className={cn("text-2xl font-bold", metrics.profit >= 0 ? "text-primary" : "text-destructive", hideValues && "blur-md select-none")}>
-              {metrics.profit >= 0 ? '+' : ''}{formatCurrency(metrics.profit)}
-            </p>
-            {profitChange !== null && (
-              <p className={cn("text-[10px] mt-1", profitChange >= 0 ? "text-success" : "text-destructive")}>
-                {profitChange >= 0 ? '▲' : '▼'} {Math.abs(profitChange)}% vs mês anterior
-              </p>
-            )}
-          </CardContent>
-        </Card>
-        <Card className="glass-card border-muted">
-          <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground mb-1">Margem</p>
-            <p className={cn("text-2xl font-bold", margin >= 30 ? "text-success" : margin >= 0 ? "text-warning" : "text-destructive")}>
-              {margin}%
-            </p>
-            <p className="text-[10px] text-muted-foreground mt-1">
-              {metrics.projectCount} projeto{metrics.projectCount !== 1 ? 's' : ''}
-            </p>
-          </CardContent>
-        </Card>
+        {[
+          {
+            label: 'Receita', borderClass: 'border-success/20',
+            valueClass: 'text-success',
+            value: formatCurrency(metrics.revenue),
+            change: revenueChange, changePositiveGood: true,
+          },
+          {
+            label: 'Custos', borderClass: 'border-destructive/20',
+            valueClass: 'text-destructive',
+            value: formatCurrency(metrics.cost),
+            change: costChange, changePositiveGood: false,
+          },
+          {
+            label: 'Lucro', borderClass: 'border-primary/20',
+            valueClass: metrics.profit >= 0 ? 'text-primary' : 'text-destructive',
+            value: `${metrics.profit >= 0 ? '+' : ''}${formatCurrency(metrics.profit)}`,
+            change: profitChange, changePositiveGood: true,
+          },
+          {
+            label: 'Margem', borderClass: 'border-muted',
+            valueClass: margin >= 30 ? 'text-success' : margin >= 0 ? 'text-warning' : 'text-destructive',
+            value: `${margin}%`,
+            change: null, changePositiveGood: true,
+            sub: `${metrics.projectCount} projeto${metrics.projectCount !== 1 ? 's' : ''}`,
+          },
+        ].map((card, i) => (
+          <motion.div
+            key={card.label}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.08, duration: 0.4, ease: 'easeOut' }}
+          >
+            <Card className={cn("glass-card hover:shadow-md transition-shadow", card.borderClass)}>
+              <CardContent className="p-4 text-center">
+                <p className="text-xs text-muted-foreground mb-1">{card.label}</p>
+                <p className={cn("text-2xl font-bold", card.valueClass, hideValues && "blur-md select-none")}>
+                  {card.value}
+                </p>
+                {card.change !== null && (
+                  <p className={cn("text-[10px] mt-1", 
+                    card.changePositiveGood 
+                      ? (card.change >= 0 ? "text-success" : "text-destructive")
+                      : (card.change <= 0 ? "text-success" : "text-destructive")
+                  )}>
+                    {card.change >= 0 ? '▲' : '▼'} {Math.abs(card.change)}% vs mês anterior
+                  </p>
+                )}
+                {card.sub && (
+                  <p className="text-[10px] text-muted-foreground mt-1">{card.sub}</p>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
 
       {/* PREVISAO Breakdown (rollover info) */}
