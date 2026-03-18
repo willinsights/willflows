@@ -236,21 +236,31 @@ export default function Dashboard() {
   }
 
   // Desktop Dashboard Layout
+  const stagger = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } };
+  const fadeUp = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0, transition: { duration: 0.35 } } };
+
   return (
-    <div className="p-3 md:p-4 space-y-3 md:space-y-4 max-w-[1400px] mx-auto">
+    <motion.div
+      className="p-3 md:p-4 space-y-3 md:space-y-4 max-w-[1400px] mx-auto"
+      variants={stagger}
+      initial="hidden"
+      animate="visible"
+    >
       {showTour && (
         <ProductTour onComplete={completeTour} onSkip={skipTour} />
       )}
       <TrialBanner />
       
       {/* Header with Quick Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <motion.div variants={fadeUp} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <DashboardHeader currentTime={currentTime} />
         <QuickActionsCard />
-      </div>
+      </motion.div>
 
       {/* Project Counters Row */}
-      <ProjectCounters metrics={metrics} loading={loading} />
+      <motion.div variants={fadeUp}>
+        <ProjectCounters metrics={metrics} loading={loading} />
+      </motion.div>
 
       {/* Financial View Selector + Forecast Cards - Only for admins */}
       {!isCollaborator && canViewAllFinancials && (
