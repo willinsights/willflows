@@ -400,6 +400,7 @@ export default function Faturacao() {
               )}
             </CardContent>
           </Card>
+          </motion.div>
         </>
       )}
     </div>
