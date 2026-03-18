@@ -401,7 +401,11 @@ export default function Finalizados() {
   };
   return <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+      >
         <div>
           <h1 className="text-2xl font-bold text-primary">Projetos Finalizados</h1>
           <p className="text-muted-foreground">Histórico completo de projetos concluídos</p>
@@ -431,7 +435,7 @@ export default function Finalizados() {
               </TooltipContent>
             </Tooltip>}
         </div>
-      </div>
+      </motion.div>
 
       {/* Filters Card */}
       <Card className="glass-card">
