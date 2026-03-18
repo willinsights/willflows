@@ -311,9 +311,12 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Payment Alerts */}
+      {/* Payment Alerts + Workspace Health */}
       {!isCollaborator && canViewAllFinancials && (
-        <PaymentAlertsWidget />
+        <div className="grid md:grid-cols-2 gap-3">
+          <PaymentAlertsWidget />
+          <WorkspaceHealthWidget />
+        </div>
       )}
 
       {/* Bottom Row */}
