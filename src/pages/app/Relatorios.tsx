@@ -67,10 +67,6 @@ export default function Relatorios() {
     deliveredProjectIds,
   });
 
-  if (!canViewReports) {
-    return <AccessDenied description="Apenas administradores podem aceder aos Relatórios financeiros." />;
-  }
-
   // Cost breakdown data for Excel export
   const [costBreakdownData, setCostBreakdownData] = useState<{ category: string; estimated: number; actual: number; variance: number }[]>([]);
 
@@ -99,6 +95,10 @@ export default function Relatorios() {
     };
     fetchCosts();
   }, [currentWorkspace?.id]);
+
+  if (!canViewReports) {
+    return <AccessDenied description="Apenas administradores podem aceder aos Relatórios financeiros." />;
+  }
 
   // Export functions
   const handleExportExcel = async () => {
