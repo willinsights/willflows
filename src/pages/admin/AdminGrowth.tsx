@@ -3,6 +3,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -366,7 +367,11 @@ export default function AdminGrowth() {
     <TooltipProvider>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
             <h1 className="text-2xl font-bold tracking-tight">Growth</h1>
             <p className="text-muted-foreground">Aquisição e gestão de utilizadores</p>
             <div className="mt-2">
@@ -380,7 +385,7 @@ export default function AdminGrowth() {
                 </Badge>
               )}
             </div>
-          </div>
+          </motion.div>
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />

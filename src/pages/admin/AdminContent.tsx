@@ -3,6 +3,7 @@
  */
 
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -89,7 +90,12 @@ export default function AdminContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <motion.div
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Conteúdo</h1>
           <p className="text-muted-foreground">Gere e publica artigos do blog com AI</p>
@@ -110,7 +116,7 @@ export default function AdminContent() {
             Gerar Artigo
           </Button>
         </div>
-      </div>
+      </motion.div>
 
       <Tabs defaultValue="articles" className="space-y-6">
         <TabsList>
