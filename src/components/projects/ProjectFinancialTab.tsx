@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { DollarSign, User, Camera, Film, CreditCard, Calendar, Package, Lock, RotateCcw, List } from 'lucide-react';
+import { DollarSign, User, Camera, Film, CreditCard, Calendar, Package, Lock, RotateCcw, List, Activity } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Label } from '@/components/ui/label';
