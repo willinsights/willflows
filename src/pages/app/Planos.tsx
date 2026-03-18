@@ -266,7 +266,11 @@ export default function Planos() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between"
+      >
         <div>
           <h1 className="text-2xl font-bold">Planos</h1>
           <p className="text-muted-foreground">Gerir plano, subscrição e faturação</p>
