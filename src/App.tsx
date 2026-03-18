@@ -47,6 +47,14 @@ const KanbanFeature = lazy(() => import("./pages/features/Kanban"));
 const CRMFeature = lazy(() => import("./pages/features/CRM"));
 const CalendarioFeature = lazy(() => import("./pages/features/Calendario"));
 const PagamentosFeature = lazy(() => import("./pages/features/Pagamentos"));
+
+// Financeiro hub pages
+const FinanceiroLayout = lazy(() => import("./pages/app/financeiro/FinanceiroLayout"));
+const FinanceiroVisaoGeral = lazy(() => import("./pages/app/financeiro/VisaoGeral"));
+const FinanceiroReceitas = lazy(() => import("./pages/app/financeiro/Receitas"));
+const FinanceiroCustos = lazy(() => import("./pages/app/financeiro/Custos"));
+const FinanceiroCustosExtras = lazy(() => import("./pages/app/financeiro/CustosExtras"));
+const FinanceiroLucro = lazy(() => import("./pages/app/financeiro/Lucro"));
 const RelatoriosFeature = lazy(() => import("./pages/features/Relatorios"));
 const MediaHubFeature = lazy(() => import("./pages/features/MediaHub"));
 const VideoApprovalFeature = lazy(() => import("./pages/features/VideoApproval"));
