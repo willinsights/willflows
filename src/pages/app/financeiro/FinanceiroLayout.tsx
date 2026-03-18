@@ -104,7 +104,12 @@ export default function FinanceiroLayout() {
   return (
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="flex items-center justify-between gap-4"
+      >
         <div>
           <h1 className="text-xl sm:text-2xl font-bold">Finanças</h1>
           <p className="text-sm text-muted-foreground hidden sm:block">
@@ -114,7 +119,7 @@ export default function FinanceiroLayout() {
         <Button variant="ghost" size="icon" onClick={toggleHideValues} className="h-9 w-9 shrink-0">
           {hideValues ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </Button>
-      </div>
+      </motion.div>
 
       {/* Summary Cards — horizontally scrollable on mobile */}
       {canViewAllFinancials && (
