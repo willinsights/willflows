@@ -255,8 +255,13 @@ export default function Media() {
           const count = typeCounts[type.value] || 0;
           
           return (
-            <Card 
+            <motion.div
               key={type.value}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: mediaTypes.indexOf(type) * 0.06, duration: 0.3 }}
+            >
+            <Card 
               className={cn(
                 "cursor-pointer transition-all hover:shadow-md",
                 isActive && "ring-2 ring-primary"
