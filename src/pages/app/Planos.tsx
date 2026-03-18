@@ -286,7 +286,7 @@ export default function Planos() {
             {portalLoading ? 'A abrir...' : 'Gerir no Stripe'}
           </Button>
         )}
-      </div>
+      </motion.div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className={cn(

@@ -435,7 +435,7 @@ export default function Finalizados() {
               </TooltipContent>
             </Tooltip>}
         </div>
-      </div>
+      </motion.div>
 
       {/* Filters Card */}
       <Card className="glass-card">
