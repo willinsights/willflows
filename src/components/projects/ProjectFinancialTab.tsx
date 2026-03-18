@@ -18,6 +18,7 @@ import { useHideValues } from '@/hooks/useHideValues';
 import { cn } from '@/lib/utils';
 import { TeamMemberPaymentInput } from './TeamMemberPaymentInput';
 import { ProjectCostLinesCard } from '@/components/financeiro/ProjectCostLinesCard';
+import { ProjectInvoicesCard } from '@/components/financeiro/ProjectInvoicesCard';
 import type { Tables } from '@/integrations/supabase/types';
 
 type ProjectTeam = Tables<'project_team'>;
