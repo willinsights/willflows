@@ -106,7 +106,13 @@ export function useProjectCostLines(projectId?: string) {
     return data as ProjectCostLine;
   };
 
-  const updateCostLine = async (id: string, updates: Partial<Pick<ProjectCostLine, 'category' | 'description' | 'estimated_amount' | 'actual_amount' | 'payment_status'>>) => {
+  const updateCostLine = async (id: string, updates: {
+    category?: CostCategory;
+    description?: string | null;
+    estimated_amount?: number;
+    actual_amount?: number;
+    payment_status?: 'pendente' | 'pago' | 'vencido' | 'cancelado';
+  }) => {
     const { error } = await supabase
       .from('project_cost_lines')
       .update(updates)
