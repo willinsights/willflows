@@ -26,7 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Checkbox } from '@/components/ui/checkbox';
+
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePayments, useTeamPayments } from '@/hooks/usePayments';
 import { useProjects } from '@/hooks/useProjects';
@@ -71,7 +71,7 @@ export default function Pagamentos() {
   } = usePaymentsData();
   const [activeTab, setActiveTab] = useState('previsao');
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  
   const [paymentViewMode, setPaymentViewMode] = useState<PaymentViewMode>('vencimento');
   
   const canExportPdf = hasFeatureAccess('exportPdf');
@@ -207,23 +207,6 @@ export default function Pagamentos() {
     };
   }, [projectRevenue, typedTeamPayments, projectCosts, allProjectCosts]);
 
-  const invoiceableProjects = useMemo(() => {
-    return projects.filter(p => p.agreed_value && p.agreed_value > 0);
-  }, [projects]);
-
-  const toggleProjectSelection = (projectId: string) => {
-    setSelectedProjects(prev =>
-      prev.includes(projectId)
-        ? prev.filter(id => id !== projectId)
-        : [...prev, projectId]
-    );
-  };
-
-  const selectedTotal = useMemo(() => {
-    return invoiceableProjects
-      .filter(p => selectedProjects.includes(p.id))
-      .reduce((sum, p) => sum + (p.agreed_value || 0), 0);
-  }, [invoiceableProjects, selectedProjects]);
 
   // Export data for previsão tab
   const previsaoExportData = useMemo(() => {
@@ -430,10 +413,6 @@ export default function Pagamentos() {
               <TabsTrigger value="colaboradores">Custos Colaboradores</TabsTrigger>
               <TabsTrigger value="custos-extras">Custos Extras</TabsTrigger>
               <TabsTrigger value="lucro">Lucro</TabsTrigger>
-              <TabsTrigger value="faturas" disabled className="opacity-50">
-                Emitir Fatura
-                <span className="ml-1 text-[10px] text-muted-foreground">(brevemente)</span>
-              </TabsTrigger>
             </>
           )}
         </TabsList>
@@ -744,72 +723,6 @@ export default function Pagamentos() {
           />
         </TabsContent>
 
-        {/* Faturas Tab */}
-        <TabsContent value="faturas" className="space-y-6">
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle className="text-lg">Selecionar Projetos para Faturação</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {invoiceableProjects.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhum projeto com valor definido para faturar
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {invoiceableProjects.map(project => (
-                    <div
-                      key={project.id}
-                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          checked={selectedProjects.includes(project.id)}
-                          onCheckedChange={() => toggleProjectSelection(project.id)}
-                        />
-                        <div>
-                          <p className="font-medium">{project.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {project.project_code || project.id.slice(0, 8)} • {project.clients?.name || 'Sem cliente'}
-                          </p>
-                        </div>
-                      </div>
-                      <span className={cn("font-medium", hideValues && "blur-md select-none")}>{formatCurrency(project.agreed_value || 0)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {selectedProjects.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <Card className="glass-card border-primary/20">
-                <CardContent className="p-4">
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div>
-                      <p className="font-medium">{selectedProjects.length} projeto(s) selecionado(s)</p>
-                      <p className={cn("text-2xl font-bold text-primary", hideValues && "blur-md select-none")}>{formatCurrency(selectedTotal)}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline">
-                        <FileSpreadsheet className="h-4 w-4 mr-2" />
-                        Exportar Excel
-                      </Button>
-                      <Button className="gradient-primary">
-                        <FileText className="h-4 w-4 mr-2" />
-                        Exportar PDF
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-        </TabsContent>
       </Tabs>
       
       <UpgradeAlert

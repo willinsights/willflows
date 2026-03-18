@@ -89,7 +89,7 @@ const navSections: NavSection[] = [
   {
     title: 'FINANÇAS',
     items: [
-      { icon: Euro, label: 'Pagamentos', path: '/app/pagamentos' },
+      { icon: Euro, label: 'Finanças', path: '/app/pagamentos' },
       { icon: BarChart3, label: 'Relatórios', path: '/app/relatorios', permissionKey: 'reports.view' },
     ],
   },

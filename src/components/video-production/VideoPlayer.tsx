@@ -85,7 +85,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   const [showControls, setShowControls] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const hideControlsTimeout = useRef<NodeJS.Timeout>();
+  const hideControlsTimeout = useRef<ReturnType<typeof setTimeout>>();
   
   // Video aspect ratio detection for portrait/landscape layout
   const [videoAspectRatio, setVideoAspectRatio] = useState<number | null>(null);
