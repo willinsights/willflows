@@ -150,13 +150,13 @@ export default function Relatorios() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Relatórios</h1>
-          <p className="text-muted-foreground">Análises e métricas do seu negócio</p>
-        </div>
+        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4 }}>
+          <h1 className="text-2xl font-bold tracking-tight">Relatórios</h1>
+          <p className="text-muted-foreground text-sm">Análises e métricas do seu negócio</p>
+        </motion.div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
             {(['1M', '3M', '6M', '12M', 'YTD'] as PeriodType[]).map((p) => (
