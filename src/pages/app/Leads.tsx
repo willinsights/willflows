@@ -222,56 +222,30 @@ export default function Leads() {
       </div>
       {/* Metrics Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Total Leads</p>
-              <Target className="h-5 w-5 text-primary" />
-            </div>
-            <p className="text-2xl font-bold">{pipelineMetrics.totalLeads}</p>
-            <p className="text-xs text-muted-foreground mt-1">No pipeline ativo</p>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Valor Total</p>
-              <Euro className="h-5 w-5 text-emerald-500" />
-            </div>
-            <p className="text-2xl font-bold text-emerald-600">
-              {formatCurrency(pipelineMetrics.totalValue)}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">Estimado no pipeline</p>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Com Follow-up</p>
-              <Clock className="h-5 w-5 text-blue-500" />
-            </div>
-            <p className="text-2xl font-bold">{pipelineMetrics.leadsWithFollowUp}</p>
-            <p className="text-xs text-muted-foreground mt-1">Agendados</p>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Atrasados</p>
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-            </div>
-            <p className={cn(
-              "text-2xl font-bold",
-              pipelineMetrics.overdueFollowUps > 0 && "text-destructive"
-            )}>
-              {pipelineMetrics.overdueFollowUps}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">Follow-ups atrasados</p>
-          </CardContent>
-        </Card>
+        {[
+          { label: 'Total Leads', value: String(pipelineMetrics.totalLeads), sub: 'No pipeline ativo', icon: Target, iconClass: 'text-primary' },
+          { label: 'Valor Total', value: formatCurrency(pipelineMetrics.totalValue), sub: 'Estimado no pipeline', icon: Euro, iconClass: 'text-emerald-500', valueClass: 'text-emerald-600' },
+          { label: 'Com Follow-up', value: String(pipelineMetrics.leadsWithFollowUp), sub: 'Agendados', icon: Clock, iconClass: 'text-blue-500' },
+          { label: 'Atrasados', value: String(pipelineMetrics.overdueFollowUps), sub: 'Follow-ups atrasados', icon: AlertTriangle, iconClass: 'text-destructive', valueClass: pipelineMetrics.overdueFollowUps > 0 ? 'text-destructive' : undefined },
+        ].map((metric, i) => (
+          <motion.div
+            key={metric.label}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.08, duration: 0.4, ease: 'easeOut' }}
+          >
+            <Card className="glass-card hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-muted-foreground">{metric.label}</p>
+                  <metric.icon className={cn("h-5 w-5", metric.iconClass)} />
+                </div>
+                <p className={cn("text-2xl font-bold", metric.valueClass)}>{metric.value}</p>
+                <p className="text-xs text-muted-foreground mt-1">{metric.sub}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
 
       {/* Filters */}
