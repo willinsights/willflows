@@ -325,11 +325,11 @@ export default function Dashboard() {
 
       {/* Payment Alerts + Workspace Health + Advanced KPIs */}
       {!isCollaborator && canViewAllFinancials && (
-        <div className="grid md:grid-cols-3 gap-3">
+        <motion.div variants={fadeUp} className="grid md:grid-cols-3 gap-3">
           <PaymentAlertsWidget />
           <WorkspaceHealthWidget />
           <AdvancedKPIWidget />
-        </div>
+        </motion.div>
       )}
 
       {/* Bottom Row */}
