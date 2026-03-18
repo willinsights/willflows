@@ -3,15 +3,15 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Euro, TrendingUp, TrendingDown, Package, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { usePayments, useTeamPayments } from '@/hooks/usePayments';
-import { useClients } from '@/hooks/useClients';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useHideValues } from '@/hooks/useHideValues';
 import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 import { usePaymentsData } from '@/hooks/usePaymentsData';
 import { cn } from '@/lib/utils';
-import type { FreelancerPaymentsControl, ProjectTeamPayment } from '@/components/payments/FreelancerPaymentsControl';
+import type { ProjectTeamPayment } from '@/components/payments/FreelancerPaymentsControl';
 
 const subNavItems = [
   { label: 'Visão Geral', path: '/app/financeiro', end: true, icon: Euro },
@@ -74,7 +74,7 @@ export default function FinanceiroLayout() {
 
   if (!canViewOwnFinancials) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="flex flex-col items-center justify-center h-[60vh] text-center">
           <Lock className="h-16 w-16 text-muted-foreground/50 mb-4" />
           <h2 className="text-xl font-bold mb-2">Acesso Restrito</h2>
@@ -87,92 +87,98 @@ export default function FinanceiroLayout() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Finanças</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl font-bold">Finanças</h1>
+          <p className="text-sm text-muted-foreground hidden sm:block">
             {canViewAllFinancials ? 'Controle de receitas e despesas' : 'Os seus pagamentos e receitas'}
           </p>
         </div>
-        <Button variant="ghost" size="icon" onClick={toggleHideValues} className="h-9 w-9">
+        <Button variant="ghost" size="icon" onClick={toggleHideValues} className="h-9 w-9 shrink-0">
           {hideValues ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </Button>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards — horizontally scrollable on mobile */}
       {canViewAllFinancials && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <Card className="glass-card border-success/20">
-            <CardContent className="p-3 text-center">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">A Receber</p>
-              <p className={cn("text-lg font-bold text-success", hideValues && "blur-md select-none")}>
-                {formatCurrency(globalSummary.totalDueReceivable)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="glass-card border-success/30 bg-success/5">
-            <CardContent className="p-3 text-center">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Recebido</p>
-              <p className={cn("text-lg font-bold text-success/80", hideValues && "blur-md select-none")}>
-                {formatCurrency(globalSummary.totalPaidReceivable)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="glass-card border-destructive/20">
-            <CardContent className="p-3 text-center">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">A Pagar</p>
-              <p className={cn("text-lg font-bold text-destructive", hideValues && "blur-md select-none")}>
-                {formatCurrency(globalSummary.totalDuePayable)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="glass-card border-destructive/30 bg-destructive/5">
-            <CardContent className="p-3 text-center">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Pago</p>
-              <p className={cn("text-lg font-bold text-destructive/80", hideValues && "blur-md select-none")}>
-                {formatCurrency(globalSummary.totalPaidPayable)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card className={cn("glass-card", globalSummary.overdueCount > 0 ? "border-warning/30 bg-warning/5" : "")}>
-            <CardContent className="p-3 text-center">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Atrasados</p>
-              <p className="text-lg font-bold text-warning">{globalSummary.overdueCount}</p>
-            </CardContent>
-          </Card>
-          <Card className={cn("glass-card", globalSummary.overdueCount > 0 ? "border-warning/20" : "")}>
-            <CardContent className="p-3 text-center">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Valor Atraso</p>
-              <p className={cn("text-lg font-bold text-warning", hideValues && "blur-md select-none")}>
-                {formatCurrency(globalSummary.overdueAmount)}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        <ScrollArea className="w-full">
+          <div className="flex gap-3 pb-2 min-w-max sm:min-w-0 sm:grid sm:grid-cols-3 lg:grid-cols-6">
+            <Card className="glass-card border-success/20 w-[140px] sm:w-auto shrink-0">
+              <CardContent className="p-3 text-center">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">A Receber</p>
+                <p className={cn("text-lg font-bold text-success", hideValues && "blur-md select-none")}>
+                  {formatCurrency(globalSummary.totalDueReceivable)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="glass-card border-success/30 bg-success/5 w-[140px] sm:w-auto shrink-0">
+              <CardContent className="p-3 text-center">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Recebido</p>
+                <p className={cn("text-lg font-bold text-success/80", hideValues && "blur-md select-none")}>
+                  {formatCurrency(globalSummary.totalPaidReceivable)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="glass-card border-destructive/20 w-[140px] sm:w-auto shrink-0">
+              <CardContent className="p-3 text-center">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">A Pagar</p>
+                <p className={cn("text-lg font-bold text-destructive", hideValues && "blur-md select-none")}>
+                  {formatCurrency(globalSummary.totalDuePayable)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="glass-card border-destructive/30 bg-destructive/5 w-[140px] sm:w-auto shrink-0">
+              <CardContent className="p-3 text-center">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Pago</p>
+                <p className={cn("text-lg font-bold text-destructive/80", hideValues && "blur-md select-none")}>
+                  {formatCurrency(globalSummary.totalPaidPayable)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className={cn("glass-card w-[140px] sm:w-auto shrink-0", globalSummary.overdueCount > 0 ? "border-warning/30 bg-warning/5" : "")}>
+              <CardContent className="p-3 text-center">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Atrasados</p>
+                <p className="text-lg font-bold text-warning">{globalSummary.overdueCount}</p>
+              </CardContent>
+            </Card>
+            <Card className={cn("glass-card w-[140px] sm:w-auto shrink-0", globalSummary.overdueCount > 0 ? "border-warning/20" : "")}>
+              <CardContent className="p-3 text-center">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Valor Atraso</p>
+                <p className={cn("text-lg font-bold text-warning", hideValues && "blur-md select-none")}>
+                  {formatCurrency(globalSummary.overdueAmount)}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+          <ScrollBar orientation="horizontal" className="sm:hidden" />
+        </ScrollArea>
       )}
 
-      {/* Sub Navigation */}
+      {/* Sub Navigation — scrollable on mobile */}
       {canViewAllFinancials && (
-        <nav className="flex flex-wrap gap-1 bg-muted/50 rounded-lg p-1">
-          {subNavItems.map(item => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.end}
-              className={({ isActive }) => cn(
-                'flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
+        <ScrollArea className="w-full">
+          <nav className="flex gap-1 bg-muted/50 rounded-lg p-1 min-w-max sm:min-w-0">
+            {subNavItems.map(item => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={item.end}
+                className={({ isActive }) => cn(
+                  'flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap',
+                  isActive
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                )}
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+          <ScrollBar orientation="horizontal" className="sm:hidden" />
+        </ScrollArea>
       )}
 
       {/* Sub-page content */}
