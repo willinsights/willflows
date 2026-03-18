@@ -104,7 +104,7 @@ function useAdvancedKPIs(): AdvancedKPIs {
 
       // Pipeline value: estimated_value from active leads
       const pipelineValue = clients
-        .filter(c => c.lead_status && c.lead_status !== 'convertido' && c.lead_status !== 'perdido')
+        .filter(c => c.lead_status && c.lead_status !== 'ganho' && c.lead_status !== 'perdido')
         .reduce((sum, c) => sum + (c.estimated_value || 0), 0);
 
       setState({
