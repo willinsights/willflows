@@ -58,7 +58,7 @@ function KPICard({
   }
 
   return (
-    <Card>
+    <Card className="hover:shadow-md transition-shadow duration-200">
       <CardContent className="pt-6">
         <div className="flex items-start justify-between">
           <div>
