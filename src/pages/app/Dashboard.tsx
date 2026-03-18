@@ -289,7 +289,7 @@ export default function Dashboard() {
 
       {/* Charts Row */}
       {!isCollaborator && (
-        <div className="grid lg:grid-cols-2 gap-3">
+        <motion.div variants={fadeUp} className="grid lg:grid-cols-2 gap-3">
           <FinancialChart 
             monthlyData={monthlyData} 
             annualComparison={annualComparison}
@@ -306,7 +306,7 @@ export default function Dashboard() {
               loading={loading}
             />
           )}
-        </div>
+        </motion.div>
       )}
 
       {/* Projects and Events Row */}
