@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import {
+import { motion } from 'framer-motion';
   DndContext,
   DragOverlay,
   closestCorners,
