@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Eye, EyeOff, Lock, Euro, TrendingUp, TrendingDown, Package, BarChart3 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
