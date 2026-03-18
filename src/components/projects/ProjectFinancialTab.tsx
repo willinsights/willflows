@@ -18,6 +18,7 @@ import { useHideValues } from '@/hooks/useHideValues';
 import { cn } from '@/lib/utils';
 import { TeamMemberPaymentInput } from './TeamMemberPaymentInput';
 import { ProjectCostLinesCard } from '@/components/financeiro/ProjectCostLinesCard';
+import { ProjectInvoicesCard } from '@/components/financeiro/ProjectInvoicesCard';
 import type { Tables } from '@/integrations/supabase/types';
 
 type ProjectTeam = Tables<'project_team'>;
@@ -579,6 +580,9 @@ export function ProjectFinancialTab({
 
           {/* Granular Cost Lines */}
           <ProjectCostLinesCard projectId={projectId} />
+
+          {/* Invoices */}
+          <ProjectInvoicesCard projectId={projectId} clientId={project.client_id} />
         </>
       )}
 
