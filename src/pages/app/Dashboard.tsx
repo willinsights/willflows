@@ -310,7 +310,7 @@ export default function Dashboard() {
       )}
 
       {/* Projects and Events Row */}
-      <div className="grid lg:grid-cols-2 gap-3">
+      <motion.div variants={fadeUp} className="grid lg:grid-cols-2 gap-3">
         <UrgentProjectsCard 
           urgentProjects={urgentProjects} 
           loading={loading} 
@@ -321,7 +321,7 @@ export default function Dashboard() {
           loading={loading}
           onRefresh={refresh}
         />
-      </div>
+      </motion.div>
 
       {/* Payment Alerts + Workspace Health + Advanced KPIs */}
       {!isCollaborator && canViewAllFinancials && (
