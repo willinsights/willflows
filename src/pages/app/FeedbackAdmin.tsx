@@ -74,7 +74,12 @@ export default function FeedbackAdmin() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <motion.div
+        className="flex items-center justify-between"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
         <div className="flex items-center gap-3">
           <MessageSquarePlus className="h-8 w-8 text-primary" />
           <div>
@@ -86,7 +91,7 @@ export default function FeedbackAdmin() {
           <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
           Atualizar
         </Button>
-      </div>
+      </motion.div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
