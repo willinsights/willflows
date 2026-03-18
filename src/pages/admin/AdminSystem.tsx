@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MessageSquare, FlaskConical, Settings, Shield, HardDrive } from 'lucide-react';
 import { FeedbackAdminTab } from '@/components/admin/FeedbackAdminTab';
@@ -9,10 +10,14 @@ import { StorageMetricsTab } from '@/components/admin/StorageMetricsTab';
 export default function AdminSystem() {
   return (
     <div className="space-y-6">
-      <div>
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
         <h1 className="text-2xl font-bold">Sistema</h1>
         <p className="text-muted-foreground">Monitorização, suporte e ferramentas técnicas</p>
-      </div>
+      </motion.div>
 
       <Tabs defaultValue="storage">
         <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
