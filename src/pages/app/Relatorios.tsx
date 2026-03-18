@@ -37,6 +37,7 @@ import { generateReportPdfHtml, printReportPdf } from '@/lib/pdf-export-reports'
 import { CostBreakdownReport } from '@/components/reports/CostBreakdownReport';
 import { PeriodComparisonCard } from '@/components/reports/PeriodComparisonCard';
 import { ClientProfitabilityReport } from '@/components/reports/ClientProfitabilityReport';
+import { TeamPerformanceReport } from '@/components/reports/TeamPerformanceReport';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function Relatorios() {
