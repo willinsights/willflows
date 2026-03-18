@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { format } from "https://esm.sh/date-fns@3.6.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -104,6 +105,7 @@ Deno.serve(async (req) => {
           });
 
           if (hasPerm) {
+            // In-app notification
             await supabase.from('notifications').insert({
               workspace_id: payment.workspace_id,
               user_id: member.user_id,
@@ -113,6 +115,46 @@ Deno.serve(async (req) => {
               entity_type: 'payment',
               entity_id: payment.id,
             });
+
+            // Check user email preferences before sending email
+            const { data: prefs } = await supabase
+              .from('user_preferences')
+              .select('email_payment_reminders')
+              .eq('user_id', member.user_id)
+              .maybeSingle();
+
+            if (prefs?.email_payment_reminders !== false) {
+              // Get user email
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('email')
+                .eq('id', member.user_id)
+                .single();
+
+              if (profile?.email) {
+                // Send email via transactional queue
+                try {
+                  await supabase.functions.invoke('send-transactional-email', {
+                    body: {
+                      template: 'payment_alert',
+                      to: profile.email,
+                      data: {
+                        alertType,
+                        projectName: projeto || undefined,
+                        clientName: cliente || undefined,
+                        amount: String(payment.amount),
+                        currency: payment.currency,
+                        dueDate: format(new Date(payment.due_date), 'dd/MM/yyyy'),
+                        daysOverdue: diffDays < 0 ? Math.abs(diffDays) : undefined,
+                        isReceivable: payment.is_receivable,
+                      },
+                    },
+                  });
+                } catch (emailErr) {
+                  console.error('Failed to send payment alert email', { error: emailErr, userId: member.user_id });
+                }
+              }
+            }
           }
         }
 
