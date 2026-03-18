@@ -231,7 +231,9 @@ export default function Faturacao() {
         <>
           {/* Subscription & Payment Method Cards */}
           <div className="grid gap-6 md:grid-cols-2">
-            {/* Current Subscription */}
+            {[0, 1].map((i) => (
+            <motion.div key={i} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
+            {i === 0 ? (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
