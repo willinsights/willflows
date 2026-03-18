@@ -312,11 +312,12 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Payment Alerts + Workspace Health */}
+      {/* Payment Alerts + Workspace Health + Advanced KPIs */}
       {!isCollaborator && canViewAllFinancials && (
-        <div className="grid md:grid-cols-2 gap-3">
+        <div className="grid md:grid-cols-3 gap-3">
           <PaymentAlertsWidget />
           <WorkspaceHealthWidget />
+          <AdvancedKPIWidget />
         </div>
       )}
 
