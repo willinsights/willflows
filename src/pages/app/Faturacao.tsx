@@ -193,9 +193,24 @@ export default function Faturacao() {
 
       {loading ? (
         <div className="space-y-6">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-48 w-full" />
-          <Skeleton className="h-96 w-full" />
+          <div className="grid gap-6 md:grid-cols-2">
+            {[0, 1].map(i => (
+              <Card key={i}>
+                <CardHeader><Skeleton className="h-5 w-32" /><Skeleton className="h-3 w-48 mt-2" /></CardHeader>
+                <CardContent className="space-y-3">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <Card>
+            <CardHeader><Skeleton className="h-5 w-40" /><Skeleton className="h-3 w-56 mt-2" /></CardHeader>
+            <CardContent className="space-y-3">
+              {[0, 1, 2].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+            </CardContent>
+          </Card>
         </div>
       ) : !billingInfo?.hasCustomer ? (
         <Card>
