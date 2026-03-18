@@ -39,6 +39,7 @@ import { PeriodComparisonCard } from '@/components/reports/PeriodComparisonCard'
 import { ClientProfitabilityReport } from '@/components/reports/ClientProfitabilityReport';
 import { TeamPerformanceReport } from '@/components/reports/TeamPerformanceReport';
 import { RevenueForecastReport } from '@/components/reports/RevenueForecastReport';
+import { ReportSectionHeader } from '@/components/reports/ReportSectionHeader';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function Relatorios() {
@@ -149,13 +150,13 @@ export default function Relatorios() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Relatórios</h1>
-          <p className="text-muted-foreground">Análises e métricas do seu negócio</p>
-        </div>
+        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4 }}>
+          <h1 className="text-2xl font-bold tracking-tight">Relatórios</h1>
+          <p className="text-muted-foreground text-sm">Análises e métricas do seu negócio</p>
+        </motion.div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
             {(['1M', '3M', '6M', '12M', 'YTD'] as PeriodType[]).map((p) => (
@@ -235,43 +236,32 @@ export default function Relatorios() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="h-4 w-4 text-success" />
-              <span className="text-sm text-muted-foreground">Receita Total</span>
-            </div>
-            <p className="text-2xl font-bold text-success">{formatCurrency(summaryMetrics.totalRevenue)}</p>
-          </CardContent>
-        </Card>
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <BarChart3 className="h-4 w-4 text-primary" />
-              <span className="text-sm text-muted-foreground">Lucro</span>
-            </div>
-            <p className="text-2xl font-bold">{formatCurrency(summaryMetrics.profit)}</p>
-            <Badge variant="secondary" className="mt-1">{summaryMetrics.margin.toFixed(1)}% margem</Badge>
-          </CardContent>
-        </Card>
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Award className="h-4 w-4 text-warning" />
-              <span className="text-sm text-muted-foreground">Média/Projeto</span>
-            </div>
-            <p className="text-2xl font-bold">{formatCurrency(summaryMetrics.avgProjectValue)}</p>
-          </CardContent>
-        </Card>
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Users className="h-4 w-4 text-info" />
-              <span className="text-sm text-muted-foreground">Clientes Ativos</span>
-            </div>
-            <p className="text-2xl font-bold">{summaryMetrics.activeClients}</p>
-          </CardContent>
-        </Card>
+        {[
+          { icon: TrendingUp, label: 'Receita Total', value: formatCurrency(summaryMetrics.totalRevenue), color: 'text-success', bgColor: 'bg-success/10' },
+          { icon: BarChart3, label: 'Lucro', value: formatCurrency(summaryMetrics.profit), color: 'text-primary', bgColor: 'bg-primary/10', badge: `${summaryMetrics.margin.toFixed(1)}% margem` },
+          { icon: Award, label: 'Média/Projeto', value: formatCurrency(summaryMetrics.avgProjectValue), color: 'text-warning', bgColor: 'bg-warning/10' },
+          { icon: Users, label: 'Clientes Ativos', value: String(summaryMetrics.activeClients), color: 'text-info', bgColor: 'bg-info/10' },
+        ].map((card, i) => (
+          <motion.div
+            key={card.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.08, duration: 0.4 }}
+          >
+            <Card className="glass-card group hover:shadow-lg transition-all duration-300">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div className={cn('flex items-center justify-center h-8 w-8 rounded-lg', card.bgColor)}>
+                    <card.icon className={cn('h-4 w-4', card.color)} />
+                  </div>
+                  <span className="text-sm text-muted-foreground font-medium">{card.label}</span>
+                </div>
+                <p className={cn('text-2xl font-bold', card.color)}>{card.value}</p>
+                {card.badge && <Badge variant="secondary" className="mt-1.5 text-xs">{card.badge}</Badge>}
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
 
       {/* Financial Evolution Chart */}
@@ -375,21 +365,28 @@ export default function Relatorios() {
         </Card>
       </div>
 
-      {/* Cost Breakdown by Category */}
+      {/* Section: Análise de Custos */}
+      <ReportSectionHeader icon={Layers} title="Análise de Custos" subtitle="Breakdown por categoria e desvios orçamentais" />
       <CostBreakdownReport />
 
-      {/* Period Comparison */}
+      {/* Section: Comparação de Períodos */}
+      <ReportSectionHeader icon={GitCompare} title="Comparação de Períodos" subtitle="Desempenho mês atual vs anterior" />
       <PeriodComparisonCard projects={projects} />
 
-      {/* Client Profitability Analysis */}
+      {/* Section: Rentabilidade de Clientes */}
+      <ReportSectionHeader icon={Award} title="Rentabilidade por Cliente" subtitle="Margem e lucro por cada cliente" badge="Pro" />
       <ClientProfitabilityReport />
 
-      {/* Team Performance */}
+      {/* Section: Performance da Equipa */}
+      <ReportSectionHeader icon={Users} title="Performance da Equipa" subtitle="Produtividade e carga de trabalho por membro" />
       <TeamPerformanceReport />
 
-      {/* Revenue Forecast */}
+      {/* Section: Previsão de Receita */}
+      <ReportSectionHeader icon={TrendingUp} title="Previsão de Receita" subtitle="Projeção baseada em pipeline e tendências" badge="Forecast" />
       <RevenueForecastReport />
 
+      {/* Section: Rankings */}
+      <ReportSectionHeader icon={Award} title="Rankings" subtitle="Top clientes, colaboradores e distribuição" />
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Top Clients */}
         <Card className="glass-card">

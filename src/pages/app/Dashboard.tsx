@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { ProductTour } from '@/components/tour/ProductTour';
 import { TrialBanner } from '@/components/dashboard/TrialBanner';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
@@ -235,21 +236,31 @@ export default function Dashboard() {
   }
 
   // Desktop Dashboard Layout
+  const stagger = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } };
+  const fadeUp = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0, transition: { duration: 0.35 } } };
+
   return (
-    <div className="p-3 md:p-4 space-y-3 md:space-y-4 max-w-[1400px] mx-auto">
+    <motion.div
+      className="p-3 md:p-4 space-y-3 md:space-y-4 max-w-[1400px] mx-auto"
+      variants={stagger}
+      initial="hidden"
+      animate="visible"
+    >
       {showTour && (
         <ProductTour onComplete={completeTour} onSkip={skipTour} />
       )}
       <TrialBanner />
       
       {/* Header with Quick Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <motion.div variants={fadeUp} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <DashboardHeader currentTime={currentTime} />
         <QuickActionsCard />
-      </div>
+      </motion.div>
 
       {/* Project Counters Row */}
-      <ProjectCounters metrics={metrics} loading={loading} />
+      <motion.div variants={fadeUp}>
+        <ProjectCounters metrics={metrics} loading={loading} />
+      </motion.div>
 
       {/* Financial View Selector + Forecast Cards - Only for admins */}
       {!isCollaborator && canViewAllFinancials && (
@@ -278,7 +289,7 @@ export default function Dashboard() {
 
       {/* Charts Row */}
       {!isCollaborator && (
-        <div className="grid lg:grid-cols-2 gap-3">
+        <motion.div variants={fadeUp} className="grid lg:grid-cols-2 gap-3">
           <FinancialChart 
             monthlyData={monthlyData} 
             annualComparison={annualComparison}
@@ -295,11 +306,11 @@ export default function Dashboard() {
               loading={loading}
             />
           )}
-        </div>
+        </motion.div>
       )}
 
       {/* Projects and Events Row */}
-      <div className="grid lg:grid-cols-2 gap-3">
+      <motion.div variants={fadeUp} className="grid lg:grid-cols-2 gap-3">
         <UrgentProjectsCard 
           urgentProjects={urgentProjects} 
           loading={loading} 
@@ -310,19 +321,19 @@ export default function Dashboard() {
           loading={loading}
           onRefresh={refresh}
         />
-      </div>
+      </motion.div>
 
       {/* Payment Alerts + Workspace Health + Advanced KPIs */}
       {!isCollaborator && canViewAllFinancials && (
-        <div className="grid md:grid-cols-3 gap-3">
+        <motion.div variants={fadeUp} className="grid md:grid-cols-3 gap-3">
           <PaymentAlertsWidget />
           <WorkspaceHealthWidget />
           <AdvancedKPIWidget />
-        </div>
+        </motion.div>
       )}
 
       {/* Bottom Row */}
-      <div className={`grid gap-3 ${canViewAllFinancials ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-2'}`}>
+      <motion.div variants={fadeUp} className={`grid gap-3 ${canViewAllFinancials ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-2'}`}>
         {canViewAllFinancials && (
           <PerformanceMetricsCard 
             metrics={performanceMetrics} 
@@ -340,7 +351,7 @@ export default function Dashboard() {
           recentActivity={recentActivity} 
           loading={loading}
         />
-      </div>
+      </motion.div>
 
       <ProjectDetailsSheet
         open={isModalOpen}
@@ -348,6 +359,6 @@ export default function Dashboard() {
         project={selectedProject}
         onUpdate={refresh}
       />
-    </div>
+    </motion.div>
   );
 }
