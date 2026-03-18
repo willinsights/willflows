@@ -387,6 +387,9 @@ export default function Relatorios() {
       {/* Team Performance */}
       <TeamPerformanceReport />
 
+      {/* Revenue Forecast */}
+      <RevenueForecastReport />
+
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Top Clients */}
         <Card className="glass-card">
