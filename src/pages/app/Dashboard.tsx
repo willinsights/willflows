@@ -310,6 +310,11 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* Payment Alerts */}
+      {!isCollaborator && canViewAllFinancials && (
+        <PaymentAlertsWidget />
+      )}
+
       {/* Bottom Row */}
       <div className={`grid gap-3 ${canViewAllFinancials ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-2'}`}>
         {canViewAllFinancials && (
