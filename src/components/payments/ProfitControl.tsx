@@ -224,8 +224,17 @@ export function ProfitControl({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-32">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="glass-card">
+              <CardContent className="p-4 text-center">
+                <div className="h-3 w-16 bg-muted animate-pulse rounded mx-auto mb-2" />
+                <div className="h-7 w-24 bg-muted animate-pulse rounded mx-auto" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
