@@ -39,6 +39,7 @@ import { PeriodComparisonCard } from '@/components/reports/PeriodComparisonCard'
 import { ClientProfitabilityReport } from '@/components/reports/ClientProfitabilityReport';
 import { TeamPerformanceReport } from '@/components/reports/TeamPerformanceReport';
 import { RevenueForecastReport } from '@/components/reports/RevenueForecastReport';
+import { ReportSectionHeader } from '@/components/reports/ReportSectionHeader';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function Relatorios() {
