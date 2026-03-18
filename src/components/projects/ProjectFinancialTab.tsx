@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { DollarSign, User, Camera, Film, CreditCard, Calendar, Package, Lock, RotateCcw, List } from 'lucide-react';
+import { DollarSign, User, Camera, Film, CreditCard, Calendar, Package, Lock, RotateCcw, List, Activity } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,8 @@ import { cn } from '@/lib/utils';
 import { TeamMemberPaymentInput } from './TeamMemberPaymentInput';
 import { ProjectCostLinesCard } from '@/components/financeiro/ProjectCostLinesCard';
 import { ProjectInvoicesCard } from '@/components/financeiro/ProjectInvoicesCard';
+import { ProjectHealthScoreBadge } from '@/components/projects/ProjectHealthScoreBadge';
+import { useProjectHealthScore } from '@/hooks/useProjectHealthScore';
 import type { Tables } from '@/integrations/supabase/types';
 
 type ProjectTeam = Tables<'project_team'>;
@@ -41,6 +43,11 @@ interface ProjectFinancialTabProps {
     custos_extras: number | null;
     custos_extras_payment_status?: string | null;
     client_id: string | null;
+    delivery_date?: string | null;
+    is_delivered?: boolean;
+    delivered_at?: string | null;
+    client_payment_status?: string | null;
+    client_payment_due_date?: string | null;
   };
   projectTeam: ProjectTeam[];
   workspaceMembers: WorkspaceMember[];
@@ -77,6 +84,18 @@ export function ProjectFinancialTab({
   const { hideValues } = useHideValues();
   const [clientPayment, setClientPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const healthScore = useProjectHealthScore(canViewAllFinancials ? {
+    delivery_date: project.delivery_date,
+    is_delivered: project.is_delivered,
+    delivered_at: project.delivered_at,
+    agreed_value: project.agreed_value,
+    custo_captacao: project.custo_captacao,
+    custo_edicao: project.custo_edicao,
+    custos_extras: project.custos_extras,
+    client_payment_status: project.client_payment_status,
+    client_payment_due_date: project.client_payment_due_date,
+  } : null);
 
   // Se não pode ver valores financeiros (visualizador), mostra mensagem
   if (!canViewOwnFinancials) {
@@ -506,7 +525,10 @@ export function ProjectFinancialTab({
                   </p>
                 </div>
                 <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-                  <span className="text-xs text-muted-foreground">Lucro</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Lucro</span>
+                    {healthScore && <ProjectHealthScoreBadge result={healthScore} size="sm" />}
+                  </div>
                   <p className={cn("text-xl font-bold mt-1", profit >= 0 ? "text-primary" : "text-destructive", hideValues && "blur-md select-none")}>
                     €{profit.toFixed(2)}
                   </p>

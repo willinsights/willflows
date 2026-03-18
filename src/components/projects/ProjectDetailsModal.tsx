@@ -1255,6 +1255,11 @@ export function ProjectDetailsModal({ open, onOpenChange, project, onUpdate, onS
                     custos_extras: (project as any).custos_extras,
                     custos_extras_payment_status: (project as any).custos_extras_payment_status,
                     client_id: project.client_id,
+                    delivery_date: project.delivery_date,
+                    is_delivered: project.is_delivered,
+                    delivered_at: project.delivered_at,
+                    client_payment_status: project.client_payment_status,
+                    client_payment_due_date: project.client_payment_due_date,
                   }}
                   projectTeam={projectTeam}
                   workspaceMembers={workspaceMembers}
