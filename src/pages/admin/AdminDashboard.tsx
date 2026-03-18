@@ -183,32 +183,27 @@ export default function AdminDashboard() {
 
       {/* Main KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard
-          title="MRR"
-          value={formatCurrency(metrics?.financial.mrr || 0)}
-          icon={Euro}
-          color="green"
-          loading={isLoading}
-        />
-        <KPICard
-          title="Subscrições Activas"
-          value={metrics?.subscriptions.active || 0}
-          icon={CreditCard}
-          color="primary"
-          loading={isLoading}
-        />
-        <KPICard
-          title="Utilizadores Totais"
-          value={metrics?.users.total || 0}
-          icon={Users}
-          loading={isLoading}
-        />
-        <KPICard
-          title="Workspaces"
-          value={metrics?.workspaces.total || 0}
-          icon={Building2}
-          loading={isLoading}
-        />
+        {[
+          { title: 'MRR', value: formatCurrency(metrics?.financial.mrr || 0), icon: Euro, color: 'green' as const },
+          { title: 'Subscrições Activas', value: metrics?.subscriptions.active || 0, icon: CreditCard, color: 'primary' as const },
+          { title: 'Utilizadores Totais', value: metrics?.users.total || 0, icon: Users, color: 'primary' as const },
+          { title: 'Workspaces', value: metrics?.workspaces.total || 0, icon: Building2, color: 'primary' as const },
+        ].map((kpi, i) => (
+          <motion.div
+            key={kpi.title}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.08, duration: 0.35 }}
+          >
+            <KPICard
+              title={kpi.title}
+              value={kpi.value}
+              icon={kpi.icon}
+              color={kpi.color}
+              loading={isLoading}
+            />
+          </motion.div>
+        ))}
       </div>
 
       {/* Secondary metrics */}
