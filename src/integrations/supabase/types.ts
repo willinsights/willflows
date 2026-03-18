@@ -1706,6 +1706,45 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_alerts: {
+        Row: {
+          alert_type: string
+          id: string
+          notified_at: string
+          payment_id: string
+          workspace_id: string
+        }
+        Insert: {
+          alert_type: string
+          id?: string
+          notified_at?: string
+          payment_id: string
+          workspace_id: string
+        }
+        Update: {
+          alert_type?: string
+          id?: string
+          notified_at?: string
+          payment_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_alerts_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_alerts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
