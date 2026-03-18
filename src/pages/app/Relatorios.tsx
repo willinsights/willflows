@@ -365,19 +365,24 @@ export default function Relatorios() {
         </Card>
       </div>
 
-      {/* Cost Breakdown by Category */}
+      {/* Section: Análise de Custos */}
+      <ReportSectionHeader icon={Layers} title="Análise de Custos" subtitle="Breakdown por categoria e desvios orçamentais" />
       <CostBreakdownReport />
 
-      {/* Period Comparison */}
+      {/* Section: Comparação de Períodos */}
+      <ReportSectionHeader icon={GitCompare} title="Comparação de Períodos" subtitle="Desempenho mês atual vs anterior" />
       <PeriodComparisonCard projects={projects} />
 
-      {/* Client Profitability Analysis */}
+      {/* Section: Rentabilidade de Clientes */}
+      <ReportSectionHeader icon={Award} title="Rentabilidade por Cliente" subtitle="Margem e lucro por cada cliente" badge="Pro" />
       <ClientProfitabilityReport />
 
-      {/* Team Performance */}
+      {/* Section: Performance da Equipa */}
+      <ReportSectionHeader icon={Users} title="Performance da Equipa" subtitle="Produtividade e carga de trabalho por membro" />
       <TeamPerformanceReport />
 
-      {/* Revenue Forecast */}
+      {/* Section: Previsão de Receita */}
+      <ReportSectionHeader icon={TrendingUp} title="Previsão de Receita" subtitle="Projeção baseada em pipeline e tendências" badge="Forecast" />
       <RevenueForecastReport />
 
       <div className="grid lg:grid-cols-3 gap-6">
