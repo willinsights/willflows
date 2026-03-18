@@ -71,7 +71,7 @@ export default function Pagamentos() {
   } = usePaymentsData();
   const [activeTab, setActiveTab] = useState('previsao');
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  
   const [paymentViewMode, setPaymentViewMode] = useState<PaymentViewMode>('vencimento');
   
   const canExportPdf = hasFeatureAccess('exportPdf');
