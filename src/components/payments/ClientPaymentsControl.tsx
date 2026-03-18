@@ -222,5 +222,6 @@ export function ClientPaymentsControl({
         )}
       </CardContent>
     </Card>
+    </motion.div>
   );
 }

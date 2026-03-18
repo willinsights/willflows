@@ -125,52 +125,30 @@ export default function FinanceiroLayout() {
       {canViewAllFinancials && (
         <ScrollArea className="w-full">
           <div className="flex gap-3 pb-2 min-w-max sm:min-w-0 sm:grid sm:grid-cols-3 lg:grid-cols-6">
-            <Card className="glass-card border-success/20 w-[140px] sm:w-auto shrink-0">
-              <CardContent className="p-3 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">A Receber</p>
-                <p className={cn("text-lg font-bold text-success", hideValues && "blur-md select-none")}>
-                  {formatCurrency(globalSummary.totalDueReceivable)}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="glass-card border-success/30 bg-success/5 w-[140px] sm:w-auto shrink-0">
-              <CardContent className="p-3 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Recebido</p>
-                <p className={cn("text-lg font-bold text-success/80", hideValues && "blur-md select-none")}>
-                  {formatCurrency(globalSummary.totalPaidReceivable)}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="glass-card border-destructive/20 w-[140px] sm:w-auto shrink-0">
-              <CardContent className="p-3 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">A Pagar</p>
-                <p className={cn("text-lg font-bold text-destructive", hideValues && "blur-md select-none")}>
-                  {formatCurrency(globalSummary.totalDuePayable)}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="glass-card border-destructive/30 bg-destructive/5 w-[140px] sm:w-auto shrink-0">
-              <CardContent className="p-3 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Pago</p>
-                <p className={cn("text-lg font-bold text-destructive/80", hideValues && "blur-md select-none")}>
-                  {formatCurrency(globalSummary.totalPaidPayable)}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className={cn("glass-card w-[140px] sm:w-auto shrink-0", globalSummary.overdueCount > 0 ? "border-warning/30 bg-warning/5" : "")}>
-              <CardContent className="p-3 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Atrasados</p>
-                <p className="text-lg font-bold text-warning">{globalSummary.overdueCount}</p>
-              </CardContent>
-            </Card>
-            <Card className={cn("glass-card w-[140px] sm:w-auto shrink-0", globalSummary.overdueCount > 0 ? "border-warning/20" : "")}>
-              <CardContent className="p-3 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Valor Atraso</p>
-                <p className={cn("text-lg font-bold text-warning", hideValues && "blur-md select-none")}>
-                  {formatCurrency(globalSummary.overdueAmount)}
-                </p>
-              </CardContent>
-            </Card>
+            {[
+              { label: 'A Receber', value: formatCurrency(globalSummary.totalDueReceivable), color: 'text-success', border: 'border-success/20' },
+              { label: 'Recebido', value: formatCurrency(globalSummary.totalPaidReceivable), color: 'text-success/80', border: 'border-success/30 bg-success/5' },
+              { label: 'A Pagar', value: formatCurrency(globalSummary.totalDuePayable), color: 'text-destructive', border: 'border-destructive/20' },
+              { label: 'Pago', value: formatCurrency(globalSummary.totalPaidPayable), color: 'text-destructive/80', border: 'border-destructive/30 bg-destructive/5' },
+              { label: 'Atrasados', value: String(globalSummary.overdueCount), color: 'text-warning', border: globalSummary.overdueCount > 0 ? 'border-warning/30 bg-warning/5' : '', noBlur: true },
+              { label: 'Valor Atraso', value: formatCurrency(globalSummary.overdueAmount), color: 'text-warning', border: globalSummary.overdueCount > 0 ? 'border-warning/20' : '' },
+            ].map((card, i) => (
+              <motion.div
+                key={card.label}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: i * 0.06 }}
+              >
+                <Card className={cn("glass-card w-[140px] sm:w-auto shrink-0 transition-shadow hover:shadow-md", card.border)}>
+                  <CardContent className="p-3 text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{card.label}</p>
+                    <p className={cn("text-lg font-bold", card.color, !card.noBlur && hideValues && "blur-md select-none")}>
+                      {card.value}
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
           </div>
           <ScrollBar orientation="horizontal" className="sm:hidden" />
         </ScrollArea>
