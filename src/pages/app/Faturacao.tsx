@@ -189,7 +189,7 @@ export default function Faturacao() {
           <Settings className="h-4 w-4" />
           {portalLoading ? 'A abrir...' : 'Gerir Subscrição'}
         </Button>
-      </div>
+      </motion.div>
 
       {loading ? (
         <div className="space-y-6">
