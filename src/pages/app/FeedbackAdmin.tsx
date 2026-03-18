@@ -95,38 +95,28 @@ export default function FeedbackAdmin() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{stats.total}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-amber-600">Pendentes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-amber-600">{stats.pending}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-blue-600">Em Análise</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-blue-600">{stats.reviewed}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-green-600">Resolvidos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-green-600">{stats.resolved}</p>
-          </CardContent>
-        </Card>
+        {[
+          { label: 'Total', value: stats.total, color: '' },
+          { label: 'Pendentes', value: stats.pending, color: 'text-amber-600' },
+          { label: 'Em Análise', value: stats.reviewed, color: 'text-blue-600' },
+          { label: 'Resolvidos', value: stats.resolved, color: 'text-green-600' },
+        ].map((card, i) => (
+          <motion.div
+            key={card.label}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.08, duration: 0.35 }}
+          >
+            <Card className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-2">
+                <CardTitle className={cn("text-sm font-medium", card.color || 'text-muted-foreground')}>{card.label}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className={cn("text-2xl font-bold", card.color)}>{card.value}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
 
       {/* Filters */}

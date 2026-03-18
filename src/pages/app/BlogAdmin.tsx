@@ -90,40 +90,31 @@ export default function BlogAdmin() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4" />
-              Total de Artigos
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{posts.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <Eye className="h-4 w-4" />
-              Publicados
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-              {publishedPosts.length}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Rascunhos
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-muted-foreground">
-              {draftPosts.length}
+        {[
+          { icon: BookOpen, label: 'Total de Artigos', value: posts.length, color: '' },
+          { icon: Eye, label: 'Publicados', value: publishedPosts.length, color: 'text-success' },
+          { icon: FileText, label: 'Rascunhos', value: draftPosts.length, color: 'text-muted-foreground' },
+        ].map((card, i) => (
+          <motion.div
+            key={card.label}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.08, duration: 0.35 }}
+          >
+            <Card className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-2">
+                <CardDescription className="flex items-center gap-2">
+                  <card.icon className="h-4 w-4" />
+                  {card.label}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className={cn("text-2xl font-bold", card.color)}>{card.value}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
             </p>
           </CardContent>
         </Card>
