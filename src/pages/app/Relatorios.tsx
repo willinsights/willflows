@@ -379,7 +379,9 @@ export default function Relatorios() {
       {/* Period Comparison */}
       <PeriodComparisonCard projects={projects} />
 
-      {/* Rankings */}
+      {/* Client Profitability Analysis */}
+      <ClientProfitabilityReport />
+
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Top Clients */}
         <Card className="glass-card">
