@@ -58,7 +58,7 @@ export function ProjectCostLinesCard({ projectId }: ProjectCostLinesCardProps) {
   };
 
   const handleStatusChange = async (id: string, newStatus: string) => {
-    await updateCostLine(id, { payment_status: newStatus });
+    await updateCostLine(id, { payment_status: newStatus as 'pendente' | 'pago' | 'vencido' | 'cancelado' });
   };
 
   if (loading) {
