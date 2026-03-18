@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { DollarSign, User, Camera, Film, CreditCard, Calendar, Package, Lock, RotateCcw } from 'lucide-react';
+import { DollarSign, User, Camera, Film, CreditCard, Calendar, Package, Lock, RotateCcw, List } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Label } from '@/components/ui/label';
@@ -17,6 +17,7 @@ import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useHideValues } from '@/hooks/useHideValues';
 import { cn } from '@/lib/utils';
 import { TeamMemberPaymentInput } from './TeamMemberPaymentInput';
+import { ProjectCostLinesCard } from '@/components/financeiro/ProjectCostLinesCard';
 import type { Tables } from '@/integrations/supabase/types';
 
 type ProjectTeam = Tables<'project_team'>;
@@ -575,6 +576,9 @@ export function ProjectFinancialTab({
               setLoading={setLoading}
             />
           )}
+
+          {/* Granular Cost Lines */}
+          <ProjectCostLinesCard projectId={projectId} />
         </>
       )}
 
