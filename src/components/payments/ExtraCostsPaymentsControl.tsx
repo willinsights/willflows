@@ -187,5 +187,6 @@ export function ExtraCostsPaymentsControl({
         )}
       </CardContent>
     </Card>
+    </motion.div>
   );
 }
