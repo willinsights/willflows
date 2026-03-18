@@ -43,6 +43,11 @@ interface ProjectFinancialTabProps {
     custos_extras: number | null;
     custos_extras_payment_status?: string | null;
     client_id: string | null;
+    delivery_date?: string | null;
+    is_delivered?: boolean;
+    delivered_at?: string | null;
+    client_payment_status?: string | null;
+    client_payment_due_date?: string | null;
   };
   projectTeam: ProjectTeam[];
   workspaceMembers: WorkspaceMember[];
