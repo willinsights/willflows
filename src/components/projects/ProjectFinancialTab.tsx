@@ -576,6 +576,9 @@ export function ProjectFinancialTab({
               setLoading={setLoading}
             />
           )}
+
+          {/* Granular Cost Lines */}
+          <ProjectCostLinesCard projectId={projectId} />
         </>
       )}
 
