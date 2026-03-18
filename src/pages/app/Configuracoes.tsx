@@ -471,10 +471,14 @@ export default function Configuracoes() {
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
-      <div>
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
         <h1 className="text-xl md:text-2xl font-bold">Configurações</h1>
         <p className="text-sm text-muted-foreground">Gerencie as definições do workspace</p>
-      </div>
+      </motion.div>
 
       {/* Tabs */}
       <Tabs defaultValue="geral" className="space-y-6">

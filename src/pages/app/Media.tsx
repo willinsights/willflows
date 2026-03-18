@@ -203,7 +203,12 @@ export default function Media() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+      >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <FolderOpen className="h-5 w-5 text-primary" />
@@ -227,7 +232,7 @@ export default function Media() {
             </TabsTrigger>
           </TabsList>
         </Tabs>
-      </div>
+      </motion.div>
 
       {/* Storage Manager Tab */}
       {mainTab === 'storage' ? (
@@ -250,8 +255,13 @@ export default function Media() {
           const count = typeCounts[type.value] || 0;
           
           return (
-            <Card 
+            <motion.div
               key={type.value}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: mediaTypes.indexOf(type) * 0.06, duration: 0.3 }}
+            >
+            <Card 
               className={cn(
                 "cursor-pointer transition-all hover:shadow-md",
                 isActive && "ring-2 ring-primary"
@@ -269,6 +279,7 @@ export default function Media() {
                 <span className="text-xs text-muted-foreground">{type.label}</span>
               </CardContent>
             </Card>
+            </motion.div>
           );
         })}
       </div>
