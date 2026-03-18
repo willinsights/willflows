@@ -34,6 +34,8 @@ import KanbanMetrics from '@/components/kanban/KanbanMetrics';
 import { useDateRange, useMonthlyData, useTopClients, useSummaryMetrics, useProjectDistribution, type PeriodType } from '@/hooks/useReportData';
 import { useCollaboratorRanking } from '@/hooks/useCollaboratorRanking';
 import { generateReportPdfHtml, printReportPdf } from '@/lib/pdf-export-reports';
+import { CostBreakdownReport } from '@/components/reports/CostBreakdownReport';
+import { PeriodComparisonCard } from '@/components/reports/PeriodComparisonCard';
 
 export default function Relatorios() {
   const { canViewReports } = useFinancialPermissions();
