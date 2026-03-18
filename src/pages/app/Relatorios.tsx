@@ -36,6 +36,7 @@ import { useCollaboratorRanking } from '@/hooks/useCollaboratorRanking';
 import { generateReportPdfHtml, printReportPdf } from '@/lib/pdf-export-reports';
 import { CostBreakdownReport } from '@/components/reports/CostBreakdownReport';
 import { PeriodComparisonCard } from '@/components/reports/PeriodComparisonCard';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Relatorios() {
   const { canViewReports } = useFinancialPermissions();
