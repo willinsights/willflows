@@ -156,7 +156,12 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <motion.div
+        className="flex items-center justify-between"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
         <div>
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">Vista geral do sistema WillFlow</p>
@@ -165,7 +170,7 @@ export default function AdminDashboard() {
           <RefreshCw className="h-4 w-4 mr-2" />
           Atualizar
         </Button>
-      </div>
+      </motion.div>
 
       {/* Alerts */}
       {alerts.length > 0 && (

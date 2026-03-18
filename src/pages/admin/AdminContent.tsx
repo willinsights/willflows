@@ -116,7 +116,7 @@ export default function AdminContent() {
             Gerar Artigo
           </Button>
         </div>
-      </div>
+      </motion.div>
 
       <Tabs defaultValue="articles" className="space-y-6">
         <TabsList>
