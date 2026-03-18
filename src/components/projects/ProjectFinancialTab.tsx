@@ -525,7 +525,10 @@ export function ProjectFinancialTab({
                   </p>
                 </div>
                 <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-                  <span className="text-xs text-muted-foreground">Lucro</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Lucro</span>
+                    {healthScore && <ProjectHealthScoreBadge result={healthScore} size="sm" />}
+                  </div>
                   <p className={cn("text-xl font-bold mt-1", profit >= 0 ? "text-primary" : "text-destructive", hideValues && "blur-md select-none")}>
                     €{profit.toFixed(2)}
                   </p>
