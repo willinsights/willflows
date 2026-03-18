@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Eye, EyeOff, Lock, Euro, TrendingUp, TrendingDown, Package, BarChart3 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -66,8 +68,21 @@ export default function FinanceiroLayout() {
 
   if (loading || permissionsLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-32" />
+            <Skeleton className="h-4 w-56 hidden sm:block" />
+          </div>
+          <Skeleton className="h-9 w-9 rounded-md" />
+        </div>
+        <div className="flex gap-3 sm:grid sm:grid-cols-3 lg:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-[72px] w-[140px] sm:w-auto rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-10 w-full rounded-lg" />
+        <Skeleton className="h-64 w-full rounded-xl" />
       </div>
     );
   }
@@ -89,7 +104,12 @@ export default function FinanceiroLayout() {
   return (
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="flex items-center justify-between gap-4"
+      >
         <div>
           <h1 className="text-xl sm:text-2xl font-bold">Finanças</h1>
           <p className="text-sm text-muted-foreground hidden sm:block">
@@ -99,58 +119,36 @@ export default function FinanceiroLayout() {
         <Button variant="ghost" size="icon" onClick={toggleHideValues} className="h-9 w-9 shrink-0">
           {hideValues ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </Button>
-      </div>
+      </motion.div>
 
       {/* Summary Cards — horizontally scrollable on mobile */}
       {canViewAllFinancials && (
         <ScrollArea className="w-full">
           <div className="flex gap-3 pb-2 min-w-max sm:min-w-0 sm:grid sm:grid-cols-3 lg:grid-cols-6">
-            <Card className="glass-card border-success/20 w-[140px] sm:w-auto shrink-0">
-              <CardContent className="p-3 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">A Receber</p>
-                <p className={cn("text-lg font-bold text-success", hideValues && "blur-md select-none")}>
-                  {formatCurrency(globalSummary.totalDueReceivable)}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="glass-card border-success/30 bg-success/5 w-[140px] sm:w-auto shrink-0">
-              <CardContent className="p-3 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Recebido</p>
-                <p className={cn("text-lg font-bold text-success/80", hideValues && "blur-md select-none")}>
-                  {formatCurrency(globalSummary.totalPaidReceivable)}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="glass-card border-destructive/20 w-[140px] sm:w-auto shrink-0">
-              <CardContent className="p-3 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">A Pagar</p>
-                <p className={cn("text-lg font-bold text-destructive", hideValues && "blur-md select-none")}>
-                  {formatCurrency(globalSummary.totalDuePayable)}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="glass-card border-destructive/30 bg-destructive/5 w-[140px] sm:w-auto shrink-0">
-              <CardContent className="p-3 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Pago</p>
-                <p className={cn("text-lg font-bold text-destructive/80", hideValues && "blur-md select-none")}>
-                  {formatCurrency(globalSummary.totalPaidPayable)}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className={cn("glass-card w-[140px] sm:w-auto shrink-0", globalSummary.overdueCount > 0 ? "border-warning/30 bg-warning/5" : "")}>
-              <CardContent className="p-3 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Atrasados</p>
-                <p className="text-lg font-bold text-warning">{globalSummary.overdueCount}</p>
-              </CardContent>
-            </Card>
-            <Card className={cn("glass-card w-[140px] sm:w-auto shrink-0", globalSummary.overdueCount > 0 ? "border-warning/20" : "")}>
-              <CardContent className="p-3 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Valor Atraso</p>
-                <p className={cn("text-lg font-bold text-warning", hideValues && "blur-md select-none")}>
-                  {formatCurrency(globalSummary.overdueAmount)}
-                </p>
-              </CardContent>
-            </Card>
+            {[
+              { label: 'A Receber', value: formatCurrency(globalSummary.totalDueReceivable), color: 'text-success', border: 'border-success/20' },
+              { label: 'Recebido', value: formatCurrency(globalSummary.totalPaidReceivable), color: 'text-success/80', border: 'border-success/30 bg-success/5' },
+              { label: 'A Pagar', value: formatCurrency(globalSummary.totalDuePayable), color: 'text-destructive', border: 'border-destructive/20' },
+              { label: 'Pago', value: formatCurrency(globalSummary.totalPaidPayable), color: 'text-destructive/80', border: 'border-destructive/30 bg-destructive/5' },
+              { label: 'Atrasados', value: String(globalSummary.overdueCount), color: 'text-warning', border: globalSummary.overdueCount > 0 ? 'border-warning/30 bg-warning/5' : '', noBlur: true },
+              { label: 'Valor Atraso', value: formatCurrency(globalSummary.overdueAmount), color: 'text-warning', border: globalSummary.overdueCount > 0 ? 'border-warning/20' : '' },
+            ].map((card, i) => (
+              <motion.div
+                key={card.label}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: i * 0.06 }}
+              >
+                <Card className={cn("glass-card w-[140px] sm:w-auto shrink-0 transition-shadow hover:shadow-md", card.border)}>
+                  <CardContent className="p-3 text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{card.label}</p>
+                    <p className={cn("text-lg font-bold", card.color, !card.noBlur && hideValues && "blur-md select-none")}>
+                      {card.value}
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
           </div>
           <ScrollBar orientation="horizontal" className="sm:hidden" />
         </ScrollArea>
