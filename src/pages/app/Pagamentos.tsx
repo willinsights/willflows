@@ -413,10 +413,6 @@ export default function Pagamentos() {
               <TabsTrigger value="colaboradores">Custos Colaboradores</TabsTrigger>
               <TabsTrigger value="custos-extras">Custos Extras</TabsTrigger>
               <TabsTrigger value="lucro">Lucro</TabsTrigger>
-              <TabsTrigger value="faturas" disabled className="opacity-50">
-                Emitir Fatura
-                <span className="ml-1 text-[10px] text-muted-foreground">(brevemente)</span>
-              </TabsTrigger>
             </>
           )}
         </TabsList>
