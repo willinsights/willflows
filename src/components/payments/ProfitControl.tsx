@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { TrendingUp, BarChart3 } from 'lucide-react';
@@ -223,8 +224,17 @@ export function ProfitControl({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-32">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="glass-card">
+              <CardContent className="p-4 text-center">
+                <div className="h-3 w-16 bg-muted animate-pulse rounded mx-auto mb-2" />
+                <div className="h-7 w-24 bg-muted animate-pulse rounded mx-auto" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
@@ -233,38 +243,28 @@ export function ProfitControl({
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="glass-card border-success/20">
-          <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground mb-1">Receita Total</p>
-            <p className={cn("text-2xl font-bold text-success", hideValues && "blur-md select-none")}>
-              {formatCurrency(totals.totalRevenue)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="glass-card border-destructive/20">
-          <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground mb-1">Custos Totais</p>
-            <p className={cn("text-2xl font-bold text-destructive", hideValues && "blur-md select-none")}>
-              {formatCurrency(totals.totalCosts)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className={cn("glass-card", totals.totalProfit >= 0 ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5")}>
-          <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground mb-1">Lucro Total</p>
-            <p className={cn("text-2xl font-bold", totals.totalProfit >= 0 ? "text-success" : "text-destructive", hideValues && "blur-md select-none")}>
-              {totals.totalProfit >= 0 ? '+' : ''}{formatCurrency(totals.totalProfit)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="glass-card border-primary/20">
-          <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground mb-1">Margem Média</p>
-            <p className={cn("text-2xl font-bold text-primary", hideValues && "blur-md select-none")}>
-              {totals.avgMargin}%
-            </p>
-          </CardContent>
-        </Card>
+        {[
+          { label: 'Receita Total', value: formatCurrency(totals.totalRevenue), color: 'text-success', border: 'border-success/20' },
+          { label: 'Custos Totais', value: formatCurrency(totals.totalCosts), color: 'text-destructive', border: 'border-destructive/20' },
+          { label: 'Lucro Total', value: `${totals.totalProfit >= 0 ? '+' : ''}${formatCurrency(totals.totalProfit)}`, color: totals.totalProfit >= 0 ? 'text-success' : 'text-destructive', border: totals.totalProfit >= 0 ? 'border-success/30 bg-success/5' : 'border-destructive/30 bg-destructive/5' },
+          { label: 'Margem Média', value: `${totals.avgMargin}%`, color: 'text-primary', border: 'border-primary/20' },
+        ].map((card, i) => (
+          <motion.div
+            key={card.label}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.08, duration: 0.35 }}
+          >
+            <Card className={cn("glass-card hover:shadow-md transition-shadow", card.border)}>
+              <CardContent className="p-4 text-center">
+                <p className="text-xs text-muted-foreground mb-1">{card.label}</p>
+                <p className={cn("text-2xl font-bold", card.color, hideValues && "blur-md select-none")}>
+                  {card.value}
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
 
       {/* Table */}

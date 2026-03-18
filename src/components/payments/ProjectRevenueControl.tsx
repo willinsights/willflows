@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { TrendingUp, Euro } from 'lucide-react';
@@ -133,6 +134,7 @@ export function ProjectRevenueControl({
   };
 
   return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
     <Card className="glass-card">
       <CardHeader className="pb-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -249,5 +251,6 @@ export function ProjectRevenueControl({
         )}
       </CardContent>
     </Card>
+    </motion.div>
   );
 }

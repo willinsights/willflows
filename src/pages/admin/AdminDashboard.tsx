@@ -58,7 +58,7 @@ function KPICard({
   }
 
   return (
-    <Card>
+    <Card className="hover:shadow-md transition-shadow duration-200">
       <CardContent className="pt-6">
         <div className="flex items-start justify-between">
           <div>
@@ -208,42 +208,28 @@ export default function AdminDashboard() {
 
       {/* Secondary metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <p className="text-xs text-muted-foreground">ARR</p>
-            <p className="text-lg font-semibold">{formatCurrency(metrics?.financial.arr || 0)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <p className="text-xs text-muted-foreground">Em Trial</p>
-            <p className="text-lg font-semibold">{metrics?.subscriptions.trialing || 0}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <p className="text-xs text-muted-foreground">Past Due</p>
-            <p className="text-lg font-semibold text-yellow-500">{metrics?.subscriptions.pastDue || 0}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <p className="text-xs text-muted-foreground">WAU</p>
-            <p className="text-lg font-semibold">{metrics?.users.wau || 0}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <p className="text-xs text-muted-foreground">MAU</p>
-            <p className="text-lg font-semibold">{metrics?.users.mau || 0}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <p className="text-xs text-muted-foreground">Conversão</p>
-            <p className="text-lg font-semibold">{metrics?.subscriptions.conversionRate || 0}%</p>
-          </CardContent>
-        </Card>
+        {[
+          { label: 'ARR', value: formatCurrency(metrics?.financial.arr || 0), color: '' },
+          { label: 'Em Trial', value: metrics?.subscriptions.trialing || 0, color: '' },
+          { label: 'Past Due', value: metrics?.subscriptions.pastDue || 0, color: 'text-yellow-500' },
+          { label: 'WAU', value: metrics?.users.wau || 0, color: '' },
+          { label: 'MAU', value: metrics?.users.mau || 0, color: '' },
+          { label: 'Conversão', value: `${metrics?.subscriptions.conversionRate || 0}%`, color: '' },
+        ].map((item, i) => (
+          <motion.div
+            key={item.label}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 + i * 0.05, duration: 0.3 }}
+          >
+            <Card className="hover:shadow-md transition-shadow duration-200">
+              <CardContent className="pt-4 pb-4">
+                <p className="text-xs text-muted-foreground">{item.label}</p>
+                <p className={cn('text-lg font-semibold', item.color)}>{item.value}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
 
       {/* Charts and Funnel */}
