@@ -207,23 +207,6 @@ export default function Pagamentos() {
     };
   }, [projectRevenue, typedTeamPayments, projectCosts, allProjectCosts]);
 
-  const invoiceableProjects = useMemo(() => {
-    return projects.filter(p => p.agreed_value && p.agreed_value > 0);
-  }, [projects]);
-
-  const toggleProjectSelection = (projectId: string) => {
-    setSelectedProjects(prev =>
-      prev.includes(projectId)
-        ? prev.filter(id => id !== projectId)
-        : [...prev, projectId]
-    );
-  };
-
-  const selectedTotal = useMemo(() => {
-    return invoiceableProjects
-      .filter(p => selectedProjects.includes(p.id))
-      .reduce((sum, p) => sum + (p.agreed_value || 0), 0);
-  }, [invoiceableProjects, selectedProjects]);
 
   // Export data for previsão tab
   const previsaoExportData = useMemo(() => {
