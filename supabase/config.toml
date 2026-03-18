@@ -90,6 +90,10 @@ project_id = "wppfmyseeigsdqutkgyc"
     verify_jwt = false
   [functions.stream-update-video]
     verify_jwt = false
+  [functions.send-weekly-summary]
+    verify_jwt = false
+  [functions.handle-email-unsubscribe]
+    verify_jwt = false
   [functions.stripe-webhook]
     verify_jwt = false
   [functions.submit-video-feedback]
