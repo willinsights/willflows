@@ -5,7 +5,7 @@ import { pt } from 'date-fns/locale';
 import {
   BarChart3, TrendingUp, Users, Award, FileSpreadsheet, FileText,
   Lock, Crown, FolderKanban, CalendarDays, UserCircle, ChevronDown,
-  ChevronUp, Activity,
+  ChevronUp, Activity, Layers, GitCompare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,6 +34,8 @@ import KanbanMetrics from '@/components/kanban/KanbanMetrics';
 import { useDateRange, useMonthlyData, useTopClients, useSummaryMetrics, useProjectDistribution, type PeriodType } from '@/hooks/useReportData';
 import { useCollaboratorRanking } from '@/hooks/useCollaboratorRanking';
 import { generateReportPdfHtml, printReportPdf } from '@/lib/pdf-export-reports';
+import { CostBreakdownReport } from '@/components/reports/CostBreakdownReport';
+import { PeriodComparisonCard } from '@/components/reports/PeriodComparisonCard';
 
 export default function Relatorios() {
   const { canViewReports } = useFinancialPermissions();
@@ -361,6 +363,12 @@ export default function Relatorios() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Cost Breakdown by Category */}
+      <CostBreakdownReport />
+
+      {/* Period Comparison */}
+      <PeriodComparisonCard projects={projects} />
 
       {/* Rankings */}
       <div className="grid lg:grid-cols-3 gap-6">
