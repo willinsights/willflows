@@ -385,6 +385,8 @@ export default function Relatorios() {
       <ReportSectionHeader icon={TrendingUp} title="Previsão de Receita" subtitle="Projeção baseada em pipeline e tendências" badge="Forecast" />
       <RevenueForecastReport />
 
+      {/* Section: Rankings */}
+      <ReportSectionHeader icon={Award} title="Rankings" subtitle="Top clientes, colaboradores e distribuição" />
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Top Clients */}
         <Card className="glass-card">
