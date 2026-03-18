@@ -141,39 +141,30 @@ export default function AdminAnalytics() {
         <TabsContent value="site" className="space-y-6">
           {/* Stats Cards */}
           <div className="grid grid-cols-3 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription className="flex items-center gap-2">
-                  <Eye className="h-4 w-4" />
-                  Visitas Hoje
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">{activity.todayViews.toLocaleString('pt-PT')}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4" />
-                  Últimos 7 Dias
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">{activity.weekViews.toLocaleString('pt-PT')}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription className="flex items-center gap-2">
-                  <Globe className="h-4 w-4" />
-                  Últimos 30 Dias
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold">{activity.monthViews.toLocaleString('pt-PT')}</p>
-              </CardContent>
-            </Card>
+            {[
+              { icon: Eye, label: 'Visitas Hoje', value: activity.todayViews },
+              { icon: TrendingUp, label: 'Últimos 7 Dias', value: activity.weekViews },
+              { icon: Globe, label: 'Últimos 30 Dias', value: activity.monthViews },
+            ].map((card, i) => (
+              <motion.div
+                key={card.label}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.08, duration: 0.35 }}
+              >
+                <Card className="hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-2">
+                    <CardDescription className="flex items-center gap-2">
+                      <card.icon className="h-4 w-4" />
+                      {card.label}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-3xl font-bold">{card.value.toLocaleString('pt-PT')}</p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
           </div>
 
           {/* Daily Visits Chart */}
