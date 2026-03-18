@@ -580,6 +580,9 @@ export function ProjectFinancialTab({
 
           {/* Granular Cost Lines */}
           <ProjectCostLinesCard projectId={projectId} />
+
+          {/* Invoices */}
+          <ProjectInvoicesCard projectId={projectId} clientId={project.client_id} />
         </>
       )}
 
