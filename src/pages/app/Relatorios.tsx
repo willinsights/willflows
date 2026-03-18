@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -36,6 +36,7 @@ import { useCollaboratorRanking } from '@/hooks/useCollaboratorRanking';
 import { generateReportPdfHtml, printReportPdf } from '@/lib/pdf-export-reports';
 import { CostBreakdownReport } from '@/components/reports/CostBreakdownReport';
 import { PeriodComparisonCard } from '@/components/reports/PeriodComparisonCard';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Relatorios() {
   const { canViewReports } = useFinancialPermissions();
@@ -66,43 +67,50 @@ export default function Relatorios() {
     deliveredProjectIds,
   });
 
+  // Cost breakdown data for Excel export
+  const [costBreakdownData, setCostBreakdownData] = useState<{ category: string; estimated: number; actual: number; variance: number }[]>([]);
+
+  useEffect(() => {
+    if (!currentWorkspace?.id) return;
+    const fetchCosts = async () => {
+      const { data } = await supabase
+        .from('project_cost_lines')
+        .select('category, estimated_amount, actual_amount')
+        .eq('workspace_id', currentWorkspace.id);
+      if (data) {
+        const grouped: Record<string, { estimated: number; actual: number }> = {};
+        data.forEach((line: any) => {
+          const cat = line.category || 'outro';
+          if (!grouped[cat]) grouped[cat] = { estimated: 0, actual: 0 };
+          grouped[cat].estimated += line.estimated_amount || 0;
+          grouped[cat].actual += line.actual_amount || 0;
+        });
+        setCostBreakdownData(Object.entries(grouped).map(([category, vals]) => ({
+          category,
+          estimated: vals.estimated,
+          actual: vals.actual,
+          variance: vals.actual - vals.estimated,
+        })));
+      }
+    };
+    fetchCosts();
+  }, [currentWorkspace?.id]);
+
   if (!canViewReports) {
     return <AccessDenied description="Apenas administradores podem aceder aos Relatórios financeiros." />;
   }
 
   // Export functions
   const handleExportExcel = async () => {
-    const { exportMultiSectionToExcel } = await import('@/lib/excel-export');
-    const totalReceita = monthlyData.reduce((sum, m) => sum + m.receita, 0);
-    const totalCustos = monthlyData.reduce((sum, m) => sum + m.custos, 0);
-    const totalLucro = monthlyData.reduce((sum, m) => sum + m.lucro, 0);
-    const avgMargin = totalReceita > 0 ? ((totalLucro / totalReceita) * 100) : 0;
-    const totalProjetos = monthlyData.reduce((sum, m) => sum + m.projetos, 0);
-
-    await exportMultiSectionToExcel({
-      title: 'Relatório Financeiro',
-      subtitle: `${currentWorkspace?.name || 'WillFlow'} • Período: ${format(dateRange.start, "d MMM yyyy", { locale: pt })} - ${format(dateRange.end, "d MMM yyyy", { locale: pt })}`,
-      sections: [
-        {
-          title: 'EVOLUÇÃO MENSAL',
-          headers: ['Mês', 'Receita', 'Custos', 'Lucro', 'Margem (%)', 'Projetos'],
-          data: [
-            ...monthlyData.map(m => [m.fullMonth, formatCurrency(m.receita), formatCurrency(m.custos), formatCurrency(m.lucro), `${m.margin.toFixed(1)}%`, m.projetos]),
-            ['TOTAL', formatCurrency(totalReceita), formatCurrency(totalCustos), formatCurrency(totalLucro), `${avgMargin.toFixed(1)}%`, totalProjetos],
-          ],
-        },
-        {
-          title: 'TOP 10 CLIENTES POR RECEITA',
-          headers: ['#', 'Cliente', 'Receita', 'Projetos'],
-          data: topClients.map((client, i) => [i + 1, client.name, formatCurrency(client.revenue), client.projects]),
-        },
-        {
-          title: 'TOP 10 COLABORADORES',
-          headers: ['#', 'Colaborador', 'Total Ganho', 'Projetos Finalizados'],
-          data: collaboratorsData.map((collab, i) => [i + 1, collab.name, formatCurrency(collab.totalValue), collab.projectCount]),
-        },
-      ],
-      filename: `relatorio-financeiro-${format(new Date(), 'yyyy-MM-dd')}.xlsx`,
+    const { exportFinancialExcel } = await import('@/lib/excel-export-financial');
+    await exportFinancialExcel({
+      workspaceName: currentWorkspace?.name || 'WillFlow',
+      dateRange,
+      monthlyData,
+      topClients,
+      collaborators: collaboratorsData,
+      costBreakdown: costBreakdownData.length > 0 ? costBreakdownData : undefined,
+      summary: summaryMetrics,
     });
   };
 
