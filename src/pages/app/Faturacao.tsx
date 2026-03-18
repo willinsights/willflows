@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -134,12 +135,12 @@ export default function Faturacao() {
   const getStatusBadge = (status: string | null) => {
     switch (status) {
       case 'paid':
-        return <Badge className="bg-green-500/20 text-green-400 border-green-500/30"><CheckCircle className="h-3 w-3 mr-1" />Pago</Badge>;
+        return <Badge className="bg-success/20 text-success border-success/30"><CheckCircle className="h-3 w-3 mr-1" />Pago</Badge>;
       case 'open':
-        return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30"><Clock className="h-3 w-3 mr-1" />Pendente</Badge>;
+        return <Badge className="bg-warning/20 text-warning border-warning/30"><Clock className="h-3 w-3 mr-1" />Pendente</Badge>;
       case 'void':
       case 'uncollectible':
-        return <Badge className="bg-red-500/20 text-red-400 border-red-500/30"><XCircle className="h-3 w-3 mr-1" />Cancelado</Badge>;
+        return <Badge className="bg-destructive/20 text-destructive border-destructive/30"><XCircle className="h-3 w-3 mr-1" />Cancelado</Badge>;
       default:
         return <Badge variant="secondary">{status || 'N/A'}</Badge>;
     }
@@ -171,7 +172,11 @@ export default function Faturacao() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between"
+      >
         <div>
           <h1 className="text-2xl font-bold">Faturação</h1>
           <p className="text-muted-foreground">Gerir pagamentos, faturas e método de pagamento</p>
@@ -184,13 +189,28 @@ export default function Faturacao() {
           <Settings className="h-4 w-4" />
           {portalLoading ? 'A abrir...' : 'Gerir Subscrição'}
         </Button>
-      </div>
+      </motion.div>
 
       {loading ? (
         <div className="space-y-6">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-48 w-full" />
-          <Skeleton className="h-96 w-full" />
+          <div className="grid gap-6 md:grid-cols-2">
+            {[0, 1].map(i => (
+              <Card key={i}>
+                <CardHeader><Skeleton className="h-5 w-32" /><Skeleton className="h-3 w-48 mt-2" /></CardHeader>
+                <CardContent className="space-y-3">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <Card>
+            <CardHeader><Skeleton className="h-5 w-40" /><Skeleton className="h-3 w-56 mt-2" /></CardHeader>
+            <CardContent className="space-y-3">
+              {[0, 1, 2].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+            </CardContent>
+          </Card>
         </div>
       ) : !billingInfo?.hasCustomer ? (
         <Card>
@@ -211,8 +231,8 @@ export default function Faturacao() {
         <>
           {/* Subscription & Payment Method Cards */}
           <div className="grid gap-6 md:grid-cols-2">
-            {/* Current Subscription */}
-            <Card>
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <Card className="h-full">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="h-5 w-5 text-primary" />
@@ -225,7 +245,7 @@ export default function Faturacao() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Estado</span>
-                      <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                      <Badge className="bg-success/20 text-success border-success/30">
                         <CheckCircle className="h-3 w-3 mr-1" />
                         Ativo
                       </Badge>
@@ -241,8 +261,8 @@ export default function Faturacao() {
                       </span>
                     </div>
                     {billingInfo.subscription.cancelAtPeriodEnd && (
-                      <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                        <p className="text-sm text-yellow-400">
+                      <div className="p-3 bg-warning/10 border border-warning/30 rounded-lg">
+                        <p className="text-sm text-warning">
                           ⚠️ A subscrição será cancelada no final do período
                         </p>
                       </div>
@@ -258,9 +278,10 @@ export default function Faturacao() {
                 )}
               </CardContent>
             </Card>
+            </motion.div>
 
-            {/* Payment Method */}
-            <Card>
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <Card className="h-full">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <CreditCard className="h-5 w-5 text-primary" />
@@ -297,9 +318,11 @@ export default function Faturacao() {
                 )}
               </CardContent>
             </Card>
+            </motion.div>
           </div>
 
           {/* Invoice History */}
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -377,6 +400,7 @@ export default function Faturacao() {
               )}
             </CardContent>
           </Card>
+          </motion.div>
         </>
       )}
     </div>
