@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, startOfYear } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { getMonthlyMetrics } from '@/lib/finance/financialEngine';
+import type { FinancialProject } from '@/lib/finance/types';
 
 export type PeriodType = '1M' | '3M' | '6M' | '12M' | 'YTD' | 'custom';
 
@@ -54,42 +56,51 @@ export function useDateRange(periodType: PeriodType, customRange: { from: Date |
   }, [periodType, customRange]);
 }
 
+/**
+ * Monthly report data — now delegated to financialEngine (REALIZADO mode)
+ * for consistent numbers across Dashboard, Relatórios and Pagamentos.
+ */
 export function useMonthlyData(projects: any[], dateRange: DateRange): MonthlyReportData[] {
   return useMemo(() => {
     const diffTime = Math.abs(dateRange.end.getTime() - dateRange.start.getTime());
     const periodMonths = Math.max(1, Math.ceil(Math.ceil(diffTime / (1000 * 60 * 60 * 24)) / 30));
     const months: MonthlyReportData[] = [];
 
+    // Map raw projects to FinancialProject for the engine
+    const mappedProjects: FinancialProject[] = projects.map(p => ({
+      id: p.id,
+      agreed_value: p.agreed_value,
+      custo_captacao: p.custo_captacao,
+      custo_edicao: p.custo_edicao,
+      custos_extras: p.custos_extras,
+      custos_extras_payment_status: p.custos_extras_payment_status,
+      custos_extras_paid_at: p.custos_extras_paid_at,
+      is_delivered: p.is_delivered,
+      delivered_at: p.delivered_at,
+      delivery_date: p.delivery_date,
+      shoot_date: p.shoot_date,
+      created_at: p.created_at,
+      client_payment_status: p.client_payment_status,
+      client_paid_at: p.client_paid_at,
+      competence_month: p.competence_month,
+    }));
+
     for (let i = periodMonths - 1; i >= 0; i--) {
       const date = subMonths(dateRange.end, i);
-      const start = startOfMonth(date);
       const end = endOfMonth(date);
       if (end < dateRange.start) continue;
 
-      const monthProjects = projects.filter(p => {
-        if (!p.is_delivered) return false;
-        const effectiveDate = p.competence_month
-          ? new Date(p.competence_month + '-01')
-          : p.delivered_at ? new Date(p.delivered_at) : null;
-        if (!effectiveDate) return false;
-        if (p.competence_month) {
-          return effectiveDate.getFullYear() === start.getFullYear() && effectiveDate.getMonth() === start.getMonth();
-        }
-        return isWithinInterval(effectiveDate, { start, end });
-      });
-
-      const revenue = monthProjects.reduce((sum: number, p: any) => sum + (p.agreed_value || 0), 0);
-      const costs = monthProjects.reduce((sum: number, p: any) =>
-        sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
+      // Delegate to financial engine — single source of truth
+      const metrics = getMonthlyMetrics(mappedProjects, 'REALIZADO', date);
 
       months.push({
         month: format(date, 'MMM yy', { locale: pt }),
         fullMonth: format(date, 'MMMM yyyy', { locale: pt }),
-        receita: revenue,
-        custos: costs,
-        lucro: revenue - costs,
-        margin: revenue > 0 ? ((revenue - costs) / revenue * 100) : 0,
-        projetos: monthProjects.length,
+        receita: metrics.revenue,
+        custos: metrics.cost,
+        lucro: metrics.profit,
+        margin: metrics.revenue > 0 ? ((metrics.profit / metrics.revenue) * 100) : 0,
+        projetos: metrics.projectCount,
       });
     }
     return months;
