@@ -302,30 +302,25 @@ export default function Clientes() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Total Clientes</p>
-              <Users className="h-5 w-5 text-primary" />
-            </div>
-            <p className="text-2xl font-bold">{clients.length}</p>
-            {globalStats.newClientsThisMonth > 0 && (
-              <p className="text-xs text-success mt-1">+{globalStats.newClientsThisMonth} novos este mês</p>
-            )}
-          </CardContent>
-        </Card>
-        
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Receita Total</p>
-              {canViewClientFinancials ? (
-                <Euro className="h-5 w-5 text-success" />
-              ) : (
-                <Lock className="h-5 w-5 text-muted-foreground" />
-              )}
-            </div>
-            {canViewClientFinancials ? (
+        {[
+          {
+            label: 'Total Clientes',
+            icon: Users,
+            iconClass: 'text-primary',
+            content: (
+              <>
+                <p className="text-2xl font-bold">{clients.length}</p>
+                {globalStats.newClientsThisMonth > 0 && (
+                  <p className="text-xs text-success mt-1">+{globalStats.newClientsThisMonth} novos este mês</p>
+                )}
+              </>
+            ),
+          },
+          {
+            label: 'Receita Total',
+            icon: canViewClientFinancials ? Euro : Lock,
+            iconClass: canViewClientFinancials ? 'text-success' : 'text-muted-foreground',
+            content: canViewClientFinancials ? (
               <>
                 <p className="text-2xl font-bold text-success">{formatCurrency(globalStats.totalRevenue)}</p>
                 {globalStats.revenueChange !== null ? (
@@ -333,34 +328,20 @@ export default function Clientes() {
                     "text-xs mt-1 flex items-center gap-1",
                     globalStats.revenueChange >= 0 ? "text-success" : "text-destructive"
                   )}>
-                    {globalStats.revenueChange >= 0 ? (
-                      <TrendingUp className="h-3 w-3" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3" />
-                    )}
+                    {globalStats.revenueChange >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                     {globalStats.revenueChange >= 0 ? '+' : ''}{globalStats.revenueChange}% vs mês anterior
                   </p>
                 ) : globalStats.totalRevenue > 0 ? (
                   <p className="text-xs text-muted-foreground mt-1">Sem dados do mês anterior</p>
                 ) : null}
               </>
-            ) : (
-              <p className="text-2xl font-bold text-muted-foreground">---</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Valor Médio/Projeto</p>
-              {canViewClientFinancials ? (
-                <TrendingUp className="h-5 w-5 text-primary" />
-              ) : (
-                <Lock className="h-5 w-5 text-muted-foreground" />
-              )}
-            </div>
-            {canViewClientFinancials ? (
+            ) : <p className="text-2xl font-bold text-muted-foreground">---</p>,
+          },
+          {
+            label: 'Valor Médio/Projeto',
+            icon: canViewClientFinancials ? TrendingUp : Lock,
+            iconClass: canViewClientFinancials ? 'text-primary' : 'text-muted-foreground',
+            content: canViewClientFinancials ? (
               <>
                 <p className="text-2xl font-bold">{formatCurrency(globalStats.avgProjectValue)}</p>
                 {globalStats.avgValueChange !== null ? (
@@ -368,33 +349,44 @@ export default function Clientes() {
                     "text-xs mt-1 flex items-center gap-1",
                     globalStats.avgValueChange >= 0 ? "text-success" : "text-destructive"
                   )}>
-                    {globalStats.avgValueChange >= 0 ? (
-                      <TrendingUp className="h-3 w-3" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3" />
-                    )}
+                    {globalStats.avgValueChange >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                     {globalStats.avgValueChange >= 0 ? '+' : ''}{globalStats.avgValueChange}% vs mês anterior
                   </p>
                 ) : globalStats.avgProjectValue > 0 ? (
                   <p className="text-xs text-muted-foreground mt-1">Sem dados do mês anterior</p>
                 ) : null}
               </>
-            ) : (
-              <p className="text-2xl font-bold text-muted-foreground">---</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Projetos Ativos</p>
-              <Calendar className="h-5 w-5 text-primary" />
-            </div>
-            <p className="text-2xl font-bold">{globalStats.totalActiveProjects}</p>
-            <p className="text-xs text-muted-foreground mt-1">Em {globalStats.clientsWithProjects} clientes</p>
-          </CardContent>
-        </Card>
+            ) : <p className="text-2xl font-bold text-muted-foreground">---</p>,
+          },
+          {
+            label: 'Projetos Ativos',
+            icon: Calendar,
+            iconClass: 'text-primary',
+            content: (
+              <>
+                <p className="text-2xl font-bold">{globalStats.totalActiveProjects}</p>
+                <p className="text-xs text-muted-foreground mt-1">Em {globalStats.clientsWithProjects} clientes</p>
+              </>
+            ),
+          },
+        ].map((metric, i) => (
+          <motion.div
+            key={metric.label}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.08, duration: 0.4, ease: 'easeOut' }}
+          >
+            <Card className="glass-card hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-muted-foreground">{metric.label}</p>
+                  <metric.icon className={cn("h-5 w-5", metric.iconClass)} />
+                </div>
+                {metric.content}
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
 
       {/* Clients List */}
