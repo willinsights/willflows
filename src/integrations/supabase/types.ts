@@ -1825,6 +1825,73 @@ export type Database = {
           },
         ]
       }
+      project_cost_lines: {
+        Row: {
+          actual_amount: number
+          category: Database["public"]["Enums"]["cost_category"]
+          created_at: string
+          created_by: string | null
+          description: string | null
+          estimated_amount: number
+          id: string
+          paid_at: string | null
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          project_id: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          actual_amount?: number
+          category?: Database["public"]["Enums"]["cost_category"]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          estimated_amount?: number
+          id?: string
+          paid_at?: string | null
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          project_id: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          actual_amount?: number
+          category?: Database["public"]["Enums"]["cost_category"]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          estimated_amount?: number
+          id?: string
+          paid_at?: string | null
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          project_id?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_cost_lines_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_cost_lines_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_profit"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_cost_lines_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_media_links: {
         Row: {
           created_at: string
@@ -4194,6 +4261,14 @@ export type Database = {
         | "expired"
         | "cancelled"
       conversation_type: "channel" | "project" | "dm"
+      cost_category:
+        | "equipamento"
+        | "deslocacao"
+        | "alojamento"
+        | "alimentacao"
+        | "equipa"
+        | "software"
+        | "outro"
       country_region: "PT" | "BR"
       followup_status: "open" | "done"
       kanban_phase: "captacao" | "edicao"
@@ -4348,6 +4423,15 @@ export const Constants = {
         "cancelled",
       ],
       conversation_type: ["channel", "project", "dm"],
+      cost_category: [
+        "equipamento",
+        "deslocacao",
+        "alojamento",
+        "alimentacao",
+        "equipa",
+        "software",
+        "outro",
+      ],
       country_region: ["PT", "BR"],
       followup_status: ["open", "done"],
       kanban_phase: ["captacao", "edicao"],
