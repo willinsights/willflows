@@ -5,7 +5,7 @@ import { pt } from 'date-fns/locale';
 import {
   BarChart3, TrendingUp, Users, Award, FileSpreadsheet, FileText,
   Lock, Crown, FolderKanban, CalendarDays, UserCircle, ChevronDown,
-  ChevronUp, Activity,
+  ChevronUp, Activity, Layers, GitCompare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
