@@ -68,8 +68,21 @@ export default function FinanceiroLayout() {
 
   if (loading || permissionsLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-32" />
+            <Skeleton className="h-4 w-56 hidden sm:block" />
+          </div>
+          <Skeleton className="h-9 w-9 rounded-md" />
+        </div>
+        <div className="flex gap-3 sm:grid sm:grid-cols-3 lg:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-[72px] w-[140px] sm:w-auto rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-10 w-full rounded-lg" />
+        <Skeleton className="h-64 w-full rounded-xl" />
       </div>
     );
   }
