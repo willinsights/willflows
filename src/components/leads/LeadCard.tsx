@@ -72,10 +72,10 @@ export function LeadCard({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'p-3 rounded-xl border bg-card hover:shadow-md transition-all cursor-pointer group',
-        isDragging && 'opacity-50 shadow-lg ring-2 ring-primary',
-        hasOverdueFollowUp && 'border-destructive/50',
-        hasTodayFollowUp && 'border-amber-500/50'
+        'p-3 rounded-xl border bg-card hover:shadow-lg hover:border-primary/20 transition-all duration-200 cursor-pointer group',
+        isDragging && 'opacity-50 shadow-xl ring-2 ring-primary scale-[1.02]',
+        hasOverdueFollowUp && 'border-destructive/50 hover:border-destructive/70',
+        hasTodayFollowUp && 'border-amber-500/50 hover:border-amber-500/70'
       )}
     >
       {/* Header */}
