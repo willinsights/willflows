@@ -279,6 +279,7 @@ export default function Media() {
                 <span className="text-xs text-muted-foreground">{type.label}</span>
               </CardContent>
             </Card>
+            </motion.div>
           );
         })}
       </div>
