@@ -36,6 +36,7 @@ import { useCollaboratorRanking } from '@/hooks/useCollaboratorRanking';
 import { generateReportPdfHtml, printReportPdf } from '@/lib/pdf-export-reports';
 import { CostBreakdownReport } from '@/components/reports/CostBreakdownReport';
 import { PeriodComparisonCard } from '@/components/reports/PeriodComparisonCard';
+import { ClientProfitabilityReport } from '@/components/reports/ClientProfitabilityReport';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function Relatorios() {
@@ -378,7 +379,9 @@ export default function Relatorios() {
       {/* Period Comparison */}
       <PeriodComparisonCard projects={projects} />
 
-      {/* Rankings */}
+      {/* Client Profitability Analysis */}
+      <ClientProfitabilityReport />
+
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Top Clients */}
         <Card className="glass-card">
