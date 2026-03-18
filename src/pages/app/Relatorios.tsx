@@ -236,43 +236,32 @@ export default function Relatorios() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="h-4 w-4 text-success" />
-              <span className="text-sm text-muted-foreground">Receita Total</span>
-            </div>
-            <p className="text-2xl font-bold text-success">{formatCurrency(summaryMetrics.totalRevenue)}</p>
-          </CardContent>
-        </Card>
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <BarChart3 className="h-4 w-4 text-primary" />
-              <span className="text-sm text-muted-foreground">Lucro</span>
-            </div>
-            <p className="text-2xl font-bold">{formatCurrency(summaryMetrics.profit)}</p>
-            <Badge variant="secondary" className="mt-1">{summaryMetrics.margin.toFixed(1)}% margem</Badge>
-          </CardContent>
-        </Card>
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Award className="h-4 w-4 text-warning" />
-              <span className="text-sm text-muted-foreground">Média/Projeto</span>
-            </div>
-            <p className="text-2xl font-bold">{formatCurrency(summaryMetrics.avgProjectValue)}</p>
-          </CardContent>
-        </Card>
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Users className="h-4 w-4 text-info" />
-              <span className="text-sm text-muted-foreground">Clientes Ativos</span>
-            </div>
-            <p className="text-2xl font-bold">{summaryMetrics.activeClients}</p>
-          </CardContent>
-        </Card>
+        {[
+          { icon: TrendingUp, label: 'Receita Total', value: formatCurrency(summaryMetrics.totalRevenue), color: 'text-success', bgColor: 'bg-success/10' },
+          { icon: BarChart3, label: 'Lucro', value: formatCurrency(summaryMetrics.profit), color: 'text-primary', bgColor: 'bg-primary/10', badge: `${summaryMetrics.margin.toFixed(1)}% margem` },
+          { icon: Award, label: 'Média/Projeto', value: formatCurrency(summaryMetrics.avgProjectValue), color: 'text-warning', bgColor: 'bg-warning/10' },
+          { icon: Users, label: 'Clientes Ativos', value: String(summaryMetrics.activeClients), color: 'text-info', bgColor: 'bg-info/10' },
+        ].map((card, i) => (
+          <motion.div
+            key={card.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.08, duration: 0.4 }}
+          >
+            <Card className="glass-card group hover:shadow-lg transition-all duration-300">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div className={cn('flex items-center justify-center h-8 w-8 rounded-lg', card.bgColor)}>
+                    <card.icon className={cn('h-4 w-4', card.color)} />
+                  </div>
+                  <span className="text-sm text-muted-foreground font-medium">{card.label}</span>
+                </div>
+                <p className={cn('text-2xl font-bold', card.color)}>{card.value}</p>
+                {card.badge && <Badge variant="secondary" className="mt-1.5 text-xs">{card.badge}</Badge>}
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
 
       {/* Financial Evolution Chart */}
