@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { Plus, FileText, FileCode, Send, Eye, CheckCircle, Search, Filter, LayoutGrid, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -121,40 +122,31 @@ export default function Contratos() {
 
         {/* Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="p-4 rounded-xl bg-card/80 backdrop-blur-sm border">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <FileText className="h-4 w-4" />
-              <span className="text-sm">Rascunhos</span>
-            </div>
-            <p className="text-2xl font-bold">{metrics.draft}</p>
-          </div>
-          <div className="p-4 rounded-xl bg-card/80 backdrop-blur-sm border">
-            <div className="flex items-center gap-2 text-blue-600 mb-1">
-              <Send className="h-4 w-4" />
-              <span className="text-sm">Enviados</span>
-            </div>
-            <p className="text-2xl font-bold">{metrics.sent}</p>
-          </div>
-          <div className="p-4 rounded-xl bg-card/80 backdrop-blur-sm border">
-            <div className="flex items-center gap-2 text-amber-600 mb-1">
-              <Eye className="h-4 w-4" />
-              <span className="text-sm">Visualizados</span>
-            </div>
-            <p className="text-2xl font-bold">{metrics.viewed}</p>
-          </div>
-          <div className="p-4 rounded-xl bg-card/80 backdrop-blur-sm border">
-            <div className="flex items-center gap-2 text-emerald-600 mb-1">
-              <CheckCircle className="h-4 w-4" />
-              <span className="text-sm">Assinados</span>
-            </div>
-            <p className="text-2xl font-bold">{metrics.signed}</p>
-          </div>
-          <div className="p-4 rounded-xl bg-card/80 backdrop-blur-sm border">
-            <div className="text-muted-foreground text-sm mb-1">Valor Assinado</div>
-            <p className="text-2xl font-bold text-emerald-600">
-              {new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(metrics.totalValue)}
-            </p>
-          </div>
+          {[
+            { label: 'Rascunhos', value: metrics.draft, icon: FileText, colorClass: 'text-muted-foreground' },
+            { label: 'Enviados', value: metrics.sent, icon: Send, colorClass: 'text-blue-600' },
+            { label: 'Visualizados', value: metrics.viewed, icon: Eye, colorClass: 'text-amber-600' },
+            { label: 'Assinados', value: metrics.signed, icon: CheckCircle, colorClass: 'text-emerald-600' },
+            { label: 'Valor Assinado', value: new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(metrics.totalValue), icon: null, colorClass: 'text-emerald-600', isValue: true },
+          ].map((metric, i) => (
+            <motion.div
+              key={metric.label}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.06, duration: 0.35, ease: 'easeOut' }}
+              className="p-4 rounded-xl bg-card/80 backdrop-blur-sm border hover:shadow-md transition-shadow"
+            >
+              {metric.icon ? (
+                <div className={`flex items-center gap-2 ${metric.colorClass} mb-1`}>
+                  <metric.icon className="h-4 w-4" />
+                  <span className="text-sm">{metric.label}</span>
+                </div>
+              ) : (
+                <div className="text-muted-foreground text-sm mb-1">{metric.label}</div>
+              )}
+              <p className={`text-2xl font-bold ${metric.isValue ? metric.colorClass : ''}`}>{metric.value}</p>
+            </motion.div>
+          ))}
         </div>
 
         {/* Tabs */}
