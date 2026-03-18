@@ -26,6 +26,7 @@ import { useBlogAdmin } from '@/hooks/useBlogAdmin';
 import { GenerateArticleModal } from '@/components/blog/GenerateArticleModal';
 import { BlogPostCard } from '@/components/blog/BlogPostCard';
 import { Link } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 
 export default function BlogAdmin() {
   const { 
