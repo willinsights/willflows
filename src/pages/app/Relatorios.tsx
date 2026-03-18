@@ -364,6 +364,12 @@ export default function Relatorios() {
         </Card>
       </div>
 
+      {/* Cost Breakdown by Category */}
+      <CostBreakdownReport />
+
+      {/* Period Comparison */}
+      <PeriodComparisonCard projects={projects} />
+
       {/* Rankings */}
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Top Clients */}
