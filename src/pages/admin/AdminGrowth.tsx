@@ -367,7 +367,11 @@ export default function AdminGrowth() {
     <TooltipProvider>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
             <h1 className="text-2xl font-bold tracking-tight">Growth</h1>
             <p className="text-muted-foreground">Aquisição e gestão de utilizadores</p>
             <div className="mt-2">
