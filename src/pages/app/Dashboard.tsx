@@ -333,7 +333,7 @@ export default function Dashboard() {
       )}
 
       {/* Bottom Row */}
-      <div className={`grid gap-3 ${canViewAllFinancials ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-2'}`}>
+      <motion.div variants={fadeUp} className={`grid gap-3 ${canViewAllFinancials ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-2'}`}>
         {canViewAllFinancials && (
           <PerformanceMetricsCard 
             metrics={performanceMetrics} 
@@ -351,7 +351,7 @@ export default function Dashboard() {
           recentActivity={recentActivity} 
           loading={loading}
         />
-      </div>
+      </motion.div>
 
       <ProjectDetailsSheet
         open={isModalOpen}
@@ -359,6 +359,6 @@ export default function Dashboard() {
         project={selectedProject}
         onUpdate={refresh}
       />
-    </div>
+    </motion.div>
   );
 }
