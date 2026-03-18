@@ -85,6 +85,18 @@ export function ProjectFinancialTab({
   const [clientPayment, setClientPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const healthScore = useProjectHealthScore(canViewAllFinancials ? {
+    delivery_date: project.delivery_date,
+    is_delivered: project.is_delivered,
+    delivered_at: project.delivered_at,
+    agreed_value: project.agreed_value,
+    custo_captacao: project.custo_captacao,
+    custo_edicao: project.custo_edicao,
+    custos_extras: project.custos_extras,
+    client_payment_status: project.client_payment_status,
+    client_payment_due_date: project.client_payment_due_date,
+  } : null);
+
   // Se não pode ver valores financeiros (visualizador), mostra mensagem
   if (!canViewOwnFinancials) {
     return (
