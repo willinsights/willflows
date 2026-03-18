@@ -66,7 +66,7 @@ function useAdvancedKPIs(): AdvancedKPIs {
 
       // Lead conversion rate
       const totalLeads = clients.filter(c => c.lead_status !== null).length;
-      const convertedLeads = clients.filter(c => c.lead_status === 'convertido' || c.converted_at !== null).length;
+      const convertedLeads = clients.filter(c => c.lead_status === 'ganho' || c.converted_at !== null).length;
       const leadConversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
 
       // Average delivery time (last 3 months)
