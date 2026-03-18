@@ -337,5 +337,6 @@ export function FreelancerPaymentsControl({
         )}
       </CardContent>
     </Card>
+    </motion.div>
   );
 }
