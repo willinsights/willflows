@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { ProductTour } from '@/components/tour/ProductTour';
 import { TrialBanner } from '@/components/dashboard/TrialBanner';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
