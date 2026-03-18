@@ -251,5 +251,6 @@ export function ProjectRevenueControl({
         )}
       </CardContent>
     </Card>
+    </motion.div>
   );
 }
