@@ -232,7 +232,7 @@ export default function Media() {
             </TabsTrigger>
           </TabsList>
         </Tabs>
-      </div>
+      </motion.div>
 
       {/* Storage Manager Tab */}
       {mainTab === 'storage' ? (
