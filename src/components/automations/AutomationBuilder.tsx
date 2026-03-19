@@ -63,7 +63,18 @@ export function AutomationBuilder({
   initialData,
   saving,
 }: AutomationBuilderProps) {
-  const { columns } = useKanban();
+  const { currentWorkspace } = useWorkspace();
+  const [columns, setColumns] = useStateHook<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    if (!currentWorkspace?.id) return;
+    supabase
+      .from('kanban_columns')
+      .select('id, name')
+      .eq('workspace_id', currentWorkspace.id)
+      .order('position')
+      .then(({ data }) => setColumns(data || []));
+  }, [currentWorkspace?.id]);
 
   const [name, setName] = useState(initialData?.name || '');
   const [description, setDescription] = useState(initialData?.description || '');
