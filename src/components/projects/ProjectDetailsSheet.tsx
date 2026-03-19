@@ -729,6 +729,11 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
                   )}
                 </TabsContent>
               )}
+
+              <TabsContent value="tempo" className="space-y-4 py-4">
+                <ProjectTimeTab projectId={project.id} />
+              </TabsContent>
+
             </ScrollArea>
           </Tabs>
 
