@@ -53,6 +53,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { VideoProductionTab } from '@/components/video-production/VideoProductionTab';
 import { CreateEventModal } from '@/components/calendar/CreateEventModal';
 import { useCalendarEvents } from '@/hooks/useCalendarEvents';
+import { ProjectTimeTab } from '@/components/time-tracking/ProjectTimeTab';
 
 type Task = Tables<'tasks'>;
 type TaskChecklist = Tables<'task_checklists'>;
