@@ -742,6 +742,21 @@ export function useKanban(phase: KanbanPhase) {
         }).then(() => {
           logger.debug('[moveProject] Column transition recorded');
         });
+
+        // Execute workflow automations asynchronously
+        supabase.functions.invoke('execute-automations', {
+          body: {
+            event_type: 'card_enters_column',
+            project_id: projectId,
+            workspace_id: currentWorkspace.id,
+            to_column_id: targetColumnId,
+            from_column_id: sourceColumn?.id || null,
+            triggered_by: userId,
+          },
+        }).then(({ error: autoError }) => {
+          if (autoError) logger.warn('[moveProject] Automation execution error:', autoError);
+          else logger.debug('[moveProject] Automations executed');
+        });
       }
     } catch (error) {
       toast({

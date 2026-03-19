@@ -43,6 +43,9 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
   { key: 'dashboard.view_own_earnings', name: 'Meus ganhos', description: 'Ver os próprios ganhos no dashboard', category: 'Financeiro e Dashboard' },
   { key: 'dashboard.view_performance', name: 'Métricas de desempenho', description: 'Ver gráficos de performance', category: 'Financeiro e Dashboard' },
   { key: 'payments.manage', name: 'Gerir pagamentos', description: 'Criar, editar e registar pagamentos', category: 'Financeiro e Dashboard' },
+  // Automações
+  { key: 'automations.view', name: 'Ver automações', description: 'Visualizar automações configuradas', category: 'Automações' },
+  { key: 'automations.manage', name: 'Gerir automações', description: 'Criar, editar e eliminar automações', category: 'Automações' },
 ];
 
 export const ALL_ROLES: AppRole[] = ['admin', 'edicao', 'captacao', 'gestao', 'visualizacao'];

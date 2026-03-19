@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Settings, User, Users, Shield, Palette, Loader2, Database as DatabaseIcon, Clock, Trash2, RefreshCw, X, Calendar, Video, Film, AlertTriangle, LogOut, Camera, HelpCircle, Tags } from 'lucide-react';
+import { Settings, User, Users, Shield, Palette, Loader2, Database as DatabaseIcon, Clock, Trash2, RefreshCw, X, Calendar, Video, Film, AlertTriangle, LogOut, Camera, HelpCircle, Tags, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -46,6 +46,7 @@ import { PushNotificationSettings } from '@/components/settings/PushNotification
 import { DeleteWorkspaceModal } from '@/components/workspace/DeleteWorkspaceModal';
 import { LeaveWorkspaceModal } from '@/components/workspace/LeaveWorkspaceModal';
 import { CategoryManagement } from '@/components/categories/CategoryManagement';
+import { AutomationsList } from '@/components/automations/AutomationsList';
 import { useProductTour } from '@/hooks/useProductTour';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import type { Database } from '@/integrations/supabase/types';
@@ -503,6 +504,12 @@ export default function Configuracoes() {
             <TabsTrigger value="dados" className="gap-2 text-xs md:text-sm">
               <DatabaseIcon className="h-4 w-4" />
               <span className="hidden sm:inline">Dados Demo</span>
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="automacoes" className="gap-2 text-xs md:text-sm">
+              <Zap className="h-4 w-4" />
+              <span className="hidden sm:inline">Automações</span>
             </TabsTrigger>
           )}
         </TabsList>
@@ -1122,6 +1129,17 @@ export default function Configuracoes() {
                 </div>
                 
                 <SeedDemoData />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* Automações Tab */}
+        {isAdmin && (
+          <TabsContent value="automacoes">
+            <Card className="glass-card">
+              <CardContent className="pt-6">
+                <AutomationsList />
               </CardContent>
             </Card>
           </TabsContent>

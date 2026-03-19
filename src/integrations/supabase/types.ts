@@ -99,6 +99,109 @@ export type Database = {
           },
         ]
       }
+      automation_execution_log: {
+        Row: {
+          action_type: string
+          automation_id: string | null
+          error_message: string | null
+          executed_at: string
+          id: string
+          project_id: string
+          recipients: Json
+          status: string
+          trigger_type: string
+          workspace_id: string
+        }
+        Insert: {
+          action_type: string
+          automation_id?: string | null
+          error_message?: string | null
+          executed_at?: string
+          id?: string
+          project_id: string
+          recipients?: Json
+          status?: string
+          trigger_type: string
+          workspace_id: string
+        }
+        Update: {
+          action_type?: string
+          automation_id?: string | null
+          error_message?: string | null
+          executed_at?: string
+          id?: string
+          project_id?: string
+          recipients?: Json
+          status?: string
+          trigger_type?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_execution_log_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_automations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_execution_log_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_execution_log_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_profit"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_execution_log_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_recipient_groups: {
+        Row: {
+          created_at: string
+          id: string
+          members: Json
+          name: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          members?: Json
+          name: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          members?: Json
+          name?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_recipient_groups_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       beta_invite_tokens: {
         Row: {
           created_at: string | null
@@ -3933,6 +4036,65 @@ export type Database = {
           },
         ]
       }
+      workflow_automations: {
+        Row: {
+          action_config: Json
+          action_type: Database["public"]["Enums"]["automation_action_type"]
+          conditions: Json | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          recipient_config: Json
+          trigger_config: Json
+          trigger_type: Database["public"]["Enums"]["automation_trigger_type"]
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          action_config?: Json
+          action_type: Database["public"]["Enums"]["automation_action_type"]
+          conditions?: Json | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          recipient_config?: Json
+          trigger_config?: Json
+          trigger_type: Database["public"]["Enums"]["automation_trigger_type"]
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          action_config?: Json
+          action_type?: Database["public"]["Enums"]["automation_action_type"]
+          conditions?: Json | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          recipient_config?: Json
+          trigger_config?: Json
+          trigger_type?: Database["public"]["Enums"]["automation_trigger_type"]
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_automations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspace_goals: {
         Row: {
           created_at: string | null
@@ -4761,6 +4923,15 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "edicao" | "captacao" | "gestao" | "visualizacao"
+      automation_action_type: "send_email" | "notify_in_app" | "webhook"
+      automation_trigger_type:
+        | "card_enters_column"
+        | "card_leaves_column"
+        | "card_moved"
+        | "project_created"
+        | "project_delivered"
+        | "project_archived"
+        | "comment_added"
       contract_status:
         | "draft"
         | "sent"
@@ -4923,6 +5094,16 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "edicao", "captacao", "gestao", "visualizacao"],
+      automation_action_type: ["send_email", "notify_in_app", "webhook"],
+      automation_trigger_type: [
+        "card_enters_column",
+        "card_leaves_column",
+        "card_moved",
+        "project_created",
+        "project_delivered",
+        "project_archived",
+        "comment_added",
+      ],
       contract_status: [
         "draft",
         "sent",
