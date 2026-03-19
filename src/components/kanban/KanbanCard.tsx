@@ -115,6 +115,7 @@ function KanbanCardComponent({ project, onClick, style: externalStyle }: KanbanC
           </Badge>
         )}
         <div className="ml-auto flex items-center gap-1">
+          <KanbanTimerIndicator projectId={project.id} />
           <KanbanChatIndicator projectId={project.id} />
           {isOverdue && (
             <AlertTriangle className="h-3 w-3 text-destructive" />
