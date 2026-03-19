@@ -506,6 +506,12 @@ export default function Configuracoes() {
               <span className="hidden sm:inline">Dados Demo</span>
             </TabsTrigger>
           )}
+          {isAdmin && (
+            <TabsTrigger value="automacoes" className="gap-2 text-xs md:text-sm">
+              <Zap className="h-4 w-4" />
+              <span className="hidden sm:inline">Automações</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Geral Tab */}
