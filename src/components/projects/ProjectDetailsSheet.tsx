@@ -605,8 +605,8 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
               className={cn(
                 "grid w-full shrink-0 mx-6 mt-4",
                 showVideoProductionTab
-                  ? (canViewOwnFinancials ? "grid-cols-6" : "grid-cols-5")
-                  : (canViewOwnFinancials ? "grid-cols-5" : "grid-cols-4")
+                  ? (canViewOwnFinancials ? "grid-cols-7" : "grid-cols-6")
+                  : (canViewOwnFinancials ? "grid-cols-6" : "grid-cols-5")
               )}
               style={{ width: 'calc(100% - 48px)' }}
             >
@@ -614,6 +614,7 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
               <TabsTrigger value="checklist">Checklist</TabsTrigger>
               <TabsTrigger value="timeline">Timeline</TabsTrigger>
               <TabsTrigger value="media">Links</TabsTrigger>
+              <TabsTrigger value="tempo">Tempo</TabsTrigger>
               {canViewOwnFinancials && <TabsTrigger value="financial">Financeiro</TabsTrigger>}
               {showVideoProductionTab && <TabsTrigger value="video">Review Studio</TabsTrigger>}
             </TabsList>
