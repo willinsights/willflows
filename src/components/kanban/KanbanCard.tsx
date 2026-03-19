@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { format, differenceInDays, isPast } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { Calendar, MapPin, Camera, Video, Grip, CheckSquare, AlertTriangle } from 'lucide-react';
+import { Calendar, MapPin, Camera, Video, Grip, CheckSquare, AlertTriangle, Timer } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
