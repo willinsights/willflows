@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { format, differenceInDays, isPast } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { Calendar, MapPin, Camera, Video, Grip, CheckSquare, AlertTriangle } from 'lucide-react';
+import { Calendar, MapPin, Camera, Video, Grip, CheckSquare, AlertTriangle, Timer } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import type { ProjectWithClient } from '@/hooks/useKanban';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { KanbanChatIndicator } from './KanbanChatIndicator';
+import { KanbanTimerIndicator } from './KanbanTimerIndicator';
 
 interface KanbanCardProps {
   project: ProjectWithClient;
@@ -114,6 +115,7 @@ function KanbanCardComponent({ project, onClick, style: externalStyle }: KanbanC
           </Badge>
         )}
         <div className="ml-auto flex items-center gap-1">
+          <KanbanTimerIndicator projectId={project.id} />
           <KanbanChatIndicator projectId={project.id} />
           {isOverdue && (
             <AlertTriangle className="h-3 w-3 text-destructive" />

@@ -1442,6 +1442,75 @@ export type Database = {
           },
         ]
       }
+      kanban_column_transitions: {
+        Row: {
+          from_column_id: string | null
+          id: string
+          moved_at: string
+          moved_by: string | null
+          movement_type: string
+          project_id: string
+          to_column_id: string
+          workspace_id: string
+        }
+        Insert: {
+          from_column_id?: string | null
+          id?: string
+          moved_at?: string
+          moved_by?: string | null
+          movement_type?: string
+          project_id: string
+          to_column_id: string
+          workspace_id: string
+        }
+        Update: {
+          from_column_id?: string | null
+          id?: string
+          moved_at?: string
+          moved_by?: string | null
+          movement_type?: string
+          project_id?: string
+          to_column_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_column_transitions_from_column_id_fkey"
+            columns: ["from_column_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_columns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_column_transitions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_column_transitions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_profit"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_column_transitions_to_column_id_fkey"
+            columns: ["to_column_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_columns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_column_transitions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kanban_columns: {
         Row: {
           color: string
@@ -3105,6 +3174,124 @@ export type Database = {
           },
         ]
       }
+      time_session_adjustments: {
+        Row: {
+          adjusted_by: string
+          created_at: string
+          id: string
+          new_ended_at: string | null
+          new_started_at: string | null
+          old_ended_at: string | null
+          old_started_at: string | null
+          reason: string
+          session_id: string
+        }
+        Insert: {
+          adjusted_by: string
+          created_at?: string
+          id?: string
+          new_ended_at?: string | null
+          new_started_at?: string | null
+          old_ended_at?: string | null
+          old_started_at?: string | null
+          reason: string
+          session_id: string
+        }
+        Update: {
+          adjusted_by?: string
+          created_at?: string
+          id?: string
+          new_ended_at?: string | null
+          new_started_at?: string | null
+          old_ended_at?: string | null
+          old_started_at?: string | null
+          reason?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_session_adjustments_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "time_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_sessions: {
+        Row: {
+          column_id: string | null
+          created_at: string
+          duration_seconds: number | null
+          ended_at: string | null
+          id: string
+          is_manual: boolean
+          notes: string | null
+          project_id: string
+          started_at: string
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          column_id?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          is_manual?: boolean
+          notes?: string | null
+          project_id: string
+          started_at?: string
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          column_id?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          is_manual?: boolean
+          notes?: string | null
+          project_id?: string
+          started_at?: string
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_sessions_column_id_fkey"
+            columns: ["column_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_columns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_sessions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_sessions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_profit"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_sessions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_preferences: {
         Row: {
           created_at: string
@@ -4014,6 +4201,59 @@ export type Database = {
           },
         ]
       }
+      workspace_time_settings: {
+        Row: {
+          allow_multiple_timers: boolean
+          auto_pause_columns: string[] | null
+          auto_start_columns: string[] | null
+          created_at: string
+          id: string
+          inactivity_alert_hours: number | null
+          production_columns: string[] | null
+          require_adjustment_reason: boolean
+          sla_alert_hours: number | null
+          updated_at: string
+          waiting_columns: string[] | null
+          workspace_id: string
+        }
+        Insert: {
+          allow_multiple_timers?: boolean
+          auto_pause_columns?: string[] | null
+          auto_start_columns?: string[] | null
+          created_at?: string
+          id?: string
+          inactivity_alert_hours?: number | null
+          production_columns?: string[] | null
+          require_adjustment_reason?: boolean
+          sla_alert_hours?: number | null
+          updated_at?: string
+          waiting_columns?: string[] | null
+          workspace_id: string
+        }
+        Update: {
+          allow_multiple_timers?: boolean
+          auto_pause_columns?: string[] | null
+          auto_start_columns?: string[] | null
+          created_at?: string
+          id?: string
+          inactivity_alert_hours?: number | null
+          production_columns?: string[] | null
+          require_adjustment_reason?: boolean
+          sla_alert_hours?: number | null
+          updated_at?: string
+          waiting_columns?: string[] | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_time_settings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspaces: {
         Row: {
           country: Database["public"]["Enums"]["country_region"]
@@ -4375,6 +4615,10 @@ export type Database = {
           today_views: number
           week_views: number
         }[]
+      }
+      get_project_time_summary: {
+        Args: { p_project_id: string }
+        Returns: Json
       }
       get_user_subscription_info: {
         Args: { p_user_id: string }

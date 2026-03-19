@@ -728,6 +728,21 @@ export function useKanban(phase: KanbanPhase) {
         .eq('id', projectId);
 
       if (error) throw error;
+
+      // Record column transition for time tracking
+      if (currentWorkspace?.id && userId) {
+        supabase.from('kanban_column_transitions').insert({
+          project_id: projectId,
+          workspace_id: currentWorkspace.id,
+          from_column_id: sourceColumn?.id || null,
+          to_column_id: targetColumnId,
+          moved_by: userId,
+          moved_at: new Date().toISOString(),
+          movement_type: 'manual',
+        }).then(() => {
+          logger.debug('[moveProject] Column transition recorded');
+        });
+      }
     } catch (error) {
       toast({
         title: 'Erro ao mover projeto',
