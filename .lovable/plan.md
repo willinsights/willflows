@@ -1,219 +1,267 @@
 
 
-## Auditoria Completa do Sistema Financeiro WillFlow
+# Time Tracking por Projeto -- Plano de Implementação
+
+## Resumo Executivo
+
+Sistema completo de registo de tempo integrado ao Kanban existente, com dois eixos: **tempo ativo de produção** (sessões manuais de trabalho) e **tempo por coluna** (automático via movimentos no Kanban). Reutiliza a tabela `project_phase_history` já existente (mas não utilizada) e expande com novas tabelas para sessões de trabalho.
 
 ---
 
-### 1. VISÃO GERAL — O QUE EXISTE E PRINCIPAIS DORES
+## Fase 1 -- Fundação de Dados e Timer Básico
 
-O sistema financeiro do WillFlow está distribuído por **4 camadas de cálculo independentes** que recalculam as mesmas métricas com lógica diferente:
+### 1.1 Migração de Base de Dados
 
-| Camada | Ficheiro | Linhas | Responsabilidade |
-|--------|----------|--------|-----------------|
-| Motor Financeiro | `useFinancialEngine.ts` + `financialEngine.ts` | ~250 | Dashboard (3 modos: Realizado/Previsão/Caixa) |
-| Dashboard Metrics | `useDashboardMetrics.ts` | 735 | Dashboard KPIs, chart, forecast, pending payments, events |
-| Pagamentos | `Pagamentos.tsx` | 967 | Forecast mensal, global summary, inline queries |
-| Relatórios | `Relatorios.tsx` | 1230 | monthlyData, topClients, collaborators, inline queries |
-
-Adicionalmente existem **3 hooks satélite** que duplicam lógica:
-- `useMonthlyForecast.ts` — recalcula previsão (duplica `financialEngine` modo PREVISAO)
-- `useCollaboratorForecast.ts` — recalcula earnings do colaborador (duplica `useDashboardMetrics.meusGanhos`)
-- `ProfitControl.tsx` — fetch independente + cálculo de lucro (duplica tudo)
-
-**Resultado**: o mesmo projecto pode mostrar lucro diferente no Dashboard, em Pagamentos > Lucro, e em Relatórios.
-
----
-
-### 2. MAPA DE MÓDULOS
+**Novas tabelas:**
 
 ```text
-FINANCEIRO
-├── Dashboard.tsx
-│   ├── useFinancialEngine (Realizado/Previsão/Caixa)
-│   ├── useDashboardMetrics (KPIs, forecast, events, activity)
-│   ├── useCollaboratorForecast (ganhos colaborador)
-│   └── useMonthlyForecast (forecast admin)
-├── Pagamentos.tsx (967 linhas)
-│   ├── inline Supabase queries (L99-136)
-│   ├── inline monthlyForecast useMemo (L178-225)
-│   ├── inline globalSummary useMemo (L228-267)
-│   ├── ClientPaymentsControl.tsx  (tabela payments)
-│   ├── FreelancerPaymentsControl.tsx (tabela project_team)
-│   ├── ProjectRevenueControl.tsx (tabela projects)
-│   ├── ExtraCostsPaymentsControl.tsx (tabela projects)
-│   ├── ProfitControl.tsx (fetch independente + cálculos)
-│   └── PaymentExportButtons.tsx (formatCurrency próprio)
-├── Relatorios.tsx (1230 linhas)
-│   ├── inline monthlyData useMemo (L283-324)
-│   ├── inline topClients useMemo (L327-348)
-│   ├── inline summaryMetrics useMemo (L380-401)
-│   ├── inline useEffect colaboradores (L152-280)
-│   └── inline PDF template (L464-607, ~140 linhas HTML)
-└── Finalizados.tsx (projetos entregues com formatCurrency local)
+time_sessions
+├── id (uuid, PK)
+├── project_id (FK projects)
+├── user_id (FK auth.users)
+├── workspace_id (FK workspaces)
+├── started_at (timestamptz)
+├── ended_at (timestamptz, nullable)
+├── duration_seconds (int, computed on end)
+├── column_id (FK kanban_columns, nullable) -- coluna quando iniciou
+├── is_manual (boolean, default false)
+├── notes (text, nullable)
+├── created_at / updated_at
+
+time_session_adjustments (log de auditoria)
+├── id (uuid, PK)
+├── session_id (FK time_sessions)
+├── adjusted_by (FK auth.users)
+├── old_started_at / new_started_at
+├── old_ended_at / new_ended_at
+├── reason (text, NOT NULL)
+├── created_at
+
+kanban_column_transitions (expandir project_phase_history)
+├── id (uuid, PK)
+├── project_id (FK projects)
+├── workspace_id (FK workspaces)
+├── from_column_id (FK kanban_columns, nullable)
+├── to_column_id (FK kanban_columns)
+├── moved_by (FK auth.users)
+├── moved_at (timestamptz)
+├── movement_type (text: 'manual' | 'automatic')
+
+workspace_time_settings
+├── id (uuid, PK)
+├── workspace_id (FK workspaces, UNIQUE)
+├── auto_start_columns (uuid[]) -- colunas que iniciam timer
+├── auto_pause_columns (uuid[]) -- colunas que pausam timer
+├── allow_multiple_timers (boolean, default false)
+├── require_adjustment_reason (boolean, default true)
+├── production_columns (uuid[]) -- contam como produção
+├── waiting_columns (uuid[]) -- contam como espera
+├── sla_alert_hours (int, nullable)
+├── inactivity_alert_hours (int, nullable)
 ```
 
----
+**RLS Policies:** Todas as tabelas com workspace isolation via `is_workspace_member()`. Sessões de tempo: utilizador vê as próprias; admin/gestão vê todas do workspace.
 
-### 3. DATA MODEL FINANCEIRO (Fonte de Verdade)
+**Novas permissões** a adicionar ao `initialize_workspace_permissions`:
+- `timetracking.view_own` -- ver os próprios tempos
+- `timetracking.view_all` -- ver tempos de toda a equipa
+- `timetracking.manage` -- ajustar sessões de outros
+- `timetracking.settings` -- configurar regras do workspace
 
-**Tabelas envolvidas:**
-- `projects` — `agreed_value`, `custo_captacao`, `custo_edicao`, `custos_extras`, `client_payment_status`, `client_paid_at`, `client_payment_due_date`, `delivered_at`, `competence_month`, `is_delivered`
-- `project_team` — `payment_amount`, `payment_status`, `paid_at`, `phase`, `user_id`
-- `payments` — tabela genérica (usada APENAS em `ClientPaymentsControl` via `usePayments`) — **praticamente órfã**
+### 1.2 Hook `useTimeTracking`
 
-**Problema crítico**: Existem DUAS tabelas para receita de clientes:
-1. `projects.agreed_value` + `client_payment_status` (usada em Previsão, Lucro, Relatórios, Dashboard)
-2. `payments` com `is_receivable=true` (usada APENAS no tab "Pag. Clientes")
+- `startTimer(projectId)` -- cria sessão, valida conflitos
+- `pauseTimer(sessionId)` -- define `ended_at`, calcula duration
+- `resumeTimer(projectId)` -- cria nova sessão
+- `getActiveTimer()` -- sessão sem `ended_at` do user atual
+- `getProjectSessions(projectId)` -- todas as sessões
+- `adjustSession(sessionId, changes, reason)` -- com log de auditoria
+- Subscrição realtime para sincronizar estado do timer entre tabs
 
-Isto cria **dois sistemas de receita paralelos** que não se cruzam.
+### 1.3 Componentes UI do Timer
 
----
+**No KanbanCard:** Indicador discreto (ícone pulsante) quando timer ativo.
 
-### 4. TOP 20 PROBLEMAS (por severidade)
+**No ProjectDetailsSheet:** Nova tab "Tempo" com:
+- Botão Play/Pause/Retomar (estados claros)
+- Contador ao vivo (atualizado a cada segundo localmente)
+- Total acumulado do projeto
+- Lista de sessões recentes
+- Resumo por coluna (via `kanban_column_transitions`)
 
-| # | Sev. | Problema |
-|---|------|----------|
-| 1 | CRÍTICO | **Duas fontes de receita**: `projects.agreed_value` vs `payments.is_receivable`. O globalSummary mistura ambas. |
-| 2 | CRÍTICO | **`useDashboardMetrics` e `useFinancialEngine` calculam as mesmas métricas com lógica diferente** — Dashboard usa ambos simultaneamente |
-| 3 | CRÍTICO | **Custos duplicados potenciais**: `project_team.payment_amount` são os detalhes de `custo_captacao + custo_edicao`. Se alguém preenche ambos independentemente, os custos podem não bater |
-| 4 | ALTO | **`formatCurrency` redefinido em 31+ ficheiros** em vez de usar `useCurrentWorkspace().formatCurrency` |
-| 5 | ALTO | **`statusLabels`/`statusColors` copiados em 6 ficheiros** |
-| 6 | ALTO | **`Pagamentos.tsx` faz 3 queries Supabase inline** (L99-136) em `useEffect` sem react-query — sem cache, sem dedup |
-| 7 | ALTO | **`ProfitControl.tsx` faz fetch independente** dos mesmos dados que `Pagamentos.tsx` já tem |
-| 8 | ALTO | **`Relatorios.tsx` calcula monthlyData inline** replicando `getTimeSeries` do financialEngine |
-| 9 | ALTO | **`Relatorios.tsx` colaboradores useEffect (120 linhas)** — fetch + agregação inline, sem cache |
-| 10 | ALTO | **`useMonthlyForecast` é redundante** — duplica modo PREVISAO do `financialEngine` |
-| 11 | ALTO | **Sem IVA/retenção** — projetos europeus (PT 23% IVA). Assumido: não implementado. Os valores são brutos sem distinção |
-| 12 | MÉDIO | **`useCollaboratorForecast` duplica** lógica de ganhos que `useDashboardMetrics.meusGanhos` já calcula |
-| 13 | MÉDIO | **Template PDF de 140 linhas inline** em `Relatorios.tsx` (L464-607) — deveria usar `generatePdfHtml` como `ProfitControl` já faz |
-| 14 | MÉDIO | **Previsão tab em Pagamentos usa `payments` table** para "outros pagamentos" mas `projects` table para receita — inconsistente |
-| 15 | MÉDIO | **Sem relatório detalhado por colaborador** — só existe Top 10 ranking. Falta: "quanto devo ao Christian este mês?" |
-| 16 | MÉDIO | **`Pagamentos.tsx` globalSummary** soma `projectRevenue` + `payments` + `teamPayments` + `projectCosts` de queries diferentes |
-| 17 | MÉDIO | **Relatórios não usam `competence_month`** no filtro por período — usam `isWithinInterval(effectiveDate)` que pode falhar em edge cases |
-| 18 | BAIXO | **`PaymentExportButtons` tem formatCurrency próprio** (L142) ignorando o que recebe por contexto |
-| 19 | BAIXO | **`Pagamentos.tsx` re-fetches data on status change** (L374-388) em vez de invalidar react-query |
-| 20 | BAIXO | **Sem testes** para cálculos financeiros — zero unit tests no `financialEngine.ts` |
+**Proteção de navegação:** `beforeunload` event quando timer ativo.
+
+**Conflito de timers:** Ao iniciar timer com outro ativo, dialog de confirmação para pausar o anterior.
 
 ---
 
-### 5. PROPOSTA DE SIMPLIFICAÇÃO
+## Fase 2 -- Registo Automático de Movimentos
 
-#### Fase 1: Constantes e Utilitários (PR1 — baixo risco)
-- Criar `src/lib/finance/constants.ts` com `statusLabels`, `statusColors`
-- Substituir todos os `formatCurrency` locais por `useCurrentWorkspace().formatCurrency`
-- **~15 ficheiros afectados, zero mudança funcional**
+### 2.1 Integrar no `moveProject` do `useKanban.ts`
 
-#### Fase 2: Eliminar hooks redundantes (PR2 — médio risco)
-- **Eliminar `useMonthlyForecast.ts`** — substituir por `useFinancialEngine('PREVISAO', month)`
-- **Eliminar `useCollaboratorForecast.ts`** — mover lógica para dentro do Dashboard com query dedicada
-- **Refactorizar `useDashboardMetrics.ts`**: remover cálculos de receita/custo/lucro/forecast/monthlyData/annualComparison (~350 linhas) e usar `useFinancialEngine` para tudo financeiro. Manter apenas: `urgentProjects`, `recentActivity`, `upcomingEvents`, `performanceMetrics`, `pendingPaymentItems`
-- **Resultado**: ~735 → ~300 linhas
+Ao mover projeto entre colunas:
+1. Inserir registo em `kanban_column_transitions`
+2. Verificar `workspace_time_settings`:
+   - Se destino está em `auto_start_columns` → iniciar timer (ou sugerir)
+   - Se destino está em `auto_pause_columns` → pausar timer ativo
+3. Calcular `rework_count` (movimentos de revisão/aprovação → edição/alterações)
 
-#### Fase 3: Extrair lógica de Pagamentos (PR3 — médio risco)
-- Criar `src/hooks/usePaymentsPage.ts`:
-  - Migrar queries inline para react-query
-  - Encapsular `monthlyForecast` e `globalSummary`
-  - Encapsular handlers de status change
-- **`Pagamentos.tsx`**: ~967 → ~400 linhas (só UI)
-- **`ProfitControl.tsx`**: receber dados por props em vez de fetch próprio
+### 2.2 Trigger SQL para `project_phase_history`
 
-#### Fase 4: Extrair lógica de Relatórios (PR4 — médio risco)
-- Criar `src/hooks/useCollaboratorRanking.ts` (fetch + agregação de colaboradores)
-- `Relatorios.tsx` usa `getTimeSeries` do financialEngine para `monthlyData`
-- Mover template PDF para `src/lib/pdf-export.ts`
-- **`Relatorios.tsx`**: ~1230 → ~500 linhas
-
-#### Fase 5: Relatório por Colaborador (PR5 — feature nova)
-- Nova aba "Colaboradores" em Relatórios com:
-  - Filtro por colaborador, período, fase, status pagamento
-  - Tabela: Projeto | Fase | Valor | Status | Data Entrega
-  - Totalizadores: Total Pendente, Total Pago, Total Geral
-  - Export Excel/PDF
-- Query: `project_team` JOIN `projects` JOIN `profiles` filtrado por `user_id` + período
-- Responde a "Quanto devo pagar ao Christian este mês?"
-
-#### Fase 6: Decisão sobre tabela `payments` (PR6 — alto risco, decisão de produto)
-- A tabela `payments` é usada apenas no tab "Pag. Clientes" e parece ser um legado
-- **Opção A**: Migrar tudo para `projects` (já é a fonte de verdade para 90% do sistema)
-- **Opção B**: Manter `payments` para movimentos manuais (reembolsos, ajustes) mas separar claramente da receita de projectos
-- Recomendo **Opção B** mas renomear tab para "Outros Movimentos"
-
-#### Fase 7: Server-side calculations (PR7 — longo prazo)
-- Criar views SQL ou RPCs no Supabase:
-  - `v_project_profit` — receita, custos, lucro, margem por projecto
-  - `v_monthly_summary` — agregação mensal
-  - `v_collaborator_payments` — pagamentos por colaborador com JOIN de profiles
-- Eliminar cálculos repetidos no frontend
+Reutilizar a tabela existente. Trigger `AFTER UPDATE` em `projects` quando `captacao_column_id` ou `edicao_column_id` muda:
+- Fechar registo anterior (`exited_at = now()`, calcular `duration_hours`)
+- Abrir novo registo (`entered_at = now()`)
 
 ---
 
-### 6. RELATÓRIOS POR COLABORADOR — Design Detalhado
+## Fase 3 -- Painel de Tempo no Projeto
 
-**Query base:**
-```sql
-SELECT 
-  pt.user_id,
-  p2.full_name,
-  p2.avatar_url,
-  pt.phase,
-  pt.payment_amount,
-  pt.payment_status,
-  pt.paid_at,
-  p.id as project_id,
-  p.name as project_name,
-  p.project_code,
-  p.delivery_date,
-  p.delivered_at,
-  p.is_delivered,
-  p.competence_month,
-  c.name as client_name
-FROM project_team pt
-JOIN projects p ON pt.project_id = p.id
-LEFT JOIN profiles p2 ON pt.user_id = p2.id
-LEFT JOIN clients c ON p.client_id = c.id
-WHERE p.workspace_id = $workspace_id
-```
-
-**UI proposta:**
-- Selector de colaborador (dropdown com avatar)
-- Filtros: período (mês), fase (captação/edição), status (pendente/pago/vencido)
-- Tabela com colunas: Projecto | Cliente | Fase | Estado Proj. | Status Pgto | Valor | Data
-- Cards de resumo: Total Pendente | Total Pago | Total Geral | Nº Projectos
-- Botões Excel/PDF
-
----
-
-### 7. PLANO DE IMPLEMENTAÇÃO
+### 3.1 Tab "Tempo" no ProjectDetailsSheet
 
 ```text
-PR1: Centralizar constantes e formatCurrency    [1-2h] [baixo risco]
-PR2: Eliminar hooks redundantes                 [3-4h] [médio risco]  
-PR3: Extrair lógica Pagamentos para hook        [2-3h] [médio risco]
-PR4: Extrair lógica Relatórios para hooks       [2-3h] [médio risco]
-PR5: Nova aba Relatório por Colaborador         [3-4h] [baixo risco]
-PR6: Decisão tabela payments                    [1h decisão + 2h impl]
-PR7: Views SQL server-side (futuro)             [4-6h] [médio risco]
+┌─────────────────────────────────────┐
+│ ▶ Iniciar Produção    00:00:00      │
+│                                     │
+│ ┌─ Resumo ────────────────────────┐ │
+│ │ Tempo Ativo: 12h 30m            │ │
+│ │ Tempo de Ciclo: 5d 4h           │ │
+│ │ Revisões: 2 │ Retornos: 1       │ │
+│ └─────────────────────────────────┘ │
+│                                     │
+│ ┌─ Tempo por Coluna ─────────────┐ │
+│ │ Edição       │ 8h 20m │ 2x     │ │
+│ │ Revisão      │ 3h 10m │ 3x     │ │
+│ │ Aprovação    │ 1d 2h  │ 1x     │ │
+│ └─────────────────────────────────┘ │
+│                                     │
+│ ┌─ Sessões ──────────────────────┐ │
+│ │ 19 Mar 09:10-11:30 (2h 20m) JD │ │
+│ │ 19 Mar 14:00-16:20 (2h 20m) JD │ │
+│ └─────────────────────────────────┘ │
+│                                     │
+│ ┌─ Timeline ─────────────────────┐ │
+│ │ • Entrou em Edição       09:10  │ │
+│ │ • Timer iniciado         09:10  │ │
+│ │ • Timer pausado          11:30  │ │
+│ │ • Movido p/ Revisão      11:35  │ │
+│ └─────────────────────────────────┘ │
+└─────────────────────────────────────┘
 ```
 
-**Critérios de aceitação:**
-1. Um projecto mostra o mesmo lucro em Dashboard, Pagamentos > Lucro, e Relatórios
-2. `formatCurrency` não existe em mais nenhum ficheiro além de `useCurrentWorkspace`
-3. `statusLabels`/`statusColors` vêm de `constants.ts` em todos os componentes
-4. "Quanto devo ao X este mês?" tem resposta clara na aba Colaboradores
-5. Pagamento de colaborador nunca duplica custo do projecto
-6. Zero queries Supabase inline em páginas — tudo via hooks com react-query
+### 3.2 RPC `get_project_time_summary`
 
-**Testes necessários:**
-- Unit tests para `financialEngine.ts` (todas as funções, 3 modos)
-- Teste de consistência: mesmo dataset → mesmo resultado em Dashboard e Relatórios
-- Teste de edge cases: projecto sem datas, projecto com competence_month, rollover
+Função SQL que retorna:
+- `total_active_seconds`, `total_cycle_seconds`, `total_waiting_seconds`
+- Tempo por coluna (array)
+- `rework_count`, `revision_return_count`
+- `first_started_at`, `delivered_at`
 
 ---
 
-### 8. NOTAS ASSUMIDAS
+## Fase 4 -- Relatórios de Tempo
 
-- **IVA**: Não implementado. Recomendo adicionar campo `tax_rate` ao projecto no futuro (PR separado)
-- **Retenção na fonte**: Não implementado. Relevante para freelancers PT (campo `withholding_rate` em `project_team`)
-- **Moeda**: Valores em decimal (float). Recomendo migrar para centavos (integer) a longo prazo
-- **RBAC**: Já implementado via `useFinancialPermissions` — funciona bem
+### 4.1 Nova secção em `Relatorios.tsx`
+
+Secção "Análise de Tempo" com:
+- **Filtros:** período, editor, cliente, tipo de projeto, coluna
+- **Métricas:** total horas ativas, média por projeto, média por editor
+- **Gráficos:**
+  - Barras: tempo médio por coluna (identificar gargalos)
+  - Ranking: editores por horas trabalhadas
+  - Ranking: projetos mais demorados
+  - Comparação: tempo ativo vs tempo total de ciclo
+
+### 4.2 Componentes de Relatório
+
+- `TimeTrackingReport.tsx` -- secção completa
+- `ColumnTimeChart.tsx` -- barras por coluna
+- `EditorRankingTable.tsx` -- ranking de editores
+- `ProjectTimeTable.tsx` -- tabela de projetos com tempos
+- Hook `useTimeReportData.ts` -- dados agregados via RPC
+
+---
+
+## Fase 5 -- Configurações e Alertas
+
+### 5.1 Página de Configurações
+
+Nova secção em `Configuracoes.tsx` → "Gestão de Tempo":
+- Selecionar colunas de produção vs espera
+- Auto-start / auto-pause por coluna
+- Permitir múltiplos timers
+- SLA por coluna (alerta após X horas)
+- Alerta de inatividade
+
+### 5.2 Sistema de Alertas
+
+Notificações (reutilizando tabela `notifications`):
+- Projeto sem atividade há X dias
+- Projeto na mesma coluna há muito tempo
+- Timer ativo há mais de 8h sem pausa
+- Retrabalho excessivo (>3 retornos)
+
+---
+
+## Componentes a Criar
+
+| Componente | Localização |
+|---|---|
+| `useTimeTracking.ts` | `src/hooks/` |
+| `useTimeReportData.ts` | `src/hooks/` |
+| `ProjectTimeTab.tsx` | `src/components/projects/` |
+| `TimerButton.tsx` | `src/components/time-tracking/` |
+| `TimerIndicator.tsx` | `src/components/time-tracking/` |
+| `SessionsList.tsx` | `src/components/time-tracking/` |
+| `ColumnTimeBreakdown.tsx` | `src/components/time-tracking/` |
+| `ProjectTimeline.tsx` | `src/components/time-tracking/` |
+| `AdjustSessionDialog.tsx` | `src/components/time-tracking/` |
+| `TimeTrackingReport.tsx` | `src/components/reports/` |
+| `TimeTrackingSettings.tsx` | `src/components/settings/` |
+
+---
+
+## Edge Cases Identificados
+
+1. **Timer esquecido** -- limitar a 12h automáticas; alertar após 8h
+2. **Múltiplas tabs** -- sincronizar via realtime; estado consistente
+3. **Offline** -- armazenar localmente e sincronizar ao reconectar
+4. **Projeto entregue com timer ativo** -- forçar pausa automática
+5. **Coluna eliminada** -- manter referência histórica; mostrar "Coluna removida"
+6. **Fuso horário** -- usar sempre UTC no backend; converter no frontend
+7. **Reabrir projeto** -- manter histórico; novo ciclo não apaga dados anteriores
+
+---
+
+## Riscos de UX e Mitigações
+
+| Risco | Mitigação |
+|---|---|
+| Timer esquecido gera dados irreais | Alerta visual persistente + auto-pause após X horas |
+| Confusão entre "tempo ativo" e "tempo na coluna" | Labels claros: "Tempo Trabalhado" vs "Tempo na Etapa" |
+| Sobrecarga visual no Kanban card | Indicador minimal (apenas ícone pulsante, sem contador no card) |
+| Resistência da equipa ao tracking | Timer opcional; configurável por workspace; sem micro-gestão |
+
+---
+
+## Melhorias Estratégicas
+
+1. **Custo/Hora por Projeto** -- cruzar tempo ativo com `v_project_profit` para calcular rentabilidade por hora
+2. **Estimativas** -- após acumular dados, sugerir tempo estimado para novos projetos baseado no tipo/cliente
+3. **Benchmarks** -- comparação do tempo médio por tipo de projeto ao longo dos meses
+4. **Dashboard Widget** -- "Meu timer" no dashboard com projeto ativo e horas do dia
+5. **Integração calendário** -- correlacionar sessões com eventos do Google Calendar
+
+---
+
+## Plano de Fases
+
+| Fase | Escopo | Prioridade |
+|---|---|---|
+| 1 | DB + Timer básico + UI no projeto | Alta -- core |
+| 2 | Registo automático de movimentos | Alta -- essencial |
+| 3 | Tab de tempo detalhada + timeline | Média |
+| 4 | Relatórios e gráficos | Média |
+| 5 | Configurações + Alertas + SLA | Baixa -- refinamento |
+
+Sugiro implementar **Fases 1 e 2 juntas** (são interdependentes) e depois iterar.
 
