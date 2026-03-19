@@ -99,13 +99,13 @@ export function useWorkflowAutomations() {
         workspace_id: currentWorkspace.id,
         name: formData.name,
         description: formData.description || null,
-        trigger_type: formData.trigger_type as any,
+        trigger_type: formData.trigger_type,
         trigger_config: formData.trigger_config,
-        action_type: formData.action_type as any,
+        action_type: formData.action_type,
         action_config: formData.action_config,
         recipient_config: formData.recipient_config,
         created_by: user.id,
-      })
+      } as any)
       .select()
       .single();
 
