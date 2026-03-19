@@ -298,7 +298,7 @@ export function useTimeTracking(projectId?: string) {
         const shouldAutoPause = timeSettings.auto_pause_columns.includes(toColumnId);
 
         if (shouldAutoPause && activeTimer && !activeTimer.ended_at && activeTimer.project_id === transitionProjectId) {
-          await pauseTimerMutation.mutateAsync();
+          await pauseTimerMutation.mutateAsync(activeTimer.id);
         } else if (shouldAutoStart && (!activeTimer || activeTimer.ended_at || activeTimer.project_id !== transitionProjectId)) {
           await startTimerMutation.mutateAsync({ targetProjectId: transitionProjectId, columnId: toColumnId });
         }
