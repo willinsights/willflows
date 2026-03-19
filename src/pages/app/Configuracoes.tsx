@@ -1133,6 +1133,17 @@ export default function Configuracoes() {
             </Card>
           </TabsContent>
         )}
+
+        {/* Automações Tab */}
+        {isAdmin && (
+          <TabsContent value="automacoes">
+            <Card className="glass-card">
+              <CardContent className="pt-6">
+                <AutomationsList />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Workspace Management Modals */}
