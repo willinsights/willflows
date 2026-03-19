@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import type { ProjectWithClient } from '@/hooks/useKanban';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { KanbanChatIndicator } from './KanbanChatIndicator';
+import { KanbanTimerIndicator } from './KanbanTimerIndicator';
 
 interface KanbanCardProps {
   project: ProjectWithClient;
