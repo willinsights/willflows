@@ -26,7 +26,9 @@ import {
   RECIPIENT_TYPES,
   type AutomationFormData,
 } from '@/hooks/useWorkflowAutomations';
-import { useKanban } from '@/hooks/useKanban';
+import { supabase } from '@/integrations/supabase/client';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useState as useStateHook, useEffect } from 'react';
 
 const TEMPLATE_VARIABLES = [
   { key: '{project_name}', label: 'Nome do Projeto' },

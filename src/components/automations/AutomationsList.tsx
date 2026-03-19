@@ -17,7 +17,9 @@ import {
 import { Zap, Plus, Trash2, Pencil, Mail, Bell } from 'lucide-react';
 import { useWorkflowAutomations, TRIGGER_TYPES, ACTION_TYPES, RECIPIENT_TYPES, type AutomationFormData } from '@/hooks/useWorkflowAutomations';
 import { AutomationBuilder } from './AutomationBuilder';
-import { useKanban } from '@/hooks/useKanban';
+import { supabase } from '@/integrations/supabase/client';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useState as useStateAlias, useEffect } from 'react';
 
 export function AutomationsList() {
   const { automations, loading, saving, createAutomation, updateAutomation, deleteAutomation, toggleAutomation } = useWorkflowAutomations();
