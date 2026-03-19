@@ -46,6 +46,7 @@ import { PushNotificationSettings } from '@/components/settings/PushNotification
 import { DeleteWorkspaceModal } from '@/components/workspace/DeleteWorkspaceModal';
 import { LeaveWorkspaceModal } from '@/components/workspace/LeaveWorkspaceModal';
 import { CategoryManagement } from '@/components/categories/CategoryManagement';
+import { AutomationsList } from '@/components/automations/AutomationsList';
 import { useProductTour } from '@/hooks/useProductTour';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import type { Database } from '@/integrations/supabase/types';
