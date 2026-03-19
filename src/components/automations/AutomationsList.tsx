@@ -23,7 +23,18 @@ import { useState as useStateAlias, useEffect } from 'react';
 
 export function AutomationsList() {
   const { automations, loading, saving, createAutomation, updateAutomation, deleteAutomation, toggleAutomation } = useWorkflowAutomations();
-  const { columns } = useKanban();
+  const { currentWorkspace } = useWorkspace();
+  const [columns, setColumnsState] = useStateAlias<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    if (!currentWorkspace?.id) return;
+    supabase
+      .from('kanban_columns')
+      .select('id, name')
+      .eq('workspace_id', currentWorkspace.id)
+      .order('position')
+      .then(({ data }) => setColumnsState(data || []));
+  }, [currentWorkspace?.id]);
   const [builderOpen, setBuilderOpen] = useState(false);
   const [editingAutomation, setEditingAutomation] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
