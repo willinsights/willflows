@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Settings, User, Users, Shield, Palette, Loader2, Database as DatabaseIcon, Clock, Trash2, RefreshCw, X, Calendar, Video, Film, AlertTriangle, LogOut, Camera, HelpCircle, Tags } from 'lucide-react';
+import { Settings, User, Users, Shield, Palette, Loader2, Database as DatabaseIcon, Clock, Trash2, RefreshCw, X, Calendar, Video, Film, AlertTriangle, LogOut, Camera, HelpCircle, Tags, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
