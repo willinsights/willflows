@@ -76,41 +76,38 @@ export function AutomationBuilder({
       .then(({ data }) => setColumns(data || []));
   }, [currentWorkspace?.id]);
 
-  const [name, setName] = useState(initialData?.name || '');
-  const [description, setDescription] = useState(initialData?.description || '');
-  const [triggerType, setTriggerType] = useState(initialData?.trigger_type || '');
-  const [triggerColumnId, setTriggerColumnId] = useState(
-    (initialData?.trigger_config as any)?.column_id || ''
-  );
-  const [fromColumnId, setFromColumnId] = useState(
-    (initialData?.trigger_config as any)?.from_column_id || ''
-  );
-  const [toColumnId, setToColumnId] = useState(
-    (initialData?.trigger_config as any)?.to_column_id || ''
-  );
-  const [actionType, setActionType] = useState(initialData?.action_type || '');
-  const [recipientType, setRecipientType] = useState(
-    (initialData?.recipient_config as any)?.type || ''
-  );
-  const [recipientValue, setRecipientValue] = useState(
-    (initialData?.recipient_config as any)?.value || ''
-  );
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [triggerType, setTriggerType] = useState('');
+  const [triggerColumnId, setTriggerColumnId] = useState('');
+  const [fromColumnId, setFromColumnId] = useState('');
+  const [toColumnId, setToColumnId] = useState('');
+  const [actionType, setActionType] = useState('');
+  const [recipientType, setRecipientType] = useState('');
+  const [recipientValue, setRecipientValue] = useState('');
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [notifTitle, setNotifTitle] = useState('');
+  const [notifMessage, setNotifMessage] = useState('');
 
-  // Email fields
-  const [emailSubject, setEmailSubject] = useState(
-    (initialData?.action_config as any)?.subject || ''
-  );
-  const [emailBody, setEmailBody] = useState(
-    (initialData?.action_config as any)?.body || ''
-  );
-
-  // Notification fields
-  const [notifTitle, setNotifTitle] = useState(
-    (initialData?.action_config as any)?.title || ''
-  );
-  const [notifMessage, setNotifMessage] = useState(
-    (initialData?.action_config as any)?.message || ''
-  );
+  // Sync form state when initialData changes (edit mode) or sheet opens
+  useEffect(() => {
+    if (open) {
+      setName(initialData?.name || '');
+      setDescription(initialData?.description || '');
+      setTriggerType(initialData?.trigger_type || '');
+      setTriggerColumnId((initialData?.trigger_config as any)?.column_id || '');
+      setFromColumnId((initialData?.trigger_config as any)?.from_column_id || '');
+      setToColumnId((initialData?.trigger_config as any)?.to_column_id || '');
+      setActionType(initialData?.action_type || '');
+      setRecipientType((initialData?.recipient_config as any)?.type || '');
+      setRecipientValue((initialData?.recipient_config as any)?.value || '');
+      setEmailSubject((initialData?.action_config as any)?.subject || '');
+      setEmailBody((initialData?.action_config as any)?.body || '');
+      setNotifTitle((initialData?.action_config as any)?.title || '');
+      setNotifMessage((initialData?.action_config as any)?.message || '');
+    }
+  }, [open, initialData]);
 
   const needsColumn = ['card_enters_column', 'card_leaves_column'].includes(triggerType);
   const needsBothColumns = triggerType === 'card_moved';
