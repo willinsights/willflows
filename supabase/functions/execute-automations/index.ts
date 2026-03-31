@@ -236,6 +236,7 @@ Deno.serve(async (req) => {
                 html,
                 text: body,
                 purpose: 'transactional',
+                idempotency_key: `automation-${automation.id}-${project_id}-${messageId}`,
                 label: `automation_${automation.name}`,
                 queued_at: new Date().toISOString(),
               },
