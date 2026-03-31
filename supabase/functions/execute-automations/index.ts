@@ -207,14 +207,35 @@ Deno.serve(async (req) => {
           for (const recipient of recipients) {
             if (!recipient.email) continue
 
+            const recipientEmailLower = recipient.email.toLowerCase()
+
             // Check suppression
             const { data: suppressed } = await supabase
               .from('suppressed_emails')
               .select('id')
-              .eq('email', recipient.email.toLowerCase())
+              .eq('email', recipientEmailLower)
               .maybeSingle()
 
             if (suppressed) continue
+
+            // Get or create unsubscribe token
+            let unsubscribeToken: string
+            const { data: existingToken } = await supabase
+              .from('email_unsubscribe_tokens')
+              .select('token')
+              .eq('email', recipientEmailLower)
+              .is('used_at', null)
+              .maybeSingle()
+
+            if (existingToken?.token) {
+              unsubscribeToken = existingToken.token
+            } else {
+              unsubscribeToken = crypto.randomUUID()
+              await supabase.from('email_unsubscribe_tokens').insert({
+                email: recipientEmailLower,
+                token: unsubscribeToken,
+              })
+            }
 
             const messageId = crypto.randomUUID()
 
@@ -236,6 +257,8 @@ Deno.serve(async (req) => {
                 html,
                 text: body,
                 purpose: 'transactional',
+                idempotency_key: `automation-${automation.id}-${project_id}-${messageId}`,
+                unsubscribe_token: unsubscribeToken,
                 label: `automation_${automation.name}`,
                 queued_at: new Date().toISOString(),
               },
