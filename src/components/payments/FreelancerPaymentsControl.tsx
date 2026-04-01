@@ -81,7 +81,7 @@ export function FreelancerPaymentsControl({
 }: FreelancerPaymentsControlProps) {
   const { hideValues } = useHideValues();
   const [filters, setFilters] = useState<FilterState>({
-    dateFrom: null,
+    dateFrom: new Date('2025-03-03'),
     dateTo: null,
     clientId: null,
     memberId: null,
