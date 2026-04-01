@@ -1,61 +1,49 @@
 
 
-# Projetos na Coluna "Entregue" → Finanças Automaticamente
+# Filtrar Pagamentos de Colaboradores a partir de 3 de Março
 
-## Problema Identificado
+## Problema
 
-Existem **10 projetos** que estão na coluna "Entregue" (is_final = true) mas têm `is_delivered = false` e `delivered_at = NULL`. Isto significa que não aparecem nos cálculos financeiros do modo REALIZADO (Dashboard, Relatórios) porque o motor financeiro filtra por `is_delivered = true`.
+Atualmente, o componente de Pagamentos Colaboradores (Custos) carrega **todos** os pagamentos do workspace sem filtro de data por defeito. O filtro de data existente usa `delivery_date`/`delivered_at` do projeto, mas muitos projetos não têm essas datas preenchidas, o que exclui registos válidos.
 
-Projetos afetados incluem: Iconic Room (€850), Titanium (€3000), Vídeo Boutique Sintra (€6000), Sessão Fotográfica Hotel Lisboa (€5000), entre outros.
+O utilizador quer ver apenas dados a partir de 3 de março (data a partir da qual os dados de pagamento são relevantes).
 
-## Causa Raiz
+## Dados atuais (desde 3 de março)
 
-Estes projetos foram movidos para a coluna final por um caminho que não passou pelo RPC `deliver_project` (possivelmente dados importados, migração, ou edição direta).
+| Colaborador | Projetos | Total | Pendente | Pago |
+|---|---|---|---|---|
+| Christian Coelho | 60 | €2.760 | €2.760 | €0 |
+| Morais | 96 | €4.620 | €2.290 | €2.330 |
+| Rafaela Nunes | 64 | €2.540 | €1.900 | €640 |
+| Lucas Almeida | 1 | €250 | €250 | €0 |
+| Savio Macedo | 15 | €1.476,57 | €176,67 | €1.299,90 |
+| Luke Cavalcante | 7 | €1.050 | €0 | €1.050 |
+| **TOTAL** | **243** | **€12.696,57** | **€7.376,67** | **€5.319,90** |
 
-## Solução (2 partes)
+## Solução
 
-### 1. Corrigir dados existentes (migração)
+### 1. Definir data padrão de 3 de março nos filtros
 
-Atualizar os 10 projetos que estão na coluna final sem `is_delivered`:
+No `FreelancerPaymentsControl`, alterar o estado inicial dos filtros para `dateFrom: new Date('2025-03-03')`.
 
-```sql
-UPDATE projects p
-SET is_delivered = true, delivered_at = COALESCE(p.delivered_at, now())
-FROM kanban_columns kc
-WHERE (
-  (p.current_phase = 'captacao' AND p.captacao_column_id = kc.id) OR
-  (p.current_phase = 'edicao' AND p.edicao_column_id = kc.id)
-)
-AND kc.is_final = true
-AND p.is_delivered = false;
-```
+### 2. Filtrar por `created_at` do projeto (não `delivery_date`)
 
-### 2. Prevenir futuras inconsistências (trigger SQL)
+O filtro de data no componente atualmente filtra por `delivery_date`/`delivered_at`. Muitos projetos em curso não têm essas datas. Alterar para filtrar por `created_at` do projeto, que é sempre preenchido.
 
-Criar um trigger que, sempre que `captacao_column_id` ou `edicao_column_id` é atualizado para uma coluna final, automaticamente define `is_delivered = true` e `delivered_at`:
+### 3. Incluir `created_at` na lista de projetos passada ao componente
 
-```sql
-CREATE FUNCTION sync_delivery_on_final_column()
-  BEFORE UPDATE ON projects
-  -- Se a coluna destino é final → set is_delivered = true
-  -- Se a coluna destino não é final e era final → set is_delivered = false (reopen)
-```
-
-Isto garante consistência independentemente do caminho usado (drag-and-drop, API, import, edição direta).
-
-### 3. Ajustes no código
-
-Nenhuma alteração no motor financeiro ou nos componentes UI — a lógica `is_delivered` já está correta. O problema era apenas dados inconsistentes e falta de trigger de proteção.
+O `Custos.tsx` mapeia os projetos mas não inclui `created_at`. Adicionar esse campo.
 
 ## Ficheiros a alterar
 
 | Ficheiro | Alteração |
 |---|---|
-| Nova migração SQL | UPDATE dos 10 projetos + trigger `sync_delivery_on_final_column` |
+| `src/components/payments/FreelancerPaymentsControl.tsx` | Default `dateFrom` para 3 de março; filtro de data usar `created_at` |
+| `src/pages/app/financeiro/Custos.tsx` | Incluir `created_at` no mapeamento de projetos |
 
 ## Impacto
 
-- Os 10 projetos passarão a aparecer imediatamente nos relatórios financeiros
-- Qualquer futuro projeto movido para "Entregue" será automaticamente marcado como entregue
-- Zero alterações no frontend — apenas consistência de dados
+- Ao abrir a página de Custos, só aparecem pagamentos de projetos criados a partir de 3/Mar
+- O utilizador pode alterar ou limpar o filtro de data como antes
+- Nenhuma alteração na base de dados
 
