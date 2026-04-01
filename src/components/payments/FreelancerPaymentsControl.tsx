@@ -44,6 +44,7 @@ interface Project {
   delivery_date?: string | null;
   delivered_at?: string | null;
   is_delivered?: boolean;
+  created_at?: string;
 }
 
 interface Client {
