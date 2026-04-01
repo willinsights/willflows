@@ -44,6 +44,7 @@ interface Project {
   delivery_date?: string | null;
   delivered_at?: string | null;
   is_delivered?: boolean;
+  created_at?: string;
 }
 
 interface Client {
@@ -80,7 +81,7 @@ export function FreelancerPaymentsControl({
 }: FreelancerPaymentsControlProps) {
   const { hideValues } = useHideValues();
   const [filters, setFilters] = useState<FilterState>({
-    dateFrom: null,
+    dateFrom: new Date('2025-03-03'),
     dateTo: null,
     clientId: null,
     memberId: null,
@@ -136,10 +137,10 @@ export function FreelancerPaymentsControl({
         if (filters.projectStatus === 'entregue' && !project?.is_delivered) return false;
         if (filters.projectStatus === 'em_curso' && project?.is_delivered) return false;
       }
-      // Date filter using project's delivery_date
+      // Date filter using project's created_at (always populated)
       if (filters.dateFrom || filters.dateTo) {
         const project = projects.find(p => p.id === tp.project_id);
-        const dateValue = project?.delivery_date || project?.delivered_at;
+        const dateValue = project?.created_at;
         if (dateValue) {
           if (filters.dateFrom && new Date(dateValue) < filters.dateFrom) return false;
           if (filters.dateTo) {

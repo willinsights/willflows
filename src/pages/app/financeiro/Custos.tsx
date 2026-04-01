@@ -18,7 +18,7 @@ export default function Custos() {
   const typedTeamPayments = teamPayments as ProjectTeamPayment[];
   const clientsList = useMemo(() => clients.map(c => ({ id: c.id, name: c.name })), [clients]);
   const membersList = useMemo(() => members.map(m => ({ user_id: m.user_id, full_name: m.full_name })), [members]);
-  const projectsList = useMemo(() => projects.map(p => ({ id: p.id, name: p.name, project_code: p.project_code, client_id: p.client_id, delivery_date: p.delivery_date, delivered_at: p.delivered_at, is_delivered: p.is_delivered })), [projects]);
+  const projectsList = useMemo(() => projects.map(p => ({ id: p.id, name: p.name, project_code: p.project_code, client_id: p.client_id, delivery_date: p.delivery_date, delivered_at: p.delivered_at, is_delivered: p.is_delivered, created_at: p.created_at })), [projects]);
 
   return (
     <FreelancerPaymentsControl
