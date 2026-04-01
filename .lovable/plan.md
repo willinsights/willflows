@@ -1,30 +1,34 @@
 
 
-# Marcar Pagamentos Anteriores a 3 de Março como Pagos
+# PDF Relatório Completo -- Rafaela Nunes (Março 2026)
 
-## Ação
+## Dados extraídos
 
-Executar um UPDATE na tabela `project_team` para marcar todos os 110 registos pendentes como `pago`, definindo `paid_at` automaticamente (o trigger `handle_project_team_paid_at` já trata disso).
+**22 projetos** desde março 2026, total **€1.070,00**:
+- **Entregues**: 16 projetos (10 pendentes = €360, 6 pagos = €590)
+- **Em progresso**: 6 projetos (€120 pendentes -- fases Correções, Pós-Produção, Em espera)
 
-```sql
-UPDATE project_team pt
-SET payment_status = 'pago'
-FROM projects p
-WHERE pt.project_id = p.id
-  AND p.created_at < '2026-03-03'
-  AND pt.payment_amount > 0
-  AND (pt.payment_status != 'pago' OR pt.payment_status IS NULL);
-```
+## Estrutura do PDF
 
-## Impacto
+1. **Cabeçalho** -- Logo WillFlow, título "Relatório de Colaborador", nome Rafaela Nunes, período
+2. **Resumo Geral** -- Cards com: Total projetos, Valor total, Pendente, Pago, % pago
+3. **Tabela: Projetos Entregues** (16 linhas) -- Projeto, Cliente, Valor, Status Pagamento, Data Entrega, Equipa
+4. **Tabela: Projetos Em Progresso** (6 linhas) -- Projeto, Cliente, Valor, Fase Atual, Equipa
+5. **Rodapé** -- Marca WillFlow + data de geração
 
-- 110 pagamentos → status `pago`
-- €4.056,67 movidos de "pendente" para "pago"
-- O trigger existente define `paid_at = now()` automaticamente
-- Afeta: Rafaela (39), Christian (34), Morais (33), Savio (3), Lucas (1)
-- Zero alterações de código — apenas dados
+## Implementação
+
+Script Python com `reportlab` executado via `code--exec`:
+- Consulta dados já extraídos (hardcoded no script a partir da query)
+- Gera PDF formatado com cores WillFlow (#8224e3)
+- Status pago em verde, pendente em vermelho
+- Salva em `/mnt/documents/relatorio-rafaela-nunes-marco-2026.pdf`
+- QA visual obrigatório com `pdftoppm`
 
 ## Ficheiros
 
-Nenhum ficheiro alterado. Apenas uma operação de dados via insert tool.
+| Ficheiro | Acção |
+|---|---|
+| `/tmp/gen_rafaela.py` | Script temporário |
+| `/mnt/documents/relatorio-rafaela-nunes-marco-2026.pdf` | PDF final |
 
