@@ -137,10 +137,10 @@ export function FreelancerPaymentsControl({
         if (filters.projectStatus === 'entregue' && !project?.is_delivered) return false;
         if (filters.projectStatus === 'em_curso' && project?.is_delivered) return false;
       }
-      // Date filter using project's delivery_date
+      // Date filter using project's created_at (always populated)
       if (filters.dateFrom || filters.dateTo) {
         const project = projects.find(p => p.id === tp.project_id);
-        const dateValue = project?.delivery_date || project?.delivered_at;
+        const dateValue = project?.created_at;
         if (dateValue) {
           if (filters.dateFrom && new Date(dateValue) < filters.dateFrom) return false;
           if (filters.dateTo) {
