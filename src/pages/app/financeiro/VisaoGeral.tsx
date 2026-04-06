@@ -4,13 +4,11 @@ import { format, startOfMonth, endOfMonth, addMonths, subMonths, isWithinInterva
 import { pt } from 'date-fns/locale';
 import {
   CreditCard, TrendingUp, TrendingDown, CheckCircle2,
-  ChevronLeft, ChevronRight, Users, Package, Euro, Calendar, Wallet,
-  BarChart3, Activity, Banknote,
+  ChevronLeft, ChevronRight, Users, Package, Euro,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePayments, useTeamPayments } from '@/hooks/usePayments';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useHideValues } from '@/hooks/useHideValues';
@@ -23,13 +21,6 @@ import { FreelancerPaymentsControl, type ProjectTeamPayment } from '@/components
 import { PaymentExportButtons } from '@/components/payments/PaymentExportButtons';
 import { paymentStatusLabels as statusLabels, paymentStatusColors as statusColors } from '@/lib/finance/constants';
 import { cn } from '@/lib/utils';
-import type { FinancialViewMode } from '@/lib/finance/types';
-
-const viewModeConfig: { value: FinancialViewMode; label: string; icon: typeof Euro; description: string }[] = [
-  { value: 'PREVISAO', label: 'Previsão', icon: Activity, description: 'Baseado na data de entrega/captação' },
-  { value: 'REALIZADO', label: 'Realizado', icon: CheckCircle2, description: 'Projetos efetivamente entregues (competência)' },
-  { value: 'CAIXA', label: 'Caixa', icon: Banknote, description: 'Fluxo real: datas de pagamento efetivo' },
-];
 
 export default function VisaoGeral() {
   const { payments } = usePayments();
@@ -42,19 +33,18 @@ export default function VisaoGeral() {
   const { projectRevenue, handleFreelancerStatusChange } = usePaymentsData();
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [viewMode, setViewMode] = useState<FinancialViewMode>('PREVISAO');
 
   const typedTeamPayments = teamPayments as ProjectTeamPayment[];
 
-  // Use the unified financial engine for metrics
-  const { metrics, previousMetrics, revenueChange, costChange, profitChange, summary } = useFinancialEngine(viewMode, currentMonth);
+  // Use REALIZADO mode only — single source of truth
+  const { metrics, previousMetrics, revenueChange, costChange, profitChange, summary } = useFinancialEngine('REALIZADO', currentMonth);
 
-  // Revenue detail list for current month (by due date / delivery)
+  // Revenue detail list for current month (delivered projects only)
   const monthProjectRevenue = useMemo(() => {
     const start = startOfMonth(currentMonth);
     const end = endOfMonth(currentMonth);
     return projectRevenue.filter(project => {
-      const dateToCheck = project.client_payment_due_date || project.delivery_date || project.delivered_at;
+      const dateToCheck = project.delivered_at;
       if (!dateToCheck) return false;
       return isWithinInterval(new Date(dateToCheck), { start, end });
     });
@@ -77,15 +67,15 @@ export default function VisaoGeral() {
   const margin = metrics.revenue > 0 ? Math.round((metrics.profit / metrics.revenue) * 100) : 0;
 
   // Export data
-  const previsaoExportData = useMemo(() => {
+  const exportData = useMemo(() => {
     const revenueData = monthProjectRevenue.map(project => ({
       id: project.project_code || project.id.slice(0, 8).toUpperCase(),
       projeto: project.name,
       contraparte: project.clients?.name || 'Cliente',
       tipo: 'Receita Cliente',
-      vencimento: project.client_payment_due_date
-        ? format(new Date(project.client_payment_due_date), 'dd/MM/yyyy', { locale: pt })
-        : project.delivery_date ? format(new Date(project.delivery_date), 'dd/MM/yyyy', { locale: pt }) : '-',
+      vencimento: project.delivered_at
+        ? format(new Date(project.delivered_at), 'dd/MM/yyyy', { locale: pt })
+        : '-',
       status: statusLabels[project.client_payment_status || 'pendente'],
       valor: `+${formatCurrency(project.agreed_value || 0)}`,
     }));
@@ -135,7 +125,7 @@ export default function VisaoGeral() {
 
   return (
     <div className="space-y-6">
-      {/* Controls: View Mode + Month Navigator + Export */}
+      {/* Controls: Month Navigator + Export */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
@@ -149,34 +139,20 @@ export default function VisaoGeral() {
           </Button>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
-            {viewModeConfig.map(mode => (
-              <Tooltip key={mode.value}>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={viewMode === mode.value ? 'default' : 'ghost'}
-                    size="sm"
-                    className="h-8 text-xs gap-1.5"
-                    onClick={() => setViewMode(mode.value)}
-                  >
-                    <mode.icon className="h-3.5 w-3.5" />
-                    {mode.label}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent><p className="text-xs">{mode.description}</p></TooltipContent>
-              </Tooltip>
-            ))}
-          </div>
+          <Badge variant="outline" className="text-xs bg-primary/5 border-primary/20 text-primary">
+            <CheckCircle2 className="h-3 w-3 mr-1" />
+            Apenas projetos entregues
+          </Badge>
           <PaymentExportButtons
-            data={previsaoExportData}
-            filename={`financeiro-${viewMode.toLowerCase()}-${format(currentMonth, 'yyyy-MM')}`}
+            data={exportData}
+            filename={`financeiro-${format(currentMonth, 'yyyy-MM')}`}
             type="previsao"
             forecastSummary={forecastSummary}
           />
         </div>
       </div>
 
-      {/* Summary Cards from Engine */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           {
@@ -235,64 +211,6 @@ export default function VisaoGeral() {
         ))}
       </div>
 
-      {/* PREVISAO Breakdown (rollover info) */}
-      {viewMode === 'PREVISAO' && metrics.breakdown && (metrics.breakdown.rolloverCount > 0) && (
-        <Card className="glass-card border-warning/20 bg-warning/5">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Activity className="h-4 w-4 text-warning" />
-              <span className="text-sm font-medium">Rollover de meses anteriores</span>
-              <Badge variant="outline" className="text-warning border-warning/30">{metrics.breakdown.rolloverCount} projeto{metrics.breakdown.rolloverCount !== 1 ? 's' : ''}</Badge>
-            </div>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Receita rollover</span>
-                <span className={cn("font-medium", hideValues && "blur-md select-none")}>{formatCurrency(metrics.breakdown.rolloverRevenue)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Custos rollover</span>
-                <span className={cn("font-medium", hideValues && "blur-md select-none")}>{formatCurrency(metrics.breakdown.rolloverCost)}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* CAIXA Breakdown */}
-      {viewMode === 'CAIXA' && metrics.cashflow && (
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Banknote className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">Detalhe do Fluxo de Caixa</span>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Euro className="h-3.5 w-3.5 text-success" />
-                  <span>Recebimentos de clientes</span>
-                </div>
-                <span className={cn("font-medium text-success", hideValues && "blur-md select-none")}>+{formatCurrency(metrics.cashflow.clientIncome)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Users className="h-3.5 w-3.5 text-destructive" />
-                  <span>Pagamentos a equipa</span>
-                </div>
-                <span className={cn("font-medium text-destructive", hideValues && "blur-md select-none")}>-{formatCurrency(metrics.cashflow.teamExpenses)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Package className="h-3.5 w-3.5 text-destructive" />
-                  <span>Custos extras</span>
-                </div>
-                <span className={cn("font-medium text-destructive", hideValues && "blur-md select-none")}>-{formatCurrency(metrics.cashflow.extrasExpenses)}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Monthly Summary (operational) */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
@@ -321,7 +239,7 @@ export default function VisaoGeral() {
               </div>
               <h3 className="text-lg font-semibold mb-2">Sem dados neste mês</h3>
               <p className="text-muted-foreground text-sm max-w-sm">
-                Não há movimentos para {format(currentMonth, 'MMMM yyyy', { locale: pt })}.
+                Não há projetos entregues em {format(currentMonth, 'MMMM yyyy', { locale: pt })}.
               </p>
             </div>
           </CardContent>

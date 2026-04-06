@@ -58,6 +58,7 @@ export function ClientPaymentsControl({
     clientId: null,
     memberId: null,
     status: null,
+    dateFilterType: 'delivered_at',
     projectStatus: null,
   });
 
