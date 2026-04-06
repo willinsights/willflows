@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { CalendarIcon, X } from 'lucide-react';
@@ -18,6 +17,8 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
+export type DateFilterType = 'delivered_at' | 'created_at';
+
 export interface FilterState {
   dateFrom: Date | null;
   dateTo: Date | null;
@@ -25,6 +26,7 @@ export interface FilterState {
   memberId: string | null;
   status: string | null;
   projectStatus: string | null;
+  dateFilterType: DateFilterType;
 }
 
 interface Client {
@@ -47,6 +49,7 @@ interface PaymentFiltersProps {
   showStatusFilter?: boolean;
   showDateFilter?: boolean;
   showProjectStatusFilter?: boolean;
+  showDateFilterType?: boolean;
 }
 
 export function PaymentFilters({
@@ -59,11 +62,13 @@ export function PaymentFilters({
   showStatusFilter = true,
   showDateFilter = true,
   showProjectStatusFilter = false,
+  showDateFilterType = false,
 }: PaymentFiltersProps) {
   const hasActiveFilters = filters.dateFrom || filters.dateTo || filters.clientId || filters.memberId || filters.status || filters.projectStatus;
 
   const handleClearFilters = () => {
     onFilterChange({
+      ...filters,
       dateFrom: null,
       dateTo: null,
       clientId: null,
@@ -75,6 +80,34 @@ export function PaymentFilters({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {/* Date Filter Type Toggle */}
+      {showDateFilterType && (
+        <div className="flex items-center rounded-lg border border-border overflow-hidden h-9">
+          <button
+            onClick={() => onFilterChange({ ...filters, dateFilterType: 'delivered_at' })}
+            className={cn(
+              'px-3 h-full text-xs font-medium transition-colors',
+              filters.dateFilterType === 'delivered_at'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-background text-muted-foreground hover:text-foreground'
+            )}
+          >
+            Data Entrega
+          </button>
+          <button
+            onClick={() => onFilterChange({ ...filters, dateFilterType: 'created_at' })}
+            className={cn(
+              'px-3 h-full text-xs font-medium transition-colors',
+              filters.dateFilterType === 'created_at'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-background text-muted-foreground hover:text-foreground'
+            )}
+          >
+            Data Criação
+          </button>
+        </div>
+      )}
+
       {/* Date From */}
       {showDateFilter && (
         <Popover>
@@ -101,6 +134,7 @@ export function PaymentFilters({
               selected={filters.dateFrom || undefined}
               onSelect={(date) => onFilterChange({ ...filters, dateFrom: date || null })}
               locale={pt}
+              className="p-3 pointer-events-auto"
             />
           </PopoverContent>
         </Popover>
@@ -132,6 +166,7 @@ export function PaymentFilters({
               selected={filters.dateTo || undefined}
               onSelect={(date) => onFilterChange({ ...filters, dateTo: date || null })}
               locale={pt}
+              className="p-3 pointer-events-auto"
             />
           </PopoverContent>
         </Popover>

@@ -81,21 +81,30 @@ export function FreelancerPaymentsControl({
 }: FreelancerPaymentsControlProps) {
   const { hideValues } = useHideValues();
   const [filters, setFilters] = useState<FilterState>({
-    dateFrom: new Date('2025-03-03'),
+    dateFrom: null,
     dateTo: null,
     clientId: null,
     memberId: null,
     status: null,
     projectStatus: null,
+    dateFilterType: 'delivered_at',
   });
   
-  // If filterByUserId is provided, filter team payments to only show that user's payments
+  // REGRA CENTRAL: Apenas projetos entregues aparecem no financeiro
+  const deliveredTeamPayments = useMemo(() => {
+    return teamPayments.filter(tp => {
+      const project = projects.find(p => p.id === tp.project_id);
+      return project?.is_delivered === true;
+    });
+  }, [teamPayments, projects]);
+
+  // If filterByUserId is provided, filter to only that user's payments
   const baseTeamPayments = useMemo(() => {
     if (filterByUserId) {
-      return teamPayments.filter(tp => tp.user_id === filterByUserId);
+      return deliveredTeamPayments.filter(tp => tp.user_id === filterByUserId);
     }
-    return teamPayments;
-  }, [teamPayments, filterByUserId]);
+    return deliveredTeamPayments;
+  }, [deliveredTeamPayments, filterByUserId]);
 
   const getMemberName = (userId: string) => {
     const member = members.find(m => m.user_id === userId);
@@ -119,64 +128,48 @@ export function FreelancerPaymentsControl({
     return client?.name || '-';
   };
 
-  const getProjectDeliveryInfo = (projectId: string) => {
+  const getProjectDeliveredAt = (projectId: string) => {
     const project = projects.find(p => p.id === projectId);
-    return {
-      isDelivered: project?.is_delivered ?? false,
-      deliveredAt: project?.delivered_at,
-    };
+    return project?.delivered_at;
   };
 
   const filteredPayments = useMemo(() => {
     return baseTeamPayments.filter(tp => {
       if (filters.memberId && tp.user_id !== filters.memberId) return false;
       if (filters.status && tp.payment_status !== filters.status) return false;
-      // Project status filter
-      if (filters.projectStatus) {
-        const project = projects.find(p => p.id === tp.project_id);
-        if (filters.projectStatus === 'entregue' && !project?.is_delivered) return false;
-        if (filters.projectStatus === 'em_curso' && project?.is_delivered) return false;
-      }
-      // Date filter using project's created_at (always populated)
+      
+      // Date filter based on selected type
       if (filters.dateFrom || filters.dateTo) {
         const project = projects.find(p => p.id === tp.project_id);
-        const dateValue = project?.created_at;
-        if (dateValue) {
-          if (filters.dateFrom && new Date(dateValue) < filters.dateFrom) return false;
-          if (filters.dateTo) {
-            const endOfDay = new Date(filters.dateTo);
-            endOfDay.setHours(23, 59, 59, 999);
-            if (new Date(dateValue) > endOfDay) return false;
-          }
-        } else {
-          return false;
+        const dateValue = filters.dateFilterType === 'delivered_at'
+          ? project?.delivered_at
+          : project?.created_at;
+        
+        if (!dateValue) return false;
+        
+        const date = new Date(dateValue);
+        if (filters.dateFrom && date < filters.dateFrom) return false;
+        if (filters.dateTo) {
+          const endOfDay = new Date(filters.dateTo);
+          endOfDay.setHours(23, 59, 59, 999);
+          if (date > endOfDay) return false;
         }
       }
       return true;
     });
   }, [baseTeamPayments, filters, projects]);
 
-  // Sort: delivered first (by delivered_at desc), then non-delivered
+  // Sort by delivered_at descending
   const sortedPayments = useMemo(() => {
     return [...filteredPayments].sort((a, b) => {
       const projA = projects.find(p => p.id === a.project_id);
       const projB = projects.find(p => p.id === b.project_id);
-      const aDelivered = projA?.is_delivered ?? false;
-      const bDelivered = projB?.is_delivered ?? false;
-
-      if (aDelivered !== bDelivered) return aDelivered ? -1 : 1;
-
-      if (aDelivered && bDelivered) {
-        const dateA = projA?.delivered_at ? new Date(projA.delivered_at).getTime() : 0;
-        const dateB = projB?.delivered_at ? new Date(projB.delivered_at).getTime() : 0;
-        return dateB - dateA;
-      }
-
-      return 0;
+      const dateA = projA?.delivered_at ? new Date(projA.delivered_at).getTime() : 0;
+      const dateB = projB?.delivered_at ? new Date(projB.delivered_at).getTime() : 0;
+      return dateB - dateA;
     });
   }, [filteredPayments, projects]);
 
-  // Pagination
   const pagination = usePagination({
     items: sortedPayments,
     itemsPerPage: 50,
@@ -188,16 +181,21 @@ export function FreelancerPaymentsControl({
       .reduce((sum, tp) => sum + (tp.payment_amount || 0), 0);
   }, [filteredPayments]);
 
+  const totalPaid = useMemo(() => {
+    return filteredPayments
+      .filter(tp => tp.payment_status === 'pago')
+      .reduce((sum, tp) => sum + (tp.payment_amount || 0), 0);
+  }, [filteredPayments]);
+
   const exportData = useMemo(() => {
     return sortedPayments.map(tp => {
-      const { isDelivered, deliveredAt } = getProjectDeliveryInfo(tp.project_id);
+      const deliveredAt = getProjectDeliveredAt(tp.project_id);
       return {
         id: getProjectCode(tp.project_id),
         projeto: getProjectName(tp.project_id),
         cliente: getClientName(tp.project_id),
         contraparte: getMemberName(tp.user_id),
         fase: tp.phase === 'captacao' ? 'Captação' : 'Edição',
-        estado: isDelivered ? 'Entregue' : 'Em curso',
         'data_entrega': deliveredAt ? format(new Date(deliveredAt), 'dd/MM/yyyy') : '-',
         status: statusLabels[tp.payment_status] || tp.payment_status,
         valor: formatCurrency(tp.payment_amount || 0),
@@ -222,7 +220,7 @@ export function FreelancerPaymentsControl({
               showMemberFilter
               showStatusFilter
               showDateFilter
-              showProjectStatusFilter
+              showDateFilterType
             />
             <PaymentExportButtons
               data={exportData}
@@ -232,16 +230,30 @@ export function FreelancerPaymentsControl({
             />
           </div>
         </div>
-        {totalPending > 0 && (
-          <div className="mt-2 text-sm text-muted-foreground">
-            Total pendente: <span className={cn("font-semibold text-destructive", hideValues && "blur-md select-none")}>{formatCurrency(totalPending)}</span>
+        {/* Summary bar */}
+        <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">Total pendente:</span>
+            <span className={cn("font-semibold text-destructive", hideValues && "blur-md select-none")}>
+              {formatCurrency(totalPending)}
+            </span>
           </div>
-        )}
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">Total pago:</span>
+            <span className={cn("font-semibold text-success", hideValues && "blur-md select-none")}>
+              {formatCurrency(totalPaid)}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">Registos:</span>
+            <span className="font-semibold">{filteredPayments.length}</span>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         {pagination.totalItems === 0 ? (
           <p className="text-center text-muted-foreground py-8">
-            Nenhum pagamento a colaborador encontrado
+            Nenhum pagamento encontrado — apenas projetos entregues aparecem aqui.
           </p>
         ) : (
           <>
@@ -253,7 +265,6 @@ export function FreelancerPaymentsControl({
                   <TableHead className="min-w-[120px]">Cliente</TableHead>
                   <TableHead className="min-w-[120px]">Colaborador</TableHead>
                   <TableHead className="min-w-[90px]">Fase</TableHead>
-                  <TableHead className="min-w-[100px]">Estado</TableHead>
                   <TableHead className="min-w-[100px]">Data Entrega</TableHead>
                   <TableHead className="min-w-[130px]">Status Pgto</TableHead>
                   <TableHead className="text-right min-w-[100px]">Valor</TableHead>
@@ -261,7 +272,7 @@ export function FreelancerPaymentsControl({
               </TableHeader>
               <TableBody>
                 {pagination.paginatedItems.map(tp => {
-                  const { isDelivered, deliveredAt } = getProjectDeliveryInfo(tp.project_id);
+                  const deliveredAt = getProjectDeliveredAt(tp.project_id);
                   return (
                     <TableRow key={tp.id}>
                       <TableCell className="font-mono text-xs text-muted-foreground">
@@ -279,17 +290,6 @@ export function FreelancerPaymentsControl({
                       <TableCell>
                         <Badge variant="outline" className={tp.phase === 'captacao' ? 'bg-blue-500/10 text-blue-500' : 'bg-purple-500/10 text-purple-500'}>
                           {tp.phase === 'captacao' ? 'Captação' : 'Edição'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={isDelivered
-                            ? 'bg-success/10 text-success border-success/20'
-                            : 'bg-muted text-muted-foreground border-muted-foreground/20'
-                          }
-                        >
-                          {isDelivered ? 'Entregue' : 'Em curso'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
