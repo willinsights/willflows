@@ -15,6 +15,7 @@ export interface ExportData {
   projeto: string;
   cliente?: string;
   contraparte?: string;
+  colaboradores?: string;
   dataEntrega?: string;
   vencimento?: string;
   status: string;
@@ -69,14 +70,10 @@ const columnLabelsMap: Record<string, Record<string, string>> = {
     id: 'Código',
     projeto: 'Projeto',
     cliente: 'Cliente',
-    contraparte: 'Colaborador',
-    fase: 'Fase',
     dataEntrega: 'Data Entrega',
-    vencimento: 'Data Vencimento',
+    colaboradores: 'Colaboradores',
     status: 'Status Pagamento',
-    valor: 'Valor a Pagar',
-    iban: 'IBAN',
-    banco: 'Banco',
+    valor: 'Valor Total',
   },
   custos: {
     id: 'Código',

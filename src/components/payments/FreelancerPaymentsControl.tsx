@@ -188,18 +188,31 @@ export function FreelancerPaymentsControl({
   }, [filteredPayments]);
 
   const exportData = useMemo(() => {
-    return sortedPayments.map(tp => {
-      const deliveredAt = getProjectDeliveredAt(tp.project_id);
+    // Group payments by project for export (one row per project)
+    const grouped = new Map<string, typeof sortedPayments>();
+    for (const tp of sortedPayments) {
+      const existing = grouped.get(tp.project_id) || [];
+      existing.push(tp);
+      grouped.set(tp.project_id, existing);
+    }
+
+    return Array.from(grouped.entries()).map(([projectId, payments]) => {
+      const deliveredAt = getProjectDeliveredAt(projectId);
+      const colaboradores = payments
+        .map(tp => `${getMemberName(tp.user_id)} (${formatCurrency(tp.payment_amount || 0)})`)
+        .join(', ');
+      const totalValor = payments.reduce((sum, tp) => sum + (tp.payment_amount || 0), 0);
+      const allPaid = payments.every(tp => tp.payment_status === 'pago');
+      const status = allPaid ? 'Pago' : 'Pendente';
+
       return {
-        id: getProjectCode(tp.project_id),
-        projeto: getProjectName(tp.project_id),
-        cliente: getClientName(tp.project_id),
-        contraparte: getMemberName(tp.user_id),
-        fase: tp.phase === 'captacao' ? 'Captação' : 'Edição',
+        id: getProjectCode(projectId),
+        projeto: getProjectName(projectId),
+        cliente: getClientName(projectId),
         dataEntrega: deliveredAt ? format(new Date(deliveredAt), 'dd/MM/yyyy') : '-',
-        'data_entrega': deliveredAt ? format(new Date(deliveredAt), 'dd/MM/yyyy') : '-',
-        status: statusLabels[tp.payment_status] || tp.payment_status,
-        valor: formatCurrency(tp.payment_amount || 0),
+        colaboradores,
+        status,
+        valor: formatCurrency(totalValor),
       };
     });
   }, [sortedPayments, formatCurrency, projects, clients]);
