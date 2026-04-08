@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react';
+import { format } from 'date-fns';
+import { pt } from 'date-fns/locale';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -92,6 +94,9 @@ export function ExtraCostsPaymentsControl({
       id: cost.project_code || cost.id.slice(0, 8).toUpperCase(),
       projeto: cost.name,
       cliente: cost.clients?.name || '-',
+      dataEntrega: cost.delivered_at
+        ? format(new Date(cost.delivered_at), 'dd/MM/yyyy', { locale: pt })
+        : '-',
       status: statusLabels[cost.custos_extras_payment_status || 'pendente'] || 'Pendente',
       valor: formatCurrency(cost.custos_extras || 0),
     }));

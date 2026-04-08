@@ -138,6 +138,11 @@ export function ProfitControl({
       id: project.project_code || project.id.slice(0, 8).toUpperCase(),
       projeto: project.name,
       contraparte: project.clients?.name || '-',
+      dataEntrega: project.delivered_at
+        ? format(new Date(project.delivered_at), 'dd/MM/yyyy', { locale: pt })
+        : project.delivery_date
+          ? format(new Date(project.delivery_date), 'dd/MM/yyyy', { locale: pt })
+          : '-',
       vencimento: project.delivery_date
         ? format(new Date(project.delivery_date), 'dd/MM/yyyy', { locale: pt })
         : project.delivered_at

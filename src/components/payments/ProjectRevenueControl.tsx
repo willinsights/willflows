@@ -120,6 +120,9 @@ export function ProjectRevenueControl({
       id: project.project_code || project.id.slice(0, 8).toUpperCase(),
       projeto: project.name,
       contraparte: project.clients?.name || '-',
+      dataEntrega: project.delivered_at
+        ? format(new Date(project.delivered_at), 'dd/MM/yyyy', { locale: pt })
+        : '-',
       vencimento: project.client_payment_due_date 
         ? format(new Date(project.client_payment_due_date), 'dd/MM/yyyy', { locale: pt })
         : project.delivery_date 

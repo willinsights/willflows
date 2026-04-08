@@ -15,6 +15,7 @@ export interface ExportData {
   projeto: string;
   cliente?: string;
   contraparte?: string;
+  dataEntrega?: string;
   vencimento?: string;
   status: string;
   valor: string;
@@ -59,6 +60,7 @@ const columnLabelsMap: Record<string, Record<string, string>> = {
     id: 'Código',
     projeto: 'Projeto',
     contraparte: 'Cliente',
+    dataEntrega: 'Data Entrega',
     vencimento: 'Data Vencimento',
     status: 'Status',
     valor: 'Preço Cliente',
@@ -69,6 +71,7 @@ const columnLabelsMap: Record<string, Record<string, string>> = {
     cliente: 'Cliente',
     contraparte: 'Colaborador',
     fase: 'Fase',
+    dataEntrega: 'Data Entrega',
     vencimento: 'Data Vencimento',
     status: 'Status Pagamento',
     valor: 'Valor a Pagar',
@@ -79,6 +82,7 @@ const columnLabelsMap: Record<string, Record<string, string>> = {
     id: 'Código',
     projeto: 'Projeto',
     cliente: 'Cliente',
+    dataEntrega: 'Data Entrega',
     status: 'Status',
     valor: 'Custo Extra',
   },
@@ -87,6 +91,7 @@ const columnLabelsMap: Record<string, Record<string, string>> = {
     projeto: 'Projeto',
     contraparte: 'Entidade',
     tipo: 'Tipo',
+    dataEntrega: 'Data Entrega',
     vencimento: 'Data Vencimento',
     status: 'Status',
     valor: 'Valor',
@@ -95,6 +100,7 @@ const columnLabelsMap: Record<string, Record<string, string>> = {
     id: 'Código',
     projeto: 'Projeto',
     contraparte: 'Entidade',
+    dataEntrega: 'Data Entrega',
     vencimento: 'Data Vencimento',
     status: 'Status',
     valor: 'Valor',
