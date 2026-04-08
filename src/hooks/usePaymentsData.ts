@@ -17,30 +17,36 @@ export function usePaymentsData() {
     const fetchAdditionalData = async () => {
       if (!currentWorkspace?.id) return;
 
-      const { data: costsData } = await supabase
-        .from('projects')
-        .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, delivery_date, delivered_at, clients(name)')
-        .eq('workspace_id', currentWorkspace.id)
-        .gt('custos_extras', 0)
-        .in('custos_extras_payment_status', ['pendente', 'vencido', null]);
+      const [costsResponse, revenueResponse] = await Promise.all([
+        supabase
+          .from('projects')
+          .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, created_at, delivery_date, delivered_at, clients(name)')
+          .eq('workspace_id', currentWorkspace.id)
+          .eq('is_delivered', true),
+        supabase
+          .from('projects')
+          .select('id, name, project_code, agreed_value, client_payment_status, client_payment_due_date, client_id, created_at, delivery_date, delivered_at, clients(name)')
+          .eq('workspace_id', currentWorkspace.id)
+          .eq('is_delivered', true),
+      ]);
 
-      if (costsData) setProjectCosts(costsData as ProjectCustoExtra[]);
+      const costsData = costsResponse.data;
+      if (costsData) {
+        const typedCosts = costsData as ProjectCustoExtra[];
+        setAllProjectCosts(typedCosts);
+        setProjectCosts(
+          typedCosts.filter(cost =>
+            cost.custos_extras_payment_status === 'pendente' ||
+            cost.custos_extras_payment_status === 'vencido' ||
+            cost.custos_extras_payment_status === null
+          )
+        );
+      }
 
-      const { data: allCostsData } = await supabase
-        .from('projects')
-        .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, delivery_date, delivered_at, clients(name)')
-        .eq('workspace_id', currentWorkspace.id)
-        .gt('custos_extras', 0);
-
-      if (allCostsData) setAllProjectCosts(allCostsData as ProjectCustoExtra[]);
-
-      const { data: revenueData } = await supabase
-        .from('projects')
-        .select('id, name, project_code, agreed_value, client_payment_status, client_payment_due_date, client_id, created_at, delivery_date, delivered_at, clients(name)')
-        .eq('workspace_id', currentWorkspace.id)
-        .eq('is_delivered', true);
-
-      if (revenueData) setProjectRevenue(revenueData as ProjectRevenue[]);
+      const revenueData = revenueResponse.data;
+      if (revenueData) {
+        setProjectRevenue(revenueData as ProjectRevenue[]);
+      }
     };
 
     fetchAdditionalData();
@@ -77,17 +83,20 @@ export function usePaymentsData() {
 
     const { data: costsData } = await supabase
       .from('projects')
-      .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, delivery_date, delivered_at, clients(name)')
+      .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, created_at, delivery_date, delivered_at, clients(name)')
       .eq('workspace_id', currentWorkspace?.id)
-      .gt('custos_extras', 0);
+      .eq('is_delivered', true);
 
     if (costsData) {
-      setAllProjectCosts(costsData as ProjectCustoExtra[]);
-      setProjectCosts(costsData.filter(c =>
-        c.custos_extras_payment_status === 'pendente' ||
-        c.custos_extras_payment_status === 'vencido' ||
-        c.custos_extras_payment_status === null
-      ) as ProjectCustoExtra[]);
+      const typedCosts = costsData as ProjectCustoExtra[];
+      setAllProjectCosts(typedCosts);
+      setProjectCosts(
+        typedCosts.filter(cost =>
+          cost.custos_extras_payment_status === 'pendente' ||
+          cost.custos_extras_payment_status === 'vencido' ||
+          cost.custos_extras_payment_status === null
+        )
+      );
     }
 
     queryClient.invalidateQueries({ queryKey: ['projects'] });

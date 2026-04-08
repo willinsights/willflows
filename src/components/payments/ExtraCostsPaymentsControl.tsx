@@ -71,9 +71,9 @@ export function ExtraCostsPaymentsControl({
       // Project status filter
       if (filters.projectStatus === 'entregue' && !cost.delivered_at) return false;
       if (filters.projectStatus === 'em_curso' && cost.delivered_at) return false;
-      // Date filter using delivery_date
+      // Date filter using actual delivery date as source of truth
       if (filters.dateFrom || filters.dateTo) {
-        const dateValue = cost.delivery_date || cost.delivered_at;
+        const dateValue = cost.delivered_at || cost.delivery_date;
         if (dateValue) {
           if (filters.dateFrom && new Date(dateValue) < filters.dateFrom) return false;
           if (filters.dateTo) {
