@@ -199,12 +199,13 @@ export function ProfitControl({
 
   const handleExportPdf = () => {
     import('@/lib/pdf-export').then(({ generatePdfHtml, printPdf }) => {
-      const headers = ['Código', 'Projeto', 'Cliente', 'Estado', 'Receita', 'Custos', 'Lucro', 'Margem'];
+      const headers = ['Código', 'Projeto', 'Cliente', 'Data Entrega', 'Estado', 'Receita', 'Custos', 'Lucro', 'Margem'];
       const tableRows = filteredProjects.map(p => ({
         cells: [
           p.project_code || p.id.slice(0, 8).toUpperCase(),
           p.name,
           p.clients?.name || '-',
+          formatDeliveryDate(p),
           {
             value: `<span class="status-badge ${p.is_delivered ? 'status-pago' : 'status-pendente'}">${p.is_delivered ? 'Entregue' : 'Em Curso'}</span>`,
             className: '',
