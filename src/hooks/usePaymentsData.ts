@@ -8,7 +8,7 @@ import type { ProjectRevenue } from '@/components/payments/ProjectRevenueControl
 export function usePaymentsData() {
   const { currentWorkspace } = useWorkspace();
   const queryClient = useQueryClient();
-  
+
   const [projectCosts, setProjectCosts] = useState<ProjectCustoExtra[]>([]);
   const [allProjectCosts, setAllProjectCosts] = useState<ProjectCustoExtra[]>([]);
   const [projectRevenue, setProjectRevenue] = useState<ProjectRevenue[]>([]);
@@ -16,33 +16,33 @@ export function usePaymentsData() {
   useEffect(() => {
     const fetchAdditionalData = async () => {
       if (!currentWorkspace?.id) return;
-      
+
       const { data: costsData } = await supabase
         .from('projects')
         .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, delivery_date, delivered_at, clients(name)')
         .eq('workspace_id', currentWorkspace.id)
         .gt('custos_extras', 0)
         .in('custos_extras_payment_status', ['pendente', 'vencido', null]);
-      
+
       if (costsData) setProjectCosts(costsData as ProjectCustoExtra[]);
-      
+
       const { data: allCostsData } = await supabase
         .from('projects')
         .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, delivery_date, delivered_at, clients(name)')
         .eq('workspace_id', currentWorkspace.id)
         .gt('custos_extras', 0);
-      
+
       if (allCostsData) setAllProjectCosts(allCostsData as ProjectCustoExtra[]);
 
       const { data: revenueData } = await supabase
         .from('projects')
-        .select('id, name, project_code, agreed_value, client_payment_status, client_payment_due_date, client_id, delivery_date, delivered_at, clients(name)')
+        .select('id, name, project_code, agreed_value, client_payment_status, client_payment_due_date, client_id, created_at, delivery_date, delivered_at, clients(name)')
         .eq('workspace_id', currentWorkspace.id)
         .gt('agreed_value', 0);
-      
+
       if (revenueData) setProjectRevenue(revenueData as ProjectRevenue[]);
     };
-    
+
     fetchAdditionalData();
   }, [currentWorkspace?.id]);
 
@@ -74,23 +74,22 @@ export function usePaymentsData() {
       .from('projects')
       .update(updates)
       .eq('id', projectId);
-    
-    // Refresh costs data
+
     const { data: costsData } = await supabase
       .from('projects')
       .select('id, name, project_code, custos_extras, custos_extras_payment_status, client_id, delivery_date, delivered_at, clients(name)')
       .eq('workspace_id', currentWorkspace?.id)
       .gt('custos_extras', 0);
-    
+
     if (costsData) {
       setAllProjectCosts(costsData as ProjectCustoExtra[]);
-      setProjectCosts(costsData.filter(c => 
-        c.custos_extras_payment_status === 'pendente' || 
-        c.custos_extras_payment_status === 'vencido' || 
+      setProjectCosts(costsData.filter(c =>
+        c.custos_extras_payment_status === 'pendente' ||
+        c.custos_extras_payment_status === 'vencido' ||
         c.custos_extras_payment_status === null
       ) as ProjectCustoExtra[]);
     }
-    
+
     queryClient.invalidateQueries({ queryKey: ['projects'] });
   };
 
@@ -101,20 +100,20 @@ export function usePaymentsData() {
     } else {
       updates.client_paid_at = null;
     }
-    
+
     await supabase
       .from('projects')
       .update(updates)
       .eq('id', projectId);
-    
+
     const { data: revenueData } = await supabase
       .from('projects')
-      .select('id, name, project_code, agreed_value, client_payment_status, client_payment_due_date, client_id, delivery_date, delivered_at, clients(name)')
+      .select('id, name, project_code, agreed_value, client_payment_status, client_payment_due_date, client_id, created_at, delivery_date, delivered_at, clients(name)')
       .eq('workspace_id', currentWorkspace?.id)
       .gt('agreed_value', 0);
-    
+
     if (revenueData) setProjectRevenue(revenueData as ProjectRevenue[]);
-    
+
     queryClient.invalidateQueries({ queryKey: ['projects'] });
   };
 
