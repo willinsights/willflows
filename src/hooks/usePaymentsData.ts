@@ -110,7 +110,7 @@ export function usePaymentsData() {
       .from('projects')
       .select('id, name, project_code, agreed_value, client_payment_status, client_payment_due_date, client_id, created_at, delivery_date, delivered_at, clients(name)')
       .eq('workspace_id', currentWorkspace?.id)
-      .gt('agreed_value', 0);
+      .eq('is_delivered', true);
 
     if (revenueData) setProjectRevenue(revenueData as ProjectRevenue[]);
 
