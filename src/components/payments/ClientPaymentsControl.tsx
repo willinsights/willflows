@@ -101,16 +101,23 @@ export function ClientPaymentsControl({
   };
 
   const exportData = useMemo(() => {
-    return filteredPayments.map(payment => ({
-      id: getProjectCode(payment.project_id) || '-',
-      projeto: payment.description || payment.projects?.name || 'Pagamento',
-      contraparte: payment.clients?.name || '-',
-      vencimento: payment.due_date 
-        ? format(new Date(payment.due_date), 'dd/MM/yyyy', { locale: pt })
-        : '-',
-      status: statusLabels[payment.status] || payment.status,
-      valor: formatCurrency(payment.amount),
-    }));
+    return filteredPayments.map(payment => {
+      const proj = projects.find(p => p.id === payment.project_id);
+      const deliveryDate = (proj as any)?.delivered_at || (proj as any)?.delivery_date;
+      return {
+        id: getProjectCode(payment.project_id) || '-',
+        projeto: payment.description || payment.projects?.name || 'Pagamento',
+        contraparte: payment.clients?.name || '-',
+        dataEntrega: deliveryDate
+          ? format(new Date(deliveryDate), 'dd/MM/yyyy', { locale: pt })
+          : '-',
+        vencimento: payment.due_date 
+          ? format(new Date(payment.due_date), 'dd/MM/yyyy', { locale: pt })
+          : '-',
+        status: statusLabels[payment.status] || payment.status,
+        valor: formatCurrency(payment.amount),
+      };
+    });
   }, [filteredPayments, formatCurrency, projects]);
 
   return (

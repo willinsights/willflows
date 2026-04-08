@@ -96,7 +96,9 @@ export function ExtraCostsPaymentsControl({
       cliente: cost.clients?.name || '-',
       dataEntrega: cost.delivered_at
         ? format(new Date(cost.delivered_at), 'dd/MM/yyyy', { locale: pt })
-        : '-',
+        : cost.delivery_date
+          ? format(new Date(cost.delivery_date), 'dd/MM/yyyy', { locale: pt })
+          : '-',
       status: statusLabels[cost.custos_extras_payment_status || 'pendente'] || 'Pendente',
       valor: formatCurrency(cost.custos_extras || 0),
     }));
