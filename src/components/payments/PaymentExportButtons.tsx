@@ -15,6 +15,7 @@ export interface ExportData {
   projeto: string;
   cliente?: string;
   contraparte?: string;
+  colaboradores?: string;
   dataEntrega?: string;
   vencimento?: string;
   status: string;
