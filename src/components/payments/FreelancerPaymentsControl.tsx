@@ -196,6 +196,7 @@ export function FreelancerPaymentsControl({
         cliente: getClientName(tp.project_id),
         contraparte: getMemberName(tp.user_id),
         fase: tp.phase === 'captacao' ? 'Captação' : 'Edição',
+        dataEntrega: deliveredAt ? format(new Date(deliveredAt), 'dd/MM/yyyy') : '-',
         'data_entrega': deliveredAt ? format(new Date(deliveredAt), 'dd/MM/yyyy') : '-',
         status: statusLabels[tp.payment_status] || tp.payment_status,
         valor: formatCurrency(tp.payment_amount || 0),
