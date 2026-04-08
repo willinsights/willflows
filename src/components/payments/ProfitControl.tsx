@@ -91,7 +91,7 @@ export function ProfitControl({
 
   const filteredProjects = useMemo(() => {
     return projects.filter(project => {
-      const dateToCheck = project.delivery_date || project.delivered_at;
+      const dateToCheck = project.delivered_at || project.delivery_date;
       if (filters.dateFrom && dateToCheck) {
         if (new Date(dateToCheck) < filters.dateFrom) return false;
       }
