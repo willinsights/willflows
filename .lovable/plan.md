@@ -1,73 +1,45 @@
 
-# Reestruturação do Financeiro — Regra Única de Pagamento
+
+# Export Agrupado por Projeto (Sem Duplicações)
 
 ## Problema
-O financeiro atual mistura projetos em andamento com entregues, tem filtros ambíguos e múltiplos modos (REALIZADO/PREVISAO/CAIXA) que geram confusão.
 
-## Nova Regra Central
-**Um projeto só aparece no financeiro quando está na coluna "Entregue" (`is_delivered = true`).**
+Atualmente, o export gera **uma linha por colaborador**, o que duplica o projeto quando há mais de um membro. O utilizador quer **uma linha por projeto** com uma coluna que liste todos os colaboradores e respetivos valores.
 
----
+## Solução
 
-## Fase 1: Simplificar Custos Equipa (Pagamentos Colaboradores)
+### 1. `FreelancerPaymentsControl.tsx` — Novo `exportData` agrupado
 
-### 1.1 Filtrar APENAS projetos entregues
-- O `FreelancerPaymentsControl` passa a mostrar **apenas** pagamentos de projetos com `is_delivered = true`
-- Remover o filtro "Estado Projeto" (em_curso/entregue) — já não faz sentido porque só entregues aparecem
-- Remover a coluna "Estado" da tabela (sempre será "Entregue")
+Agrupar `sortedPayments` por `project_id`, gerando uma linha por projeto com:
 
-### 1.2 Novo filtro de tipo de data
-- Adicionar toggle/select: **"Filtrar por: Data de Entrega | Data de Criação"**
-- Default = **Data de Entrega** (`delivered_at`)
-- Visualmente destacado para o utilizador saber qual está ativo
-- Remover o default hardcoded de `2025-03-03`
+- **ID**: código do projeto
+- **Projeto**: nome
+- **Cliente**: nome do cliente
+- **Data Entrega**: data de entrega
+- **Colaboradores**: string agregada, ex: `"Rafaela (€400), Christian (€300)"`
+- **Status**: status combinado (se todos pagos → "Pago", se algum pendente → "Pendente")
+- **Valor Total**: soma de todos os `payment_amount` do projeto
 
-### 1.3 Simplificar a tabela
-- Manter: ID, Projeto, Cliente, Colaborador, Fase, Data Entrega, Status Pgto, Valor
-- Remover: coluna "Estado" (redundante — tudo é entregue)
+### 2. `PaymentExportButtons.tsx` — Nova coluna no mapa
 
----
+Adicionar ao `columnLabelsMap.freelancers`:
+- `colaboradores: 'Colaboradores'` (substitui `contraparte`)
+- Remover `fase`, `iban`, `banco` das colunas (ou manter se tiverem dados)
 
-## Fase 2: Simplificar Visão Geral
+### 3. `ExportData` interface
 
-### 2.1 Remover toggle PREVISAO/REALIZADO/CAIXA
-- Manter apenas um modo: baseado em projetos entregues (equivalente ao REALIZADO atual)
-- Os summary cards passam a refletir apenas dados de projetos entregues
+Adicionar campo opcional `colaboradores?: string` à interface.
 
-### 2.2 Manter navegação por mês
-- Baseado em `delivered_at` (ou `competence_month` se definido)
-- Métricas claras: Receita, Custos, Lucro — tudo de projetos entregues naquele mês
+## Exemplo de output
 
----
-
-## Fase 3: Simplificar Layout global
-
-### 3.1 Summary cards do FinanceiroLayout
-- "A Receber" e "Recebido" → apenas projetos entregues
-- "A Pagar" e "Pago" → apenas team payments de projetos entregues
-
----
-
-## Fase 4: Validação na entrega
-
-### 4.1 Alerta se projeto sem valores
-- Quando um projeto é movido para "Entregue" e não tem `agreed_value` nem team payments com valor → mostrar alerta (não bloquear, apenas avisar)
-
----
+| ID | Projeto | Cliente | Data Entrega | Colaboradores | Status | Valor Total |
+|---|---|---|---|---|---|---|
+| WF-042 | Vídeo Hotel X | Hotel X | 05/04/2026 | Rafaela (€400), Christian (€300) | Pendente | €700 |
 
 ## Ficheiros a alterar
 
 | Ficheiro | Alteração |
 |---|---|
-| `FreelancerPaymentsControl.tsx` | Filtrar só `is_delivered=true`, novo toggle tipo de data, remover coluna Estado |
-| `PaymentFilters.tsx` | Adicionar prop `dateFilterType` com toggle Data Entrega / Data Criação |
-| `Custos.tsx` | Passar flag `onlyDelivered` |
-| `VisaoGeral.tsx` | Remover toggle de viewMode, usar apenas REALIZADO |
-| `FinanceiroLayout.tsx` | Summary cards filtrar apenas entregues |
-| `usePaymentsData.ts` | Filtrar projectRevenue apenas entregues |
+| `src/components/payments/FreelancerPaymentsControl.tsx` | Agrupar `exportData` por projeto |
+| `src/components/payments/PaymentExportButtons.tsx` | Adicionar `colaboradores` à interface e ao `columnLabelsMap` |
 
-## Impacto
-- Zero alterações na base de dados
-- Lógica simplificada no frontend
-- O trigger `sync_delivery_on_final_column` já garante que projetos na coluna final ficam `is_delivered = true`
-- Utilizador vê apenas dados definitivos e rastreáveis
