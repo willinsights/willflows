@@ -79,7 +79,7 @@ export function ProfitControl({
         .from('projects')
         .select('id, name, project_code, agreed_value, custo_captacao, custo_edicao, custos_extras, client_payment_status, client_id, delivery_date, delivered_at, is_delivered, competence_month, clients(name)')
         .eq('workspace_id', currentWorkspace.id)
-        .gt('agreed_value', 0);
+        .eq('is_delivered', true);
 
       if (data) {
         setProjects(data as ProjectProfit[]);
