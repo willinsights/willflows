@@ -72,15 +72,11 @@ export function ProjectRevenueControl({
     projectStatus: null,
   });
 
-  const revenueProjects = useMemo(() => {
-    return projects.filter(p => p.agreed_value && p.agreed_value > 0);
-  }, [projects]);
-
   const filteredProjects = useMemo(() => {
-    return revenueProjects.filter(project => {
+    return projects.filter(project => {
       const dateToCheck = filters.dateFilterType === 'created_at'
         ? project.created_at
-        : project.delivered_at;
+        : (project.delivered_at || project.delivery_date);
 
       if (filters.dateFrom || filters.dateTo) {
         if (!dateToCheck) return false;
@@ -102,7 +98,7 @@ export function ProjectRevenueControl({
 
       return true;
     });
-  }, [revenueProjects, filters]);
+  }, [projects, filters]);
 
   const pagination = usePagination({
     items: filteredProjects,
