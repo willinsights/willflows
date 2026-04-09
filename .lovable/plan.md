@@ -1,45 +1,37 @@
 
 
-# Export Agrupado por Projeto (Sem Duplicações)
+# Marcar Projetos da Rafaela como Pagos (Cliente + Colaborador)
 
-## Problema
+## Situação Atual
 
-Atualmente, o export gera **uma linha por colaborador**, o que duplica o projeto quando há mais de um membro. O utilizador quer **uma linha por projeto** com uma coluna que liste todos os colaboradores e respetivos valores.
+- **41 projetos** da Rafaela entregues desde Março 2026
+- Pagamento à **colaboradora**: já está "pago" em todos
+- Pagamento do **cliente**: todos ainda "pendente" (€4.091 em receita)
 
-## Solução
+## Ação
 
-### 1. `FreelancerPaymentsControl.tsx` — Novo `exportData` agrupado
+Executar uma migração SQL para atualizar o `client_payment_status` para `pago` e definir `client_paid_at` nos 41 projetos onde a Rafaela participou:
 
-Agrupar `sortedPayments` por `project_id`, gerando uma linha por projeto com:
+```sql
+UPDATE projects
+SET client_payment_status = 'pago',
+    client_paid_at = now()
+WHERE id IN (
+  SELECT DISTINCT p.id
+  FROM project_team pt
+  JOIN projects p ON pt.project_id = p.id
+  LEFT JOIN profiles prof ON pt.user_id = prof.id
+  WHERE prof.full_name ILIKE '%rafaela%'
+    AND p.is_delivered = true
+    AND p.delivered_at >= '2026-03-01'
+    AND p.client_payment_status != 'pago'
+);
+```
 
-- **ID**: código do projeto
-- **Projeto**: nome
-- **Cliente**: nome do cliente
-- **Data Entrega**: data de entrega
-- **Colaboradores**: string agregada, ex: `"Rafaela (€400), Christian (€300)"`
-- **Status**: status combinado (se todos pagos → "Pago", se algum pendente → "Pendente")
-- **Valor Total**: soma de todos os `payment_amount` do projeto
+## Impacto
 
-### 2. `PaymentExportButtons.tsx` — Nova coluna no mapa
-
-Adicionar ao `columnLabelsMap.freelancers`:
-- `colaboradores: 'Colaboradores'` (substitui `contraparte`)
-- Remover `fase`, `iban`, `banco` das colunas (ou manter se tiverem dados)
-
-### 3. `ExportData` interface
-
-Adicionar campo opcional `colaboradores?: string` à interface.
-
-## Exemplo de output
-
-| ID | Projeto | Cliente | Data Entrega | Colaboradores | Status | Valor Total |
-|---|---|---|---|---|---|---|
-| WF-042 | Vídeo Hotel X | Hotel X | 05/04/2026 | Rafaela (€400), Christian (€300) | Pendente | €700 |
-
-## Ficheiros a alterar
-
-| Ficheiro | Alteração |
-|---|---|
-| `src/components/payments/FreelancerPaymentsControl.tsx` | Agrupar `exportData` por projeto |
-| `src/components/payments/PaymentExportButtons.tsx` | Adicionar `colaboradores` à interface e ao `columnLabelsMap` |
+- 41 projetos → `client_payment_status = 'pago'`
+- €4.091 movidos de "pendente" para "pago" na Receita
+- Colaborador já estava pago — sem alteração necessária
+- Zero alterações de código
 
