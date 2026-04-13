@@ -32,6 +32,7 @@ export interface ProjectWithClient extends Project {
   checklist_count?: number;
   checklist_completed?: number;
   team_members?: TeamMember[];
+  has_approved_video?: boolean;
 }
 
 export interface KanbanColumnWithProjects extends KanbanColumn {
