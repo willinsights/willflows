@@ -288,7 +288,17 @@ export function useKanban(phase: KanbanPhase) {
             });
           });
         }
-      }
+
+        // Fetch approved video status for projects
+        const { data: approvedData } = await supabase
+          .from('video_approvals')
+          .select('project_id')
+          .in('project_id', projectIds)
+          .not('project_id', 'is', null);
+
+        const approvedProjectIds = new Set(
+          approvedData?.map(a => a.project_id).filter(Boolean) || []
+        );
 
       // Map projects to columns with task counts and team members
       // Sort urgent projects by delivery date (closest first)
@@ -303,6 +313,7 @@ export function useKanban(phase: KanbanPhase) {
             checklist_count: checklistCounts[project.id]?.total || 0,
             checklist_completed: checklistCounts[project.id]?.completed || 0,
             team_members: teamByProject[project.id] || [],
+            has_approved_video: approvedProjectIds.has(project.id),
           }))
           .sort((a, b) => {
             const isUrgentA = a.priority === 'alta' || a.priority === 'urgente';
