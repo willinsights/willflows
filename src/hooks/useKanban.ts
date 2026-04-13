@@ -299,6 +299,9 @@ export function useKanban(phase: KanbanPhase) {
         const approvedProjectIds = new Set(
           approvedData?.map(a => a.project_id).filter(Boolean) || []
         );
+      } else {
+        var approvedProjectIds = new Set<string>();
+      }
 
       // Map projects to columns with task counts and team members
       // Sort urgent projects by delivery date (closest first)
