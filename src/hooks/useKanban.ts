@@ -32,6 +32,7 @@ export interface ProjectWithClient extends Project {
   checklist_count?: number;
   checklist_completed?: number;
   team_members?: TeamMember[];
+  has_approved_video?: boolean;
 }
 
 export interface KanbanColumnWithProjects extends KanbanColumn {
@@ -207,6 +208,7 @@ export function useKanban(phase: KanbanPhase) {
       let taskCounts: Record<string, { total: number; completed: number }> = {};
       let checklistCounts: Record<string, { total: number; completed: number }> = {};
       let teamByProject: Record<string, TeamMember[]> = {};
+      let approvedProjectIds = new Set<string>();
       
       if (projectIds.length > 0) {
         // Fetch ALL tasks for projects (to show total progress on card, regardless of phase)
@@ -287,6 +289,17 @@ export function useKanban(phase: KanbanPhase) {
             });
           });
         }
+
+        // Fetch approved video status for projects
+        const { data: approvedData } = await supabase
+          .from('video_approvals')
+          .select('project_id')
+          .in('project_id', projectIds)
+          .not('project_id', 'is', null);
+
+        approvedProjectIds = new Set(
+          approvedData?.map(a => a.project_id).filter((id): id is string => id !== null) || []
+        );
       }
 
       // Map projects to columns with task counts and team members
@@ -302,6 +315,7 @@ export function useKanban(phase: KanbanPhase) {
             checklist_count: checklistCounts[project.id]?.total || 0,
             checklist_completed: checklistCounts[project.id]?.completed || 0,
             team_members: teamByProject[project.id] || [],
+            has_approved_video: approvedProjectIds.has(project.id),
           }))
           .sort((a, b) => {
             const isUrgentA = a.priority === 'alta' || a.priority === 'urgente';

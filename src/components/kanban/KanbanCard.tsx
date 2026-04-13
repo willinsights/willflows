@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { format, differenceInDays, isPast } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { Calendar, MapPin, Camera, Video, Grip, CheckSquare, AlertTriangle, Timer } from 'lucide-react';
+import { Calendar, MapPin, Camera, Video, Grip, CheckSquare, AlertTriangle, Timer, CheckCircle2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -92,9 +92,10 @@ function KanbanCardComponent({ project, onClick, style: externalStyle }: KanbanC
         'focus-within:ring-2 focus-within:ring-primary/20',
         isDragging && 'dragging opacity-60 z-50 scale-105 shadow-2xl shadow-primary/20',
         priorityInfo.border,
-        isOverdue && 'border-destructive/40 bg-destructive/5',
-        isUrgentDeadline && !isOverdue && 'border-warning/40 bg-warning/5',
-        (project.priority === 'urgente' || project.priority === 'alta') && 'animate-[pulse_2s_ease-in-out_1] ring-1 ring-warning/30'
+        project.has_approved_video && 'border-emerald-500/60 bg-emerald-500/10',
+        isOverdue && !project.has_approved_video && 'border-destructive/40 bg-destructive/5',
+        isUrgentDeadline && !isOverdue && !project.has_approved_video && 'border-warning/40 bg-warning/5',
+        (project.priority === 'urgente' || project.priority === 'alta') && !project.has_approved_video && 'animate-[pulse_2s_ease-in-out_1] ring-1 ring-warning/30'
       )}
       onClick={onClick}
     >
@@ -115,6 +116,9 @@ function KanbanCardComponent({ project, onClick, style: externalStyle }: KanbanC
           </Badge>
         )}
         <div className="ml-auto flex items-center gap-1">
+          {project.has_approved_video && (
+            <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+          )}
           <KanbanTimerIndicator projectId={project.id} />
           <KanbanChatIndicator projectId={project.id} />
           {isOverdue && (
@@ -260,6 +264,7 @@ export const KanbanCard = memo(KanbanCardComponent, (prevProps, nextProps) => {
     prevProps.project.task_completed === nextProps.project.task_completed &&
     prevProps.project.checklist_count === nextProps.project.checklist_count &&
     prevProps.project.checklist_completed === nextProps.project.checklist_completed &&
-    prevProps.project.team_members?.length === nextProps.project.team_members?.length
+    prevProps.project.team_members?.length === nextProps.project.team_members?.length &&
+    prevProps.project.has_approved_video === nextProps.project.has_approved_video
   );
 });
