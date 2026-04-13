@@ -138,12 +138,24 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
     if (!user) throw new Error('User not authenticated');
 
     try {
+      // Resolve project_id from hook param or by querying the task
+      let resolvedProjectId = projectId;
+      if (!resolvedProjectId && input.taskId) {
+        const { data: taskData } = await supabase
+          .from('tasks')
+          .select('project_id')
+          .eq('id', input.taskId)
+          .single();
+        resolvedProjectId = taskData?.project_id || null;
+      }
+
       const { error } = await supabase
         .from('video_approvals')
         .insert({
           task_id: input.taskId,
           video_version_id: input.videoVersionId,
           workspace_id: input.workspaceId,
+          project_id: resolvedProjectId || null,
           approved_by_user_id: user.id,
           approved_by_client: false,
           notes: input.notes || null,
