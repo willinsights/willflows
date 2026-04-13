@@ -208,6 +208,7 @@ export function useKanban(phase: KanbanPhase) {
       let taskCounts: Record<string, { total: number; completed: number }> = {};
       let checklistCounts: Record<string, { total: number; completed: number }> = {};
       let teamByProject: Record<string, TeamMember[]> = {};
+      let approvedProjectIds = new Set<string>();
       
       if (projectIds.length > 0) {
         // Fetch ALL tasks for projects (to show total progress on card, regardless of phase)
@@ -296,11 +297,9 @@ export function useKanban(phase: KanbanPhase) {
           .in('project_id', projectIds)
           .not('project_id', 'is', null);
 
-        const approvedProjectIds = new Set(
-          approvedData?.map(a => a.project_id).filter(Boolean) || []
+        approvedProjectIds = new Set(
+          approvedData?.map(a => a.project_id).filter((id): id is string => id !== null) || []
         );
-      } else {
-        var approvedProjectIds = new Set<string>();
       }
 
       // Map projects to columns with task counts and team members
