@@ -170,7 +170,7 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
       const { error } = await supabase
         .from('video_approvals')
         .insert({
-          task_id: input.taskId,
+          task_id: resolvedTaskId,
           video_version_id: input.videoVersionId,
           workspace_id: input.workspaceId,
           project_id: resolvedProjectId || null,
