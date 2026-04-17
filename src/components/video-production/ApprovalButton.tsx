@@ -19,6 +19,7 @@ import { pt } from 'date-fns/locale';
 
 interface ApprovalButtonProps {
   taskId: string;
+  projectId?: string | null;
   workspaceId: string;
   videoVersionId: string | null;
   versionNumber: number | null;
@@ -27,12 +28,13 @@ interface ApprovalButtonProps {
 
 export function ApprovalButton({
   taskId,
+  projectId,
   workspaceId,
   videoVersionId,
   versionNumber,
   className,
 }: ApprovalButtonProps) {
-  const { approvals, isApproved, latestApproval, approveVideo } = useVideoApproval(taskId);
+  const { approvals, isApproved, latestApproval, approveVideo } = useVideoApproval(taskId, projectId);
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [notes, setNotes] = useState('');
