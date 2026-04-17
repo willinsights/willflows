@@ -58,18 +58,25 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
   const { user } = useAuth();
 
   const fetchApprovals = useCallback(async () => {
-    if (!taskId) return;
+    if (!taskId && !projectId) return;
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('video_approvals')
         .select(`
           *,
           video_version:video_versions(version_number)
         `)
-        .eq('task_id', taskId)
         .order('approved_at', { ascending: false });
+
+      if (taskId) {
+        query = query.eq('task_id', taskId);
+      } else if (projectId) {
+        query = query.is('task_id', null).eq('project_id', projectId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setApprovals((data || []) as unknown as VideoApproval[]);
@@ -78,7 +85,7 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
     } finally {
       setLoading(false);
     }
-  }, [taskId]);
+  }, [taskId, projectId]);
 
   const fetchToken = useCallback(async () => {
     if (!taskId && !projectId) return;
