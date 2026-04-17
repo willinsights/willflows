@@ -58,18 +58,25 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
   const { user } = useAuth();
 
   const fetchApprovals = useCallback(async () => {
-    if (!taskId) return;
+    if (!taskId && !projectId) return;
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('video_approvals')
         .select(`
           *,
           video_version:video_versions(version_number)
         `)
-        .eq('task_id', taskId)
         .order('approved_at', { ascending: false });
+
+      if (taskId) {
+        query = query.eq('task_id', taskId);
+      } else if (projectId) {
+        query = query.is('task_id', null).eq('project_id', projectId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setApprovals((data || []) as unknown as VideoApproval[]);
@@ -78,7 +85,7 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
     } finally {
       setLoading(false);
     }
-  }, [taskId]);
+  }, [taskId, projectId]);
 
   const fetchToken = useCallback(async () => {
     if (!taskId && !projectId) return;
@@ -140,19 +147,30 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
     try {
       // Resolve project_id from hook param or by querying the task
       let resolvedProjectId = projectId;
-      if (!resolvedProjectId && input.taskId) {
+      let resolvedTaskId: string | null = input.taskId || null;
+      if (!resolvedProjectId && resolvedTaskId) {
         const { data: taskData } = await supabase
           .from('tasks')
           .select('project_id')
-          .eq('id', input.taskId)
+          .eq('id', resolvedTaskId)
           .single();
         resolvedProjectId = taskData?.project_id || null;
+      }
+      // Fallback: read from video_versions
+      if ((!resolvedProjectId || !resolvedTaskId) && input.videoVersionId) {
+        const { data: vv } = await supabase
+          .from('video_versions')
+          .select('project_id, task_id')
+          .eq('id', input.videoVersionId)
+          .single();
+        if (!resolvedProjectId) resolvedProjectId = vv?.project_id || null;
+        if (!resolvedTaskId) resolvedTaskId = vv?.task_id || null;
       }
 
       const { error } = await supabase
         .from('video_approvals')
         .insert({
-          task_id: input.taskId,
+          task_id: resolvedTaskId,
           video_version_id: input.videoVersionId,
           workspace_id: input.workspaceId,
           project_id: resolvedProjectId || null,
@@ -179,19 +197,30 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
     try {
       // Resolve project_id from hook param or by querying the task
       let resolvedProjectId = projectId;
-      if (!resolvedProjectId && input.taskId) {
+      let resolvedTaskId: string | null = input.taskId || null;
+      if (!resolvedProjectId && resolvedTaskId) {
         const { data: taskData } = await supabase
           .from('tasks')
           .select('project_id')
-          .eq('id', input.taskId)
+          .eq('id', resolvedTaskId)
           .single();
         resolvedProjectId = taskData?.project_id || null;
+      }
+      // Fallback: read from video_versions
+      if ((!resolvedProjectId || !resolvedTaskId) && input.videoVersionId) {
+        const { data: vv } = await supabase
+          .from('video_versions')
+          .select('project_id, task_id')
+          .eq('id', input.videoVersionId)
+          .single();
+        if (!resolvedProjectId) resolvedProjectId = vv?.project_id || null;
+        if (!resolvedTaskId) resolvedTaskId = vv?.task_id || null;
       }
 
       const { error } = await supabase
         .from('video_approvals')
         .insert({
-          task_id: input.taskId,
+          task_id: resolvedTaskId,
           video_version_id: input.videoVersionId,
           workspace_id: input.workspaceId,
           project_id: resolvedProjectId || null,

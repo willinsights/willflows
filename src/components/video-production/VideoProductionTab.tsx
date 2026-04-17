@@ -293,6 +293,7 @@ function VideoProductionTabContent({
             <CardContent className="space-y-4">
               <ApprovalButton
                 taskId={taskId}
+                projectId={projectId}
                 workspaceId={workspaceId}
                 videoVersionId={selectedVersion?.id || null}
                 versionNumber={selectedVersion?.version_number || null}
