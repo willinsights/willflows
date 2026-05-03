@@ -1,70 +1,73 @@
 
 
-## Diagnóstico
+# Criar 3 cards no Kanban da Edição — The Dispatcher Maio 2026
 
-O card "Capella Sydney" não fica verde porque o vídeo foi carregado como versão **ao nível do projeto** (não associado a uma task). Encontrei **2 aprovações criadas hoje** (04:09 e 04:10) com `task_id = NULL` **e** `project_id = NULL` — o link ao projeto perde-se na inserção, então o `useKanban` não consegue marcar o card como aprovado.
+## Resumo
+Criar 3 projetos para o cliente **The Dispatcher** (Maio 2026), cada um com o **script frame-a-frame completo** estruturado em formato tabela timestamp/scene/descrição nas notas internas — exatamente como o exemplo da imagem partilhada.
 
-### Causa raiz (em `src/hooks/useVideoApproval.ts` → `approveVideo`)
-1. `ApprovalButton` chama `useVideoApproval(taskId)` sem passar `projectId`.
-2. Quando `taskId` é `null` (vídeo de projeto), a função tenta resolver `project_id` apenas via tabela `tasks`, que é skipped.
-3. Resultado: `INSERT` em `video_approvals` com `task_id=NULL` e `project_id=NULL`.
-4. Como `useKanban` filtra `video_approvals.project_id IN (...)`, esses registos órfãos são ignorados → card nunca fica verde.
+## Estrutura do script em cada card
 
-Bonus: o `isApproved` no `ApprovalButton` também não funciona corretamente para vídeos de projeto (filtra só por `task_id`), pelo que o botão pode ser clicado várias vezes criando duplicados.
+Cada `internal_notes` seguirá este formato consistente:
 
-## Plano de correção
+```
+═══════════════════════════════════════
+🎬 [NOME DO REEL] — 15s
+═══════════════════════════════════════
 
-### 1. `src/hooks/useVideoApproval.ts` — Resolver `project_id` a partir do `video_version_id`
-Em `approveVideo` (e replicar em `approveVideoAsClient`), adicionar fallback: se ainda não resolveu o `project_id`, buscar em `video_versions` pelo `videoVersionId`.
+📋 SCRIPT FRAME-A-FRAME
 
-```ts
-// fallback final: ler do próprio video_version
-if (!resolvedProjectId && input.videoVersionId) {
-  const { data: vv } = await supabase
-    .from('video_versions')
-    .select('project_id, task_id')
-    .eq('id', input.videoVersionId)
-    .single();
-  resolvedProjectId = vv?.project_id || null;
-  // também aproveitar o task_id se existir
-  if (!input.taskId && vv?.task_id) input.taskId = vv.task_id;
-}
+┌─────────┬──────────────┬─────────────────────────────────────┐
+│ TEMPO   │ SCENE        │ DESCRIÇÃO                           │
+├─────────┼──────────────┼─────────────────────────────────────┤
+│ 0–2s    │ SCROLL STOP  │ [Hook visual + som]                 │
+│ 2–5s    │ [SCENE 2]    │ [Footage + text overlay]            │
+│ 5–9s    │ [SCENE 3]    │ [Footage + text overlay]            │
+│ 9–13s   │ [SCENE 4]    │ [Footage + text overlay]            │
+│ 13–15s  │ CTA          │ [Fundo, texto, logo]                │
+└─────────┴──────────────┴─────────────────────────────────────┘
+
+🎨 DIREÇÃO DE ARTE
+- Tipografia: Oswald Bold (overlays)
+- Paleta: branco / laranja #FFA955 / creme #F4F0EA
+- Logo: Dispatcher canto inferior direito (CTA)
+
+🎵 ÁUDIO
+[Notas sobre música/som]
+
+📝 COPIES (A/B/C)
+A: [...]
+B: [...]
+C: [...]
+
+#️⃣ HASHTAGS
+[lista de hashtags]
+
+📦 FOOTAGE
+[Origem do material — TempoVip, etc.]
 ```
 
-### 2. `src/hooks/useVideoApproval.ts` — Suportar fetch por `projectId`
-Atualmente `fetchApprovals` só corre se houver `taskId`. Para vídeos de projeto, o `ApprovalButton` precisa que `isApproved` reflita aprovações por `project_id`. Atualizar `fetchApprovals` para que, quando não há `taskId` mas há `projectId` (passado ao hook), filtre por `project_id`.
+## Cards a criar
 
-### 3. `src/components/video-production/ApprovalButton.tsx` — Passar `projectId`
-- Adicionar prop opcional `projectId?: string | null`.
-- Passar `projectId` para `useVideoApproval(taskId, projectId)`.
-- Atualizar `VideoProductionTab.tsx` (e qualquer outro caller relevante do Review Studio) para passar `projectId` ao botão.
+| # | Nome | Data | Hook |
+|---|---|---|---|
+| 1 | **Dispatcher Maio — Reel Baleares** | 03/05/2026 | "Dive wild, sail free, eat well." |
+| 2 | **Dispatcher Maio — Meet the Owner: Sidecar Lisboa** | 07/05/2026 | "Lisbon, differently." |
+| 3 | **Dispatcher Maio — Dispatcher Invites: Travel Designer** | 10/05/2026 | "72 hours in the Iberian Peninsula…" |
 
-### 4. Backfill dos 2 registos órfãos do Capella Sydney
-Migration SQL para corrigir os `video_approvals` com `project_id NULL` cruzando com `video_versions.project_id`:
+Cada card terá o seu próprio script frame-a-frame extraído do briefing `.docx`, no formato acima.
 
-```sql
-UPDATE video_approvals va
-SET project_id = vv.project_id
-FROM video_versions vv
-WHERE va.video_version_id = vv.id
-  AND va.project_id IS NULL
-  AND vv.project_id IS NOT NULL;
-```
+## Execução técnica
 
-(Já tinhas feito isto antes, mas novos registos órfãos foram criados — esta migration corrige os atuais e a fix do código previne novos.)
+1. **Parse do `.docx`** já carregado para extrair o conteúdo exato de cada Reel (script, copies, hashtags, footage notes).
+2. **Query** à `kanban_columns` para obter o `id` da primeira coluna (`position = 0`) da fase `edicao` do workspace ativo.
+3. **3 INSERTs** na tabela `projects`:
+   - `client_id`: `e14f0a43-849e-48ae-b14e-11b4fcda8202` (The Dispatcher)
+   - `current_phase`: `'edicao'`
+   - `edicao_column_id`: coluna inicial da Edição
+   - `delivery_date`: 2026-05-03 / 2026-05-07 / 2026-05-10
+   - `internal_notes`: script frame-a-frame completo no formato acima
+   - `category`: `'Reel'`
 
-### 5. (Opcional, recomendado) Trigger de defesa em profundidade
-Adicionar um BEFORE INSERT trigger em `video_approvals` que preenche automaticamente `project_id` (e `task_id` se possível) a partir de `video_versions`, garantindo que nunca mais existem registos órfãos, independentemente do cliente que faz o insert.
-
-## Ficheiros alterados
-- `src/hooks/useVideoApproval.ts` — fallback via `video_versions` + fetch por projectId
-- `src/components/video-production/ApprovalButton.tsx` — aceitar e propagar `projectId`
-- `src/components/video-production/VideoProductionTab.tsx` — passar `projectId` ao `ApprovalButton`
-- Nova migration — backfill + (opcional) trigger preventivo
-
-## Resultado esperado
-Após o fix:
-- Aprovar o "Capella Sydney" no Review Studio insere a aprovação com `project_id` correto.
-- O `useKanban` deteta a aprovação e o card fica **verde com ✓** imediatamente (refresh do Kanban).
-- Os 2 registos órfãos atuais ficam reconectados ao projeto, então o card já aparecerá verde mal a migration corra.
+## Resultado
+Ao recarregar `/app/edicao`, os 3 cards aparecem na primeira coluna da Edição. Ao abrir cada card, o editor encontra o script estruturado em tabela tempo/scene/descrição (igual à imagem), seguido de direção de arte, áudio, copies, hashtags e fonte de footage — tudo o que precisa para produzir.
 
