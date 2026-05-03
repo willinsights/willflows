@@ -1,73 +1,35 @@
 
+# Fechar contas Rafaela — Abril 2026
 
-# Criar 3 cards no Kanban da Edição — The Dispatcher Maio 2026
+## ✅ Já feito (read-only)
+Excel gerado em `/mnt/documents/Pagamento_Rafaela_Abril2026.xlsx` com duas secções:
 
-## Resumo
-Criar 3 projetos para o cliente **The Dispatcher** (Maio 2026), cada um com o **script frame-a-frame completo** estruturado em formato tabela timestamp/scene/descrição nas notas internas — exatamente como o exemplo da imagem partilhada.
+**Secção 1 — Entregues em abril (a pagar agora) — 11 projetos · 420,00 €**
 
-## Estrutura do script em cada card
+| Cliente | Projeto | Valor |
+|---|---|---|
+| Deccana | Your Proposal in 24H | 30 € |
+| The Dispatcher | 4 - Castelos de Portugal | 30 € |
+| TempoVip Portugal | 3 - Destination Azores, PT | 30 € |
+| TempoVip Espanha | 1 - Slow travel & longer stays - ES | 30 € |
+| TempoVip Marrocos | 2 - Our favorite boutique hotels - Morocco | 30 € |
+| Deccana | Culinary Italy Journey | 30 € |
+| Deccana | Lake Como Highlight | 30 € |
+| Sardinia Bespoke | 24 Hours: From Request to Proposal | 30 € |
+| TempoVip Portugal | Hotel Spatia Comporta | 60 € |
+| TempoVip Portugal | Cavalos na Areia - Comporta 2026 | 60 € * |
+| TempoVip Portugal | Sidecar Sintra 2026 | 60 € |
 
-Cada `internal_notes` seguirá este formato consistente:
+**Secção 2 — Pendentes da lista da Rafaela já regularizados no sistema (referência) — 219,67 €**
+11 itens (R4 Espanha Insiders, 4× Eleggia, 5× Amazorial, P8 Restaurant Guide) já com `paid_at` registado em março/abril.
 
-```
-═══════════════════════════════════════
-🎬 [NOME DO REEL] — 15s
-═══════════════════════════════════════
+## 📋 Ações a executar (precisam de modo build)
 
-📋 SCRIPT FRAME-A-FRAME
+1. **Atualizar valor** do projeto "Cavalos na Areia - Comporta 2026" (`project_team` id `fcd4edf9-...`) de `NULL` para `60,00 €`.
 
-┌─────────┬──────────────┬─────────────────────────────────────┐
-│ TEMPO   │ SCENE        │ DESCRIÇÃO                           │
-├─────────┼──────────────┼─────────────────────────────────────┤
-│ 0–2s    │ SCROLL STOP  │ [Hook visual + som]                 │
-│ 2–5s    │ [SCENE 2]    │ [Footage + text overlay]            │
-│ 5–9s    │ [SCENE 3]    │ [Footage + text overlay]            │
-│ 9–13s   │ [SCENE 4]    │ [Footage + text overlay]            │
-│ 13–15s  │ CTA          │ [Fundo, texto, logo]                │
-└─────────┴──────────────┴─────────────────────────────────────┘
+2. **Marcar como pago** os 11 registos de `project_team` da secção 1 — set `payment_status='pago'` e `paid_at = now()`:
+   - `89c11835`, `f014eeb5`, `467bf643`, `65fbd3e9`, `c7bfd46c`, `2204c138`, `1a27642e`, `1d1ed47b`, `fa486421`, `fcd4edf9`, `67dd286c`
 
-🎨 DIREÇÃO DE ARTE
-- Tipografia: Oswald Bold (overlays)
-- Paleta: branco / laranja #FFA955 / creme #F4F0EA
-- Logo: Dispatcher canto inferior direito (CTA)
+3. Decisão da Rafaela sobre a Secção 2 (já regularizados) fica em aberto — confirmar com ela depois de ver o Excel.
 
-🎵 ÁUDIO
-[Notas sobre música/som]
-
-📝 COPIES (A/B/C)
-A: [...]
-B: [...]
-C: [...]
-
-#️⃣ HASHTAGS
-[lista de hashtags]
-
-📦 FOOTAGE
-[Origem do material — TempoVip, etc.]
-```
-
-## Cards a criar
-
-| # | Nome | Data | Hook |
-|---|---|---|---|
-| 1 | **Dispatcher Maio — Reel Baleares** | 03/05/2026 | "Dive wild, sail free, eat well." |
-| 2 | **Dispatcher Maio — Meet the Owner: Sidecar Lisboa** | 07/05/2026 | "Lisbon, differently." |
-| 3 | **Dispatcher Maio — Dispatcher Invites: Travel Designer** | 10/05/2026 | "72 hours in the Iberian Peninsula…" |
-
-Cada card terá o seu próprio script frame-a-frame extraído do briefing `.docx`, no formato acima.
-
-## Execução técnica
-
-1. **Parse do `.docx`** já carregado para extrair o conteúdo exato de cada Reel (script, copies, hashtags, footage notes).
-2. **Query** à `kanban_columns` para obter o `id` da primeira coluna (`position = 0`) da fase `edicao` do workspace ativo.
-3. **3 INSERTs** na tabela `projects`:
-   - `client_id`: `e14f0a43-849e-48ae-b14e-11b4fcda8202` (The Dispatcher)
-   - `current_phase`: `'edicao'`
-   - `edicao_column_id`: coluna inicial da Edição
-   - `delivery_date`: 2026-05-03 / 2026-05-07 / 2026-05-10
-   - `internal_notes`: script frame-a-frame completo no formato acima
-   - `category`: `'Reel'`
-
-## Resultado
-Ao recarregar `/app/edicao`, os 3 cards aparecem na primeira coluna da Edição. Ao abrir cada card, o editor encontra o script estruturado em tabela tempo/scene/descrição (igual à imagem), seguido de direção de arte, áudio, copies, hashtags e fonte de footage — tudo o que precisa para produzir.
-
+<lov-artifact path="Pagamento_Rafaela_Abril2026.xlsx" mime_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></lov-artifact>
