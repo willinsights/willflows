@@ -1,43 +1,57 @@
-## Relatório Excel — Lucro Abril 2026 (card-a-card)
+## Objetivo
 
-Vou gerar um arquivo `.xlsx` em `/mnt/documents/` com o detalhamento de lucro dos projetos das listas que enviou (Christian, Morais, Rafaela Abril, Rafaela Pendências), usando os valores **dos próprios cards** (`agreed_value`, `custo_captacao`, `custo_edicao`, `custos_extras`).
+Tornar o fluxo de aprovação de vídeo automático e contínuo:
+1. Criar automaticamente o link de aprovação do cliente assim que um vídeo é carregado no Review Studio.
+2. Incluir esse link em qualquer email disparado por automações (variável `{link_aprovacao}`).
+3. Manter o link de aprovação ativo durante 7 dias após a aprovação (hoje o vídeo/link deixa de funcionar mais cedo); após esses 7 dias o vídeo é apagado do servidor e o link é desativado.
 
-### Estrutura do Excel
+## Mudanças
 
-**Aba 1 — "Resumo"**
-- Totais por grupo (Christian / Morais / Rafaela Abril / Rafaela Pendências)
-- Total consolidado (sem duplicatas): **1.146,00 €**
-- Margem média
+### 1. Auto-criar link de aprovação ao carregar vídeo
 
-**Aba 2 — "Detalhe por Card"**
-Colunas:
-| ID (UUID curto) | Project Code | Nome do Projeto | Cliente | Grupo | Data Entrega | Receita (€) | Custo Captação (€) | Custo Edição (€) | Custos Extras (€) | Custo Total (€) | Lucro (€) | Margem % | Status |
+Local: `supabase/functions/stream-process-video/index.ts`
 
-- Linhas duplicadas (projetos em mais de uma lista) marcadas em **amarelo**
-- Cards com receita 0 € marcados em **vermelho claro** (Octant Hotels Douro, HANDS IN THE DOUGH!, Capella Sydney, etc.)
-- Cards com inconsistência de status marcados em **laranja** (não entregues / data de Maio)
+Após inserir a `video_versions` row, verificar se já existe um token ativo em `video_approval_tokens` para o mesmo `task_id`/`project_id`. Se não existir, criar um novo token (sem `expires_at`, `is_active = true`, `created_by = userId`, com `client_name`/`client_email` opcionalmente herdados do cliente do projeto se conseguirmos resolver). Isto garante que cada upload tem um link partilhável sem ação manual.
 
-**Aba 3 — "Inconsistências"**
-Lista os 3 problemas detectados na lista da Rafaela:
-- "The Unmissable Portuguese Spas" — não marcado como entregue
-- "How it works - Websites Eleggia" — não marcado como entregue
-- "Reel Baleares" — `delivered_at = 03/05/2026` (Maio, não Abril)
+UI (`ApprovalShareLink.tsx`): continua a funcionar — apenas vai encontrar o token já existente e mostrar o link diretamente, sem precisar do botão "Gerar link".
 
-### Formatação
-- Fonte: Arial
-- Receita azul (input), Lucro preto (fórmula `=Receita-CustoTotal`), Margem como `0,0%`
-- Negativos entre parênteses, zeros como "-"
-- Larguras ajustadas, cabeçalho em negrito com fundo cinza
-- Totais com fórmulas `SUM()` (não hardcoded)
+### 2. Variável `{link_aprovacao}` nos emails de automação
 
-### Passos técnicos
-1. Query SQL para buscar todos os UUIDs das listas com `agreed_value`, custos, `delivered_at`, `is_delivered`, cliente
-2. Script Python com `openpyxl` para montar as 3 abas
-3. Recalcular fórmulas com `recalculate_formulas.py`
-4. QA: converter para imagem e validar layout
-5. Entregar via `<lov-artifact>` para download
+Local: `supabase/functions/execute-automations/index.ts`
 
-### Saída
-`Relatorio_Lucro_Abril_2026.xlsx` em `/mnt/documents/`, pronto para download.
+- Antes de construir `templateVars`, procurar o token ativo de aprovação ligado ao `project_id` (e, se a automação for de tarefa, ao `task_id`).
+- Adicionar `'{link_aprovacao}': 'https://willflow.app/video-approval/<token>'` ao `templateVars`. Quando não existir token, devolver string vazia.
+- Atualizar o seletor de variáveis no editor de automações (`useWorkflowAutomations` / componente do editor de email) para listar a nova variável, e incluir o link por defeito nos templates de email cuja categoria seja "aprovação de vídeo".
 
-Aprovar para eu gerar?
+### 3. Manter link 7 dias após aprovação
+
+Hoje a função `queue_video_retention_on_approval` agenda eliminação para 14 dias após aprovação, e `cleanup-expired-videos` desativa o token quando apaga o vídeo. O problema relatado ("o link deixa de funcionar logo após aprovação") será corrigido garantindo:
+
+- Migration: alterar a função `queue_video_retention_on_approval` para usar `v_retention_days := 7`.
+- `get-video-approval-data`: continuar a servir o vídeo enquanto o token estiver `is_active = true` e o vídeo não estiver `is_deleted`. Confirmar que a página `ApprovedState.tsx` não esconde o player (atualmente já mostra download — adicionar reprodução do vídeo aprovado durante o período de retenção).
+- `cleanup-expired-videos`: comportamento atual mantido — quando os 7 dias passam, apaga R2/Stream e desativa o token (já faz isto).
+
+## Detalhes técnicos
+
+**Tabelas envolvidas**
+- `video_approval_tokens` (já tem `project_id`, `task_id`, `is_active`, `expires_at`).
+- `video_retention_queue` (alimentada por `queue_video_retention_on_approval` e `queue_video_retention`).
+
+**Resolução do token na automação**
+```text
+SELECT token FROM video_approval_tokens
+WHERE is_active = true
+  AND ((task_id IS NOT NULL AND task_id = :task_id)
+       OR (task_id IS NULL AND project_id = :project_id))
+ORDER BY created_at DESC LIMIT 1;
+```
+
+**URL base**: reutilizar `APP_URL` já existente em `execute-automations`.
+
+**Idempotência do upload**: criar token apenas se `count(*) = 0` para o par (task/project, is_active=true), evitando múltiplos tokens ativos.
+
+## Fora do âmbito
+
+- Não alteramos a lógica de comentários, versões, nem o webhook do Stream.
+- Não mexemos em RLS das tabelas existentes (apenas em Edge Functions com service role e numa função SQL).
+- Não criamos novos templates de email — apenas disponibilizamos a variável.
