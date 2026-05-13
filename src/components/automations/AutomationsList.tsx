@@ -14,12 +14,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Zap, Plus, Trash2, Pencil, Mail, Bell } from 'lucide-react';
+import { Zap, Plus, Trash2, Pencil, Mail, Bell, Send, Loader2 } from 'lucide-react';
 import { useWorkflowAutomations, TRIGGER_TYPES, ACTION_TYPES, RECIPIENT_TYPES, type AutomationFormData } from '@/hooks/useWorkflowAutomations';
 import { AutomationBuilder } from './AutomationBuilder';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useState as useStateAlias, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useAppToast } from '@/hooks/useAppToast';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export function AutomationsList() {
   const { automations, loading, saving, createAutomation, updateAutomation, deleteAutomation, toggleAutomation } = useWorkflowAutomations();
@@ -38,6 +45,39 @@ export function AutomationsList() {
   const [builderOpen, setBuilderOpen] = useState(false);
   const [editingAutomation, setEditingAutomation] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [testAutomationId, setTestAutomationId] = useState<string | null>(null);
+  const [testEmail, setTestEmail] = useState('');
+  const [sendingTest, setSendingTest] = useState(false);
+  const { user } = useAuth();
+  const toast = useAppToast();
+
+  useEffect(() => {
+    if (testAutomationId && user?.email && !testEmail) setTestEmail(user.email);
+  }, [testAutomationId, user?.email, testEmail]);
+
+  const handleSendTest = async () => {
+    if (!testAutomationId || !testEmail) return;
+    setSendingTest(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-test-automation-email', {
+        body: { automation_id: testAutomationId, recipient_email: testEmail },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const link = (data as any)?.approval_link_resolved;
+      const proj = (data as any)?.project_used?.name;
+      toast.success('Email de teste enviado', {
+        description: link
+          ? `Projeto: ${proj}. Link de aprovação resolvido ✓`
+          : `Projeto: ${proj}. ⚠️ Sem token ativo — {link_aprovacao} ficará vazio.`,
+      });
+      setTestAutomationId(null);
+    } catch (err: any) {
+      toast.error('Falha ao enviar teste', { description: err?.message || 'Erro desconhecido' });
+    } finally {
+      setSendingTest(false);
+    }
+  };
 
   const getColumnName = (id: string) => columns.find(c => c.id === id)?.name || 'Desconhecida';
 
@@ -155,6 +195,17 @@ export function AutomationsList() {
                   </p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  {auto.action_type === 'send_email' && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      title="Enviar email de teste"
+                      onClick={() => { setTestEmail(user?.email || ''); setTestAutomationId(auto.id); }}
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(auto.id)}>
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -203,6 +254,33 @@ export function AutomationsList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!testAutomationId} onOpenChange={(o) => !o && setTestAutomationId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enviar email de teste</DialogTitle>
+            <DialogDescription>
+              Envia uma cópia desta automação com as variáveis resolvidas (incluindo <code>{'{link_aprovacao}'}</code>) usando o projeto mais recente do workspace.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="test-email">Email destinatário</Label>
+            <Input
+              id="test-email"
+              type="email"
+              value={testEmail}
+              onChange={(e) => setTestEmail(e.target.value)}
+              placeholder="voce@exemplo.com"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTestAutomationId(null)} disabled={sendingTest}>Cancelar</Button>
+            <Button onClick={handleSendTest} disabled={!testEmail || sendingTest}>
+              {sendingTest ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />A enviar…</> : <><Send className="h-4 w-4 mr-2" />Enviar teste</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
