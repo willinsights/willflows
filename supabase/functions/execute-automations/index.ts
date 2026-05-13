@@ -150,6 +150,20 @@ Deno.serve(async (req) => {
       fromColumnName = col?.name || ''
     }
 
+    // Resolve active approval token for this project (most recent active token)
+    const { data: approvalTokenRow } = await supabase
+      .from('video_approval_tokens')
+      .select('token')
+      .eq('is_active', true)
+      .eq('project_id', project_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    const approvalLink = approvalTokenRow?.token
+      ? `https://willflow.app/video-approval/${approvalTokenRow.token}`
+      : ''
+
     const templateVars: Record<string, string> = {
       '{project_name}': project?.name || '',
       '{client_name}': clientName,
@@ -158,6 +172,8 @@ Deno.serve(async (req) => {
       '{from_column_name}': fromColumnName,
       '{workspace_name}': workspace?.name || '',
       '{link_project}': `${APP_URL}/app/edicao?project=${project_id}`,
+      '{link_aprovacao}': approvalLink,
+      '{link_aprovação}': approvalLink,
     }
 
     const replaceVars = (text: string): string => {
