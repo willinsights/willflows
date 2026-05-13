@@ -256,6 +256,64 @@ serve(async (req) => {
       // Non-fatal, continue
     }
 
+    // Auto-create approval token if none active exists for this task/project
+    try {
+      let existingTokenQuery = supabase
+        .from("video_approval_tokens")
+        .select("id")
+        .eq("is_active", true)
+        .limit(1);
+
+      if (taskId) {
+        existingTokenQuery = existingTokenQuery.eq("task_id", taskId);
+      } else {
+        existingTokenQuery = existingTokenQuery.is("task_id", null).eq("project_id", projectId);
+      }
+
+      const { data: existingToken } = await existingTokenQuery.maybeSingle();
+
+      if (!existingToken) {
+        let clientName: string | null = null;
+        let clientEmail: string | null = null;
+        const { data: projectRow } = await supabase
+          .from("projects")
+          .select("client_id")
+          .eq("id", projectId)
+          .maybeSingle();
+        if (projectRow?.client_id) {
+          const { data: clientRow } = await supabase
+            .from("clients")
+            .select("name, email")
+            .eq("id", projectRow.client_id)
+            .maybeSingle();
+          clientName = clientRow?.name || null;
+          clientEmail = clientRow?.email || null;
+        }
+
+        const { error: tokenError } = await supabase
+          .from("video_approval_tokens")
+          .insert({
+            task_id: taskId || null,
+            project_id: projectId,
+            workspace_id: workspaceId,
+            client_name: clientName,
+            client_email: clientEmail,
+            expires_at: null,
+            is_active: true,
+            created_by: userId,
+          });
+
+        if (tokenError) {
+          logStep("Error auto-creating approval token", { error: tokenError.message });
+        } else {
+          logStep("Approval token auto-created", { taskId, projectId });
+        }
+      }
+    } catch (tokenErr) {
+      const msg = tokenErr instanceof Error ? tokenErr.message : String(tokenErr);
+      logStep("Error in approval token auto-create block", { error: msg });
+    }
+
     logStep("Video processing initiated", { 
       versionId: versionData.id, 
       streamUid,

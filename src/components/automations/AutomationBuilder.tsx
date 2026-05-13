@@ -38,6 +38,7 @@ const TEMPLATE_VARIABLES = [
   { key: '{from_column_name}', label: 'Coluna de Origem' },
   { key: '{workspace_name}', label: 'Nome do Workspace' },
   { key: '{link_project}', label: 'Link do Projeto' },
+  { key: '{link_aprovacao}', label: 'Link de Aprovação do Cliente' },
 ];
 
 const ROLES = [
