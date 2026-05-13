@@ -14,12 +14,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Zap, Plus, Trash2, Pencil, Mail, Bell } from 'lucide-react';
+import { Zap, Plus, Trash2, Pencil, Mail, Bell, Send, Loader2 } from 'lucide-react';
 import { useWorkflowAutomations, TRIGGER_TYPES, ACTION_TYPES, RECIPIENT_TYPES, type AutomationFormData } from '@/hooks/useWorkflowAutomations';
 import { AutomationBuilder } from './AutomationBuilder';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useState as useStateAlias, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useAppToast } from '@/hooks/useAppToast';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export function AutomationsList() {
   const { automations, loading, saving, createAutomation, updateAutomation, deleteAutomation, toggleAutomation } = useWorkflowAutomations();
