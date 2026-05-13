@@ -254,6 +254,33 @@ export function AutomationsList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!testAutomationId} onOpenChange={(o) => !o && setTestAutomationId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enviar email de teste</DialogTitle>
+            <DialogDescription>
+              Envia uma cópia desta automação com as variáveis resolvidas (incluindo <code>{'{link_aprovacao}'}</code>) usando o projeto mais recente do workspace.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="test-email">Email destinatário</Label>
+            <Input
+              id="test-email"
+              type="email"
+              value={testEmail}
+              onChange={(e) => setTestEmail(e.target.value)}
+              placeholder="voce@exemplo.com"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTestAutomationId(null)} disabled={sendingTest}>Cancelar</Button>
+            <Button onClick={handleSendTest} disabled={!testEmail || sendingTest}>
+              {sendingTest ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />A enviar…</> : <><Send className="h-4 w-4 mr-2" />Enviar teste</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
