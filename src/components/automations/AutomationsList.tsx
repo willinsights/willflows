@@ -45,6 +45,39 @@ export function AutomationsList() {
   const [builderOpen, setBuilderOpen] = useState(false);
   const [editingAutomation, setEditingAutomation] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [testAutomationId, setTestAutomationId] = useState<string | null>(null);
+  const [testEmail, setTestEmail] = useState('');
+  const [sendingTest, setSendingTest] = useState(false);
+  const { user } = useAuth();
+  const toast = useAppToast();
+
+  useEffect(() => {
+    if (testAutomationId && user?.email && !testEmail) setTestEmail(user.email);
+  }, [testAutomationId, user?.email, testEmail]);
+
+  const handleSendTest = async () => {
+    if (!testAutomationId || !testEmail) return;
+    setSendingTest(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-test-automation-email', {
+        body: { automation_id: testAutomationId, recipient_email: testEmail },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const link = (data as any)?.approval_link_resolved;
+      const proj = (data as any)?.project_used?.name;
+      toast.success('Email de teste enviado', {
+        description: link
+          ? `Projeto: ${proj}. Link de aprovação resolvido ✓`
+          : `Projeto: ${proj}. ⚠️ Sem token ativo — {link_aprovacao} ficará vazio.`,
+      });
+      setTestAutomationId(null);
+    } catch (err: any) {
+      toast.error('Falha ao enviar teste', { description: err?.message || 'Erro desconhecido' });
+    } finally {
+      setSendingTest(false);
+    }
+  };
 
   const getColumnName = (id: string) => columns.find(c => c.id === id)?.name || 'Desconhecida';
 
