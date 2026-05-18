@@ -245,9 +245,12 @@ export function useKanbanProjectMoves({ phase, columns, setColumns, fetchColumns
           movement_type: 'manual',
         }).then(() => logger.debug('[moveProject] Column transition recorded'));
 
-        supabase.functions.invoke('execute-automations', {
-          body: {
-            event_type: 'card_enters_column',
+        // C-4: enqueue durable job instead of fire-and-forget invoke.
+        // Worker (process-automation-jobs cron) picks it up with retry/backoff.
+        supabase.rpc('enqueue_automation_job', {
+          _workspace_id: currentWorkspace.id,
+          _event_type: 'card_enters_column',
+          _payload: {
             project_id: projectId,
             workspace_id: currentWorkspace.id,
             to_column_id: targetColumnId,
@@ -255,7 +258,7 @@ export function useKanbanProjectMoves({ phase, columns, setColumns, fetchColumns
             triggered_by: userId,
           },
         }).then(({ error: autoError }) => {
-          if (autoError) logger.warn('[moveProject] Automation execution error:', autoError);
+          if (autoError) logger.warn('[moveProject] Automation enqueue error:', autoError);
         });
       }
     } catch (error) {
