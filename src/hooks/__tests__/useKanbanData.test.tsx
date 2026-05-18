@@ -27,7 +27,7 @@ const rpcMock = vi.fn(() => Promise.resolve({ data: { columns: [] }, error: null
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
-    rpc: (...args: unknown[]) => rpcMock(...args),
+    rpc: (...args: [string, Record<string, unknown>]) => rpcMock(...args),
     channel: () => {
       const chain = {
         on: (_evt: string, cfg: { table: string }, handler: (p: unknown) => void) => {
