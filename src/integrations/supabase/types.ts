@@ -4987,6 +4987,10 @@ export type Database = {
         Returns: boolean
       }
       reopen_project: { Args: { p_project_id: string }; Returns: Json }
+      reorder_kanban_columns: {
+        Args: { p_phase: string; p_positions: Json; p_workspace_id: string }
+        Returns: undefined
+      }
       sign_contract_public: {
         Args: {
           _ip_address?: string

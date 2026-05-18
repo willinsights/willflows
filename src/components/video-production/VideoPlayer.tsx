@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle, useMemo } from 'react';
 import Hls from 'hls.js';
+import { useHlsPlayer } from '@/hooks/useHlsPlayer';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { 
@@ -74,7 +75,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   className 
 }, ref) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
   const [isPlaying, setIsPlaying] = useState(false);
@@ -132,154 +132,87 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     return { type: 'none', url: null };
   }, [src, streamUid, hlsUrl]);
   
-  // Function to reinitialize HLS while preserving timestamp
-  const reinitializeHls = useCallback((preservedTime: number) => {
-    const video = videoRef.current;
-    if (!video || !videoSource.url || videoSource.type !== 'hls') return;
-    
-    console.log('[VideoPlayer] Reinitializing HLS at timestamp:', preservedTime);
-    
-    // Cleanup existing HLS instance
-    if (hlsRef.current) {
-      hlsRef.current.destroy();
-      hlsRef.current = null;
-    }
-    
-    // Check if browser supports HLS natively (Safari)
-    if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = videoSource.url;
-      video.load();
-      video.currentTime = preservedTime;
-      return;
-    }
-    
-    if (!Hls.isSupported()) return;
-    
-    const hls = new Hls({
-      enableWorker: true,
-      lowLatencyMode: false,
-    });
-    
-    hls.loadSource(videoSource.url);
-    hls.attachMedia(video);
-    
-    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      video.currentTime = preservedTime;
-      setIsLoading(false);
-      setLoadError(null);
-    });
-    
-    hls.on(Hls.Events.ERROR, (_, data) => {
-      if (data.fatal) {
-        console.error('[VideoPlayer] HLS fatal error during reinit:', data);
-        setLoadError('Falha ao carregar o vídeo. Tenta atualizar a página.');
-        setIsLoading(false);
-      }
-    });
-    
-    hlsRef.current = hls;
-  }, [videoSource.url, videoSource.type]);
-
   // Reset retry count when source changes
   useEffect(() => {
     retryCountRef.current = 0;
   }, [videoSource.url]);
 
-  // Initialize HLS.js or native playback - depends on stable URL string
+  // Track when we're inside a reinit pass so MANIFEST_PARSED can clear loading state
+  const reinitPassRef = useRef(false);
+
+  // Centralized HLS lifecycle (handles attach, native Safari, cleanup)
+  const { hlsRef, reinit: reinitHls } = useHlsPlayer({
+    videoRef,
+    url: videoSource.url,
+    type: videoSource.type,
+    onManifestParsed: () => {
+      setIsLoading(false);
+      setLoadError(null);
+    },
+    // VideoPlayer manages its own retry counters in handleVideoError,
+    // so we disable hook-level auto-recovery and react to fatal errors here.
+    autoRecover: false,
+    onFatalError: (data) => {
+      if (reinitPassRef.current) {
+        console.error('[VideoPlayer] HLS fatal error during reinit:', data);
+        setLoadError('Falha ao carregar o vídeo. Tenta atualizar a página.');
+        setIsLoading(false);
+        return;
+      }
+
+      console.error('HLS fatal error:', data);
+
+      let errorDetail = `${data.type}`;
+      if (data.details) errorDetail += ` (${data.details})`;
+      if (data.response?.code) errorDetail += ` - HTTP ${data.response.code}`;
+
+      let userMessage = 'Falha ao carregar o vídeo';
+      if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+        if (data.response?.code === 403) {
+          userMessage = 'Acesso ao vídeo bloqueado (403). Tenta "Corrigir" a versão.';
+        } else if (data.response?.code === 404) {
+          userMessage = 'Vídeo não encontrado (404). Pode ainda estar a processar.';
+        } else {
+          userMessage = `Erro de rede: ${errorDetail}`;
+        }
+      } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+        // Try in-place media recovery once before surfacing the error
+        if (retryCountRef.current < 1 && hlsRef.current) {
+          retryCountRef.current++;
+          console.log('Attempting HLS media error recovery...');
+          try { hlsRef.current.recoverMediaError(); return; } catch { /* fall through */ }
+        }
+        userMessage = `Erro de media: ${errorDetail}`;
+      } else if (data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR && !Hls.isSupported()) {
+        userMessage = 'O teu browser não suporta reprodução de vídeo HLS.';
+      }
+
+      console.error('HLS error detail:', errorDetail);
+      setLoadError(userMessage);
+      setIsLoading(false);
+    },
+  });
+
+  // Set loading state when the source becomes available (hook handles attach)
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    // Cleanup previous HLS instance
-    if (hlsRef.current) {
-      hlsRef.current.destroy();
-      hlsRef.current = null;
-    }
-
     if (videoSource.type === 'none' || !videoSource.url) {
       setIsLoading(false);
       return;
     }
-
     setIsLoading(true);
     setLoadError(null);
+  }, [videoSource.url, videoSource.type]);
 
-    if (videoSource.type === 'hls') {
-      // Check if browser supports HLS natively (Safari)
-      if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = videoSource.url;
-        video.load();
-      } else if (Hls.isSupported()) {
-        // Use hls.js for other browsers
-        const hls = new Hls({
-          enableWorker: true,
-          lowLatencyMode: false,
-        });
-        
-        hls.loadSource(videoSource.url);
-        hls.attachMedia(video);
-        
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          setIsLoading(false);
-        });
-        
-        hls.on(Hls.Events.ERROR, (_, data) => {
-          if (data.fatal) {
-            console.error('HLS fatal error:', data);
-            
-            // Build detailed error message for debugging
-            let errorDetail = `${data.type}`;
-            if (data.details) {
-              errorDetail += ` (${data.details})`;
-            }
-            if (data.response?.code) {
-              errorDetail += ` - HTTP ${data.response.code}`;
-            }
-            
-            let userMessage = 'Falha ao carregar o vídeo';
-            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-              if (data.response?.code === 403) {
-                userMessage = 'Acesso ao vídeo bloqueado (403). Tenta "Corrigir" a versão.';
-              } else if (data.response?.code === 404) {
-                userMessage = 'Vídeo não encontrado (404). Pode ainda estar a processar.';
-              } else {
-                userMessage = `Erro de rede: ${errorDetail}`;
-              }
-            } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-              // Try to recover from media errors once
-              if (retryCountRef.current < 1) {
-                retryCountRef.current++;
-                console.log('Attempting HLS media error recovery...');
-                hls.recoverMediaError();
-                return;
-              }
-              userMessage = `Erro de media: ${errorDetail}`;
-            }
-            
-            console.error('HLS error detail:', errorDetail);
-            setLoadError(userMessage);
-            setIsLoading(false);
-          }
-        });
-        
-        hlsRef.current = hls;
-      } else {
-        setLoadError('O teu browser não suporta reprodução de vídeo HLS.');
-        setIsLoading(false);
-      }
-    } else {
-      // Native video playback
-      video.src = videoSource.url;
-      video.load();
-    }
+  // Wrapper preserving the original reinitializeHls behavior
+  const reinitializeHls = useCallback((preservedTime: number) => {
+    if (videoSource.type !== 'hls' || !videoSource.url) return;
+    console.log('[VideoPlayer] Reinitializing HLS at timestamp:', preservedTime);
+    reinitPassRef.current = true;
+    reinitHls(preservedTime);
+    // Clear the reinit flag on the next tick after MANIFEST_PARSED has a chance to fire
+    setTimeout(() => { reinitPassRef.current = false; }, 0);
+  }, [reinitHls, videoSource.type, videoSource.url]);
 
-    return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
-    };
-  }, [videoSource.url]); // Stable URL dependency prevents unnecessary re-initialization
 
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
