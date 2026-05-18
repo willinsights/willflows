@@ -416,3 +416,37 @@ function ChatMessageComponent({
     </>
   );
 }
+
+// Memoize: only re-render when message data, thread count, or presence changes.
+// Callback prop identity is intentionally ignored — parents rarely memoize them
+// and the message identity already captures all meaningful changes.
+function areEqual(prev: ChatMessageProps, next: ChatMessageProps) {
+  if (prev.threadCount !== next.threadCount) return false;
+  if (prev.isOnline !== next.isOnline) return false;
+  if (prev.isThreadReply !== next.isThreadReply) return false;
+
+  const a = prev.message;
+  const b = next.message;
+  if (a.id !== b.id) return false;
+  if (a.body !== b.body) return false;
+  if (a.is_edited !== b.is_edited) return false;
+  if (a.updated_at !== b.updated_at) return false;
+  if ((a.attachments?.length || 0) !== (b.attachments?.length || 0)) return false;
+  if ((a.reactions?.length || 0) !== (b.reactions?.length || 0)) return false;
+  if ((a.read_by?.length || 0) !== (b.read_by?.length || 0)) return false;
+
+  // Deep-ish check on reactions counts (cheap, bounded by emoji variety)
+  if (a.reactions && b.reactions) {
+    for (let i = 0; i < a.reactions.length; i++) {
+      const ra = a.reactions[i];
+      const rb = b.reactions[i];
+      if (!rb || ra.emoji !== rb.emoji || ra.count !== rb.count || ra.reacted_by_me !== rb.reacted_by_me) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+export const ChatMessage = memo(ChatMessageComponent, areEqual);
