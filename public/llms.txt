@@ -1,0 +1,54 @@
+# WillFlow
+
+> Sistema completo de gestão de projetos e produção para fotógrafos, filmmakers, agências e produtoras. Kanban, CRM, calendário, aprovação de vídeos e finanças num só lugar.
+
+WillFlow centraliza o fluxo de trabalho de equipas criativas: captação de leads, contratos, Kanban de produção, Review Studio para aprovação de vídeo pelo cliente, faturação e relatórios financeiros.
+
+## Páginas principais
+
+- [Início](/): visão geral do produto e principais benefícios.
+- [Funcionalidades](/funcionalidades): mapa completo das capacidades da plataforma.
+- [Planos e preços](/planos): planos disponíveis e teste grátis de 30 dias.
+- [Comparar planos](/planos/comparar): tabela detalhada de comparação de planos.
+- [Integrações](/integracoes): Google Calendar, Google Meet, Stripe e mais.
+- [Segurança](/seguranca): práticas de segurança e proteção de dados.
+- [Sobre](/sobre): missão e equipa por trás do WillFlow.
+- [Contato](/contato): canais de contacto e suporte.
+- [Ajuda](/ajuda): centro de ajuda e documentação.
+- [Tutorial](/tutorial): guia rápido de utilização.
+
+## Funcionalidades
+
+- [Kanban Visual](/funcionalidades/kanban): gestão visual de projetos por etapas.
+- [CRM Integrado](/funcionalidades/crm): clientes, leads e comunicações.
+- [Chat de Equipa](/funcionalidades/chat): conversas internas em tempo real.
+- [Calendário](/funcionalidades/calendario): agenda sincronizada com Google Calendar.
+- [Pagamentos](/funcionalidades/pagamentos): controlo de recebimentos e pagamentos a colaboradores.
+- [Relatórios](/funcionalidades/relatorios): relatórios financeiros e operacionais.
+- [Media Hub](/funcionalidades/media-hub): organização centralizada de ficheiros.
+- [Review Studio (Video Approval)](/funcionalidades/video-approval): aprovação de vídeo pelo cliente com comentários e versões.
+- [Timeline](/funcionalidades/timeline): linha temporal de cada projeto.
+
+## Para o teu setor
+
+- [Para Fotógrafos](/para-fotografos): fluxo otimizado para estúdios de fotografia.
+- [Para Videomakers](/para-videomakers): produção de vídeo de ponta a ponta.
+- [Para Agências](/para-agencias): equipas e múltiplos clientes.
+- [Para Produtoras](/para-produtoras): pipelines complexos com colaboradores externos.
+
+## Comparações
+
+- [Comparações](/vs): WillFlow vs. outras ferramentas.
+- [vs Asana](/vs/asana)
+- [vs ClickUp](/vs/clickup)
+- [vs Trello](/vs/trello)
+
+## Conteúdo
+
+- [Blog](/blog): artigos sobre gestão criativa, produtividade e produção de vídeo.
+
+## Optional
+
+- [Privacidade](/privacidade)
+- [Termos](/termos)
+- [Cookies](/cookies)

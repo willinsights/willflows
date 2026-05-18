@@ -42,7 +42,7 @@
     <meta name="keywords" content="gestão de projetos, fotografia, vídeo, produção, kanban, CRM, freelancer, agência, produtora">
     
     <!-- SEO Essential Tags -->
-    <link rel="canonical" href="https://willflow.app/" />
+    <!-- Canonical is set per-route via react-helmet-async to avoid consolidating all pages to the homepage -->
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     
     <!-- Hreflang for PT/BR markets -->
@@ -329,10 +329,7 @@
 
     <!-- Prefetch critical routes -->
     <link rel="prefetch" href="/auth" as="document" />
-    <meta property="og:title" content="WillFlow - Gestão de Projetos para Fotógrafos e Filmmakers">
-  <meta name="twitter:title" content="WillFlow - Gestão de Projetos para Fotógrafos e Filmmakers">
-  <meta property="og:description" content="WillFlow é o sistema completo de gestão de projetos e produção para fotógrafos, filmmakers, agências e produtoras. Kanban, CRM, calendário e finanças num só lugar.">
-  <meta name="twitter:description" content="WillFlow é o sistema completo de gestão de projetos e produção para fotógrafos, filmmakers, agências e produtoras. Kanban, CRM, calendário e finanças num só lugar.">
+    <!-- Per-page og:title / og:description / twitter:title / twitter:description are set via react-helmet-async in each route -->
 </head>
 
   <body>
