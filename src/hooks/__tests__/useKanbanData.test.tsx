@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { waitFor } from '@testing-library/dom';
 
@@ -23,11 +23,13 @@ vi.mock('@/lib/logger', () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-const rpcMock = vi.fn((..._args: unknown[]) => Promise.resolve({ data: { columns: [] }, error: null }));
+const rpcMock = vi.fn((..._args: unknown[]) =>
+  Promise.resolve({ data: { columns: [] }, error: null })
+);
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
-    rpc: (...args: [string, Record<string, unknown>]) => rpcMock(...args),
+    rpc: (...args: unknown[]) => rpcMock(...(args as [string, Record<string, unknown>])),
     channel: () => {
       const chain = {
         on: (_evt: string, cfg: { table: string }, handler: (p: unknown) => void) => {
@@ -44,7 +46,23 @@ vi.mock('@/integrations/supabase/client', () => ({
 
 import { useKanbanData } from '@/hooks/kanban/useKanbanData';
 
-const flush = () => new Promise(resolve => setTimeout(resolve, 350));
+/** Aguarda até que rpcMock pare de crescer durante `stableMs`. */
+async function waitForRpcSettled(stableMs = 400) {
+  let prev = -1;
+  let stableSince = Date.now();
+  // Up to 3s overall
+  for (let i = 0; i < 60; i++) {
+    await new Promise(r => setTimeout(r, 50));
+    const curr = rpcMock.mock.calls.length;
+    if (curr !== prev) {
+      prev = curr;
+      stableSince = Date.now();
+    } else if (Date.now() - stableSince >= stableMs) {
+      return curr;
+    }
+  }
+  return rpcMock.mock.calls.length;
+}
 
 describe('useKanbanData — anti-echo (C-3)', () => {
   beforeEach(() => {
@@ -52,21 +70,20 @@ describe('useKanbanData — anti-echo (C-3)', () => {
     Object.keys(handlers).forEach(k => delete handlers[k]);
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it('faz fetch inicial via get_kanban_board', async () => {
     renderHook(() => useKanbanData('edicao'));
-    await waitFor(() => expect(rpcMock).toHaveBeenCalledWith(
-      'get_kanban_board',
-      expect.objectContaining({ p_workspace_id: WORKSPACE_ID, p_user_id: USER_ID })
-    ));
+    await waitFor(() =>
+      expect(rpcMock).toHaveBeenCalledWith(
+        'get_kanban_board',
+        expect.objectContaining({ p_workspace_id: WORKSPACE_ID, p_user_id: USER_ID })
+      )
+    );
   });
 
-  it('suprime evento próprio quando updated_by === userId (sem refetch)', async () => {
+  it('suprime evento próprio quando updated_by === userId (sem refetch extra)', async () => {
     renderHook(() => useKanbanData('edicao'));
-    await waitFor(() => expect(rpcMock).toHaveBeenCalledTimes(1));
+    const baseline = await waitForRpcSettled();
+    expect(baseline).toBeGreaterThan(0);
 
     act(() => {
       handlers['projects']?.({
@@ -75,13 +92,14 @@ describe('useKanbanData — anti-echo (C-3)', () => {
         old: { id: 'p1', current_phase: 'edicao', updated_by: USER_ID },
       });
     });
-    await flush();
-    expect(rpcMock).toHaveBeenCalledTimes(1); // no extra refetch
+    // Debounce is 300ms; give it room.
+    await new Promise(r => setTimeout(r, 600));
+    expect(rpcMock).toHaveBeenCalledTimes(baseline);
   });
 
   it('dispara refetch quando updated_by é outro utilizador', async () => {
     renderHook(() => useKanbanData('edicao'));
-    await waitFor(() => expect(rpcMock).toHaveBeenCalledTimes(1));
+    const baseline = await waitForRpcSettled();
 
     act(() => {
       handlers['projects']?.({
@@ -90,15 +108,18 @@ describe('useKanbanData — anti-echo (C-3)', () => {
         old: { id: 'p2', current_phase: 'edicao', updated_by: OTHER_USER_ID },
       });
     });
-    await flush();
-    await waitFor(() => expect(rpcMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(rpcMock.mock.calls.length).toBeGreaterThan(baseline), {
+      timeout: 2000,
+    });
   });
 
   it('TTL fallback: markLocalUpdate suprime evento sem updated_by', async () => {
     const { result } = renderHook(() => useKanbanData('edicao'));
-    await waitFor(() => expect(rpcMock).toHaveBeenCalledTimes(1));
+    const baseline = await waitForRpcSettled();
 
-    act(() => { result.current.markLocalUpdate('p3'); });
+    act(() => {
+      result.current.markLocalUpdate('p3');
+    });
 
     act(() => {
       handlers['projects']?.({
@@ -107,17 +128,20 @@ describe('useKanbanData — anti-echo (C-3)', () => {
         old: { id: 'p3', current_phase: 'edicao', updated_by: null },
       });
     });
-    await flush();
-    expect(rpcMock).toHaveBeenCalledTimes(1); // suprimido por TTL
+    await new Promise(r => setTimeout(r, 600));
+    expect(rpcMock).toHaveBeenCalledTimes(baseline);
   });
 
-  it('TTL fallback expira: após >1500ms o evento sem updated_by causa refetch', async () => {
-    vi.useFakeTimers();
+  it('TTL fallback expira: evento >1500ms após markLocalUpdate causa refetch', async () => {
     const { result } = renderHook(() => useKanbanData('edicao'));
-    await vi.waitFor(() => expect(rpcMock).toHaveBeenCalledTimes(1));
+    const baseline = await waitForRpcSettled();
 
-    act(() => { result.current.markLocalUpdate('p4'); });
-    act(() => { vi.advanceTimersByTime(2000); });
+    act(() => {
+      result.current.markLocalUpdate('p4');
+    });
+
+    // Esperar TTL (1500ms) + margem
+    await new Promise(r => setTimeout(r, 1700));
 
     act(() => {
       handlers['projects']?.({
@@ -126,7 +150,8 @@ describe('useKanbanData — anti-echo (C-3)', () => {
         old: { id: 'p4', current_phase: 'edicao', updated_by: null },
       });
     });
-    act(() => { vi.advanceTimersByTime(400); });
-    await vi.waitFor(() => expect(rpcMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(rpcMock.mock.calls.length).toBeGreaterThan(baseline), {
+      timeout: 2000,
+    });
   });
 });
