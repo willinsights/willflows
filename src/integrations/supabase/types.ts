@@ -4723,6 +4723,10 @@ export type Database = {
         }[]
       }
       get_contract_by_token: { Args: { _token: string }; Returns: Json }
+      get_conversation_page: {
+        Args: { _before?: string; _conversation_id: string; _limit?: number }
+        Returns: Json
+      }
       get_daily_page_views: {
         Args: { days_back?: number }
         Returns: {
