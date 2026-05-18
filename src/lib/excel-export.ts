@@ -35,7 +35,8 @@ export interface ExcelExportMultiSectionOptions {
  * Export data to Excel (.xlsx) with professional formatting
  */
 export async function exportToExcel(options: ExcelExportOptions): Promise<void> {
-  const workbook = new ExcelJS.Workbook();
+  const ExcelJSLib = await loadExcelJS();
+  const workbook = new ExcelJSLib.Workbook();
   workbook.creator = 'WillFlow';
   workbook.created = new Date();
 
@@ -105,7 +106,8 @@ export async function exportToExcel(options: ExcelExportOptions): Promise<void> 
  * Export multi-section report to Excel (.xlsx)
  */
 export async function exportMultiSectionToExcel(options: ExcelExportMultiSectionOptions): Promise<void> {
-  const workbook = new ExcelJS.Workbook();
+  const ExcelJSLib = await loadExcelJS();
+  const workbook = new ExcelJSLib.Workbook();
   workbook.creator = 'WillFlow';
   workbook.created = new Date();
 

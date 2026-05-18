@@ -107,7 +107,8 @@ function addTitle(ws: ExcelJS.Worksheet, title: string, subtitle: string, colCou
 }
 
 export async function exportFinancialExcel(options: FinancialExcelExportOptions): Promise<void> {
-  const wb = new ExcelJS.Workbook();
+  const ExcelJSLib = await loadExcelJS();
+  const wb = new ExcelJSLib.Workbook();
   wb.creator = 'WillFlow';
   wb.created = new Date();
   const fmt = currencyFormat('EUR');
