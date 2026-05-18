@@ -94,20 +94,26 @@ export function useKanban(phase: KanbanPhase) {
   // Refs to prevent duplicate fetches and track local updates
   const isFetchingRef = useRef(false);
   const lastFetchedKeyRef = useRef<string | null>(null);
-  const localUpdateTimestampRef = useRef<number>(0);
-  
-  // Track visibility changes to prevent refresh storms when returning to tab
-  const lastVisibilityChangeRef = useRef<number>(0);
-  
-  // Listen for visibility changes
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        lastVisibilityChangeRef.current = Date.now();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  // Per-record echo suppression (C-3): só ignora o eco da PRÓPRIA mutação
+  // que acabou de acontecer neste cliente, e apenas para o registo afetado.
+  // Substitui a janela global de 2-3s que descartava updates de outros utilizadores
+  // (e perdia mensagens quando outro user mexia logo após este voltar à tab).
+  const pendingLocalUpdatesRef = useRef<Map<string, number>>(new Map());
+  const LOCAL_ECHO_TTL_MS = 1500;
+
+  const markLocalUpdate = useCallback((recordId: string) => {
+    pendingLocalUpdatesRef.current.set(recordId, Date.now());
+  }, []);
+
+  const isLocalEcho = useCallback((recordId: string | undefined) => {
+    if (!recordId) return false;
+    const stamp = pendingLocalUpdatesRef.current.get(recordId);
+    if (!stamp) return false;
+    if (Date.now() - stamp > LOCAL_ECHO_TTL_MS) {
+      pendingLocalUpdatesRef.current.delete(recordId);
+      return false;
+    }
+    return true;
   }, []);
 
   const clearPendingAlert = useCallback(() => {
@@ -244,28 +250,13 @@ export function useKanban(phase: KanbanPhase) {
     if (!currentWorkspace?.id) return;
 
     const channelName = `kanban-realtime-${currentWorkspace.id}-${phase}`;
-    
-    // Check if this is a local update (within last 2 seconds)
-    const isLocalUpdate = () => {
-      const timeSinceLocal = Date.now() - localUpdateTimestampRef.current;
-      return timeSinceLocal < 2000;
-    };
-    
-    // Check if tab recently became visible (within last 3 seconds)
-    // This prevents refresh storms when Supabase reconnects after tab switch
-    const isRecentlyVisible = () => {
-      const timeSinceVisible = Date.now() - lastVisibilityChangeRef.current;
-      return timeSinceVisible < 3000;
-    };
-    
+
     const handleProjectChange = (payload: RealtimePostgresChangesPayload<Project>) => {
-      // Ignore local updates to prevent echo
-      // Also ignore events right after returning to tab (Supabase reconnect can trigger spurious events)
-      if (isLocalUpdate() || isRecentlyVisible()) return;
-      
       const newData = payload.new as Project | undefined;
       const oldData = payload.old as Partial<Project> | undefined;
-      
+      const recordId = newData?.id || (oldData?.id as string | undefined);
+      if (isLocalEcho(recordId)) return;
+
       // Only refresh if the project is in this phase
       const relevantPhase = newData?.current_phase || oldData?.current_phase;
       if (relevantPhase === phase || oldData?.current_phase === phase) {
@@ -275,12 +266,11 @@ export function useKanban(phase: KanbanPhase) {
     };
 
     const handleColumnChange = (payload: RealtimePostgresChangesPayload<KanbanColumn>) => {
-      if (isLocalUpdate() || isRecentlyVisible()) return;
-      
       const newData = payload.new as KanbanColumn | undefined;
       const oldData = payload.old as Partial<KanbanColumn> | undefined;
-      
-      // Only refresh if the column is in this phase
+      const recordId = newData?.id || (oldData?.id as string | undefined);
+      if (isLocalEcho(recordId)) return;
+
       const relevantPhase = newData?.phase || oldData?.phase;
       if (relevantPhase === phase) {
         logger.debug('[Kanban Realtime] Column change detected:', payload.eventType);
@@ -289,12 +279,11 @@ export function useKanban(phase: KanbanPhase) {
     };
 
     const handleTaskChange = (payload: RealtimePostgresChangesPayload<Task>) => {
-      if (isLocalUpdate() || isRecentlyVisible()) return;
-      
       const newData = payload.new as Task | undefined;
       const oldData = payload.old as Partial<Task> | undefined;
-      
-      // Only refresh if the task is in this phase
+      const recordId = newData?.id || (oldData?.id as string | undefined);
+      if (isLocalEcho(recordId)) return;
+
       const relevantPhase = newData?.phase || oldData?.phase;
       if (relevantPhase === phase) {
         logger.debug('[Kanban Realtime] Task change detected:', payload.eventType);
@@ -302,16 +291,18 @@ export function useKanban(phase: KanbanPhase) {
       }
     };
 
-    const handleChecklistChange = () => {
-      if (isLocalUpdate() || isRecentlyVisible()) return;
-      // Checklists affect counters, so we refresh
+    const handleChecklistChange = (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
+      const recordId = (payload.new as { id?: string } | undefined)?.id
+        || (payload.old as { id?: string } | undefined)?.id;
+      if (isLocalEcho(recordId)) return;
       logger.debug('[Kanban Realtime] Checklist change detected');
       debouncedSilentRefresh();
     };
 
-    const handleTeamChange = () => {
-      if (isLocalUpdate() || isRecentlyVisible()) return;
-      // Team changes affect project cards
+    const handleTeamChange = (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
+      const recordId = (payload.new as { id?: string } | undefined)?.id
+        || (payload.old as { id?: string } | undefined)?.id;
+      if (isLocalEcho(recordId)) return;
       logger.debug('[Kanban Realtime] Team change detected');
       debouncedSilentRefresh();
     };
@@ -422,7 +413,7 @@ export function useKanban(phase: KanbanPhase) {
       }
       
       // After reopen, move to target column
-      localUpdateTimestampRef.current = Date.now();
+      markLocalUpdate(projectId);
       
       const { error: moveError } = await supabase
         .from('projects')
@@ -496,7 +487,7 @@ export function useKanban(phase: KanbanPhase) {
 
         if (edicaoColumns && edicaoColumns.length > 0) {
           // Mark as local update to avoid realtime echo
-          localUpdateTimestampRef.current = Date.now();
+          markLocalUpdate(projectId);
           
           await supabase
             .from('projects')
@@ -577,7 +568,7 @@ export function useKanban(phase: KanbanPhase) {
 
     try {
       // Mark as local update to avoid realtime echo
-      localUpdateTimestampRef.current = Date.now();
+      markLocalUpdate(projectId);
       
       const { error } = await supabase
         .from('projects')

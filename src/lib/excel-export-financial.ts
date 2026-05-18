@@ -1,4 +1,10 @@
-import ExcelJS from 'exceljs';
+// exceljs (~600KB) is loaded lazily inside each exported function via dynamic import.
+import type * as ExcelJS from 'exceljs';
+let _ExcelJS: typeof ExcelJS | undefined;
+async function loadExcelJS(): Promise<typeof ExcelJS> {
+  if (!_ExcelJS) _ExcelJS = await import('exceljs');
+  return _ExcelJS;
+}
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
@@ -101,7 +107,8 @@ function addTitle(ws: ExcelJS.Worksheet, title: string, subtitle: string, colCou
 }
 
 export async function exportFinancialExcel(options: FinancialExcelExportOptions): Promise<void> {
-  const wb = new ExcelJS.Workbook();
+  const ExcelJSLib = await loadExcelJS();
+  const wb = new ExcelJSLib.Workbook();
   wb.creator = 'WillFlow';
   wb.created = new Date();
   const fmt = currencyFormat('EUR');

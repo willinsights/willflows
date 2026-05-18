@@ -1,4 +1,11 @@
-import ExcelJS from 'exceljs';
+// exceljs (~600KB) is loaded lazily inside each exported function via dynamic import.
+// Types are imported statically (zero runtime cost).
+import type * as ExcelJS from 'exceljs';
+let _ExcelJS: typeof ExcelJS | undefined;
+async function loadExcelJS(): Promise<typeof ExcelJS> {
+  if (!_ExcelJS) _ExcelJS = await import('exceljs');
+  return _ExcelJS;
+}
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
@@ -28,7 +35,8 @@ export interface ExcelExportMultiSectionOptions {
  * Export data to Excel (.xlsx) with professional formatting
  */
 export async function exportToExcel(options: ExcelExportOptions): Promise<void> {
-  const workbook = new ExcelJS.Workbook();
+  const ExcelJSLib = await loadExcelJS();
+  const workbook = new ExcelJSLib.Workbook();
   workbook.creator = 'WillFlow';
   workbook.created = new Date();
 
@@ -98,7 +106,8 @@ export async function exportToExcel(options: ExcelExportOptions): Promise<void> 
  * Export multi-section report to Excel (.xlsx)
  */
 export async function exportMultiSectionToExcel(options: ExcelExportMultiSectionOptions): Promise<void> {
-  const workbook = new ExcelJS.Workbook();
+  const ExcelJSLib = await loadExcelJS();
+  const workbook = new ExcelJSLib.Workbook();
   workbook.creator = 'WillFlow';
   workbook.created = new Date();
 
