@@ -667,64 +667,72 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
               </TabsContent>
 
               <TabsContent value="checklist" className="space-y-4 py-4">
-                <ProjectChecklistTab
-                  checklists={checklists}
-                  setChecklists={setChecklists}
-                  tasks={tasks}
-                  setTasks={setTasks}
-                  projectId={project.id}
-                  workspaceId={project.workspace_id}
-                  currentPhase={project.current_phase}
-                  itemType={(project.item_type as 'projeto_captacao' | 'projeto_edicao' | 'projeto_completo' | 'reuniao') || 'projeto_completo'}
-                />
+                <Suspense fallback={<TabLoadingFallback />}>
+                  <ProjectChecklistTab
+                    checklists={checklists}
+                    setChecklists={setChecklists}
+                    tasks={tasks}
+                    setTasks={setTasks}
+                    projectId={project.id}
+                    workspaceId={project.workspace_id}
+                    currentPhase={project.current_phase}
+                    itemType={(project.item_type as 'projeto_captacao' | 'projeto_edicao' | 'projeto_completo' | 'reuniao') || 'projeto_completo'}
+                  />
+                </Suspense>
               </TabsContent>
 
               <TabsContent value="timeline" className="space-y-4 py-4">
-                <ProjectTimelineTab
-                  projectId={project.id}
-                  workspaceId={project.workspace_id}
-                />
+                <Suspense fallback={<TabLoadingFallback />}>
+                  <ProjectTimelineTab
+                    projectId={project.id}
+                    workspaceId={project.workspace_id}
+                  />
+                </Suspense>
               </TabsContent>
 
               <TabsContent value="media" className="space-y-4 py-4">
-                <ProjectMediaTab
-                  mediaLinks={mediaLinks}
-                  setMediaLinks={setMediaLinks}
-                  projectId={project.id}
-                  driveUrl={project.drive_folder_url}
-                  dropboxUrl={project.dropbox_folder_url}
-                />
+                <Suspense fallback={<TabLoadingFallback />}>
+                  <ProjectMediaTab
+                    mediaLinks={mediaLinks}
+                    setMediaLinks={setMediaLinks}
+                    projectId={project.id}
+                    driveUrl={project.drive_folder_url}
+                    dropboxUrl={project.dropbox_folder_url}
+                  />
+                </Suspense>
               </TabsContent>
 
               {canViewOwnFinancials && (
                 <TabsContent value="financial" className="space-y-4 py-4">
-                  <ProjectFinancialTab
-                    projectId={project.id}
-                    project={{
-                      agreed_value: project.agreed_value,
-                      custo_captacao: project.custo_captacao,
-                      custo_edicao: project.custo_edicao,
-                      custos_extras: (project as any).custos_extras,
-                      custos_extras_payment_status: (project as any).custos_extras_payment_status,
-                      client_id: project.client_id,
-                      delivery_date: project.delivery_date,
-                      is_delivered: project.is_delivered,
-                      delivered_at: project.delivered_at,
-                      client_payment_status: project.client_payment_status,
-                      client_payment_due_date: project.client_payment_due_date,
-                    }}
-                    projectTeam={projectTeam}
-                    workspaceMembers={workspaceMembers}
-                    isEditing={isEditing}
-                    editForm={{
-                      agreed_value: editForm.agreed_value,
-                      custo_captacao: editForm.custo_captacao,
-                      custo_edicao: editForm.custo_edicao,
-                      custos_extras: editForm.custos_extras,
-                    }}
-                    setEditForm={setEditForm}
-                    onTeamPaymentUpdate={fetchRelatedData}
-                  />
+                  <Suspense fallback={<TabLoadingFallback />}>
+                    <ProjectFinancialTab
+                      projectId={project.id}
+                      project={{
+                        agreed_value: project.agreed_value,
+                        custo_captacao: project.custo_captacao,
+                        custo_edicao: project.custo_edicao,
+                        custos_extras: (project as any).custos_extras,
+                        custos_extras_payment_status: (project as any).custos_extras_payment_status,
+                        client_id: project.client_id,
+                        delivery_date: project.delivery_date,
+                        is_delivered: project.is_delivered,
+                        delivered_at: project.delivered_at,
+                        client_payment_status: project.client_payment_status,
+                        client_payment_due_date: project.client_payment_due_date,
+                      }}
+                      projectTeam={projectTeam}
+                      workspaceMembers={workspaceMembers}
+                      isEditing={isEditing}
+                      editForm={{
+                        agreed_value: editForm.agreed_value,
+                        custo_captacao: editForm.custo_captacao,
+                        custo_edicao: editForm.custo_edicao,
+                        custos_extras: editForm.custos_extras,
+                      }}
+                      setEditForm={setEditForm}
+                      onTeamPaymentUpdate={fetchRelatedData}
+                    />
+                  </Suspense>
                 </TabsContent>
               )}
 
@@ -741,18 +749,23 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
                       </p>
                     </div>
                   ) : (
-                    <VideoProductionTab
-                      taskId={selectedVideoTaskId}
-                      projectId={project.id}
-                      workspaceId={project.workspace_id}
-                    />
+                    <Suspense fallback={<TabLoadingFallback />}>
+                      <VideoProductionTab
+                        taskId={selectedVideoTaskId}
+                        projectId={project.id}
+                        workspaceId={project.workspace_id}
+                      />
+                    </Suspense>
                   )}
                 </TabsContent>
               )}
 
               <TabsContent value="tempo" className="space-y-4 py-4">
-                <ProjectTimeTab projectId={project.id} />
+                <Suspense fallback={<TabLoadingFallback />}>
+                  <ProjectTimeTab projectId={project.id} />
+                </Suspense>
               </TabsContent>
+
 
             </ScrollArea>
           </Tabs>
