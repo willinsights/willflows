@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle, useMemo } from 'react';
 import Hls from 'hls.js';
+import { useHlsPlayer } from '@/hooks/useHlsPlayer';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { 
