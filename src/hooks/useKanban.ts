@@ -413,7 +413,7 @@ export function useKanban(phase: KanbanPhase) {
       }
       
       // After reopen, move to target column
-      localUpdateTimestampRef.current = Date.now();
+      markLocalUpdate(projectId);
       
       const { error: moveError } = await supabase
         .from('projects')
@@ -487,7 +487,7 @@ export function useKanban(phase: KanbanPhase) {
 
         if (edicaoColumns && edicaoColumns.length > 0) {
           // Mark as local update to avoid realtime echo
-          localUpdateTimestampRef.current = Date.now();
+          markLocalUpdate(projectId);
           
           await supabase
             .from('projects')
@@ -568,7 +568,7 @@ export function useKanban(phase: KanbanPhase) {
 
     try {
       // Mark as local update to avoid realtime echo
-      localUpdateTimestampRef.current = Date.now();
+      markLocalUpdate(projectId);
       
       const { error } = await supabase
         .from('projects')
