@@ -174,19 +174,27 @@ export function useVideoVersions(
     const maxAttempts = 60; // 5 minutes max
     let attempts = 0;
 
+    const schedule = () => {
+      if (!isMountedRef.current) return;
+      pollTimerRef.current = setTimeout(() => {
+        if (isMountedRef.current) poll();
+      }, 5000);
+    };
+
     const poll = async (): Promise<void> => {
+      if (!isMountedRef.current) return;
       attempts++;
-      
+
       try {
         const { data, error } = await supabase.functions.invoke('stream-get-status', {
           body: { streamUid, versionId }
         });
 
+        if (!isMountedRef.current) return;
+
         if (error) {
           console.error('Error polling status:', error);
-          if (attempts < maxAttempts) {
-            setTimeout(poll, 5000);
-          }
+          if (attempts < maxAttempts) schedule();
           return;
         }
 
@@ -199,30 +207,28 @@ export function useVideoVersions(
 
         if (data.status === 'error') {
           setProcessingVersionId(null);
-          toast({ 
-            title: 'Erro no processamento', 
+          toast({
+            title: 'Erro no processamento',
             description: 'O vídeo não pôde ser processado',
-            variant: 'destructive' 
+            variant: 'destructive'
           });
           return;
         }
 
         // Still processing, continue polling
         if (attempts < maxAttempts) {
-          setTimeout(poll, 5000);
+          schedule();
         } else {
           setProcessingVersionId(null);
-          toast({ 
-            title: 'Processamento demorado', 
+          toast({
+            title: 'Processamento demorado',
             description: 'O vídeo ainda está a ser processado. Atualiza a página mais tarde.',
-            variant: 'default' 
+            variant: 'default'
           });
         }
       } catch (err) {
         console.error('Polling error:', err);
-        if (attempts < maxAttempts) {
-          setTimeout(poll, 5000);
-        }
+        if (isMountedRef.current && attempts < maxAttempts) schedule();
       }
     };
 
