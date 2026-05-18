@@ -107,7 +107,6 @@ const CLIENT_NAME_KEY = 'willflow_client_name';
 export default function VideoApproval() {
   const { token } = useParams<{ token: string }>();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const hlsRef = useRef<Hls | null>(null);
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const hideControlsTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
