@@ -129,9 +129,8 @@ export function useTopClients(projects: any[]): TopClientData[] {
 export function useSummaryMetrics(projects: any[], clients: any[]): SummaryMetrics {
   return useMemo(() => {
     const deliveredProjects = projects.filter((p: any) => p.is_delivered);
-    const totalRevenue = deliveredProjects.reduce((sum: number, p: any) => sum + (p.agreed_value || 0), 0);
-    const totalCosts = deliveredProjects.reduce((sum: number, p: any) =>
-      sum + (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0), 0);
+    const totalRevenue = deliveredProjects.reduce((sum: number, p: any) => sum + getProjectRevenue(p), 0);
+    const totalCosts = deliveredProjects.reduce((sum: number, p: any) => sum + getProjectCost(p), 0);
     const avgProjectValue = deliveredProjects.length > 0 ? totalRevenue / deliveredProjects.length : 0;
 
     return {
