@@ -14,11 +14,17 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      // We manage SW registration manually (see PWAUpdateListener) to avoid any implicit reloads
-      // when returning to the tab/window.
+      // Unified SW: workbox precaching + push handlers in src/sw.ts
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      // We manage SW registration manually (see PWAUpdateListener) to avoid implicit reloads.
       registerType: 'prompt',
       injectRegister: null,
       includeAssets: ['favicon.ico', 'pwa-icon.png'],
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+      },
       manifest: {
         name: 'WillFlow - Gestão de Projetos',
         short_name: 'WillFlow',
@@ -30,48 +36,11 @@ export default defineConfig(({ mode }) => ({
         start_url: '/auth',
         scope: '/',
         icons: [
-          {
-            src: '/pwa-icon.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any'
-          },
-          {
-            src: '/pwa-icon.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any'
-          },
-          {
-            src: '/pwa-icon.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable'
-          }
-        ]
+          { src: '/pwa-icon.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-icon.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-icon.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
       },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        // Disable automatic update on navigation
-        skipWaiting: false,
-        clientsClaim: false,
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-stylesheets'
-            }
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-webfonts'
-            }
-          }
-        ]
-      }
     })
   ].filter(Boolean),
   resolve: {
