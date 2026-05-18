@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { calculateChange } from '@/lib/finance/financialEngine';
 
 export interface MonthlyComparisonResult {
   currentValue: number;
@@ -19,14 +20,6 @@ export interface MonthlyComparisonOptions<T> {
   getValue: (item: T) => number;
   /** Optional: Reference date (defaults to now) */
   referenceDate?: Date;
-}
-
-/**
- * Calculate percentage change between two values
- */
-function calculateChange(current: number, previous: number): number | null {
-  if (previous === 0) return null;
-  return Math.round(((current - previous) / Math.abs(previous)) * 100);
 }
 
 /**
