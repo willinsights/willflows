@@ -32,14 +32,14 @@ import type {
  * avoiding the discrepancy where a project would show in "Meus Ganhos"
  * but not in the global "Lucro Previsto".
  */
-function getAnchorDate(project: FinancialProject): Date | null {
+export function getAnchorDate(project: FinancialProject): Date | null {
   const raw = project.delivery_date || project.shoot_date || project.created_at;
   return raw ? parseISO(raw) : null;
 }
 
 /** Returns the effective month for competence-based grouping.
  *  Priority: competence_month > delivered_at (start of month) */
-function getEffectiveMonth(project: FinancialProject): Date | null {
+export function getEffectiveMonth(project: FinancialProject): Date | null {
   if (project.competence_month) {
     return parseISO(project.competence_month + '-01');
   }
@@ -49,21 +49,38 @@ function getEffectiveMonth(project: FinancialProject): Date | null {
   return null;
 }
 
-function getProjectCost(p: FinancialProject): number {
+/** Total project cost = custo_captacao + custo_edicao + custos_extras. */
+export function getProjectCost(p: FinancialProject): number {
   return (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0);
 }
 
-function getProjectRevenue(p: FinancialProject): number {
+/** Project revenue (agreed value with the client). */
+export function getProjectRevenue(p: FinancialProject): number {
   return p.agreed_value || 0;
 }
 
-function isInMonth(date: Date | string | null, month: Date): boolean {
+/** Project profit = revenue − cost. */
+export function getProjectProfit(p: FinancialProject): number {
+  return getProjectRevenue(p) - getProjectCost(p);
+}
+
+/**
+ * Project margin (%) = profit / revenue × 100.
+ * Returns 0 when revenue is 0 to avoid division-by-zero in widgets.
+ */
+export function getProjectMargin(p: FinancialProject): number {
+  const revenue = getProjectRevenue(p);
+  if (revenue === 0) return 0;
+  return (getProjectProfit(p) / revenue) * 100;
+}
+
+export function isInMonth(date: Date | string | null, month: Date): boolean {
   if (!date) return false;
   const d = typeof date === 'string' ? parseISO(date) : date;
   return isSameMonth(d, month);
 }
 
-function monthInterval(month: Date) {
+export function monthInterval(month: Date) {
   return { start: startOfMonth(month), end: endOfMonth(month) };
 }
 
