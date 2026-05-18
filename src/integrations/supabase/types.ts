@@ -1675,6 +1675,7 @@ export type Database = {
           phase: Database["public"]["Enums"]["kanban_phase"]
           position: number
           updated_at: string
+          updated_by: string | null
           workspace_id: string
         }
         Insert: {
@@ -1686,6 +1687,7 @@ export type Database = {
           phase: Database["public"]["Enums"]["kanban_phase"]
           position?: number
           updated_at?: string
+          updated_by?: string | null
           workspace_id: string
         }
         Update: {
@@ -1697,6 +1699,7 @@ export type Database = {
           phase?: Database["public"]["Enums"]["kanban_phase"]
           position?: number
           updated_at?: string
+          updated_by?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -2612,6 +2615,7 @@ export type Database = {
           shoot_start_time: string | null
           type: Database["public"]["Enums"]["project_type"]
           updated_at: string
+          updated_by: string | null
           workspace_id: string
         }
         Insert: {
@@ -2658,6 +2662,7 @@ export type Database = {
           shoot_start_time?: string | null
           type: Database["public"]["Enums"]["project_type"]
           updated_at?: string
+          updated_by?: string | null
           workspace_id: string
         }
         Update: {
@@ -2704,6 +2709,7 @@ export type Database = {
           shoot_start_time?: string | null
           type?: Database["public"]["Enums"]["project_type"]
           updated_at?: string
+          updated_by?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -3245,6 +3251,7 @@ export type Database = {
           started_at: string | null
           title: string
           updated_at: string
+          updated_by: string | null
           workspace_id: string
         }
         Insert: {
@@ -3266,6 +3273,7 @@ export type Database = {
           started_at?: string | null
           title: string
           updated_at?: string
+          updated_by?: string | null
           workspace_id: string
         }
         Update: {
@@ -3287,6 +3295,7 @@ export type Database = {
           started_at?: string | null
           title?: string
           updated_at?: string
+          updated_by?: string | null
           workspace_id?: string
         }
         Relationships: [
