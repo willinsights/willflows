@@ -119,6 +119,46 @@ describe('getMonthlyMetrics — PREVISAO', () => {
     expect(metrics.revenue).toBe(900);
   });
 
+  it('uses created_at as last-resort anchor when delivery_date and shoot_date are null', () => {
+    // Project with no scheduled dates but created in June → must appear in PREVISAO for June.
+    const projects = [
+      makeProject({
+        id: 'p1',
+        delivery_date: null,
+        shoot_date: null,
+        created_at: '2025-06-08T12:00:00Z',
+        agreed_value: 1200,
+      }),
+    ];
+
+    const metrics = getMonthlyMetrics(projects, 'PREVISAO', JUN_2025);
+    expect(metrics.revenue).toBe(1200);
+    expect(metrics.projectCount).toBe(1);
+  });
+
+  it('does NOT include created_at-only projects in months other than their creation month', () => {
+    const projects = [
+      makeProject({
+        id: 'p1',
+        delivery_date: null,
+        shoot_date: null,
+        created_at: '2025-06-08T12:00:00Z',
+        is_delivered: false,
+        agreed_value: 999,
+      }),
+    ];
+
+    // July should only see this as rollover (not delivered, anchor before July).
+    const julyMetrics = getMonthlyMetrics(projects, 'PREVISAO', JUL_2025);
+    expect(julyMetrics.revenue).toBe(999);
+    expect(julyMetrics.breakdown?.rolloverCount).toBe(1);
+
+    // May (before creation) should not see it at all.
+    const mayMetrics = getMonthlyMetrics(projects, 'PREVISAO', MAY_2025);
+    expect(mayMetrics.revenue).toBe(0);
+    expect(mayMetrics.projectCount).toBe(0);
+  });
+
   it('rolls over undelivered projects from past months', () => {
     const projects = [
       makeProject({

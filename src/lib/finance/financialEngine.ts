@@ -20,8 +20,20 @@ import type {
 
 // === Helpers ===
 
+/**
+ * Anchor date used for forecast / planning (PREVISAO + summary).
+ *
+ * Priority: delivery_date → shoot_date → created_at.
+ *
+ * `created_at` is included as the last fallback so projects without
+ * scheduled dates still appear in the forecast for the month they were
+ * created in. This keeps `useFinancialEngine` (global financial widgets)
+ * aligned with `useCollaboratorForecast` (personal earnings widget),
+ * avoiding the discrepancy where a project would show in "Meus Ganhos"
+ * but not in the global "Lucro Previsto".
+ */
 function getAnchorDate(project: FinancialProject): Date | null {
-  const raw = project.delivery_date || project.shoot_date;
+  const raw = project.delivery_date || project.shoot_date || project.created_at;
   return raw ? parseISO(raw) : null;
 }
 
