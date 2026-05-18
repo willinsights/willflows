@@ -353,7 +353,8 @@ export function useKanban(phase: KanbanPhase) {
         {
           event: '*',
           schema: 'public',
-          table: 'task_checklists'
+          table: 'task_checklists',
+          filter: `workspace_id=eq.${currentWorkspace.id}`
         },
         handleChecklistChange
       )
@@ -362,7 +363,8 @@ export function useKanban(phase: KanbanPhase) {
         {
           event: '*',
           schema: 'public',
-          table: 'project_team'
+          table: 'project_team',
+          filter: `workspace_id=eq.${currentWorkspace.id}`
         },
         handleTeamChange
       )
