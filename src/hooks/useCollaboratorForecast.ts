@@ -2,7 +2,13 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { format, parseISO, subMonths } from 'date-fns';
+import { isBefore, startOfMonth, subMonths } from 'date-fns';
+import {
+  getAnchorDate,
+  isInMonth,
+  calculateChange,
+} from '@/lib/finance/financialEngine';
+import type { FinancialProject } from '@/lib/finance/types';
 
 export interface CollaboratorForecastData {
   pendingAmount: number;
@@ -14,11 +20,6 @@ export interface CollaboratorForecastData {
   paidChange: number | null;
   totalChange: number | null;
   loading: boolean;
-}
-
-function calculateChange(current: number, previous: number): number | null {
-  if (previous === 0) return null;
-  return Math.round(((current - previous) / Math.abs(previous)) * 100);
 }
 
 export function useCollaboratorForecast(selectedMonth: Date): CollaboratorForecastData {
@@ -40,10 +41,10 @@ export function useCollaboratorForecast(selectedMonth: Date): CollaboratorForeca
 
     const fetchForecast = async () => {
       setData(prev => ({ ...prev, loading: true }));
-      
-      const monthKey = format(selectedMonth, 'yyyy-MM');
+
       const previousMonth = subMonths(selectedMonth, 1);
-      const previousMonthKey = format(previousMonth, 'yyyy-MM');
+      const selectedMonthStart = startOfMonth(selectedMonth);
+      const previousMonthStart = startOfMonth(previousMonth);
 
       // Fetch team payments for the current user
       const { data: teamPayments } = await supabase
@@ -55,57 +56,50 @@ export function useCollaboratorForecast(selectedMonth: Date): CollaboratorForeca
         .eq('user_id', user.id)
         .eq('projects.workspace_id', currentWorkspace.id);
 
-      // Calculate totals for selected month
+      // Totals
       let pendingAmount = 0;
       let paidAmount = 0;
       let projectCount = 0;
       const projectIds = new Set<string>();
 
-      // Calculate totals for previous month
       let prevPending = 0;
       let prevPaid = 0;
 
       teamPayments?.forEach((payment: any) => {
-        const project = payment.projects;
-        // Determine anchor date (delivery_date → shoot_date → created_at)
-        const anchorDate = project.delivery_date || project.shoot_date || project.created_at;
+        const project = payment.projects as Partial<FinancialProject> | null;
+        if (!project) return;
+
+        // Use the shared anchor date rule (delivery_date → shoot_date → created_at)
+        const anchorDate = getAnchorDate(project as FinancialProject);
         if (!anchorDate) return;
 
-        // Normalize to date only (created_at includes timestamp)
-        const dateString = typeof anchorDate === 'string' && anchorDate.includes('T') 
-          ? anchorDate.split('T')[0] 
-          : anchorDate;
-        const projectMonth = format(parseISO(dateString), 'yyyy-MM');
         const paymentAmount = payment.payment_amount || 0;
         const isPaid = payment.payment_status === 'pago';
+        const anchorMonthStart = startOfMonth(anchorDate);
 
-        // Include in selected month if: month matches OR rollover (delayed + not delivered)
-        const isInMonth = projectMonth === monthKey;
-        const isRollover = !project.is_delivered && projectMonth < monthKey;
+        // Selected month bucket: matches month OR rollover (delayed + not delivered)
+        const inSelected = isInMonth(anchorDate, selectedMonth);
+        const rolloverSelected =
+          !project.is_delivered && isBefore(anchorMonthStart, selectedMonthStart);
 
-        if (isInMonth || isRollover) {
-          if (isPaid) {
-            paidAmount += paymentAmount;
-          } else {
-            pendingAmount += paymentAmount;
-          }
-          // Count unique projects
+        if (inSelected || rolloverSelected) {
+          if (isPaid) paidAmount += paymentAmount;
+          else pendingAmount += paymentAmount;
+
           if (!projectIds.has(payment.project_id)) {
             projectIds.add(payment.project_id);
             projectCount++;
           }
         }
 
-        // Include in previous month if: month matches OR rollover
-        const isInPrevMonth = projectMonth === previousMonthKey;
-        const isPrevRollover = !project.is_delivered && projectMonth < previousMonthKey;
+        // Previous month bucket: same logic vs. previous month
+        const inPrev = isInMonth(anchorDate, previousMonth);
+        const rolloverPrev =
+          !project.is_delivered && isBefore(anchorMonthStart, previousMonthStart);
 
-        if (isInPrevMonth || isPrevRollover) {
-          if (isPaid) {
-            prevPaid += paymentAmount;
-          } else {
-            prevPending += paymentAmount;
-          }
+        if (inPrev || rolloverPrev) {
+          if (isPaid) prevPaid += paymentAmount;
+          else prevPending += paymentAmount;
         }
       });
 
