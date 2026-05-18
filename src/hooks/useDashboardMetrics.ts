@@ -315,10 +315,7 @@ export function useDashboardMetrics() {
         : 0;
       
       const projectsWithRevenue = deliveredProjects.filter(p => p.agreed_value && p.agreed_value > 0);
-      const margins = projectsWithRevenue.map(p => {
-        const projectCosts = (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0);
-        return ((p.agreed_value! - projectCosts) / p.agreed_value!) * 100;
-      });
+      const margins = projectsWithRevenue.map(p => getProjectMargin(p as any));
       const avgMargin = margins.length > 0
         ? Math.round(margins.reduce((sum, m) => sum + m, 0) / margins.length)
         : 0;
