@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 
 const USER_ID = 'user-1';
 const OTHER_USER_ID = 'user-2';
