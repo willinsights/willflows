@@ -157,6 +157,7 @@ describe('getMonthlyMetrics — PREVISAO', () => {
     const mayMetrics = getMonthlyMetrics(projects, 'PREVISAO', MAY_2025);
     expect(mayMetrics.revenue).toBe(0);
     expect(mayMetrics.projectCount).toBe(0);
+  });
 
   it('rolls over undelivered projects from past months', () => {
     const projects = [
