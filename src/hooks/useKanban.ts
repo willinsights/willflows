@@ -149,194 +149,38 @@ export function useKanban(phase: KanbanPhase) {
   };
 
   // Core data fetching logic - shared between fetchColumns and silentRefresh
+  // C-1: Uses single RPC get_kanban_board instead of 6+ sequential queries
   const fetchColumnsData = useCallback(async (): Promise<KanbanColumnWithProjects[] | null> => {
     if (!currentWorkspace?.id || fetchError) return null;
+    if (!userId) return null;
     if (isFetchingRef.current) return null;
-    
+
     try {
       isFetchingRef.current = true;
-      
-      // Fetch columns for this phase
-      const { data: columnsData, error: columnsError } = await supabase
-        .from('kanban_columns')
-        .select('*')
-        .eq('workspace_id', currentWorkspace.id)
-        .eq('phase', phase)
-        .order('position', { ascending: true });
 
-      if (columnsError) throw columnsError;
+      const { data, error } = await supabase.rpc('get_kanban_board', {
+        p_workspace_id: currentWorkspace.id,
+        p_phase: phase,
+        p_user_id: userId,
+        p_is_collaborator: isCollaborator,
+      });
 
-      // Fetch projects for this phase (exclude reuniões - they only appear in calendar)
-      const columnField = phase === 'captacao' ? 'captacao_column_id' : 'edicao_column_id';
-      
-      // For freelancers, first get project IDs they're assigned to
-      let assignedProjectIds: string[] | null = null;
-      if (isCollaborator && userId) {
-        const { data: assignedProjects } = await supabase
-          .from('project_team')
-          .select('project_id')
-          .eq('user_id', userId);
-        assignedProjectIds = assignedProjects?.map(p => p.project_id) || [];
-      }
-      
-      let projectsQuery = supabase
-        .from('projects')
-        .select('*, clients(name)')
-        .eq('workspace_id', currentWorkspace.id)
-        .eq('current_phase', phase)
-        .neq('item_type', 'reuniao'); // P1.7: Reuniões só aparecem no calendário
-      
-      // Filter by assigned projects for collaborators
-      if (isCollaborator && assignedProjectIds !== null) {
-        if (assignedProjectIds.length === 0) {
-          // No assigned projects - return empty columns
-          const columnsWithProjects: KanbanColumnWithProjects[] = (columnsData || []).map(column => ({
-            ...column,
-            projects: [],
-          }));
-          return columnsWithProjects;
-        }
-        projectsQuery = projectsQuery.in('id', assignedProjectIds);
-      }
-      
-      const { data: projectsData, error: projectsError } = await projectsQuery;
+      if (error) throw error;
 
-      if (projectsError) throw projectsError;
+      const result = data as { columns?: KanbanColumnWithProjects[] } | null;
+      const columnsWithProjects: KanbanColumnWithProjects[] = (result?.columns || []).map((col) => ({
+        ...col,
+        projects: (col.projects || []).slice().sort((a, b) => {
+          const isUrgentA = a.priority === 'alta' || a.priority === 'urgente';
+          const isUrgentB = b.priority === 'alta' || b.priority === 'urgente';
 
-      // Fetch task counts for projects (filtered by current phase)
-      const projectIds = projectsData?.map(p => p.id) || [];
-      let taskCounts: Record<string, { total: number; completed: number }> = {};
-      let checklistCounts: Record<string, { total: number; completed: number }> = {};
-      let teamByProject: Record<string, TeamMember[]> = {};
-      let approvedProjectIds = new Set<string>();
-      
-      if (projectIds.length > 0) {
-        // Fetch ALL tasks for projects (to show total progress on card, regardless of phase)
-        const { data: tasksData } = await supabase
-          .from('tasks')
-          .select('id, project_id, is_completed, phase')
-          .in('project_id', projectIds);
+          if (isUrgentA && !isUrgentB) return -1;
+          if (!isUrgentA && isUrgentB) return 1;
 
-        if (tasksData) {
-          tasksData.forEach(task => {
-            if (!taskCounts[task.project_id]) {
-              taskCounts[task.project_id] = { total: 0, completed: 0 };
-            }
-            taskCounts[task.project_id].total++;
-            if (task.is_completed) {
-              taskCounts[task.project_id].completed++;
-            }
-          });
-
-          // Fetch ALL checklists for all tasks (to show complete project progress)
-          const taskIds = tasksData.map(t => t.id);
-          if (taskIds.length > 0) {
-            const { data: checklistsData } = await supabase
-              .from('task_checklists')
-              .select('id, task_id, is_completed')
-              .in('task_id', taskIds);
-
-            if (checklistsData) {
-              // Map task_id to project_id
-              const taskToProject = new Map(tasksData.map(t => [t.id, t.project_id]));
-              
-              checklistsData.forEach(checklist => {
-                const projectId = taskToProject.get(checklist.task_id);
-                if (projectId) {
-                  if (!checklistCounts[projectId]) {
-                    checklistCounts[projectId] = { total: 0, completed: 0 };
-                  }
-                  checklistCounts[projectId].total++;
-                  if (checklist.is_completed) {
-                    checklistCounts[projectId].completed++;
-                  }
-                }
-              });
-            }
-          }
-        }
-
-        // Fetch team members with profiles (only those with user_id, not pending invitations)
-        const { data: teamData } = await supabase
-          .from('project_team')
-          .select('project_id, user_id, phase')
-          .in('project_id', projectIds)
-          .not('user_id', 'is', null);
-
-        if (teamData && teamData.length > 0) {
-          // Get unique user IDs
-          const userIds = [...new Set(teamData.map(t => t.user_id))];
-          
-          // Fetch profiles for all team members
-          const { data: profilesData } = await supabase
-            .from('profiles')
-            .select('id, full_name, avatar_url, email')
-            .in('id', userIds);
-
-          const profilesMap = new Map(
-            profilesData?.map(p => [p.id, { full_name: p.full_name, avatar_url: p.avatar_url, email: p.email }]) || []
-          );
-
-          // Group by project
-          teamData.forEach(member => {
-            if (!teamByProject[member.project_id]) {
-              teamByProject[member.project_id] = [];
-            }
-            teamByProject[member.project_id].push({
-              user_id: member.user_id,
-              phase: member.phase,
-              profile: profilesMap.get(member.user_id) || null,
-            });
-          });
-        }
-
-        // Fetch approved video status for projects
-        const { data: approvedData } = await supabase
-          .from('video_approvals')
-          .select('project_id')
-          .in('project_id', projectIds)
-          .not('project_id', 'is', null);
-
-        approvedProjectIds = new Set(
-          approvedData?.map(a => a.project_id).filter((id): id is string => id !== null) || []
-        );
-      }
-
-      // Map projects to columns with task counts and team members
-      // Sort urgent projects by delivery date (closest first)
-      const columnsWithProjects: KanbanColumnWithProjects[] = (columnsData || []).map(column => ({
-        ...column,
-        projects: (projectsData || [])
-          .filter(project => project[columnField] === column.id)
-          .map(project => ({
-            ...project,
-            task_count: taskCounts[project.id]?.total || 0,
-            task_completed: taskCounts[project.id]?.completed || 0,
-            checklist_count: checklistCounts[project.id]?.total || 0,
-            checklist_completed: checklistCounts[project.id]?.completed || 0,
-            team_members: teamByProject[project.id] || [],
-            has_approved_video: approvedProjectIds.has(project.id),
-          }))
-          .sort((a, b) => {
-            const isUrgentA = a.priority === 'alta' || a.priority === 'urgente';
-            const isUrgentB = b.priority === 'alta' || b.priority === 'urgente';
-            
-            // Urgent projects come first
-            if (isUrgentA && !isUrgentB) return -1;
-            if (!isUrgentA && isUrgentB) return 1;
-            
-            // Among urgent projects, sort by delivery date (closest first)
-            if (isUrgentA && isUrgentB) {
-              const dateA = a.delivery_date ? new Date(a.delivery_date).getTime() : Infinity;
-              const dateB = b.delivery_date ? new Date(b.delivery_date).getTime() : Infinity;
-              return dateA - dateB;
-            }
-            
-            // Non-urgent: sort by delivery date (closest first), no date goes to bottom
-            const dateA = a.delivery_date ? new Date(a.delivery_date).getTime() : Infinity;
-            const dateB = b.delivery_date ? new Date(b.delivery_date).getTime() : Infinity;
-            return dateA - dateB;
-          }),
+          const dateA = a.delivery_date ? new Date(a.delivery_date).getTime() : Infinity;
+          const dateB = b.delivery_date ? new Date(b.delivery_date).getTime() : Infinity;
+          return dateA - dateB;
+        }),
       }));
 
       return columnsWithProjects;
