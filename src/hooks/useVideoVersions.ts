@@ -44,6 +44,20 @@ export function useVideoVersions(
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [processingVersionId, setProcessingVersionId] = useState<string | null>(null);
+
+  // Track polling timers so we can clear them on unmount
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (pollTimerRef.current) {
+        clearTimeout(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+    };
+  }, []);
   const { toast } = useToast();
   const { user } = useAuth();
   const { storage, addStorageUsed, removeStorageUsed } = useWorkspaceStorage();
