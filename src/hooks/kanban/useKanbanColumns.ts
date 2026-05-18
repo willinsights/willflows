@@ -38,13 +38,13 @@ export function useKanbanColumns({ phase, columns, setColumns, fetchColumns }: P
     setColumns(updatedColumns);
 
     try {
-      for (const update of updatedColumns) {
-        const { error } = await supabase
-          .from('kanban_columns')
-          .update({ position: update.position, updated_at: new Date().toISOString() })
-          .eq('id', update.id);
-        if (error) throw error;
-      }
+      // Single RPC call instead of N sequential UPDATEs
+      const { error } = await supabase.rpc('reorder_kanban_columns', {
+        p_workspace_id: currentWorkspace.id,
+        p_phase: phase,
+        p_positions: updatedColumns.map(c => ({ id: c.id, position: c.position })),
+      });
+      if (error) throw error;
     } catch (error) {
       handleDatabaseError('reorderColumns', error);
       fetchColumns();
