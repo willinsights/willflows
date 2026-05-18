@@ -42,18 +42,37 @@ import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { cn } from '@/lib/utils';
 import type { ProjectWithClient } from '@/hooks/useKanban';
 import type { Tables } from '@/integrations/supabase/types';
-import { ProjectChecklistTab } from './ProjectChecklistTab';
-import { ProjectMediaTab } from './ProjectMediaTab';
-import { ProjectFinancialTab } from './ProjectFinancialTab';
-import { ProjectTimelineTab } from './ProjectTimelineTab';
+// Lazy-loaded tab panels — only fetched when the user opens that tab.
+// Reduces initial JS for ProjectDetailsSheet open and avoids paying for
+// tabs the user never visits (Financeiro, Review Studio, Tempo, etc.).
+const ProjectChecklistTab = lazy(() =>
+  import('./ProjectChecklistTab').then((m) => ({ default: m.ProjectChecklistTab }))
+);
+const ProjectMediaTab = lazy(() =>
+  import('./ProjectMediaTab').then((m) => ({ default: m.ProjectMediaTab }))
+);
+const ProjectFinancialTab = lazy(() =>
+  import('./ProjectFinancialTab').then((m) => ({ default: m.ProjectFinancialTab }))
+);
+const ProjectTimelineTab = lazy(() =>
+  import('./ProjectTimelineTab').then((m) => ({ default: m.ProjectTimelineTab }))
+);
 import { ChecklistPendingAlert } from './ChecklistPendingAlert';
 import { DeliverConfirmDialog } from '@/components/kanban/DeliverConfirmDialog';
 import { useConversations } from '@/hooks/useConversations';
 import { useAuth } from '@/contexts/AuthContext';
-import { VideoProductionTab } from '@/components/video-production/VideoProductionTab';
+const VideoProductionTab = lazy(() =>
+  import('@/components/video-production/VideoProductionTab').then((m) => ({
+    default: m.VideoProductionTab,
+  }))
+);
 import { CreateEventModal } from '@/components/calendar/CreateEventModal';
 import { useCalendarEvents } from '@/hooks/useCalendarEvents';
-import { ProjectTimeTab } from '@/components/time-tracking/ProjectTimeTab';
+const ProjectTimeTab = lazy(() =>
+  import('@/components/time-tracking/ProjectTimeTab').then((m) => ({
+    default: m.ProjectTimeTab,
+  }))
+);
 
 import { logger } from '@/lib/logger';
 type Task = Tables<'tasks'>;
