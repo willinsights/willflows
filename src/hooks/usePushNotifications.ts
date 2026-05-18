@@ -58,44 +58,27 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     'serviceWorker' in navigator && 
     'PushManager' in window;
 
-  // Use the main service worker for push - this allows background push to work
+  // Unified SW: push handlers live in the same /sw.js registered by VitePWA.
+  // We just wait for it to be ready (PWAUpdateListener registers it on app boot).
   const getOrRegisterPushSW = useCallback(async (): Promise<ServiceWorkerRegistration | null> => {
     if (!isSupported) return null;
 
     try {
-      // First check for existing sw-push.js registration
+      // Prefer the already-registered unified SW
       const registrations = await navigator.serviceWorker.getRegistrations();
-      let existing = registrations.find((r) => r.active?.scriptURL?.endsWith('/sw-push.js'));
-      
+      const existing = registrations.find(
+        (r) => r.active?.scriptURL?.endsWith('/sw.js') || r.active?.scriptURL?.includes('workbox'),
+      );
       if (existing) {
-        if (import.meta.env.DEV) console.log('[Push] Found existing sw-push.js registration:', existing.scope);
+        if (import.meta.env.DEV) console.log('[Push] Using unified SW:', existing.scope);
         return existing;
       }
 
-      // Also check for sw.js (Vite PWA) - we can use it for push too
-      const pwaRegistration = registrations.find((r) => 
-        r.active?.scriptURL?.endsWith('/sw.js') || 
-        r.active?.scriptURL?.includes('workbox')
-      );
-      
-      if (pwaRegistration) {
-        if (import.meta.env.DEV) console.log('[Push] Using PWA service worker for push:', pwaRegistration.scope);
-        return pwaRegistration;
-      }
-
-      // Register sw-push.js with root scope for background push to work
-      if (import.meta.env.DEV) console.log('[Push] Registering sw-push.js...');
-      const registration = await navigator.serviceWorker.register('/sw-push.js', {
-        scope: '/',
-      });
-      
-      // Wait for the service worker to be ready
-      await navigator.serviceWorker.ready;
-      if (import.meta.env.DEV) console.log('[Push] Service worker registered and ready:', registration.scope);
-      
-      return registration;
+      // Fallback: wait for the SW that PWAUpdateListener is registering
+      const ready = await navigator.serviceWorker.ready;
+      return ready;
     } catch (error) {
-      console.error('[Push] SW registration failed:', error);
+      console.error('[Push] SW lookup failed:', error);
       return null;
     }
   }, [isSupported]);
