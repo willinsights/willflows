@@ -62,7 +62,7 @@ const OVERSCAN_COUNT = 3;
 // Minimum projects to enable virtualization
 const VIRTUALIZATION_THRESHOLD = 10;
 
-export function KanbanColumn({ column, onUpdateColumn, onDeleteColumn, onAddProject, onProjectClick, isDragging, isOverlay }: KanbanColumnProps) {
+function KanbanColumnComponent({ column, onUpdateColumn, onDeleteColumn, onAddProject, onProjectClick, isDragging, isOverlay }: KanbanColumnProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(column.name);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
