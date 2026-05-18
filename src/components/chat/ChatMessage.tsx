@@ -52,7 +52,7 @@ interface ChatMessageProps {
   isOnline?: boolean;
 }
 
-export function ChatMessage({
+function ChatMessageComponent({
   message,
   onOpenThread,
   onToggleReaction,
