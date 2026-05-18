@@ -340,12 +340,29 @@ export function useMessages(conversationId: string | undefined) {
         }
       )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'message_reactions' },
-        () => {
+        (payload) => {
+          // Filter client-side: only invalidate if the reaction belongs to a message in this conversation
+          const reaction = (payload.new ?? payload.old) as any;
+          if (!reaction?.message_id) return;
+          const currentData = queryClient.getQueryData(['messages', conversationId]) as any;
+          if (!currentData?.pages) return;
+          const messageIds = new Set(
+            currentData.pages.flatMap((p: any) => p.messages.map((m: any) => m.id))
+          );
+          if (!messageIds.has(reaction.message_id)) return;
           queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
         }
       )
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'message_reads' },
-        () => {
+        (payload) => {
+          const read = payload.new as any;
+          if (!read?.message_id) return;
+          const currentData = queryClient.getQueryData(['messages', conversationId]) as any;
+          if (!currentData?.pages) return;
+          const messageIds = new Set(
+            currentData.pages.flatMap((p: any) => p.messages.map((m: any) => m.id))
+          );
+          if (!messageIds.has(read.message_id)) return;
           queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
         }
       )
