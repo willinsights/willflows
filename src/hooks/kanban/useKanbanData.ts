@@ -9,13 +9,13 @@ import { logger } from '@/lib/logger';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import {
   debounce,
-  LOCAL_ECHO_TTL_MS,
   type KanbanColumn,
   type KanbanColumnWithProjects,
   type KanbanPhase,
   type Project,
   type Task,
 } from './types';
+import { isOwnEcho } from './echoSuppression';
 
 /**
  * Loads the Kanban board (RPC get_kanban_board), keeps it fresh via realtime,
