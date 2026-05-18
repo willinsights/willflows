@@ -125,6 +125,7 @@ export default function Dashboard() {
       workspace_id: currentWorkspace?.id || '',
       created_at: '',
       updated_at: '',
+      updated_by: null,
       category: 'outro',
       clients: { name: project.client },
       delivery_date: project.date || null,
