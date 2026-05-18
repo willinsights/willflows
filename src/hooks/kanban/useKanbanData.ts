@@ -191,7 +191,7 @@ export function useKanbanData(phase: KanbanPhase) {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [currentWorkspace?.id, phase, debouncedSilentRefresh, isLocalEcho]);
+  }, [currentWorkspace?.id, phase, debouncedSilentRefresh, isLocalEcho, userId]);
 
   return {
     columns,
