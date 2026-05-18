@@ -22,6 +22,7 @@ import { useHideValues } from '@/hooks/useHideValues';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { paymentStatusLabels as statusLabels, paymentStatusColors as statusColors } from '@/lib/finance/constants';
+import { getProjectCost, getProjectRevenue, getProjectProfit, getProjectMargin } from '@/lib/finance/financialEngine';
 
 interface Client {
   id: string;
