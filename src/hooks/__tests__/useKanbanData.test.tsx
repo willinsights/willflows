@@ -23,7 +23,7 @@ vi.mock('@/lib/logger', () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-const rpcMock = vi.fn(() => Promise.resolve({ data: { columns: [] }, error: null }));
+const rpcMock = vi.fn((..._args: unknown[]) => Promise.resolve({ data: { columns: [] }, error: null }));
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
