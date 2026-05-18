@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -42,18 +42,37 @@ import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { cn } from '@/lib/utils';
 import type { ProjectWithClient } from '@/hooks/useKanban';
 import type { Tables } from '@/integrations/supabase/types';
-import { ProjectChecklistTab } from './ProjectChecklistTab';
-import { ProjectMediaTab } from './ProjectMediaTab';
-import { ProjectFinancialTab } from './ProjectFinancialTab';
-import { ProjectTimelineTab } from './ProjectTimelineTab';
+// Lazy-loaded tab panels — only fetched when the user opens that tab.
+// Reduces initial JS for ProjectDetailsSheet open and avoids paying for
+// tabs the user never visits (Financeiro, Review Studio, Tempo, etc.).
+const ProjectChecklistTab = lazy(() =>
+  import('./ProjectChecklistTab').then((m) => ({ default: m.ProjectChecklistTab }))
+);
+const ProjectMediaTab = lazy(() =>
+  import('./ProjectMediaTab').then((m) => ({ default: m.ProjectMediaTab }))
+);
+const ProjectFinancialTab = lazy(() =>
+  import('./ProjectFinancialTab').then((m) => ({ default: m.ProjectFinancialTab }))
+);
+const ProjectTimelineTab = lazy(() =>
+  import('./ProjectTimelineTab').then((m) => ({ default: m.ProjectTimelineTab }))
+);
 import { ChecklistPendingAlert } from './ChecklistPendingAlert';
 import { DeliverConfirmDialog } from '@/components/kanban/DeliverConfirmDialog';
 import { useConversations } from '@/hooks/useConversations';
 import { useAuth } from '@/contexts/AuthContext';
-import { VideoProductionTab } from '@/components/video-production/VideoProductionTab';
+const VideoProductionTab = lazy(() =>
+  import('@/components/video-production/VideoProductionTab').then((m) => ({
+    default: m.VideoProductionTab,
+  }))
+);
 import { CreateEventModal } from '@/components/calendar/CreateEventModal';
 import { useCalendarEvents } from '@/hooks/useCalendarEvents';
-import { ProjectTimeTab } from '@/components/time-tracking/ProjectTimeTab';
+const ProjectTimeTab = lazy(() =>
+  import('@/components/time-tracking/ProjectTimeTab').then((m) => ({
+    default: m.ProjectTimeTab,
+  }))
+);
 
 import { logger } from '@/lib/logger';
 type Task = Tables<'tasks'>;
@@ -648,64 +667,72 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
               </TabsContent>
 
               <TabsContent value="checklist" className="space-y-4 py-4">
-                <ProjectChecklistTab
-                  checklists={checklists}
-                  setChecklists={setChecklists}
-                  tasks={tasks}
-                  setTasks={setTasks}
-                  projectId={project.id}
-                  workspaceId={project.workspace_id}
-                  currentPhase={project.current_phase}
-                  itemType={(project.item_type as 'projeto_captacao' | 'projeto_edicao' | 'projeto_completo' | 'reuniao') || 'projeto_completo'}
-                />
+                <Suspense fallback={<TabLoadingFallback />}>
+                  <ProjectChecklistTab
+                    checklists={checklists}
+                    setChecklists={setChecklists}
+                    tasks={tasks}
+                    setTasks={setTasks}
+                    projectId={project.id}
+                    workspaceId={project.workspace_id}
+                    currentPhase={project.current_phase}
+                    itemType={(project.item_type as 'projeto_captacao' | 'projeto_edicao' | 'projeto_completo' | 'reuniao') || 'projeto_completo'}
+                  />
+                </Suspense>
               </TabsContent>
 
               <TabsContent value="timeline" className="space-y-4 py-4">
-                <ProjectTimelineTab
-                  projectId={project.id}
-                  workspaceId={project.workspace_id}
-                />
+                <Suspense fallback={<TabLoadingFallback />}>
+                  <ProjectTimelineTab
+                    projectId={project.id}
+                    workspaceId={project.workspace_id}
+                  />
+                </Suspense>
               </TabsContent>
 
               <TabsContent value="media" className="space-y-4 py-4">
-                <ProjectMediaTab
-                  mediaLinks={mediaLinks}
-                  setMediaLinks={setMediaLinks}
-                  projectId={project.id}
-                  driveUrl={project.drive_folder_url}
-                  dropboxUrl={project.dropbox_folder_url}
-                />
+                <Suspense fallback={<TabLoadingFallback />}>
+                  <ProjectMediaTab
+                    mediaLinks={mediaLinks}
+                    setMediaLinks={setMediaLinks}
+                    projectId={project.id}
+                    driveUrl={project.drive_folder_url}
+                    dropboxUrl={project.dropbox_folder_url}
+                  />
+                </Suspense>
               </TabsContent>
 
               {canViewOwnFinancials && (
                 <TabsContent value="financial" className="space-y-4 py-4">
-                  <ProjectFinancialTab
-                    projectId={project.id}
-                    project={{
-                      agreed_value: project.agreed_value,
-                      custo_captacao: project.custo_captacao,
-                      custo_edicao: project.custo_edicao,
-                      custos_extras: (project as any).custos_extras,
-                      custos_extras_payment_status: (project as any).custos_extras_payment_status,
-                      client_id: project.client_id,
-                      delivery_date: project.delivery_date,
-                      is_delivered: project.is_delivered,
-                      delivered_at: project.delivered_at,
-                      client_payment_status: project.client_payment_status,
-                      client_payment_due_date: project.client_payment_due_date,
-                    }}
-                    projectTeam={projectTeam}
-                    workspaceMembers={workspaceMembers}
-                    isEditing={isEditing}
-                    editForm={{
-                      agreed_value: editForm.agreed_value,
-                      custo_captacao: editForm.custo_captacao,
-                      custo_edicao: editForm.custo_edicao,
-                      custos_extras: editForm.custos_extras,
-                    }}
-                    setEditForm={setEditForm}
-                    onTeamPaymentUpdate={fetchRelatedData}
-                  />
+                  <Suspense fallback={<TabLoadingFallback />}>
+                    <ProjectFinancialTab
+                      projectId={project.id}
+                      project={{
+                        agreed_value: project.agreed_value,
+                        custo_captacao: project.custo_captacao,
+                        custo_edicao: project.custo_edicao,
+                        custos_extras: (project as any).custos_extras,
+                        custos_extras_payment_status: (project as any).custos_extras_payment_status,
+                        client_id: project.client_id,
+                        delivery_date: project.delivery_date,
+                        is_delivered: project.is_delivered,
+                        delivered_at: project.delivered_at,
+                        client_payment_status: project.client_payment_status,
+                        client_payment_due_date: project.client_payment_due_date,
+                      }}
+                      projectTeam={projectTeam}
+                      workspaceMembers={workspaceMembers}
+                      isEditing={isEditing}
+                      editForm={{
+                        agreed_value: editForm.agreed_value,
+                        custo_captacao: editForm.custo_captacao,
+                        custo_edicao: editForm.custo_edicao,
+                        custos_extras: editForm.custos_extras,
+                      }}
+                      setEditForm={setEditForm}
+                      onTeamPaymentUpdate={fetchRelatedData}
+                    />
+                  </Suspense>
                 </TabsContent>
               )}
 
@@ -722,18 +749,23 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
                       </p>
                     </div>
                   ) : (
-                    <VideoProductionTab
-                      taskId={selectedVideoTaskId}
-                      projectId={project.id}
-                      workspaceId={project.workspace_id}
-                    />
+                    <Suspense fallback={<TabLoadingFallback />}>
+                      <VideoProductionTab
+                        taskId={selectedVideoTaskId}
+                        projectId={project.id}
+                        workspaceId={project.workspace_id}
+                      />
+                    </Suspense>
                   )}
                 </TabsContent>
               )}
 
               <TabsContent value="tempo" className="space-y-4 py-4">
-                <ProjectTimeTab projectId={project.id} />
+                <Suspense fallback={<TabLoadingFallback />}>
+                  <ProjectTimeTab projectId={project.id} />
+                </Suspense>
               </TabsContent>
+
 
             </ScrollArea>
           </Tabs>
@@ -1305,6 +1337,14 @@ function ViewModeContent({
         </div>
       )}
     </>
+  );
+}
+
+function TabLoadingFallback() {
+  return (
+    <div className="flex items-center justify-center py-10">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    </div>
   );
 }
 
