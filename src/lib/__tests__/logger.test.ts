@@ -6,7 +6,7 @@ const METHODS: ConsoleMethod[] = ['debug', 'info', 'log', 'warn', 'error'];
 
 async function loadLogger(devMode: boolean) {
   vi.resetModules();
-  vi.stubEnv('DEV', devMode ? 'true' : '');
+  vi.stubEnv('DEV', devMode);
   // Re-import with the new env so the module-level `isDev` is recomputed.
   const mod = await import('../logger');
   return mod.logger;
