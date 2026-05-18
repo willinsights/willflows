@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { memo, useState, useEffect } from 'react';
 import { linkifyText } from '@/lib/linkify';
 import { format, formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
