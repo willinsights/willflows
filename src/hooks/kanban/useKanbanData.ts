@@ -140,20 +140,11 @@ export function useKanbanData(phase: KanbanPhase) {
 
     const channelName = `kanban-realtime-${currentWorkspace.id}-${phase}`;
 
-    const isOwnUpdate = (
-      newData: { updated_by?: string | null } | undefined,
-      oldData: { updated_by?: string | null } | undefined,
-    ) => {
-      if (!userId) return false;
-      const stamp = newData?.updated_by ?? oldData?.updated_by;
-      return stamp === userId;
-    };
-
     const handleProjectChange = (payload: RealtimePostgresChangesPayload<Project>) => {
       const newData = payload.new as Project | undefined;
       const oldData = payload.old as Partial<Project> | undefined;
       const recordId = newData?.id || (oldData?.id as string | undefined);
-      if (isOwnUpdate(newData, oldData) || isLocalEcho(recordId)) return;
+      if (shouldSuppress(newData, oldData, recordId)) return;
       const relevantPhase = newData?.current_phase || oldData?.current_phase;
       if (relevantPhase === phase || oldData?.current_phase === phase) {
         logger.debug('[Kanban Realtime] Project change:', payload.eventType);
@@ -165,7 +156,7 @@ export function useKanbanData(phase: KanbanPhase) {
       const newData = payload.new as KanbanColumn | undefined;
       const oldData = payload.old as Partial<KanbanColumn> | undefined;
       const recordId = newData?.id || (oldData?.id as string | undefined);
-      if (isOwnUpdate(newData, oldData) || isLocalEcho(recordId)) return;
+      if (shouldSuppress(newData, oldData, recordId)) return;
       const relevantPhase = newData?.phase || oldData?.phase;
       if (relevantPhase === phase) debouncedSilentRefresh();
     };
@@ -174,7 +165,7 @@ export function useKanbanData(phase: KanbanPhase) {
       const newData = payload.new as Task | undefined;
       const oldData = payload.old as Partial<Task> | undefined;
       const recordId = newData?.id || (oldData?.id as string | undefined);
-      if (isOwnUpdate(newData, oldData) || isLocalEcho(recordId)) return;
+      if (shouldSuppress(newData, oldData, recordId)) return;
       const relevantPhase = newData?.phase || oldData?.phase;
       if (relevantPhase === phase) debouncedSilentRefresh();
     };
@@ -182,7 +173,7 @@ export function useKanbanData(phase: KanbanPhase) {
     const handleGenericChange = (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
       const recordId = (payload.new as { id?: string } | undefined)?.id
         || (payload.old as { id?: string } | undefined)?.id;
-      if (isLocalEcho(recordId)) return;
+      if (shouldSuppress(undefined, undefined, recordId)) return;
       debouncedSilentRefresh();
     };
 
@@ -196,7 +187,7 @@ export function useKanbanData(phase: KanbanPhase) {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [currentWorkspace?.id, phase, debouncedSilentRefresh, isLocalEcho, userId]);
+  }, [currentWorkspace?.id, phase, debouncedSilentRefresh, shouldSuppress]);
 
   return {
     columns,
