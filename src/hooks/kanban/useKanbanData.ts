@@ -42,16 +42,21 @@ export function useKanbanData(phase: KanbanPhase) {
     pendingLocalUpdatesRef.current.set(recordId, Date.now());
   }, []);
 
-  const isLocalEcho = useCallback((recordId: string | undefined) => {
-    if (!recordId) return false;
-    const stamp = pendingLocalUpdatesRef.current.get(recordId);
-    if (!stamp) return false;
-    if (Date.now() - stamp > LOCAL_ECHO_TTL_MS) {
-      pendingLocalUpdatesRef.current.delete(recordId);
-      return false;
-    }
-    return true;
-  }, []);
+  const shouldSuppress = useCallback(
+    (
+      newData: { updated_by?: string | null } | undefined,
+      oldData: { updated_by?: string | null } | undefined,
+      recordId: string | undefined,
+    ) =>
+      isOwnEcho({
+        newData,
+        oldData,
+        recordId,
+        userId,
+        pending: pendingLocalUpdatesRef.current,
+      }),
+    [userId],
+  );
 
   const fetchColumnsData = useCallback(async (): Promise<KanbanColumnWithProjects[] | null> => {
     if (!currentWorkspace?.id || fetchError) return null;
