@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, startOfYear } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { getMonthlyMetrics } from '@/lib/finance/financialEngine';
+import { getMonthlyMetrics, getProjectCost, getProjectRevenue } from '@/lib/finance/financialEngine';
 import type { FinancialProject } from '@/lib/finance/types';
 
 export type PeriodType = '1M' | '3M' | '6M' | '12M' | 'YTD' | 'custom';
