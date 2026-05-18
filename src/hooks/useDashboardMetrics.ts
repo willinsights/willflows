@@ -9,6 +9,7 @@ import {
   getMonthlyMetrics,
   getTimeSeries,
   calculateChange,
+  getProjectMargin,
 } from '@/lib/finance/financialEngine';
 import type { FinancialProject } from '@/lib/finance/types';
 
