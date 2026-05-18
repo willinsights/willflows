@@ -345,3 +345,36 @@ function KanbanColumnComponent({ column, onUpdateColumn, onDeleteColumn, onAddPr
     </>
   );
 }
+
+export const KanbanColumn = memo(KanbanColumnComponent, (prev, next) => {
+  const a = prev.column;
+  const b = next.column;
+  if (a.id !== b.id || a.name !== b.name || a.color !== b.color || a.is_final !== b.is_final) return false;
+  if (a.projects.length !== b.projects.length) return false;
+  for (let i = 0; i < a.projects.length; i++) {
+    const pa = a.projects[i];
+    const pb = b.projects[i];
+    if (
+      pa.id !== pb.id ||
+      pa.name !== pb.name ||
+      pa.priority !== pb.priority ||
+      pa.delivery_date !== pb.delivery_date ||
+      pa.shoot_date !== pb.shoot_date ||
+      pa.task_count !== pb.task_count ||
+      pa.task_completed !== pb.task_completed ||
+      pa.checklist_count !== pb.checklist_count ||
+      pa.checklist_completed !== pb.checklist_completed ||
+      pa.has_approved_video !== pb.has_approved_video ||
+      (pa.team_members?.length ?? 0) !== (pb.team_members?.length ?? 0)
+    ) return false;
+  }
+  return (
+    prev.isDragging === next.isDragging &&
+    prev.isOverlay === next.isOverlay &&
+    prev.isOver === next.isOver &&
+    prev.onUpdateColumn === next.onUpdateColumn &&
+    prev.onDeleteColumn === next.onDeleteColumn &&
+    prev.onAddProject === next.onAddProject &&
+    prev.onProjectClick === next.onProjectClick
+  );
+});
