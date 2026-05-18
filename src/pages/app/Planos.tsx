@@ -34,6 +34,7 @@ import { PLANS as PLAN_INFO, getPriceId } from '@/lib/plans';
 import { cn } from '@/lib/utils';
 import { StorageManagementCard } from '@/components/video-production/StorageManagementCard';
 
+import { logger } from '@/lib/logger';
 interface Invoice {
   id: string;
   number: string | null;
@@ -144,7 +145,7 @@ export default function Planos() {
       if (error) throw error;
       setBillingInfo(data);
     } catch (error: any) {
-      console.error('Error fetching billing info:', error);
+      logger.error('Error fetching billing info:', error);
     } finally {
       setBillingLoading(false);
     }
@@ -216,7 +217,7 @@ export default function Planos() {
         window.open(data.url, '_blank');
       }
     } catch (error: any) {
-      console.error('Error opening customer portal:', error);
+      logger.error('Error opening customer portal:', error);
       const errorMessage = error.message || 'Erro desconhecido';
       
       if (errorMessage.includes('No Stripe customer found')) {

@@ -12,6 +12,7 @@ import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { cn } from '@/lib/utils';
 import { projectCommentSchema, validateWithSchema } from '@/lib/validation-schemas';
 
+import { logger } from '@/lib/logger';
 interface ProjectComment {
   id: string;
   project_id: string;
@@ -52,7 +53,7 @@ export function ProjectCommentsTab({ projectId, workspaceId }: ProjectCommentsTa
       if (error) throw error;
       setComments(data || []);
     } catch (error) {
-      console.error('Error fetching comments:', error);
+      logger.error('Error fetching comments:', error);
     } finally {
       setLoading(false);
     }

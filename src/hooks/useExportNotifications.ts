@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 
+import { logger } from '@/lib/logger';
 /**
  * Hook to listen for export job completions and trigger native push notifications.
  * Integrates with the notifications table via realtime subscription.
@@ -62,7 +63,7 @@ export function useExportNotifications() {
       // Auto-close after 8 seconds
       setTimeout(() => notification.close(), 8000);
     } catch (error) {
-      console.error('Error showing notification:', error);
+      logger.error('Error showing notification:', error);
     }
   }, [playSound]);
 

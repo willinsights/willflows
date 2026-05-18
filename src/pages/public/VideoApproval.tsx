@@ -58,6 +58,7 @@ import { ComparisonPlayer } from '@/components/video/ComparisonPlayer';
 import { useVideoDownload } from '@/hooks/useVideoDownload';
 import { ApprovedState } from '@/pages/public/ApprovedState';
 
+import { logger } from '@/lib/logger';
 interface VideoVersion {
   id: string;
   version_number: number;
@@ -193,7 +194,7 @@ export default function VideoApproval() {
 
       setLoading(false);
     } catch (err: any) {
-      console.error('Error fetching approval data:', err);
+      logger.error('Error fetching approval data:', err);
       setError(err.message || 'Erro ao carregar dados de aprovação');
       setLoading(false);
     }
@@ -222,7 +223,7 @@ export default function VideoApproval() {
       // Update ONLY the comments in state (keeps video player intact)
       setData(prev => prev ? { ...prev, comments: approvalData.comments } : null);
     } catch (err) {
-      console.error('Error refreshing comments:', err);
+      logger.error('Error refreshing comments:', err);
     }
   }, [token]);
 
@@ -241,7 +242,7 @@ export default function VideoApproval() {
     url: videoUrl ?? null,
     type: hlsSourceType,
     onFatalError: (errData) => {
-      console.error('[VideoApproval] HLS fatal error after recovery attempts:', errData);
+      logger.error('[VideoApproval] HLS fatal error after recovery attempts:', errData);
     },
   });
 
@@ -419,7 +420,7 @@ export default function VideoApproval() {
       // Sync with backend to get real ID (without reloading player)
       await refreshComments();
     } catch (err: any) {
-      console.error('Error submitting comment:', err);
+      logger.error('Error submitting comment:', err);
       // Revert optimistic update on error
       setData(prev => prev ? {
         ...prev,
@@ -463,7 +464,7 @@ export default function VideoApproval() {
       await fetchApprovalData();
       setShowApprovalModal(false);
     } catch (err: any) {
-      console.error('Error submitting approval:', err);
+      logger.error('Error submitting approval:', err);
       alert(err.message || 'Erro ao aprovar vídeo');
     } finally {
       setSubmittingApproval(false);
@@ -508,7 +509,7 @@ export default function VideoApproval() {
       // Sync with backend
       await refreshComments();
     } catch (err: any) {
-      console.error('Error deleting comment:', err);
+      logger.error('Error deleting comment:', err);
       // Revert optimistic update on error
       setData(prev => prev ? {
         ...prev,

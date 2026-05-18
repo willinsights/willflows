@@ -10,6 +10,7 @@ import { Logo } from '@/components/ui/logo';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle, XCircle, UserPlus, Mail, Lock, ArrowRight } from 'lucide-react';
 
+import { logger } from '@/lib/logger';
 type InvitationData = {
   id: string;
   email: string;
@@ -120,7 +121,7 @@ export default function AcceptInvite() {
         .maybeSingle();
 
       if (error) {
-        console.error('Error checking membership:', error);
+        logger.error('Error checking membership:', error);
         // Don't block the flow, proceed to ready state
         setViewState('ready');
         return;
@@ -170,7 +171,7 @@ export default function AcceptInvite() {
         navigate('/app');
       }, 2000);
     } catch (error: any) {
-      console.error('Error accepting invite:', error);
+      logger.error('Error accepting invite:', error);
       toast({
         title: "Erro ao aceitar convite",
         description: error.message || "Ocorreu um erro. Por favor, tente novamente.",

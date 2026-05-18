@@ -30,6 +30,7 @@ import { CSS } from '@dnd-kit/utilities';
 import type { Tables } from '@/integrations/supabase/types';
 
 
+import { logger } from '@/lib/logger';
 type TaskChecklist = Tables<'task_checklists'>;
 type Task = Tables<'tasks'>;
 
@@ -221,7 +222,7 @@ function PhaseChecklistSection({
         prev.map(c => c.id === checklistId ? { ...c, is_completed: !isCompleted, completed_at: !isCompleted ? new Date().toISOString() : null } : c)
       );
     } catch (error) {
-      console.error('Error toggling checklist:', error);
+      logger.error('Error toggling checklist:', error);
       toast({ title: 'Erro ao atualizar item', variant: 'destructive' });
     }
   };

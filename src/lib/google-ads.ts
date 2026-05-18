@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 /**
  * Google Ads Conversion Tracking Utilities
  * 
@@ -52,7 +53,7 @@ export function trackConversion(
   currency: string = 'EUR'
 ): void {
   if (typeof window === 'undefined' || !window.gtag) {
-    console.warn('[Google Ads] gtag not available');
+    logger.warn('[Google Ads] gtag not available');
     return;
   }
 

@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { VideoStructure } from './useVideoStructure';
 import type { Json } from '@/integrations/supabase/types';
 
+import { logger } from '@/lib/logger';
 export interface TemplateSegment {
   name: string;
   description?: string;
@@ -64,7 +65,7 @@ export function useVideoStructureTemplates(workspaceId: string | null) {
       
       setTemplates(parsed);
     } catch (error: any) {
-      console.error('Error fetching templates:', error);
+      logger.error('Error fetching templates:', error);
     } finally {
       setLoading(false);
     }

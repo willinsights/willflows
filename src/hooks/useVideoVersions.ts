@@ -4,6 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspaceStorage } from './useWorkspaceStorage';
 
+import { logger } from '@/lib/logger';
 export interface VideoVersion {
   id: string;
   task_id: string;
@@ -84,7 +85,7 @@ export function useVideoVersions(
       if (error) throw error;
       setVersions((data || []) as VideoVersion[]);
     } catch (error: any) {
-      console.error('Error fetching video versions:', error);
+      logger.error('Error fetching video versions:', error);
     } finally {
       setLoading(false);
     }
@@ -193,7 +194,7 @@ export function useVideoVersions(
         if (!isMountedRef.current) return;
 
         if (error) {
-          console.error('Error polling status:', error);
+          logger.error('Error polling status:', error);
           if (attempts < maxAttempts) schedule();
           return;
         }
@@ -227,7 +228,7 @@ export function useVideoVersions(
           });
         }
       } catch (err) {
-        console.error('Polling error:', err);
+        logger.error('Polling error:', err);
         if (isMountedRef.current && attempts < maxAttempts) schedule();
       }
     };
@@ -390,7 +391,7 @@ export function useVideoVersions(
       if (error) throw error;
       return data.signedUrl;
     } catch (error) {
-      console.error('Error getting signed URL:', error);
+      logger.error('Error getting signed URL:', error);
       return null;
     }
   }, []);

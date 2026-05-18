@@ -70,6 +70,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { isBetaModeEnabled } from '@/contexts/BetaContext';
 import { ImportContactsModal } from '@/components/admin/ImportContactsModal';
 
+import { logger } from '@/lib/logger';
 interface BetaInviteToken {
   id: string;
   token: string;
@@ -158,7 +159,7 @@ export default function AdminGrowth() {
       if (error) throw error;
       return true;
     } catch (error: any) {
-      console.error('Error sending beta invite email:', error);
+      logger.error('Error sending beta invite email:', error);
       throw error;
     }
   };

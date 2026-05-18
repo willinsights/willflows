@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
+import { logger } from '@/lib/logger';
 export interface VideoApproval {
   id: string;
   task_id: string;
@@ -81,7 +82,7 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
       if (error) throw error;
       setApprovals((data || []) as unknown as VideoApproval[]);
     } catch (error: any) {
-      console.error('Error fetching video approvals:', error);
+      logger.error('Error fetching video approvals:', error);
     } finally {
       setLoading(false);
     }
@@ -107,7 +108,7 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
       if (error) throw error;
       setToken(data as VideoApprovalToken | null);
     } catch (error: any) {
-      console.error('Error fetching approval token:', error);
+      logger.error('Error fetching approval token:', error);
     }
   }, [taskId, projectId]);
 
@@ -233,7 +234,7 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
 
       await fetchApprovals();
     } catch (error: any) {
-      console.error('Error approving video as client:', error);
+      logger.error('Error approving video as client:', error);
       throw error;
     }
   };

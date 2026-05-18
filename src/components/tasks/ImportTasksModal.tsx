@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { Tables } from '@/integrations/supabase/types';
 
+import { logger } from '@/lib/logger';
 type Task = Tables<'tasks'>;
 
 interface ParsedTask {
@@ -119,7 +120,7 @@ export function ImportTasksModal({
       setShowPreview(true);
       toast({ title: `${mapped.length} tarefa(s) extraída(s)` });
     } catch (e) {
-      console.error('AI parse error:', e);
+      logger.error('AI parse error:', e);
       toast({ title: 'Erro inesperado', variant: 'destructive' });
     } finally {
       setIsAnalyzing(false);
@@ -180,7 +181,7 @@ export function ImportTasksModal({
           .single();
 
         if (taskError || !newTask) {
-          console.error('Error creating task:', taskError);
+          logger.error('Error creating task:', taskError);
           continue;
         }
 
@@ -198,7 +199,7 @@ export function ImportTasksModal({
             .insert(checklistInserts);
 
           if (checklistError) {
-            console.error('Error creating checklists:', checklistError);
+            logger.error('Error creating checklists:', checklistError);
           }
         }
       }
@@ -208,7 +209,7 @@ export function ImportTasksModal({
       onOpenChange(false);
       resetState();
     } catch (e) {
-      console.error('Import error:', e);
+      logger.error('Import error:', e);
       toast({ title: 'Erro ao importar tarefas', variant: 'destructive' });
     } finally {
       setIsImporting(false);

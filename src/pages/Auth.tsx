@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { trackSignup } from '@/lib/google-ads';
 
+import { logger } from '@/lib/logger';
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'A password deve ter pelo menos 6 caracteres'),
@@ -102,7 +103,7 @@ export default function Auth() {
     const isNewUser = searchParams.get('new_user') === 'true';
     
     if (error) {
-      console.error('[Auth] OAuth error:', error);
+      logger.error('[Auth] OAuth error:', error);
       toast({
         title: 'Erro no login com Google',
         description: 'Não foi possível completar o login. Por favor, tente novamente.',
@@ -114,7 +115,7 @@ export default function Auth() {
     }
     
     if (tokenHash && type) {
-      console.log('[Auth] Processing OAuth callback with token_hash');
+      logger.log('[Auth] Processing OAuth callback with token_hash');
       
       // Verify the OTP token to establish the session
       supabase.auth.verifyOtp({
@@ -122,7 +123,7 @@ export default function Auth() {
         type: type as 'magiclink' | 'email',
       }).then(({ data, error: verifyError }) => {
         if (verifyError) {
-          console.error('[Auth] OTP verification failed:', verifyError);
+          logger.error('[Auth] OTP verification failed:', verifyError);
           toast({
             title: 'Erro na verificação',
             description: 'Não foi possível verificar a sessão. Por favor, tente novamente.',
@@ -133,7 +134,7 @@ export default function Auth() {
         }
         
         if (data.session) {
-          console.log('[Auth] Session established successfully');
+          logger.log('[Auth] Session established successfully');
           toast({
             title: 'Login com sucesso!',
             description: 'Bem-vindo ao WillFlow.',
@@ -200,7 +201,7 @@ export default function Auth() {
         });
       }
     } catch (error) {
-      console.error('Error validating promo code:', error);
+      logger.error('Error validating promo code:', error);
       setPromoValidation({ valid: false, message: 'Erro ao validar código' });
     } finally {
       setValidatingPromo(false);
@@ -241,10 +242,10 @@ export default function Auth() {
         body: { email, name },
       });
       if (error) {
-        console.error('Error sending beta welcome email:', error);
+        logger.error('Error sending beta welcome email:', error);
       }
     } catch (err) {
-      console.error('Error sending beta welcome email:', err);
+      logger.error('Error sending beta welcome email:', err);
     }
   };
 
@@ -295,7 +296,7 @@ export default function Auth() {
           await supabase.rpc('increment_promo_code_usage' as any, { code_text: promoCode });
         }
       } catch (promoError) {
-        console.error('Error applying promo code:', promoError);
+        logger.error('Error applying promo code:', promoError);
         // Don't fail signup if promo application fails
       }
     }

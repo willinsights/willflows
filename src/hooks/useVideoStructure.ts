@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
+import { logger } from '@/lib/logger';
 export interface VideoStructure {
   id: string;
   project_id: string;
@@ -54,7 +55,7 @@ export function useVideoStructure(projectId: string | null, workspaceId: string 
       if (error) throw error;
       setSegments((data as VideoStructure[]) || []);
     } catch (error: any) {
-      console.error('Error fetching video structures:', error);
+      logger.error('Error fetching video structures:', error);
     } finally {
       setLoading(false);
     }

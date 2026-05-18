@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
+import { logger } from '@/lib/logger';
 interface LeaveWorkspaceModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -58,7 +59,7 @@ export function LeaveWorkspaceModal({
         const { error: deleteError } = await supabase.functions.invoke('delete-account');
         
         if (deleteError) {
-          console.error('Error deleting account:', deleteError);
+          logger.error('Error deleting account:', deleteError);
           // Continue with signout even if delete fails
         }
 
@@ -79,7 +80,7 @@ export function LeaveWorkspaceModal({
 
       onSuccess();
     } catch (error: any) {
-      console.error('Error leaving workspace:', error);
+      logger.error('Error leaving workspace:', error);
       toast({
         title: 'Erro ao sair',
         description: error.message || 'Ocorreu um erro ao sair do workspace.',

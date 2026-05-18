@@ -53,6 +53,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Label } from '@/components/ui/label';
 
+import { logger } from '@/lib/logger';
 interface WorkspaceInfo {
   id: string;
   name: string;
@@ -139,7 +140,7 @@ export function TestAccountsTab() {
 
       setAccounts(data.accounts || []);
     } catch (error: any) {
-      console.error('Error fetching test accounts:', error);
+      logger.error('Error fetching test accounts:', error);
       toast({
         title: 'Erro ao carregar contas',
         description: error.message,
@@ -181,7 +182,7 @@ export function TestAccountsTab() {
         throw new Error(result.message);
       }
     } catch (error: any) {
-      console.error('Error creating test accounts:', error);
+      logger.error('Error creating test accounts:', error);
       toast({
         title: 'Erro ao criar contas',
         description: error.message,
@@ -223,7 +224,7 @@ export function TestAccountsTab() {
         throw new Error(result.message);
       }
     } catch (error: any) {
-      console.error('Error resetting test accounts:', error);
+      logger.error('Error resetting test accounts:', error);
       toast({
         title: 'Erro ao resetar contas',
         description: error.message,
@@ -254,7 +255,7 @@ export function TestAccountsTab() {
         description: 'Todas as contas de teste foram removidas.',
       });
     } catch (error: any) {
-      console.error('Error deleting test accounts:', error);
+      logger.error('Error deleting test accounts:', error);
       toast({
         title: 'Erro ao eliminar contas',
         description: error.message,
@@ -277,7 +278,7 @@ export function TestAccountsTab() {
       setCleanupPreview(data as CleanupPreview);
       setCleanupDialogOpen(true);
     } catch (error: any) {
-      console.error('Error loading cleanup preview:', error);
+      logger.error('Error loading cleanup preview:', error);
       toast({
         title: 'Erro ao carregar preview',
         description: error.message,
@@ -311,7 +312,7 @@ export function TestAccountsTab() {
       setCleanupPreview(null);
       await fetchAccounts();
     } catch (error: any) {
-      console.error('Error executing cleanup:', error);
+      logger.error('Error executing cleanup:', error);
       toast({
         title: 'Erro na limpeza',
         description: error.message,

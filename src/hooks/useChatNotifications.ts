@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePushNotifications } from './usePushNotifications';
 import { toast } from 'sonner';
 
+import { logger } from '@/lib/logger';
 export function useChatNotifications() {
   const { user } = useAuth();
   const { permission, preferences, sendLocalNotification } = usePushNotifications();
@@ -40,7 +41,7 @@ export function useChatNotifications() {
           // Ignore autoplay errors
         });
       } catch (e) {
-        console.warn('Could not play notification sound:', e);
+        logger.warn('Could not play notification sound:', e);
       }
     }
   }, [getAudio]);

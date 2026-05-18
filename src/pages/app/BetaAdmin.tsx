@@ -66,6 +66,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { isBetaModeEnabled } from '@/contexts/BetaContext';
 import { TestAccountsTab } from '@/components/admin/TestAccountsTab';
 
+import { logger } from '@/lib/logger';
 interface BetaInviteToken {
   id: string;
   token: string;
@@ -158,7 +159,7 @@ export default function BetaAdmin() {
 
       return true;
     } catch (error: any) {
-      console.error('Error sending beta invite email:', error);
+      logger.error('Error sending beta invite email:', error);
       throw error;
     }
   };
@@ -362,7 +363,7 @@ export default function BetaAdmin() {
         successCount++;
       } catch (error) {
         errorCount++;
-        console.error(`Failed to invite ${entry.email}:`, error);
+        logger.error(`Failed to invite ${entry.email}:`, error);
       }
     }
 

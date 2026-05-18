@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import type { Database } from '@/integrations/supabase/types';
 
+import { logger } from '@/lib/logger';
 type AppRole = Database['public']['Enums']['app_role'];
 
 interface RoleLabel {
@@ -51,7 +52,7 @@ export function useRoleLabels() {
       });
       setCustomLabels(labels);
     } catch (err) {
-      console.error('Erro ao buscar labels de roles:', err);
+      logger.error('Erro ao buscar labels de roles:', err);
     } finally {
       setLoading(false);
     }
@@ -100,7 +101,7 @@ export function useRoleLabels() {
       setCustomLabels(prev => ({ ...prev, [role]: trimmedLabel }));
       return { success: true };
     } catch (err: any) {
-      console.error('Erro ao atualizar label:', err);
+      logger.error('Erro ao atualizar label:', err);
       return { success: false, error: err.message || 'Erro ao guardar' };
     } finally {
       setSaving(false);
@@ -143,7 +144,7 @@ export function useRoleLabels() {
 
       return { success: true };
     } catch (err: any) {
-      console.error('Erro ao atualizar labels:', err);
+      logger.error('Erro ao atualizar labels:', err);
       return { success: false, error: err.message || 'Erro ao guardar' };
     } finally {
       setSaving(false);
@@ -168,7 +169,7 @@ export function useRoleLabels() {
       setCustomLabels({} as Record<AppRole, string>);
       return { success: true };
     } catch (err: any) {
-      console.error('Erro ao resetar labels:', err);
+      logger.error('Erro ao resetar labels:', err);
       return { success: false, error: err.message || 'Erro ao resetar' };
     } finally {
       setSaving(false);

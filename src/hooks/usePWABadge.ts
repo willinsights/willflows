@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 
+import { logger } from '@/lib/logger';
 /**
  * Hook to manage PWA app badge (unread notification count on app icon)
  * Uses the Navigator Badge API when available
@@ -22,7 +23,7 @@ export function usePWABadge(count: number) {
         }
       } catch (error) {
         // Badge API might fail if permission not granted
-        console.debug('[PWA Badge] Could not update badge:', error);
+        logger.debug('[PWA Badge] Could not update badge:', error);
       }
     };
 
@@ -52,7 +53,7 @@ export async function setAppBadge(count: number): Promise<void> {
       await (navigator as any).clearAppBadge();
     }
   } catch (error) {
-    console.debug('[PWA Badge] Could not set badge:', error);
+    logger.debug('[PWA Badge] Could not set badge:', error);
   }
 }
 
@@ -67,6 +68,6 @@ export async function clearAppBadge(): Promise<void> {
   try {
     await (navigator as any).clearAppBadge();
   } catch (error) {
-    console.debug('[PWA Badge] Could not clear badge:', error);
+    logger.debug('[PWA Badge] Could not clear badge:', error);
   }
 }

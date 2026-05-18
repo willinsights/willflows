@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
+import { logger } from '@/lib/logger';
 // Fallback allowlist for primary system admins (prevents UI gates from breaking if RPC is slow/fails)
 const SUPER_ADMIN_EMAILS = ['geral@willflow.app'];
 
@@ -23,13 +24,13 @@ export function useSuperAdmin() {
         const { data, error } = await supabase.rpc('is_system_admin');
         
         if (error) {
-          console.error('Error checking super admin status:', error);
+          logger.error('Error checking super admin status:', error);
           return false;
         }
         
         return data === true;
       } catch (err) {
-        console.error('Error checking super admin status:', err);
+        logger.error('Error checking super admin status:', err);
         return false;
       }
     },

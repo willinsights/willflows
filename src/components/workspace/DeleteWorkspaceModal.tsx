@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
+import { logger } from '@/lib/logger';
 interface DeleteWorkspaceModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -158,7 +159,7 @@ export function DeleteWorkspaceModal({
         const { error: deleteError } = await supabase.functions.invoke('delete-account');
         
         if (deleteError) {
-          console.error('Error deleting account:', deleteError);
+          logger.error('Error deleting account:', deleteError);
           // Continue with signout even if delete fails
         }
 
@@ -179,7 +180,7 @@ export function DeleteWorkspaceModal({
 
       onSuccess();
     } catch (error: any) {
-      console.error('Error deleting workspace:', error);
+      logger.error('Error deleting workspace:', error);
       toast({
         title: 'Erro ao eliminar',
         description: error.message || 'Ocorreu um erro ao eliminar o workspace.',

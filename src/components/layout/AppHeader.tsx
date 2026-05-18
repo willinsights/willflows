@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ProjectWithClient } from '@/hooks/useProjects';
 
+import { logger } from '@/lib/logger';
 interface AppHeaderProps {
   onMenuClick: () => void;
   sidebarCollapsed: boolean;
@@ -163,7 +164,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
           setProjectModalOpen(true);
         }
       } catch (err) {
-        console.error('Error fetching project:', err);
+        logger.error('Error fetching project:', err);
         navigate(getProjectRoute(result.isDelivered, result.currentPhase));
       } finally {
         setLoadingProject(false);

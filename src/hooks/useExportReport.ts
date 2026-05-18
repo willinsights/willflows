@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+import { logger } from '@/lib/logger';
 export type ReportType = 'financial' | 'projects' | 'clients' | 'payments';
 export type ExportFormat = 'excel' | 'pdf';
 
@@ -58,7 +59,7 @@ export function useExportReport(): UseExportReportReturn {
       });
 
       if (error) {
-        console.error('Export error:', error);
+        logger.error('Export error:', error);
         toast({
           title: 'Erro ao iniciar exportação',
           description: error.message || 'Tente novamente mais tarde.',
@@ -87,7 +88,7 @@ export function useExportReport(): UseExportReportReturn {
 
       return jobId;
     } catch (err) {
-      console.error('Export error:', err);
+      logger.error('Export error:', err);
       toast({
         title: 'Erro',
         description: 'Falha ao iniciar exportação.',
@@ -117,7 +118,7 @@ export function useExportReport(): UseExportReportReturn {
       );
 
       if (!response.ok) {
-        console.error('Status check failed');
+        logger.error('Status check failed');
         return null;
       }
 
@@ -125,7 +126,7 @@ export function useExportReport(): UseExportReportReturn {
       setCurrentJob(job);
       return job;
     } catch (err) {
-      console.error('Status check error:', err);
+      logger.error('Status check error:', err);
       return null;
     }
   }, []);
@@ -151,7 +152,7 @@ export function useExportReport(): UseExportReportReturn {
       const data = await response.json();
       return data.jobs || [];
     } catch (err) {
-      console.error('List jobs error:', err);
+      logger.error('List jobs error:', err);
       return [];
     }
   }, []);

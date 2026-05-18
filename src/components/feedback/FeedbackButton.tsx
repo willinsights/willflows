@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
+import { logger } from '@/lib/logger';
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export function FeedbackButton() {
@@ -86,7 +87,7 @@ export function FeedbackButton() {
         
       return data.publicUrl;
     } catch (error) {
-      console.error('Error uploading screenshot:', error);
+      logger.error('Error uploading screenshot:', error);
       toast({
         title: 'Erro ao carregar imagem',
         description: 'Não foi possível carregar o screenshot.',

@@ -35,6 +35,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
+import { logger } from '@/lib/logger';
 interface CleanupPreview {
   usersToKeep: Array<{ id: string; email: string; full_name: string | null }>;
   usersToDelete: Array<{ id: string; email: string; full_name: string | null }>;
@@ -75,7 +76,7 @@ export function CleanupSection() {
       setCleanupPreview(data as CleanupPreview);
       setCleanupDialogOpen(true);
     } catch (error: any) {
-      console.error('Error loading cleanup preview:', error);
+      logger.error('Error loading cleanup preview:', error);
       toast({
         title: 'Erro ao carregar preview',
         description: error.message,
@@ -108,7 +109,7 @@ export function CleanupSection() {
       setConfirmText('');
       setCleanupPreview(null);
     } catch (error: any) {
-      console.error('Error executing cleanup:', error);
+      logger.error('Error executing cleanup:', error);
       toast({
         title: 'Erro na limpeza',
         description: error.message,
