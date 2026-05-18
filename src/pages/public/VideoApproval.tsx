@@ -230,50 +230,20 @@ export default function VideoApproval() {
     fetchApprovalData();
   }, [fetchApprovalData]);
 
-  // HLS setup effect
+  // HLS setup via shared hook
   const videoUrl = data?.signed_urls[selectedVersionId];
-  
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !videoUrl) return;
+  const hlsSourceType = videoUrl
+    ? (videoUrl.includes('.m3u8') ? 'hls' : 'native')
+    : 'none';
 
-    const isHls = videoUrl.includes('.m3u8');
-
-    if (isHls && Hls.isSupported()) {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-      }
-
-      const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: false,
-      });
-
-      hlsRef.current = hls;
-      hls.loadSource(videoUrl);
-      hls.attachMedia(video);
-
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        console.error('[VideoApproval] HLS error:', data);
-        if (data.fatal) {
-          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-            hls.startLoad();
-          } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-            hls.recoverMediaError();
-          }
-        }
-      });
-
-      return () => {
-        hls.destroy();
-        hlsRef.current = null;
-      };
-    } else if (isHls && video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = videoUrl;
-    } else if (!isHls) {
-      video.src = videoUrl;
-    }
-  }, [videoUrl]);
+  useHlsPlayer({
+    videoRef,
+    url: videoUrl ?? null,
+    type: hlsSourceType,
+    onFatalError: (errData) => {
+      console.error('[VideoApproval] HLS fatal error after recovery attempts:', errData);
+    },
+  });
 
   const togglePlay = () => {
     if (videoRef.current) {
