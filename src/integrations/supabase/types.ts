@@ -2402,6 +2402,7 @@ export type Database = {
           phase: Database["public"]["Enums"]["kanban_phase"]
           project_id: string
           user_id: string | null
+          workspace_id: string | null
         }
         Insert: {
           created_at?: string
@@ -2415,6 +2416,7 @@ export type Database = {
           phase: Database["public"]["Enums"]["kanban_phase"]
           project_id: string
           user_id?: string | null
+          workspace_id?: string | null
         }
         Update: {
           created_at?: string
@@ -2428,6 +2430,7 @@ export type Database = {
           phase?: Database["public"]["Enums"]["kanban_phase"]
           project_id?: string
           user_id?: string | null
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -3097,6 +3100,7 @@ export type Database = {
           position: number
           task_id: string
           title: string
+          workspace_id: string | null
         }
         Insert: {
           assignee_id?: string | null
@@ -3108,6 +3112,7 @@ export type Database = {
           position?: number
           task_id: string
           title: string
+          workspace_id?: string | null
         }
         Update: {
           assignee_id?: string | null
@@ -3119,6 +3124,7 @@ export type Database = {
           position?: number
           task_id?: string
           title?: string
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -4737,6 +4743,15 @@ export type Database = {
           workspace_id: string
           workspace_name: string
         }[]
+      }
+      get_kanban_board: {
+        Args: {
+          p_is_collaborator?: boolean
+          p_phase: string
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
       }
       get_kanban_metrics: {
         Args: {
