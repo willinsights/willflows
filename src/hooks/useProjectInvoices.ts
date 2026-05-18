@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { toast } from 'sonner';
 
+import { logger } from '@/lib/logger';
 export type InvoiceStatus = 'rascunho' | 'emitida' | 'paga' | 'vencida' | 'cancelada';
 
 export interface ProjectInvoice {
@@ -62,7 +63,7 @@ export function useProjectInvoices(projectId?: string) {
 
     const { data, error } = await query;
     if (error) {
-      console.error('Error fetching invoices:', error);
+      logger.error('Error fetching invoices:', error);
     } else {
       setInvoices((data || []) as ProjectInvoice[]);
     }
@@ -121,7 +122,7 @@ export function useProjectInvoices(projectId?: string) {
 
     if (error) {
       toast.error('Erro ao criar fatura');
-      console.error(error);
+      logger.error(error);
       return null;
     }
 
@@ -153,7 +154,7 @@ export function useProjectInvoices(projectId?: string) {
 
     if (error) {
       toast.error('Erro ao atualizar fatura');
-      console.error(error);
+      logger.error(error);
       return false;
     }
 
@@ -169,7 +170,7 @@ export function useProjectInvoices(projectId?: string) {
 
     if (error) {
       toast.error('Erro ao remover fatura');
-      console.error(error);
+      logger.error(error);
       return false;
     }
 

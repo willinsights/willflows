@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { toast } from 'sonner';
 
+import { logger } from '@/lib/logger';
 export type CostCategory = 'equipamento' | 'deslocacao' | 'alojamento' | 'alimentacao' | 'equipa' | 'software' | 'outro';
 
 export interface ProjectCostLine {
@@ -61,7 +62,7 @@ export function useProjectCostLines(projectId?: string) {
 
     const { data, error } = await query;
     if (error) {
-      console.error('Error fetching cost lines:', error);
+      logger.error('Error fetching cost lines:', error);
     } else {
       setCostLines((data || []) as ProjectCostLine[]);
     }
@@ -97,7 +98,7 @@ export function useProjectCostLines(projectId?: string) {
 
     if (error) {
       toast.error('Erro ao adicionar linha de custo');
-      console.error(error);
+      logger.error(error);
       return null;
     }
 
@@ -120,7 +121,7 @@ export function useProjectCostLines(projectId?: string) {
 
     if (error) {
       toast.error('Erro ao atualizar linha de custo');
-      console.error(error);
+      logger.error(error);
       return false;
     }
 
@@ -136,7 +137,7 @@ export function useProjectCostLines(projectId?: string) {
 
     if (error) {
       toast.error('Erro ao remover linha de custo');
-      console.error(error);
+      logger.error(error);
       return false;
     }
 

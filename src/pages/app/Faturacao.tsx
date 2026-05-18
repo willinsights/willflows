@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
+import { logger } from '@/lib/logger';
 interface Invoice {
   id: string;
   number: string | null;
@@ -91,7 +92,7 @@ export default function Faturacao() {
       if (error) throw error;
       setBillingInfo(data);
     } catch (error: any) {
-      console.error('Error fetching billing info:', error);
+      logger.error('Error fetching billing info:', error);
       toast.error('Erro ao carregar informações de faturação');
     } finally {
       setLoading(false);
@@ -118,7 +119,7 @@ export default function Faturacao() {
         window.open(data.url, '_blank');
       }
     } catch (error: any) {
-      console.error('Error opening customer portal:', error);
+      logger.error('Error opening customer portal:', error);
       toast.error('Erro ao abrir portal de gestão');
     } finally {
       setPortalLoading(false);

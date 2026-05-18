@@ -21,6 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { trackTrialStarted } from '@/lib/google-ads';
 
+import { logger } from '@/lib/logger';
 type Step = 'region' | 'success';
 
 export default function Onboarding() {
@@ -115,7 +116,7 @@ export default function Onboarding() {
         navigate('/app');
       }, 1500);
     } catch (err: any) {
-      console.error('Error creating workspace:', err);
+      logger.error('Error creating workspace:', err);
       const errorMessage = err.message?.includes('Failed to fetch') 
         ? 'Erro de ligação. Verifique a sua internet e tente novamente.'
         : err.message || 'Ocorreu um erro. Tente novamente.';

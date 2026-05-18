@@ -49,6 +49,7 @@ import { cn } from '@/lib/utils';
 import { ImportContactsModal } from './ImportContactsModal';
 import { supabase } from '@/integrations/supabase/client';
 
+import { logger } from '@/lib/logger';
 interface CleanupPreview {
   usersToKeep: Array<{ id: string; email: string; full_name: string | null }>;
   usersToDelete: Array<{ id: string; email: string; full_name: string | null }>;
@@ -168,7 +169,7 @@ export function UsersSummaryTab() {
       setCleanupPreview(data as CleanupPreview);
       setCleanupDialogOpen(true);
     } catch (error: any) {
-      console.error('Error loading cleanup preview:', error);
+      logger.error('Error loading cleanup preview:', error);
       toast({
         title: 'Erro ao carregar preview',
         description: error.message,
@@ -201,7 +202,7 @@ export function UsersSummaryTab() {
       setConfirmText('');
       setCleanupPreview(null);
     } catch (error: any) {
-      console.error('Error executing cleanup:', error);
+      logger.error('Error executing cleanup:', error);
       toast({
         title: 'Erro na limpeza',
         description: error.message,

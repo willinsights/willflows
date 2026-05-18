@@ -12,6 +12,7 @@ import { PublicFooter } from '@/components/marketing/PublicFooter';
 import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
 import { toast } from 'sonner';
 
+import { logger } from '@/lib/logger';
 const faqs = [
   {
     question: 'Como posso começar a usar o WillFlow?',
@@ -52,7 +53,7 @@ export default function Contact() {
       setIsSubmitted(true);
       toast.success('Mensagem enviada com sucesso!');
     } catch (err: any) {
-      console.error('Error sending contact form:', err);
+      logger.error('Error sending contact form:', err);
       toast.error(err?.message || 'Erro ao enviar mensagem. Tente novamente.');
     } finally {
       setIsSubmitting(false);

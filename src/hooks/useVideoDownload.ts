@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+import { logger } from '@/lib/logger';
 interface UseVideoDownloadOptions {
   approvalToken?: string;
 }
@@ -78,7 +79,7 @@ export function useVideoDownload(options: UseVideoDownloadOptions = {}) {
       });
 
     } catch (error: any) {
-      console.error('[useVideoDownload] Error:', error);
+      logger.error('[useVideoDownload] Error:', error);
       toast({
         title: 'Erro no download',
         description: error.message || 'Não foi possível descarregar o vídeo.',

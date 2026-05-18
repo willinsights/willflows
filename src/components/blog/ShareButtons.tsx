@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
+import { logger } from '@/lib/logger';
 interface ShareButtonsProps {
   url: string;
   title: string;
@@ -27,7 +28,7 @@ export function ShareButtons({ url, title, postId }: ShareButtonsProps) {
         referrer: document.referrer || null
       });
     } catch (error) {
-      console.error('Failed to track share:', error);
+      logger.error('Failed to track share:', error);
     }
   };
 

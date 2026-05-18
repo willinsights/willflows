@@ -20,6 +20,7 @@ import { LeaveWorkspaceModal } from '@/components/workspace/LeaveWorkspaceModal'
 import { differenceInDays, parseISO } from 'date-fns';
 
 
+import { logger } from '@/lib/logger';
 const planLabels: Record<string, string> = {
   starter: 'Starter',
   pro: 'Pro',
@@ -96,7 +97,7 @@ export function WorkspaceSelector() {
         });
       }
     } catch (error) {
-      console.error('Error switching workspace:', error);
+      logger.error('Error switching workspace:', error);
       toast({
         title: 'Erro ao trocar workspace',
         description: 'Tente novamente mais tarde.',

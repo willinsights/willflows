@@ -5,6 +5,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { usePushNotifications } from './usePushNotifications';
 import { toast } from 'sonner';
 
+import { logger } from '@/lib/logger';
 interface ProjectPayload {
   id: string;
   name: string;
@@ -72,7 +73,7 @@ export function useRealtimeNotifications() {
           // Ignore autoplay errors
         });
       } catch (e) {
-        console.warn('Could not play notification sound:', e);
+        logger.warn('Could not play notification sound:', e);
       }
     }
   }, [getAudio]);

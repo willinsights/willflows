@@ -8,6 +8,7 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { format, parseISO } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
+import { logger } from '@/lib/logger';
 interface SearchResult {
   id: string;
   body: string;
@@ -48,7 +49,7 @@ export function MessageSearchBar({ conversationId, onResultClick, onClose }: Mes
 
         setResults(data || []);
       } catch (error) {
-        console.error('Search error:', error);
+        logger.error('Search error:', error);
         setResults([]);
       } finally {
         setIsSearching(false);

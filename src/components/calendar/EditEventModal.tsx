@@ -32,6 +32,7 @@ import { useCalendarEvents } from '@/hooks/useCalendarEvents';
 import { useToast } from '@/hooks/use-toast';
 import type { EventDetails } from './EventDetailsModal';
 
+import { logger } from '@/lib/logger';
 interface EditEventModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -109,7 +110,7 @@ export function EditEventModal({
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
-      console.error('Error updating event:', error);
+      logger.error('Error updating event:', error);
       toast({
         title: 'Erro',
         description: 'Não foi possível atualizar o evento.',

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+import { logger } from '@/lib/logger';
 export interface BlogPost {
   id: string;
   title: string;
@@ -37,7 +38,7 @@ export function useBlogPosts() {
       if (fetchError) throw fetchError;
       setPosts(data || []);
     } catch (err: any) {
-      console.error('Error fetching blog posts:', err);
+      logger.error('Error fetching blog posts:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -77,7 +78,7 @@ export function useBlogPost(slug: string | undefined) {
         if (fetchError) throw fetchError;
         setPost(data);
       } catch (err: any) {
-        console.error('Error fetching blog post:', err);
+        logger.error('Error fetching blog post:', err);
         setError(err.message);
       } finally {
         setLoading(false);

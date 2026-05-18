@@ -4,6 +4,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { handleDatabaseError } from '@/lib/error-handler';
 
+import { logger } from '@/lib/logger';
 export interface ClientCommunication {
   id: string;
   client_id: string;
@@ -50,7 +51,7 @@ export function useClientCommunications(clientId: string | null) {
       if (error) throw error;
       setCommunications(data || []);
     } catch (error) {
-      console.error('Error fetching communications:', error);
+      logger.error('Error fetching communications:', error);
     } finally {
       setLoading(false);
     }

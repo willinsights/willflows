@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { RotateCcw, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import { logger } from '@/lib/logger';
 interface TeamMemberPaymentInputProps {
   memberId: string;
   initialAmount: number | null;
@@ -53,7 +54,7 @@ export function TeamMemberPaymentInput({
       setHasUnsavedChanges(false);
     } catch (error) {
       // On error, keep the unsaved state so user can retry
-      console.error('Failed to save payment amount:', error);
+      logger.error('Failed to save payment amount:', error);
     } finally {
       setIsSaving(false);
     }
@@ -78,7 +79,7 @@ export function TeamMemberPaymentInput({
     try {
       await onSave(memberId, suggestedAmount);
     } catch (error) {
-      console.error('Failed to reset payment amount:', error);
+      logger.error('Failed to reset payment amount:', error);
     } finally {
       setIsSaving(false);
     }

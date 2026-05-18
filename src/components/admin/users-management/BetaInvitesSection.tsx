@@ -67,6 +67,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { isBetaModeEnabled } from '@/contexts/BetaContext';
 import { ImportContactsModal } from '../ImportContactsModal';
 
+import { logger } from '@/lib/logger';
 interface BetaInviteToken {
   id: string;
   token: string;
@@ -168,7 +169,7 @@ export function BetaInvitesSection() {
       if (error) throw error;
       return true;
     } catch (error: any) {
-      console.error('Error sending beta invite email:', error);
+      logger.error('Error sending beta invite email:', error);
       throw error;
     }
   };
@@ -254,7 +255,7 @@ export function BetaInvitesSection() {
         await sendBetaInviteEmail(invite.email!, invite.token);
         successCount++;
       } catch (error) {
-        console.error(`Failed to resend to ${invite.email}:`, error);
+        logger.error(`Failed to resend to ${invite.email}:`, error);
       }
     }
 
@@ -334,7 +335,7 @@ export function BetaInvitesSection() {
         await inviteFromWaitlist(entry, true);
         successCount++;
       } catch (error) {
-        console.error(`Failed to invite ${entry.email}:`, error);
+        logger.error(`Failed to invite ${entry.email}:`, error);
       }
     }
 

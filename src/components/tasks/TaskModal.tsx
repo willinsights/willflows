@@ -35,6 +35,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { VideoProductionTab } from '@/components/video-production/VideoProductionTab';
 
+import { logger } from '@/lib/logger';
 type PriorityLevel = 'baixa' | 'media' | 'alta' | 'urgente';
 
 interface Task {
@@ -217,7 +218,7 @@ export function TaskModal({
       onSuccess?.();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Error saving task:', error);
+      logger.error('Error saving task:', error);
       toast({
         title: 'Erro',
         description: error.message || 'Não foi possível guardar a tarefa.',

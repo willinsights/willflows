@@ -7,6 +7,7 @@ import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { toast } from 'sonner';
 import { Loader2, Save, Settings } from 'lucide-react';
 
+import { logger } from '@/lib/logger';
 export function SettingsTab() {
   const { settings, isLoading, updateTrialSettings } = useSystemSettings();
   
@@ -39,7 +40,7 @@ export function SettingsTab() {
       });
       toast.success('Configurações guardadas');
     } catch (error) {
-      console.error('Error saving settings:', error);
+      logger.error('Error saving settings:', error);
       toast.error('Erro ao guardar configurações');
     } finally {
       setIsSaving(false);

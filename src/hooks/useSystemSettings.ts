@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useSuperAdmin } from './useSuperAdmin';
 
+import { logger } from '@/lib/logger';
 export interface TrialSettings {
   default_days: number;
   warning_days: number;
@@ -30,7 +31,7 @@ export function useSystemSettings() {
         .select('key, value');
 
       if (error) {
-        console.error('Error fetching system settings:', error);
+        logger.error('Error fetching system settings:', error);
         return DEFAULT_SETTINGS;
       }
 

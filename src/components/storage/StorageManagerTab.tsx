@@ -41,6 +41,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 
+import { logger } from '@/lib/logger';
 interface VideoVersionWithProject {
   id: string;
   version_number: number;
@@ -300,7 +301,7 @@ export function StorageManagerTab() {
                 body: { streamUid: version.cloudflare_stream_uid }
               });
             } catch (e) {
-              console.warn('Failed to delete from Cloudflare Stream:', e);
+              logger.warn('Failed to delete from Cloudflare Stream:', e);
             }
           }
           

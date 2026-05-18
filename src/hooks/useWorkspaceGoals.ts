@@ -4,6 +4,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
+import { logger } from '@/lib/logger';
 export interface WorkspaceGoal {
   id: string;
   workspace_id: string;
@@ -35,7 +36,7 @@ export function useWorkspaceGoals() {
       if (error) throw error;
       setGoal(data);
     } catch (error) {
-      console.error('Error fetching workspace goals:', error);
+      logger.error('Error fetching workspace goals:', error);
     } finally {
       setLoading(false);
     }
@@ -68,7 +69,7 @@ export function useWorkspaceGoals() {
 
       return data;
     } catch (error) {
-      console.error('Error saving workspace goals:', error);
+      logger.error('Error saving workspace goals:', error);
       toast({
         title: 'Erro ao guardar',
         description: 'Não foi possível guardar as metas.',

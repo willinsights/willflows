@@ -289,14 +289,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const setCurrentWorkspace = useCallback(async (workspaceId: string): Promise<boolean> => {
     if (!user) {
-      console.error('[setCurrentWorkspace] No user');
+      logger.error('[setCurrentWorkspace] No user');
       return false;
     }
     
     // Find the workspace in our list
     const targetWorkspace = allWorkspaces.find(w => w.id === workspaceId);
     if (!targetWorkspace) {
-      console.error('[setCurrentWorkspace] Workspace not found:', workspaceId);
+      logger.error('[setCurrentWorkspace] Workspace not found:', workspaceId);
       return false;
     }
 
@@ -314,7 +314,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (error || !membershipData) {
-        console.error('[setCurrentWorkspace] Error fetching membership:', error);
+        logger.error('[setCurrentWorkspace] Error fetching membership:', error);
         return false;
       }
 
@@ -488,7 +488,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         retryCountRef.current = 0;
       }
     } catch (error: any) {
-      console.error('Error fetching workspace:', error);
+      logger.error('Error fetching workspace:', error);
       lastErrorTimeRef.current = Date.now();
       
       // Only retry if under max retries
@@ -644,7 +644,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 export function useWorkspace() {
   const context = useContext(WorkspaceContext);
   if (context === undefined) {
-    console.warn('useWorkspace called outside WorkspaceProvider - returning fallback');
+    logger.warn('useWorkspace called outside WorkspaceProvider - returning fallback');
     return {
       workspace: null,
       membership: null,

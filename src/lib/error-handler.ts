@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 /**
  * Centralized error handler for database operations
  * Maps database errors to user-friendly messages without exposing internal details
@@ -81,7 +82,7 @@ export function getSafeErrorMessage(error: unknown): SafeError {
  */
 export function handleDatabaseError(context: string, error: unknown): string {
   // Log full error for debugging (server-side/dev only)
-  console.error(`[${context}]`, error);
+  logger.error(`[${context}]`, error);
   
   return getSafeErrorMessage(error).message;
 }

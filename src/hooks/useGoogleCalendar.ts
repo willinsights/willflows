@@ -70,7 +70,7 @@ export function useGoogleCalendar() {
         setConnection(null);
       }
     } catch (error) {
-      console.error('Failed to fetch Google Calendar status:', error);
+      logger.error('Failed to fetch Google Calendar status:', error);
     } finally {
       setLoading(false);
     }
@@ -133,7 +133,7 @@ export function useGoogleCalendar() {
         throw new Error(data.error || 'Failed to get OAuth URL');
       }
     } catch (error: any) {
-      console.error('Connect error:', error);
+      logger.error('Connect error:', error);
       toast({
         title: 'Erro ao conectar',
         description: error.message,

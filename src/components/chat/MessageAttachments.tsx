@@ -8,6 +8,7 @@ import { VideoModal } from './VideoModal';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 
+import { logger } from '@/lib/logger';
 export interface MessageAttachment {
   id: string;
   file_name: string;
@@ -54,7 +55,7 @@ async function getSignedUrl(filePath: string): Promise<string | null> {
     .createSignedUrl(filePath, 3600); // 1 hour expiry
 
   if (error || !data?.signedUrl) {
-    console.error('Failed to get signed URL:', error);
+    logger.error('Failed to get signed URL:', error);
     return null;
   }
 
@@ -116,7 +117,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
       document.body.removeChild(link);
       URL.revokeObjectURL(link.href);
     } catch (error) {
-      console.error('Download error:', error);
+      logger.error('Download error:', error);
       toast.error('Erro ao descarregar ficheiro');
     }
   };

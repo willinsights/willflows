@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
+import { logger } from '@/lib/logger';
 export interface KanbanMetrics {
   throughput: {
     total_completed: number;
@@ -54,7 +55,7 @@ export function useKanbanMetrics({
       });
 
       if (error) {
-        console.error('Error fetching kanban metrics:', error);
+        logger.error('Error fetching kanban metrics:', error);
         throw error;
       }
 

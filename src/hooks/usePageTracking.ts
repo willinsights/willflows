@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
+import { logger } from '@/lib/logger';
 // Generate a unique session ID for this browser session
 const getSessionId = (): string => {
   let sessionId = sessionStorage.getItem('wf_session_id');
@@ -40,7 +41,7 @@ export const usePageTracking = () => {
         });
       } catch (error) {
         // Silent fail - don't disrupt user experience
-        console.debug('Page tracking error:', error);
+        logger.debug('Page tracking error:', error);
       }
     };
 
@@ -51,7 +52,7 @@ export const usePageTracking = () => {
 // Track blog post views
 export const trackBlogView = async (postId: string) => {
   if (!postId) {
-    console.error('[BlogTracking] No postId provided');
+    logger.error('[BlogTracking] No postId provided');
     return;
   }
 
@@ -63,7 +64,7 @@ export const trackBlogView = async (postId: string) => {
     const viewedSet = new Set(viewedPosts ? JSON.parse(viewedPosts) : []);
     
     if (viewedSet.has(postId)) {
-      console.debug('[BlogTracking] Already tracked post:', postId);
+      logger.debug('[BlogTracking] Already tracked post:', postId);
       return;
     }
     
@@ -75,15 +76,15 @@ export const trackBlogView = async (postId: string) => {
     });
 
     if (error) {
-      console.error('[BlogTracking] Failed to insert view:', error.message, error.details);
+      logger.error('[BlogTracking] Failed to insert view:', error.message, error.details);
       return;
     }
 
     // Mark as tracked
     viewedSet.add(postId);
     sessionStorage.setItem('wf_viewed_posts', JSON.stringify([...viewedSet]));
-    console.debug('[BlogTracking] View recorded for post:', postId);
+    logger.debug('[BlogTracking] View recorded for post:', postId);
   } catch (error) {
-    console.error('[BlogTracking] Unexpected error:', error);
+    logger.error('[BlogTracking] Unexpected error:', error);
   }
 };

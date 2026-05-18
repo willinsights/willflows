@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 
+import { logger } from '@/lib/logger';
 export type FeedbackType = 'bug' | 'improvement';
 
 interface FeedbackSubmission {
@@ -52,7 +53,7 @@ export function useFeedback() {
 
       return true;
     } catch (error) {
-      console.error('Error submitting feedback:', error);
+      logger.error('Error submitting feedback:', error);
       toast({
         title: 'Erro ao enviar feedback',
         description: 'Ocorreu um erro. Por favor tenta novamente.',

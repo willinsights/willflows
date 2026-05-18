@@ -6,6 +6,7 @@ import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { isTrialExpired, hasPaidSubscription } from '@/lib/subscription-utils';
 import { queryClient } from '@/lib/query-client';
 
+import { logger } from '@/lib/logger';
 // Simplified subscription state - detailed subscription info comes from useUserSubscription hook
 interface AuthContextType {
   user: User | null;
@@ -76,7 +77,7 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
           .update({ last_login_at: new Date().toISOString() })
           .eq('id', data.user.id);
       } catch (e) {
-        console.debug('Failed to update last_login_at:', e);
+        logger.debug('Failed to update last_login_at:', e);
       }
     }
     
@@ -104,7 +105,7 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
           body: { email, name: fullName },
         });
       } catch (e) {
-        console.error('Failed to send welcome email:', e);
+        logger.error('Failed to send welcome email:', e);
         // Don't fail the signup if email fails
       }
     }
@@ -155,7 +156,7 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const oauthUrl = `${supabaseUrl}/functions/v1/google-oauth?action=initiate&redirect_uri=${encodeURIComponent(redirectUri)}`;
       
-      console.log('[Auth] Using direct OAuth for custom domain:', window.location.hostname);
+      logger.log('[Auth] Using direct OAuth for custom domain:', window.location.hostname);
       window.location.href = oauthUrl;
       return { error: null };
     }

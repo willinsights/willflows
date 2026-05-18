@@ -21,6 +21,7 @@ import { useVideoComments } from '@/hooks/useVideoComments';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { FeatureTeaser } from '@/components/subscription/FeatureTeaser';
 
+import { logger } from '@/lib/logger';
 interface VideoProductionTabProps {
   taskId: string | null;
   workspaceId: string;
@@ -184,7 +185,7 @@ function VideoProductionTabContent({
         setTimeout(() => setSelectedVersion(updatedVersion), 100);
       }
     } catch (error) {
-      console.error('Error fixing video:', error);
+      logger.error('Error fixing video:', error);
       toast.error(error instanceof Error ? error.message : 'Erro ao corrigir vídeo');
     } finally {
       setIsFixingVideo(false);

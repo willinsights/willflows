@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useFinancialPermissions } from './useFinancialPermissions';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
+import { logger } from '@/lib/logger';
 export type Project = Tables<'projects'>;
 export type ProjectInsert = TablesInsert<'projects'>;
 
@@ -60,7 +61,7 @@ export function useFilteredProjects() {
       
       lastFetchedKeyRef.current = currentWorkspace.id;
     } catch (error) {
-      console.error('Error fetching filtered projects:', error);
+      logger.error('Error fetching filtered projects:', error);
     } finally {
       isFetchingRef.current = false;
       setLoading(false);
@@ -129,7 +130,7 @@ export function useIsUserInProject(projectId: string | null | undefined) {
         setIsInTeam(phases.length > 0);
         setTeamPhases(phases);
       } catch (error) {
-        console.error('Error checking project membership:', error);
+        logger.error('Error checking project membership:', error);
         setIsInTeam(false);
         setTeamPhases([]);
       } finally {

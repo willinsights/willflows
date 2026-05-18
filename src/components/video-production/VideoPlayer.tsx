@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { VideoComment } from '@/hooks/useVideoComments';
 import { formatTimecode } from '@/lib/duration-utils';
 
+import { logger } from '@/lib/logger';
 interface VideoPlayerProps {
   src?: string;
   streamUid?: string | null;
@@ -154,13 +155,13 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     autoRecover: false,
     onFatalError: (data) => {
       if (reinitPassRef.current) {
-        console.error('[VideoPlayer] HLS fatal error during reinit:', data);
+        logger.error('[VideoPlayer] HLS fatal error during reinit:', data);
         setLoadError('Falha ao carregar o vídeo. Tenta atualizar a página.');
         setIsLoading(false);
         return;
       }
 
-      console.error('HLS fatal error:', data);
+      logger.error('HLS fatal error:', data);
 
       let errorDetail = `${data.type}`;
       if (data.details) errorDetail += ` (${data.details})`;
@@ -179,7 +180,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         // Try in-place media recovery once before surfacing the error
         if (retryCountRef.current < 1 && hlsRef.current) {
           retryCountRef.current++;
-          console.log('Attempting HLS media error recovery...');
+          logger.log('Attempting HLS media error recovery...');
           try { hlsRef.current.recoverMediaError(); return; } catch { /* fall through */ }
         }
         userMessage = `Erro de media: ${errorDetail}`;
@@ -187,7 +188,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         userMessage = 'O teu browser não suporta reprodução de vídeo HLS.';
       }
 
-      console.error('HLS error detail:', errorDetail);
+      logger.error('HLS error detail:', errorDetail);
       setLoadError(userMessage);
       setIsLoading(false);
     },
@@ -206,7 +207,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   // Wrapper preserving the original reinitializeHls behavior
   const reinitializeHls = useCallback((preservedTime: number) => {
     if (videoSource.type !== 'hls' || !videoSource.url) return;
-    console.log('[VideoPlayer] Reinitializing HLS at timestamp:', preservedTime);
+    logger.log('[VideoPlayer] Reinitializing HLS at timestamp:', preservedTime);
     reinitPassRef.current = true;
     reinitHls(preservedTime);
     // Clear the reinit flag on the next tick after MANIFEST_PARSED has a chance to fire
@@ -234,7 +235,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         if (playPromise !== undefined) {
           playPromise.catch((err) => {
             if (err.name !== 'AbortError') {
-              console.error('[VideoPlayer] Play error via ref:', err);
+              logger.error('[VideoPlayer] Play error via ref:', err);
             }
           });
         }
@@ -255,7 +256,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         playPromise.catch((err) => {
           // AbortError is expected when pause() interrupts play() - silently ignore
           if (err.name !== 'AbortError') {
-            console.error('[VideoPlayer] Play error:', err);
+            logger.error('[VideoPlayer] Play error:', err);
           }
         });
       }
@@ -300,7 +301,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     
     // Priority: If error happened after a seek, reinitialize immediately (faster recovery)
     if (seekDetectedRef.current && videoSource.type === 'hls' && videoSource.url) {
-      console.log('[VideoPlayer] Seek-triggered error, reinitializing at:', preserveTime);
+      logger.log('[VideoPlayer] Seek-triggered error, reinitializing at:', preserveTime);
       seekDetectedRef.current = false;
       retryCountRef.current++; // Still count to prevent infinite loops
       reinitializeHls(preserveTime);
@@ -310,19 +311,19 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     // Phase 1: Try HLS media error recovery (up to maxRecoveryAttempts times)
     if (mediaError?.code === 4 && hlsRef.current && retryCountRef.current < maxRecoveryAttempts) {
       retryCountRef.current++;
-      console.log(`[VideoPlayer] Recovery attempt ${retryCountRef.current}/${maxRecoveryAttempts}...`);
+      logger.log(`[VideoPlayer] Recovery attempt ${retryCountRef.current}/${maxRecoveryAttempts}...`);
       try {
         hlsRef.current.recoverMediaError();
         return;
       } catch (e) {
-        console.error('[VideoPlayer] Failed to recover from media error:', e);
+        logger.error('[VideoPlayer] Failed to recover from media error:', e);
       }
     }
     
     // Phase 2: Try full HLS reinitialization (up to maxReinitAttempts total)
     if (retryCountRef.current < maxReinitAttempts && videoSource.type === 'hls' && videoSource.url) {
       retryCountRef.current++;
-      console.log(`[VideoPlayer] Reinit attempt ${retryCountRef.current}/${maxReinitAttempts}...`);
+      logger.log(`[VideoPlayer] Reinit attempt ${retryCountRef.current}/${maxReinitAttempts}...`);
       reinitializeHls(preserveTime);
       return;
     }

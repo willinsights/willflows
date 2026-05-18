@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
+import { logger } from '@/lib/logger';
 interface CreateCommunicationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -111,7 +112,7 @@ export function CreateCommunicationModal({
           meetUrl = data.meetUrl;
         }
       } catch (err) {
-        console.error('Error creating Google Meet:', err);
+        logger.error('Error creating Google Meet:', err);
       } finally {
         setCreatingMeet(false);
       }

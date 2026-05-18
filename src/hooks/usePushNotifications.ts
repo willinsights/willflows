@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
+import { logger } from '@/lib/logger';
 // VAPID Public Key - must match the one in backend
 const VAPID_PUBLIC_KEY = 'BA4VtBEgZsjDJwmspoLg-p64rPZ-Y40z646qqAC3ZhPRHWJxYooRMLGRK73hPvPGViZX9VbjgdAmmFLVDXAV_FU';
 
@@ -70,7 +71,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         (r) => r.active?.scriptURL?.endsWith('/sw.js') || r.active?.scriptURL?.includes('workbox'),
       );
       if (existing) {
-        if (import.meta.env.DEV) console.log('[Push] Using unified SW:', existing.scope);
+        if (import.meta.env.DEV) logger.log('[Push] Using unified SW:', existing.scope);
         return existing;
       }
 
@@ -78,7 +79,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       const ready = await navigator.serviceWorker.ready;
       return ready;
     } catch (error) {
-      console.error('[Push] SW lookup failed:', error);
+      logger.error('[Push] SW lookup failed:', error);
       return null;
     }
   }, [isSupported]);
@@ -92,7 +93,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       if (!registration) return;
 
       swRegistrationRef.current = registration;
-      if (import.meta.env.DEV) console.log('[Push] Service Worker registered:', registration.scope);
+      if (import.meta.env.DEV) logger.log('[Push] Service Worker registered:', registration.scope);
 
       // Check if already subscribed
       const subscription = await (registration as any).pushManager.getSubscription();
@@ -117,7 +118,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
 
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'PUSH_SUBSCRIPTION_CHANGED') {
-        if (import.meta.env.DEV) console.log('[Push] Subscription changed, re-subscribing...');
+        if (import.meta.env.DEV) logger.log('[Push] Subscription changed, re-subscribing...');
         subscribeToPushRef.current?.();
       }
     };
@@ -167,7 +168,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
           });
         }
       } catch (error) {
-        console.error('Error fetching push preferences:', error);
+        logger.error('Error fetching push preferences:', error);
       } finally {
         setLoading(false);
       }
@@ -179,14 +180,14 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   // Subscribe to push notifications
   const subscribeToPush = useCallback(async (): Promise<boolean> => {
     if (!isSupported || !user?.id) {
-      if (import.meta.env.DEV) console.log('[Push] Not supported or no user');
+      if (import.meta.env.DEV) logger.log('[Push] Not supported or no user');
       return false;
     }
 
     try {
       const registration = (await getOrRegisterPushSW()) ?? swRegistrationRef.current;
       if (!registration) {
-        console.error('[Push] No service worker registration available');
+        logger.error('[Push] No service worker registration available');
         toast.error('Não foi possível preparar o Service Worker');
         return false;
       }
@@ -194,17 +195,17 @@ export function usePushNotifications(): UsePushNotificationsReturn {
 
       // Check existing subscription
       let subscription = await (registration as any).pushManager.getSubscription();
-      if (import.meta.env.DEV) console.log('[Push] Existing subscription:', subscription ? 'found' : 'none');
+      if (import.meta.env.DEV) logger.log('[Push] Existing subscription:', subscription ? 'found' : 'none');
       
       if (!subscription) {
         // Subscribe to push with VAPID key
-        if (import.meta.env.DEV) console.log('[Push] Creating new subscription with VAPID key...');
+        if (import.meta.env.DEV) logger.log('[Push] Creating new subscription with VAPID key...');
         const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
         subscription = await (registration as any).pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: applicationServerKey.buffer as ArrayBuffer,
         });
-        if (import.meta.env.DEV) console.log('[Push] New subscription created');
+        if (import.meta.env.DEV) logger.log('[Push] New subscription created');
       }
 
       // Save subscription to database - ensure proper JSON format
@@ -212,7 +213,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       
       // Validate subscription has required fields
       if (!subscriptionData.endpoint || !subscriptionData.keys?.p256dh || !subscriptionData.keys?.auth) {
-        console.error('[Push] Invalid subscription format:', subscriptionData);
+        logger.error('[Push] Invalid subscription format:', subscriptionData);
         toast.error('Erro na subscrição push - formato inválido');
         return false;
       }
@@ -244,7 +245,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
           })
           .eq('user_id', user.id);
         if (error) {
-          console.error('[Push] Failed to update subscription:', error);
+          logger.error('[Push] Failed to update subscription:', error);
           throw error;
         }
       } else {
@@ -256,7 +257,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
             push_enabled: true,
           }]);
         if (error) {
-          console.error('[Push] Failed to insert subscription:', error);
+          logger.error('[Push] Failed to insert subscription:', error);
           throw error;
         }
       }
@@ -269,16 +270,16 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         .single();
 
       if (!saved?.push_subscription) {
-        console.error('[Push] Subscription NOT saved to database!');
+        logger.error('[Push] Subscription NOT saved to database!');
         toast.error('Erro ao guardar subscrição');
         return false;
       }
 
       setIsSubscribed(true);
-      if (import.meta.env.DEV) console.log('[Push] Subscription verified and saved');
+      if (import.meta.env.DEV) logger.log('[Push] Subscription verified and saved');
       return true;
     } catch (error) {
-      console.error('[Push] Subscription error:', error);
+      logger.error('[Push] Subscription error:', error);
       toast.error('Erro ao ativar notificações push');
       return false;
     }
@@ -313,9 +314,9 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         .eq('user_id', user.id);
 
       setIsSubscribed(false);
-      if (import.meta.env.DEV) console.log('[Push] Unsubscribed successfully');
+      if (import.meta.env.DEV) logger.log('[Push] Unsubscribed successfully');
     } catch (error) {
-      console.error('[Push] Unsubscribe error:', error);
+      logger.error('[Push] Unsubscribe error:', error);
     }
   }, [user?.id, getOrRegisterPushSW]);
 
@@ -343,7 +344,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       }
       return false;
     } catch (error) {
-      console.error('Error requesting permission:', error);
+      logger.error('Error requesting permission:', error);
       toast.error('Erro ao pedir permissão para notificações');
       return false;
     }
@@ -409,7 +410,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       setPreferences(newPrefs as PushPreferences);
       toast.success('Preferências atualizadas');
     } catch (error) {
-      console.error('Error updating preferences:', error);
+      logger.error('Error updating preferences:', error);
       toast.error('Erro ao guardar preferências');
     }
   }, [user?.id, preferences, isSubscribed, subscribeToPush, unsubscribeFromPush]);
@@ -417,7 +418,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   // Send a local notification
   const sendLocalNotification = useCallback((title: string, options?: NotificationOptions) => {
     if (!isSupported || permission !== 'granted') {
-      if (import.meta.env.DEV) console.log('Notifications not available or not permitted');
+      if (import.meta.env.DEV) logger.log('Notifications not available or not permitted');
       return;
     }
 
@@ -433,7 +434,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         notification.close();
       };
     } catch (error) {
-      console.error('Error sending notification:', error);
+      logger.error('Error sending notification:', error);
     }
   }, [isSupported, permission]);
 

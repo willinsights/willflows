@@ -55,6 +55,7 @@ import { CreateEventModal } from '@/components/calendar/CreateEventModal';
 import { useCalendarEvents } from '@/hooks/useCalendarEvents';
 import { ProjectTimeTab } from '@/components/time-tracking/ProjectTimeTab';
 
+import { logger } from '@/lib/logger';
 type Task = Tables<'tasks'>;
 type TaskChecklist = Tables<'task_checklists'>;
 type MediaLink = Tables<'project_media_links'>;
@@ -251,7 +252,7 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
       setResponsaveisCaptacao(captacaoMembers);
       setResponsaveisEdicao(edicaoMembers);
     } catch (error) {
-      console.error('Error fetching related data:', error);
+      logger.error('Error fetching related data:', error);
     }
   };
 
@@ -552,7 +553,7 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
       }, { onConflict: 'conversation_id,user_id' });
       
       if (memberError) {
-        console.error('[Chat] Error activating membership:', memberError);
+        logger.error('[Chat] Error activating membership:', memberError);
       }
       
       onOpenChange(false);

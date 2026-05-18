@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
+import { logger } from '@/lib/logger';
 export interface VideoComment {
   id: string;
   video_version_id: string;
@@ -76,7 +77,7 @@ export function useVideoComments(videoVersionId: string | null) {
 
       setComments(organized);
     } catch (error: any) {
-      console.error('Error fetching video comments:', error);
+      logger.error('Error fetching video comments:', error);
     } finally {
       setLoading(false);
     }
@@ -162,7 +163,7 @@ export function useVideoComments(videoVersionId: string | null) {
 
       await fetchComments();
     } catch (error: any) {
-      console.error('Error adding client comment:', error);
+      logger.error('Error adding client comment:', error);
       throw error;
     }
   };

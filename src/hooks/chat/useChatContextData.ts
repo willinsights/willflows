@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+import { logger } from '@/lib/logger';
 export interface ProjectTeamMember {
   id: string;
   user_id: string;
@@ -157,7 +158,7 @@ export function useChatContextData(params: {
           );
         }
       } catch (error) {
-        console.error('Error fetching project data:', error);
+        logger.error('Error fetching project data:', error);
       } finally {
         if (!cancelled) setLoadingExtras(false);
       }
