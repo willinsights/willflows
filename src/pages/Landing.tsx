@@ -308,6 +308,7 @@ export default function Landing() {
         </script>
       </Helmet>
       <PublicHeader />
+      <main>
       {/* Hero Section - Split Layout */}
       <section className="relative min-h-[90vh] pt-24 pb-20 overflow-visible">
         {/* Gradient Background */}
@@ -883,6 +884,7 @@ export default function Landing() {
           </motion.div>
         </div>
       </section>
+      </main>
 
       <PublicFooter />
       
