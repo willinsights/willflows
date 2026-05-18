@@ -22,6 +22,7 @@ import { useHideValues } from '@/hooks/useHideValues';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { paymentStatusLabels as statusLabels, paymentStatusColors as statusColors } from '@/lib/finance/constants';
+import { getProjectCost, getProjectRevenue, getProjectProfit, getProjectMargin } from '@/lib/finance/financialEngine';
 
 interface Client {
   id: string;
@@ -113,20 +114,12 @@ export function ProfitControl({
     itemsPerPage: 50,
   });
 
-  const getCost = (p: ProjectProfit) =>
-    (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0);
-
-  const getProfit = (p: ProjectProfit) =>
-    (p.agreed_value || 0) - getCost(p);
-
-  const getMargin = (p: ProjectProfit) => {
-    const revenue = p.agreed_value || 0;
-    if (revenue === 0) return 0;
-    return Math.round((getProfit(p) / revenue) * 100);
-  };
+  const getCost = (p: ProjectProfit) => getProjectCost(p as any);
+  const getProfit = (p: ProjectProfit) => getProjectProfit(p as any);
+  const getMargin = (p: ProjectProfit) => Math.round(getProjectMargin(p as any));
 
   const totals = useMemo(() => {
-    const totalRevenue = filteredProjects.reduce((s, p) => s + (p.agreed_value || 0), 0);
+    const totalRevenue = filteredProjects.reduce((s, p) => s + getProjectRevenue(p as any), 0);
     const totalCosts = filteredProjects.reduce((s, p) => s + getCost(p), 0);
     const totalProfit = totalRevenue - totalCosts;
     const avgMargin = totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 100) : 0;
