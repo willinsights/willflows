@@ -1,10 +1,11 @@
-// exceljs (~600KB) is loaded lazily inside each exported function via dynamic import
-import type ExcelJSNs from 'exceljs';
-type ExcelJSType = typeof import('exceljs');
-let ExcelJS!: ExcelJSType;
-async function loadExcelJS(): Promise<ExcelJSType> {
-  if (!ExcelJS) ExcelJS = (await import('exceljs')).default as unknown as ExcelJSType;
-  return ExcelJS;
+// exceljs (~600KB) is loaded lazily inside each exported function via dynamic import.
+// Types are imported statically (zero runtime cost).
+import type * as ExcelJS from 'exceljs';
+type ExcelJSModule = typeof import('exceljs');
+let _ExcelJS: ExcelJSModule['default'] | undefined;
+async function loadExcelJS(): Promise<ExcelJSModule['default']> {
+  if (!_ExcelJS) _ExcelJS = (await import('exceljs')).default;
+  return _ExcelJS;
 }
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
