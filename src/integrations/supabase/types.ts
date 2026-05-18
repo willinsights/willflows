@@ -167,6 +167,57 @@ export type Database = {
           },
         ]
       }
+      automation_jobs: {
+        Row: {
+          attempts: number
+          created_at: string
+          created_by: string | null
+          event_type: string
+          finished_at: string | null
+          id: string
+          last_error: string | null
+          max_attempts: number
+          next_run_at: string
+          payload: Json
+          started_at: string | null
+          status: Database["public"]["Enums"]["automation_job_status"]
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          created_by?: string | null
+          event_type: string
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          max_attempts?: number
+          next_run_at?: string
+          payload?: Json
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["automation_job_status"]
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          created_by?: string | null
+          event_type?: string
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          max_attempts?: number
+          next_run_at?: string
+          payload?: Json
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["automation_job_status"]
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       automation_recipient_groups: {
         Row: {
           created_at: string
@@ -4663,6 +4714,35 @@ export type Database = {
         Returns: boolean
       }
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
+      claim_automation_jobs: {
+        Args: { _limit?: number }
+        Returns: {
+          attempts: number
+          created_at: string
+          created_by: string | null
+          event_type: string
+          finished_at: string | null
+          id: string
+          last_error: string | null
+          max_attempts: number
+          next_run_at: string
+          payload: Json
+          started_at: string | null
+          status: Database["public"]["Enums"]["automation_job_status"]
+          updated_at: string
+          workspace_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "automation_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      complete_automation_job: {
+        Args: { _error?: string; _job_id: string; _success: boolean }
+        Returns: undefined
+      }
       count_admin_workspaces: { Args: { p_user_id: string }; Returns: number }
       count_total_invited_users: {
         Args: { p_user_id: string }
@@ -4708,6 +4788,10 @@ export type Database = {
           }
       encrypt_oauth_token: {
         Args: { _token: string; _user_id: string }
+        Returns: string
+      }
+      enqueue_automation_job: {
+        Args: { _event_type: string; _payload: Json; _workspace_id: string }
         Returns: string
       }
       enqueue_email: {
@@ -4943,6 +5027,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "edicao" | "captacao" | "gestao" | "visualizacao"
       automation_action_type: "send_email" | "notify_in_app" | "webhook"
+      automation_job_status: "pending" | "running" | "done" | "failed" | "dead"
       automation_trigger_type:
         | "card_enters_column"
         | "card_leaves_column"
@@ -5114,6 +5199,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "edicao", "captacao", "gestao", "visualizacao"],
       automation_action_type: ["send_email", "notify_in_app", "webhook"],
+      automation_job_status: ["pending", "running", "done", "failed", "dead"],
       automation_trigger_type: [
         "card_enters_column",
         "card_leaves_column",
