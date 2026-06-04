@@ -50,7 +50,15 @@ serve(async (req) => {
     // ============================================
     if (action === 'initiate') {
       const redirectUri = url.searchParams.get('redirect_uri') || 'https://willflow.app/auth';
-      
+
+      if (!isAllowedRedirect(redirectUri)) {
+        console.error(`[google-oauth] Rejected redirect_uri: ${redirectUri}`);
+        return new Response(
+          JSON.stringify({ error: 'invalid_redirect_uri' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       console.log(`[google-oauth] Initiating OAuth flow, redirect_uri: ${redirectUri}`);
       
       const scopes = [
