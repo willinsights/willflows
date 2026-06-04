@@ -8,15 +8,13 @@ export function useProductTour() {
 
   useEffect(() => {
     const completed = localStorage.getItem(TOUR_STORAGE_KEY);
-    if (completed === 'true') {
-      setTourCompleted(true);
-      setShowTour(false);
-      return;
+    // Marcar como concluído por padrão — o tour passa a ser opt-in via Configurações.
+    // Isto evita que o modal bloqueie o acesso ao app no primeiro login.
+    if (completed !== 'true') {
+      localStorage.setItem(TOUR_STORAGE_KEY, 'true');
     }
-
-    // Abrir automaticamente no primeiro acesso
-    setTourCompleted(false);
-    setShowTour(true);
+    setTourCompleted(true);
+    setShowTour(false);
   }, []);
 
   const completeTour = () => {
