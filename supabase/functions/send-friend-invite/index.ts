@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { validateEmail } from "../_shared/email-validator.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
@@ -15,6 +16,15 @@ interface FriendInviteRequest {
   senderName: string;
   customMessage?: string;
 }
+
+// Escape user-supplied values before embedding in HTML email body
+const escapeHtml = (s: string): string =>
+  String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
 const generateEmailHTML = (recipientName: string, senderName: string, customMessage?: string) => `
 <!DOCTYPE html>
