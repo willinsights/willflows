@@ -74,6 +74,14 @@ export function ProductTour({ onComplete, onSkip }: ProductTourProps) {
   const isLastStep = currentStep === tourSteps.length - 1;
   const isFirstStep = currentStep === 0;
 
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onSkip();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onSkip]);
+
   const handleNext = () => {
     if (isLastStep) {
       onComplete();
