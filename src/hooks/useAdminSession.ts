@@ -3,9 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
 
-// Fast-path allowlist for known system admins
-const SUPER_ADMIN_EMAILS = ['geral@willflow.app'];
-
 interface AdminSession {
   user: User | null;
   session: Session | null;
@@ -30,7 +27,7 @@ export function useAdminSession() {
     const checkSession = async () => {
       try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
+
         if (sessionError) {
           if (mounted) {
             setState(prev => ({ ...prev, loading: false, error: sessionError.message }));
@@ -45,24 +42,9 @@ export function useAdminSession() {
           return;
         }
 
-        // Fast-path for known system admins - skip RPC call
-        const email = (session.user.email || '').toLowerCase();
-        if (SUPER_ADMIN_EMAILS.includes(email)) {
-          if (mounted) {
-            setState({
-              user: session.user,
-              session,
-              isSuperAdmin: true,
-              loading: false,
-              error: null,
-            });
-          }
-          return;
-        }
-
-        // Only call RPC if not in fast-path
+        // Always verify admin status against the authoritative system_admins table
         const { data: isAdmin, error: adminError } = await supabase.rpc('is_system_admin');
-        
+
         if (adminError) {
           if (mounted) {
             setState({
@@ -87,10 +69,10 @@ export function useAdminSession() {
         }
       } catch (err) {
         if (mounted) {
-          setState(prev => ({ 
-            ...prev, 
-            loading: false, 
-            error: 'Erro ao verificar sessão' 
+          setState(prev => ({
+            ...prev,
+            loading: false,
+            error: 'Erro ao verificar sessão'
           }));
         }
       }
@@ -111,22 +93,6 @@ export function useAdminSession() {
         }
         navigate('/admin');
       } else if (session) {
-        // Fast-path check on auth state change
-        const email = (session.user.email || '').toLowerCase();
-        if (SUPER_ADMIN_EMAILS.includes(email)) {
-          if (mounted) {
-            setState({
-              user: session.user,
-              session,
-              isSuperAdmin: true,
-              loading: false,
-              error: null,
-            });
-          }
-          return;
-        }
-
-        // Re-check admin status on session change
         const { data: isAdmin } = await supabase.rpc('is_system_admin');
         if (mounted) {
           setState({
@@ -155,28 +121,15 @@ export function useAdminSession() {
     });
 
     if (error) {
-      setState(prev => ({ 
-        ...prev, 
-        loading: false, 
-        error: 'Credenciais inválidas' 
+      setState(prev => ({
+        ...prev,
+        loading: false,
+        error: 'Credenciais inválidas'
       }));
       return { success: false, error: error.message };
     }
 
-    // Fast-path for known admins
-    const userEmail = (data.user?.email || '').toLowerCase();
-    if (SUPER_ADMIN_EMAILS.includes(userEmail)) {
-      setState({
-        user: data.user,
-        session: data.session,
-        isSuperAdmin: true,
-        loading: false,
-        error: null,
-      });
-      return { success: true };
-    }
-
-    // Check if user is super admin via RPC
+    // Always check admin status via DB
     const { data: isAdmin, error: adminError } = await supabase.rpc('is_system_admin');
 
     if (adminError || !isAdmin) {

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { validateEmail } from "../_shared/email-validator.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
@@ -15,6 +16,15 @@ interface FriendInviteRequest {
   senderName: string;
   customMessage?: string;
 }
+
+// Escape user-supplied values before embedding in HTML email body
+const escapeHtml = (s: string): string =>
+  String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
 const generateEmailHTML = (recipientName: string, senderName: string, customMessage?: string) => `
 <!DOCTYPE html>
@@ -210,12 +220,40 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Require authenticated user (prevents spam/phishing abuse)
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.replace(/^Bearer\s+/i, "");
+    if (!token) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    );
+    const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+    if (userErr || !userData.user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     const { recipientEmail, recipientName, senderName, customMessage }: FriendInviteRequest = await req.json();
 
-    // Validate required fields
+    // Validate required fields and length caps
     if (!recipientName || !senderName) {
       return new Response(
         JSON.stringify({ error: "recipientName e senderName são obrigatórios" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    if (recipientName.length > 100 || senderName.length > 100 || (customMessage && customMessage.length > 500)) {
+      return new Response(
+        JSON.stringify({ error: "Campos excedem o tamanho máximo permitido" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -230,14 +268,18 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`Sending friend invite to ${recipientEmail} from ${senderName}`);
+    console.log(`Sending friend invite to ${recipientEmail} from user ${userData.user.id}`);
 
-    const emailHtml = generateEmailHTML(recipientName, senderName, customMessage);
+    // Escape all user input before injecting into HTML template
+    const safeRecipient = escapeHtml(recipientName);
+    const safeSender = escapeHtml(senderName);
+    const safeMessage = customMessage ? escapeHtml(customMessage) : undefined;
+    const emailHtml = generateEmailHTML(safeRecipient, safeSender, safeMessage);
 
     const emailResponse = await resend.emails.send({
       from: "WillFlow <noreply@willflow.app>",
       to: [recipientEmail],
-      subject: `${senderName} convidou-te para o WillFlow - 30 dias grátis! 🎁`,
+      subject: `${safeSender} convidou-te para o WillFlow - 30 dias grátis! 🎁`,
       html: emailHtml,
     });
 

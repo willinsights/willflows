@@ -3,9 +3,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
 import { logger } from '@/lib/logger';
-// Fallback allowlist for primary system admins (prevents UI gates from breaking if RPC is slow/fails)
-const SUPER_ADMIN_EMAILS = ['geral@willflow.app'];
-
 export function useSuperAdmin() {
   const { user } = useAuth();
 
@@ -13,12 +10,6 @@ export function useSuperAdmin() {
     queryKey: ['super-admin-status', user?.id],
     queryFn: async () => {
       if (!user) return false;
-
-      // Fast-path for known system admins
-      const email = (user.email || '').toLowerCase();
-      if (email && SUPER_ADMIN_EMAILS.includes(email)) {
-        return true;
-      }
 
       try {
         const { data, error } = await supabase.rpc('is_system_admin');

@@ -11,6 +11,28 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Allowlist of redirect origins to prevent open-redirect/account-takeover attacks
+const ALLOWED_REDIRECT_ORIGINS = [
+  'https://willflow.app',
+  'https://www.willflow.app',
+  'https://willflows.lovable.app',
+  'http://localhost:5173',
+  'http://localhost:8080',
+];
+
+const isAllowedRedirect = (uri: string): boolean => {
+  try {
+    const u = new URL(uri);
+    const origin = `${u.protocol}//${u.host}`;
+    if (ALLOWED_REDIRECT_ORIGINS.includes(origin)) return true;
+    // Allow lovable preview subdomains
+    if (u.protocol === 'https:' && u.host.endsWith('.lovable.app')) return true;
+    return false;
+  } catch {
+    return false;
+  }
+};
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -28,7 +50,15 @@ serve(async (req) => {
     // ============================================
     if (action === 'initiate') {
       const redirectUri = url.searchParams.get('redirect_uri') || 'https://willflow.app/auth';
-      
+
+      if (!isAllowedRedirect(redirectUri)) {
+        console.error(`[google-oauth] Rejected redirect_uri: ${redirectUri}`);
+        return new Response(
+          JSON.stringify({ error: 'invalid_redirect_uri' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       console.log(`[google-oauth] Initiating OAuth flow, redirect_uri: ${redirectUri}`);
       
       const scopes = [
@@ -108,6 +138,18 @@ serve(async (req) => {
           headers: { 
             'Location': 'https://willflow.app/auth?error=invalid_state',
             ...corsHeaders 
+          },
+        });
+      }
+
+      // Defense-in-depth: re-validate redirect target on callback (state can be forged)
+      if (!state?.redirectUri || !isAllowedRedirect(state.redirectUri)) {
+        console.error(`[google-oauth] Rejected state.redirectUri: ${state?.redirectUri}`);
+        return new Response(null, {
+          status: 302,
+          headers: {
+            'Location': 'https://willflow.app/auth?error=invalid_redirect_uri',
+            ...corsHeaders
           },
         });
       }
