@@ -141,6 +141,18 @@ serve(async (req) => {
           },
         });
       }
+
+      // Defense-in-depth: re-validate redirect target on callback (state can be forged)
+      if (!state?.redirectUri || !isAllowedRedirect(state.redirectUri)) {
+        console.error(`[google-oauth] Rejected state.redirectUri: ${state?.redirectUri}`);
+        return new Response(null, {
+          status: 302,
+          headers: {
+            'Location': 'https://willflow.app/auth?error=invalid_redirect_uri',
+            ...corsHeaders
+          },
+        });
+      }
       
       console.log(`[google-oauth] Exchanging code for tokens`);
       
