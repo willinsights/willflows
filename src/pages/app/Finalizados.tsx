@@ -271,6 +271,14 @@ export default function Finalizados() {
     if (completedProjects.length === 0) return;
     if (!checkFeature('exportPdf')) return;
 
+    const esc = (v: unknown): string =>
+      String(v ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
     // Calculate totals
     let totalRevenueVal = 0;
     let totalCostsVal = 0;
@@ -285,7 +293,7 @@ export default function Finalizados() {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Projetos Finalizados - ${currentWorkspace?.name || 'WillFlow'}</title>
+        <title>Projetos Finalizados - ${esc(currentWorkspace?.name || 'WillFlow')}</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #1a1a1a; background: #fff; }
@@ -319,7 +327,7 @@ export default function Finalizados() {
       <body>
         <div class="header">
           <h1>📋 Projetos Finalizados</h1>
-          <p class="workspace-name">${currentWorkspace?.name || 'WillFlow'}</p>
+          <p class="workspace-name">${esc(currentWorkspace?.name || 'WillFlow')}</p>
           <p class="date">${format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: pt })}</p>
         </div>
         
@@ -365,14 +373,14 @@ export default function Finalizados() {
               const lucro = (project.agreed_value || 0) - custo;
               return `
               <tr>
-                <td>${project.project_code || project.id.slice(0, 8).toUpperCase()}</td>
-                <td>${project.name}</td>
-                <td>${project.clients?.name || 'Sem cliente'}</td>
-                <td>${typeLabels[project.type]}</td>
+                <td>${esc(project.project_code || project.id.slice(0, 8).toUpperCase())}</td>
+                <td>${esc(project.name)}</td>
+                <td>${esc(project.clients?.name || 'Sem cliente')}</td>
+                <td>${esc(typeLabels[project.type])}</td>
                 <td>${project.delivered_at ? format(new Date(project.delivered_at), 'dd/MM/yyyy') : 'N/A'}</td>
                 <td>${project.competence_month ? format(parseISO(project.competence_month + '-01'), 'MMM yyyy', { locale: pt }) : (project.delivered_at ? format(new Date(project.delivered_at), 'MMM yyyy', { locale: pt }) : 'N/A')}</td>
-                <td>${getTeamNames(team.captacao)}</td>
-                <td>${getTeamNames(team.edicao)}</td>
+                <td>${esc(getTeamNames(team.captacao))}</td>
+                <td>${esc(getTeamNames(team.edicao))}</td>
                 ${canViewAllFinancials ? `
                 <td class="right positive">${formatCurrency(project.agreed_value || 0)}</td>
                 <td class="right negative">${formatCurrency(custo)}</td>

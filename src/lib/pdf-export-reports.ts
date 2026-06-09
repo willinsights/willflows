@@ -3,6 +3,14 @@ import { pt } from 'date-fns/locale';
 import type { MonthlyReportData, TopClientData } from '@/hooks/useReportData';
 import type { CollaboratorData } from '@/hooks/useCollaboratorRanking';
 
+const esc = (v: unknown): string =>
+  String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 interface ReportPdfOptions {
   workspaceName: string;
   dateRange: { start: Date; end: Date };
@@ -62,7 +70,7 @@ export function generateReportPdfHtml(opts: ReportPdfOptions): string {
 <body>
   <div class="header">
     <h1>📊 Relatório Financeiro</h1>
-    <p class="workspace-name">${workspaceName}</p>
+    <p class="workspace-name">${esc(workspaceName)}</p>
     <p class="date">Período: ${format(dateRange.start, "d 'de' MMMM 'de' yyyy", { locale: pt })} - ${format(dateRange.end, "d 'de' MMMM 'de' yyyy", { locale: pt })}</p>
   </div>
 
@@ -78,7 +86,7 @@ export function generateReportPdfHtml(opts: ReportPdfOptions): string {
   <table>
     <thead><tr><th>Mês</th><th class="right">Receita</th><th class="right">Custos</th><th class="right">Lucro</th><th class="right">Margem</th><th class="right">Projetos</th></tr></thead>
     <tbody>
-      ${monthlyData.map(m => `<tr><td>${m.fullMonth}</td><td class="right positive">${formatCurrency(m.receita)}</td><td class="right negative">${formatCurrency(m.custos)}</td><td class="right">${formatCurrency(m.lucro)}</td><td class="right">${m.margin.toFixed(1)}%</td><td class="right">${m.projetos}</td></tr>`).join('')}
+      ${monthlyData.map(m => `<tr><td>${esc(m.fullMonth)}</td><td class="right positive">${formatCurrency(m.receita)}</td><td class="right negative">${formatCurrency(m.custos)}</td><td class="right">${formatCurrency(m.lucro)}</td><td class="right">${m.margin.toFixed(1)}%</td><td class="right">${m.projetos}</td></tr>`).join('')}
       <tr class="total"><td>TOTAL</td><td class="right positive">${formatCurrency(totalReceita)}</td><td class="right negative">${formatCurrency(totalCustos)}</td><td class="right">${formatCurrency(totalLucro)}</td><td class="right">${avgMargin.toFixed(1)}%</td><td class="right">${totalProjetos}</td></tr>
     </tbody>
   </table>
@@ -87,14 +95,14 @@ export function generateReportPdfHtml(opts: ReportPdfOptions): string {
     <div class="ranking-card">
       <h3>🏆 Top 10 Clientes por Receita</h3>
       <ul class="ranking-list">
-        ${topClients.map((c, i) => `<li><span>${i + 1}. ${c.name}</span><span class="positive">${formatCurrency(c.revenue)}</span></li>`).join('')}
+        ${topClients.map((c, i) => `<li><span>${i + 1}. ${esc(c.name)}</span><span class="positive">${formatCurrency(c.revenue)}</span></li>`).join('')}
         ${topClients.length === 0 ? '<li><span>Sem dados</span></li>' : ''}
       </ul>
     </div>
     <div class="ranking-card">
       <h3>👥 Top 10 Colaboradores</h3>
       <ul class="ranking-list">
-        ${collaboratorsData.map((c, i) => `<li><span>${i + 1}. ${c.name}</span><span class="negative">${formatCurrency(c.totalValue)}</span></li>`).join('')}
+        ${collaboratorsData.map((c, i) => `<li><span>${i + 1}. ${esc(c.name)}</span><span class="negative">${formatCurrency(c.totalValue)}</span></li>`).join('')}
         ${collaboratorsData.length === 0 ? '<li><span>Sem dados</span></li>' : ''}
       </ul>
     </div>

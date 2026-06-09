@@ -1,6 +1,14 @@
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
+const esc = (v: unknown): string =>
+  String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 export interface PdfStatItem {
   label: string;
   value: string;
@@ -49,8 +57,8 @@ export function generatePdfHtml(options: PdfExportOptions): string {
     <div class="stats-bar">
       ${statsBar.map(stat => `
         <div class="stat-item">
-          <div class="stat-label">${stat.label}</div>
-          <div class="stat-value ${stat.className || ''}">${stat.value}</div>
+          <div class="stat-label">${esc(stat.label)}</div>
+          <div class="stat-value ${esc(stat.className || '')}">${esc(stat.value)}</div>
         </div>
       `).join('')}
     </div>
@@ -59,9 +67,9 @@ export function generatePdfHtml(options: PdfExportOptions): string {
   const tableRows = data.map((row, index) => {
     const cells = row.cells.map(cell => {
       if (typeof cell === 'string') {
-        return `<td>${cell}</td>`;
+        return `<td>${esc(cell)}</td>`;
       }
-      return `<td class="${cell.className || ''}">${cell.value}</td>`;
+      return `<td class="${esc(cell.className || '')}">${esc(cell.value)}</td>`;
     }).join('');
     return `<tr>${cells}</tr>`;
   }).join('');
@@ -71,7 +79,7 @@ export function generatePdfHtml(options: PdfExportOptions): string {
     <html lang="pt">
     <head>
       <meta charset="utf-8">
-      <title>${title} - ${workspaceName}</title>
+      <title>${esc(title)} - ${esc(workspaceName)}</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -211,11 +219,11 @@ export function generatePdfHtml(options: PdfExportOptions): string {
     </head>
     <body>
       <div class="header">
-        <h1>${title}</h1>
-        ${subtitle ? `<p class="workspace-name">${subtitle}</p>` : ''}
-        <p class="workspace-name">${workspaceName}</p>
+        <h1>${esc(title)}</h1>
+        ${subtitle ? `<p class="workspace-name">${esc(subtitle)}</p>` : ''}
+        <p class="workspace-name">${esc(workspaceName)}</p>
         <p class="date">Exportado: ${currentDateTime}</p>
-        ${totalLabel ? `<p class="count">${totalLabel}</p>` : ''}
+        ${totalLabel ? `<p class="count">${esc(totalLabel)}</p>` : ''}
       </div>
       
       ${statsSection}
@@ -223,7 +231,7 @@ export function generatePdfHtml(options: PdfExportOptions): string {
       ${data.length > 0 ? `
       <table>
         <thead>
-          <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+          <tr>${headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr>
         </thead>
         <tbody>${tableRows}</tbody>
       </table>
