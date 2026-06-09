@@ -70,7 +70,7 @@ export function generateReportPdfHtml(opts: ReportPdfOptions): string {
 <body>
   <div class="header">
     <h1>📊 Relatório Financeiro</h1>
-    <p class="workspace-name">${workspaceName}</p>
+    <p class="workspace-name">${esc(workspaceName)}</p>
     <p class="date">Período: ${format(dateRange.start, "d 'de' MMMM 'de' yyyy", { locale: pt })} - ${format(dateRange.end, "d 'de' MMMM 'de' yyyy", { locale: pt })}</p>
   </div>
 
