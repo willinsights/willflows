@@ -79,7 +79,7 @@ export function generatePdfHtml(options: PdfExportOptions): string {
     <html lang="pt">
     <head>
       <meta charset="utf-8">
-      <title>${title} - ${workspaceName}</title>
+      <title>${esc(title)} - ${esc(workspaceName)}</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
