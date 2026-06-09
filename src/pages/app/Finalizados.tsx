@@ -293,7 +293,7 @@ export default function Finalizados() {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Projetos Finalizados - ${currentWorkspace?.name || 'WillFlow'}</title>
+        <title>Projetos Finalizados - ${esc(currentWorkspace?.name || 'WillFlow')}</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #1a1a1a; background: #fff; }
