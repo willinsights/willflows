@@ -219,11 +219,11 @@ export function generatePdfHtml(options: PdfExportOptions): string {
     </head>
     <body>
       <div class="header">
-        <h1>${title}</h1>
-        ${subtitle ? `<p class="workspace-name">${subtitle}</p>` : ''}
-        <p class="workspace-name">${workspaceName}</p>
+        <h1>${esc(title)}</h1>
+        ${subtitle ? `<p class="workspace-name">${esc(subtitle)}</p>` : ''}
+        <p class="workspace-name">${esc(workspaceName)}</p>
         <p class="date">Exportado: ${currentDateTime}</p>
-        ${totalLabel ? `<p class="count">${totalLabel}</p>` : ''}
+        ${totalLabel ? `<p class="count">${esc(totalLabel)}</p>` : ''}
       </div>
       
       ${statsSection}
@@ -231,7 +231,7 @@ export function generatePdfHtml(options: PdfExportOptions): string {
       ${data.length > 0 ? `
       <table>
         <thead>
-          <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+          <tr>${headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr>
         </thead>
         <tbody>${tableRows}</tbody>
       </table>
