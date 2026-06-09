@@ -13,6 +13,7 @@ import type { ProjectWithClient } from '@/hooks/useKanban';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { KanbanChatIndicator } from './KanbanChatIndicator';
 import { KanbanTimerIndicator } from './KanbanTimerIndicator';
+import { KanbanVideoCommentsIndicator } from './KanbanVideoCommentsIndicator';
 
 interface KanbanCardProps {
   project: ProjectWithClient;
@@ -120,6 +121,7 @@ function KanbanCardComponent({ project, onClick, style: externalStyle }: KanbanC
             <CheckCircle2 className="h-3 w-3 text-emerald-500" />
           )}
           <KanbanTimerIndicator projectId={project.id} />
+          <KanbanVideoCommentsIndicator projectId={project.id} />
           <KanbanChatIndicator projectId={project.id} />
           {isOverdue && (
             <AlertTriangle className="h-3 w-3 text-destructive" />
