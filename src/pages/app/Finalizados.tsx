@@ -271,6 +271,14 @@ export default function Finalizados() {
     if (completedProjects.length === 0) return;
     if (!checkFeature('exportPdf')) return;
 
+    const esc = (v: unknown): string =>
+      String(v ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
     // Calculate totals
     let totalRevenueVal = 0;
     let totalCostsVal = 0;
