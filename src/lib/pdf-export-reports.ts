@@ -3,6 +3,14 @@ import { pt } from 'date-fns/locale';
 import type { MonthlyReportData, TopClientData } from '@/hooks/useReportData';
 import type { CollaboratorData } from '@/hooks/useCollaboratorRanking';
 
+const esc = (v: unknown): string =>
+  String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 interface ReportPdfOptions {
   workspaceName: string;
   dateRange: { start: Date; end: Date };
