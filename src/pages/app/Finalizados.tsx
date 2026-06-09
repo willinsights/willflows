@@ -373,14 +373,14 @@ export default function Finalizados() {
               const lucro = (project.agreed_value || 0) - custo;
               return `
               <tr>
-                <td>${project.project_code || project.id.slice(0, 8).toUpperCase()}</td>
-                <td>${project.name}</td>
-                <td>${project.clients?.name || 'Sem cliente'}</td>
-                <td>${typeLabels[project.type]}</td>
+                <td>${esc(project.project_code || project.id.slice(0, 8).toUpperCase())}</td>
+                <td>${esc(project.name)}</td>
+                <td>${esc(project.clients?.name || 'Sem cliente')}</td>
+                <td>${esc(typeLabels[project.type])}</td>
                 <td>${project.delivered_at ? format(new Date(project.delivered_at), 'dd/MM/yyyy') : 'N/A'}</td>
                 <td>${project.competence_month ? format(parseISO(project.competence_month + '-01'), 'MMM yyyy', { locale: pt }) : (project.delivered_at ? format(new Date(project.delivered_at), 'MMM yyyy', { locale: pt }) : 'N/A')}</td>
-                <td>${getTeamNames(team.captacao)}</td>
-                <td>${getTeamNames(team.edicao)}</td>
+                <td>${esc(getTeamNames(team.captacao))}</td>
+                <td>${esc(getTeamNames(team.edicao))}</td>
                 ${canViewAllFinancials ? `
                 <td class="right positive">${formatCurrency(project.agreed_value || 0)}</td>
                 <td class="right negative">${formatCurrency(custo)}</td>
