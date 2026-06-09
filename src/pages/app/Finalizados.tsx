@@ -327,7 +327,7 @@ export default function Finalizados() {
       <body>
         <div class="header">
           <h1>📋 Projetos Finalizados</h1>
-          <p class="workspace-name">${currentWorkspace?.name || 'WillFlow'}</p>
+          <p class="workspace-name">${esc(currentWorkspace?.name || 'WillFlow')}</p>
           <p class="date">${format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: pt })}</p>
         </div>
         
