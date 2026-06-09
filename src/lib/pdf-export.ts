@@ -57,8 +57,8 @@ export function generatePdfHtml(options: PdfExportOptions): string {
     <div class="stats-bar">
       ${statsBar.map(stat => `
         <div class="stat-item">
-          <div class="stat-label">${stat.label}</div>
-          <div class="stat-value ${stat.className || ''}">${stat.value}</div>
+          <div class="stat-label">${esc(stat.label)}</div>
+          <div class="stat-value ${esc(stat.className || '')}">${esc(stat.value)}</div>
         </div>
       `).join('')}
     </div>
@@ -67,9 +67,9 @@ export function generatePdfHtml(options: PdfExportOptions): string {
   const tableRows = data.map((row, index) => {
     const cells = row.cells.map(cell => {
       if (typeof cell === 'string') {
-        return `<td>${cell}</td>`;
+        return `<td>${esc(cell)}</td>`;
       }
-      return `<td class="${cell.className || ''}">${cell.value}</td>`;
+      return `<td class="${esc(cell.className || '')}">${esc(cell.value)}</td>`;
     }).join('');
     return `<tr>${cells}</tr>`;
   }).join('');
