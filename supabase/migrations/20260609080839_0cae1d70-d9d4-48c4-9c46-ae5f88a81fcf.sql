@@ -1,0 +1,1 @@
+UPDATE public.workspaces SET subscription_plan='studio', subscription_status='active', trial_ends_at=NULL, updated_at=now() WHERE id='e948175f-219c-41a9-b8a3-18c4efa6e0ec';
