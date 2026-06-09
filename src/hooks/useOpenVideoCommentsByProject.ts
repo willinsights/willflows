@@ -21,16 +21,19 @@ export function useOpenVideoCommentsByProject() {
       if (!workspaceId) return new Map<string, number>();
       const { data, error } = await supabase
         .from('video_comments')
-        .select('project_id')
+        .select('project_id, video_versions:video_version_id(project_id)')
         .eq('workspace_id', workspaceId)
-        .eq('status', 'open')
-        .not('project_id', 'is', null);
+        .eq('status', 'open');
 
       if (error) throw error;
 
       const map = new Map<string, number>();
       for (const row of data || []) {
-        const pid = (row as { project_id: string | null }).project_id;
+        const r = row as {
+          project_id: string | null;
+          video_versions: { project_id: string | null } | null;
+        };
+        const pid = r.project_id || r.video_versions?.project_id || null;
         if (!pid) continue;
         map.set(pid, (map.get(pid) || 0) + 1);
       }
