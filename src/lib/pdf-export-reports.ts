@@ -95,14 +95,14 @@ export function generateReportPdfHtml(opts: ReportPdfOptions): string {
     <div class="ranking-card">
       <h3>🏆 Top 10 Clientes por Receita</h3>
       <ul class="ranking-list">
-        ${topClients.map((c, i) => `<li><span>${i + 1}. ${c.name}</span><span class="positive">${formatCurrency(c.revenue)}</span></li>`).join('')}
+        ${topClients.map((c, i) => `<li><span>${i + 1}. ${esc(c.name)}</span><span class="positive">${formatCurrency(c.revenue)}</span></li>`).join('')}
         ${topClients.length === 0 ? '<li><span>Sem dados</span></li>' : ''}
       </ul>
     </div>
     <div class="ranking-card">
       <h3>👥 Top 10 Colaboradores</h3>
       <ul class="ranking-list">
-        ${collaboratorsData.map((c, i) => `<li><span>${i + 1}. ${c.name}</span><span class="negative">${formatCurrency(c.totalValue)}</span></li>`).join('')}
+        ${collaboratorsData.map((c, i) => `<li><span>${i + 1}. ${esc(c.name)}</span><span class="negative">${formatCurrency(c.totalValue)}</span></li>`).join('')}
         ${collaboratorsData.length === 0 ? '<li><span>Sem dados</span></li>' : ''}
       </ul>
     </div>
