@@ -86,7 +86,7 @@ export function generateReportPdfHtml(opts: ReportPdfOptions): string {
   <table>
     <thead><tr><th>Mês</th><th class="right">Receita</th><th class="right">Custos</th><th class="right">Lucro</th><th class="right">Margem</th><th class="right">Projetos</th></tr></thead>
     <tbody>
-      ${monthlyData.map(m => `<tr><td>${m.fullMonth}</td><td class="right positive">${formatCurrency(m.receita)}</td><td class="right negative">${formatCurrency(m.custos)}</td><td class="right">${formatCurrency(m.lucro)}</td><td class="right">${m.margin.toFixed(1)}%</td><td class="right">${m.projetos}</td></tr>`).join('')}
+      ${monthlyData.map(m => `<tr><td>${esc(m.fullMonth)}</td><td class="right positive">${formatCurrency(m.receita)}</td><td class="right negative">${formatCurrency(m.custos)}</td><td class="right">${formatCurrency(m.lucro)}</td><td class="right">${m.margin.toFixed(1)}%</td><td class="right">${m.projetos}</td></tr>`).join('')}
       <tr class="total"><td>TOTAL</td><td class="right positive">${formatCurrency(totalReceita)}</td><td class="right negative">${formatCurrency(totalCustos)}</td><td class="right">${formatCurrency(totalLucro)}</td><td class="right">${avgMargin.toFixed(1)}%</td><td class="right">${totalProjetos}</td></tr>
     </tbody>
   </table>
