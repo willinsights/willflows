@@ -1,0 +1,76 @@
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+
+/**
+ * Returns a Map<projectId, openCommentsCount> with all unresolved video
+ * comments (status='open') for the current workspace.
+ * Shared across the Kanban board — React Query dedupes by workspaceId.
+ */
+export function useOpenVideoCommentsByProject() {
+  const { currentWorkspace } = useWorkspace();
+  const queryClient = useQueryClient();
+  const workspaceId = currentWorkspace?.id;
+
+  const queryKey = ['kanban-open-video-comments', workspaceId];
+
+  const { data } = useQuery({
+    queryKey,
+    queryFn: async () => {
+      if (!workspaceId) return new Map<string, number>();
+      const { data, error } = await supabase
+        .from('video_comments')
+        .select('project_id')
+        .eq('workspace_id', workspaceId)
+        .eq('status', 'open')
+        .not('project_id', 'is', null);
+
+      if (error) throw error;
+
+      const map = new Map<string, number>();
+      for (const row of data || []) {
+        const pid = (row as { project_id: string | null }).project_id;
+        if (!pid) continue;
+        map.set(pid, (map.get(pid) || 0) + 1);
+      }
+      return map;
+    },
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+  });
+
+  // Realtime: invalidate on any video_comments change in this workspace
+  useEffect(() => {
+    if (!workspaceId) return;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const invalidate = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey });
+      }, 300);
+    };
+
+    const channel = supabase
+      .channel(`kanban-video-comments-${workspaceId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'video_comments',
+          filter: `workspace_id=eq.${workspaceId}`,
+        },
+        invalidate,
+      )
+      .subscribe();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId]);
+
+  return data ?? new Map<string, number>();
+}
