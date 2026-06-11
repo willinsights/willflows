@@ -177,6 +177,8 @@ export function useKanbanData(phase: KanbanPhase) {
       debouncedSilentRefresh();
     };
 
+    let wasDisconnected = false;
+
     const channel = supabase
       .channel(channelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects', filter: `workspace_id=eq.${currentWorkspace.id}` }, handleProjectChange)
@@ -184,10 +186,40 @@ export function useKanbanData(phase: KanbanPhase) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `workspace_id=eq.${currentWorkspace.id}` }, handleTaskChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'task_checklists', filter: `workspace_id=eq.${currentWorkspace.id}` }, handleGenericChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'project_team', filter: `workspace_id=eq.${currentWorkspace.id}` }, handleGenericChange)
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          if (wasDisconnected) {
+            logger.debug('[Kanban Realtime] Reconnected — resyncing');
+            wasDisconnected = false;
+            silentRefresh();
+          }
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          wasDisconnected = true;
+        }
+      });
 
-    return () => { supabase.removeChannel(channel); };
-  }, [currentWorkspace?.id, phase, debouncedSilentRefresh, shouldSuppress]);
+    // Resync triggers: focus, visibility, network, periodic poll
+    const triggerRefresh = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      debouncedSilentRefresh();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') debouncedSilentRefresh();
+    };
+    window.addEventListener('focus', triggerRefresh);
+    window.addEventListener('online', triggerRefresh);
+    document.addEventListener('visibilitychange', onVisibility);
+    const pollId = setInterval(triggerRefresh, 60_000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener('focus', triggerRefresh);
+      window.removeEventListener('online', triggerRefresh);
+      document.removeEventListener('visibilitychange', onVisibility);
+      clearInterval(pollId);
+    };
+  }, [currentWorkspace?.id, phase, debouncedSilentRefresh, silentRefresh, shouldSuppress]);
+
 
   return {
     columns,
