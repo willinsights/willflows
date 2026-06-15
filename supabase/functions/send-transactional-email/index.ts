@@ -7,6 +7,7 @@ import { BetaWelcomeEmail } from '../_shared/email-templates/beta-welcome.tsx'
 import { WelcomeEmail } from '../_shared/email-templates/welcome.tsx'
 import { PasswordResetEmail } from '../_shared/email-templates/password-reset.tsx'
 import { InvitationEmail } from '../_shared/email-templates/invitation.tsx'
+import { BetaInviteEmail } from '../_shared/email-templates/beta-invite.tsx'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,7 +27,7 @@ const SENDER_DOMAIN = 'notify.willflow.app'
 const FROM_ADDRESS = `${SITE_NAME} <noreply@willflow.app>`
 
 interface TransactionalEmailRequest {
-  template: 'payment_alert' | 'weekly_summary' | 'beta_welcome' | 'welcome' | 'password_reset' | 'invitation'
+  template: 'payment_alert' | 'weekly_summary' | 'beta_welcome' | 'welcome' | 'password_reset' | 'invitation' | 'beta_invite'
   to: string
   data: Record<string, unknown>
 }
@@ -57,6 +58,10 @@ const TEMPLATES: Record<string, { component: React.ComponentType<any>; subject: 
   invitation: {
     component: InvitationEmail,
     subject: (data) => `${data.inviterName || 'Alguém'} convidou-te para o workspace "${data.workspaceName}"`,
+  },
+  beta_invite: {
+    component: BetaInviteEmail,
+    subject: (data) => `🎉 Convite exclusivo: ${data.freeDays || 30} dias grátis no WillFlow!`,
   },
 }
 
@@ -125,6 +130,19 @@ Deno.serve(async (req) => {
       }
       if (!data.inviteLink || !data.workspaceName) {
         return new Response(JSON.stringify({ error: 'Missing invitation fields: token/inviteLink and workspaceName required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
+    // Server-side enrichment for beta_invite: compute inviteLink from inviteToken
+    if (template === 'beta_invite') {
+      if (data.inviteToken && !data.inviteLink) {
+        data.inviteLink = `https://willflow.app/auth?token=${data.inviteToken}`
+      }
+      if (!data.inviteLink) {
+        return new Response(JSON.stringify({ error: 'Missing beta_invite field: inviteToken or inviteLink required' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })

@@ -147,11 +147,11 @@ export default function BetaAdmin() {
         throw new Error('Não autenticado');
       }
 
-      const { data, error } = await supabase.functions.invoke('send-beta-invite', {
+      const { data, error } = await supabase.functions.invoke('send-transactional-email', {
         body: {
-          email,
-          name,
-          inviteToken: token,
+          template: 'beta_invite',
+          to: email,
+          data: { name, inviteToken: token },
         },
       });
 
