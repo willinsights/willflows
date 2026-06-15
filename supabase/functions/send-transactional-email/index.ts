@@ -85,6 +85,23 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Server-side enrichment for password_reset: generate recovery link via admin API
+    if (template === 'password_reset' && !data.resetLink) {
+      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+        type: 'recovery',
+        email: to,
+        options: { redirectTo: 'https://willflow.app/auth?mode=reset' },
+      })
+      if (linkError || !linkData?.properties?.action_link) {
+        // Don't reveal whether the email exists
+        console.warn('password_reset: failed to generate link', { error: linkError?.message })
+        return new Response(JSON.stringify({ success: true, skipped: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      data.resetLink = linkData.properties.action_link
+    }
+
     // Check suppression list
     const { data: suppressed } = await supabase
       .from('suppressed_emails')
