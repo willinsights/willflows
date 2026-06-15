@@ -8,6 +8,7 @@ import { WelcomeEmail } from '../_shared/email-templates/welcome.tsx'
 import { PasswordResetEmail } from '../_shared/email-templates/password-reset.tsx'
 import { InvitationEmail } from '../_shared/email-templates/invitation.tsx'
 import { BetaInviteEmail } from '../_shared/email-templates/beta-invite.tsx'
+import { ContactMessageEmail } from '../_shared/email-templates/contact-message.tsx'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -62,6 +63,10 @@ const TEMPLATES: Record<string, { component: React.ComponentType<any>; subject: 
   beta_invite: {
     component: BetaInviteEmail,
     subject: (data) => `🎉 Convite exclusivo: ${data.freeDays || 30} dias grátis no WillFlow!`,
+  },
+  contact_message: {
+    component: ContactMessageEmail,
+    subject: (data) => `[Contacto WillFlow] ${data.subject || 'Nova mensagem'}`,
   },
 }
 
