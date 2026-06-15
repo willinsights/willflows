@@ -3,6 +3,7 @@ import * as React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { PaymentAlertEmail } from '../_shared/email-templates/payment-alert.tsx'
 import { WeeklySummaryEmail } from '../_shared/email-templates/weekly-summary.tsx'
+import { BetaWelcomeEmail } from '../_shared/email-templates/beta-welcome.tsx'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,7 +15,7 @@ const SENDER_DOMAIN = 'notify.willflow.app'
 const FROM_ADDRESS = `${SITE_NAME} <noreply@willflow.app>`
 
 interface TransactionalEmailRequest {
-  template: 'payment_alert' | 'weekly_summary'
+  template: 'payment_alert' | 'weekly_summary' | 'beta_welcome'
   to: string
   data: Record<string, unknown>
 }
@@ -30,7 +31,12 @@ const TEMPLATES: Record<string, { component: React.ComponentType<any>; subject: 
     component: WeeklySummaryEmail,
     subject: () => `📊 Resumo Semanal — WillFlow`,
   },
+  beta_welcome: {
+    component: BetaWelcomeEmail,
+    subject: () => `🎉 Bem-vindo ao WillFlow Beta!`,
+  },
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
