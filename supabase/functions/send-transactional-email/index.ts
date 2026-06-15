@@ -115,6 +115,22 @@ Deno.serve(async (req) => {
       data.resetLink = linkData.properties.action_link
     }
 
+    // Server-side enrichment for invitation: compute roleLabel and inviteLink
+    if (template === 'invitation') {
+      if (data.role && !data.roleLabel) {
+        data.roleLabel = ROLE_LABELS[data.role as string] || (data.role as string)
+      }
+      if (data.token && !data.inviteLink) {
+        data.inviteLink = `https://willflow.app/convite?token=${data.token}`
+      }
+      if (!data.inviteLink || !data.workspaceName) {
+        return new Response(JSON.stringify({ error: 'Missing invitation fields: token/inviteLink and workspaceName required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
     // Check suppression list
     const { data: suppressed } = await supabase
       .from('suppressed_emails')
