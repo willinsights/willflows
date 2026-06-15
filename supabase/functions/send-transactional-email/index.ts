@@ -154,6 +154,31 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Server-side handling for contact_message: validate, sanitize, force recipient
+    if (template === 'contact_message') {
+      const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
+      const name = String(data.name ?? '').trim()
+      const senderEmail = String(data.email ?? '').trim().toLowerCase()
+      const subject = String(data.subject ?? '').trim()
+      const message = String(data.message ?? '').trim()
+      if (!name || !senderEmail || !subject || !message) {
+        return new Response(JSON.stringify({ error: 'Todos os campos são obrigatórios' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      if (!EMAIL_REGEX.test(senderEmail) || senderEmail.length > 254) {
+        return new Response(JSON.stringify({ error: 'Formato de email inválido' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      data.name = name.substring(0, 100)
+      data.email = senderEmail
+      data.subject = subject.substring(0, 200)
+      data.message = message.substring(0, 5000)
+    }
+
     // Check suppression list
     const { data: suppressed } = await supabase
       .from('suppressed_emails')
