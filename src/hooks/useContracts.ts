@@ -22,7 +22,7 @@ export interface Contract {
   viewed_at: string | null;
   signed_at: string | null;
   expires_at: string | null;
-  signature_token: string;
+  signature_token?: string; // not returned to workspace members; only available via secure RPC
   client_signature_data: string | null;
   client_signed_name: string | null;
   client_signed_ip: string | null;
