@@ -88,7 +88,7 @@ export function FeatureHero({
               className="w-full screenshot-fog-hero"
               loading="eager"
               decoding="async"
-              fetchPriority="high"
+              {...({ fetchpriority: 'high' } as any)}
             />
           </motion.div>
         </div>
