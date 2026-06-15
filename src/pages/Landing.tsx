@@ -429,7 +429,7 @@ export default function Landing() {
                 className="w-full screenshot-fog"
                 loading="eager"
                 decoding="async"
-                fetchPriority="high"
+                {...({ fetchpriority: 'high' } as any)}
               />
             </motion.div>
           </div>
