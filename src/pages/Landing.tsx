@@ -201,7 +201,7 @@ const MobileScreenshotCard = memo(forwardRef<HTMLDivElement, MobileScreenshotCar
             height={187}
             loading={isPriority ? 'eager' : 'lazy'}
             decoding="async"
-            fetchPriority={isPriority ? 'high' : 'auto'}
+            {...({ fetchpriority: isPriority ? 'high' : 'auto' } as any)}
             className="w-full h-auto"
           />
         </div>
