@@ -8,6 +8,7 @@ import { WelcomeEmail } from '../_shared/email-templates/welcome.tsx'
 import { PasswordResetEmail } from '../_shared/email-templates/password-reset.tsx'
 import { InvitationEmail } from '../_shared/email-templates/invitation.tsx'
 import { BetaInviteEmail } from '../_shared/email-templates/beta-invite.tsx'
+import { ContactMessageEmail } from '../_shared/email-templates/contact-message.tsx'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -62,6 +63,10 @@ const TEMPLATES: Record<string, { component: React.ComponentType<any>; subject: 
   beta_invite: {
     component: BetaInviteEmail,
     subject: (data) => `🎉 Convite exclusivo: ${data.freeDays || 30} dias grátis no WillFlow!`,
+  },
+  contact_message: {
+    component: ContactMessageEmail,
+    subject: (data) => `[Contacto WillFlow] ${data.subject || 'Nova mensagem'}`,
   },
 }
 
@@ -147,6 +152,31 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
+    }
+
+    // Server-side handling for contact_message: validate, sanitize, force recipient
+    if (template === 'contact_message') {
+      const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
+      const name = String(data.name ?? '').trim()
+      const senderEmail = String(data.email ?? '').trim().toLowerCase()
+      const subject = String(data.subject ?? '').trim()
+      const message = String(data.message ?? '').trim()
+      if (!name || !senderEmail || !subject || !message) {
+        return new Response(JSON.stringify({ error: 'Todos os campos são obrigatórios' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      if (!EMAIL_REGEX.test(senderEmail) || senderEmail.length > 254) {
+        return new Response(JSON.stringify({ error: 'Formato de email inválido' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      data.name = name.substring(0, 100)
+      data.email = senderEmail
+      data.subject = subject.substring(0, 200)
+      data.message = message.substring(0, 5000)
     }
 
     // Check suppression list
