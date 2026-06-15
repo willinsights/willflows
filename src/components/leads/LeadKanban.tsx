@@ -161,7 +161,7 @@ export function LeadKanban({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 h-[calc(100vh-320px)] sm:h-[calc(100vh-280px)]">
+      <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 h-[calc(100vh-320px)] sm:h-[calc(100vh-280px)] snap-x snap-mandatory scroll-pl-4 sm:scroll-pl-0 -mx-6 px-6 sm:mx-0 sm:px-0">
         {KANBAN_COLUMNS.map(status => (
           <DroppableColumn
             key={status}
