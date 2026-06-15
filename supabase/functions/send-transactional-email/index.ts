@@ -136,6 +136,19 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Server-side enrichment for beta_invite: compute inviteLink from inviteToken
+    if (template === 'beta_invite') {
+      if (data.inviteToken && !data.inviteLink) {
+        data.inviteLink = `https://willflow.app/auth?token=${data.inviteToken}`
+      }
+      if (!data.inviteLink) {
+        return new Response(JSON.stringify({ error: 'Missing beta_invite field: inviteToken or inviteLink required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
     // Check suppression list
     const { data: suppressed } = await supabase
       .from('suppressed_emails')
