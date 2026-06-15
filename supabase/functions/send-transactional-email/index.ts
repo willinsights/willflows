@@ -59,6 +59,10 @@ const TEMPLATES: Record<string, { component: React.ComponentType<any>; subject: 
     component: InvitationEmail,
     subject: (data) => `${data.inviterName || 'Alguém'} convidou-te para o workspace "${data.workspaceName}"`,
   },
+  beta_invite: {
+    component: BetaInviteEmail,
+    subject: (data) => `🎉 Convite exclusivo: ${data.freeDays || 30} dias grátis no WillFlow!`,
+  },
 }
 
 
