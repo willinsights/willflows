@@ -6,10 +6,19 @@ import { WeeklySummaryEmail } from '../_shared/email-templates/weekly-summary.ts
 import { BetaWelcomeEmail } from '../_shared/email-templates/beta-welcome.tsx'
 import { WelcomeEmail } from '../_shared/email-templates/welcome.tsx'
 import { PasswordResetEmail } from '../_shared/email-templates/password-reset.tsx'
+import { InvitationEmail } from '../_shared/email-templates/invitation.tsx'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Administrador',
+  edicao: 'Edição',
+  captacao: 'Captação',
+  gestao: 'Gestão',
+  visualizacao: 'Visualização',
 }
 
 const SITE_NAME = 'WillFlow'
@@ -17,7 +26,7 @@ const SENDER_DOMAIN = 'notify.willflow.app'
 const FROM_ADDRESS = `${SITE_NAME} <noreply@willflow.app>`
 
 interface TransactionalEmailRequest {
-  template: 'payment_alert' | 'weekly_summary' | 'beta_welcome' | 'welcome' | 'password_reset'
+  template: 'payment_alert' | 'weekly_summary' | 'beta_welcome' | 'welcome' | 'password_reset' | 'invitation'
   to: string
   data: Record<string, unknown>
 }
@@ -44,6 +53,10 @@ const TEMPLATES: Record<string, { component: React.ComponentType<any>; subject: 
   password_reset: {
     component: PasswordResetEmail,
     subject: () => `Redefinir a tua password — WillFlow`,
+  },
+  invitation: {
+    component: InvitationEmail,
+    subject: (data) => `${data.inviterName || 'Alguém'} convidou-te para o workspace "${data.workspaceName}"`,
   },
 }
 
@@ -100,6 +113,22 @@ Deno.serve(async (req) => {
         })
       }
       data.resetLink = linkData.properties.action_link
+    }
+
+    // Server-side enrichment for invitation: compute roleLabel and inviteLink
+    if (template === 'invitation') {
+      if (data.role && !data.roleLabel) {
+        data.roleLabel = ROLE_LABELS[data.role as string] || (data.role as string)
+      }
+      if (data.token && !data.inviteLink) {
+        data.inviteLink = `https://willflow.app/convite?token=${data.token}`
+      }
+      if (!data.inviteLink || !data.workspaceName) {
+        return new Response(JSON.stringify({ error: 'Missing invitation fields: token/inviteLink and workspaceName required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
     }
 
     // Check suppression list
