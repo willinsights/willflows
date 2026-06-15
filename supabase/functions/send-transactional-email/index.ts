@@ -6,10 +6,19 @@ import { WeeklySummaryEmail } from '../_shared/email-templates/weekly-summary.ts
 import { BetaWelcomeEmail } from '../_shared/email-templates/beta-welcome.tsx'
 import { WelcomeEmail } from '../_shared/email-templates/welcome.tsx'
 import { PasswordResetEmail } from '../_shared/email-templates/password-reset.tsx'
+import { InvitationEmail } from '../_shared/email-templates/invitation.tsx'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Administrador',
+  edicao: 'Edição',
+  captacao: 'Captação',
+  gestao: 'Gestão',
+  visualizacao: 'Visualização',
 }
 
 const SITE_NAME = 'WillFlow'
