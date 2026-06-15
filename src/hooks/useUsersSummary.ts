@@ -295,15 +295,17 @@ export function useUsersSummary() {
       // Send invitation email via edge function
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { error: emailError } = await supabase.functions.invoke('send-invitation-email', {
+        const { error: emailError } = await supabase.functions.invoke('send-transactional-email', {
           headers: { Authorization: `Bearer ${session.access_token}` },
           body: {
-            invitationId: invite.id,
-            email: invite.email,
-            workspaceName: invite.workspaceName,
-            inviterName: 'Administrador',
-            role: invite.role,
-            token: invite.token,
+            template: 'invitation',
+            to: invite.email,
+            data: {
+              workspaceName: invite.workspaceName,
+              inviterName: 'Administrador',
+              role: invite.role,
+              token: invite.token,
+            },
           },
         });
 
