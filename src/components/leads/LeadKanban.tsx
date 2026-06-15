@@ -58,7 +58,7 @@ function DroppableColumn({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.05 * KANBAN_COLUMNS.indexOf(status), duration: 0.35 }}
       className={cn(
-        'flex flex-col h-full min-w-[240px] w-[240px] sm:min-w-[260px] sm:w-[260px] md:min-w-[280px] md:w-[280px] flex-shrink-0',
+        'flex flex-col h-full w-[85vw] max-w-[300px] sm:w-[260px] sm:max-w-none md:w-[280px] flex-shrink-0 snap-start',
         'rounded-xl border bg-muted/30 transition-all',
         isOver && 'ring-2 ring-primary bg-primary/5 scale-[1.01]'
       )}
