@@ -54,6 +54,10 @@ const TEMPLATES: Record<string, { component: React.ComponentType<any>; subject: 
     component: PasswordResetEmail,
     subject: () => `Redefinir a tua password — WillFlow`,
   },
+  invitation: {
+    component: InvitationEmail,
+    subject: (data) => `${data.inviterName || 'Alguém'} convidou-te para o workspace "${data.workspaceName}"`,
+  },
 }
 
 
