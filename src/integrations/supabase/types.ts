@@ -4816,6 +4816,10 @@ export type Database = {
         }[]
       }
       get_contract_by_token: { Args: { _token: string }; Returns: Json }
+      get_contract_sign_token: {
+        Args: { _contract_id: string }
+        Returns: string
+      }
       get_conversation_page: {
         Args: { _before?: string; _conversation_id: string; _limit?: number }
         Returns: Json
