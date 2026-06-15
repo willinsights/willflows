@@ -470,13 +470,12 @@ export function useUsersSummary() {
         .eq('email', email.toLowerCase());
 
       // Send beta invite email
-      await supabase.functions.invoke('send-beta-invite', {
+      await supabase.functions.invoke('send-transactional-email', {
         headers: { Authorization: `Bearer ${session.access_token}` },
         body: {
-          email: email.toLowerCase(),
-          name,
-          inviteToken: invite.token,
-          freeDays,
+          template: 'beta_invite',
+          to: email.toLowerCase(),
+          data: { name, inviteToken: invite.token, freeDays },
         },
       });
 
