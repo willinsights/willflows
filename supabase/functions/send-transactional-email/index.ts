@@ -4,6 +4,7 @@ import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { PaymentAlertEmail } from '../_shared/email-templates/payment-alert.tsx'
 import { WeeklySummaryEmail } from '../_shared/email-templates/weekly-summary.tsx'
 import { BetaWelcomeEmail } from '../_shared/email-templates/beta-welcome.tsx'
+import { WelcomeEmail } from '../_shared/email-templates/welcome.tsx'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,7 +16,7 @@ const SENDER_DOMAIN = 'notify.willflow.app'
 const FROM_ADDRESS = `${SITE_NAME} <noreply@willflow.app>`
 
 interface TransactionalEmailRequest {
-  template: 'payment_alert' | 'weekly_summary' | 'beta_welcome'
+  template: 'payment_alert' | 'weekly_summary' | 'beta_welcome' | 'welcome'
   to: string
   data: Record<string, unknown>
 }
@@ -34,6 +35,10 @@ const TEMPLATES: Record<string, { component: React.ComponentType<any>; subject: 
   beta_welcome: {
     component: BetaWelcomeEmail,
     subject: () => `🎉 Bem-vindo ao WillFlow Beta!`,
+  },
+  welcome: {
+    component: WelcomeEmail,
+    subject: () => `Bem-vindo ao WillFlow! 🎉`,
   },
 }
 
