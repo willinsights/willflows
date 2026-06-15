@@ -91,7 +91,7 @@ export const OptimizedImage = memo(function OptimizedImage({
             height={height}
             loading={priority ? 'eager' : 'lazy'}
             decoding="async"
-            fetchPriority={priority ? 'high' : 'auto'}
+            {...({ fetchpriority: priority ? 'high' : 'auto' } as any)}
             onLoad={handleLoad}
             onError={handleError}
             className={imgClassName}
