@@ -9,6 +9,7 @@ import { PasswordResetEmail } from '../_shared/email-templates/password-reset.ts
 import { InvitationEmail } from '../_shared/email-templates/invitation.tsx'
 import { BetaInviteEmail } from '../_shared/email-templates/beta-invite.tsx'
 import { ContactMessageEmail } from '../_shared/email-templates/contact-message.tsx'
+import { AutomationTestEmail } from '../_shared/email-templates/automation-test.tsx'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -67,6 +68,10 @@ const TEMPLATES: Record<string, { component: React.ComponentType<any>; subject: 
   contact_message: {
     component: ContactMessageEmail,
     subject: (data) => `[Contacto WillFlow] ${data.subject || 'Nova mensagem'}`,
+  },
+  automation_test: {
+    component: AutomationTestEmail,
+    subject: (data) => `[TESTE] ${data.subject || 'Automação'}`,
   },
 }
 
