@@ -94,11 +94,7 @@ export function useContracts() {
       
       const { data, error } = await supabase
         .from('contracts')
-        .select(`
-          *,
-          client:clients(id, name, company, email),
-          project:projects(id, name)
-        `)
+        .select(CONTRACT_SELECT)
         .eq('workspace_id', currentWorkspace.id)
         .order('created_at', { ascending: false });
 
@@ -134,11 +130,7 @@ export function useContracts() {
           workspace_id: currentWorkspace.id,
           created_by: user?.id,
         })
-        .select(`
-          *,
-          client:clients(id, name, company, email),
-          project:projects(id, name)
-        `)
+        .select(CONTRACT_SELECT)
         .single();
 
       if (error) throw error;
@@ -162,11 +154,7 @@ export function useContracts() {
         .from('contracts')
         .update(updates)
         .eq('id', id)
-        .select(`
-          *,
-          client:clients(id, name, company, email),
-          project:projects(id, name)
-        `)
+        .select(CONTRACT_SELECT)
         .single();
 
       if (error) throw error;
@@ -215,11 +203,7 @@ export function useContracts() {
           sent_at: new Date().toISOString(),
         })
         .eq('id', id)
-        .select(`
-          *,
-          client:clients(id, name, company, email),
-          project:projects(id, name)
-        `)
+        .select(CONTRACT_SELECT)
         .single();
 
       if (error) throw error;
@@ -243,11 +227,7 @@ export function useContracts() {
         .from('contracts')
         .update({ status: 'cancelled' })
         .eq('id', id)
-        .select(`
-          *,
-          client:clients(id, name, company, email),
-          project:projects(id, name)
-        `)
+        .select(CONTRACT_SELECT)
         .single();
 
       if (error) throw error;
