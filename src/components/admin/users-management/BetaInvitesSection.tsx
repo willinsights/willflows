@@ -162,8 +162,8 @@ export function BetaInvitesSection() {
         throw new Error('Não autenticado');
       }
 
-      const { error } = await supabase.functions.invoke('send-beta-invite', {
-        body: { email, name, inviteToken: token },
+      const { error } = await supabase.functions.invoke('send-transactional-email', {
+        body: { template: 'beta_invite', to: email, data: { name, inviteToken: token } },
       });
 
       if (error) throw error;
