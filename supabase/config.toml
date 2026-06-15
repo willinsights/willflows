@@ -72,8 +72,6 @@ project_id = "wppfmyseeigsdqutkgyc"
     verify_jwt = false
   [functions.send-invitation-email]
     verify_jwt = false
-  [functions.send-password-reset]
-    verify_jwt = false
   [functions.send-push-notification]
     verify_jwt = false
   [functions.sitemap]

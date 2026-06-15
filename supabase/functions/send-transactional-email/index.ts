@@ -5,6 +5,7 @@ import { PaymentAlertEmail } from '../_shared/email-templates/payment-alert.tsx'
 import { WeeklySummaryEmail } from '../_shared/email-templates/weekly-summary.tsx'
 import { BetaWelcomeEmail } from '../_shared/email-templates/beta-welcome.tsx'
 import { WelcomeEmail } from '../_shared/email-templates/welcome.tsx'
+import { PasswordResetEmail } from '../_shared/email-templates/password-reset.tsx'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,7 +17,7 @@ const SENDER_DOMAIN = 'notify.willflow.app'
 const FROM_ADDRESS = `${SITE_NAME} <noreply@willflow.app>`
 
 interface TransactionalEmailRequest {
-  template: 'payment_alert' | 'weekly_summary' | 'beta_welcome' | 'welcome'
+  template: 'payment_alert' | 'weekly_summary' | 'beta_welcome' | 'welcome' | 'password_reset'
   to: string
   data: Record<string, unknown>
 }
@@ -39,6 +40,10 @@ const TEMPLATES: Record<string, { component: React.ComponentType<any>; subject: 
   welcome: {
     component: WelcomeEmail,
     subject: () => `Bem-vindo ao WillFlow! 🎉`,
+  },
+  password_reset: {
+    component: PasswordResetEmail,
+    subject: () => `Redefinir a tua password — WillFlow`,
   },
 }
 
@@ -78,6 +83,23 @@ Deno.serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
+    }
+
+    // Server-side enrichment for password_reset: generate recovery link via admin API
+    if (template === 'password_reset' && !data.resetLink) {
+      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+        type: 'recovery',
+        email: to,
+        options: { redirectTo: 'https://willflow.app/auth?mode=reset' },
+      })
+      if (linkError || !linkData?.properties?.action_link) {
+        // Don't reveal whether the email exists
+        console.warn('password_reset: failed to generate link', { error: linkError?.message })
+        return new Response(JSON.stringify({ success: true, skipped: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      data.resetLink = linkData.properties.action_link
     }
 
     // Check suppression list
