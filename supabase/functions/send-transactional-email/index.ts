@@ -7,6 +7,7 @@ import { BetaWelcomeEmail } from '../_shared/email-templates/beta-welcome.tsx'
 import { WelcomeEmail } from '../_shared/email-templates/welcome.tsx'
 import { PasswordResetEmail } from '../_shared/email-templates/password-reset.tsx'
 import { InvitationEmail } from '../_shared/email-templates/invitation.tsx'
+import { BetaInviteEmail } from '../_shared/email-templates/beta-invite.tsx'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
