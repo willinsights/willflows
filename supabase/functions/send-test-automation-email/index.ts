@@ -6,30 +6,7 @@ const corsHeaders = {
 }
 
 const SITE_NAME = 'WillFlow'
-const SENDER_DOMAIN = 'notify.willflow.app'
-const FROM_ADDRESS = `${SITE_NAME} <noreply@willflow.app>`
 const APP_URL = 'https://willflows.lovable.app'
-
-function buildEmailHtml(subject: string, body: string, brandName: string): string {
-  const bodyHtml = body.replace(/\n/g, '<br/>')
-  return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 20px">
-<tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden">
-<tr><td style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:24px 32px">
-<h1 style="margin:0;color:#fff;font-size:18px;font-weight:600">${brandName} · TESTE</h1>
-</td></tr>
-<tr><td style="padding:32px">
-<h2 style="margin:0 0 16px;color:#18181b;font-size:20px">${subject}</h2>
-<div style="color:#3f3f46;font-size:15px;line-height:1.6">${bodyHtml}</div>
-</td></tr>
-<tr><td style="padding:16px 32px;border-top:1px solid #e4e4e7">
-<p style="margin:0;color:#a1a1aa;font-size:12px">Email de teste · enviado manualmente para validar template</p>
-</td></tr>
-</table></td></tr></table></body></html>`
-}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
@@ -40,7 +17,6 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    // Auth: require valid user
     const authHeader = req.headers.get('Authorization')
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -61,7 +37,6 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Load automation
     const { data: automation, error: aErr } = await supabase
       .from('workflow_automations')
       .select('id, name, action_type, action_config, workspace_id')
@@ -73,14 +48,13 @@ Deno.serve(async (req) => {
         status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
-
     if (automation.action_type !== 'send_email') {
       return new Response(JSON.stringify({ error: 'Automation is not an email type' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    // Pick a project: explicit > most recent with active approval token > most recent
+    // Pick project: explicit > most recent with active approval token > most recent
     let project: any = null
     if (project_id) {
       const { data } = await supabase.from('projects')
@@ -113,7 +87,6 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Resolve client + workspace
     let clientName = ''
     if (project.client_id) {
       const { data: client } = await supabase.from('clients').select('name').eq('id', project.client_id).single()
@@ -121,7 +94,6 @@ Deno.serve(async (req) => {
     }
     const { data: ws } = await supabase.from('workspaces').select('name').eq('id', project.workspace_id).single()
 
-    // Resolve approval token
     const { data: tokenRow } = await supabase
       .from('video_approval_tokens')
       .select('token')
@@ -149,60 +121,30 @@ Deno.serve(async (req) => {
     }
 
     const cfg = (automation.action_config || {}) as any
-    const subject = `[TESTE] ${replaceVars(cfg.subject || `Atualização: ${project.name}`)}`
+    const subject = replaceVars(cfg.subject || `Atualização: ${project.name}`)
     const body = replaceVars(cfg.body || `Email de teste da automação ${automation.name}.`)
-    const html = buildEmailHtml(subject, body, ws?.name || SITE_NAME)
+    const brandName = ws?.name || SITE_NAME
 
-    const recipientEmailLower = recipient_email.toLowerCase()
-
-    // Unsubscribe token
-    let unsubscribeToken: string
-    const { data: existing } = await supabase
-      .from('email_unsubscribe_tokens').select('token')
-      .eq('email', recipientEmailLower).is('used_at', null).maybeSingle()
-    if (existing?.token) {
-      unsubscribeToken = existing.token
-    } else {
-      unsubscribeToken = crypto.randomUUID()
-      await supabase.from('email_unsubscribe_tokens').insert({ email: recipientEmailLower, token: unsubscribeToken })
-    }
-
-    const messageId = crypto.randomUUID()
-    await supabase.from('email_send_log').insert({
-      message_id: messageId,
-      template_name: `automation_test_${automation.id}`,
-      recipient_email: recipient_email,
-      status: 'pending',
-    })
-
-    const { error: enqErr } = await supabase.rpc('enqueue_email', {
-      queue_name: 'transactional_emails',
-      payload: {
-        message_id: messageId,
+    // Delegate sending to unified pipeline
+    const { data: sendData, error: sendErr } = await supabase.functions.invoke('send-transactional-email', {
+      body: {
+        template: 'automation_test',
         to: recipient_email,
-        from: FROM_ADDRESS,
-        sender_domain: SENDER_DOMAIN,
-        subject,
-        html,
-        text: body,
-        purpose: 'transactional',
-        idempotency_key: `automation-test-${automation.id}-${messageId}`,
-        unsubscribe_token: unsubscribeToken,
-        label: `automation_test_${automation.name}`,
-        queued_at: new Date().toISOString(),
+        data: { subject, body, brandName },
       },
     })
 
-    if (enqErr) {
-      console.error('enqueue failed', enqErr)
-      return new Response(JSON.stringify({ error: 'Failed to enqueue email', details: enqErr.message }), {
+    if (sendErr || (sendData as any)?.error) {
+      const msg = sendErr?.message || (sendData as any)?.error || 'Failed to send'
+      console.error('send-transactional-email failed', msg)
+      return new Response(JSON.stringify({ error: msg }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
     return new Response(JSON.stringify({
       success: true,
-      message_id: messageId,
+      message_id: (sendData as any)?.messageId,
       project_used: { id: project.id, name: project.name },
       approval_link_resolved: approvalLink || null,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
