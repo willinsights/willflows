@@ -146,18 +146,15 @@ export function ContractViewModal({ open, onOpenChange, contract, onSend }: Cont
             <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
               <p className="text-sm font-medium mb-2">Link de Assinatura</p>
               <div className="flex items-center gap-2">
-                <code className="flex-1 p-2 rounded bg-background text-xs truncate">
-                  {getSignatureUrl()}
-                </code>
                 <Button variant="outline" size="sm" onClick={copySignatureLink}>
-                  <Copy className="h-4 w-4" />
+                  <Copy className="h-4 w-4 mr-2" /> Copiar Link
                 </Button>
                 <Button variant="outline" size="sm" onClick={openSignaturePage}>
-                  <ExternalLink className="h-4 w-4" />
+                  <ExternalLink className="h-4 w-4 mr-2" /> Abrir Página
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Envie este link ao cliente para que possa visualizar e assinar o contrato.
+                O link é revelado apenas a membros com permissão de contratos. Envie-o ao cliente para visualizar e assinar.
               </p>
             </div>
           )}
