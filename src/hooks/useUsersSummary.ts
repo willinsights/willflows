@@ -388,12 +388,12 @@ export function useUsersSummary() {
         }
 
         // Send beta invite email
-        const { error: emailError } = await supabase.functions.invoke('send-beta-invite', {
+        const { error: emailError } = await supabase.functions.invoke('send-transactional-email', {
           headers: { Authorization: `Bearer ${session.access_token}` },
           body: {
-            email: email.toLowerCase(),
-            inviteToken: invite.token,
-            freeDays,
+            template: 'beta_invite',
+            to: email.toLowerCase(),
+            data: { inviteToken: invite.token, freeDays },
           },
         });
 
