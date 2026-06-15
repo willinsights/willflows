@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { type Contract, CONTRACT_STATUS_LABELS } from '@/hooks/useContracts';
+import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -33,18 +34,26 @@ interface ContractCardProps {
 export function ContractCard({ contract, onView, onSend, onCancel, onDelete }: ContractCardProps) {
   const statusConfig = CONTRACT_STATUS_LABELS[contract.status];
 
-  const getSignatureUrl = () => {
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/contrato/${contract.signature_token}`;
+  const fetchSignatureUrl = async () => {
+    const { data, error } = await supabase.rpc('get_contract_sign_token', { _contract_id: contract.id });
+    if (error || !data) {
+      toast.error('Não foi possível obter o link de assinatura.');
+      return null;
+    }
+    return `${window.location.origin}/contrato/${data}`;
   };
 
-  const copySignatureLink = () => {
-    navigator.clipboard.writeText(getSignatureUrl());
+  const copySignatureLink = async () => {
+    const url = await fetchSignatureUrl();
+    if (!url) return;
+    await navigator.clipboard.writeText(url);
     toast.success('Link copiado!');
   };
 
-  const openSignaturePage = () => {
-    window.open(getSignatureUrl(), '_blank');
+  const openSignaturePage = async () => {
+    const url = await fetchSignatureUrl();
+    if (!url) return;
+    window.open(url, '_blank');
   };
 
   return (

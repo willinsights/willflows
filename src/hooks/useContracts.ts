@@ -22,7 +22,7 @@ export interface Contract {
   viewed_at: string | null;
   signed_at: string | null;
   expires_at: string | null;
-  signature_token: string;
+  signature_token?: string; // not returned to workspace members; only available via secure RPC
   client_signature_data: string | null;
   client_signed_name: string | null;
   client_signed_ip: string | null;
@@ -65,6 +65,16 @@ export const CONTRACT_STATUS_LABELS: Record<ContractStatus, { label: string; col
   cancelled: { label: 'Cancelado', color: 'bg-gray-500/20 text-gray-600' },
 };
 
+// Explicit column list — excludes `signature_token` (column-level SELECT revoked from authenticated)
+const CONTRACT_SELECT = `
+  id, workspace_id, project_id, client_id, template_id, title, content, status,
+  sent_at, viewed_at, signed_at, expires_at,
+  client_signature_data, client_signed_name, client_signed_ip, client_signed_user_agent,
+  total_value, payment_terms, created_by, created_at, updated_at,
+  client:clients(id, name, company, email),
+  project:projects(id, name)
+`;
+
 export function useContracts() {
   const { currentWorkspace, fetchError } = useWorkspace();
   const { toast } = useToast();
@@ -84,11 +94,7 @@ export function useContracts() {
       
       const { data, error } = await supabase
         .from('contracts')
-        .select(`
-          *,
-          client:clients(id, name, company, email),
-          project:projects(id, name)
-        `)
+        .select(CONTRACT_SELECT)
         .eq('workspace_id', currentWorkspace.id)
         .order('created_at', { ascending: false });
 
@@ -124,11 +130,7 @@ export function useContracts() {
           workspace_id: currentWorkspace.id,
           created_by: user?.id,
         })
-        .select(`
-          *,
-          client:clients(id, name, company, email),
-          project:projects(id, name)
-        `)
+        .select(CONTRACT_SELECT)
         .single();
 
       if (error) throw error;
@@ -152,11 +154,7 @@ export function useContracts() {
         .from('contracts')
         .update(updates)
         .eq('id', id)
-        .select(`
-          *,
-          client:clients(id, name, company, email),
-          project:projects(id, name)
-        `)
+        .select(CONTRACT_SELECT)
         .single();
 
       if (error) throw error;
@@ -205,11 +203,7 @@ export function useContracts() {
           sent_at: new Date().toISOString(),
         })
         .eq('id', id)
-        .select(`
-          *,
-          client:clients(id, name, company, email),
-          project:projects(id, name)
-        `)
+        .select(CONTRACT_SELECT)
         .single();
 
       if (error) throw error;
@@ -233,11 +227,7 @@ export function useContracts() {
         .from('contracts')
         .update({ status: 'cancelled' })
         .eq('id', id)
-        .select(`
-          *,
-          client:clients(id, name, company, email),
-          project:projects(id, name)
-        `)
+        .select(CONTRACT_SELECT)
         .single();
 
       if (error) throw error;

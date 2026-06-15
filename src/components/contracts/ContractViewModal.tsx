@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { type Contract, CONTRACT_STATUS_LABELS } from '@/hooks/useContracts';
+import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -25,18 +26,26 @@ export function ContractViewModal({ open, onOpenChange, contract, onSend }: Cont
 
   const statusConfig = CONTRACT_STATUS_LABELS[contract.status];
 
-  const getSignatureUrl = () => {
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/contrato/${contract.signature_token}`;
+  const fetchSignatureUrl = async () => {
+    const { data, error } = await supabase.rpc('get_contract_sign_token', { _contract_id: contract.id });
+    if (error || !data) {
+      toast.error('Não foi possível obter o link de assinatura.');
+      return null;
+    }
+    return `${window.location.origin}/contrato/${data}`;
   };
 
-  const copySignatureLink = () => {
-    navigator.clipboard.writeText(getSignatureUrl());
+  const copySignatureLink = async () => {
+    const url = await fetchSignatureUrl();
+    if (!url) return;
+    await navigator.clipboard.writeText(url);
     toast.success('Link copiado!');
   };
 
-  const openSignaturePage = () => {
-    window.open(getSignatureUrl(), '_blank');
+  const openSignaturePage = async () => {
+    const url = await fetchSignatureUrl();
+    if (!url) return;
+    window.open(url, '_blank');
   };
 
   return (
@@ -137,18 +146,15 @@ export function ContractViewModal({ open, onOpenChange, contract, onSend }: Cont
             <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
               <p className="text-sm font-medium mb-2">Link de Assinatura</p>
               <div className="flex items-center gap-2">
-                <code className="flex-1 p-2 rounded bg-background text-xs truncate">
-                  {getSignatureUrl()}
-                </code>
                 <Button variant="outline" size="sm" onClick={copySignatureLink}>
-                  <Copy className="h-4 w-4" />
+                  <Copy className="h-4 w-4 mr-2" /> Copiar Link
                 </Button>
                 <Button variant="outline" size="sm" onClick={openSignaturePage}>
-                  <ExternalLink className="h-4 w-4" />
+                  <ExternalLink className="h-4 w-4 mr-2" /> Abrir Página
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Envie este link ao cliente para que possa visualizar e assinar o contrato.
+                O link é revelado apenas a membros com permissão de contratos. Envie-o ao cliente para visualizar e assinar.
               </p>
             </div>
           )}
