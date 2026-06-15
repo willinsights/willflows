@@ -201,7 +201,7 @@ const MobileScreenshotCard = memo(forwardRef<HTMLDivElement, MobileScreenshotCar
             height={187}
             loading={isPriority ? 'eager' : 'lazy'}
             decoding="async"
-            fetchPriority={isPriority ? 'high' : 'auto'}
+            {...({ fetchpriority: isPriority ? 'high' : 'auto' } as any)}
             className="w-full h-auto"
           />
         </div>
@@ -411,7 +411,7 @@ export default function Landing() {
                 className="w-full screenshot-fog-hero"
                 loading="eager"
                 decoding="async"
-                fetchPriority="high"
+                {...({ fetchpriority: 'high' } as any)}
               />
             </motion.div>
           </div>
@@ -429,7 +429,7 @@ export default function Landing() {
                 className="w-full screenshot-fog"
                 loading="eager"
                 decoding="async"
-                fetchPriority="high"
+                {...({ fetchpriority: 'high' } as any)}
               />
             </motion.div>
           </div>
