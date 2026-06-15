@@ -58,7 +58,7 @@ function DroppableColumn({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.05 * KANBAN_COLUMNS.indexOf(status), duration: 0.35 }}
       className={cn(
-        'flex flex-col h-full min-w-[240px] w-[240px] sm:min-w-[260px] sm:w-[260px] md:min-w-[280px] md:w-[280px] flex-shrink-0',
+        'flex flex-col h-full w-[85vw] max-w-[300px] sm:w-[260px] sm:max-w-none md:w-[280px] flex-shrink-0 snap-start',
         'rounded-xl border bg-muted/30 transition-all',
         isOver && 'ring-2 ring-primary bg-primary/5 scale-[1.01]'
       )}
@@ -161,7 +161,7 @@ export function LeadKanban({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 h-[calc(100vh-320px)] sm:h-[calc(100vh-280px)]">
+      <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 h-[calc(100vh-320px)] sm:h-[calc(100vh-280px)] snap-x snap-mandatory scroll-pl-4 sm:scroll-pl-0 -mx-6 px-6 sm:mx-0 sm:px-0">
         {KANBAN_COLUMNS.map(status => (
           <DroppableColumn
             key={status}
