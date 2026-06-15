@@ -151,15 +151,17 @@ export function useWorkspaceInvitations() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { error: emailError } = await supabase.functions.invoke('send-invitation-email', {
+        const { error: emailError } = await supabase.functions.invoke('send-transactional-email', {
           headers: { Authorization: `Bearer ${session.access_token}` },
           body: {
-            invitationId: invitation.id,
-            email: email.toLowerCase(),
-            workspaceName: currentWorkspace.name,
-            inviterName: inviterProfile?.full_name || inviterProfile?.email || 'Um utilizador',
-            role,
-            token: invitation.token,
+            template: 'invitation',
+            to: email.toLowerCase(),
+            data: {
+              workspaceName: currentWorkspace.name,
+              inviterName: inviterProfile?.full_name || inviterProfile?.email || 'Um utilizador',
+              role,
+              token: invitation.token,
+            },
           },
         });
 
