@@ -5,6 +5,7 @@ import { PaymentAlertEmail } from '../_shared/email-templates/payment-alert.tsx'
 import { WeeklySummaryEmail } from '../_shared/email-templates/weekly-summary.tsx'
 import { BetaWelcomeEmail } from '../_shared/email-templates/beta-welcome.tsx'
 import { WelcomeEmail } from '../_shared/email-templates/welcome.tsx'
+import { PasswordResetEmail } from '../_shared/email-templates/password-reset.tsx'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,7 +17,7 @@ const SENDER_DOMAIN = 'notify.willflow.app'
 const FROM_ADDRESS = `${SITE_NAME} <noreply@willflow.app>`
 
 interface TransactionalEmailRequest {
-  template: 'payment_alert' | 'weekly_summary' | 'beta_welcome' | 'welcome'
+  template: 'payment_alert' | 'weekly_summary' | 'beta_welcome' | 'welcome' | 'password_reset'
   to: string
   data: Record<string, unknown>
 }
@@ -39,6 +40,10 @@ const TEMPLATES: Record<string, { component: React.ComponentType<any>; subject: 
   welcome: {
     component: WelcomeEmail,
     subject: () => `Bem-vindo ao WillFlow! 🎉`,
+  },
+  password_reset: {
+    component: PasswordResetEmail,
+    subject: () => `Redefinir a tua password — WillFlow`,
   },
 }
 
