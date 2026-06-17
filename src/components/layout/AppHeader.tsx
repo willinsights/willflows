@@ -17,6 +17,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useGlobalSearch, SearchResult } from '@/hooks/useGlobalSearch';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { labelFromSegment } from '@/lib/route-labels';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ProjectWithClient } from '@/hooks/useProjects';
 
