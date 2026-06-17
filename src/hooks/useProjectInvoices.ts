@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { toast } from 'sonner';
+
 
 import { logger } from '@/lib/logger';
 export type InvoiceStatus = 'rascunho' | 'emitida' | 'paga' | 'vencida' | 'cancelada';
@@ -44,8 +46,10 @@ export const invoiceStatusColors: Record<InvoiceStatus, string> = {
 
 export function useProjectInvoices(projectId?: string) {
   const { currentWorkspace } = useWorkspace();
+  const queryClient = useQueryClient();
   const [invoices, setInvoices] = useState<ProjectInvoice[]>([]);
   const [loading, setLoading] = useState(true);
+
 
   const fetchInvoices = useCallback(async () => {
     if (!currentWorkspace?.id) return;
@@ -133,6 +137,9 @@ export function useProjectInvoices(projectId?: string) {
     }
 
     await fetchInvoices();
+    queryClient.invalidateQueries({ queryKey: ['projects'] });
+    queryClient.invalidateQueries({ queryKey: ['financial-engine'] });
+    queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
     toast.success('Fatura criada');
     return data as ProjectInvoice;
   };
@@ -174,6 +181,9 @@ export function useProjectInvoices(projectId?: string) {
     }
 
     await fetchInvoices();
+    queryClient.invalidateQueries({ queryKey: ['projects'] });
+    queryClient.invalidateQueries({ queryKey: ['financial-engine'] });
+    queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
     return true;
   };
 
@@ -190,6 +200,9 @@ export function useProjectInvoices(projectId?: string) {
     }
 
     await fetchInvoices();
+    queryClient.invalidateQueries({ queryKey: ['projects'] });
+    queryClient.invalidateQueries({ queryKey: ['financial-engine'] });
+    queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
     toast.success('Fatura removida');
     return true;
   };
