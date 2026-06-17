@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { usePaymentAlerts, type PaymentAlert } from '@/hooks/usePaymentAlerts';
-import { useFormatCurrency } from '@/hooks/useFormatCurrency';
+import { MoneyValue } from '@/components/ui/MoneyValue';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,7 +31,6 @@ const severityConfig = {
 };
 
 function AlertItem({ alert }: { alert: PaymentAlert }) {
-  const { formatCurrency } = useFormatCurrency();
   const config = severityConfig[alert.severity];
   const Icon = config.icon;
   const p = alert.payment;
@@ -41,8 +40,9 @@ function AlertItem({ alert }: { alert: PaymentAlert }) {
       <div className={cn('mt-0.5 w-2 h-2 rounded-full shrink-0', config.dotClass)} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium truncate">
-            {p.is_receivable ? 'Receita' : 'Despesa'}: {formatCurrency(p.amount)}
+          <span className="text-sm font-medium truncate inline-flex items-center gap-1">
+            {p.is_receivable ? 'Receita' : 'Despesa'}:{' '}
+            <MoneyValue value={p.amount} size="sm" />
           </span>
           <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 h-4 shrink-0', config.badgeClass)}>
             {alert.label}
