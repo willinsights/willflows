@@ -96,12 +96,13 @@ export function CreateLeadModal({
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Nome *</Label>
+            <Label htmlFor="name">Nome do contacto *</Label>
             <Input
               id="name"
-              placeholder="Nome do contacto"
+              placeholder="Ex: João Silva"
               {...form.register('name')}
             />
+            <p className="text-xs text-muted-foreground">Pessoa de contacto nesta empresa</p>
             {form.formState.errors.name && (
               <p className="text-sm text-destructive">
                 {form.formState.errors.name.message}
@@ -113,9 +114,15 @@ export function CreateLeadModal({
             <Label htmlFor="company">Empresa</Label>
             <Input
               id="company"
-              placeholder="Nome da empresa"
+              placeholder="Ex: Eleggia Luxury DMC"
               {...form.register('company')}
             />
+            <p className="text-xs text-muted-foreground">Deixa em branco se for um contacto individual</p>
+            {form.watch('name') && form.watch('company') && form.watch('name').trim() === form.watch('company').trim() && (
+              <p className="text-xs text-amber-600">
+                O nome do contacto e a empresa são iguais — tens a certeza?
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -411,24 +411,31 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
                   <div className="space-y-4">
                     {/* Nome */}
                     <div className="space-y-2">
-                      <Label htmlFor="edit-name">Nome *</Label>
+                      <Label htmlFor="edit-name">Nome do contacto *</Label>
                       <Input
                         id="edit-name"
                         value={editForm.name}
                         onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="Nome do contacto"
+                        placeholder="Ex: João Silva"
                       />
+                      <p className="text-xs text-muted-foreground">Pessoa de contacto nesta empresa</p>
                     </div>
 
-                    {/* Nome da Empresa */}
+                    {/* Empresa */}
                     <div className="space-y-2">
-                      <Label htmlFor="edit-company">Nome da Empresa *</Label>
+                      <Label htmlFor="edit-company">Empresa</Label>
                       <Input
                         id="edit-company"
                         value={editForm.company}
                         onChange={(e) => setEditForm(prev => ({ ...prev, company: e.target.value }))}
-                        placeholder="Nome da empresa"
+                        placeholder="Ex: Eleggia Luxury DMC"
                       />
+                      <p className="text-xs text-muted-foreground">Deixa em branco se for um contacto individual</p>
+                      {editForm.name && editForm.company && editForm.name.trim() === editForm.company.trim() && (
+                        <p className="text-xs text-amber-600">
+                          O nome do contacto e a empresa são iguais — tens a certeza?
+                        </p>
+                      )}
                     </div>
 
                     {/* Tax ID com Tooltip */}
