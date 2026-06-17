@@ -137,6 +137,9 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
     postal_code: '',
     country: '',
     notes: '',
+    vat_exempt: false,
+    vat_rate_override: '' as string,
+    vat_regime_override: 'standard' as string,
   });
   
   const { currentWorkspace, isAdmin } = useWorkspace();
