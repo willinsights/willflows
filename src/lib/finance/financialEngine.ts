@@ -149,6 +149,7 @@ function getPrevisaoMetrics(projects: FinancialProject[], month: Date): MonthlyM
 function getCaixaMetrics(
   projects: FinancialProject[],
   teamPayments: TeamPayment[],
+  costLinePayments: CostLinePayment[],
   month: Date,
 ): MonthlyMetrics {
   // Client income: projects where client_paid_at is in month
@@ -166,7 +167,12 @@ function getCaixaMetrics(
     .filter(p => p.custos_extras_paid_at && isInMonth(p.custos_extras_paid_at, month))
     .reduce((s, p) => s + (p.custos_extras || 0), 0);
 
-  const totalExpenses = teamExpenses + extrasExpenses;
+  // Cost-line expenses: paid_at in month and status 'pago'
+  const costLinesExpenses = costLinePayments
+    .filter(cl => cl.payment_status === 'pago' && cl.paid_at && isInMonth(cl.paid_at, month))
+    .reduce((s, cl) => s + (cl.actual_amount || 0), 0);
+
+  const totalExpenses = teamExpenses + extrasExpenses + costLinesExpenses;
 
   return {
     revenue: clientIncome,
@@ -177,6 +183,7 @@ function getCaixaMetrics(
       clientIncome,
       teamExpenses,
       extrasExpenses,
+      costLinesExpenses,
     },
   };
 }
