@@ -18,16 +18,20 @@ vi.mock("@/lib/logger", () => ({
 // Capture the payload passed to insert()
 const insertSpy = vi.fn();
 
+// Chainable thenable that supports .eq/.order/.select and resolves to empty list
+function makeChain(resolved: { data: unknown; error: unknown } = { data: [], error: null }) {
+  const chain: Record<string, unknown> = {};
+  const passthrough = () => chain;
+  chain.select = passthrough;
+  chain.eq = passthrough;
+  chain.order = passthrough;
+  chain.then = (onFulfilled: (v: typeof resolved) => unknown) =>
+    Promise.resolve(resolved).then(onFulfilled);
+  return chain;
+}
+
 const buildFromBuilder = () => ({
-  select: vi.fn().mockReturnValue({
-    eq: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        order: vi.fn().mockResolvedValue({ data: [], error: null }),
-      }),
-      order: vi.fn().mockResolvedValue({ data: [], error: null }),
-      count: 0,
-    }),
-  }),
+  ...makeChain(),
   insert: (payload: Record<string, unknown>) => {
     insertSpy(payload);
     return {
