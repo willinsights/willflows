@@ -185,9 +185,11 @@ export function useProjectInvoices(projectId?: string) {
     return true;
   };
 
-  const totalInvoiced = invoices.reduce((s, i) => s + i.total, 0);
+  // Per-project: totals come from the loaded list (already scoped to a single project).
+  // Workspace-wide: prefer useFinancialSummary() which calls the server-side RPC.
   const totalPaid = invoices.filter(i => i.status === 'paga').reduce((s, i) => s + i.total, 0);
   const totalPending = invoices.filter(i => ['emitida', 'vencida'].includes(i.status)).reduce((s, i) => s + i.total, 0);
+  const totalInvoiced = totalPaid + totalPending;
 
   return {
     invoices,
