@@ -72,73 +72,7 @@ export function useCalendarEvents() {
     }
   }, [currentWorkspace?.id, fetchError]);
 
-  // Realtime subscription for auto-refresh
-  useEffect(() => {
-    if (!currentWorkspace?.id) return;
-
-    const channel = supabase
-      .channel('calendar-events-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'calendar_events',
-          filter: `workspace_id=eq.${currentWorkspace.id}`,
-        },
-        (payload) => {
-          logger.info('Calendar realtime update:', payload.eventType);
-          
-          if (payload.eventType === 'INSERT') {
-            // Fetch the full event with project relation
-            supabase
-              .from('calendar_events')
-              .select('*, projects(name, client_id)')
-              .eq('id', payload.new.id)
-              .single()
-              .then(({ data }) => {
-                if (data) {
-                  // Check privacy before adding to state
-                  const canView = !data.is_private || data.created_by === user?.id;
-                  if (canView) {
-                    setEvents(prev => [...prev, data].sort((a, b) => 
-                      new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
-                    ));
-                  }
-                }
-              });
-          } else if (payload.eventType === 'UPDATE') {
-            supabase
-              .from('calendar_events')
-              .select('*, projects(name, client_id)')
-              .eq('id', payload.new.id)
-              .single()
-              .then(({ data }) => {
-                if (data) {
-                  // Check privacy before updating state
-                  const canView = !data.is_private || data.created_by === user?.id;
-                  if (canView) {
-                    setEvents(prev => 
-                      prev.map(e => e.id === data.id ? data : e)
-                        .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime())
-                    );
-                  } else {
-                    // Event became private, remove from view
-                    setEvents(prev => prev.filter(e => e.id !== data.id));
-                  }
-                }
-              });
-          } else if (payload.eventType === 'DELETE') {
-            setEvents(prev => prev.filter(e => e.id !== payload.old.id));
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [currentWorkspace?.id, user?.id]);
+  // Realtime removed — relying on react-query invalidation after mutations.
 
   // Filter events based on source
   const filteredEvents = events.filter(event => {

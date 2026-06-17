@@ -172,26 +172,7 @@ export function useTimeTracking(projectId?: string) {
     }
   }, [activeTimer?.id, activeTimer?.started_at, activeTimer?.ended_at]);
 
-  // Realtime subscription for timer sync
-  useEffect(() => {
-    if (!userId || !workspaceId) return;
-    const channel = supabase
-      .channel(`time-sessions-${userId}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'time_sessions',
-        filter: `user_id=eq.${userId}`,
-      }, () => {
-        queryClient.invalidateQueries({ queryKey: ['active-timer', userId, workspaceId] });
-        if (projectId) {
-          queryClient.invalidateQueries({ queryKey: ['time-sessions', projectId] });
-          queryClient.invalidateQueries({ queryKey: ['project-time-summary', projectId] });
-        }
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [userId, workspaceId, projectId, queryClient]);
+  // Realtime removed — invalidation is handled by timer mutations.
 
   // beforeunload protection
   useEffect(() => {

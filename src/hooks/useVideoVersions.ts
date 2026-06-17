@@ -95,33 +95,7 @@ export function useVideoVersions(
     fetchVersions();
   }, [fetchVersions]);
 
-  // Realtime subscription
-  useEffect(() => {
-    if (!taskId && !projectId) return;
-
-    const filterColumn = taskId ? 'task_id' : 'project_id';
-    const filterValue = taskId || projectId;
-
-    const channel = supabase
-      .channel(`video_versions:${filterValue}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'video_versions',
-          filter: `${filterColumn}=eq.${filterValue}`,
-        },
-        () => {
-          fetchVersions();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [taskId, projectId, fetchVersions]);
+  // Realtime removed — version mutations call fetchVersions() to refresh.
 
   // Upload to R2 with progress tracking
   const uploadToR2 = useCallback(async (

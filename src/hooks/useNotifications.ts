@@ -162,64 +162,10 @@ export function useNotifications() {
     }
   }, [currentWorkspace?.id]);
 
-  // Real-time subscription
+  // Realtime removed — notifications are fetched on mount and refetched after mark-read mutations.
   useEffect(() => {
     if (!user?.id) return;
-
     fetchNotifications();
-
-    // Subscribe to new notifications
-    const channel = supabase
-      .channel('notifications-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const newNotification = {
-            ...payload.new,
-            type: payload.new.type as NotificationType,
-          } as Notification;
-
-          setNotifications((prev) => [newNotification, ...prev]);
-          setUnreadCount((prev) => prev + 1);
-
-          // Show toast for new notification
-          const toastFn = {
-            success: appToast.success,
-            error: appToast.error,
-            warning: appToast.warning,
-            info: appToast.info,
-          }[newNotification.type];
-
-          toastFn(newNotification.title, {
-            description: newNotification.message,
-          });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          setNotifications((prev) =>
-            prev.filter((n) => n.id !== payload.old.id)
-          );
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [user?.id, fetchNotifications]);
 
   return {

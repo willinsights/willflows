@@ -87,30 +87,7 @@ export function useVideoComments(videoVersionId: string | null) {
     fetchComments();
   }, [fetchComments]);
 
-  // Realtime subscription
-  useEffect(() => {
-    if (!videoVersionId) return;
-
-    const channel = supabase
-      .channel(`video_comments:${videoVersionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'video_comments',
-          filter: `video_version_id=eq.${videoVersionId}`,
-        },
-        () => {
-          fetchComments();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [videoVersionId, fetchComments]);
+  // Realtime removed — comment mutations call fetchComments() to refresh.
 
   const addComment = async (input: CreateCommentInput) => {
     if (!user) throw new Error('User not authenticated');
