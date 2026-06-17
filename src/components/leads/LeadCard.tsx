@@ -90,7 +90,7 @@ export function LeadCard({
           </button>
           <div className="flex-1 min-w-0">
             <h4 className="font-medium text-sm truncate" title={lead.name}>{lead.name}</h4>
-            {lead.company && (
+            {lead.company && lead.company.trim().toLowerCase() !== lead.name.trim().toLowerCase() && (
               <p className="text-xs text-muted-foreground flex items-center gap-1 truncate" title={lead.company}>
                 <Building2 className="h-3 w-3 flex-shrink-0" />
                 <span className="truncate">{lead.company}</span>
