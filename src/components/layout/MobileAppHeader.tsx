@@ -51,10 +51,20 @@ export function MobileAppHeader() {
         animate={{ opacity: 1, y: 0 }}
         className="sticky top-0 z-40 h-14 bg-card/95 backdrop-blur-md border-b border-border/60 px-4 flex items-center gap-3 safe-area-top"
       >
-        {/* Left: Logo + Workspace Selector */}
-        <div className="flex items-center gap-2 flex-1 min-w-0">
+        {/* Left: Logo + Workspace Selector + Page Title */}
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
           <Logo iconOnly className="h-8 w-8 shrink-0" />
           <WorkspaceSelector />
+          {pageLabels.length > 0 && (
+            <div className="flex items-center gap-0.5 min-w-0 overflow-hidden">
+              {pageLabels.map((label, i) => (
+                <span key={i} className="flex items-center gap-0.5 shrink-0">
+                  <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <span className="text-sm font-medium truncate">{label}</span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Right: Search + Notifications */}
