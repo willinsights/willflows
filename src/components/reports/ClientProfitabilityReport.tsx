@@ -1,3 +1,4 @@
+import { PrivacyBlur } from '@/components/ui/PrivacyBlur';
 import { useMemo, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -136,6 +137,7 @@ export function ClientProfitabilityReport() {
   ];
 
   return (
+    <PrivacyBlur>
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
@@ -220,5 +222,6 @@ export function ClientProfitabilityReport() {
         </ScrollArea>
       </CardContent>
     </Card>
+    </PrivacyBlur>
   );
 }

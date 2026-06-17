@@ -1,3 +1,4 @@
+import { PrivacyBlur } from '@/components/ui/PrivacyBlur';
 import { useMemo, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -82,7 +83,7 @@ export function CostBreakdownReport() {
   if (costLines.length === 0) return null;
 
   return (
-    <div className="grid md:grid-cols-2 gap-6">
+    <PrivacyBlur className="grid md:grid-cols-2 gap-6">
       {/* Pie Chart */}
       <Card className="glass-card">
         <CardHeader className="pb-2">
@@ -165,6 +166,6 @@ export function CostBreakdownReport() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PrivacyBlur>
   );
 }

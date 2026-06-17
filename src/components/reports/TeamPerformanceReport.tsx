@@ -1,3 +1,4 @@
+import { PrivacyBlur } from '@/components/ui/PrivacyBlur';
 import { useMemo, useState, useEffect } from 'react';
 import { Users, Clock, CheckCircle2, Briefcase, TrendingUp, ArrowUpDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -186,7 +187,7 @@ export function TeamPerformanceReport() {
   }
 
   return (
-    <div className="space-y-6">
+    <PrivacyBlur className="space-y-6">
       <Card className="glass-card">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
@@ -321,6 +322,6 @@ export function TeamPerformanceReport() {
           </TooltipProvider>
         </CardContent>
       </Card>
-    </div>
+    </PrivacyBlur>
   );
 }

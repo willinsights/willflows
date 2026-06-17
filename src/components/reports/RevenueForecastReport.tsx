@@ -1,3 +1,4 @@
+import { PrivacyBlur } from '@/components/ui/PrivacyBlur';
 import { useMemo, useState, useEffect } from 'react';
 import { TrendingUp, Target, Calendar, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -154,6 +155,7 @@ export function RevenueForecastReport() {
   const currentMonthKey = format(new Date(), 'yyyy-MM');
 
   return (
+    <PrivacyBlur>
     <Card className="glass-card">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
@@ -292,5 +294,6 @@ export function RevenueForecastReport() {
         </div>
       </CardContent>
     </Card>
+    </PrivacyBlur>
   );
 }
