@@ -272,72 +272,85 @@ export function ProjectInvoicesCard({ projectId, clientId }: ProjectInvoicesCard
         ) : (
           <div className="space-y-2">
             {invoices.map(inv => (
-              <div
-                key={inv.id}
-                className="flex items-center justify-between p-2.5 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{inv.invoice_number}</p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className={cn(hideValues && "blur-md select-none")}>
-                        {formatCurrency(inv.total)}
-                      </span>
-                      {inv.tax_rate > 0 && (
-                        <span className="text-[10px]">({inv.tax_rate}% IVA)</span>
-                      )}
-                      {inv.due_date && (
-                        <span className="flex items-center gap-0.5">
-                          <Calendar className="h-3 w-3" />
-                          {format(new Date(inv.due_date), 'dd MMM', { locale: pt })}
+              <div key={inv.id} className="rounded-lg border border-border/50 bg-muted/30">
+                <div className="flex items-center justify-between p-2.5 hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{inv.invoice_number}</p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className={cn(hideValues && "blur-md select-none")}>
+                          {formatCurrency(inv.total)}
                         </span>
-                      )}
+                        {inv.tax_rate > 0 && (
+                          <span className="text-[10px]">({inv.tax_rate}% IVA)</span>
+                        )}
+                        {inv.due_date && (
+                          <span className="flex items-center gap-0.5">
+                            <Calendar className="h-3 w-3" />
+                            {format(new Date(inv.due_date), 'dd MMM', { locale: pt })}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <Select
-                    value={inv.status}
-                    onValueChange={v => handleStatusChange(inv.id, v)}
-                  >
-                    <SelectTrigger
-                      className={cn(
-                        "h-7 text-[10px] w-auto min-w-[80px] border-0",
-                        invoiceStatusColors[inv.status]
-                      )}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Select
+                      value={inv.status}
+                      onValueChange={v => handleStatusChange(inv.id, v)}
                     >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statusEntries.map(([value, label]) => (
-                        <SelectItem key={value} value={value} className="text-xs">
-                          {label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                    onClick={() => workspace?.id && exportPdf(inv.id, workspace.id, inv.invoice_number)}
-                    disabled={exporting === inv.id || !workspace?.id}
-                    title="Exportar PDF"
-                  >
-                    {exporting === inv.id
-                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      : <Download className="h-3.5 w-3.5" />}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                    onClick={() => deleteInvoice(inv.id)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                      <SelectTrigger
+                        className={cn(
+                          "h-7 text-[10px] w-auto min-w-[80px] border-0",
+                          invoiceStatusColors[inv.status]
+                        )}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statusEntries.map(([value, label]) => (
+                          <SelectItem key={value} value={value} className="text-xs">
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                      onClick={() => setExpandedInvoice(expandedInvoice === inv.id ? null : inv.id)}
+                      title="Editar itens"
+                    >
+                      <ListPlus className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                      onClick={() => workspace?.id && exportPdf(inv.id, workspace.id, inv.invoice_number)}
+                      disabled={exporting === inv.id || !workspace?.id}
+                      title="Exportar PDF"
+                    >
+                      {exporting === inv.id
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <Download className="h-3.5 w-3.5" />}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => deleteInvoice(inv.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
+                {expandedInvoice === inv.id && workspace?.id && (
+                  <div className="p-2.5 pt-0">
+                    <InvoiceItemsEditor invoiceId={inv.id} workspaceId={workspace.id} />
+                  </div>
+                )}
               </div>
             ))}
           </div>
