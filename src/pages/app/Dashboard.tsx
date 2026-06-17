@@ -19,6 +19,8 @@ import { PerformanceMetricsCard } from '@/components/dashboard/PerformanceMetric
 import { PaymentAlertsWidget } from '@/components/dashboard/PaymentAlertsWidget';
 import { WorkspaceHealthWidget } from '@/components/dashboard/WorkspaceHealthWidget';
 import { AdvancedKPIWidget } from '@/components/dashboard/AdvancedKPIWidget';
+import { WelcomeWizard } from '@/components/onboarding/WelcomeWizard';
+import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist';
 import { useProductTour } from '@/hooks/useProductTour';
 import { useDashboardMetrics, UrgentProject } from '@/hooks/useDashboardMetrics';
 import { useFinancialEngine } from '@/hooks/useFinancialEngine';
@@ -180,6 +182,8 @@ export default function Dashboard() {
           <ProductTour onComplete={completeTour} onSkip={skipTour} />
         )}
         <TrialBanner />
+        <WelcomeWizard />
+        <OnboardingChecklist />
         <DashboardHeader currentTime={currentTime} />
         <MobileKPICarousel metrics={metrics} loading={loading} />
         {!isCollaborator && canViewAllFinancials && (
@@ -251,6 +255,10 @@ export default function Dashboard() {
         <ProductTour onComplete={completeTour} onSkip={skipTour} />
       )}
       <TrialBanner />
+      <WelcomeWizard />
+      <motion.div variants={fadeUp}>
+        <OnboardingChecklist />
+      </motion.div>
       
       {/* Header with Quick Actions */}
       <motion.div variants={fadeUp} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">

@@ -3537,6 +3537,7 @@ export type Database = {
           notify_payment_received: boolean
           notify_task_assigned: boolean
           notify_team_updates: boolean
+          onboarding_state: Json
           sidebar_auto_collapse: boolean
           updated_at: string
           user_id: string
@@ -3554,6 +3555,7 @@ export type Database = {
           notify_payment_received?: boolean
           notify_task_assigned?: boolean
           notify_team_updates?: boolean
+          onboarding_state?: Json
           sidebar_auto_collapse?: boolean
           updated_at?: string
           user_id: string
@@ -3571,6 +3573,7 @@ export type Database = {
           notify_payment_received?: boolean
           notify_task_assigned?: boolean
           notify_team_updates?: boolean
+          onboarding_state?: Json
           sidebar_auto_collapse?: boolean
           updated_at?: string
           user_id?: string
@@ -4553,6 +4556,9 @@ export type Database = {
           locale: string
           logo_url: string | null
           name: string
+          onboarding_business_type: string | null
+          onboarding_completed: boolean
+          onboarding_completed_at: string | null
           slug: string
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
@@ -4570,6 +4576,9 @@ export type Database = {
           locale?: string
           logo_url?: string | null
           name: string
+          onboarding_business_type?: string | null
+          onboarding_completed?: boolean
+          onboarding_completed_at?: string | null
           slug: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -4587,6 +4596,9 @@ export type Database = {
           locale?: string
           logo_url?: string | null
           name?: string
+          onboarding_business_type?: string | null
+          onboarding_completed?: boolean
+          onboarding_completed_at?: string | null
           slug?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -4812,6 +4824,10 @@ export type Database = {
       }
       complete_automation_job: {
         Args: { _error?: string; _job_id: string; _success: boolean }
+        Returns: undefined
+      }
+      complete_workspace_onboarding: {
+        Args: { p_business_type: string; p_workspace_id: string }
         Returns: undefined
       }
       count_admin_workspaces: { Args: { p_user_id: string }; Returns: number }
