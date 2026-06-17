@@ -20,6 +20,7 @@ import { useFinancialEngine } from '@/hooks/useFinancialEngine';
 import { FreelancerPaymentsControl, type ProjectTeamPayment } from '@/components/payments/FreelancerPaymentsControl';
 import { PaymentExportButtons } from '@/components/payments/PaymentExportButtons';
 import { paymentStatusLabels as statusLabels, paymentStatusColors as statusColors } from '@/lib/finance/constants';
+import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { cn } from '@/lib/utils';
 
 export default function VisaoGeral() {
