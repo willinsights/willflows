@@ -182,6 +182,9 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* Stripe Billing Discrepancies */}
+      <StripeBillingDiscrepanciesCard />
+
       {/* Main KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
