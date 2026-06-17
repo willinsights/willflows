@@ -1,3 +1,4 @@
+import { PrivacyBlur } from '@/components/ui/PrivacyBlur';
 import { useMemo, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';

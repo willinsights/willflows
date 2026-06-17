@@ -1,3 +1,4 @@
+import { PrivacyBlur } from '@/components/ui/PrivacyBlur';
 import { useMemo } from 'react';
 import { subMonths, format } from 'date-fns';
 import { pt } from 'date-fns/locale';

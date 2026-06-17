@@ -1,3 +1,4 @@
+import { PrivacyBlur } from '@/components/ui/PrivacyBlur';
 import { useMemo, useState, useEffect } from 'react';
 import { Users, Clock, CheckCircle2, Briefcase, TrendingUp, ArrowUpDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
