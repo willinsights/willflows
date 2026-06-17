@@ -265,14 +265,19 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
           expires_at: expiresAt,
           created_by: user.id,
         })
-        .select()
+        .select('id, task_id, project_id, workspace_id, client_email, client_name, expires_at, is_active, created_by, created_at')
         .single();
 
       if (error) throw error;
 
-      setToken(data as VideoApprovalToken);
+      // Fetch the plaintext token via secure RPC (column SELECT is restricted)
+      const { data: rawToken } = await supabase
+        .rpc('get_video_approval_token', { p_token_id: data.id });
+
+      const fullToken = { ...(data as any), token: rawToken || '' } as VideoApprovalToken;
+      setToken(fullToken);
       toast({ title: 'Link de aprovação gerado' });
-      return data as VideoApprovalToken;
+      return fullToken;
     } catch (error: any) {
       toast({
         title: 'Erro ao gerar link',
