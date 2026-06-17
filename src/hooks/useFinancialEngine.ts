@@ -13,6 +13,7 @@ import type {
   FinancialViewMode,
   FinancialProject,
   TeamPayment,
+  CostLinePayment,
   MonthlyMetrics,
   MonthlySummary,
   TimeSeriesPoint,
@@ -59,7 +60,33 @@ export function useFinancialEngine(
     },
   });
 
-  const projects = projectsQuery.data ?? [];
+  const costLinesQuery = useQuery({
+    queryKey: ['finance', 'engine-cost-lines', workspaceId] as const,
+    enabled: !!workspaceId,
+    staleTime: STALE,
+    queryFn: async (): Promise<CostLinePayment[]> => {
+      const { data, error } = await supabase
+        .from('project_cost_lines')
+        .select('id, project_id, actual_amount, payment_status, paid_at')
+        .eq('workspace_id', workspaceId!)
+        .neq('payment_status', 'cancelado');
+      if (error) throw error;
+      return (data || []) as CostLinePayment[];
+    },
+  });
+
+  const rawProjects = projectsQuery.data ?? [];
+  const costLinePayments = costLinesQuery.data ?? [];
+
+  // Merge per-project sum of cost_lines.actual_amount onto projects
+  const projects = useMemo<FinancialProject[]>(() => {
+    if (costLinePayments.length === 0) return rawProjects;
+    const totals = new Map<string, number>();
+    for (const cl of costLinePayments) {
+      totals.set(cl.project_id, (totals.get(cl.project_id) || 0) + (cl.actual_amount || 0));
+    }
+    return rawProjects.map(p => ({ ...p, cost_lines_total: totals.get(p.id) || 0 }));
+  }, [rawProjects, costLinePayments]);
 
   const teamQuery = useQuery({
     queryKey: ['finance', 'engine-team', workspaceId] as const,
@@ -79,21 +106,21 @@ export function useFinancialEngine(
 
   // Memoize derived calculations so they recompute only when inputs change
   const metrics = useMemo(
-    () => getMonthlyMetrics(projects, viewMode, selectedMonth, teamPayments),
-    [projects, viewMode, selectedMonth, teamPayments],
+    () => getMonthlyMetrics(projects, viewMode, selectedMonth, teamPayments, costLinePayments),
+    [projects, viewMode, selectedMonth, teamPayments, costLinePayments],
   );
 
   const previousMetrics = useMemo(() => {
     const previousMonth = subMonths(selectedMonth, 1);
-    return getMonthlyMetrics(projects, viewMode, previousMonth, teamPayments);
-  }, [projects, viewMode, selectedMonth, teamPayments]);
+    return getMonthlyMetrics(projects, viewMode, previousMonth, teamPayments, costLinePayments);
+  }, [projects, viewMode, selectedMonth, teamPayments, costLinePayments]);
 
   const summary = useMemo(() => getMonthlySummary(projects, selectedMonth), [projects, selectedMonth]);
 
   const timeSeries = useMemo(() => {
     const fromMonth = subMonths(selectedMonth, 5);
-    return getTimeSeries(projects, viewMode, fromMonth, selectedMonth, teamPayments);
-  }, [projects, viewMode, selectedMonth, teamPayments]);
+    return getTimeSeries(projects, viewMode, fromMonth, selectedMonth, teamPayments, costLinePayments);
+  }, [projects, viewMode, selectedMonth, teamPayments, costLinePayments]);
 
   const revenueChange = calculateChange(metrics.revenue, previousMetrics.revenue);
   const costChange = calculateChange(metrics.cost, previousMetrics.cost);
@@ -107,9 +134,10 @@ export function useFinancialEngine(
     revenueChange,
     costChange,
     profitChange,
-    loading: projectsQuery.isLoading || (viewMode === 'CAIXA' && teamQuery.isLoading),
+    loading: projectsQuery.isLoading || costLinesQuery.isLoading || (viewMode === 'CAIXA' && teamQuery.isLoading),
     refresh: () => {
       projectsQuery.refetch();
+      costLinesQuery.refetch();
       if (viewMode === 'CAIXA') teamQuery.refetch();
     },
   };

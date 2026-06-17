@@ -13,6 +13,7 @@ import type {
   FinancialProject,
   FinancialViewMode,
   TeamPayment,
+  CostLinePayment,
   MonthlyMetrics,
   MonthlySummary,
   TimeSeriesPoint,
@@ -49,9 +50,9 @@ export function getEffectiveMonth(project: FinancialProject): Date | null {
   return null;
 }
 
-/** Total project cost = custo_captacao + custo_edicao + custos_extras. */
+/** Total project cost = custo_captacao + custo_edicao + custos_extras + sum(project_cost_lines.actual_amount). */
 export function getProjectCost(p: FinancialProject): number {
-  return (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0);
+  return (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0) + (p.cost_lines_total || 0);
 }
 
 /** Project revenue (agreed value with the client). */
@@ -148,6 +149,7 @@ function getPrevisaoMetrics(projects: FinancialProject[], month: Date): MonthlyM
 function getCaixaMetrics(
   projects: FinancialProject[],
   teamPayments: TeamPayment[],
+  costLinePayments: CostLinePayment[],
   month: Date,
 ): MonthlyMetrics {
   // Client income: projects where client_paid_at is in month
@@ -165,7 +167,12 @@ function getCaixaMetrics(
     .filter(p => p.custos_extras_paid_at && isInMonth(p.custos_extras_paid_at, month))
     .reduce((s, p) => s + (p.custos_extras || 0), 0);
 
-  const totalExpenses = teamExpenses + extrasExpenses;
+  // Cost-line expenses: paid_at in month and status 'pago'
+  const costLinesExpenses = costLinePayments
+    .filter(cl => cl.payment_status === 'pago' && cl.paid_at && isInMonth(cl.paid_at, month))
+    .reduce((s, cl) => s + (cl.actual_amount || 0), 0);
+
+  const totalExpenses = teamExpenses + extrasExpenses + costLinesExpenses;
 
   return {
     revenue: clientIncome,
@@ -176,6 +183,7 @@ function getCaixaMetrics(
       clientIncome,
       teamExpenses,
       extrasExpenses,
+      costLinesExpenses,
     },
   };
 }
@@ -187,6 +195,7 @@ export function getMonthlyMetrics(
   viewMode: FinancialViewMode,
   month: Date,
   teamPayments: TeamPayment[] = [],
+  costLinePayments: CostLinePayment[] = [],
 ): MonthlyMetrics {
   switch (viewMode) {
     case 'REALIZADO':
@@ -194,7 +203,7 @@ export function getMonthlyMetrics(
     case 'PREVISAO':
       return getPrevisaoMetrics(projects, month);
     case 'CAIXA':
-      return getCaixaMetrics(projects, teamPayments, month);
+      return getCaixaMetrics(projects, teamPayments, costLinePayments, month);
   }
 }
 
@@ -204,13 +213,14 @@ export function getTimeSeries(
   fromMonth: Date,
   toMonth: Date,
   teamPayments: TeamPayment[] = [],
+  costLinePayments: CostLinePayment[] = [],
 ): TimeSeriesPoint[] {
   const points: TimeSeriesPoint[] = [];
   let current = startOfMonth(fromMonth);
   const end = startOfMonth(toMonth);
 
   while (current <= end) {
-    const metrics = getMonthlyMetrics(projects, viewMode, current, teamPayments);
+    const metrics = getMonthlyMetrics(projects, viewMode, current, teamPayments, costLinePayments);
     points.push({
       month: format(current, 'MMM', { locale: pt }),
       monthDate: new Date(current),

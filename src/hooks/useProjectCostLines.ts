@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { toast } from 'sonner';
@@ -43,8 +44,15 @@ export const costCategoryIcons: Record<CostCategory, string> = {
 
 export function useProjectCostLines(projectId?: string) {
   const { currentWorkspace } = useWorkspace();
+  const queryClient = useQueryClient();
   const [costLines, setCostLines] = useState<ProjectCostLine[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const invalidateEngine = useCallback(() => {
+    if (currentWorkspace?.id) {
+      queryClient.invalidateQueries({ queryKey: ['finance', 'engine-cost-lines', currentWorkspace.id] });
+    }
+  }, [queryClient, currentWorkspace?.id]);
 
   const fetchCostLines = useCallback(async () => {
     if (!currentWorkspace?.id) return;
@@ -103,6 +111,7 @@ export function useProjectCostLines(projectId?: string) {
     }
 
     await fetchCostLines();
+    invalidateEngine();
     toast.success('Linha de custo adicionada');
     return data as ProjectCostLine;
   };
@@ -126,6 +135,7 @@ export function useProjectCostLines(projectId?: string) {
     }
 
     await fetchCostLines();
+    invalidateEngine();
     return true;
   };
 
@@ -142,6 +152,7 @@ export function useProjectCostLines(projectId?: string) {
     }
 
     await fetchCostLines();
+    invalidateEngine();
     toast.success('Linha de custo removida');
     return true;
   };
