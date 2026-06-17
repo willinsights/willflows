@@ -5139,6 +5139,27 @@ export type Database = {
           workspaces_limit: number
         }[]
       }
+      get_workspace_financial_summary: {
+        Args: { p_workspace_id: string }
+        Returns: {
+          invoices_overdue_count: number
+          invoices_paid_count: number
+          invoices_pending_count: number
+          overdue_total: number
+          pending_total: number
+          revenue_last_month: number
+          revenue_this_month: number
+          revenue_total: number
+        }[]
+      }
+      get_workspace_projects_summary: {
+        Args: { p_workspace_id: string }
+        Returns: {
+          projects_by_status: Json
+          projects_with_overdue_invoices: number
+          total_projects: number
+        }[]
+      }
       get_workspace_role: {
         Args: { _user_id: string; _workspace_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
