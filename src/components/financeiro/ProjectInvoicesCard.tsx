@@ -41,8 +41,21 @@ export function ProjectInvoicesCard({ projectId, clientId }: ProjectInvoicesCard
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newSubtotal, setNewSubtotal] = useState('');
   const [newTaxRate, setNewTaxRate] = useState('23');
+  const [customizeVat, setCustomizeVat] = useState(false);
+  const [vatReason, setVatReason] = useState('');
   const [newDueDate, setNewDueDate] = useState('');
   const [newNotes, setNewNotes] = useState('');
+
+  const { effectiveVat } = useEffectiveVat(clientId);
+
+  // Pre-fill IVA rate from effective VAT cascade whenever dialog opens or cascade resolves
+  useEffect(() => {
+    if (!customizeVat && effectiveVat) {
+      setNewTaxRate(String(effectiveVat.vat_rate));
+    }
+  }, [effectiveVat, customizeVat, dialogOpen]);
+
+  const isExempt = effectiveVat?.source === 'exempt';
 
   const handleAdd = async () => {
     const subtotal = parseFloat(newSubtotal) || 0;
@@ -55,10 +68,14 @@ export function ProjectInvoicesCard({ projectId, clientId }: ProjectInvoicesCard
       tax_rate: parseFloat(newTaxRate) || 0,
       due_date: newDueDate || undefined,
       notes: newNotes || undefined,
+      vat_regime_applied: customizeVat ? 'manual' : effectiveVat?.vat_regime,
+      vat_override_reason: customizeVat ? (vatReason || null) : null,
     });
 
     setNewSubtotal('');
-    setNewTaxRate('23');
+    setNewTaxRate(effectiveVat ? String(effectiveVat.vat_rate) : '23');
+    setCustomizeVat(false);
+    setVatReason('');
     setNewDueDate('');
     setNewNotes('');
     setDialogOpen(false);
