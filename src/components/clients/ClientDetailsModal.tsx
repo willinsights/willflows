@@ -192,6 +192,7 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
     if (!client || !onClientUpdate) return;
     
     setSavingEdit(true);
+    const rateNum = editForm.vat_rate_override.trim() === '' ? null : Number(editForm.vat_rate_override);
     const result = await onClientUpdate(client.id, {
       name: editForm.name.trim(),
       email: editForm.email.trim() || null,
@@ -202,7 +203,10 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
       postal_code: editForm.postal_code.trim() || null,
       country: editForm.country.trim() || null,
       notes: editForm.notes.trim() || null,
-    });
+      vat_exempt: editForm.vat_exempt,
+      vat_rate_override: editForm.vat_exempt ? null : (Number.isFinite(rateNum as number) ? rateNum : null),
+      vat_regime_override: editForm.vat_exempt ? 'exempt' : (editForm.vat_regime_override || null),
+    } as any);
     
     if (result) {
       setIsEditing(false);
@@ -222,6 +226,9 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
         postal_code: client.postal_code || '',
         country: client.country || '',
         notes: client.notes || '',
+        vat_exempt: !!client.vat_exempt,
+        vat_rate_override: client.vat_rate_override != null ? String(client.vat_rate_override) : '',
+        vat_regime_override: client.vat_regime_override || 'standard',
       });
     }
     setIsEditing(false);
