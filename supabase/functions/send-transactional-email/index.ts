@@ -74,6 +74,10 @@ const TEMPLATES: Record<string, { component: React.ComponentType<any>; subject: 
     component: AutomationTestEmail,
     subject: (data) => `[TESTE] ${data.subject || 'Automação'}`,
   },
+  admin_subscription_discrepancy: {
+    component: AdminSubscriptionDiscrepancyEmail,
+    subject: (data) => `⚠️ ${data.totalDiscrepancies || 1} divergência(s) Stripe detetada(s)`,
+  },
 }
 
 
