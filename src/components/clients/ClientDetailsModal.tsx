@@ -511,6 +511,62 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
                     
                     {/* Notas Internas */}
                     <div className="space-y-2">
+                    {/* Fiscal */}
+                    <div className="space-y-3 rounded-lg border border-border/50 p-3 bg-muted/20">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold uppercase text-muted-foreground">Fiscal</Label>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium">Cliente isento de IVA</p>
+                          <p className="text-[11px] text-muted-foreground">Aplica taxa 0% em todas as faturas deste cliente</p>
+                        </div>
+                        <Switch
+                          checked={editForm.vat_exempt}
+                          onCheckedChange={(v) => setEditForm(prev => ({ ...prev, vat_exempt: v }))}
+                        />
+                      </div>
+                      {!editForm.vat_exempt && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-[11px]">Taxa de IVA personalizada (%)</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step="0.5"
+                              value={editForm.vat_rate_override}
+                              onChange={(e) => setEditForm(prev => ({ ...prev, vat_rate_override: e.target.value }))}
+                              placeholder="—"
+                              className="h-9"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[11px]">Regime fiscal</Label>
+                            <Select
+                              value={editForm.vat_regime_override}
+                              onValueChange={(v) => setEditForm(prev => ({ ...prev, vat_regime_override: v }))}
+                            >
+                              <SelectTrigger className="h-9 text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="standard">Padrão</SelectItem>
+                                <SelectItem value="reduced">Taxa reduzida</SelectItem>
+                                <SelectItem value="reverse_charge">IVA reverso (UE)</SelectItem>
+                                <SelectItem value="brazil">Brasil</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      )}
+                      <p className="text-[11px] text-muted-foreground">
+                        Se não definido, aplica-se a taxa padrão do workspace.
+                      </p>
+                    </div>
+
+                    {/* Notas Internas */}
+                    <div className="space-y-2">
                       <Label htmlFor="edit-notes">Notas Internas</Label>
                       <Textarea
                         id="edit-notes"
@@ -520,6 +576,7 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
                         rows={3}
                       />
                     </div>
+                    
                     
                     <div className="flex justify-end gap-2 pt-4 border-t">
                       <Button
