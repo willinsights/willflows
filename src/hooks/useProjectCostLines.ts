@@ -44,8 +44,15 @@ export const costCategoryIcons: Record<CostCategory, string> = {
 
 export function useProjectCostLines(projectId?: string) {
   const { currentWorkspace } = useWorkspace();
+  const queryClient = useQueryClient();
   const [costLines, setCostLines] = useState<ProjectCostLine[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const invalidateEngine = useCallback(() => {
+    if (currentWorkspace?.id) {
+      queryClient.invalidateQueries({ queryKey: ['finance', 'engine-cost-lines', currentWorkspace.id] });
+    }
+  }, [queryClient, currentWorkspace?.id]);
 
   const fetchCostLines = useCallback(async () => {
     if (!currentWorkspace?.id) return;
