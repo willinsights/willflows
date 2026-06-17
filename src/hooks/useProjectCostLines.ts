@@ -135,6 +135,7 @@ export function useProjectCostLines(projectId?: string) {
     }
 
     await fetchCostLines();
+    invalidateEngine();
     return true;
   };
 
