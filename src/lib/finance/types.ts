@@ -55,6 +55,7 @@ export interface MonthlyMetrics {
     clientIncome: number;
     teamExpenses: number;
     extrasExpenses: number;
+    costLinesExpenses: number;
   };
 }
 
