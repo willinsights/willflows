@@ -111,6 +111,7 @@ export function useProjectCostLines(projectId?: string) {
     }
 
     await fetchCostLines();
+    invalidateEngine();
     toast.success('Linha de custo adicionada');
     return data as ProjectCostLine;
   };
