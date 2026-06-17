@@ -181,6 +181,9 @@ export function useProjectInvoices(projectId?: string) {
     }
 
     await fetchInvoices();
+    queryClient.invalidateQueries({ queryKey: ['projects'] });
+    queryClient.invalidateQueries({ queryKey: ['financial-engine'] });
+    queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
     return true;
   };
 
