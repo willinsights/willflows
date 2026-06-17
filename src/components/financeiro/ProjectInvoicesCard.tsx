@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, FileText, Calendar, Info, AlertTriangle, Download, Loader2 } from 'lucide-react';
+import { Plus, Trash2, FileText, Calendar, Info, AlertTriangle, Download, Loader2, ListPlus } from 'lucide-react';
 import { useExportInvoicePdf } from '@/hooks/useExportInvoicePdf';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { InvoiceItemsEditor } from './InvoiceItemsEditor';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
