@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
-import { Menu, Search, Plus, FolderOpen, User2, CheckSquare, X } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Menu, Search, Plus, FolderOpen, User2, CheckSquare, X, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -17,6 +17,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useGlobalSearch, SearchResult } from '@/hooks/useGlobalSearch';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { labelFromSegment } from '@/lib/route-labels';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ProjectWithClient } from '@/hooks/useProjects';
 
@@ -36,6 +37,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const navigate = useNavigate();
+  const location = useLocation();
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [accountModalInitialTab, setAccountModalInitialTab] = useState<'equipa' | 'integracoes'>('equipa');
@@ -257,8 +259,27 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
           <Menu className="h-5 w-5" />
         </Button>
 
-        {/* Workspace Selector */}
-        <WorkspaceSelector />
+        {/* Workspace Selector + Page Title */}
+        <div className="flex items-center gap-1 min-w-0">
+          <WorkspaceSelector />
+          {(() => {
+            const segments = location.pathname
+              .split('/')
+              .filter((s) => s && s !== 'app');
+            const labels = segments.map((s) => labelFromSegment(s));
+            if (labels.length === 0) return null;
+            return (
+              <div className="hidden md:flex items-center gap-1 ml-1 shrink-0">
+                {labels.map((label, i) => (
+                  <span key={i} className="flex items-center gap-1">
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-sm font-medium">{label}</span>
+                  </span>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
 
         {/* Search - Always Visible */}
         <div className="flex-1 flex items-center justify-center px-4">
