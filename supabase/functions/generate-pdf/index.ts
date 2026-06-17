@@ -119,11 +119,19 @@ function drawText(
   });
 }
 
+interface InvoiceItemRow {
+  description: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number | null;
+}
+
 async function buildPdf(
   invoice: Invoice,
   workspace: Workspace,
   client: Client | null,
   project: Project | null,
+  items: InvoiceItemRow[],
 ): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([PAGE_W, PAGE_H]);
