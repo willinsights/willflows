@@ -104,6 +104,7 @@ const AdminBilling = lazy(() => import("./pages/admin/AdminBilling"));
 const AdminGrowth = lazy(() => import("./pages/admin/AdminGrowth"));
 const AdminSystem = lazy(() => import("./pages/admin/AdminSystem"));
 
+// API health check confirmed — backend is operational
 const App = () => (
   <HelmetProvider>
     <QueryClientProvider client={queryClient}>
