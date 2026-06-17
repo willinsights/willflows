@@ -1,63 +1,65 @@
-# Geração de Documentos do WillFlow para Claude Desktop
+# Onboarding Wizard — Plano
 
-Vou gerar 4 arquivos `.md` consolidando o conhecimento já registrado na memória do projeto, para você anexar ao "WillFlow Master" no Claude Desktop.
+Implementação em 2 fases para guiar novos workspaces, com migração leve, hook central e UI integrada no Dashboard.
 
-## Documentos a gerar
+## 1. Migration SQL
 
-Todos salvos em `/mnt/documents/willflow-master/` e disponibilizados como artifacts para download.
+Adicionar à tabela `workspaces`:
+- `onboarding_completed boolean not null default false`
+- `onboarding_business_type text` (`freelancer` | `studio` | `agency`)
+- `onboarding_completed_at timestamptz`
 
-### 1. `01-roadmap.md`
-- Visão do produto (do `mem://project/vision`)
-- Estado atual: módulos implementados (CRM, Kanban, Financeiro, Contratos, Review Studio, Chat, Calendar, Time Tracking, Automations, Relatórios)
-- Próximos passos sugeridos (melhorias mobile/desktop em andamento, hardening de segurança, expansão de automações)
+Adicionar a `user_preferences`:
+- `onboarding_dismissed_at timestamptz` (por user+workspace; usar coluna nova; existe já preferências por user — guardar como JSON `onboarding_dismissed: { [workspaceId]: ISODate }` para evitar mais colunas)
 
-### 2. `02-regras-de-negocio.md`
-- **Regra Financeira Única**: projeto só entra em fluxos/relatórios quando `is_delivered = true` (data âncora `delivered_at`)
-- Cadeia de datas âncora: delivery → shoot → created_at
-- Roles e permissões (admin, edicao, etc. — 4 categorias consolidadas)
-- Visibilidade financeira, modo privacidade, visibilidade global do Super Admin
-- Pagamentos a colaboradores: vínculo à entrega, baseline para projetos legados
-- Receita interna como projeto entregue
-- Faturação de cliente + VAT
-- Score de saúde de projeto e penalidades
-- Custos extras e categorização
-- Convites de workspace (hash + máscara)
+Backfill: para workspaces existentes com ≥1 projecto, marcar `onboarding_completed = true` para não mostrar a utilizadores antigos.
 
-### 3. `03-estrutura-financeira.md`
-- Camada de dados no servidor (views SQL + RPCs)
-- Engine de relatórios unificada (contagem de projetos)
-- Previsão de receita (fórmula forecast v2)
-- Segregação receita de projeto vs pagamento manual
-- Cálculo de margem de lucro
-- Tracking de custos detalhado
-- Faturação Stripe (produtos live, VAT, limites)
-- Relatórios detalhados de colaboradores
-- Export Excel (exceljs) e PDF (ReportLab)
-- Padrões globais de export financeiro
-- Filtros de período financeiro
+RPC `apply_onboarding_preset(p_workspace_id uuid, p_business_type text)`:
+- SECURITY DEFINER, `SET search_path = public`
+- Valida que `auth.uid()` é admin do workspace via `workspace_members`
+- Insere defaults em `workspace_role_permissions` (apenas se ainda não existem para esse role)
+- Cria colunas padrão em `kanban_columns` apenas se o workspace ainda não tem nenhuma
+- Actualiza `workspaces.onboarding_business_type`, `onboarding_completed = true`, `onboarding_completed_at = now()`
 
-### 4. `04-fluxos.md`
-- **Quote-to-Cash** end-to-end
-- **Pipeline de Edição**: Kanban → coluna final → auto-delivery → entrada financeira
-- **Entrega retroativa** de projetos
-- **Time Tracking**: regras de tracking ativo + automações
-- **Workflow Automations Engine**: eventos, fila durável (`automation_jobs` + cron worker), idempotência de e-mails
-- **Notificações**: filas, transacional, resumos semanais, compliance de descadastro
-- **Review Studio**: Cloudflare R2 + Stream, HLS, aprovação pública
-- **Chat**: Supabase Realtime + Web Push
-- **Calendar/Meet**: integração Google
-- **Auth**: Google OAuth com domínio próprio, templates branded
+Presets:
+- Freelancer: roles `admin`; 4 colunas (`A fazer`, `Em edição`, `Revisão`, `Entregue`)
+- Estúdio: roles `admin`, `edicao`, `captacao`; 5 colunas (+ `Aprovação cliente`)
+- Agência: todos os 5 roles; 6 colunas (+ `Em produção`)
 
-## Formato
+## 2. Hook `useOnboardingStatus`
 
-- Markdown puro, sem frontmatter pesado
-- Cabeçalhos hierárquicos (H1/H2/H3) para o Claude indexar bem
-- Tabelas onde fizer sentido (roles, produtos Stripe, status de projeto)
-- PT-BR (Brasil)
-- Sem prints/PDFs (você indicou que vai anexar os seus próprios)
+`src/hooks/useOnboardingStatus.ts` — single React Query hook que devolve:
+```
+{
+  shouldShowModal: boolean,         // !completed && isAdmin
+  shouldShowChecklist: boolean,     // completed && !dismissed && isAdmin && progress<5
+  shouldShowCongrats: boolean,      // progress===5 && !dismissed && within 3 days
+  progress: { done: number, total: 5, items: ChecklistItem[] },
+  dismiss(): Promise<void>,
+  completeOnboarding(type): Promise<void>,
+}
+```
+Queries em paralelo (counts head:true) para `workspace_members`, `clients`, `projects`, e um count de projects movidos (`column_id` ≠ primeira coluna do workspace via `kanban_columns` order_index=0).
 
-## Entrega
+## 3. UI
 
-Ao final, 4 tags `<presentation-artifact>` para download direto, mais um `00-index.md` curto que lista os 4 arquivos — útil para o Claude entender a estrutura do projeto "WillFlow Master".
+`src/components/onboarding/WelcomeWizard.tsx` — Dialog com 2 passos (framer-motion `AnimatePresence`, padrão de forwardRef já usado no projecto). Passo 1 três cards seleccionáveis; passo 2 resumo do preset escolhido + botão "Começar" que chama RPC `apply_onboarding_preset`.
 
-Posso prosseguir?
+`src/components/onboarding/OnboardingChecklist.tsx` — Card com Progress, lista dos 5 itens (Check/Circle), botão "→ Fazer agora" por item navegando para `/app/equipa`, `/app/clientes`, `/app/captacao`, `/app/edicao`. Quando progress=5, render banner de parabéns com botão "Dispensar".
+
+Montar ambos em `src/pages/app/Dashboard.tsx` (topo do conteúdo, antes dos widgets actuais). Sem alterar outros widgets.
+
+## 4. Detalhes
+
+- Modal só aparece se `!loading && shouldShowModal`.
+- Checklist só para admins (`useCurrentWorkspace().isAdmin`).
+- Sem breaking changes: backfill garante que workspaces antigos não vêem o modal.
+- Persistência do dismiss usa `user_preferences.preferences` JSON (já existe, evita migração extra para essa parte).
+
+## Ficheiros novos/alterados
+
+- Migration (nova)
+- `src/hooks/useOnboardingStatus.ts` (novo)
+- `src/components/onboarding/WelcomeWizard.tsx` (novo)
+- `src/components/onboarding/OnboardingChecklist.tsx` (novo)
+- `src/pages/app/Dashboard.tsx` (montar componentes)
