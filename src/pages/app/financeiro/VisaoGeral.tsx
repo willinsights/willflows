@@ -194,7 +194,10 @@ export default function VisaoGeral() {
           >
             <Card className={cn("glass-card hover:shadow-md transition-shadow", card.borderClass)}>
               <CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground mb-1">{card.label}</p>
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <p className="text-xs text-muted-foreground">{card.label}</p>
+                  {card.tooltip && <InfoTooltip content={card.tooltip} />}
+                </div>
                 <p className={cn("text-2xl font-bold", card.valueClass, hideValues && "blur-md select-none")}>
                   {card.value}
                 </p>
