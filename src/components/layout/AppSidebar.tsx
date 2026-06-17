@@ -34,6 +34,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Logo } from '@/components/ui/logo';
 import { TrialBadge } from '@/components/dashboard/TrialBadge';
+import { StorageWarningBadge } from '@/components/layout/StorageWarningBadge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
@@ -297,6 +298,11 @@ export function AppSidebar({ collapsed, onToggle, isMobile, autoCollapseOnNav = 
           ))}
         </nav>
       </ScrollArea>
+
+      {/* Storage warning (>90%) */}
+      <div className={cn('px-3 pb-2', collapsed && !isMobile && 'px-2')}>
+        <StorageWarningBadge collapsed={collapsed && !isMobile} />
+      </div>
 
       {/* Trial Badge */}
       <div className="px-3 pb-2">
