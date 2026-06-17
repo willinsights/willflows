@@ -69,6 +69,9 @@ interface Client {
   nif?: string | null;
   notes?: string | null;
   created_at: string;
+  vat_exempt?: boolean | null;
+  vat_rate_override?: number | null;
+  vat_regime_override?: string | null;
 }
 
 interface Project {
