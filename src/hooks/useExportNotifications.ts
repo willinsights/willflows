@@ -67,50 +67,7 @@ export function useExportNotifications() {
     }
   }, [playSound]);
 
-  useEffect(() => {
-    if (!user?.id || !currentWorkspace?.id) return;
-
-    // Subscribe to new notifications for export jobs
-    const channel = supabase
-      .channel('export-notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const notification = payload.new as {
-            id: string;
-            type: string;
-            title: string;
-            message: string;
-            entity_type: string | null;
-            entity_id: string | null;
-          };
-
-          // Only handle export job notifications
-          if (notification.entity_type !== 'export_job') return;
-
-          // Show native push notification
-          showPushNotification(
-            notification.title,
-            notification.message,
-            () => {
-              // Navigate to reports page when clicked
-              window.location.href = '/app/relatorios';
-            }
-          );
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id, currentWorkspace?.id, showPushNotification]);
+  // Realtime removed — export completion is signaled via toast in the mutation that triggers the export.
 
   return { showPushNotification };
 }

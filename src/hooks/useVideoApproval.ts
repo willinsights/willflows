@@ -117,30 +117,7 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
     fetchToken();
   }, [fetchApprovals, fetchToken]);
 
-  // Realtime subscription for approvals
-  useEffect(() => {
-    if (!taskId) return;
-
-    const channel = supabase
-      .channel(`video_approvals:${taskId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'video_approvals',
-          filter: `task_id=eq.${taskId}`,
-        },
-        () => {
-          fetchApprovals();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [taskId, fetchApprovals]);
+  // Realtime removed — approval mutations call fetchApprovals() to refresh.
 
   const approveVideo = async (input: ApproveVideoInput) => {
     if (!user) throw new Error('User not authenticated');

@@ -65,30 +65,7 @@ export function useVideoStructure(projectId: string | null, workspaceId: string 
     fetchSegments();
   }, [fetchSegments]);
 
-  // Realtime subscription
-  useEffect(() => {
-    if (!projectId) return;
-
-    const channel = supabase
-      .channel(`video_structures:${projectId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'video_structures',
-          filter: `project_id=eq.${projectId}`,
-        },
-        () => {
-          fetchSegments();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [projectId, fetchSegments]);
+  // Realtime removed — segment mutations call fetchSegments() to refresh.
 
   const addSegment = async (data: CreateSegmentInput) => {
     if (!projectId || !workspaceId || !user) return;

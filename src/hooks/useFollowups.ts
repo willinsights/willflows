@@ -160,19 +160,7 @@ export function useFollowups() {
     },
   });
 
-  // Realtime subscription for followups
-  useEffect(() => {
-    if (!user?.id || !workspace?.id) return;
-
-    const channel = supabase
-      .channel(`followups:${workspace.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'followups', filter: `workspace_id=eq.${workspace.id}` },
-        () => queryClient.invalidateQueries({ queryKey: ['followups'] })
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [user?.id, workspace?.id, queryClient]);
+  // Realtime removed — followup mutations already invalidate the ['followups'] query.
 
   return {
     followups, openFollowups, doneFollowups, myFollowups,

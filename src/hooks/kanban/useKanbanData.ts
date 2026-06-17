@@ -179,13 +179,11 @@ export function useKanbanData(phase: KanbanPhase) {
 
     let wasDisconnected = false;
 
+    // Realtime restricted to kanban_columns + tasks only (rule: realtime allowed only on Kanban + Chat).
     const channel = supabase
       .channel(channelName)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects', filter: `workspace_id=eq.${currentWorkspace.id}` }, handleProjectChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'kanban_columns', filter: `workspace_id=eq.${currentWorkspace.id}` }, handleColumnChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `workspace_id=eq.${currentWorkspace.id}` }, handleTaskChange)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'task_checklists', filter: `workspace_id=eq.${currentWorkspace.id}` }, handleGenericChange)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_team', filter: `workspace_id=eq.${currentWorkspace.id}` }, handleGenericChange)
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           if (wasDisconnected) {

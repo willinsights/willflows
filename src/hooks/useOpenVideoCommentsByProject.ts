@@ -43,37 +43,7 @@ export function useOpenVideoCommentsByProject() {
     staleTime: 30_000,
   });
 
-  // Realtime: invalidate on any video_comments change in this workspace
-  useEffect(() => {
-    if (!workspaceId) return;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    const invalidate = () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey });
-      }, 300);
-    };
-
-    const channel = supabase
-      .channel(`kanban-video-comments-${workspaceId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'video_comments',
-          filter: `workspace_id=eq.${workspaceId}`,
-        },
-        invalidate,
-      )
-      .subscribe();
-
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      supabase.removeChannel(channel);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceId]);
+  // Realtime removed — comment mutations invalidate this query when needed.
 
   return data ?? new Map<string, number>();
 }
