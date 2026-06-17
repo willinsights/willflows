@@ -1541,6 +1541,7 @@ export type Database = {
           vat_override_reason: string | null
           vat_rate_applied: number | null
           vat_regime_applied: string | null
+          vat_source: string | null
           workspace_id: string
         }
         Insert: {
@@ -1564,6 +1565,7 @@ export type Database = {
           vat_override_reason?: string | null
           vat_rate_applied?: number | null
           vat_regime_applied?: string | null
+          vat_source?: string | null
           workspace_id: string
         }
         Update: {
@@ -1587,6 +1589,7 @@ export type Database = {
           vat_override_reason?: string | null
           vat_rate_applied?: number | null
           vat_regime_applied?: string | null
+          vat_source?: string | null
           workspace_id?: string
         }
         Relationships: [

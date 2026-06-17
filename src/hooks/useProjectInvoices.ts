@@ -94,7 +94,7 @@ export function useProjectInvoices(projectId?: string) {
     tax_rate?: number;
     due_date?: string;
     notes?: string;
-    vat_regime_applied?: string | null;
+    vat_source?: 'workspace' | 'client' | 'manual' | null;
     vat_override_reason?: string | null;
   }) => {
     if (!currentWorkspace?.id) return null;
@@ -117,12 +117,12 @@ export function useProjectInvoices(projectId?: string) {
         total,
         vat_rate_applied: taxRate,
         vat_amount: taxAmount,
-        vat_regime_applied: invoice.vat_regime_applied ?? null,
+        vat_source: invoice.vat_source ?? null,
         vat_override_reason: invoice.vat_override_reason ?? null,
         due_date: invoice.due_date || null,
         notes: invoice.notes || null,
         created_by: (await supabase.auth.getUser()).data.user?.id,
-      })
+      } as any)
       .select()
       .single();
 

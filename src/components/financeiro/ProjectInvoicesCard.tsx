@@ -68,7 +68,7 @@ export function ProjectInvoicesCard({ projectId, clientId }: ProjectInvoicesCard
       tax_rate: parseFloat(newTaxRate) || 0,
       due_date: newDueDate || undefined,
       notes: newNotes || undefined,
-      vat_regime_applied: customizeVat ? 'manual' : effectiveVat?.vat_regime,
+      vat_source: customizeVat ? 'manual' : (effectiveVat?.source === 'workspace' ? 'workspace' : 'client'),
       vat_override_reason: customizeVat ? (vatReason || null) : null,
     });
 
