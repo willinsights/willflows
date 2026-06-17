@@ -601,6 +601,57 @@ export default function Configuracoes() {
                       </Select>
                     </div>
 
+                    {/* Fiscal / IVA */}
+                    <div className="space-y-3 rounded-lg border border-border/50 p-4 bg-muted/20">
+                      <div>
+                        <h4 className="text-sm font-semibold">Fiscal</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Esta taxa é aplicada a todas as faturas, salvo override do cliente ou da invoice.
+                        </p>
+                      </div>
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <div className="grid gap-2">
+                          <Label>Taxa de IVA padrão (%)</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step="0.5"
+                            value={vatRateDefault}
+                            onChange={(e) => setVatRateDefault(e.target.value)}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Regime fiscal</Label>
+                          <Select value={vatRegime} onValueChange={setVatRegime}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="standard">Padrão</SelectItem>
+                              <SelectItem value="reduced">Taxa reduzida</SelectItem>
+                              <SelectItem value="exempt">Isento</SelectItem>
+                              <SelectItem value="reverse_charge">IVA reverso (UE)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>País fiscal</Label>
+                          <Select value={vatCountry} onValueChange={setVatCountry}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="PT">🇵🇹 Portugal</SelectItem>
+                              <SelectItem value="BR">🇧🇷 Brasil</SelectItem>
+                              <SelectItem value="OTHER">Outro</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+
+
                     <Button 
                       className="gradient-primary" 
                       onClick={handleSaveGeneral}
