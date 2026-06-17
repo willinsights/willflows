@@ -94,7 +94,7 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
     try {
       let query = supabase
         .from('video_approval_tokens')
-        .select('*')
+        .select('id, task_id, project_id, workspace_id, client_email, client_name, expires_at, is_active, created_by, created_at')
         .eq('is_active', true);
 
       if (taskId) {
@@ -106,7 +106,23 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
       const { data, error } = await query.maybeSingle();
 
       if (error) throw error;
-      setToken(data as VideoApprovalToken | null);
+
+      if (!data) {
+        setToken(null);
+        return;
+      }
+
+      // Plaintext token is not readable via SELECT — fetch it via secure RPC
+      const { data: rawToken, error: rpcError } = await supabase
+        .rpc('get_video_approval_token', { p_token_id: data.id });
+
+      if (rpcError) {
+        logger.error('Error resolving approval token:', rpcError);
+        setToken({ ...(data as any), token: '' } as VideoApprovalToken);
+        return;
+      }
+
+      setToken({ ...(data as any), token: rawToken || '' } as VideoApprovalToken);
     } catch (error: any) {
       logger.error('Error fetching approval token:', error);
     }
