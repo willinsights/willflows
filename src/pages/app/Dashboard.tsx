@@ -19,6 +19,8 @@ import { PerformanceMetricsCard } from '@/components/dashboard/PerformanceMetric
 import { PaymentAlertsWidget } from '@/components/dashboard/PaymentAlertsWidget';
 import { WorkspaceHealthWidget } from '@/components/dashboard/WorkspaceHealthWidget';
 import { AdvancedKPIWidget } from '@/components/dashboard/AdvancedKPIWidget';
+import { WelcomeWizard } from '@/components/onboarding/WelcomeWizard';
+import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist';
 import { useProductTour } from '@/hooks/useProductTour';
 import { useDashboardMetrics, UrgentProject } from '@/hooks/useDashboardMetrics';
 import { useFinancialEngine } from '@/hooks/useFinancialEngine';
