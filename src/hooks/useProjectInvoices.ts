@@ -46,8 +46,10 @@ export const invoiceStatusColors: Record<InvoiceStatus, string> = {
 
 export function useProjectInvoices(projectId?: string) {
   const { currentWorkspace } = useWorkspace();
+  const queryClient = useQueryClient();
   const [invoices, setInvoices] = useState<ProjectInvoice[]>([]);
   const [loading, setLoading] = useState(true);
+
 
   const fetchInvoices = useCallback(async () => {
     if (!currentWorkspace?.id) return;
