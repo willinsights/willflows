@@ -255,6 +255,10 @@ export default function Dashboard() {
         <ProductTour onComplete={completeTour} onSkip={skipTour} />
       )}
       <TrialBanner />
+      <WelcomeWizard />
+      <motion.div variants={fadeUp}>
+        <OnboardingChecklist />
+      </motion.div>
       
       {/* Header with Quick Actions */}
       <motion.div variants={fadeUp} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
