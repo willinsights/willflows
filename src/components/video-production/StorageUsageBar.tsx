@@ -1,5 +1,6 @@
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { HardDrive, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useWorkspaceStorage } from '@/hooks/useWorkspaceStorage';
