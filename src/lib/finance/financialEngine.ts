@@ -50,9 +50,9 @@ export function getEffectiveMonth(project: FinancialProject): Date | null {
   return null;
 }
 
-/** Total project cost = custo_captacao + custo_edicao + custos_extras. */
+/** Total project cost = custo_captacao + custo_edicao + custos_extras + sum(project_cost_lines.actual_amount). */
 export function getProjectCost(p: FinancialProject): number {
-  return (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0);
+  return (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0) + (p.cost_lines_total || 0);
 }
 
 /** Project revenue (agreed value with the client). */
