@@ -16,6 +16,16 @@ export interface FinancialProject {
   client_payment_status: string | null;
   client_paid_at: string | null;
   competence_month: string | null;
+  /** Sum of actual_amount from project_cost_lines (excluding 'cancelado'). Merged in by useFinancialEngine. */
+  cost_lines_total?: number;
+}
+
+export interface CostLinePayment {
+  id: string;
+  project_id: string;
+  actual_amount: number;
+  payment_status: string;
+  paid_at: string | null;
 }
 
 export interface TeamPayment {
