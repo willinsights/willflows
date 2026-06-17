@@ -222,15 +222,18 @@ export default function VisaoGeral() {
       {/* Monthly Summary (operational) */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
-          { label: 'Criados', value: summary.created, color: 'text-muted-foreground' },
-          { label: 'Planeados', value: summary.planned, color: 'text-primary' },
-          { label: 'Entregues', value: summary.delivered, color: 'text-success' },
-          { label: 'Adiados', value: summary.postponed, color: 'text-warning' },
-          { label: 'Resgatados', value: summary.rescued, color: 'text-primary' },
+          { label: 'Criados', value: summary.created, color: 'text-muted-foreground', tooltip: 'Projetos criados no mês selecionado, independentemente do estado atual.' },
+          { label: 'Planeados', value: summary.planned, color: 'text-primary', tooltip: 'Projetos com data de entrega prevista neste mês mas ainda não entregues.' },
+          { label: 'Entregues', value: summary.delivered, color: 'text-success', tooltip: 'Projetos cuja entrega foi confirmada neste mês. São os únicos que entram no fluxo financeiro.' },
+          { label: 'Adiados', value: summary.postponed, color: 'text-warning', tooltip: 'Projetos previstos para este mês que foram movidos para um mês posterior.' },
+          { label: 'Resgatados', value: summary.rescued, color: 'text-primary', tooltip: 'Projetos entregues este mês cuja data prevista original era de meses anteriores.' },
         ].map(item => (
           <Card key={item.label} className="glass-card">
             <CardContent className="p-3 text-center">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{item.label}</p>
+              <div className="flex items-center justify-center gap-1">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{item.label}</p>
+                <InfoTooltip content={item.tooltip} />
+              </div>
               <p className={cn("text-xl font-bold", item.color)}>{item.value}</p>
             </CardContent>
           </Card>
