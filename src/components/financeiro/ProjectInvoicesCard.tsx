@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Trash2, FileText, Calendar } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Trash2, FileText, Calendar, Info, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -9,8 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useHideValues } from '@/hooks/useHideValues';
 import { useFormatCurrency } from '@/hooks/useFormatCurrency';
+import { useEffectiveVat, vatSourceLabel } from '@/hooks/useEffectiveVat';
 import {
   useProjectInvoices,
   invoiceStatusLabels,
