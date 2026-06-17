@@ -285,8 +285,11 @@ export default function Configuracoes() {
           currency,
           country: country as 'PT' | 'BR',
           timezone,
+          vat_rate_default: Number(vatRateDefault) || 0,
+          vat_regime: vatRegime,
+          vat_country: vatCountry,
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq('id', currentWorkspace.id);
 
       if (error) throw error;
