@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature, x-internal-retry-secret, x-inbox-id",
 };
 
 // Product ID to Plan mapping - now using 'starter' instead of 'essencial'
@@ -73,54 +73,96 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Detect internal retry mode (called by webhook-retry-worker)
+  const internalSecret = req.headers.get("x-internal-retry-secret");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const isInternalRetry = !!internalSecret && internalSecret === serviceRoleKey;
+  let inboxId = req.headers.get("x-inbox-id");
+
+  // Initialize Supabase client with service role key for admin access
+  const supabaseClient = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    serviceRoleKey,
+    { auth: { persistSession: false } }
+  );
+
   try {
-    logStep("Webhook received");
+    logStep("Webhook received", { internalRetry: isInternalRetry });
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
-    
+
     if (!stripeKey) {
       throw new Error("STRIPE_SECRET_KEY is not set");
     }
-    
-    if (!webhookSecret) {
-      throw new Error("STRIPE_WEBHOOK_SECRET is not set");
-    }
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    
-    // Get the raw body for signature verification
+
     const body = await req.text();
-    const signature = req.headers.get("stripe-signature");
-    
-    if (!signature) {
-      logStep("ERROR: No stripe-signature header");
-      return new Response(JSON.stringify({ error: "No signature" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
-      });
-    }
-
-    // Verify the webhook signature
     let event: Stripe.Event;
-    try {
-      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
-      logStep("Signature verified", { eventType: event.type, eventId: event.id });
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      logStep("ERROR: Signature verification failed", { error: errorMessage });
-      return new Response(JSON.stringify({ error: "Invalid signature" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
-      });
+
+    if (isInternalRetry) {
+      // Trusted internal retry: body is the raw event JSON
+      event = JSON.parse(body) as Stripe.Event;
+      logStep("Internal retry event loaded", { eventType: event.type, eventId: event.id, inboxId });
+    } else {
+      if (!webhookSecret) {
+        throw new Error("STRIPE_WEBHOOK_SECRET is not set");
+      }
+      const signature = req.headers.get("stripe-signature");
+      if (!signature) {
+        logStep("ERROR: No stripe-signature header");
+        return new Response(JSON.stringify({ error: "No signature" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        });
+      }
+
+      try {
+        event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
+        logStep("Signature verified", { eventType: event.type, eventId: event.id });
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        logStep("ERROR: Signature verification failed", { error: errorMessage });
+        return new Response(JSON.stringify({ error: "Invalid signature" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        });
+      }
+
+      // Upsert into webhook_inbox (idempotency)
+      const { data: inboxRow, error: inboxErr } = await supabaseClient
+        .from("webhook_inbox")
+        .upsert(
+          {
+            provider: "stripe",
+            event_id: event.id,
+            event_type: event.type,
+            payload: event as unknown as Record<string, unknown>,
+            status: "processing",
+            attempts: 1,
+            locked_at: new Date().toISOString(),
+          },
+          { onConflict: "provider,event_id", ignoreDuplicates: false }
+        )
+        .select("id, status, processed_at")
+        .single();
+
+      if (inboxErr) {
+        logStep("WARN: inbox upsert failed, continuing", { error: inboxErr.message });
+      } else if (inboxRow) {
+        inboxId = inboxRow.id;
+        // If already processed previously, ack and skip
+        if (inboxRow.processed_at) {
+          logStep("Event already processed, skipping", { eventId: event.id });
+          return new Response(JSON.stringify({ received: true, deduplicated: true }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+        }
+      }
     }
 
-    // Initialize Supabase client with service role key for admin access
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
-    );
 
     // Helper function to find user by email
     const findUserByEmail = async (email: string) => {
@@ -617,6 +659,11 @@ serve(async (req) => {
         logStep("Unhandled event type", { type: event.type });
     }
 
+    // Mark inbox row as processed (idempotent)
+    if (inboxId) {
+      await supabaseClient.rpc("webhook_inbox_mark_processed", { p_id: inboxId });
+    }
+
     // Always return 200 to acknowledge receipt of the event
     return new Response(JSON.stringify({ received: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -626,11 +673,17 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR in webhook", { message: errorMessage });
-    
-    // Return 200 even on error to prevent Stripe from retrying
-    return new Response(JSON.stringify({ error: errorMessage, received: true }), {
+
+    // Schedule retry via inbox (do not 200-and-forget anymore)
+    if (inboxId) {
+      await supabaseClient.rpc("webhook_inbox_mark_failed", { p_id: inboxId, p_error: errorMessage });
+    }
+
+    // For internal retries we surface 500 so the worker knows it failed
+    const status = isInternalRetry ? 500 : 200;
+    return new Response(JSON.stringify({ error: errorMessage, received: true, will_retry: !!inboxId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
+      status,
     });
   }
 });

@@ -4245,6 +4245,57 @@ export type Database = {
           },
         ]
       }
+      webhook_inbox: {
+        Row: {
+          attempts: number
+          created_at: string
+          event_id: string
+          event_type: string | null
+          id: string
+          last_error: string | null
+          locked_at: string | null
+          max_attempts: number
+          next_retry_at: string
+          payload: Json
+          processed_at: string | null
+          provider: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          event_id: string
+          event_type?: string | null
+          id?: string
+          last_error?: string | null
+          locked_at?: string | null
+          max_attempts?: number
+          next_retry_at?: string
+          payload: Json
+          processed_at?: string | null
+          provider: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          event_id?: string
+          event_type?: string | null
+          id?: string
+          last_error?: string | null
+          locked_at?: string | null
+          max_attempts?: number
+          next_retry_at?: string
+          payload?: Json
+          processed_at?: string | null
+          provider?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       workflow_automations: {
         Row: {
           action_config: Json
@@ -5218,6 +5269,41 @@ export type Database = {
           workspace_name: string
         }[]
       }
+      webhook_inbox_claim_batch: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempts: number
+          created_at: string
+          event_id: string
+          event_type: string | null
+          id: string
+          last_error: string | null
+          locked_at: string | null
+          max_attempts: number
+          next_retry_at: string
+          payload: Json
+          processed_at: string | null
+          provider: string
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "webhook_inbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      webhook_inbox_mark_failed: {
+        Args: { p_error: string; p_id: string }
+        Returns: undefined
+      }
+      webhook_inbox_mark_processed: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
+      webhook_inbox_resolve: { Args: { p_id: string }; Returns: undefined }
+      webhook_inbox_retry_now: { Args: { p_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "edicao" | "captacao" | "gestao" | "visualizacao"

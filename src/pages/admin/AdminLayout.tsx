@@ -13,7 +13,8 @@ import {
   ExternalLink,
   BarChart3,
   FileText,
-  Rocket
+  Rocket,
+  Webhook
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -38,6 +39,7 @@ const navItems: NavItem[] = [
   { path: '/admin/billing', label: 'Billing', icon: <CreditCard className="h-5 w-5" /> },
   { path: '/admin/growth', label: 'Growth', icon: <Rocket className="h-5 w-5" /> },
   { path: '/admin/system', label: 'Sistema', icon: <Settings className="h-5 w-5" /> },
+  { path: '/admin/webhooks', label: 'Webhooks', icon: <Webhook className="h-5 w-5" /> },
 ];
 
 export default function AdminLayout() {
