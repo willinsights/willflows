@@ -83,6 +83,7 @@ export function PeriodComparisonCard({ projects }: PeriodComparisonCardProps) {
   ];
 
   return (
+    <PrivacyBlur>
     <Card className="glass-card">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
@@ -136,5 +137,6 @@ export function PeriodComparisonCard({ projects }: PeriodComparisonCardProps) {
         </div>
       </CardContent>
     </Card>
+    </PrivacyBlur>
   );
 }

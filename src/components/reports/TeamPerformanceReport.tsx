@@ -186,7 +186,7 @@ export function TeamPerformanceReport() {
   }
 
   return (
-    <div className="space-y-6">
+    <PrivacyBlur className="space-y-6">
       <Card className="glass-card">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
@@ -321,6 +321,6 @@ export function TeamPerformanceReport() {
           </TooltipProvider>
         </CardContent>
       </Card>
-    </div>
+    </PrivacyBlur>
   );
 }

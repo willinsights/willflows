@@ -154,6 +154,7 @@ export function RevenueForecastReport() {
   const currentMonthKey = format(new Date(), 'yyyy-MM');
 
   return (
+    <PrivacyBlur>
     <Card className="glass-card">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
@@ -292,5 +293,6 @@ export function RevenueForecastReport() {
         </div>
       </CardContent>
     </Card>
+    </PrivacyBlur>
   );
 }
