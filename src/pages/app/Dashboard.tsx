@@ -182,6 +182,8 @@ export default function Dashboard() {
           <ProductTour onComplete={completeTour} onSkip={skipTour} />
         )}
         <TrialBanner />
+        <WelcomeWizard />
+        <OnboardingChecklist />
         <DashboardHeader currentTime={currentTime} />
         <MobileKPICarousel metrics={metrics} loading={loading} />
         {!isCollaborator && canViewAllFinancials && (
