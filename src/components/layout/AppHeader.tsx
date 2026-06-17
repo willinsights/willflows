@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
-import { Menu, Search, Plus, FolderOpen, User2, CheckSquare, X } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Menu, Search, Plus, FolderOpen, User2, CheckSquare, X, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
