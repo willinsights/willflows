@@ -114,36 +114,101 @@ export function ProjectInvoicesCard({ projectId, clientId }: ProjectInvoicesCard
               <DialogTitle>Nova Fatura</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-2">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Subtotal (€)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={newSubtotal}
-                    onChange={e => setNewSubtotal(e.target.value)}
-                    placeholder="0.00"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>IVA (%)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step="1"
-                    value={newTaxRate}
-                    onChange={e => setNewTaxRate(e.target.value)}
-                    placeholder="23"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label>Subtotal (€)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={newSubtotal}
+                  onChange={e => setNewSubtotal(e.target.value)}
+                  placeholder="0.00"
+                />
               </div>
+
+              {/* VAT section */}
+              <div className="space-y-2 rounded-lg border border-border/50 p-3 bg-muted/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-xs font-semibold uppercase text-muted-foreground">IVA</Label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-xs">
+                          Esta taxa vem de: {effectiveVat ? vatSourceLabel(effectiveVat.source) : 'taxa padrão do workspace'}.
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="vat-custom" className="text-[11px] text-muted-foreground">Personalizar</Label>
+                    <Switch
+                      id="vat-custom"
+                      checked={customizeVat}
+                      onCheckedChange={(v) => {
+                        setCustomizeVat(v);
+                        if (!v && effectiveVat) setNewTaxRate(String(effectiveVat.vat_rate));
+                      }}
+                      disabled={isExempt}
+                    />
+                  </div>
+                </div>
+
+                {isExempt && (
+                  <Badge variant="outline" className="gap-1 border-warning/40 bg-warning/10 text-warning text-[11px]">
+                    <AlertTriangle className="h-3 w-3" /> Cliente isento — taxa 0%
+                  </Badge>
+                )}
+
+                {!isExempt && !customizeVat && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {newTaxRate}% — {effectiveVat ? vatSourceLabel(effectiveVat.source) : 'taxa padrão do workspace'}
+                  </p>
+                )}
+
+                {customizeVat && !isExempt && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-[11px]">Taxa (%)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step="0.5"
+                        value={newTaxRate}
+                        onChange={e => setNewTaxRate(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px]">Razão</Label>
+                      <Input
+                        value={vatReason}
+                        onChange={e => setVatReason(e.target.value)}
+                        placeholder="Ex.: IVA reverso UE"
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {parseFloat(newSubtotal) > 0 && (
-                <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
-                  Total: {formatCurrency(
-                    (parseFloat(newSubtotal) || 0) * (1 + (parseFloat(newTaxRate) || 0) / 100)
-                  )}
+                <div className="text-sm space-y-1 bg-muted/40 p-2.5 rounded">
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Subtotal:</span>
+                    <span>{formatCurrency(parseFloat(newSubtotal) || 0)}</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>IVA ({newTaxRate}%):</span>
+                    <span>{formatCurrency((parseFloat(newSubtotal) || 0) * (parseFloat(newTaxRate) || 0) / 100)}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold pt-1 border-t border-border/50">
+                    <span>Total:</span>
+                    <span>{formatCurrency((parseFloat(newSubtotal) || 0) * (1 + (parseFloat(newTaxRate) || 0) / 100))}</span>
+                  </div>
                 </div>
               )}
               <div className="space-y-2">
