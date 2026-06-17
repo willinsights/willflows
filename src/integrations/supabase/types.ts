@@ -4922,6 +4922,10 @@ export type Database = {
         Args: { p_feature: string; p_workspace_id: string }
         Returns: boolean
       }
+      can_access_realtime_topic: {
+        Args: { topic_name: string }
+        Returns: boolean
+      }
       can_deliver_project: {
         Args: { p_phase: string; p_project_id: string }
         Returns: Json
