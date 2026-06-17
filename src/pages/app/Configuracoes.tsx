@@ -78,6 +78,9 @@ export default function Configuracoes() {
   const [currency, setCurrency] = useState('EUR');
   const [country, setCountry] = useState('PT');
   const [timezone, setTimezone] = useState('Europe/Lisbon');
+  const [vatRateDefault, setVatRateDefault] = useState('23');
+  const [vatRegime, setVatRegime] = useState('standard');
+  const [vatCountry, setVatCountry] = useState('PT');
   
   // Profile state
   const [fullName, setFullName] = useState('');
