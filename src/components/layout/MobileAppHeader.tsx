@@ -1,12 +1,13 @@
 import { motion } from 'framer-motion';
-import { Search } from 'lucide-react';
+import { Search, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { WorkspaceSelector } from '@/components/workspace/WorkspaceSelector';
 import { Logo } from '@/components/ui/logo';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { labelFromSegment } from '@/lib/route-labels';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { useGlobalSearch } from '@/hooks/useGlobalSearch';
