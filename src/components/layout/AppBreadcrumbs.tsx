@@ -30,7 +30,7 @@ export function AppBreadcrumbs({ className = '' }: { className?: string }) {
   const items: BreadcrumbItem[] = pathSegments.slice(1).map((segment, index) => {
     // Build the href for this segment
     const href = '/' + pathSegments.slice(0, index + 2).join('/');
-    const label = routeLabels[segment] || segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
+    const label = labelFromSegment(segment);
     
     return {
       label,
