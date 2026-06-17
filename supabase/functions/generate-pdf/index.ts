@@ -429,7 +429,21 @@ Deno.serve(async (req) => {
       project = p as Project | null;
     }
 
-    const pdfBytes = await buildPdf(invoice as Invoice, workspace as Workspace, client, project);
+    // Fetch invoice items (multi-line). Falls back to single line if empty.
+    const { data: itemsData } = await supabase
+      .from("invoice_items")
+      .select("description, quantity, unit_price, subtotal, sort_order")
+      .eq("invoice_id", invoice.id)
+      .order("sort_order", { ascending: true });
+
+    const items: InvoiceItemRow[] = (itemsData || []).map((r) => ({
+      description: r.description,
+      quantity: Number(r.quantity),
+      unit_price: Number(r.unit_price),
+      subtotal: r.subtotal != null ? Number(r.subtotal) : Number(r.quantity) * Number(r.unit_price),
+    }));
+
+    const pdfBytes = await buildPdf(invoice as Invoice, workspace as Workspace, client, project, items);
 
     return new Response(pdfBytes, {
       status: 200,
