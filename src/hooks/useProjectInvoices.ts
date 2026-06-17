@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { toast } from 'sonner';
+
 
 import { logger } from '@/lib/logger';
 export type InvoiceStatus = 'rascunho' | 'emitida' | 'paga' | 'vencida' | 'cancelada';
