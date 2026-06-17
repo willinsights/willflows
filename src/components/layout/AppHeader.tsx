@@ -37,6 +37,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const navigate = useNavigate();
+  const location = useLocation();
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [accountModalInitialTab, setAccountModalInitialTab] = useState<'equipa' | 'integracoes'>('equipa');
