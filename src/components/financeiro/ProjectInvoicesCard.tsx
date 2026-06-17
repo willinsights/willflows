@@ -318,6 +318,18 @@ export function ProjectInvoicesCard({ projectId, clientId }: ProjectInvoicesCard
                   <Button
                     variant="ghost"
                     size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                    onClick={() => workspace?.id && exportPdf(inv.id, workspace.id, inv.invoice_number)}
+                    disabled={exporting === inv.id || !workspace?.id}
+                    title="Exportar PDF"
+                  >
+                    {exporting === inv.id
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Download className="h-3.5 w-3.5" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     className="h-7 w-7 text-muted-foreground hover:text-destructive"
                     onClick={() => deleteInvoice(inv.id)}
                   >
