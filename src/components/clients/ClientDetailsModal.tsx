@@ -38,6 +38,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Tooltip,
   TooltipContent,
@@ -69,6 +71,9 @@ interface Client {
   nif?: string | null;
   notes?: string | null;
   created_at: string;
+  vat_exempt?: boolean | null;
+  vat_rate_override?: number | null;
+  vat_regime_override?: string | null;
 }
 
 interface Project {
@@ -134,6 +139,9 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
     postal_code: '',
     country: '',
     notes: '',
+    vat_exempt: false,
+    vat_rate_override: '' as string,
+    vat_regime_override: 'standard' as string,
   });
   
   const { currentWorkspace, isAdmin } = useWorkspace();
@@ -154,6 +162,9 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
         postal_code: client.postal_code || '',
         country: client.country || '',
         notes: client.notes || '',
+        vat_exempt: !!client.vat_exempt,
+        vat_rate_override: client.vat_rate_override != null ? String(client.vat_rate_override) : '',
+        vat_regime_override: client.vat_regime_override || 'standard',
       });
     }
   }, [client]);
@@ -183,6 +194,7 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
     if (!client || !onClientUpdate) return;
     
     setSavingEdit(true);
+    const rateNum = editForm.vat_rate_override.trim() === '' ? null : Number(editForm.vat_rate_override);
     const result = await onClientUpdate(client.id, {
       name: editForm.name.trim(),
       email: editForm.email.trim() || null,
@@ -193,7 +205,10 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
       postal_code: editForm.postal_code.trim() || null,
       country: editForm.country.trim() || null,
       notes: editForm.notes.trim() || null,
-    });
+      vat_exempt: editForm.vat_exempt,
+      vat_rate_override: editForm.vat_exempt ? null : (Number.isFinite(rateNum as number) ? rateNum : null),
+      vat_regime_override: editForm.vat_exempt ? 'exempt' : (editForm.vat_regime_override || null),
+    } as any);
     
     if (result) {
       setIsEditing(false);
@@ -213,6 +228,9 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
         postal_code: client.postal_code || '',
         country: client.country || '',
         notes: client.notes || '',
+        vat_exempt: !!client.vat_exempt,
+        vat_rate_override: client.vat_rate_override != null ? String(client.vat_rate_override) : '',
+        vat_regime_override: client.vat_regime_override || 'standard',
       });
     }
     setIsEditing(false);
@@ -491,6 +509,61 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
                       />
                     </div>
                     
+                    {/* Fiscal */}
+                    <div className="space-y-3 rounded-lg border border-border/50 p-3 bg-muted/20">
+
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold uppercase text-muted-foreground">Fiscal</Label>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium">Cliente isento de IVA</p>
+                          <p className="text-[11px] text-muted-foreground">Aplica taxa 0% em todas as faturas deste cliente</p>
+                        </div>
+                        <Switch
+                          checked={editForm.vat_exempt}
+                          onCheckedChange={(v) => setEditForm(prev => ({ ...prev, vat_exempt: v }))}
+                        />
+                      </div>
+                      {!editForm.vat_exempt && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-[11px]">Taxa de IVA personalizada (%)</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step="0.5"
+                              value={editForm.vat_rate_override}
+                              onChange={(e) => setEditForm(prev => ({ ...prev, vat_rate_override: e.target.value }))}
+                              placeholder="—"
+                              className="h-9"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[11px]">Regime fiscal</Label>
+                            <Select
+                              value={editForm.vat_regime_override}
+                              onValueChange={(v) => setEditForm(prev => ({ ...prev, vat_regime_override: v }))}
+                            >
+                              <SelectTrigger className="h-9 text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="standard">Padrão</SelectItem>
+                                <SelectItem value="reduced">Taxa reduzida</SelectItem>
+                                <SelectItem value="reverse_charge">IVA reverso (UE)</SelectItem>
+                                <SelectItem value="brazil">Brasil</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      )}
+                      <p className="text-[11px] text-muted-foreground">
+                        Se não definido, aplica-se a taxa padrão do workspace.
+                      </p>
+                    </div>
+
                     {/* Notas Internas */}
                     <div className="space-y-2">
                       <Label htmlFor="edit-notes">Notas Internas</Label>
@@ -502,6 +575,7 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
                         rows={3}
                       />
                     </div>
+                    
                     
                     <div className="flex justify-end gap-2 pt-4 border-t">
                       <Button

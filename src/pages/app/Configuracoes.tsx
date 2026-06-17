@@ -78,6 +78,9 @@ export default function Configuracoes() {
   const [currency, setCurrency] = useState('EUR');
   const [country, setCountry] = useState('PT');
   const [timezone, setTimezone] = useState('Europe/Lisbon');
+  const [vatRateDefault, setVatRateDefault] = useState('23');
+  const [vatRegime, setVatRegime] = useState('standard');
+  const [vatCountry, setVatCountry] = useState('PT');
   
   // Profile state
   const [fullName, setFullName] = useState('');
@@ -168,6 +171,19 @@ export default function Configuracoes() {
       setCurrency(currentWorkspace.currency);
       setCountry(currentWorkspace.country);
       setTimezone(currentWorkspace.timezone);
+      // Fetch VAT defaults (not exposed in workspace context)
+      (async () => {
+        const { data } = await supabase
+          .from('workspaces')
+          .select('vat_rate_default, vat_regime, vat_country')
+          .eq('id', currentWorkspace.id)
+          .single();
+        if (data) {
+          setVatRateDefault(String((data as any).vat_rate_default ?? 23));
+          setVatRegime((data as any).vat_regime ?? 'standard');
+          setVatCountry((data as any).vat_country ?? 'PT');
+        }
+      })();
     }
   }, [currentWorkspace]);
 
@@ -269,8 +285,11 @@ export default function Configuracoes() {
           currency,
           country: country as 'PT' | 'BR',
           timezone,
+          vat_rate_default: Number(vatRateDefault) || 0,
+          vat_regime: vatRegime,
+          vat_country: vatCountry,
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq('id', currentWorkspace.id);
 
       if (error) throw error;
@@ -581,6 +600,57 @@ export default function Configuracoes() {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {/* Fiscal / IVA */}
+                    <div className="space-y-3 rounded-lg border border-border/50 p-4 bg-muted/20">
+                      <div>
+                        <h4 className="text-sm font-semibold">Fiscal</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Esta taxa é aplicada a todas as faturas, salvo override do cliente ou da invoice.
+                        </p>
+                      </div>
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <div className="grid gap-2">
+                          <Label>Taxa de IVA padrão (%)</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step="0.5"
+                            value={vatRateDefault}
+                            onChange={(e) => setVatRateDefault(e.target.value)}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Regime fiscal</Label>
+                          <Select value={vatRegime} onValueChange={setVatRegime}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="standard">Padrão</SelectItem>
+                              <SelectItem value="reduced">Taxa reduzida</SelectItem>
+                              <SelectItem value="exempt">Isento</SelectItem>
+                              <SelectItem value="reverse_charge">IVA reverso (UE)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>País fiscal</Label>
+                          <Select value={vatCountry} onValueChange={setVatCountry}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="PT">🇵🇹 Portugal</SelectItem>
+                              <SelectItem value="BR">🇧🇷 Brasil</SelectItem>
+                              <SelectItem value="OTHER">Outro</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+
 
                     <Button 
                       className="gradient-primary" 

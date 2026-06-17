@@ -743,6 +743,10 @@ export type Database = {
           postal_code: string | null
           tags: string[] | null
           updated_at: string
+          vat_exempt: boolean
+          vat_number: string | null
+          vat_rate_override: number | null
+          vat_regime_override: string | null
           workspace_id: string
         }
         Insert: {
@@ -768,6 +772,10 @@ export type Database = {
           postal_code?: string | null
           tags?: string[] | null
           updated_at?: string
+          vat_exempt?: boolean
+          vat_number?: string | null
+          vat_rate_override?: number | null
+          vat_regime_override?: string | null
           workspace_id: string
         }
         Update: {
@@ -793,6 +801,10 @@ export type Database = {
           postal_code?: string | null
           tags?: string[] | null
           updated_at?: string
+          vat_exempt?: boolean
+          vat_number?: string | null
+          vat_rate_override?: number | null
+          vat_regime_override?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -1525,6 +1537,10 @@ export type Database = {
           tax_rate: number
           total: number
           updated_at: string
+          vat_amount: number | null
+          vat_override_reason: string | null
+          vat_rate_applied: number | null
+          vat_regime_applied: string | null
           workspace_id: string
         }
         Insert: {
@@ -1544,6 +1560,10 @@ export type Database = {
           tax_rate?: number
           total?: number
           updated_at?: string
+          vat_amount?: number | null
+          vat_override_reason?: string | null
+          vat_rate_applied?: number | null
+          vat_regime_applied?: string | null
           workspace_id: string
         }
         Update: {
@@ -1563,6 +1583,10 @@ export type Database = {
           tax_rate?: number
           total?: number
           updated_at?: string
+          vat_amount?: number | null
+          vat_override_reason?: string | null
+          vat_rate_applied?: number | null
+          vat_regime_applied?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -4567,6 +4591,9 @@ export type Database = {
           timezone: string
           trial_ends_at: string | null
           updated_at: string
+          vat_country: string
+          vat_rate_default: number
+          vat_regime: string
         }
         Insert: {
           country?: Database["public"]["Enums"]["country_region"]
@@ -4587,6 +4614,9 @@ export type Database = {
           timezone?: string
           trial_ends_at?: string | null
           updated_at?: string
+          vat_country?: string
+          vat_rate_default?: number
+          vat_regime?: string
         }
         Update: {
           country?: Database["public"]["Enums"]["country_region"]
@@ -4607,6 +4637,9 @@ export type Database = {
           timezone?: string
           trial_ends_at?: string | null
           updated_at?: string
+          vat_country?: string
+          vat_rate_default?: number
+          vat_regime?: string
         }
         Relationships: []
       }
@@ -4908,6 +4941,14 @@ export type Database = {
           unique_sessions: number
           view_count: number
           view_date: string
+        }[]
+      }
+      get_effective_vat: {
+        Args: { p_client_id?: string; p_workspace_id: string }
+        Returns: {
+          source: string
+          vat_rate: number
+          vat_regime: string
         }[]
       }
       get_invitation_by_token: {
