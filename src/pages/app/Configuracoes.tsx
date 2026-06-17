@@ -171,6 +171,19 @@ export default function Configuracoes() {
       setCurrency(currentWorkspace.currency);
       setCountry(currentWorkspace.country);
       setTimezone(currentWorkspace.timezone);
+      // Fetch VAT defaults (not exposed in workspace context)
+      (async () => {
+        const { data } = await supabase
+          .from('workspaces')
+          .select('vat_rate_default, vat_regime, vat_country')
+          .eq('id', currentWorkspace.id)
+          .single();
+        if (data) {
+          setVatRateDefault(String((data as any).vat_rate_default ?? 23));
+          setVatRegime((data as any).vat_regime ?? 'standard');
+          setVatCountry((data as any).vat_country ?? 'PT');
+        }
+      })();
     }
   }, [currentWorkspace]);
 
