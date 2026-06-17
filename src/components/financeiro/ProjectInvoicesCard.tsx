@@ -39,6 +39,8 @@ export function ProjectInvoicesCard({ projectId, clientId }: ProjectInvoicesCard
   } = useProjectInvoices(projectId);
   const { hideValues } = useHideValues();
   const { formatCurrency } = useFormatCurrency();
+  const { workspace } = useWorkspace();
+  const { exportPdf, exporting } = useExportInvoicePdf();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newSubtotal, setNewSubtotal] = useState('');
