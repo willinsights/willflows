@@ -39,6 +39,9 @@ type ClickDebugInfo = {
 
 export function AppLayout() {
   const isMobile = useIsMobile();
+  useDocumentTitle();
+
+
 
   // Wrap both layouts with HideValuesProvider for shared state
   return (
