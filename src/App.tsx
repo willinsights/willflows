@@ -170,6 +170,7 @@ const App = () => (
                       <Route path="billing" element={<AdminBilling />} />
                       <Route path="growth" element={<AdminGrowth />} />
                       <Route path="system" element={<AdminSystem />} />
+                      <Route path="webhooks" element={<AdminWebhooks />} />
                     </Route>
                     
                     {/* Protected Routes */}
