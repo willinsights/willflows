@@ -152,6 +152,7 @@ export function useProjectCostLines(projectId?: string) {
     }
 
     await fetchCostLines();
+    invalidateEngine();
     toast.success('Linha de custo removida');
     return true;
   };
