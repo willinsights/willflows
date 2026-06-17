@@ -1,32 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { labelFromSegment } from '@/lib/route-labels';
 
-// Route name mappings for automatic breadcrumb generation
-const routeLabels: Record<string, string> = {
-  'app': 'Dashboard',
-  'dashboard': 'Dashboard',
-  'projetos': 'Projetos',
-  'captacao': 'Captação',
-  'edicao': 'Edição',
-  'clientes': 'Clientes',
-  'leads': 'Leads',
-  'calendario': 'Calendário',
-  'equipa': 'Equipa',
-  'chat': 'Chat',
-  'pagamentos': 'Pagamentos',
-  'relatorios': 'Relatórios',
-  'definicoes': 'Definições',
-  'conta': 'Conta',
-  'preferencias': 'Preferências',
-  'workspace': 'Workspace',
-  'integrações': 'Integrações',
-  'notificacoes': 'Notificações',
-  'geral': 'Geral',
-  'media-hub': 'Media Hub',
-  'contratos': 'Contratos',
-  'ajuda': 'Ajuda',
-};
 
 // Routes that should not show breadcrumbs (root level)
 const hideBreadcrumbsRoutes = ['/app', '/app/dashboard'];
@@ -54,7 +30,7 @@ export function AppBreadcrumbs({ className = '' }: { className?: string }) {
   const items: BreadcrumbItem[] = pathSegments.slice(1).map((segment, index) => {
     // Build the href for this segment
     const href = '/' + pathSegments.slice(0, index + 2).join('/');
-    const label = routeLabels[segment] || segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
+    const label = labelFromSegment(segment);
     
     return {
       label,
