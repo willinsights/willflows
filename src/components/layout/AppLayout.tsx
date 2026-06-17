@@ -22,6 +22,8 @@ import { useExportNotifications } from '@/hooks/useExportNotifications';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useGlobalBadge } from '@/hooks/useGlobalBadge';
 import { HideValuesProvider } from '@/contexts/HideValuesContext';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+
 
 const RETRY_COOLDOWN_MS = 5000; // 5 seconds cooldown between retries
 
