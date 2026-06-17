@@ -509,10 +509,9 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
                       />
                     </div>
                     
-                    {/* Notas Internas */}
-                    <div className="space-y-2">
                     {/* Fiscal */}
                     <div className="space-y-3 rounded-lg border border-border/50 p-3 bg-muted/20">
+
                       <div className="flex items-center justify-between">
                         <Label className="text-xs font-semibold uppercase text-muted-foreground">Fiscal</Label>
                       </div>
