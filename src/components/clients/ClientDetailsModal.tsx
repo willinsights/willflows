@@ -828,8 +828,13 @@ export function ClientDetailsModal({ open, onOpenChange, client, projects, onCli
                       </div>
                       
                       {notesLoading ? (
-                        <div className="py-4 text-center text-muted-foreground text-sm">
-                          Carregando...
+                        <div className="space-y-2 py-2">
+                          {Array.from({ length: 2 }).map((_, i) => (
+                            <div key={i} className="p-2 space-y-2">
+                              <Skeleton className="h-3 w-full" />
+                              <Skeleton className="h-3 w-2/3" />
+                            </div>
+                          ))}
                         </div>
                       ) : clientNotes.length > 0 ? (
                         <div className="space-y-2 max-h-48 overflow-y-auto">
