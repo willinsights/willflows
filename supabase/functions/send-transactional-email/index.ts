@@ -10,6 +10,7 @@ import { InvitationEmail } from '../_shared/email-templates/invitation.tsx'
 import { BetaInviteEmail } from '../_shared/email-templates/beta-invite.tsx'
 import { ContactMessageEmail } from '../_shared/email-templates/contact-message.tsx'
 import { AutomationTestEmail } from '../_shared/email-templates/automation-test.tsx'
+import { AdminSubscriptionDiscrepancyEmail } from '../_shared/email-templates/admin-subscription-discrepancy.tsx'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -72,6 +73,10 @@ const TEMPLATES: Record<string, { component: React.ComponentType<any>; subject: 
   automation_test: {
     component: AutomationTestEmail,
     subject: (data) => `[TESTE] ${data.subject || 'Automação'}`,
+  },
+  admin_subscription_discrepancy: {
+    component: AdminSubscriptionDiscrepancyEmail,
+    subject: (data) => `⚠️ ${data.totalDiscrepancies || 1} divergência(s) Stripe detetada(s)`,
   },
 }
 

@@ -2924,6 +2924,68 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_discrepancies: {
+        Row: {
+          created_at: string
+          db_status: string | null
+          details: Json
+          detected_at: string
+          discrepancy_type: string
+          id: string
+          notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          stripe_customer_id: string | null
+          stripe_status: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+          user_id: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          db_status?: string | null
+          details?: Json
+          detected_at?: string
+          discrepancy_type?: string
+          id?: string
+          notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          stripe_customer_id?: string | null
+          stripe_status?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          db_status?: string | null
+          details?: Json
+          detected_at?: string
+          discrepancy_type?: string
+          id?: string
+          notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          stripe_customer_id?: string | null
+          stripe_status?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_discrepancies_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscription_invoices: {
         Row: {
           amount_subtotal: number

@@ -53,13 +53,16 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useAdminBilling, Subscription, Invoice, WebhookLog } from '@/hooks/useAdminBilling';
+import { useSubscriptionDiscrepancies } from '@/hooks/useSubscriptionDiscrepancies';
+import { SubscriptionReconciliationTab } from './SubscriptionReconciliationTab';
 import { getDisplayPlanName } from '@/lib/plans';
 
 export function BillingTab() {
+  const { activeCount } = useSubscriptionDiscrepancies();
   return (
     <div className="space-y-4">
-      <Tabs defaultValue="subscriptions">
-        <TabsList className="mb-4">
+      <Tabs defaultValue={activeCount > 0 ? 'reconcile' : 'subscriptions'}>
+        <TabsList className="mb-4 flex-wrap h-auto">
           <TabsTrigger value="subscriptions" className="gap-2">
             <CreditCard className="h-4 w-4" />
             Assinaturas
@@ -67,6 +70,15 @@ export function BillingTab() {
           <TabsTrigger value="invoices" className="gap-2">
             <FileText className="h-4 w-4" />
             Pagamentos
+          </TabsTrigger>
+          <TabsTrigger value="reconcile" className="gap-2">
+            <ShieldAlert className="h-4 w-4" />
+            Reconciliação
+            {activeCount > 0 && (
+              <Badge variant="destructive" className="ml-1 h-5 px-1.5 text-[10px]">
+                {activeCount}
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger value="dunning" className="gap-2">
             <AlertTriangle className="h-4 w-4" />
@@ -91,6 +103,9 @@ export function BillingTab() {
         </TabsContent>
         <TabsContent value="invoices">
           <InvoicesSubTab />
+        </TabsContent>
+        <TabsContent value="reconcile">
+          <SubscriptionReconciliationTab />
         </TabsContent>
         <TabsContent value="dunning">
           <DunningSubTab />
