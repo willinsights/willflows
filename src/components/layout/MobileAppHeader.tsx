@@ -17,7 +17,13 @@ export function MobileAppHeader() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
   const { results, loading } = useGlobalSearch(searchQuery);
+
+  const pageSegments = location.pathname
+    .split('/')
+    .filter((s) => s && s !== 'app');
+  const pageLabels = pageSegments.map((s) => labelFromSegment(s));
 
   const handleResultClick = (result: any) => {
     setSearchOpen(false);
