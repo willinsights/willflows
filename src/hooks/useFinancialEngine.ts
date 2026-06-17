@@ -134,9 +134,10 @@ export function useFinancialEngine(
     revenueChange,
     costChange,
     profitChange,
-    loading: projectsQuery.isLoading || (viewMode === 'CAIXA' && teamQuery.isLoading),
+    loading: projectsQuery.isLoading || costLinesQuery.isLoading || (viewMode === 'CAIXA' && teamQuery.isLoading),
     refresh: () => {
       projectsQuery.refetch();
+      costLinesQuery.refetch();
       if (viewMode === 'CAIXA') teamQuery.refetch();
     },
   };
