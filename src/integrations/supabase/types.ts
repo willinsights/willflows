@@ -5020,6 +5020,7 @@ export type Database = {
           week_views: number
         }[]
       }
+      get_plan_seat_limit: { Args: { p_plan: string }; Returns: number }
       get_project_time_summary: {
         Args: { p_project_id: string }
         Returns: Json
