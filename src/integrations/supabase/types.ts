@@ -4833,6 +4833,10 @@ export type Database = {
         Returns: boolean
       }
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
+      check_storage_quota: {
+        Args: { p_file_size_bytes: number; p_workspace_id: string }
+        Returns: Json
+      }
       claim_automation_jobs: {
         Args: { _limit?: number }
         Returns: {
