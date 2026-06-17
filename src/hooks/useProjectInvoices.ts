@@ -137,7 +137,7 @@ export function useProjectInvoices(projectId?: string) {
     return data as ProjectInvoice;
   };
 
-  const updateInvoice = async (id: string, updates: Partial<Pick<ProjectInvoice, 'status' | 'subtotal' | 'tax_rate' | 'due_date' | 'notes'>>) => {
+  const updateInvoice = async (id: string, updates: Partial<Pick<ProjectInvoice, 'status' | 'subtotal' | 'tax_rate' | 'due_date' | 'notes' | 'paid_at'>>) => {
     const updateData: Record<string, unknown> = { ...updates };
 
     // Recalculate totals if subtotal or tax_rate changed
@@ -150,6 +150,15 @@ export function useProjectInvoices(projectId?: string) {
         updateData.tax_rate = taxRate;
         updateData.tax_amount = subtotal * (taxRate / 100);
         updateData.total = subtotal + (subtotal * (taxRate / 100));
+      }
+    }
+
+    // Manage paid_at based on status (DB trigger also enforces this as safety net)
+    if (updates.status !== undefined) {
+      if (updates.status === 'paga') {
+        updateData.paid_at = updates.paid_at ?? new Date().toISOString();
+      } else {
+        updateData.paid_at = null;
       }
     }
 
