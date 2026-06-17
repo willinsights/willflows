@@ -1202,6 +1202,10 @@ export default function Configuracoes() {
                 <SeedDemoData />
               </CardContent>
             </Card>
+
+            <div className="mt-6">
+              <WorkspaceDataExport />
+            </div>
           </TabsContent>
         )}
 
