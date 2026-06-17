@@ -161,18 +161,21 @@ export default function VisaoGeral() {
             valueClass: 'text-success',
             value: formatCurrency(metrics.revenue),
             change: revenueChange, changePositiveGood: true,
+            tooltip: 'Soma do valor acordado de todos os projetos entregues no mês selecionado. Só conta projetos com entrega confirmada.',
           },
           {
             label: 'Custos', borderClass: 'border-destructive/20',
             valueClass: 'text-destructive',
             value: formatCurrency(metrics.cost),
             change: costChange, changePositiveGood: false,
+            tooltip: 'Soma de custos de captação, edição e custos extras dos projetos entregues no mês selecionado.',
           },
           {
             label: 'Lucro', borderClass: 'border-primary/20',
             valueClass: metrics.profit >= 0 ? 'text-primary' : 'text-destructive',
             value: `${metrics.profit >= 0 ? '+' : ''}${formatCurrency(metrics.profit)}`,
             change: profitChange, changePositiveGood: true,
+            tooltip: 'Receita menos custos. Representa o lucro bruto dos projetos entregues no mês.',
           },
           {
             label: 'Margem', borderClass: 'border-muted',
@@ -180,6 +183,7 @@ export default function VisaoGeral() {
             value: `${margin}%`,
             change: null, changePositiveGood: true,
             sub: `${metrics.projectCount} projeto${metrics.projectCount !== 1 ? 's' : ''}`,
+            tooltip: 'Percentagem de lucro sobre a receita (Lucro ÷ Receita). Acima de 30% é considerado saudável.',
           },
         ].map((card, i) => (
           <motion.div
