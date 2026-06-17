@@ -659,6 +659,11 @@ serve(async (req) => {
         logStep("Unhandled event type", { type: event.type });
     }
 
+    // Mark inbox row as processed (idempotent)
+    if (inboxId) {
+      await supabaseClient.rpc("webhook_inbox_mark_processed", { p_id: inboxId });
+    }
+
     // Always return 200 to acknowledge receipt of the event
     return new Response(JSON.stringify({ received: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -668,11 +673,17 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR in webhook", { message: errorMessage });
-    
-    // Return 200 even on error to prevent Stripe from retrying
-    return new Response(JSON.stringify({ error: errorMessage, received: true }), {
+
+    // Schedule retry via inbox (do not 200-and-forget anymore)
+    if (inboxId) {
+      await supabaseClient.rpc("webhook_inbox_mark_failed", { p_id: inboxId, p_error: errorMessage });
+    }
+
+    // For internal retries we surface 500 so the worker knows it failed
+    const status = isInternalRetry ? 500 : 200;
+    return new Response(JSON.stringify({ error: errorMessage, received: true, will_retry: !!inboxId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
+      status,
     });
   }
 });
