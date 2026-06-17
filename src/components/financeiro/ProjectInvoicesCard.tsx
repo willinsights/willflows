@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, FileText, Calendar, Info, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, FileText, Calendar, Info, AlertTriangle, Download, Loader2 } from 'lucide-react';
+import { useExportInvoicePdf } from '@/hooks/useExportInvoicePdf';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -37,6 +39,8 @@ export function ProjectInvoicesCard({ projectId, clientId }: ProjectInvoicesCard
   } = useProjectInvoices(projectId);
   const { hideValues } = useHideValues();
   const { formatCurrency } = useFormatCurrency();
+  const { workspace } = useWorkspace();
+  const { exportPdf, exporting } = useExportInvoicePdf();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newSubtotal, setNewSubtotal] = useState('');
@@ -311,6 +315,18 @@ export function ProjectInvoicesCard({ projectId, clientId }: ProjectInvoicesCard
                       ))}
                     </SelectContent>
                   </Select>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                    onClick={() => workspace?.id && exportPdf(inv.id, workspace.id, inv.invoice_number)}
+                    disabled={exporting === inv.id || !workspace?.id}
+                    title="Exportar PDF"
+                  >
+                    {exporting === inv.id
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Download className="h-3.5 w-3.5" />}
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
