@@ -13,6 +13,7 @@ import type {
   FinancialProject,
   FinancialViewMode,
   TeamPayment,
+  CostLinePayment,
   MonthlyMetrics,
   MonthlySummary,
   TimeSeriesPoint,
