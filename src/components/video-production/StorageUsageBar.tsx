@@ -22,9 +22,12 @@ export function StorageUsageBar({ showUpgradeButton = true, className }: Storage
 
   if (loading) {
     return (
-      <div className={cn("flex items-center gap-2 text-sm text-muted-foreground", className)}>
-        <HardDrive className="h-4 w-4" />
-        <span>A carregar...</span>
+      <div className={cn("space-y-2", className)}>
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+        <Skeleton className="h-2 w-full" />
       </div>
     );
   }
