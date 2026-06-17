@@ -284,11 +284,22 @@ export default function Equipa() {
               </TableHeader>
               <TableBody>
                 {membersLoading || invitationsLoading ? (
-                  <TableRow>
-                    <td colSpan={4} className="text-center py-8 text-muted-foreground">
-                      A carregar...
-                    </td>
-                  </TableRow>
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <TableRow key={`skel-${i}`}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="h-9 w-9 rounded-full" />
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-3 w-40" />
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                      <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
+                      <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+                    </TableRow>
+                  ))
                 ) : (
                   <>
                     {/* Active members */}
@@ -315,9 +326,14 @@ export default function Equipa() {
                     {/* Empty state */}
                     {filteredMembers.length === 0 && invitations.length === 0 && (
                       <TableRow>
-                        <td colSpan={4} className="text-center py-8 text-muted-foreground">
-                          Nenhum membro encontrado
-                        </td>
+                        <TableCell colSpan={4} className="p-0">
+                          <EmptyState
+                            icon={Users}
+                            title="Sem membros na equipa"
+                            description="Convida o primeiro membro para começar a colaborar neste workspace."
+                            compact
+                          />
+                        </TableCell>
                       </TableRow>
                     )}
                   </>
