@@ -195,6 +195,7 @@ export function getMonthlyMetrics(
   viewMode: FinancialViewMode,
   month: Date,
   teamPayments: TeamPayment[] = [],
+  costLinePayments: CostLinePayment[] = [],
 ): MonthlyMetrics {
   switch (viewMode) {
     case 'REALIZADO':
@@ -202,7 +203,7 @@ export function getMonthlyMetrics(
     case 'PREVISAO':
       return getPrevisaoMetrics(projects, month);
     case 'CAIXA':
-      return getCaixaMetrics(projects, teamPayments, month);
+      return getCaixaMetrics(projects, teamPayments, costLinePayments, month);
   }
 }
 
@@ -212,13 +213,14 @@ export function getTimeSeries(
   fromMonth: Date,
   toMonth: Date,
   teamPayments: TeamPayment[] = [],
+  costLinePayments: CostLinePayment[] = [],
 ): TimeSeriesPoint[] {
   const points: TimeSeriesPoint[] = [];
   let current = startOfMonth(fromMonth);
   const end = startOfMonth(toMonth);
 
   while (current <= end) {
-    const metrics = getMonthlyMetrics(projects, viewMode, current, teamPayments);
+    const metrics = getMonthlyMetrics(projects, viewMode, current, teamPayments, costLinePayments);
     points.push({
       month: format(current, 'MMM', { locale: pt }),
       monthDate: new Date(current),
