@@ -45,6 +45,7 @@ import { PermissionsMatrix } from '@/components/settings/PermissionsMatrix';
 import { PushNotificationSettings } from '@/components/settings/PushNotificationSettings';
 import { DeleteWorkspaceModal } from '@/components/workspace/DeleteWorkspaceModal';
 import { LeaveWorkspaceModal } from '@/components/workspace/LeaveWorkspaceModal';
+import { WorkspaceDataExport } from '@/components/workspace/WorkspaceDataExport';
 import { CategoryManagement } from '@/components/categories/CategoryManagement';
 import { AutomationsList } from '@/components/automations/AutomationsList';
 import { useProductTour } from '@/hooks/useProductTour';
