@@ -119,11 +119,19 @@ function drawText(
   });
 }
 
+interface InvoiceItemRow {
+  description: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number | null;
+}
+
 async function buildPdf(
   invoice: Invoice,
   workspace: Workspace,
   client: Client | null,
   project: Project | null,
+  items: InvoiceItemRow[],
 ): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([PAGE_W, PAGE_H]);
@@ -231,14 +239,30 @@ async function buildPdf(
   drawText(page, "Subtotal", PAGE_W - MARGIN - 70, y + 4, { font: fontBold, size: 10 });
   y -= 24;
 
-  // Single line item (data model has no separate items table — use project name)
-  const desc = project?.title || project?.name || invoice.notes || "Serviços prestados";
-  const unit = invoice.subtotal;
-  drawText(page, desc.length > 60 ? desc.slice(0, 60) + "..." : desc, MARGIN + 8, y, { font, size: 10 });
-  drawText(page, "1", PAGE_W - MARGIN - 230, y, { font, size: 10 });
-  drawText(page, fmtCurrency(unit, currency), PAGE_W - MARGIN - 170, y, { font, size: 10 });
-  drawText(page, fmtCurrency(unit, currency), PAGE_W - MARGIN - 70, y, { font, size: 10 });
-  y -= 16;
+  // Render items: use invoice_items if present, otherwise fallback to single line
+  const itemRows: Array<{ description: string; quantity: number; unit_price: number; subtotal: number }> =
+    items && items.length > 0
+      ? items.map((it) => ({
+          description: it.description,
+          quantity: Number(it.quantity),
+          unit_price: Number(it.unit_price),
+          subtotal: Number(it.subtotal ?? it.quantity * it.unit_price),
+        }))
+      : [{
+          description: project?.title || project?.name || invoice.notes || "Serviços prestados",
+          quantity: 1,
+          unit_price: invoice.subtotal,
+          subtotal: invoice.subtotal,
+        }];
+
+  for (const row of itemRows) {
+    const desc = row.description.length > 60 ? row.description.slice(0, 60) + "..." : row.description;
+    drawText(page, desc, MARGIN + 8, y, { font, size: 10 });
+    drawText(page, String(row.quantity), PAGE_W - MARGIN - 230, y, { font, size: 10 });
+    drawText(page, fmtCurrency(row.unit_price, currency), PAGE_W - MARGIN - 170, y, { font, size: 10 });
+    drawText(page, fmtCurrency(row.subtotal, currency), PAGE_W - MARGIN - 70, y, { font, size: 10 });
+    y -= 16;
+  }
   page.drawLine({
     start: { x: MARGIN, y }, end: { x: PAGE_W - MARGIN, y },
     thickness: 0.5, color: BORDER,
@@ -405,7 +429,21 @@ Deno.serve(async (req) => {
       project = p as Project | null;
     }
 
-    const pdfBytes = await buildPdf(invoice as Invoice, workspace as Workspace, client, project);
+    // Fetch invoice items (multi-line). Falls back to single line if empty.
+    const { data: itemsData } = await supabase
+      .from("invoice_items")
+      .select("description, quantity, unit_price, subtotal, sort_order")
+      .eq("invoice_id", invoice.id)
+      .order("sort_order", { ascending: true });
+
+    const items: InvoiceItemRow[] = (itemsData || []).map((r) => ({
+      description: r.description,
+      quantity: Number(r.quantity),
+      unit_price: Number(r.unit_price),
+      subtotal: r.subtotal != null ? Number(r.subtotal) : Number(r.quantity) * Number(r.unit_price),
+    }));
+
+    const pdfBytes = await buildPdf(invoice as Invoice, workspace as Workspace, client, project, items);
 
     return new Response(pdfBytes, {
       status: 200,
