@@ -259,8 +259,27 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
           <Menu className="h-5 w-5" />
         </Button>
 
-        {/* Workspace Selector */}
-        <WorkspaceSelector />
+        {/* Workspace Selector + Page Title */}
+        <div className="flex items-center gap-1 min-w-0">
+          <WorkspaceSelector />
+          {(() => {
+            const segments = location.pathname
+              .split('/')
+              .filter((s) => s && s !== 'app');
+            const labels = segments.map((s) => labelFromSegment(s));
+            if (labels.length === 0) return null;
+            return (
+              <div className="hidden md:flex items-center gap-1 ml-1 shrink-0">
+                {labels.map((label, i) => (
+                  <span key={i} className="flex items-center gap-1">
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-sm font-medium">{label}</span>
+                  </span>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
 
         {/* Search - Always Visible */}
         <div className="flex-1 flex items-center justify-center px-4">
