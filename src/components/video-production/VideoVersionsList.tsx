@@ -10,7 +10,6 @@ import {
   HardDrive,
   RefreshCw,
   ArrowUpDown,
-  AlertTriangle,
   Loader2,
   ImageOff,
   MoreVertical,
