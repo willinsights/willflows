@@ -505,6 +505,7 @@ export function useVideoVersions(
     processingVersionId,
     uploadVersion,
     deleteVersion,
+    replaceVersion,
     getSignedUrl,
     getPlaybackUrl,
     isCloudflareVersion,
