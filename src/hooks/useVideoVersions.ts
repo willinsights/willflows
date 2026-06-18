@@ -26,6 +26,15 @@ export interface VideoVersion {
   stream_playback_url: string | null;
   is_deleted: boolean;
   thumbnail_time_seconds: number | null;
+  // Replacement (corrected video kept inside same version)
+  replacement_stream_uid?: string | null;
+  replacement_playback_url?: string | null;
+  replacement_r2_key?: string | null;
+  replacement_status?: string | null;
+  replacement_file_name?: string | null;
+  replacement_file_size_bytes?: number | null;
+  replacement_thumbnail_path?: string | null;
+  replaced_at?: string | null;
 }
 
 interface UploadVideoInput {
