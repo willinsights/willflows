@@ -56,7 +56,7 @@ serve(async (req) => {
     }
 
     // Parse request
-    const { streamUid, versionId } = await req.json();
+    const { streamUid, versionId, isReplacement } = await req.json();
 
     if (!streamUid) {
       return new Response(JSON.stringify({ error: "Missing streamUid" }), {
