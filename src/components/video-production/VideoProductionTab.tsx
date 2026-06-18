@@ -68,9 +68,6 @@ function VideoProductionTabContent({
   const [isFixingVideo, setIsFixingVideo] = useState(false);
   // 'original' shows the version's first upload, 'corrected' shows the replacement (when it exists)
   const [replacementView, setReplacementView] = useState<'original' | 'corrected'>('corrected');
-  // Hidden file input for triggering replacement upload
-  const replaceFileInputRef = useRef<HTMLInputElement>(null);
-  const [replaceTargetVersionId, setReplaceTargetVersionId] = useState<string | null>(null);
 
   // Comment modal state
   const [showCommentModal, setShowCommentModal] = useState(false);
@@ -165,25 +162,15 @@ function VideoProductionTabContent({
     const v = versions.find(x => x.id === versionId);
     if (v) setSelectedVersion(v);
   }, [versions]);
-
-  // Replace version flow: open file picker, then call replaceVersion
-  const handleReplaceVersion = useCallback((version: VideoVersion) => {
-    setReplaceTargetVersionId(version.id);
-    replaceFileInputRef.current?.click();
-  }, []);
-
-  const handleReplaceFileChosen = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = ''; // reset input
-    if (!file || !replaceTargetVersionId) return;
+  // Replace version flow: invoked with the chosen file directly from the list dialog
+  const handleReplaceVersion = useCallback(async (version: VideoVersion, file: File) => {
     try {
-      await replaceVersion(replaceTargetVersionId, file);
+      await replaceVersion(version.id, file);
     } catch {
       // toast handled in hook
-    } finally {
-      setReplaceTargetVersionId(null);
     }
-  }, [replaceTargetVersionId, replaceVersion]);
+  }, [replaceVersion]);
+
 
 
   const handleAddComment = useCallback((timestampSeconds: number) => {
@@ -338,14 +325,6 @@ function VideoProductionTabContent({
             projectId={projectId}
           />
 
-          {/* Hidden file input for replacement upload */}
-          <input
-            ref={replaceFileInputRef}
-            type="file"
-            accept="video/mp4,video/quicktime,video/webm,video/x-msvideo,video/x-matroska"
-            className="hidden"
-            onChange={handleReplaceFileChosen}
-          />
 
           {/* Comments section */}
           {selectedVersion && (
