@@ -41,6 +41,7 @@ interface VideoVersionsListProps {
   selectedVersionId: string | null;
   onSelectVersion: (version: VideoVersion) => void;
   onDeleteVersion: (versionId: string) => void;
+  onReplaceVersion?: (version: VideoVersion) => void;
   onFixVideo?: (version: VideoVersion) => void;
   isFixingVideo?: boolean;
   className?: string;
