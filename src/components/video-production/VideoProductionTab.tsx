@@ -100,8 +100,15 @@ function VideoProductionTabContent({
         return;
       }
 
-      // Check if version is still processing (Cloudflare)
-      if (isProcessing(selectedVersion)) {
+      // Decide which playback to show — corrected (replacement) or original
+      const showReplacement =
+        replacementView === 'corrected' &&
+        !!selectedVersion.replacement_stream_uid &&
+        selectedVersion.replacement_status !== 'processing' &&
+        selectedVersion.replacement_status !== 'pending';
+
+      // Check if version is still processing (Cloudflare) — original side
+      if (!showReplacement && isProcessing(selectedVersion)) {
         setVideoUrl(null);
         setIsVersionProcessing(true);
         setLoadingUrl(false);
@@ -109,9 +116,14 @@ function VideoProductionTabContent({
       }
       setIsVersionProcessing(false);
 
-      // Priority 1: Cloudflare Stream (new uploads) - use HLS directly
+      if (showReplacement && selectedVersion.replacement_playback_url) {
+        setVideoUrl(selectedVersion.replacement_playback_url);
+        setLoadingUrl(false);
+        return;
+      }
+
+      // Priority 1: Cloudflare Stream (original)
       if (selectedVersion.cloudflare_stream_uid) {
-        // Pass the playback URL which contains the customer hash needed for HLS
         setVideoUrl(selectedVersion.stream_playback_url || null);
         setLoadingUrl(false);
         return;
@@ -129,11 +141,50 @@ function VideoProductionTabContent({
     };
 
     loadVideoUrl();
-  }, [selectedVersion?.id, selectedVersion?.stream_status, selectedVersion?.cloudflare_stream_uid, getSignedUrl, isProcessing]);
+  }, [
+    selectedVersion?.id,
+    selectedVersion?.stream_status,
+    selectedVersion?.cloudflare_stream_uid,
+    selectedVersion?.replacement_status,
+    selectedVersion?.replacement_stream_uid,
+    replacementView,
+    getSignedUrl,
+    isProcessing,
+  ]);
+
+  // Reset toggle when switching version: prefer corrected if available
+  useEffect(() => {
+    setReplacementView('corrected');
+  }, [selectedVersion?.id]);
 
   const handleSelectVersion = (version: VideoVersion) => {
     setSelectedVersion(version);
   };
+
+  const handleSelectVersionById = useCallback((versionId: string) => {
+    const v = versions.find(x => x.id === versionId);
+    if (v) setSelectedVersion(v);
+  }, [versions]);
+
+  // Replace version flow: open file picker, then call replaceVersion
+  const handleReplaceVersion = useCallback((version: VideoVersion) => {
+    setReplaceTargetVersionId(version.id);
+    replaceFileInputRef.current?.click();
+  }, []);
+
+  const handleReplaceFileChosen = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // reset input
+    if (!file || !replaceTargetVersionId) return;
+    try {
+      await replaceVersion(replaceTargetVersionId, file);
+    } catch {
+      // toast handled in hook
+    } finally {
+      setReplaceTargetVersionId(null);
+    }
+  }, [replaceTargetVersionId, replaceVersion]);
+
 
   const handleAddComment = useCallback((timestampSeconds: number) => {
     setCommentTimestamp(timestampSeconds);
