@@ -68,9 +68,6 @@ function VideoProductionTabContent({
   const [isFixingVideo, setIsFixingVideo] = useState(false);
   // 'original' shows the version's first upload, 'corrected' shows the replacement (when it exists)
   const [replacementView, setReplacementView] = useState<'original' | 'corrected'>('corrected');
-  // Hidden file input for triggering replacement upload
-  const replaceFileInputRef = useRef<HTMLInputElement>(null);
-  const [replaceTargetVersionId, setReplaceTargetVersionId] = useState<string | null>(null);
 
   // Comment modal state
   const [showCommentModal, setShowCommentModal] = useState(false);
