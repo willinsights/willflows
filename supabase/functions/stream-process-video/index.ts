@@ -243,11 +243,18 @@ serve(async (req) => {
       const errorText = await streamResponse.text();
       logStep("Stream API error", { status: streamResponse.status, error: errorText });
       
-      // Update version status to error
-      await supabase
-        .from("video_versions")
-        .update({ stream_status: "error" })
-        .eq("id", versionData.id);
+      // Update status to error on the appropriate column
+      if (isReplacement) {
+        await supabase
+          .from("video_versions")
+          .update({ replacement_status: "error" })
+          .eq("id", versionData.id);
+      } else {
+        await supabase
+          .from("video_versions")
+          .update({ stream_status: "error" })
+          .eq("id", versionData.id);
+      }
       
       throw new Error(`Stream API error: ${errorText}`);
     }
@@ -265,17 +272,22 @@ serve(async (req) => {
     // Default thumbnail at 50% of video to avoid black fade-in frames
     const thumbnailUrl = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg?time=50p`;
 
-    // Update version with Stream information
-    // NOTE: thumbnail_path is NOT set here because the video is still processing
-    // and Cloudflare Stream hasn't generated the thumbnail yet.
-    // It will be populated by stream-get-status when the video reaches "ready" state.
+    // Update version with Stream information (replacement vs original columns)
+    const updatePayload = isReplacement
+      ? {
+          replacement_stream_uid: streamUid,
+          replacement_playback_url: playbackUrl,
+          replacement_status: streamData.result.status?.state || "processing",
+        }
+      : {
+          cloudflare_stream_uid: streamUid,
+          stream_playback_url: playbackUrl,
+          stream_status: streamData.result.status?.state || "processing",
+        };
+
     const { error: updateError } = await supabase
       .from("video_versions")
-      .update({
-        cloudflare_stream_uid: streamUid,
-        stream_playback_url: playbackUrl,
-        stream_status: streamData.result.status?.state || "processing",
-      })
+      .update(updatePayload)
       .eq("id", versionData.id);
 
     if (updateError) {
@@ -294,7 +306,8 @@ serve(async (req) => {
     }
 
     // Auto-create approval token if none active exists for this task/project
-    try {
+    // (skip for replacements — token already exists for the original)
+    if (!isReplacement) try {
       let existingTokenQuery = supabase
         .from("video_approval_tokens")
         .select("id")
