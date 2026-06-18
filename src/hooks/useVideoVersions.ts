@@ -336,6 +336,89 @@ export function useVideoVersions(
     }
   };
 
+  const replaceVersion = async (versionId: string, file: File) => {
+    if (!user) throw new Error('User not authenticated');
+
+    const target = versions.find(v => v.id === versionId);
+    if (!target) throw new Error('Version not found');
+
+    if (!storage.canUpload(file.size)) {
+      toast({
+        title: 'Armazenamento cheio',
+        description: `Não há espaço suficiente. Disponível: ${storage.remainingGB.toFixed(2)} GB`,
+        variant: 'destructive',
+      });
+      throw new Error('Storage limit reached');
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      // Step 1: Presigned R2 URL
+      const { data: urlData, error: urlError } = await supabase.functions.invoke('r2-upload-url', {
+        body: {
+          workspaceId: target.workspace_id,
+          taskId: target.task_id,
+          projectId: target.project_id,
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+        }
+      });
+
+      if (urlError || !urlData?.uploadUrl) {
+        throw new Error(urlData?.error || 'Failed to get upload URL');
+      }
+
+      // Step 2: Upload to R2
+      await uploadToR2(urlData.uploadUrl, file, (p) => setUploadProgress(Math.round(p * 0.8)));
+      setUploadProgress(80);
+
+      // Step 3: Process as replacement
+      const { data: processData, error: processError } = await supabase.functions.invoke('stream-process-video', {
+        body: {
+          key: urlData.key,
+          taskId: target.task_id,
+          workspaceId: target.workspace_id,
+          projectId: target.project_id,
+          fileName: file.name,
+          fileSize: file.size,
+          replaceVersionId: versionId,
+        }
+      });
+
+      if (processError || !processData?.versionId) {
+        throw new Error(processData?.error || 'Failed to process replacement');
+      }
+
+      setUploadProgress(100);
+
+      toast({
+        title: `Versão ${target.version_number} substituída`,
+        description: 'O vídeo corrigido está a ser processado...'
+      });
+
+      if (processData.streamUid) {
+        setProcessingVersionId(processData.versionId);
+        pollProcessingStatus(processData.streamUid, processData.versionId, true);
+      }
+
+      await fetchVersions();
+      return processData;
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao substituir vídeo',
+        description: error.message,
+        variant: 'destructive',
+      });
+      throw error;
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
   // Get playback URL - now uses Cloudflare Stream with canonical videodelivery.net domain
   const getPlaybackUrl = useCallback((version: VideoVersion): string | null => {
     // If we have a Cloudflare Stream playback URL, normalize to canonical domain
