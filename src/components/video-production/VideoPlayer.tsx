@@ -12,6 +12,7 @@ import {
   MessageSquare,
   SkipBack,
   SkipForward,
+  Loader2,
   RefreshCw,
   Camera
 } from 'lucide-react';
