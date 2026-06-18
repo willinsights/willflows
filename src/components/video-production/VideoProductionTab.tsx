@@ -75,6 +75,7 @@ function VideoProductionTabContent({
 
   // Ref for VideoPlayer to expose seekTo method
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
 
   const { addComment } = useVideoComments(selectedVersion?.id || null);
 
@@ -191,6 +192,8 @@ function VideoProductionTabContent({
   };
 
   const handleSeekToTimestamp = useCallback((timestamp: number) => {
+    // Scroll video into view first so user can see the seek
+    videoContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     if (videoPlayerRef.current) {
       videoPlayerRef.current.seekTo(timestamp);
     } else {
@@ -285,8 +288,8 @@ function VideoProductionTabContent({
 
           {/* Video Player */}
           {selectedVersion && (selectedVersion.cloudflare_stream_uid || videoUrl) ? (
-            <div className="relative w-full flex justify-center">
-              <VideoPlayer
+          <div ref={videoContainerRef} className="relative w-full flex justify-center">
+            <VideoPlayer
                 ref={videoPlayerRef}
                 src={videoUrl || undefined}
                 streamUid={

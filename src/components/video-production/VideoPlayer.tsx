@@ -221,30 +221,37 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
     seekTo: (time: number) => {
-      if (videoRef.current) {
-        videoRef.current.currentTime = time;
-        setCurrentTime(time);
+      const video = videoRef.current;
+      if (!video) return;
+
+      // If video is in error state, reinitialize HLS and seek to the timestamp after load
+      if (video.error || video.readyState === 0) {
+        // Clear error state and reinitialize
+        setLoadError(null);
+        setIsLoading(true);
+        retryCountRef.current = 0;
+        reinitializeHls(time); // will seek to `time` after manifest loads
+        return;
       }
+
+      video.currentTime = time;
+      video.pause(); // pause so editor can inspect the frame
+      setCurrentTime(time);
+      setIsPlaying(false);
     },
     getCurrentTime: () => currentTime,
     pause: () => {
-      if (videoRef.current) {
-        videoRef.current.pause();
-      }
+      if (videoRef.current) videoRef.current.pause();
     },
     play: () => {
       if (videoRef.current) {
-        const playPromise = videoRef.current.play();
-        if (playPromise !== undefined) {
-          playPromise.catch((err) => {
-            if (err.name !== 'AbortError') {
-              logger.error('[VideoPlayer] Play error via ref:', err);
-            }
-          });
-        }
+        const p = videoRef.current.play();
+        if (p !== undefined) p.catch((err) => {
+          if (err.name !== 'AbortError') logger.error('[VideoPlayer] Play error via ref:', err);
+        });
       }
     },
-  }), [currentTime]);
+  }), [currentTime, reinitializeHls]);
 
   const togglePlay = useCallback(() => {
     const video = videoRef.current;
