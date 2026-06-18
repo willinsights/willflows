@@ -112,17 +112,8 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
         return;
       }
 
-      // Plaintext token is not readable via SELECT — fetch it via secure RPC
-      const { data: rawToken, error: rpcError } = await supabase
-        .rpc('get_video_approval_token', { p_token_id: data.id });
-
-      if (rpcError) {
-        logger.error('Error resolving approval token:', rpcError);
-        setToken({ ...(data as any), token: '' } as VideoApprovalToken);
-        return;
-      }
-
-      setToken({ ...(data as any), token: rawToken || '' } as VideoApprovalToken);
+      // token is now readable directly — no RPC needed
+      setToken(data as VideoApprovalToken);
     } catch (error: any) {
       logger.error('Error fetching approval token:', error);
     }
