@@ -193,6 +193,8 @@ function VideoProductionTabContent({
   const handleSeekToTimestamp = useCallback((timestamp: number) => {
     if (videoPlayerRef.current) {
       videoPlayerRef.current.seekTo(timestamp);
+    } else {
+      toast.info('Seleciona uma versão de vídeo para navegar para o timecode.');
     }
   }, []);
 
@@ -296,6 +298,7 @@ function VideoProductionTabContent({
                 isProcessing={isVersionProcessing}
                 onAddComment={handleAddComment}
                 onSetThumbnail={selectedVersion?.cloudflare_stream_uid ? (seconds) => setThumbnailTime(selectedVersion.id, seconds) : undefined}
+                onFixVideo={selectedVersion ? () => handleFixVideo(selectedVersion) : undefined}
                 className="w-full max-h-[70vh]"
               />
             </div>

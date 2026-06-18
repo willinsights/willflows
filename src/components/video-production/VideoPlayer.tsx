@@ -13,6 +13,7 @@ import {
   SkipBack,
   SkipForward,
   Loader2,
+  RefreshCw,
   Camera
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -29,6 +30,7 @@ interface VideoPlayerProps {
   onCommentClick?: (comment: VideoComment) => void;
   onAddComment?: (timestampSeconds: number) => void;
   onSetThumbnail?: (timestampSeconds: number) => void;
+  onFixVideo?: () => void;
   className?: string;
 }
 
@@ -64,16 +66,17 @@ function extractStreamUidFromUrl(url: string): string | null {
   }
 }
 
-export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({ 
-  src, 
+export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
+  src,
   streamUid,
   hlsUrl,
   isProcessing = false,
-  comments = [], 
-  onCommentClick, 
+  comments = [],
+  onCommentClick,
   onAddComment,
   onSetThumbnail,
-  className 
+  onFixVideo,
+  className
 }, ref) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -516,9 +519,21 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
 
       {/* Error state */}
       {!isLoading && loadError && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 px-6 text-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 px-6 text-center gap-3">
           <p className="text-sm text-white/90">{loadError}</p>
-          <p className="mt-2 text-xs text-white/70">Tenta clicar em "Atualizar" ou recarregar a página.</p>
+          {onFixVideo ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={onFixVideo}
+              className="mt-1"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Corrigir vídeo
+            </Button>
+          ) : (
+            <p className="text-xs text-white/70">Tenta recarregar a página.</p>
+          )}
         </div>
       )}
 
