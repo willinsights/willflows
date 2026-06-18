@@ -167,7 +167,7 @@ export default function VideoApproval() {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           },
         }
       );
@@ -211,7 +211,7 @@ export default function VideoApproval() {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           },
         }
       );
@@ -399,7 +399,7 @@ export default function VideoApproval() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           },
           body: JSON.stringify({
             type: 'comment',
@@ -444,7 +444,7 @@ export default function VideoApproval() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           },
           body: JSON.stringify({
             type: 'approval',
@@ -491,7 +491,7 @@ export default function VideoApproval() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           },
           body: JSON.stringify({
             token,

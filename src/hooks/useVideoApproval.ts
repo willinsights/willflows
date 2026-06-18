@@ -312,7 +312,10 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
   };
 
   const getApprovalUrl = (token: string): string => {
-    return `https://willflow.app/video-approval/${token}`;
+    const base = typeof window !== 'undefined'
+      ? window.location.origin
+      : 'https://willflow.app';
+    return `${base}/video-approval/${token}`;
   };
 
   // Check if video is approved (any version)
