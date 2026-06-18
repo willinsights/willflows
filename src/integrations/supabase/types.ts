@@ -4158,6 +4158,14 @@ export type Database = {
           mime_type: string | null
           project_id: string
           r2_key: string | null
+          replaced_at: string | null
+          replacement_file_name: string | null
+          replacement_file_size_bytes: number | null
+          replacement_playback_url: string | null
+          replacement_r2_key: string | null
+          replacement_status: string | null
+          replacement_stream_uid: string | null
+          replacement_thumbnail_path: string | null
           stream_playback_url: string | null
           stream_status: string | null
           stream_thumbnail_url: string | null
@@ -4181,6 +4189,14 @@ export type Database = {
           mime_type?: string | null
           project_id: string
           r2_key?: string | null
+          replaced_at?: string | null
+          replacement_file_name?: string | null
+          replacement_file_size_bytes?: number | null
+          replacement_playback_url?: string | null
+          replacement_r2_key?: string | null
+          replacement_status?: string | null
+          replacement_stream_uid?: string | null
+          replacement_thumbnail_path?: string | null
           stream_playback_url?: string | null
           stream_status?: string | null
           stream_thumbnail_url?: string | null
@@ -4204,6 +4220,14 @@ export type Database = {
           mime_type?: string | null
           project_id?: string
           r2_key?: string | null
+          replaced_at?: string | null
+          replacement_file_name?: string | null
+          replacement_file_size_bytes?: number | null
+          replacement_playback_url?: string | null
+          replacement_r2_key?: string | null
+          replacement_status?: string | null
+          replacement_stream_uid?: string | null
+          replacement_thumbnail_path?: string | null
           stream_playback_url?: string | null
           stream_status?: string | null
           stream_thumbnail_url?: string | null

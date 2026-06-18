@@ -168,11 +168,15 @@ Deno.serve(async (req) => {
     const { data: approvals } = await approvalsQuery;
     const approval = approvals?.[0] || null;
 
-    // Generate video URLs - prefer Cloudflare Stream, fallback to signed Supabase URLs
+    // Generate video URLs - prefer Cloudflare Stream replacement, then original, fallback to signed Supabase URLs
     const videoUrls: Record<string, string> = {};
-    for (const version of (versions || []) as VideoVersion[]) {
-      // Use Cloudflare Stream URL if available and ready
-      if (version.cloudflare_stream_uid && version.stream_status === 'ready') {
+    for (const version of (versions || []) as any[]) {
+      // Prefer replacement (corrected) video when ready
+      if (version.replacement_stream_uid && version.replacement_status === 'ready') {
+        videoUrls[version.id] = `https://videodelivery.net/${version.replacement_stream_uid}/manifest/video.m3u8`;
+      } else if (version.replacement_playback_url && version.replacement_status === 'ready') {
+        videoUrls[version.id] = version.replacement_playback_url;
+      } else if (version.cloudflare_stream_uid && version.stream_status === 'ready') {
         videoUrls[version.id] = `https://videodelivery.net/${version.cloudflare_stream_uid}/manifest/video.m3u8`;
       } else if (version.stream_playback_url) {
         // Use stored stream URL (already canonical)

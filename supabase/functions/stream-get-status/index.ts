@@ -56,7 +56,7 @@ serve(async (req) => {
     }
 
     // Parse request
-    const { streamUid, versionId } = await req.json();
+    const { streamUid, versionId, isReplacement } = await req.json();
 
     if (!streamUid) {
       return new Response(JSON.stringify({ error: "Missing streamUid" }), {
@@ -100,27 +100,31 @@ serve(async (req) => {
 
     // Update the version record if status changed
     if (versionId && (status === "ready" || status === "error")) {
-      const updateData: Record<string, unknown> = {
-        stream_status: status,
-      };
+      const updateData: Record<string, unknown> = {};
 
-      if (duration) {
-        updateData.duration_seconds = Math.round(duration);
+      if (isReplacement) {
+        updateData.replacement_status = status;
+        updateData.replacement_playback_url = `https://videodelivery.net/${streamUid}/manifest/video.m3u8`;
+        if (status === "ready") {
+          updateData.replacement_thumbnail_path = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg?time=50p`;
+        }
+      } else {
+        updateData.stream_status = status;
+        if (duration) {
+          updateData.duration_seconds = Math.round(duration);
+        }
+        // Preserve custom thumbnail time if set, otherwise default to 50%
+        const { data: versionRow } = await supabase
+          .from("video_versions")
+          .select("thumbnail_time_seconds")
+          .eq("id", versionId)
+          .single();
+        const timeParam = versionRow?.thumbnail_time_seconds != null
+          ? `?time=${versionRow.thumbnail_time_seconds}s`
+          : '?time=50p';
+        updateData.thumbnail_path = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg${timeParam}`;
+        updateData.stream_playback_url = `https://videodelivery.net/${streamUid}/manifest/video.m3u8`;
       }
-
-      // Preserve custom thumbnail time if set, otherwise default to 50%
-      const { data: versionRow } = await supabase
-        .from("video_versions")
-        .select("thumbnail_time_seconds")
-        .eq("id", versionId)
-        .single();
-
-      const timeParam = versionRow?.thumbnail_time_seconds != null
-        ? `?time=${versionRow.thumbnail_time_seconds}s`
-        : '?time=50p';
-
-      updateData.thumbnail_path = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg${timeParam}`;
-      updateData.stream_playback_url = `https://videodelivery.net/${streamUid}/manifest/video.m3u8`;
 
       const { error: updateError } = await supabase
         .from("video_versions")

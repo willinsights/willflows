@@ -107,7 +107,8 @@ serve(async (req) => {
       workspaceId, 
       projectId, 
       fileName, 
-      fileSize 
+      fileSize,
+      replaceVersionId,
     } = await req.json();
 
     // taskId is optional - projectId is required when no taskId
@@ -118,53 +119,89 @@ serve(async (req) => {
       });
     }
 
-    // Get next version number - query by taskId if available, otherwise by projectId
-    let versionsQuery = supabase
-      .from("video_versions")
-      .select("version_number")
-      .order("version_number", { ascending: false })
-      .limit(1);
+    const isReplacement = !!replaceVersionId;
+    let versionData: any;
+    let nextVersion: number;
 
-    if (taskId) {
-      versionsQuery = versionsQuery.eq("task_id", taskId);
+    if (isReplacement) {
+      const { data: targetVersion, error: targetError } = await supabase
+        .from("video_versions")
+        .select("*")
+        .eq("id", replaceVersionId)
+        .eq("workspace_id", workspaceId)
+        .maybeSingle();
+
+      if (targetError || !targetVersion) {
+        return new Response(JSON.stringify({ error: "Target version not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      versionData = targetVersion;
+      nextVersion = targetVersion.version_number;
+      logStep("Replacement mode", { versionId: replaceVersionId, version: nextVersion });
+
+      await supabase
+        .from("video_versions")
+        .update({
+          replacement_status: "processing",
+          replacement_file_name: fileName,
+          replacement_file_size_bytes: fileSize,
+          replacement_r2_key: key,
+          replaced_at: new Date().toISOString(),
+        })
+        .eq("id", replaceVersionId);
     } else {
-      versionsQuery = versionsQuery.is("task_id", null).eq("project_id", projectId);
+      // Get next version number - query by taskId if available, otherwise by projectId
+      let versionsQuery = supabase
+        .from("video_versions")
+        .select("version_number")
+        .order("version_number", { ascending: false })
+        .limit(1);
+
+      if (taskId) {
+        versionsQuery = versionsQuery.eq("task_id", taskId);
+      } else {
+        versionsQuery = versionsQuery.is("task_id", null).eq("project_id", projectId);
+      }
+
+      const { data: existingVersions, error: versionsError } = await versionsQuery;
+
+      if (versionsError) {
+        logStep("Error fetching versions", { error: versionsError.message });
+      }
+
+      nextVersion = (existingVersions?.[0]?.version_number || 0) + 1;
+      logStep("Next version", { nextVersion });
+
+      // Create video version record with pending status
+      const { data: inserted, error: insertError } = await supabase
+        .from("video_versions")
+        .insert({
+          task_id: taskId || null,
+          workspace_id: workspaceId,
+          project_id: projectId,
+          version_number: nextVersion,
+          file_path: `r2://${bucketName}/${key}`,
+          file_name: fileName,
+          file_size_bytes: fileSize,
+          mime_type: "video/mp4",
+          uploaded_by: userId,
+          r2_key: key,
+          stream_status: "processing",
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        logStep("Error inserting version", { error: insertError.message });
+        throw new Error("Failed to create video version record");
+      }
+
+      versionData = inserted;
+      logStep("Version record created", { versionId: versionData.id });
     }
-
-    const { data: existingVersions, error: versionsError } = await versionsQuery;
-
-    if (versionsError) {
-      logStep("Error fetching versions", { error: versionsError.message });
-    }
-
-    const nextVersion = (existingVersions?.[0]?.version_number || 0) + 1;
-    logStep("Next version", { nextVersion });
-
-    // Create video version record with pending status
-    const { data: versionData, error: insertError } = await supabase
-      .from("video_versions")
-      .insert({
-        task_id: taskId || null,
-        workspace_id: workspaceId,
-        project_id: projectId,
-        version_number: nextVersion,
-        file_path: `r2://${bucketName}/${key}`,
-        file_name: fileName,
-        file_size_bytes: fileSize,
-        mime_type: "video/mp4",
-        uploaded_by: userId,
-        r2_key: key,
-        stream_status: "processing",
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      logStep("Error inserting version", { error: insertError.message });
-      throw new Error("Failed to create video version record");
-    }
-
-    logStep("Version record created", { versionId: versionData.id });
 
     // Generate signed R2 URL for Stream to fetch the video
     const signedR2Url = await generateSignedR2Url(
@@ -206,11 +243,18 @@ serve(async (req) => {
       const errorText = await streamResponse.text();
       logStep("Stream API error", { status: streamResponse.status, error: errorText });
       
-      // Update version status to error
-      await supabase
-        .from("video_versions")
-        .update({ stream_status: "error" })
-        .eq("id", versionData.id);
+      // Update status to error on the appropriate column
+      if (isReplacement) {
+        await supabase
+          .from("video_versions")
+          .update({ replacement_status: "error" })
+          .eq("id", versionData.id);
+      } else {
+        await supabase
+          .from("video_versions")
+          .update({ stream_status: "error" })
+          .eq("id", versionData.id);
+      }
       
       throw new Error(`Stream API error: ${errorText}`);
     }
@@ -228,17 +272,22 @@ serve(async (req) => {
     // Default thumbnail at 50% of video to avoid black fade-in frames
     const thumbnailUrl = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg?time=50p`;
 
-    // Update version with Stream information
-    // NOTE: thumbnail_path is NOT set here because the video is still processing
-    // and Cloudflare Stream hasn't generated the thumbnail yet.
-    // It will be populated by stream-get-status when the video reaches "ready" state.
+    // Update version with Stream information (replacement vs original columns)
+    const updatePayload = isReplacement
+      ? {
+          replacement_stream_uid: streamUid,
+          replacement_playback_url: playbackUrl,
+          replacement_status: streamData.result.status?.state || "processing",
+        }
+      : {
+          cloudflare_stream_uid: streamUid,
+          stream_playback_url: playbackUrl,
+          stream_status: streamData.result.status?.state || "processing",
+        };
+
     const { error: updateError } = await supabase
       .from("video_versions")
-      .update({
-        cloudflare_stream_uid: streamUid,
-        stream_playback_url: playbackUrl,
-        stream_status: streamData.result.status?.state || "processing",
-      })
+      .update(updatePayload)
       .eq("id", versionData.id);
 
     if (updateError) {
@@ -257,7 +306,8 @@ serve(async (req) => {
     }
 
     // Auto-create approval token if none active exists for this task/project
-    try {
+    // (skip for replacements — token already exists for the original)
+    if (!isReplacement) try {
       let existingTokenQuery = supabase
         .from("video_approval_tokens")
         .select("id")
