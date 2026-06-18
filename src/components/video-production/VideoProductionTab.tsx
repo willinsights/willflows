@@ -60,21 +60,29 @@ function VideoProductionTabContent({
   projectId,
   className,
 }: VideoProductionTabProps) {
-  const { versions, loading, deleteVersion, getSignedUrl, isProcessing, refetch, setThumbnailTime } = useVideoVersions(taskId, workspaceId, projectId);
+  const { versions, loading, deleteVersion, replaceVersion, getSignedUrl, isProcessing, refetch, setThumbnailTime, uploading: replacementUploading } = useVideoVersions(taskId, workspaceId, projectId);
   const [selectedVersion, setSelectedVersion] = useState<VideoVersion | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [loadingUrl, setLoadingUrl] = useState(false);
   const [isVersionProcessing, setIsVersionProcessing] = useState(false);
   const [isFixingVideo, setIsFixingVideo] = useState(false);
-  
+  // 'original' shows the version's first upload, 'corrected' shows the replacement (when it exists)
+  const [replacementView, setReplacementView] = useState<'original' | 'corrected'>('corrected');
+  // Hidden file input for triggering replacement upload
+  const replaceFileInputRef = useRef<HTMLInputElement>(null);
+  const [replaceTargetVersionId, setReplaceTargetVersionId] = useState<string | null>(null);
+
   // Comment modal state
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [commentTimestamp, setCommentTimestamp] = useState(0);
-  
+
   // Ref for VideoPlayer to expose seekTo method
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
-  
+
   const { addComment } = useVideoComments(selectedVersion?.id || null);
+
+  const hasReplacement = !!(selectedVersion?.replacement_stream_uid || selectedVersion?.replacement_playback_url);
+  const replacementProcessing = selectedVersion?.replacement_status === 'processing' || selectedVersion?.replacement_status === 'pending';
 
   // Auto-select latest version
   useEffect(() => {
