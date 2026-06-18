@@ -177,7 +177,25 @@ export function VideoVersionsList({
                   )}
                   
                   <div className="min-w-0">
-                    <p className="font-medium line-clamp-2 break-all">{version.file_name}</p>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <p
+                          className="font-medium line-clamp-2 break-all text-left cursor-help"
+                          title={version.file_name}
+                        >
+                          {version.file_name}
+                        </p>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[320px] break-all">
+                        <p>{version.file_name}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    {version.replaced_at && (
+                      <p className="text-[10px] font-medium text-amber-600 dark:text-amber-400 mt-0.5 flex items-center gap-1">
+                        <Replace className="h-3 w-3" />
+                        Substituída
+                      </p>
+                    )}
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
