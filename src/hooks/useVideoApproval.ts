@@ -94,7 +94,7 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
     try {
       let query = supabase
         .from('video_approval_tokens')
-        .select('id, task_id, project_id, workspace_id, client_email, client_name, expires_at, is_active, created_by, created_at')
+        .select('id, task_id, project_id, workspace_id, token, client_email, client_name, expires_at, is_active, created_by, created_at')
         .eq('is_active', true);
 
       if (taskId) {
@@ -112,17 +112,8 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
         return;
       }
 
-      // Plaintext token is not readable via SELECT — fetch it via secure RPC
-      const { data: rawToken, error: rpcError } = await supabase
-        .rpc('get_video_approval_token', { p_token_id: data.id });
-
-      if (rpcError) {
-        logger.error('Error resolving approval token:', rpcError);
-        setToken({ ...(data as any), token: '' } as VideoApprovalToken);
-        return;
-      }
-
-      setToken({ ...(data as any), token: rawToken || '' } as VideoApprovalToken);
+      // token is now readable directly — no RPC needed
+      setToken(data as VideoApprovalToken);
     } catch (error: any) {
       logger.error('Error fetching approval token:', error);
     }
@@ -254,27 +245,27 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
         ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString()
         : null;
 
+      // Generate token client-side — no RPC needed
+      const newToken = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '');
+
       const { data, error } = await supabase
         .from('video_approval_tokens')
         .insert({
           task_id: taskId || null,
           project_id: projectId || null,
           workspace_id: workspaceId,
+          token: newToken,
           client_name: clientName || null,
           client_email: clientEmail || null,
           expires_at: expiresAt,
           created_by: user.id,
         })
-        .select('id, task_id, project_id, workspace_id, client_email, client_name, expires_at, is_active, created_by, created_at')
+        .select('id, task_id, project_id, workspace_id, token, client_email, client_name, expires_at, is_active, created_by, created_at')
         .single();
 
       if (error) throw error;
 
-      // Fetch the plaintext token via secure RPC (column SELECT is restricted)
-      const { data: rawToken } = await supabase
-        .rpc('get_video_approval_token', { p_token_id: data.id });
-
-      const fullToken = { ...(data as any), token: rawToken || '' } as VideoApprovalToken;
+      const fullToken = data as VideoApprovalToken;
       setToken(fullToken);
       toast({ title: 'Link de aprovação gerado' });
       return fullToken;
