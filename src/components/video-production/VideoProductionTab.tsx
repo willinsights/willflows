@@ -2,10 +2,12 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Video, MessageSquare, CheckCircle2, Upload, Link, Layers } from 'lucide-react';
+import { Video, MessageSquare, CheckCircle2, Upload, Link, Layers, History, Replace } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 import { VideoPlayer, VideoPlayerRef } from './VideoPlayer';
 import { VideoVersionUpload } from './VideoVersionUpload';
@@ -15,6 +17,7 @@ import { CommentInputModal } from './CommentInputModal';
 import { ApprovalButton } from './ApprovalButton';
 import { ApprovalShareLink } from './ApprovalShareLink';
 import { StorageUsageBar } from './StorageUsageBar';
+import { RevisionHistory } from './RevisionHistory';
 
 import { useVideoVersions, VideoVersion } from '@/hooks/useVideoVersions';
 import { useVideoComments } from '@/hooks/useVideoComments';
