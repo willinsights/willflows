@@ -68,13 +68,13 @@ function ThumbnailImage({
   versionNumber,
   isSelected,
 }: {
-  src: string;
+  src: string | null;
   versionNumber: number;
   isSelected: boolean;
 }) {
   const [hasError, setHasError] = useState(false);
 
-  if (hasError) {
+  if (!src || hasError) {
     return (
       <div className="relative w-16 h-9 min-w-[4rem] flex-shrink-0 rounded overflow-hidden bg-muted flex items-center justify-center">
         <ImageOff className="absolute top-0.5 right-0.5 h-3 w-3 text-muted-foreground/70" />
