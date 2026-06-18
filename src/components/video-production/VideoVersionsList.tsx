@@ -297,7 +297,7 @@ export function VideoVersionsList({
                       </DropdownMenuItem>
                     )}
 
-                    {onFixVideo && version.cloudflare_stream_uid && (hasStreamError || thumbnailMissing) && (
+                    {onFixVideo && version.cloudflare_stream_uid && (
                       <DropdownMenuItem
                         disabled={isFixingVideo}
                         onClick={(e) => {
@@ -306,7 +306,7 @@ export function VideoVersionsList({
                         }}
                       >
                         <RefreshCw className={cn('h-4 w-4 mr-2', isFixingVideo && 'animate-spin')} />
-                        Reprocessar thumbnail
+                        Corrigir vídeo
                       </DropdownMenuItem>
                     )}
 
