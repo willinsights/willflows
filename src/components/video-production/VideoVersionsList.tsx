@@ -84,6 +84,7 @@ export function VideoVersionsList({
   selectedVersionId,
   onSelectVersion,
   onDeleteVersion,
+  onReplaceVersion,
   onFixVideo,
   isFixingVideo,
   className
