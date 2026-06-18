@@ -153,7 +153,8 @@ export function useVideoVersions(
   // Poll for processing status
   const pollProcessingStatus = useCallback(async (
     streamUid: string, 
-    versionId: string
+    versionId: string,
+    isReplacement: boolean = false
   ): Promise<void> => {
     const maxAttempts = 60; // 5 minutes max
     let attempts = 0;
@@ -171,7 +172,7 @@ export function useVideoVersions(
 
       try {
         const { data, error } = await supabase.functions.invoke('stream-get-status', {
-          body: { streamUid, versionId }
+          body: { streamUid, versionId, isReplacement }
         });
 
         if (!isMountedRef.current) return;
