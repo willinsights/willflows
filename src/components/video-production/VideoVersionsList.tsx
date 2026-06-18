@@ -10,7 +10,6 @@ import {
   HardDrive,
   RefreshCw,
   ArrowUpDown,
-  AlertTriangle,
   Loader2,
   ImageOff,
   MoreVertical,
@@ -68,13 +67,13 @@ function ThumbnailImage({
   versionNumber,
   isSelected,
 }: {
-  src: string;
+  src: string | null;
   versionNumber: number;
   isSelected: boolean;
 }) {
   const [hasError, setHasError] = useState(false);
 
-  if (hasError) {
+  if (!src || hasError) {
     return (
       <div className="relative w-16 h-9 min-w-[4rem] flex-shrink-0 rounded overflow-hidden bg-muted flex items-center justify-center">
         <ImageOff className="absolute top-0.5 right-0.5 h-3 w-3 text-muted-foreground/70" />
@@ -178,7 +177,11 @@ export function VideoVersionsList({
             version.stream_status || ''
           );
           const hasReplacement = !!(version.replacement_stream_uid || version.replacement_playback_url);
-          const thumbnailMissing = !version.thumbnail_path && !isProcessing;
+          // Prioridade: Cloudflare Stream uid > thumbnail_path da DB > null
+          const thumbnailSrc = version.cloudflare_stream_uid
+            ? `https://videodelivery.net/${version.cloudflare_stream_uid}/thumbnails/thumbnail.jpg${version.thumbnail_time_seconds ? `?time=${version.thumbnail_time_seconds}s` : ''}`
+            : version.thumbnail_path || null;
+          const thumbnailMissing = !thumbnailSrc && !isProcessing;
 
           return (
             <div
@@ -204,26 +207,12 @@ export function VideoVersionsList({
                         V{version.version_number}
                       </span>
                     </div>
-                  ) : version.thumbnail_path ? (
+                  ) : (
                     <ThumbnailImage
-                      src={version.thumbnail_path}
+                      src={thumbnailSrc}
                       versionNumber={version.version_number}
                       isSelected={selectedVersionId === version.id}
                     />
-                  ) : (
-                    <div
-                      className={cn(
-                        'flex items-center justify-center rounded',
-                        'w-16 h-9 min-w-[4rem] flex-shrink-0 text-xs font-bold',
-                        selectedVersionId === version.id
-                          ? 'bg-primary/10 text-primary'
-                          : hasStreamError
-                            ? 'bg-destructive/10 text-destructive'
-                            : 'bg-muted text-muted-foreground'
-                      )}
-                    >
-                      {hasStreamError ? <AlertTriangle className="h-4 w-4" /> : `V${version.version_number}`}
-                    </div>
                   )}
 
                   <div className="min-w-0 flex-1">
