@@ -94,7 +94,7 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
     try {
       let query = supabase
         .from('video_approval_tokens')
-        .select('id, task_id, project_id, workspace_id, client_email, client_name, expires_at, is_active, created_by, created_at')
+        .select('id, task_id, project_id, workspace_id, token, client_email, client_name, expires_at, is_active, created_by, created_at')
         .eq('is_active', true);
 
       if (taskId) {
