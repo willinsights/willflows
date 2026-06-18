@@ -325,14 +325,6 @@ function VideoProductionTabContent({
             projectId={projectId}
           />
 
-          {/* Hidden file input for replacement upload */}
-          <input
-            ref={replaceFileInputRef}
-            type="file"
-            accept="video/mp4,video/quicktime,video/webm,video/x-msvideo,video/x-matroska"
-            className="hidden"
-            onChange={handleReplaceFileChosen}
-          />
 
           {/* Comments section */}
           {selectedVersion && (
