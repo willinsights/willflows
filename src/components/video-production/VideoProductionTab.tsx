@@ -262,14 +262,50 @@ function VideoProductionTabContent({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main content - Video Player */}
         <div className="lg:col-span-2 space-y-4">
+          {/* Original vs Corrected toggle (only when version has replacement) */}
+          {hasReplacement && (
+            <div className="flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Replace className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <span className="font-medium">
+                  V{selectedVersion?.version_number} foi substituída
+                </span>
+                {replacementProcessing && (
+                  <span className="text-xs text-muted-foreground">(corrigido a processar…)</span>
+                )}
+              </div>
+              <ToggleGroup
+                type="single"
+                size="sm"
+                value={replacementView}
+                onValueChange={(v) => v && setReplacementView(v as 'original' | 'corrected')}
+              >
+                <ToggleGroupItem value="original" className="text-xs h-7 px-2">
+                  Original
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value="corrected"
+                  className="text-xs h-7 px-2"
+                  disabled={replacementProcessing}
+                >
+                  Corrigido
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+          )}
+
           {/* Video Player */}
           {selectedVersion && (selectedVersion.cloudflare_stream_uid || videoUrl) ? (
             <div className="relative w-full flex justify-center">
               <VideoPlayer
                 ref={videoPlayerRef}
                 src={videoUrl || undefined}
-                streamUid={selectedVersion.cloudflare_stream_uid || undefined}
-                hlsUrl={selectedVersion.stream_playback_url || undefined}
+                streamUid={
+                  (replacementView === 'corrected' && selectedVersion.replacement_stream_uid) ||
+                  selectedVersion.cloudflare_stream_uid ||
+                  undefined
+                }
+                hlsUrl={videoUrl || undefined}
                 isProcessing={isVersionProcessing}
                 onAddComment={handleAddComment}
                 onSetThumbnail={selectedVersion?.cloudflare_stream_uid ? (seconds) => setThumbnailTime(selectedVersion.id, seconds) : undefined}
@@ -300,6 +336,15 @@ function VideoProductionTabContent({
             taskId={taskId}
             workspaceId={workspaceId}
             projectId={projectId}
+          />
+
+          {/* Hidden file input for replacement upload */}
+          <input
+            ref={replaceFileInputRef}
+            type="file"
+            accept="video/mp4,video/quicktime,video/webm,video/x-msvideo,video/x-matroska"
+            className="hidden"
+            onChange={handleReplaceFileChosen}
           />
 
           {/* Comments section */}
@@ -339,11 +384,40 @@ function VideoProductionTabContent({
                 selectedVersionId={selectedVersion?.id || null}
                 onSelectVersion={handleSelectVersion}
                 onDeleteVersion={deleteVersion}
+                onReplaceVersion={handleReplaceVersion}
                 onFixVideo={handleFixVideo}
                 isFixingVideo={isFixingVideo}
               />
             </CardContent>
           </Card>
+
+          {/* Revision history (all comments, all versions, permanent) */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <History className="h-4 w-4" />
+                Histórico de Revisões
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <RevisionHistory
+                projectId={projectId}
+                taskId={taskId}
+                workspaceId={workspaceId}
+                selectedVersionId={selectedVersion?.id || null}
+                onSelectVersion={handleSelectVersionById}
+                onSeekTo={(versionId, ts) => {
+                  if (versionId !== selectedVersion?.id) {
+                    handleSelectVersionById(versionId);
+                    setTimeout(() => handleSeekToTimestamp(ts), 400);
+                  } else {
+                    handleSeekToTimestamp(ts);
+                  }
+                }}
+              />
+            </CardContent>
+          </Card>
+
 
           {/* Approval section */}
           <Card>
