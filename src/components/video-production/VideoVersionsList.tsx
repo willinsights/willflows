@@ -265,6 +265,27 @@ export function VideoVersionsList({
                     </Tooltip>
                   )}
                   
+                  {onReplaceVersion && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-primary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onReplaceVersion(version);
+                          }}
+                        >
+                          <Replace className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Substituir versão (mantém comentários)</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+
                   <Button
                     variant="ghost"
                     size="icon"
