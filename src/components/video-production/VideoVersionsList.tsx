@@ -6,12 +6,13 @@ import {
   Trash2, 
   Download,
   Clock,
-  User,
   HardDrive,
   RefreshCw,
+  Replace,
   AlertTriangle,
   Loader2,
   ImageOff
+
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VideoVersion } from '@/hooks/useVideoVersions';
