@@ -54,9 +54,11 @@ export function useVideoVersions(
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [processingVersionId, setProcessingVersionId] = useState<string | null>(null);
+  const [checkingStatusIds, setCheckingStatusIds] = useState<Set<string>>(new Set());
 
   // Track polling timers so we can clear them on unmount
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bgPollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isMountedRef = useRef(true);
   useEffect(() => {
     isMountedRef.current = true;
@@ -65,6 +67,10 @@ export function useVideoVersions(
       if (pollTimerRef.current) {
         clearTimeout(pollTimerRef.current);
         pollTimerRef.current = null;
+      }
+      if (bgPollTimerRef.current) {
+        clearInterval(bgPollTimerRef.current);
+        bgPollTimerRef.current = null;
       }
     };
   }, []);
