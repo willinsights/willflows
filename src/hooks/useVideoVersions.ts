@@ -482,7 +482,8 @@ export function useVideoVersions(
 
       if (processData.streamUid) {
         setProcessingVersionId(processData.versionId);
-        pollProcessingStatus(processData.streamUid, processData.versionId, true);
+        // In-place replacement now writes to main columns, so poll without isReplacement
+        pollProcessingStatus(processData.streamUid, processData.versionId, false);
       }
 
       await fetchVersions();
