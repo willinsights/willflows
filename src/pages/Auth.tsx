@@ -16,6 +16,7 @@ import { useBetaInvite } from '@/hooks/useBetaInvite';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { trackSignup } from '@/lib/google-ads';
+import { useMetaPixel } from '@/hooks/useMetaPixel';
 
 import { logger } from '@/lib/logger';
 const loginSchema = z.object({
