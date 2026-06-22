@@ -584,6 +584,7 @@ export function useVideoVersions(
     uploading,
     uploadProgress,
     processingVersionId,
+    checkingStatusIds,
     uploadVersion,
     deleteVersion,
     replaceVersion,
@@ -592,6 +593,7 @@ export function useVideoVersions(
     isCloudflareVersion,
     isProcessing,
     setThumbnailTime,
+    checkVersionStatus,
     refetch: fetchVersions,
   };
 }
