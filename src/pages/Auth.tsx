@@ -314,6 +314,8 @@ export default function Auth() {
     
     // Track signup conversion
     trackSignup();
+    trackLead({ content_name: 'Signup', method: 'email' });
+
     
     toast({
       title: 'Conta criada com sucesso!',
