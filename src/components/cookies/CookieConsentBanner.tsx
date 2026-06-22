@@ -76,6 +76,10 @@ export function CookieConsentBanner() {
         'analytics_storage': 'denied'
       });
     }
+    // Revoke Meta Pixel consent
+    if (typeof window !== 'undefined' && (window as any).fbq) {
+      (window as any).fbq('consent', 'revoke');
+    }
     
     // Clean up existing cookies
     document.cookie.split(';').forEach((cookie) => {
