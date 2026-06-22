@@ -268,6 +268,30 @@ export function VideoVersionsList({
                         {formatFileSize(version.file_size_bytes)}
                       </span>
                     </div>
+
+                    {isProcessing && onCheckStatus && (() => {
+                      const processingSinceMs = Date.now() - new Date(version.created_at).getTime();
+                      if (processingSinceMs < 5 * 60 * 1000) return null;
+                      const isChecking = checkingStatusIds?.has(version.id);
+                      return (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCheckStatus(version);
+                          }}
+                          disabled={isChecking}
+                          className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                        >
+                          {isChecking ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-3 w-3" />
+                          )}
+                          Verificar estado
+                        </button>
+                      );
+                    })()}
                   </div>
                 </button>
 
