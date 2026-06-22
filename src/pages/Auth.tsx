@@ -16,6 +16,7 @@ import { useBetaInvite } from '@/hooks/useBetaInvite';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { trackSignup } from '@/lib/google-ads';
+import { useMetaPixel } from '@/hooks/useMetaPixel';
 
 import { logger } from '@/lib/logger';
 const loginSchema = z.object({
@@ -80,6 +81,7 @@ export default function Auth() {
   const { signIn, signUp, user, resetPassword, updatePassword, signInWithGoogle } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { trackLead } = useMetaPixel();
 
   // Redirect if already logged in (but not in reset mode)
   useEffect(() => {
@@ -312,6 +314,8 @@ export default function Auth() {
     
     // Track signup conversion
     trackSignup();
+    trackLead({ content_name: 'Signup', method: 'email' });
+
     
     toast({
       title: 'Conta criada com sucesso!',
