@@ -372,6 +372,8 @@ function VideoProductionTabContent({
                 onReplaceVersion={handleReplaceVersion}
                 onFixVideo={handleFixVideo}
                 isFixingVideo={isFixingVideo}
+                onCheckStatus={checkVersionStatus}
+                checkingStatusIds={checkingStatusIds}
               />
             </CardContent>
           </Card>
