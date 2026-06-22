@@ -60,6 +60,10 @@ export function CookieConsentBanner() {
         'analytics_storage': 'granted'
       });
     }
+    // Grant Meta Pixel consent
+    if (typeof window !== 'undefined' && (window as any).fbq) {
+      (window as any).fbq('consent', 'grant');
+    }
   };
 
   const disableAnalytics = () => {
