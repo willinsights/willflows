@@ -60,7 +60,7 @@ function VideoProductionTabContent({
   projectId,
   className,
 }: VideoProductionTabProps) {
-  const { versions, loading, deleteVersion, replaceVersion, getSignedUrl, isProcessing, refetch, setThumbnailTime } = useVideoVersions(taskId, workspaceId, projectId);
+  const { versions, loading, deleteVersion, replaceVersion, getSignedUrl, isProcessing, refetch, setThumbnailTime, checkVersionStatus, checkingStatusIds } = useVideoVersions(taskId, workspaceId, projectId);
   const [selectedVersion, setSelectedVersion] = useState<VideoVersion | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [loadingUrl, setLoadingUrl] = useState(false);
@@ -372,6 +372,8 @@ function VideoProductionTabContent({
                 onReplaceVersion={handleReplaceVersion}
                 onFixVideo={handleFixVideo}
                 isFixingVideo={isFixingVideo}
+                onCheckStatus={checkVersionStatus}
+                checkingStatusIds={checkingStatusIds}
               />
             </CardContent>
           </Card>

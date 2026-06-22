@@ -139,16 +139,25 @@ serve(async (req) => {
       }
 
       versionData = targetVersion;
-      nextVersion = targetVersion.version_number;
-      logStep("Replacement mode", { versionId: replaceVersionId, version: nextVersion });
+      // Bump version number on in-place replacement so the timeline reflects the new iteration
+      nextVersion = (targetVersion.version_number || 0) + 1;
+      logStep("Replacement mode (in-place update)", { versionId: replaceVersionId, newVersion: nextVersion });
 
       await supabase
         .from("video_versions")
         .update({
-          replacement_status: "processing",
-          replacement_file_name: fileName,
-          replacement_file_size_bytes: fileSize,
-          replacement_r2_key: key,
+          // Overwrite the main columns so the version row holds the new video
+          version_number: nextVersion,
+          file_path: `r2://${bucketName}/${key}`,
+          file_name: fileName,
+          file_size_bytes: fileSize,
+          r2_key: key,
+          stream_status: "processing",
+          // Reset stream URLs/uid until the new copy is created below
+          cloudflare_stream_uid: null,
+          stream_playback_url: null,
+          thumbnail_path: null,
+          duration_seconds: null,
           replaced_at: new Date().toISOString(),
         })
         .eq("id", replaceVersionId);
@@ -244,18 +253,11 @@ serve(async (req) => {
       logStep("Stream API error", { status: streamResponse.status, error: errorText });
       
       // Update status to error on the appropriate column
-      if (isReplacement) {
-        await supabase
-          .from("video_versions")
-          .update({ replacement_status: "error" })
-          .eq("id", versionData.id);
-      } else {
-        await supabase
-          .from("video_versions")
-          .update({ stream_status: "error" })
-          .eq("id", versionData.id);
-      }
-      
+      await supabase
+        .from("video_versions")
+        .update({ stream_status: "error" })
+        .eq("id", versionData.id);
+
       throw new Error(`Stream API error: ${errorText}`);
     }
 
@@ -272,18 +274,12 @@ serve(async (req) => {
     // Default thumbnail at 50% of video to avoid black fade-in frames
     const thumbnailUrl = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg?time=50p`;
 
-    // Update version with Stream information (replacement vs original columns)
-    const updatePayload = isReplacement
-      ? {
-          replacement_stream_uid: streamUid,
-          replacement_playback_url: playbackUrl,
-          replacement_status: streamData.result.status?.state || "processing",
-        }
-      : {
-          cloudflare_stream_uid: streamUid,
-          stream_playback_url: playbackUrl,
-          stream_status: streamData.result.status?.state || "processing",
-        };
+    // Update version with Stream information — in-place for both new and replacement uploads
+    const updatePayload = {
+      cloudflare_stream_uid: streamUid,
+      stream_playback_url: playbackUrl,
+      stream_status: streamData.result.status?.state || "processing",
+    };
 
     const { error: updateError } = await supabase
       .from("video_versions")

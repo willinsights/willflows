@@ -54,9 +54,11 @@ export function useVideoVersions(
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [processingVersionId, setProcessingVersionId] = useState<string | null>(null);
+  const [checkingStatusIds, setCheckingStatusIds] = useState<Set<string>>(new Set());
 
   // Track polling timers so we can clear them on unmount
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bgPollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isMountedRef = useRef(true);
   useEffect(() => {
     isMountedRef.current = true;
@@ -65,6 +67,10 @@ export function useVideoVersions(
       if (pollTimerRef.current) {
         clearTimeout(pollTimerRef.current);
         pollTimerRef.current = null;
+      }
+      if (bgPollTimerRef.current) {
+        clearInterval(bgPollTimerRef.current);
+        bgPollTimerRef.current = null;
       }
     };
   }, []);
@@ -103,6 +109,81 @@ export function useVideoVersions(
   useEffect(() => {
     fetchVersions();
   }, [fetchVersions]);
+
+  // Manual / background status check: poll Cloudflare via stream-get-status
+  const checkVersionStatus = useCallback(async (version: VideoVersion): Promise<void> => {
+    const streamUid = version.replacement_stream_uid || version.cloudflare_stream_uid;
+    if (!streamUid) return;
+    const isReplacementCheck = !!(
+      version.replacement_stream_uid &&
+      version.replacement_status &&
+      ['processing', 'pending', 'downloading', 'inprogress'].includes(version.replacement_status)
+    );
+    setCheckingStatusIds((prev) => {
+      const next = new Set(prev);
+      next.add(version.id);
+      return next;
+    });
+    try {
+      const { data, error } = await supabase.functions.invoke('stream-get-status', {
+        body: { streamUid, versionId: version.id, isReplacement: isReplacementCheck },
+      });
+      if (error) {
+        logger.error('Manual status check failed:', error);
+        return;
+      }
+      if (data?.status === 'ready' || data?.status === 'error') {
+        await fetchVersions();
+      }
+    } catch (err) {
+      logger.error('Manual status check error:', err);
+    } finally {
+      if (isMountedRef.current) {
+        setCheckingStatusIds((prev) => {
+          const next = new Set(prev);
+          next.delete(version.id);
+          return next;
+        });
+      }
+    }
+  }, [fetchVersions]);
+
+  // Background polling: every 10s, check Cloudflare status for any version still processing
+  useEffect(() => {
+    if (bgPollTimerRef.current) {
+      clearInterval(bgPollTimerRef.current);
+      bgPollTimerRef.current = null;
+    }
+
+    const PROCESSING_STATES = ['processing', 'pending', 'downloading', 'inprogress'];
+    const hasProcessing = versions.some(
+      (v) =>
+        (v.cloudflare_stream_uid && PROCESSING_STATES.includes(v.stream_status || '')) ||
+        (v.replacement_stream_uid && PROCESSING_STATES.includes(v.replacement_status || ''))
+    );
+    if (!hasProcessing) return;
+
+    bgPollTimerRef.current = setInterval(() => {
+      if (!isMountedRef.current) return;
+      // Snapshot current processing versions and check each
+      versions.forEach((v) => {
+        const mainProcessing =
+          v.cloudflare_stream_uid && PROCESSING_STATES.includes(v.stream_status || '');
+        const replacementProcessing =
+          v.replacement_stream_uid && PROCESSING_STATES.includes(v.replacement_status || '');
+        if (mainProcessing || replacementProcessing) {
+          checkVersionStatus(v).catch(() => {});
+        }
+      });
+    }, 10000);
+
+    return () => {
+      if (bgPollTimerRef.current) {
+        clearInterval(bgPollTimerRef.current);
+        bgPollTimerRef.current = null;
+      }
+    };
+  }, [versions, checkVersionStatus]);
 
   // Realtime removed — version mutations call fetchVersions() to refresh.
 
@@ -401,7 +482,8 @@ export function useVideoVersions(
 
       if (processData.streamUid) {
         setProcessingVersionId(processData.versionId);
-        pollProcessingStatus(processData.streamUid, processData.versionId, true);
+        // In-place replacement now writes to main columns, so poll without isReplacement
+        pollProcessingStatus(processData.streamUid, processData.versionId, false);
       }
 
       await fetchVersions();
@@ -503,6 +585,7 @@ export function useVideoVersions(
     uploading,
     uploadProgress,
     processingVersionId,
+    checkingStatusIds,
     uploadVersion,
     deleteVersion,
     replaceVersion,
@@ -511,6 +594,7 @@ export function useVideoVersions(
     isCloudflareVersion,
     isProcessing,
     setThumbnailTime,
+    checkVersionStatus,
     refetch: fetchVersions,
   };
 }
