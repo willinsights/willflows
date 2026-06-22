@@ -81,6 +81,7 @@ export default function Auth() {
   const { signIn, signUp, user, resetPassword, updatePassword, signInWithGoogle } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { trackLead } = useMetaPixel();
 
   // Redirect if already logged in (but not in reset mode)
   useEffect(() => {
