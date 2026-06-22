@@ -59,6 +59,8 @@ interface VideoVersionsListProps {
   onReplaceVersion?: (version: VideoVersion, file: File) => void | Promise<void>;
   onFixVideo?: (version: VideoVersion) => void;
   isFixingVideo?: boolean;
+  onCheckStatus?: (version: VideoVersion) => void | Promise<void>;
+  checkingStatusIds?: Set<string>;
   className?: string;
 }
 
