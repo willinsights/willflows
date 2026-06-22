@@ -121,6 +121,8 @@ export function VideoVersionsList({
   onReplaceVersion,
   onFixVideo,
   isFixingVideo,
+  onCheckStatus,
+  checkingStatusIds,
   className,
 }: VideoVersionsListProps) {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
