@@ -18,8 +18,21 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY');
-    const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY');
+
+    // Require either service-role auth or shared CRON_SECRET
+    const authHeader = req.headers.get('Authorization') || '';
+    const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    const cronSecret = Deno.env.get('CRON_SECRET');
+    const providedSecret = req.headers.get('x-cron-secret');
+    const isCron = !!cronSecret && providedSecret === cronSecret;
+    const isServiceRole = bearer && bearer === serviceRoleKey;
+    if (!isCron && !isServiceRole) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const vapidSubject = Deno.env.get('VAPID_SUBJECT') || 'mailto:geral@willflow.app';
 
     if (!vapidPublicKey || !vapidPrivateKey) {
