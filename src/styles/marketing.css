@@ -5,7 +5,7 @@
    Do NOT import from the authenticated app (/app/*).
    ========================================== */
 
-@layer components {
+
   /* Premium bokeh-style background decorations */
   .bokeh-orb {
     position: absolute;
@@ -145,7 +145,7 @@
   }
 }
 
-@layer utilities {
+
   /* Screenshot fog effect - ClickUp style fade to background */
   .screenshot-fog {
     mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
