@@ -154,7 +154,7 @@ export default function VisaoGeral() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="flex md:grid gap-3 md:gap-4 md:grid-cols-4 -mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto snap-x snap-mandatory md:overflow-visible md:snap-none scrollbar-hide">
         {[
           {
             label: 'Receita', borderClass: 'border-success/20',
