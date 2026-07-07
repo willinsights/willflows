@@ -49,6 +49,13 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    // Authorize: require either service-role auth (internal callers) or an
+    // authenticated user who is targeting their own userId or shares an
+    // active workspace with the target user.
+    const authHeader = req.headers.get('Authorization') || '';
+    const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    const isServiceRole = bearer && bearer === serviceRoleKey;
+
     const { userId, title, body, icon, badge, tag, data } = await req.json() as PushPayload;
 
     if (!userId || !title || !body) {
@@ -56,6 +63,53 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: 'Missing required fields: userId, title, body' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    if (!isServiceRole) {
+      if (!bearer) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const authClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') ?? serviceRoleKey);
+      const { data: userData, error: userErr } = await authClient.auth.getUser(bearer);
+      if (userErr || !userData?.user) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const callerId = userData.user.id;
+      if (callerId !== userId) {
+        // Must share an active workspace with the target user
+        const { data: callerWs } = await supabase
+          .from('workspace_members')
+          .select('workspace_id')
+          .eq('user_id', callerId)
+          .eq('is_active', true);
+        const wsIds = (callerWs ?? []).map((r: { workspace_id: string }) => r.workspace_id);
+        if (wsIds.length === 0) {
+          return new Response(
+            JSON.stringify({ error: 'Forbidden' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        const { data: shared } = await supabase
+          .from('workspace_members')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('is_active', true)
+          .in('workspace_id', wsIds)
+          .limit(1)
+          .maybeSingle();
+        if (!shared) {
+          return new Response(
+            JSON.stringify({ error: 'Forbidden' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
     }
 
     console.log(`[send-push] Sending push to user ${userId}: ${title}`);

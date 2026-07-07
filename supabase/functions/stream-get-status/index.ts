@@ -65,6 +65,35 @@ serve(async (req) => {
       });
     }
 
+    // Authorize: caller must belong to the video version's workspace (admin/edicao)
+    if (versionId) {
+      const { data: versionRow, error: verErr } = await supabase
+        .from("video_versions")
+        .select("workspace_id")
+        .eq("id", versionId)
+        .maybeSingle();
+      if (verErr || !versionRow) {
+        return new Response(JSON.stringify({ error: "Version not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: membership } = await supabase
+        .from("workspace_members")
+        .select("role")
+        .eq("user_id", claimsData.user.id)
+        .eq("workspace_id", versionRow.workspace_id)
+        .eq("is_active", true)
+        .in("role", ["admin", "edicao"])
+        .maybeSingle();
+      if (!membership) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     logStep("Checking stream status", { streamUid });
 
     // Get video status from Cloudflare Stream

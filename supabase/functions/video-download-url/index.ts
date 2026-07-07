@@ -132,7 +132,8 @@ Deno.serve(async (req: Request) => {
         .select('role')
         .eq('user_id', userId)
         .eq('workspace_id', version.workspace_id)
-        .single();
+        .eq('is_active', true)
+        .maybeSingle();
 
       if (!membership) {
         return new Response(
