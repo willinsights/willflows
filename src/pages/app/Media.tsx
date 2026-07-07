@@ -343,21 +343,15 @@ export default function Media() {
           ))}
         </div>
       ) : filteredMedia.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center justify-center py-20 text-center"
-        >
-          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-            <FolderOpen className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-semibold mb-2">Nenhum media encontrado</h3>
-          <p className="text-muted-foreground max-w-sm">
-            {searchQuery || filterType !== 'all' || filterProject !== 'all'
+        <EmptyState
+          icon={FolderOpen}
+          title="Nenhum media encontrado"
+          description={
+            searchQuery || filterType !== 'all' || filterProject !== 'all'
               ? 'Tente ajustar seus filtros.'
-              : 'Adicione links de media nos detalhes dos projetos.'}
-          </p>
-        </motion.div>
+              : 'Adicione links de media nos detalhes dos projetos.'
+          }
+        />
       ) : tabMode === 'by-project' ? (
         <div className="space-y-6">
           {Object.entries(groupedByProject).map(([projectId, group]) => (
