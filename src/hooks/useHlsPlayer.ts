@@ -48,6 +48,7 @@ export function useHlsPlayer({
   onManifestParsed,
   onFatalError,
   autoRecover = true,
+  preferHighestQuality = false,
 }: UseHlsPlayerOptions): UseHlsPlayerResult {
   const hlsRef = useRef<Hls | null>(null);
   const mediaRecoveryAttemptedRef = useRef(false);
