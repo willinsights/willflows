@@ -47,6 +47,7 @@ import { ClientDetailsModal } from '@/components/clients/ClientDetailsModal';
 import { AccessDenied } from '@/components/ui/access-denied';
 import { cn } from '@/lib/utils';
 import { useFormatCurrency } from '@/hooks/useFormatCurrency';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export default function Clientes() {
   const { canViewClients, canViewClientFinancials, canEditClients, canCreateClients } = useFinancialPermissions();
