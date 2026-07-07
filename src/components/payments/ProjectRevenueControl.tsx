@@ -188,55 +188,97 @@ export function ProjectRevenueControl({
             </div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[80px] min-w-[80px]">ID</TableHead>
-                    <TableHead className="min-w-[150px]">Projeto</TableHead>
-                    <TableHead className="min-w-[120px]">Cliente</TableHead>
-                    <TableHead className="min-w-[100px]">Data Entrega</TableHead>
-                    <TableHead className="min-w-[130px]">Status</TableHead>
-                    <TableHead className="text-right min-w-[100px]">Preço Cliente</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pagination.paginatedItems.map(project => (
-                    <TableRow key={project.id}>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {getProjectCode(project)}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {project.name}
-                      </TableCell>
-                      <TableCell>{project.clients?.name || '-'}</TableCell>
-                      <TableCell>
-                        {project.delivered_at
-                          ? format(new Date(project.delivered_at), 'dd/MM/yyyy', { locale: pt })
-                          : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={project.client_payment_status || 'pendente'}
-                          onValueChange={(newStatus) => onStatusChange(project.id, newStatus)}
-                        >
-                          <SelectTrigger className={cn('w-[130px]', statusColors[project.client_payment_status || 'pendente'])}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pendente">Pendente</SelectItem>
-                            <SelectItem value="pago">Pago</SelectItem>
-                            <SelectItem value="vencido">Vencido</SelectItem>
-                            <SelectItem value="cancelado">Cancelado</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className={cn('text-right font-medium text-success', hideValues && 'blur-md select-none')}>
+              {/* Mobile card view */}
+              <div className="md:hidden space-y-3">
+                {pagination.paginatedItems.map(project => (
+                  <div key={project.id} className="rounded-lg border border-border bg-card/50 p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium truncate">{project.name}</div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {project.clients?.name || '-'} · <span className="font-mono">{getProjectCode(project)}</span>
+                        </div>
+                      </div>
+                      <div className={cn('text-right font-semibold text-success shrink-0', hideValues && 'blur-md select-none')}>
                         +{formatCurrency(project.agreed_value || 0)}
-                      </TableCell>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <div className="text-xs text-muted-foreground">
+                        {project.delivered_at ? format(new Date(project.delivered_at), 'dd/MM/yyyy', { locale: pt }) : 'Sem entrega'}
+                      </div>
+                      <Select
+                        value={project.client_payment_status || 'pendente'}
+                        onValueChange={(newStatus) => onStatusChange(project.id, newStatus)}
+                      >
+                        <SelectTrigger className={cn('h-8 w-[130px]', statusColors[project.client_payment_status || 'pendente'])}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pendente">Pendente</SelectItem>
+                          <SelectItem value="pago">Pago</SelectItem>
+                          <SelectItem value="vencido">Vencido</SelectItem>
+                          <SelectItem value="cancelado">Cancelado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[80px] min-w-[80px]">ID</TableHead>
+                      <TableHead className="min-w-[150px]">Projeto</TableHead>
+                      <TableHead className="min-w-[120px]">Cliente</TableHead>
+                      <TableHead className="min-w-[100px]">Data Entrega</TableHead>
+                      <TableHead className="min-w-[130px]">Status</TableHead>
+                      <TableHead className="text-right min-w-[100px]">Preço Cliente</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {pagination.paginatedItems.map(project => (
+                      <TableRow key={project.id}>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {getProjectCode(project)}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {project.name}
+                        </TableCell>
+                        <TableCell>{project.clients?.name || '-'}</TableCell>
+                        <TableCell>
+                          {project.delivered_at
+                            ? format(new Date(project.delivered_at), 'dd/MM/yyyy', { locale: pt })
+                            : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={project.client_payment_status || 'pendente'}
+                            onValueChange={(newStatus) => onStatusChange(project.id, newStatus)}
+                          >
+                            <SelectTrigger className={cn('w-[130px]', statusColors[project.client_payment_status || 'pendente'])}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pendente">Pendente</SelectItem>
+                              <SelectItem value="pago">Pago</SelectItem>
+                              <SelectItem value="vencido">Vencido</SelectItem>
+                              <SelectItem value="cancelado">Cancelado</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className={cn('text-right font-medium text-success', hideValues && 'blur-md select-none')}>
+                          +{formatCurrency(project.agreed_value || 0)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
 
               <ListPagination
                 currentPage={pagination.currentPage}
