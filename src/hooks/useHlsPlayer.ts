@@ -100,12 +100,19 @@ export function useHlsPlayer({
     const hls = new Hls({
       enableWorker: true,
       lowLatencyMode: false,
+      capLevelToPlayerSize: !preferHighestQuality,
+      startLevel: preferHighestQuality ? -1 : undefined,
+      autoStartLoad: true,
     });
 
     hls.loadSource(url);
     hls.attachMedia(video);
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      if (preferHighestQuality && hls.levels && hls.levels.length > 0) {
+        hls.currentLevel = hls.levels.length - 1;
+        hls.nextLevel = hls.levels.length - 1;
+      }
       if (preservedTime !== undefined) video.currentTime = preservedTime;
       onManifestParsedRef.current?.();
     });
