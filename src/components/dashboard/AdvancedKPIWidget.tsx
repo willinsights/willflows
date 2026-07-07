@@ -144,11 +144,18 @@ export function AdvancedKPIWidget() {
 
   if (kpis.loading) {
     return (
-      <Card>
-        <CardHeader className="pb-3"><Skeleton className="h-5 w-48" /></CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20" />)}
+      <Card className="glass-card h-full">
+        <CardHeader className="py-3 px-4">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <div className="p-1.5 rounded-md bg-primary/10">
+              <TrendingUp className="h-4 w-4 text-primary" />
+            </div>
+            KPIs Avançados
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-4">
+          <div className="grid grid-cols-2 gap-3">
+            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20 rounded-lg" />)}
           </div>
         </CardContent>
       </Card>
@@ -178,7 +185,7 @@ export function AdvancedKPIWidget() {
       icon: Timer,
       label: 'Tempo Médio Entrega',
       value: `${kpis.avgDeliveryDays}d`,
-      subtitle: kpis.avgDeliveryDaysPrev > 0 
+      subtitle: kpis.avgDeliveryDaysPrev > 0
         ? `${kpis.avgDeliveryDaysPrev > kpis.avgDeliveryDays ? '↓' : '↑'} era ${kpis.avgDeliveryDaysPrev}d`
         : 'Últimos 3 meses',
       color: kpis.avgDeliveryDaysPrev > 0 && kpis.avgDeliveryDays <= kpis.avgDeliveryDaysPrev ? 'text-success' : 'text-warning',
@@ -191,21 +198,23 @@ export function AdvancedKPIWidget() {
       value: formatCurrency(kpis.pipelineValue, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
       subtitle: `${kpis.totalLeads - kpis.convertedLeads} leads ativos`,
       color: 'text-info',
-      bgColor: 'bg-blue-500/10',
+      bgColor: 'bg-info/10',
       tooltip: 'Valor estimado dos leads ativos (excluindo convertidos e perdidos)',
     },
   ];
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-primary" />
+    <Card className="glass-card h-full">
+      <CardHeader className="py-3 px-4">
+        <CardTitle className="text-sm font-semibold flex items-center gap-2">
+          <div className="p-1.5 rounded-md bg-primary/10">
+            <TrendingUp className="h-4 w-4 text-primary" />
+          </div>
           KPIs Avançados
-          <Badge variant="secondary" className="text-[10px]">Live</Badge>
+          <Badge variant="secondary" className="text-[10px] ml-auto">Live</Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="px-4 pb-4">
         <TooltipProvider>
           <div className="grid grid-cols-2 gap-3">
             {kpiCards.map((kpi) => {
@@ -220,8 +229,8 @@ export function AdvancedKPIWidget() {
                         </div>
                         <span className="text-xs text-muted-foreground font-medium truncate">{kpi.label}</span>
                       </div>
-                      <p className={cn('text-lg font-bold', kpi.color)}>{kpi.value}</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{kpi.subtitle}</p>
+                      <p className={cn('text-lg font-bold tabular-nums', kpi.color)}>{kpi.value}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate tabular-nums">{kpi.subtitle}</p>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
