@@ -5043,6 +5043,7 @@ export type Database = {
             }
             Returns: Json
           }
+      email_queue_dispatch: { Args: never; Returns: undefined }
       encrypt_oauth_token: {
         Args: { _token: string; _user_id: string }
         Returns: string
@@ -5080,6 +5081,7 @@ export type Database = {
           view_date: string
         }[]
       }
+      get_dashboard_metrics: { Args: { p_workspace_id: string }; Returns: Json }
       get_effective_vat: {
         Args: { p_client_id?: string; p_workspace_id: string }
         Returns: {

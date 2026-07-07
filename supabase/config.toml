@@ -8,17 +8,28 @@ project_id = "wppfmyseeigsdqutkgyc"
   schemas = ["public", "graphql_public"]
 
 [functions]
-  [functions.ai-generate-blog-image]
-    verify_jwt = false
-  [functions.ai-generate-blog-post]
-    verify_jwt = false
-  [functions.ai-parse-tasks]
-    verify_jwt = false
+  # ---- Public / webhook / cron / OAuth callback / token-based (must remain verify_jwt = false) ----
   [functions.auth-email-hook]
     verify_jwt = false
-  [functions.blog-auto-generate]
+  [functions.stripe-webhook]
     verify_jwt = false
   [functions.blog-rss]
+    verify_jwt = false
+  [functions.sitemap]
+    verify_jwt = false
+  [functions.handle-email-unsubscribe]
+    verify_jwt = false
+  [functions.get-video-approval-data]
+    verify_jwt = false
+  [functions.delete-video-comment]
+    verify_jwt = false
+  [functions.submit-video-feedback]
+    verify_jwt = false
+  [functions.video-download-url]
+    verify_jwt = false
+  [functions.google-calendar-auth]
+    verify_jwt = false
+  [functions.google-oauth]
     verify_jwt = false
   [functions.check-deadlines]
     verify_jwt = false
@@ -28,61 +39,55 @@ project_id = "wppfmyseeigsdqutkgyc"
     verify_jwt = false
   [functions.cleanup-users]
     verify_jwt = false
-  [functions.create-checkout]
+  [functions.send-weekly-summary]
     verify_jwt = false
-  [functions.create-google-meet]
+  [functions.blog-auto-generate]
     verify_jwt = false
-  [functions.create-promo-code]
+  [functions.send-push-notification]
     verify_jwt = false
-  [functions.create-storage-addon-checkout]
-    verify_jwt = false
-  [functions.create-test-accounts]
-    verify_jwt = false
-  [functions.customer-portal]
-    verify_jwt = false
-  [functions.delete-account]
-    verify_jwt = false
-  [functions.delete-video-comment]
-    verify_jwt = false
-  [functions.export-report]
-    verify_jwt = false
-  [functions.get-billing-info]
-    verify_jwt = false
-  [functions.get-video-approval-data]
-    verify_jwt = false
-  [functions.google-calendar-auth]
-    verify_jwt = false
-  [functions.google-calendar-sync]
-    verify_jwt = false
-  [functions.google-oauth]
-    verify_jwt = false
-  [functions.process-email-queue]
-    verify_jwt = true
   [functions.send-transactional-email]
     verify_jwt = false
   [functions.process-push-queue]
     verify_jwt = false
+  [functions.process-email-queue]
+    verify_jwt = true
+
+  # ---- User-scoped functions: JWT verification enforced at the gateway ----
+  [functions.ai-generate-blog-image]
+    verify_jwt = true
+  [functions.ai-generate-blog-post]
+    verify_jwt = true
+  [functions.ai-parse-tasks]
+    verify_jwt = true
+  [functions.create-checkout]
+    verify_jwt = true
+  [functions.create-google-meet]
+    verify_jwt = true
+  [functions.create-promo-code]
+    verify_jwt = true
+  [functions.create-storage-addon-checkout]
+    verify_jwt = true
+  [functions.create-test-accounts]
+    verify_jwt = true
+  [functions.customer-portal]
+    verify_jwt = true
+  [functions.delete-account]
+    verify_jwt = true
+  [functions.export-report]
+    verify_jwt = true
+  [functions.export-workspace-data]
+    verify_jwt = true
+  [functions.get-billing-info]
+    verify_jwt = true
+  [functions.google-calendar-sync]
+    verify_jwt = true
   [functions.r2-upload-url]
-    verify_jwt = false
+    verify_jwt = true
   [functions.reset-billing-data]
-    verify_jwt = false
-  [functions.send-push-notification]
-    verify_jwt = false
-  [functions.sitemap]
-    verify_jwt = false
+    verify_jwt = true
   [functions.stream-get-status]
-    verify_jwt = false
+    verify_jwt = true
   [functions.stream-process-video]
-    verify_jwt = false
+    verify_jwt = true
   [functions.stream-update-video]
-    verify_jwt = false
-  [functions.send-weekly-summary]
-    verify_jwt = false
-  [functions.handle-email-unsubscribe]
-    verify_jwt = false
-  [functions.stripe-webhook]
-    verify_jwt = false
-  [functions.submit-video-feedback]
-    verify_jwt = false
-  [functions.video-download-url]
-    verify_jwt = false
+    verify_jwt = true

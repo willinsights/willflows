@@ -365,6 +365,9 @@ export function useDashboardMetrics() {
       setAnnualComparison(annualData);
 
       // === UPCOMING EVENTS (next 7 days) ===
+      // Privacy note: RLS on calendar_events already blocks private events of other users
+      // (policy: is_private = false OR created_by = auth.uid()). Filters below are applied
+      // server-side to avoid pulling data the current user shouldn't see.
       const todayStart = startOfDay(now);
       const nextWeekDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       const isAdmin = membership?.role === 'admin';
@@ -380,7 +383,9 @@ export function useDashboardMetrics() {
         userCaptacaoProjectIds = teamData?.map(t => t.project_id) || [];
       }
 
-      const { data: eventsData } = await supabase
+      // Defense-in-depth: even though RLS enforces it, we express the same rule in the query
+      // so it's explicit and independent of a future RLS change. Admins see everything.
+      let eventsQuery = supabase
         .from('calendar_events')
         .select('id, title, start_at, end_at, location, event_type, project_id, description, video_call_url, all_day, is_private, created_by, projects(name)')
         .eq('workspace_id', currentWorkspace.id)
@@ -389,46 +394,78 @@ export function useDashboardMetrics() {
         .order('start_at', { ascending: true })
         .limit(10);
 
-      const filteredEvents = eventsData?.filter(event => {
-        if (event.is_private) {
-          return event.created_by === user?.id;
+      if (!isAdmin && user?.id) {
+        eventsQuery = eventsQuery.or(`is_private.eq.false,created_by.eq.${user.id}`);
+      }
+
+      const { data: eventsData } = await eventsQuery;
+      const filteredEvents = eventsData || [];
+
+      // Shoots: non-admins only see shoots for projects where they belong to the captacao team.
+      // Filter server-side via .in() on the pre-fetched user project ids.
+      let shootsData: any[] = [];
+      if (isAdmin) {
+        const { data } = await supabase
+          .from('projects')
+          .select('id, name, shoot_date, shoot_start_time, clients(name)')
+          .eq('workspace_id', currentWorkspace.id)
+          .eq('is_delivered', false)
+          .gte('shoot_date', format(todayStart, 'yyyy-MM-dd'))
+          .lte('shoot_date', format(nextWeekDate, 'yyyy-MM-dd'))
+          .order('shoot_date', { ascending: true })
+          .limit(10);
+        shootsData = data || [];
+      } else if (userCaptacaoProjectIds.length > 0) {
+        const { data } = await supabase
+          .from('projects')
+          .select('id, name, shoot_date, shoot_start_time, clients(name)')
+          .eq('workspace_id', currentWorkspace.id)
+          .eq('is_delivered', false)
+          .in('id', userCaptacaoProjectIds)
+          .gte('shoot_date', format(todayStart, 'yyyy-MM-dd'))
+          .lte('shoot_date', format(nextWeekDate, 'yyyy-MM-dd'))
+          .order('shoot_date', { ascending: true })
+          .limit(10);
+        shootsData = data || [];
+      }
+      const filteredShoots = shootsData;
+
+      // Tasks: non-admins only see tasks they are assigned to. Fetch assigned task ids
+      // server-side first, then load only those tasks.
+      let tasksData: any[] = [];
+      if (isAdmin) {
+        const { data } = await supabase
+          .from('tasks')
+          .select(`id, title, due_date, due_time, project_id, is_completed, projects(name)`)
+          .eq('workspace_id', currentWorkspace.id)
+          .eq('is_completed', false)
+          .gte('due_date', format(todayStart, 'yyyy-MM-dd'))
+          .lte('due_date', format(nextWeekDate, 'yyyy-MM-dd'))
+          .order('due_date', { ascending: true })
+          .limit(15);
+        tasksData = data || [];
+      } else if (user?.id) {
+        const { data: assignments } = await supabase
+          .from('task_assignees')
+          .select('task_id')
+          .eq('user_id', user.id);
+        const assignedIds = (assignments || []).map(a => a.task_id);
+        if (assignedIds.length > 0) {
+          const { data } = await supabase
+            .from('tasks')
+            .select(`id, title, due_date, due_time, project_id, is_completed, projects(name)`)
+            .eq('workspace_id', currentWorkspace.id)
+            .eq('is_completed', false)
+            .in('id', assignedIds)
+            .gte('due_date', format(todayStart, 'yyyy-MM-dd'))
+            .lte('due_date', format(nextWeekDate, 'yyyy-MM-dd'))
+            .order('due_date', { ascending: true })
+            .limit(15);
+          tasksData = data || [];
         }
-        return isAdmin;
-      }) || [];
+      }
+      const filteredTasks = tasksData;
 
-      const { data: shootsData } = await supabase
-        .from('projects')
-        .select('id, name, shoot_date, shoot_start_time, clients(name)')
-        .eq('workspace_id', currentWorkspace.id)
-        .eq('is_delivered', false)
-        .gte('shoot_date', format(todayStart, 'yyyy-MM-dd'))
-        .lte('shoot_date', format(nextWeekDate, 'yyyy-MM-dd'))
-        .order('shoot_date', { ascending: true })
-        .limit(10);
-
-      const filteredShoots = isAdmin 
-        ? shootsData || []
-        : (shootsData || []).filter(p => userCaptacaoProjectIds.includes(p.id));
-
-      const { data: tasksData } = await supabase
-        .from('tasks')
-        .select(`
-          id, title, due_date, due_time, project_id, is_completed,
-          projects(name),
-          task_assignees(user_id)
-        `)
-        .eq('workspace_id', currentWorkspace.id)
-        .eq('is_completed', false)
-        .gte('due_date', format(todayStart, 'yyyy-MM-dd'))
-        .lte('due_date', format(nextWeekDate, 'yyyy-MM-dd'))
-        .order('due_date', { ascending: true })
-        .limit(15);
-
-      const filteredTasks = isAdmin
-        ? tasksData || []
-        : (tasksData || []).filter(task => 
-            (task.task_assignees as any[])?.some(a => a.user_id === user?.id)
-          );
 
       const calendarEvents: UpcomingEvent[] = filteredEvents.map(e => ({
         id: e.id,
