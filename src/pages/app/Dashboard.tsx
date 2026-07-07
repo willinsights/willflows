@@ -249,7 +249,7 @@ export default function Dashboard() {
 
   return (
     <motion.div
-      className="p-3 md:p-4 space-y-5 max-w-[1400px] mx-auto"
+      className="p-3 md:p-4 space-y-8 max-w-[1400px] mx-auto"
       variants={stagger}
       initial="hidden"
       animate="visible"
