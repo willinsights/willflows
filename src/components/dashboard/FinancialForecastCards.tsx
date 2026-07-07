@@ -37,6 +37,7 @@ export function FinancialForecastCards({
   onPreviousMonth,
   onNextMonth,
   onCurrentMonth,
+  hideMonthPicker = false,
 }: FinancialForecastCardsProps) {
   const { formatCurrency } = useCurrentWorkspace();
   const { hideValues } = useHideValues();
