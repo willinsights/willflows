@@ -5173,6 +5173,10 @@ export type Database = {
         Args: { p_token_id: string }
         Returns: string
       }
+      get_video_approval_token_secret: {
+        Args: { p_token_id: string }
+        Returns: string
+      }
       get_workspace_financial_summary: {
         Args: { p_workspace_id: string }
         Returns: {

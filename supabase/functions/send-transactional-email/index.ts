@@ -137,14 +137,31 @@ Deno.serve(async (req) => {
 
     // Server-side enrichment for invitation: compute roleLabel and inviteLink
     if (template === 'invitation') {
+      // Resolve token server-side from invitation_id to avoid exposing plaintext tokens to clients
+      if (!data.token && data.invitation_id) {
+        const { data: inv, error: invErr } = await supabase
+          .from('workspace_invitations')
+          .select('token, workspace_id, email, role')
+          .eq('id', data.invitation_id as string)
+          .maybeSingle()
+        if (invErr || !inv) {
+          return new Response(JSON.stringify({ error: 'Invitation not found' }), {
+            status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+        data.token = inv.token
+        if (!data.role) data.role = inv.role
+      }
       if (data.role && !data.roleLabel) {
         data.roleLabel = ROLE_LABELS[data.role as string] || (data.role as string)
       }
       if (data.token && !data.inviteLink) {
         data.inviteLink = `https://willflow.app/convite?token=${data.token}`
       }
+      // Never echo the raw token back to the caller
+      delete data.token
       if (!data.inviteLink || !data.workspaceName) {
-        return new Response(JSON.stringify({ error: 'Missing invitation fields: token/inviteLink and workspaceName required' }), {
+        return new Response(JSON.stringify({ error: 'Missing invitation fields: invitation_id/inviteLink and workspaceName required' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })

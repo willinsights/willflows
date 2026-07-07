@@ -94,7 +94,7 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
     try {
       let query = supabase
         .from('video_approval_tokens')
-        .select('id, task_id, project_id, workspace_id, token, client_email, client_name, expires_at, is_active, created_by, created_at')
+        .select('id, task_id, project_id, workspace_id, client_email, client_name, expires_at, is_active, created_by, created_at')
         .eq('is_active', true);
 
       if (taskId) {
@@ -112,8 +112,12 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
         return;
       }
 
-      // token is now readable directly — no RPC needed
-      setToken(data as VideoApprovalToken);
+      // Fetch the plaintext token separately via SECURITY DEFINER RPC (admins only)
+      const { data: secret } = await supabase.rpc('get_video_approval_token_secret', {
+        p_token_id: (data as any).id,
+      });
+
+      setToken({ ...(data as any), token: (secret as string) || '' } as VideoApprovalToken);
     } catch (error: any) {
       logger.error('Error fetching approval token:', error);
     }
@@ -260,12 +264,13 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
           expires_at: expiresAt,
           created_by: user.id,
         })
-        .select('id, task_id, project_id, workspace_id, token, client_email, client_name, expires_at, is_active, created_by, created_at')
+        .select('id, task_id, project_id, workspace_id, client_email, client_name, expires_at, is_active, created_by, created_at')
         .single();
 
       if (error) throw error;
 
-      const fullToken = data as VideoApprovalToken;
+      // Caller generated newToken locally; combine with returned metadata
+      const fullToken = { ...(data as any), token: newToken } as VideoApprovalToken;
       setToken(fullToken);
       toast({ title: 'Link de aprovação gerado' });
       return fullToken;

@@ -829,9 +829,22 @@ serve(async (req) => {
     }
 
     const userId = claimsData.claims.sub;
-    
+
     // Create service role client for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Require system admin role — this endpoint writes blog posts and burns paid AI credits
+    const { data: adminRow } = await supabase
+      .from("system_admins")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!adminRow) {
+      return new Response(JSON.stringify({ error: "Acesso negado" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Parse request body
     const body: GenerateRequest = await req.json().catch(() => ({}));

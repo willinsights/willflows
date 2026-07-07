@@ -30,7 +30,6 @@ export interface PendingInvite {
   id: string;
   email: string;
   role: string;
-  token: string;
   workspaceId: string;
   workspaceName: string;
   invitedByEmail: string;
@@ -109,14 +108,13 @@ export function useUsersSummary() {
         .from('user_subscriptions')
         .select('user_id, subscription_plan');
 
-      // 5. Get pending invitations (including token for resend)
+      // 5. Get pending invitations (token is resolved server-side by send-transactional-email)
       const { data: invitationsData } = await supabase
         .from('workspace_invitations')
         .select(`
           id,
           email,
           role,
-          token,
           workspace_id,
           invited_by,
           created_at,
@@ -212,7 +210,6 @@ export function useUsersSummary() {
           id: inv.id,
           email: inv.email,
           role: inv.role,
-          token: inv.token,
           workspaceId: inv.workspace_id,
           workspaceName: workspacesMap.get(inv.workspace_id) || 'N/A',
           invitedByEmail: inviterProfile?.email || 'N/A',
@@ -304,7 +301,7 @@ export function useUsersSummary() {
               workspaceName: invite.workspaceName,
               inviterName: 'Administrador',
               role: invite.role,
-              token: invite.token,
+              invitation_id: invite.id,
             },
           },
         });

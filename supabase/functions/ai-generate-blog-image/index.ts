@@ -201,6 +201,19 @@ serve(async (req) => {
       });
     }
 
+    // Require system admin — endpoint can overwrite cover images on any blog post
+    const { data: adminRow } = await supabase
+      .from("system_admins")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!adminRow) {
+      return new Response(JSON.stringify({ error: "Acesso negado" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Parse request body
     const body: GenerateImageRequest = await req.json();
     const { postId, title, forceRegenerate = false, context } = body;

@@ -382,6 +382,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Require payments.view permission — parity with invoices RLS SELECT policy
+    const { data: hasPaymentsView, error: permErr } = await supabase.rpc(
+      "has_workspace_permission",
+      { _user_id: userId, _workspace_id: workspaceId, _permission_key: "payments.view" },
+    );
+    if (permErr || !hasPaymentsView) {
+      return new Response(JSON.stringify({ error: "Forbidden: payments.view permission required" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Fetch invoice
     const { data: invoice, error: invErr } = await supabase
       .from("invoices")
