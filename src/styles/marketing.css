@@ -37,7 +37,7 @@
 
   /* Focal Zoom - Interactive focus effect */
   .focal-zoom {
-    @apply transition-all duration-500 ease-out;
+    transition: all 0.5s ease-out;
     transform-origin: center;
   }
 
@@ -59,7 +59,13 @@
   }
 
   .focal-card {
-    @apply glass-card transition-all duration-500 ease-out;
+    background: hsl(var(--glass-bg));
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid hsl(var(--glass-border));
+    box-shadow: var(--glass-shadow);
+    border-radius: 0.75rem;
+    transition: all 0.5s ease-out;
     transform-style: preserve-3d;
   }
 
@@ -70,6 +76,7 @@
       0 20px 60px -15px hsl(var(--primary) / 0.25),
       0 0 80px -20px hsl(var(--primary) / 0.2);
   }
+
 
   .focal-container:has(.focal-card:hover) .focal-card:not(:hover) {
     filter: blur(2px) saturate(0.9);
