@@ -1,3 +1,4 @@
+import "@/styles/marketing.css";
 import { useState, memo, forwardRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';

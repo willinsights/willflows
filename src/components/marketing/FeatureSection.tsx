@@ -1,3 +1,4 @@
+import "@/styles/marketing.css";
 import { motion } from 'framer-motion';
 import { LucideIcon, Check } from 'lucide-react';
 

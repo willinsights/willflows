@@ -1,3 +1,4 @@
+import "@/styles/marketing.css";
 import { useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
