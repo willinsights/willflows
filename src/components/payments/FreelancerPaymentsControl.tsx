@@ -271,68 +271,118 @@ export function FreelancerPaymentsControl({
           </p>
         ) : (
           <>
-            <Table>
-              <TableHeader>
-              <TableRow>
-                  <TableHead className="w-[80px] min-w-[80px]">ID</TableHead>
-                  <TableHead className="min-w-[150px]">Projeto</TableHead>
-                  <TableHead className="min-w-[120px]">Cliente</TableHead>
-                  <TableHead className="min-w-[120px]">Colaborador</TableHead>
-                  <TableHead className="min-w-[90px]">Fase</TableHead>
-                  <TableHead className="min-w-[100px]">Data Entrega</TableHead>
-                  <TableHead className="min-w-[130px]">Status Pgto</TableHead>
-                  <TableHead className="text-right min-w-[100px]">Valor</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pagination.paginatedItems.map(tp => {
-                  const deliveredAt = getProjectDeliveredAt(tp.project_id);
-                  return (
-                    <TableRow key={tp.id}>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {getProjectCode(tp.project_id)}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {getProjectName(tp.project_id)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {getClientName(tp.project_id)}
-                      </TableCell>
-                      <TableCell>
-                        {getMemberName(tp.user_id)}
-                      </TableCell>
-                      <TableCell>
+            {/* Mobile card view */}
+            <div className="md:hidden space-y-3">
+              {pagination.paginatedItems.map(tp => {
+                const deliveredAt = getProjectDeliveredAt(tp.project_id);
+                return (
+                  <div key={tp.id} className="rounded-lg border border-border bg-card/50 p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium truncate">{getProjectName(tp.project_id)}</div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {getMemberName(tp.user_id)} · {getClientName(tp.project_id)}
+                        </div>
+                      </div>
+                      <div className={cn('text-right font-semibold text-destructive shrink-0', hideValues && 'blur-md select-none')}>
+                        -{formatCurrency(tp.payment_amount || 0)}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
+                      <div className="flex items-center gap-2 text-xs">
                         <Badge variant="outline" className={tp.phase === 'captacao' ? 'bg-blue-500/10 text-blue-500' : 'bg-purple-500/10 text-purple-500'}>
                           {tp.phase === 'captacao' ? 'Captação' : 'Edição'}
                         </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {deliveredAt ? format(new Date(deliveredAt), 'dd/MM/yyyy') : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={tp.payment_status}
-                          onValueChange={(newStatus) => onStatusChange(tp.id, newStatus)}
-                        >
-                          <SelectTrigger className={cn('w-[130px]', statusColors[tp.payment_status] || statusColors.pendente)}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pendente">Pendente</SelectItem>
-                            <SelectItem value="pago">Pago</SelectItem>
-                            <SelectItem value="vencido">Vencido</SelectItem>
-                            <SelectItem value="cancelado">Cancelado</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className={cn("text-right font-medium text-destructive", hideValues && "blur-md select-none")}>
-                        -{formatCurrency(tp.payment_amount || 0)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                        <span className="text-muted-foreground">
+                          {deliveredAt ? format(new Date(deliveredAt), 'dd/MM/yyyy') : 'Sem entrega'}
+                        </span>
+                      </div>
+                      <Select
+                        value={tp.payment_status}
+                        onValueChange={(newStatus) => onStatusChange(tp.id, newStatus)}
+                      >
+                        <SelectTrigger className={cn('h-8 w-[130px]', statusColors[tp.payment_status] || statusColors.pendente)}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pendente">Pendente</SelectItem>
+                          <SelectItem value="pago">Pago</SelectItem>
+                          <SelectItem value="vencido">Vencido</SelectItem>
+                          <SelectItem value="cancelado">Cancelado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                <TableRow>
+                    <TableHead className="w-[80px] min-w-[80px]">ID</TableHead>
+                    <TableHead className="min-w-[150px]">Projeto</TableHead>
+                    <TableHead className="min-w-[120px]">Cliente</TableHead>
+                    <TableHead className="min-w-[120px]">Colaborador</TableHead>
+                    <TableHead className="min-w-[90px]">Fase</TableHead>
+                    <TableHead className="min-w-[100px]">Data Entrega</TableHead>
+                    <TableHead className="min-w-[130px]">Status Pgto</TableHead>
+                    <TableHead className="text-right min-w-[100px]">Valor</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pagination.paginatedItems.map(tp => {
+                    const deliveredAt = getProjectDeliveredAt(tp.project_id);
+                    return (
+                      <TableRow key={tp.id}>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {getProjectCode(tp.project_id)}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {getProjectName(tp.project_id)}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {getClientName(tp.project_id)}
+                        </TableCell>
+                        <TableCell>
+                          {getMemberName(tp.user_id)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={tp.phase === 'captacao' ? 'bg-blue-500/10 text-blue-500' : 'bg-purple-500/10 text-purple-500'}>
+                            {tp.phase === 'captacao' ? 'Captação' : 'Edição'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {deliveredAt ? format(new Date(deliveredAt), 'dd/MM/yyyy') : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={tp.payment_status}
+                            onValueChange={(newStatus) => onStatusChange(tp.id, newStatus)}
+                          >
+                            <SelectTrigger className={cn('w-[130px]', statusColors[tp.payment_status] || statusColors.pendente)}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pendente">Pendente</SelectItem>
+                              <SelectItem value="pago">Pago</SelectItem>
+                              <SelectItem value="vencido">Vencido</SelectItem>
+                              <SelectItem value="cancelado">Cancelado</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className={cn('text-right font-medium text-destructive', hideValues && 'blur-md select-none')}>
+                          -{formatCurrency(tp.payment_amount || 0)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+
             
             <ListPagination
               currentPage={pagination.currentPage}

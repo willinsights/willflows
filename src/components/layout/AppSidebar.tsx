@@ -2,30 +2,10 @@ import type React from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  LayoutDashboard,
-  Video,
-  Film,
-  CheckCircle2,
-  FolderKanban,
-  Users,
-  Calendar,
-  CreditCard,
-  BarChart3,
-  Settings,
   ChevronLeft,
   ChevronRight,
   X,
-  Euro,
-  Upload,
-  Tags,
-  UserCog,
-  Receipt,
-  Shield,
-  Crown,
   ExternalLink,
-  MessageSquare,
-  Target,
-  FileText,
 } from 'lucide-react';
 import { useTotalUnreadMessages } from '@/hooks/useTotalUnreadMessages';
 import { cn } from '@/lib/utils';
@@ -39,6 +19,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
+import {
+  navSections,
+  superAdminSection,
+  filterSections,
+} from '@/lib/nav-config';
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -47,114 +32,34 @@ interface AppSidebarProps {
   autoCollapseOnNav?: boolean;
 }
 
-interface NavItem {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  path: string;
-  adminOnly?: boolean;
-  /** Permission key to check for visibility */
-  permissionKey?: string;
-}
-
-interface NavSection {
-  title: string;
-  items: NavItem[];
-}
-
-const navSections: NavSection[] = [
-  {
-    title: 'VISÃO GERAL',
-    items: [
-      { icon: LayoutDashboard, label: 'Dashboard', path: '/app' },
-      { icon: MessageSquare, label: 'Chat', path: '/app/chat' },
-      { icon: Calendar, label: 'Calendário', path: '/app/calendario' },
-    ],
-  },
-  {
-    title: 'COMERCIAL',
-    items: [
-      { icon: Target, label: 'Leads', path: '/app/leads', permissionKey: 'visibility.leads' },
-      { icon: Users, label: 'Clientes', path: '/app/clientes', permissionKey: 'clients.view' },
-      { icon: FileText, label: 'Contratos', path: '/app/contratos', permissionKey: 'visibility.contracts' },
-    ],
-  },
-  {
-    title: 'PRODUÇÃO',
-    items: [
-      { icon: Video, label: 'Captação', path: '/app/captacao' },
-      { icon: Film, label: 'Edição', path: '/app/edicao' },
-      { icon: CheckCircle2, label: 'Finalizados', path: '/app/finalizados' },
-      { icon: Upload, label: 'Media', path: '/app/media' },
-    ],
-  },
-  {
-    title: 'FINANÇAS',
-    items: [
-      { icon: Euro, label: 'Finanças', path: '/app/financeiro' },
-      { icon: BarChart3, label: 'Relatórios', path: '/app/relatorios', permissionKey: 'reports.view' },
-    ],
-  },
-  {
-    title: 'GESTÃO',
-    items: [
-      { icon: UserCog, label: 'Equipa', path: '/app/equipa', permissionKey: 'team.view' },
-      { icon: Settings, label: 'Configurações', path: '/app/configuracoes' },
-      { icon: Crown, label: 'Planos', path: '/app/planos', adminOnly: true },
-    ],
-  },
-];
-
-// Super Admin section - only shown for super admins
-const superAdminSection: NavSection = {
-  title: 'ADMIN',
-  items: [
-    { icon: Shield, label: 'Super Admin', path: '/admin/dashboard' },
-  ],
-};
-
 export function AppSidebar({ collapsed, onToggle, isMobile, autoCollapseOnNav = true }: AppSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  useAuth();
   const { isAdmin } = useWorkspace();
   const { isSuperAdmin } = useSuperAdmin();
   const { totalUnread } = useTotalUnreadMessages();
-  const { 
-    canViewLeads, 
-    canViewClients, 
-    canViewContracts, 
-    canViewTeam, 
+  const {
+    canViewLeads,
+    canViewClients,
+    canViewContracts,
+    canViewTeam,
     canViewReports,
-    userRole 
+    canViewAllFinancials,
   } = useFinancialPermissions();
-  
-  // Add super admin section only if user is super admin
+
   const baseSections = isSuperAdmin ? [...navSections, superAdminSection] : navSections;
-  
-  // Check if item should be visible based on permissions
-  const shouldShowItem = (item: NavItem): boolean => {
-    // Check adminOnly flag
-    if (item.adminOnly && !isAdmin) return false;
-    
-    // Check permission key if defined
-    if (item.permissionKey) {
-      switch (item.permissionKey) {
-        case 'visibility.leads': return canViewLeads;
-        case 'clients.view': return canViewClients;
-        case 'visibility.contracts': return canViewContracts;
-        case 'team.view': return canViewTeam;
-        case 'reports.view': return canViewReports;
-        default: return true;
-      }
-    }
-    return true;
-  };
-  
-  // Filter out items based on role permissions
-  const sections = baseSections.map(section => ({
-    ...section,
-    items: section.items.filter(shouldShowItem)
-  })).filter(section => section.items.length > 0); // Remove empty sections
+  const sections = filterSections(baseSections, {
+    isAdmin,
+    isSuperAdmin,
+    canViewLeads,
+    canViewClients,
+    canViewContracts,
+    canViewTeam,
+    canViewReports,
+    canViewFinancials: canViewAllFinancials,
+  });
+
 
   const isActive = (path: string) => {
     if (path === '/app') {

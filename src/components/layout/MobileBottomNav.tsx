@@ -1,23 +1,14 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { 
-  LayoutDashboard, 
-  FolderKanban, 
-  Plus, 
-  MessageSquare, 
+import {
+  LayoutDashboard,
+  FolderKanban,
+  Plus,
+  MessageSquare,
   User,
-  Calendar,
-  Users,
-  FileText,
-  Settings,
-  CreditCard,
-  BarChart3,
-  Briefcase,
-  Film,
-  CheckCircle,
-  X
+  X,
 } from 'lucide-react';
 import { useTotalUnreadMessages } from '@/hooks/useTotalUnreadMessages';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -26,6 +17,9 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useSuperAdmin } from '@/hooks/useSuperAdmin';
+import { navSections, superAdminSection, filterSections } from '@/lib/nav-config';
 
 const mainNavItems = [
   { icon: LayoutDashboard, label: 'Início', path: '/app' },
@@ -35,49 +29,34 @@ const mainNavItems = [
   { icon: User, label: 'Menu', path: null }, // Opens menu sheet
 ];
 
-const menuSections = [
-  {
-    title: 'Produção',
-    items: [
-      { icon: FolderKanban, label: 'Captação', path: '/app/captacao' },
-      { icon: Film, label: 'Edição', path: '/app/edicao' },
-      { icon: CheckCircle, label: 'Finalizados', path: '/app/finalizados' },
-      { icon: Film, label: 'Media', path: '/app/media' },
-    ]
-  },
-  {
-    title: 'Comercial',
-    items: [
-      { icon: Users, label: 'Leads', path: '/app/leads', permission: 'visibility.leads' },
-      { icon: Briefcase, label: 'Clientes', path: '/app/clientes' },
-      { icon: FileText, label: 'Contratos', path: '/app/contratos', permission: 'visibility.contracts' },
-    ]
-  },
-  {
-    title: 'Finanças',
-    items: [
-      { icon: CreditCard, label: 'Pagamentos', path: '/app/pagamentos' },
-      { icon: BarChart3, label: 'Relatórios', path: '/app/relatorios' },
-    ]
-  },
-  {
-    title: 'Gestão',
-    items: [
-      { icon: Calendar, label: 'Calendário', path: '/app/calendario' },
-      { icon: Users, label: 'Equipa', path: '/app/equipa' },
-      { icon: Settings, label: 'Configurações', path: '/app/configuracoes' },
-    ]
-  }
-];
-
 export function MobileBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const { totalUnread } = useTotalUnreadMessages();
-  const { canViewLeads, canViewContracts, userRole } = useFinancialPermissions();
-  const isAdmin = userRole === 'admin';
+  const { isAdmin } = useWorkspace();
+  const { isSuperAdmin } = useSuperAdmin();
+  const {
+    canViewLeads,
+    canViewClients,
+    canViewContracts,
+    canViewTeam,
+    canViewReports,
+    canViewAllFinancials,
+  } = useFinancialPermissions();
   const [menuOpen, setMenuOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+
+  const baseSections = isSuperAdmin ? [...navSections, superAdminSection] : navSections;
+  const sections = filterSections(baseSections, {
+    isAdmin,
+    isSuperAdmin,
+    canViewLeads,
+    canViewClients,
+    canViewContracts,
+    canViewTeam,
+    canViewReports,
+    canViewFinancials: canViewAllFinancials,
+  });
 
   const isActive = (path: string | null) => {
     if (!path) return false;
@@ -87,10 +66,8 @@ export function MobileBottomNav() {
 
   const handleNavClick = (item: typeof mainNavItems[0], index: number) => {
     if (index === 2) {
-      // FAB - Create Project
       setCreateModalOpen(true);
     } else if (index === 4) {
-      // Menu
       setMenuOpen(true);
     } else if (item.path) {
       navigate(item.path);
@@ -101,6 +78,7 @@ export function MobileBottomNav() {
     setMenuOpen(false);
     navigate(path);
   };
+
 
   return (
     <>
@@ -183,47 +161,34 @@ export function MobileBottomNav() {
           
           <ScrollArea className="h-[calc(85vh-88px)] px-5">
             <div className="space-y-6 pb-8">
-              {menuSections.map((section) => {
-                // Filter items based on permissions
-                const visibleItems = section.items.filter(item => {
-                  if (!item.permission) return true;
-                  if (isAdmin) return true;
-                  if (item.permission === 'visibility.leads') return canViewLeads;
-                  if (item.permission === 'visibility.contracts') return canViewContracts;
-                  return true;
-                });
-
-                if (visibleItems.length === 0) return null;
-
-                return (
-                  <div key={section.title}>
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                      {section.title}
-                    </h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      {visibleItems.map((item) => {
-                        const active = isActive(item.path);
-                        return (
-                          <button
-                            key={item.path}
-                            onClick={() => handleMenuItemClick(item.path)}
-                            className={cn(
-                              "flex items-center gap-3 p-4 rounded-2xl transition-all active:scale-[0.98]",
-                              active 
-                                ? "bg-primary text-primary-foreground shadow-md shadow-primary/20" 
-                                : "bg-muted/50 hover:bg-muted"
-                            )}
-                          >
-                            <item.icon className="h-5 w-5" />
-                            <span className="text-sm font-medium">{item.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <Separator className="mt-6" />
+              {sections.map((section) => (
+                <div key={section.title}>
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                    {section.title}
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {section.items.map((item) => {
+                      const active = isActive(item.path);
+                      return (
+                        <button
+                          key={item.path}
+                          onClick={() => handleMenuItemClick(item.path)}
+                          className={cn(
+                            'flex items-center gap-3 p-4 rounded-2xl transition-all active:scale-[0.98]',
+                            active
+                              ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
+                              : 'bg-muted/50 hover:bg-muted'
+                          )}
+                        >
+                          <item.icon className="h-5 w-5" />
+                          <span className="text-sm font-medium">{item.label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                  <Separator className="mt-6" />
+                </div>
+              ))}
             </div>
           </ScrollArea>
         </SheetContent>

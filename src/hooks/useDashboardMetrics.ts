@@ -1,18 +1,24 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { startOfMonth, endOfMonth, subMonths, format, differenceInDays, startOfDay, formatDistanceToNow } from 'date-fns';
+import {
+  startOfMonth,
+  endOfMonth,
+  subMonths,
+  format,
+  differenceInDays,
+  startOfDay,
+  formatDistanceToNow,
+} from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { logger } from '@/lib/logger';
 import {
-  getMonthlyMetrics,
-  getTimeSeries,
   calculateChange,
   getProjectMargin,
 } from '@/lib/finance/financialEngine';
-import type { FinancialProject } from '@/lib/finance/types';
 
+// === Public types (kept stable — Dashboard depends on these) ===
 export interface DashboardMetrics {
   captacao: number;
   edicao: number;
@@ -38,11 +44,7 @@ export interface PerformanceMetrics {
   deliveryRate: number;
   avgDeliveryDays: number;
   avgMargin: number;
-  projectsByType: {
-    fotografia: number;
-    video: number;
-    foto_video: number;
-  };
+  projectsByType: { fotografia: number; video: number; foto_video: number };
 }
 
 export interface UrgentProject {
@@ -101,144 +103,130 @@ export interface PendingPaymentItem {
   isOverdue: boolean;
 }
 
+// === RPC response shape ===
+interface RpcMonthPoint { month_start: string; revenue: number; cost: number; profit: number }
+interface RpcAnnualPoint { month_start: string; current_year: number; previous_year: number }
+interface RpcMetricsBucket { revenue: number; cost: number; profit: number; projectCount: number }
+interface RpcPrevisao extends RpcMetricsBucket {
+  breakdown?: {
+    plannedRevenue: number;
+    rolloverRevenue: number;
+    plannedCost: number;
+    rolloverCost: number;
+    rolloverCount: number;
+  };
+}
+interface RpcDashboardMetrics {
+  workspace_id: string;
+  generated_at: string;
+  current_month: string;
+  previous_month: string;
+  phase_counts: { captacao: number; edicao: number };
+  realizado_current: RpcMetricsBucket | null;
+  realizado_previous: RpcMetricsBucket | null;
+  previsao_current: RpcPrevisao | null;
+  previsao_previous: RpcMetricsBucket | null;
+  monthly_series: RpcMonthPoint[];
+  annual_comparison: RpcAnnualPoint[];
+}
+
+const num = (v: unknown): number => (typeof v === 'number' ? v : Number(v) || 0);
+const bucket = (b: RpcMetricsBucket | null): RpcMetricsBucket =>
+  b ?? { revenue: 0, cost: 0, profit: 0, projectCount: 0 };
+
+// === Query keys ===
+const qk = {
+  metrics: (ws: string) => ['dashboard', 'metrics-rpc', ws] as const,
+  performance: (ws: string) => ['dashboard', 'performance', ws] as const,
+  pending: (ws: string) => ['dashboard', 'pending-payments', ws] as const,
+  meusGanhos: (ws: string, uid: string | null, role: string | null) =>
+    ['dashboard', 'meus-ganhos', ws, uid, role] as const,
+  upcoming: (ws: string, uid: string | null, isAdmin: boolean) =>
+    ['dashboard', 'upcoming', ws, uid, isAdmin] as const,
+  urgent: (ws: string) => ['dashboard', 'urgent', ws] as const,
+  recent: (ws: string) => ['dashboard', 'recent', ws] as const,
+};
+
 export function useDashboardMetrics() {
   const { currentWorkspace, fetchError, membership } = useWorkspace();
   const { user } = useAuth();
-  const [metrics, setMetrics] = useState<DashboardMetrics>({
-    captacao: 0,
-    edicao: 0,
-    entregues: 0,
-    receita: 0,
-    custos: 0,
-    lucro: 0,
-    pendingPayments: 0,
-    pendingPaymentsCount: 0,
-    receitaChange: null,
-    custosChange: null,
-    lucroChange: null,
-    entreguesChange: null,
-    meusGanhos: 0,
-    previsaoReceita: 0,
-    previsaoCustos: 0,
-    previsaoLucro: 0,
-    previsaoMargemPercent: 0,
-    projetosAtivos: 0,
+  const workspaceId = currentWorkspace?.id ?? null;
+  const enabled = !!workspaceId && !fetchError;
+  const isAdmin = membership?.role === 'admin';
+  const queryClient = useQueryClient();
+
+  // === 1. RPC: all financial aggregates in one call ===
+  const metricsQuery = useQuery({
+    queryKey: qk.metrics(workspaceId ?? ''),
+    enabled,
+    staleTime: 60 * 1000,
+    queryFn: async (): Promise<RpcDashboardMetrics> => {
+      const { data, error } = await supabase.rpc('get_dashboard_metrics', {
+        p_workspace_id: workspaceId!,
+      });
+      if (error) throw error;
+      return data as unknown as RpcDashboardMetrics;
+    },
   });
-  const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics>({
-    deliveryRate: 0,
-    avgDeliveryDays: 0,
-    avgMargin: 0,
-    projectsByType: { fotografia: 0, video: 0, foto_video: 0 },
+
+  // === 2. Performance metrics: last 6mo delivered projects (bounded query) ===
+  const performanceQuery = useQuery({
+    queryKey: qk.performance(workspaceId ?? ''),
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async (): Promise<PerformanceMetrics> => {
+      const sixMonthsAgo = subMonths(new Date(), 6);
+      const { data } = await supabase
+        .from('projects')
+        .select('id, is_delivered, delivered_at, created_at, type, agreed_value, custo_captacao, custo_edicao, custos_extras')
+        .eq('workspace_id', workspaceId!)
+        .gte('created_at', sixMonthsAgo.toISOString());
+
+      const recent = data ?? [];
+      const delivered = recent.filter(p => p.is_delivered && p.delivered_at);
+      const deliveryRate = recent.length > 0 ? Math.round((delivered.length / recent.length) * 100) : 0;
+
+      const times = delivered
+        .map(p => differenceInDays(new Date(p.delivered_at!), new Date(p.created_at)))
+        .filter(d => d >= 0);
+      const avgDeliveryDays = times.length > 0 ? Math.round(times.reduce((s, d) => s + d, 0) / times.length) : 0;
+
+      const withRevenue = delivered.filter(p => p.agreed_value && p.agreed_value > 0);
+      const margins = withRevenue.map(p => getProjectMargin(p as any));
+      const avgMargin = margins.length > 0 ? Math.round(margins.reduce((s, m) => s + m, 0) / margins.length) : 0;
+
+      return {
+        deliveryRate,
+        avgDeliveryDays,
+        avgMargin,
+        projectsByType: {
+          fotografia: recent.filter(p => p.type === 'fotografia').length,
+          video: recent.filter(p => p.type === 'video').length,
+          foto_video: recent.filter(p => p.type === 'foto_video').length,
+        },
+      };
+    },
   });
-  const [urgentProjects, setUrgentProjects] = useState<UrgentProject[]>([]);
-  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
-  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
-  const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
-  const [annualComparison, setAnnualComparison] = useState<AnnualComparisonData[]>([]);
-  const [pendingPaymentItems, setPendingPaymentItems] = useState<PendingPaymentItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  
-  const isFetchingRef = useRef(false);
-  const lastFetchedWorkspaceIdRef = useRef<string | null>(null);
 
-  const fetchMetrics = useCallback(async () => {
-    if (!currentWorkspace?.id || fetchError) return;
-    if (isFetchingRef.current) return;
-
-    try {
-      isFetchingRef.current = true;
-      
-      const now = new Date();
-      const currentMonthStart = startOfMonth(now);
-      const currentMonthEnd = endOfMonth(now);
-      const sixMonthsAgo = subMonths(now, 6);
-      
-      // Fetch projects with ALL fields needed by financial engine
-      const { data: projectsData } = await supabase
+  // === 3. Pending payments ===
+  const pendingQuery = useQuery({
+    queryKey: qk.pending(workspaceId ?? ''),
+    enabled,
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      const { data } = await supabase
         .from('projects')
-        .select(`
-          id, current_phase, is_delivered, agreed_value, custo_captacao, custo_edicao,
-          custos_extras, custos_extras_payment_status, custos_extras_paid_at,
-          created_at, delivered_at, delivery_date, shoot_date, type, item_type,
-          competence_month, client_payment_status, client_paid_at
-        `)
-        .eq('workspace_id', currentWorkspace.id);
-
-      // Map to FinancialProject for engine (single source of truth)
-      const mappedProjects: FinancialProject[] = (projectsData || []).map(p => ({
-        id: p.id,
-        agreed_value: p.agreed_value,
-        custo_captacao: p.custo_captacao,
-        custo_edicao: p.custo_edicao,
-        custos_extras: p.custos_extras,
-        custos_extras_payment_status: p.custos_extras_payment_status,
-        custos_extras_paid_at: p.custos_extras_paid_at,
-        is_delivered: p.is_delivered,
-        delivered_at: p.delivered_at,
-        delivery_date: p.delivery_date,
-        shoot_date: p.shoot_date,
-        created_at: p.created_at,
-        client_payment_status: p.client_payment_status,
-        client_paid_at: p.client_paid_at,
-        competence_month: p.competence_month,
-      }));
-
-      // Phase counts (non-financial, keep manual)
-      const captacao = projectsData?.filter(p => p.current_phase === 'captacao' && !p.is_delivered && p.item_type !== 'reuniao').length || 0;
-      const edicao = projectsData?.filter(p => p.current_phase === 'edicao' && !p.is_delivered && p.item_type !== 'reuniao').length || 0;
-
-      // === FINANCIAL METRICS — delegated to engine (single source of truth) ===
-      const currentMetrics = getMonthlyMetrics(mappedProjects, 'REALIZADO', now);
-      const prevMetrics = getMonthlyMetrics(mappedProjects, 'REALIZADO', subMonths(now, 1));
-      
-      const receita = currentMetrics.revenue;
-      const custos = currentMetrics.cost;
-      const lucro = currentMetrics.profit;
-      const entregues = currentMetrics.projectCount;
-
-      const receitaChange = calculateChange(receita, prevMetrics.revenue);
-      const custosChange = calculateChange(custos, prevMetrics.cost);
-      const lucroChange = calculateChange(lucro, prevMetrics.profit);
-      const entreguesChange = calculateChange(entregues, prevMetrics.projectCount);
-
-      // === FORECAST — delegated to engine ===
-      const forecastMetrics = getMonthlyMetrics(mappedProjects, 'PREVISAO', now);
-      const previsaoReceita = forecastMetrics.revenue;
-      const previsaoCustos = forecastMetrics.cost;
-      const previsaoLucro = forecastMetrics.profit;
-      const previsaoMargemPercent = previsaoReceita > 0 
-        ? Math.round((previsaoLucro / previsaoReceita) * 100) 
-        : 0;
-      const projetosAtivos = forecastMetrics.projectCount;
-
-      // === PENDING CLIENT PAYMENTS (unique to dashboard) ===
-      const { data: pendingProjectsData } = await supabase
-        .from('projects')
-        .select(
-          [
-            'id',
-            'name',
-            'agreed_value',
-            'client_payment_status',
-            'client_payment_due_date',
-            'delivered_at',
-            'created_at',
-            'client_id',
-            'clients(name)',
-          ].join(',')
-        )
-        .eq('workspace_id', currentWorkspace.id)
+        .select('id, name, agreed_value, client_payment_status, client_payment_due_date, delivered_at, created_at, client_id, clients(name)')
+        .eq('workspace_id', workspaceId!)
         .in('client_payment_status', ['pendente', 'vencido'])
         .order('client_payment_due_date', { ascending: true, nullsFirst: true })
         .limit(1000);
 
-      const normalizedItems: PendingPaymentItem[] = (pendingProjectsData || []).map((p: any) => {
+      const items: PendingPaymentItem[] = (data ?? []).map((p: any) => {
         const fallbackDate = p.delivered_at || p.created_at || null;
         const dueDate = p.client_payment_due_date || (fallbackDate ? String(fallbackDate).slice(0, 10) : null);
         const isOverdue =
-          p.client_payment_status === 'vencido' ||
-          (dueDate ? new Date(dueDate) < new Date() : false);
-
+          p.client_payment_status === 'vencido' || (dueDate ? new Date(dueDate) < new Date() : false);
         return {
           id: p.id,
           description: p.name ? `Pagamento do projeto: ${p.name}` : 'Pagamento do projeto',
@@ -250,237 +238,153 @@ export function useDashboardMetrics() {
         };
       });
 
-      const sortedItems = normalizedItems.sort((a, b) => {
-        const aTime = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
-        const bTime = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
-        return aTime - bTime;
+      items.sort((a, b) => {
+        const aT = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+        const bT = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+        return aT - bT;
       });
 
-      setPendingPaymentItems(sortedItems.slice(0, 50));
-      const pendingPayments = sortedItems.reduce((sum, p) => sum + (p.amount || 0), 0);
-      const pendingPaymentsCount = sortedItems.length;
-
-      // === PERSONAL EARNINGS (unique to collaborators) ===
-      let meusGanhos = 0;
-      if (user?.id && membership?.role === 'gestao') {
-        const { data: myTeamPayments } = await supabase
-          .from('project_team')
-          .select('payment_amount, payment_status, projects!inner(created_at, workspace_id)')
-          .eq('user_id', user.id)
-          .eq('projects.workspace_id', currentWorkspace.id);
-        
-        meusGanhos = myTeamPayments?.filter(tp => {
-          const projectCreatedAt = new Date((tp.projects as any).created_at);
-          return projectCreatedAt >= currentMonthStart && projectCreatedAt <= currentMonthEnd;
-        }).reduce((sum, tp) => sum + (tp.payment_amount || 0), 0) || 0;
-      }
-
-      setMetrics({
-        captacao,
-        edicao,
-        entregues,
-        receita,
-        custos,
-        lucro,
-        pendingPayments,
-        pendingPaymentsCount,
-        receitaChange,
-        custosChange,
-        lucroChange,
-        entreguesChange,
-        meusGanhos,
-        previsaoReceita,
-        previsaoCustos,
-        previsaoLucro,
-        previsaoMargemPercent,
-        projetosAtivos,
-      });
-
-      // === PERFORMANCE METRICS (last 6 months, unique to dashboard) ===
-      const recentProjects = projectsData?.filter(p => {
-        const createdAt = new Date(p.created_at);
-        return createdAt >= sixMonthsAgo;
-      }) || [];
-      
-      const deliveredProjects = recentProjects.filter(p => p.is_delivered && p.delivered_at);
-      const deliveryRate = recentProjects.length > 0 
-        ? Math.round((deliveredProjects.length / recentProjects.length) * 100)
-        : 0;
-      
-      const deliveryTimes = deliveredProjects
-        .map(p => differenceInDays(new Date(p.delivered_at!), new Date(p.created_at)))
-        .filter(days => days >= 0);
-      const avgDeliveryDays = deliveryTimes.length > 0
-        ? Math.round(deliveryTimes.reduce((sum, d) => sum + d, 0) / deliveryTimes.length)
-        : 0;
-      
-      const projectsWithRevenue = deliveredProjects.filter(p => p.agreed_value && p.agreed_value > 0);
-      const margins = projectsWithRevenue.map(p => getProjectMargin(p as any));
-      const avgMargin = margins.length > 0
-        ? Math.round(margins.reduce((sum, m) => sum + m, 0) / margins.length)
-        : 0;
-      
-      const projectsByType = {
-        fotografia: recentProjects.filter(p => p.type === 'fotografia').length,
-        video: recentProjects.filter(p => p.type === 'video').length,
-        foto_video: recentProjects.filter(p => p.type === 'foto_video').length,
+      const totalAmount = items.reduce((s, p) => s + (p.amount || 0), 0);
+      return {
+        items: items.slice(0, 50),
+        totalAmount,
+        count: items.length,
       };
+    },
+  });
 
-      setPerformanceMetrics({
-        deliveryRate,
-        avgDeliveryDays,
-        avgMargin,
-        projectsByType,
-      });
+  // === 4. Personal earnings (only for gestao role) ===
+  const meusGanhosQuery = useQuery({
+    queryKey: qk.meusGanhos(workspaceId ?? '', user?.id ?? null, membership?.role ?? null),
+    enabled: enabled && !!user?.id && membership?.role === 'gestao',
+    staleTime: 60 * 1000,
+    queryFn: async (): Promise<number> => {
+      const now = new Date();
+      const monthStart = startOfMonth(now);
+      const monthEnd = endOfMonth(now);
+      const { data } = await supabase
+        .from('project_team')
+        .select('payment_amount, payment_status, projects!inner(created_at, workspace_id)')
+        .eq('user_id', user!.id)
+        .eq('projects.workspace_id', workspaceId!);
+      return (data ?? [])
+        .filter((tp: any) => {
+          const createdAt = new Date(tp.projects?.created_at);
+          return createdAt >= monthStart && createdAt <= monthEnd;
+        })
+        .reduce((s: number, tp: any) => s + (tp.payment_amount || 0), 0);
+    },
+  });
 
-      // === MONTHLY CHART DATA — delegated to engine ===
-      const fromMonth = subMonths(now, 5);
-      const realizadoSeries = getTimeSeries(mappedProjects, 'REALIZADO', fromMonth, now);
-      
-      const monthlyStats: MonthlyData[] = realizadoSeries.map((point, i) => ({
-        month: point.month,
-        receita: point.revenue,
-        custos: point.cost,
-        lucro: point.profit,
-        ...(i === realizadoSeries.length - 1 ? {
-          receitaPrevisao: forecastMetrics.revenue,
-          custosPrevisao: forecastMetrics.cost,
-          lucroPrevisao: forecastMetrics.profit,
-        } : {}),
-      }));
-      setMonthlyData(monthlyStats);
-
-      // === ANNUAL COMPARISON — delegated to engine ===
-      const currentYear = now.getFullYear();
-      const annualData: AnnualComparisonData[] = [];
-      for (let i = 5; i >= 0; i--) {
-        const monthDate = subMonths(now, i);
-        const prevYearMonth = new Date(currentYear - 1, monthDate.getMonth(), 1);
-        annualData.push({
-          month: format(monthDate, 'MMM', { locale: pt }),
-          currentYear: getMonthlyMetrics(mappedProjects, 'REALIZADO', monthDate).revenue,
-          previousYear: getMonthlyMetrics(mappedProjects, 'REALIZADO', prevYearMonth).revenue,
-        });
-      }
-      setAnnualComparison(annualData);
-
-      // === UPCOMING EVENTS (next 7 days) ===
-      // Privacy note: RLS on calendar_events already blocks private events of other users
-      // (policy: is_private = false OR created_by = auth.uid()). Filters below are applied
-      // server-side to avoid pulling data the current user shouldn't see.
+  // === 5. Upcoming events (7 days: calendar events + shoots + tasks) ===
+  const upcomingQuery = useQuery({
+    queryKey: qk.upcoming(workspaceId ?? '', user?.id ?? null, isAdmin),
+    enabled,
+    staleTime: 60 * 1000,
+    queryFn: async (): Promise<UpcomingEvent[]> => {
+      const now = new Date();
       const todayStart = startOfDay(now);
       const nextWeekDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      const isAdmin = membership?.role === 'admin';
 
+      // Non-admin: fetch project ids where user is in the captacao team
       let userCaptacaoProjectIds: string[] = [];
       if (!isAdmin && user?.id) {
-        const { data: teamData } = await supabase
+        const { data } = await supabase
           .from('project_team')
           .select('project_id')
           .eq('user_id', user.id)
           .eq('phase', 'captacao');
-        
-        userCaptacaoProjectIds = teamData?.map(t => t.project_id) || [];
+        userCaptacaoProjectIds = (data ?? []).map(t => t.project_id);
       }
 
-      // Defense-in-depth: even though RLS enforces it, we express the same rule in the query
-      // so it's explicit and independent of a future RLS change. Admins see everything.
+      // Calendar events. RLS blocks private events of others; server filter is defence-in-depth.
       let eventsQuery = supabase
         .from('calendar_events')
         .select('id, title, start_at, end_at, location, event_type, project_id, description, video_call_url, all_day, is_private, created_by, projects(name)')
-        .eq('workspace_id', currentWorkspace.id)
+        .eq('workspace_id', workspaceId!)
         .gte('start_at', todayStart.toISOString())
         .lte('start_at', nextWeekDate.toISOString())
         .order('start_at', { ascending: true })
         .limit(10);
-
       if (!isAdmin && user?.id) {
         eventsQuery = eventsQuery.or(`is_private.eq.false,created_by.eq.${user.id}`);
       }
-
       const { data: eventsData } = await eventsQuery;
-      const filteredEvents = eventsData || [];
 
-      // Shoots: non-admins only see shoots for projects where they belong to the captacao team.
-      // Filter server-side via .in() on the pre-fetched user project ids.
+      // Shoots
       let shootsData: any[] = [];
       if (isAdmin) {
         const { data } = await supabase
           .from('projects')
           .select('id, name, shoot_date, shoot_start_time, clients(name)')
-          .eq('workspace_id', currentWorkspace.id)
+          .eq('workspace_id', workspaceId!)
           .eq('is_delivered', false)
           .gte('shoot_date', format(todayStart, 'yyyy-MM-dd'))
           .lte('shoot_date', format(nextWeekDate, 'yyyy-MM-dd'))
           .order('shoot_date', { ascending: true })
           .limit(10);
-        shootsData = data || [];
+        shootsData = data ?? [];
       } else if (userCaptacaoProjectIds.length > 0) {
         const { data } = await supabase
           .from('projects')
           .select('id, name, shoot_date, shoot_start_time, clients(name)')
-          .eq('workspace_id', currentWorkspace.id)
+          .eq('workspace_id', workspaceId!)
           .eq('is_delivered', false)
           .in('id', userCaptacaoProjectIds)
           .gte('shoot_date', format(todayStart, 'yyyy-MM-dd'))
           .lte('shoot_date', format(nextWeekDate, 'yyyy-MM-dd'))
           .order('shoot_date', { ascending: true })
           .limit(10);
-        shootsData = data || [];
+        shootsData = data ?? [];
       }
-      const filteredShoots = shootsData;
 
-      // Tasks: non-admins only see tasks they are assigned to. Fetch assigned task ids
-      // server-side first, then load only those tasks.
+      // Tasks
       let tasksData: any[] = [];
       if (isAdmin) {
         const { data } = await supabase
           .from('tasks')
-          .select(`id, title, due_date, due_time, project_id, is_completed, projects(name)`)
-          .eq('workspace_id', currentWorkspace.id)
+          .select('id, title, due_date, due_time, project_id, is_completed, projects(name)')
+          .eq('workspace_id', workspaceId!)
           .eq('is_completed', false)
           .gte('due_date', format(todayStart, 'yyyy-MM-dd'))
           .lte('due_date', format(nextWeekDate, 'yyyy-MM-dd'))
           .order('due_date', { ascending: true })
           .limit(15);
-        tasksData = data || [];
+        tasksData = data ?? [];
       } else if (user?.id) {
-        const { data: assignments } = await supabase
+        const { data: assigns } = await supabase
           .from('task_assignees')
           .select('task_id')
           .eq('user_id', user.id);
-        const assignedIds = (assignments || []).map(a => a.task_id);
-        if (assignedIds.length > 0) {
+        const ids = (assigns ?? []).map(a => a.task_id);
+        if (ids.length > 0) {
           const { data } = await supabase
             .from('tasks')
-            .select(`id, title, due_date, due_time, project_id, is_completed, projects(name)`)
-            .eq('workspace_id', currentWorkspace.id)
+            .select('id, title, due_date, due_time, project_id, is_completed, projects(name)')
+            .eq('workspace_id', workspaceId!)
             .eq('is_completed', false)
-            .in('id', assignedIds)
+            .in('id', ids)
             .gte('due_date', format(todayStart, 'yyyy-MM-dd'))
             .lte('due_date', format(nextWeekDate, 'yyyy-MM-dd'))
             .order('due_date', { ascending: true })
             .limit(15);
-          tasksData = data || [];
+          tasksData = data ?? [];
         }
       }
-      const filteredTasks = tasksData;
 
-
-      const calendarEvents: UpcomingEvent[] = filteredEvents.map(e => ({
+      const calendarEvents: UpcomingEvent[] = (eventsData ?? []).map((e: any) => ({
         id: e.id,
         title: e.title,
         startAt: new Date(e.start_at),
         endAt: e.end_at ? new Date(e.end_at) : null,
         location: e.location,
         eventType: e.event_type,
-        projectName: (e.projects as any)?.name,
+        projectName: e.projects?.name,
         description: e.description,
         videoCallUrl: e.video_call_url,
         allDay: e.all_day,
       }));
-
-      const shootEvents: UpcomingEvent[] = filteredShoots.map(p => ({
+      const shootEvents: UpcomingEvent[] = shootsData.map((p: any) => ({
         id: `shoot-${p.id}`,
         title: p.name,
         startAt: new Date(`${p.shoot_date}T${p.shoot_start_time || '09:00:00'}`),
@@ -488,140 +392,167 @@ export function useDashboardMetrics() {
         location: null,
         eventType: 'sessao',
         projectName: p.name,
-        description: `Captação: ${(p.clients as any)?.name || 'Sem cliente'}`,
+        description: `Captação: ${p.clients?.name || 'Sem cliente'}`,
         videoCallUrl: null,
         allDay: !p.shoot_start_time,
       }));
-
-      const taskEvents: UpcomingEvent[] = filteredTasks.map(t => ({
+      const taskEvents: UpcomingEvent[] = tasksData.map((t: any) => ({
         id: `task-${t.id}`,
         title: t.title,
         startAt: new Date(`${t.due_date}T${t.due_time || '09:00:00'}`),
         endAt: null,
         location: null,
         eventType: 'deadline',
-        projectName: (t.projects as any)?.name,
+        projectName: t.projects?.name,
         description: 'Tarefa',
         videoCallUrl: null,
         allDay: !t.due_time,
       }));
 
-      const allEvents = [...calendarEvents, ...shootEvents, ...taskEvents]
+      return [...calendarEvents, ...shootEvents, ...taskEvents]
         .sort((a, b) => a.startAt.getTime() - b.startAt.getTime())
         .slice(0, 5);
+    },
+  });
 
-      setUpcomingEvents(allEvents);
-
-      // === URGENT PROJECTS ===
+  // === 6. Urgent projects ===
+  const urgentQuery = useQuery({
+    queryKey: qk.urgent(workspaceId ?? ''),
+    enabled,
+    staleTime: 60 * 1000,
+    queryFn: async (): Promise<UrgentProject[]> => {
       const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-      const { data: urgentData } = await supabase
+      const { data } = await supabase
         .from('projects')
         .select('id, name, type, priority, delivery_date, clients(name)')
-        .eq('workspace_id', currentWorkspace.id)
+        .eq('workspace_id', workspaceId!)
         .eq('is_delivered', false)
         .or(`priority.in.(alta,urgente),delivery_date.lte.${nextWeek}`)
         .order('priority', { ascending: false })
         .order('delivery_date', { ascending: true })
         .limit(5);
+      return (data ?? []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        client: p.clients?.name || 'Sem cliente',
+        date: p.delivery_date || '',
+        type: p.type,
+        priority: p.priority,
+      }));
+    },
+  });
 
-      setUrgentProjects(
-        urgentData?.map(p => ({
-          id: p.id,
-          name: p.name,
-          client: (p.clients as any)?.name || 'Sem cliente',
-          date: p.delivery_date || '',
-          type: p.type,
-          priority: p.priority,
-        })) || []
-      );
-
-      // === RECENT ACTIVITY ===
-      const { data: recentProjectsData } = await supabase
+  // === 7. Recent activity ===
+  const recentQuery = useQuery({
+    queryKey: qk.recent(workspaceId ?? ''),
+    enabled,
+    staleTime: 60 * 1000,
+    queryFn: async (): Promise<RecentActivity[]> => {
+      const { data } = await supabase
         .from('projects')
         .select('id, name, updated_at, created_at')
-        .eq('workspace_id', currentWorkspace.id)
+        .eq('workspace_id', workspaceId!)
         .order('updated_at', { ascending: false })
         .limit(5);
-
-      const activities: RecentActivity[] = [];
-      recentProjectsData?.forEach(p => {
+      return (data ?? []).map((p: any) => {
         const isNew = new Date(p.created_at).getTime() > Date.now() - 24 * 60 * 60 * 1000;
-        const timeStr = formatDistanceToNow(new Date(p.updated_at), { addSuffix: true, locale: pt });
-
-        activities.push({
+        return {
           id: p.id,
           action: isNew ? 'Projeto criado' : 'Projeto atualizado',
           target: p.name,
-          time: timeStr,
+          time: formatDistanceToNow(new Date(p.updated_at), { addSuffix: true, locale: pt }),
           user: 'Sistema',
-        });
+        };
       });
+    },
+  });
 
-      setRecentActivity(activities);
-      lastFetchedWorkspaceIdRef.current = currentWorkspace.id;
-    } catch (error) {
-      logger.error('Error fetching dashboard metrics:', error);
-    } finally {
-      isFetchingRef.current = false;
-      setLoading(false);
-    }
-  }, [currentWorkspace?.id, fetchError]);
+  // === Derive final shape from RPC response ===
+  const rpc = metricsQuery.data;
+  const realCur = bucket(rpc?.realizado_current ?? null);
+  const realPrev = bucket(rpc?.realizado_previous ?? null);
+  const prevCur = bucket(rpc?.previsao_current ?? null);
 
-  useEffect(() => {
-    if (currentWorkspace?.id !== lastFetchedWorkspaceIdRef.current) {
-      setMetrics({
-        captacao: 0,
-        edicao: 0,
-        entregues: 0,
-        receita: 0,
-        custos: 0,
-        lucro: 0,
-        pendingPayments: 0,
-        pendingPaymentsCount: 0,
-        receitaChange: null,
-        custosChange: null,
-        lucroChange: null,
-        entreguesChange: null,
-        meusGanhos: 0,
-        previsaoReceita: 0,
-        previsaoCustos: 0,
-        previsaoLucro: 0,
-        previsaoMargemPercent: 0,
-        projetosAtivos: 0,
-      });
-      setPerformanceMetrics({
-        deliveryRate: 0,
-        avgDeliveryDays: 0,
-        avgMargin: 0,
-        projectsByType: { fotografia: 0, video: 0, foto_video: 0 },
-      });
-      setUrgentProjects([]);
-      setRecentActivity([]);
-      setMonthlyData([]);
-      setUpcomingEvents([]);
-      setAnnualComparison([]);
-      setPendingPaymentItems([]);
-      setLoading(true);
-    }
-    
-    if (currentWorkspace?.id && currentWorkspace.id !== lastFetchedWorkspaceIdRef.current && !fetchError) {
-      fetchMetrics();
-    } else if (!currentWorkspace) {
-      setLoading(false);
-    }
-  }, [currentWorkspace?.id, fetchError]);
+  const previsaoMargemPercent =
+    prevCur.revenue > 0 ? Math.round((prevCur.profit / prevCur.revenue) * 100) : 0;
 
-  return { 
-    metrics, 
+  const metrics: DashboardMetrics = {
+    captacao: rpc?.phase_counts?.captacao ?? 0,
+    edicao: rpc?.phase_counts?.edicao ?? 0,
+    entregues: num(realCur.projectCount),
+    receita: num(realCur.revenue),
+    custos: num(realCur.cost),
+    lucro: num(realCur.profit),
+    pendingPayments: pendingQuery.data?.totalAmount ?? 0,
+    pendingPaymentsCount: pendingQuery.data?.count ?? 0,
+    receitaChange: calculateChange(num(realCur.revenue), num(realPrev.revenue)),
+    custosChange: calculateChange(num(realCur.cost), num(realPrev.cost)),
+    lucroChange: calculateChange(num(realCur.profit), num(realPrev.profit)),
+    entreguesChange: calculateChange(num(realCur.projectCount), num(realPrev.projectCount)),
+    meusGanhos: meusGanhosQuery.data ?? 0,
+    previsaoReceita: num(prevCur.revenue),
+    previsaoCustos: num(prevCur.cost),
+    previsaoLucro: num(prevCur.profit),
+    previsaoMargemPercent,
+    projetosAtivos: num(prevCur.projectCount),
+  };
+
+  const monthlyData: MonthlyData[] = (rpc?.monthly_series ?? []).map((p, i, arr) => {
+    const base: MonthlyData = {
+      month: format(new Date(p.month_start), 'MMM', { locale: pt }),
+      receita: num(p.revenue),
+      custos: num(p.cost),
+      lucro: num(p.profit),
+    };
+    if (i === arr.length - 1) {
+      base.receitaPrevisao = num(prevCur.revenue);
+      base.custosPrevisao = num(prevCur.cost);
+      base.lucroPrevisao = num(prevCur.profit);
+    }
+    return base;
+  });
+
+  const annualComparison: AnnualComparisonData[] = (rpc?.annual_comparison ?? []).map(p => ({
+    month: format(new Date(p.month_start), 'MMM', { locale: pt }),
+    currentYear: num(p.current_year),
+    previousYear: num(p.previous_year),
+  }));
+
+  const performanceMetrics: PerformanceMetrics =
+    performanceQuery.data ?? {
+      deliveryRate: 0,
+      avgDeliveryDays: 0,
+      avgMargin: 0,
+      projectsByType: { fotografia: 0, video: 0, foto_video: 0 },
+    };
+
+  // Any error surfaces via logger; UI keeps rendering with zeros
+  if (metricsQuery.error) logger.error('[dashboard-metrics] rpc error', metricsQuery.error);
+
+  const loading =
+    enabled &&
+    (metricsQuery.isPending ||
+      performanceQuery.isPending ||
+      pendingQuery.isPending ||
+      upcomingQuery.isPending ||
+      urgentQuery.isPending ||
+      recentQuery.isPending);
+
+  const refresh = () => {
+    if (!workspaceId) return;
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+  };
+
+  return {
+    metrics,
     performanceMetrics,
-    urgentProjects, 
-    recentActivity, 
-    monthlyData, 
-    upcomingEvents,
+    urgentProjects: urgentQuery.data ?? [],
+    recentActivity: recentQuery.data ?? [],
+    monthlyData,
+    upcomingEvents: upcomingQuery.data ?? [],
     annualComparison,
-    pendingPaymentItems,
-    loading, 
-    refresh: fetchMetrics 
+    pendingPaymentItems: pendingQuery.data?.items ?? [],
+    loading,
+    refresh,
   };
 }
