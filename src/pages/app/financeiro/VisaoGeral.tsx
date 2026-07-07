@@ -154,7 +154,7 @@ export default function VisaoGeral() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="flex md:grid gap-3 md:gap-4 md:grid-cols-4 -mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto snap-x snap-mandatory md:overflow-visible md:snap-none scrollbar-hide">
         {[
           {
             label: 'Receita', borderClass: 'border-success/20',
@@ -191,6 +191,7 @@ export default function VisaoGeral() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.08, duration: 0.4, ease: 'easeOut' }}
+            className="snap-start shrink-0 basis-[75%] md:basis-auto md:shrink"
           >
             <Card className={cn("glass-card hover:shadow-md transition-shadow", card.borderClass)}>
               <CardContent className="p-4 text-center">

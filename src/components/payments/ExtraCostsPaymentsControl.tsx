@@ -149,32 +149,28 @@ export function ExtraCostsPaymentsControl({
             Nenhum custo extra encontrado
           </p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[80px] min-w-[80px]">ID</TableHead>
-                <TableHead className="min-w-[150px]">Projeto</TableHead>
-                <TableHead className="min-w-[120px]">Cliente</TableHead>
-                <TableHead className="min-w-[130px]">Status</TableHead>
-                <TableHead className="text-right min-w-[100px]">Valor</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            {/* Mobile card view */}
+            <div className="md:hidden space-y-3">
               {filteredCosts.map((cost) => (
-                <TableRow key={cost.id}>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {cost.project_code || cost.id.slice(0, 8).toUpperCase()}
-                  </TableCell>
-                  <TableCell className="font-medium">{cost.name}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {cost.clients?.name || '-'}
-                  </TableCell>
-                  <TableCell>
+                <div key={cost.id} className="rounded-lg border border-border bg-card/50 p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium truncate">{cost.name}</div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {cost.clients?.name || '-'} · <span className="font-mono">{cost.project_code || cost.id.slice(0, 8).toUpperCase()}</span>
+                      </div>
+                    </div>
+                    <div className={cn('text-right font-semibold text-destructive shrink-0', hideValues && 'blur-md select-none')}>
+                      {formatCurrency(cost.custos_extras || 0)}
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
                     <Select
                       value={cost.custos_extras_payment_status || 'pendente'}
                       onValueChange={(value) => onStatusChange(cost.id, value)}
                     >
-                      <SelectTrigger className={cn('w-[130px]', statusColors[cost.custos_extras_payment_status || 'pendente'])}>
+                      <SelectTrigger className={cn('h-8 w-[130px]', statusColors[cost.custos_extras_payment_status || 'pendente'])}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -184,14 +180,58 @@ export function ExtraCostsPaymentsControl({
                         <SelectItem value="cancelado">Cancelado</SelectItem>
                       </SelectContent>
                     </Select>
-                  </TableCell>
-                  <TableCell className={cn("text-right font-medium text-destructive", hideValues && "blur-md select-none")}>
-                    {formatCurrency(cost.custos_extras || 0)}
-                  </TableCell>
-                </TableRow>
+                  </div>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[80px] min-w-[80px]">ID</TableHead>
+                    <TableHead className="min-w-[150px]">Projeto</TableHead>
+                    <TableHead className="min-w-[120px]">Cliente</TableHead>
+                    <TableHead className="min-w-[130px]">Status</TableHead>
+                    <TableHead className="text-right min-w-[100px]">Valor</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredCosts.map((cost) => (
+                    <TableRow key={cost.id}>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {cost.project_code || cost.id.slice(0, 8).toUpperCase()}
+                      </TableCell>
+                      <TableCell className="font-medium">{cost.name}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {cost.clients?.name || '-'}
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={cost.custos_extras_payment_status || 'pendente'}
+                          onValueChange={(value) => onStatusChange(cost.id, value)}
+                        >
+                          <SelectTrigger className={cn('w-[130px]', statusColors[cost.custos_extras_payment_status || 'pendente'])}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pendente">Pendente</SelectItem>
+                            <SelectItem value="pago">Pago</SelectItem>
+                            <SelectItem value="vencido">Vencido</SelectItem>
+                            <SelectItem value="cancelado">Cancelado</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className={cn('text-right font-medium text-destructive', hideValues && 'blur-md select-none')}>
+                        {formatCurrency(cost.custos_extras || 0)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>
