@@ -169,7 +169,7 @@ export default function Dashboard() {
         <DashboardHeader currentTime={currentTime} />
 
         {/* Zone 1: Visão do mês */}
-        <section className="space-y-3">
+        <section className="space-y-4">
           <ZoneTitle>Visão do mês</ZoneTitle>
           <MobileKPICarousel metrics={metrics} loading={loading} />
           {showFinancialZone && (
@@ -192,7 +192,7 @@ export default function Dashboard() {
         </section>
 
         {/* Zone 2: Precisa de ação */}
-        <section className="space-y-3">
+        <section className="space-y-4">
           <ZoneTitle>Precisa de ação</ZoneTitle>
           <MobileUrgentProjects
             urgentProjects={urgentProjects}
@@ -218,7 +218,7 @@ export default function Dashboard() {
         </section>
 
         {/* Zone 3: Insights */}
-        <section className="space-y-3">
+        <section className="space-y-4">
           <ZoneTitle>Insights</ZoneTitle>
           {showFinancialZone && (
             <>
@@ -268,7 +268,7 @@ export default function Dashboard() {
       </motion.div>
 
       {/* ============ ZONE 1: Visão do mês ============ */}
-      <motion.section variants={fadeUp} className="space-y-3">
+      <motion.section variants={fadeUp} className="space-y-4">
         <ZoneTitle>Visão do mês</ZoneTitle>
 
         {/* Project counters as compact KPIs */}
@@ -333,7 +333,7 @@ export default function Dashboard() {
       </motion.section>
 
       {/* ============ ZONE 2: Precisa de ação ============ */}
-      <motion.section variants={fadeUp} className="space-y-3">
+      <motion.section variants={fadeUp} className="space-y-4">
         <ZoneTitle>Precisa de ação</ZoneTitle>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <UrgentProjectsCard
@@ -362,7 +362,7 @@ export default function Dashboard() {
       </motion.section>
 
       {/* ============ ZONE 3: Insights ============ */}
-      <motion.section variants={fadeUp} className="space-y-3">
+      <motion.section variants={fadeUp} className="space-y-4">
         <ZoneTitle>Insights</ZoneTitle>
         <div className={`grid gap-3 ${showFinancialZone ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-2'}`}>
           {showFinancialZone && (
