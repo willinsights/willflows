@@ -119,7 +119,7 @@ export function PublicHeader() {
 
         {/* Right Actions */}
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={toggleTheme} className="hidden sm:flex">
+          <Button variant="ghost" size="icon" onClick={toggleTheme} className="hidden sm:flex" aria-label={theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'}>
             {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
           
@@ -142,6 +142,8 @@ export function PublicHeader() {
             size="icon"
             className="lg:hidden"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
+            aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
@@ -216,7 +218,7 @@ export function PublicHeader() {
               <div className="pt-4 border-t border-border space-y-2">
                 <div className="flex items-center justify-between px-3">
                   <span className="text-sm text-muted-foreground">Tema</span>
-                  <Button variant="ghost" size="icon" onClick={toggleTheme}>
+                  <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'}>
                     {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
                   </Button>
                 </div>
