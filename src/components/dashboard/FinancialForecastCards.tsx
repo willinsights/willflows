@@ -211,39 +211,38 @@ export function FinancialForecastCards({
       <div className="grid grid-cols-3 gap-2">
         {forecastCards.map((card, index) => {
           const cardContent = (
-            <Card className={cn('metric-card', card.cardClass)}>
-              <CardContent className="p-3">
-                <div className="flex items-center gap-2">
+            <Card className={cn('glass-card', card.cardClass)}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-2">
                   <div className={cn('p-1.5 rounded-md', card.bgColor)}>
                     <card.icon className={cn('h-4 w-4', card.iconColor)} />
                   </div>
-                  <div className="flex flex-col">
-                    {loading ? (
-                      <Skeleton className="h-7 w-20" />
-                    ) : (
-                      <>
-                        <span className={cn(
-                          'font-bold text-lg',
-                          card.valueClass,
-                          hideValues && 'blur-md select-none'
-                        )}>
-                          {card.value}
-                        </span>
-                        {!hideValues && (
-                          <ChangeIndicator 
-                            change={card.change} 
-                            invertColor={card.invertColor} 
-                          />
-                        )}
-                      </>
-                    )}
-                  </div>
+                  {!loading && !hideValues && (
+                    <ChangeIndicator
+                      change={card.change}
+                      invertColor={card.invertColor}
+                      variant="badge"
+                    />
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mt-3">
                   {card.label}
                 </p>
+                {loading ? (
+                  <Skeleton className="h-8 w-24 mt-1" />
+                ) : (
+                  <p
+                    className={cn(
+                      'font-bold text-2xl md:text-3xl leading-tight tabular-nums mt-1',
+                      card.valueClass,
+                      hideValues && 'blur-md select-none',
+                    )}
+                  >
+                    {card.value}
+                  </p>
+                )}
                 {card.subtitle && !loading && !hideValues && (
-                  <p className="text-[10px] text-muted-foreground/70 mt-0.5 leading-tight">
+                  <p className="text-[10px] text-muted-foreground/70 mt-1.5 leading-tight tabular-nums">
                     {card.subtitle}
                   </p>
                 )}
