@@ -134,7 +134,7 @@ export function useHlsPlayer({
     });
 
     hlsRef.current = hls;
-  }, [videoRef, url, type, autoRecover]);
+  }, [videoRef, url, type, autoRecover, preferHighestQuality]);
 
   // (Re)attach whenever the stable URL or type changes
   useEffect(() => {
