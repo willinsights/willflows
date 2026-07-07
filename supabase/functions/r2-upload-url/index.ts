@@ -130,6 +130,15 @@ serve(async (req) => {
       });
     }
 
+    // Require admin or edicao role — matches video_versions RLS INSERT policy
+    if (!["admin", "edicao"].includes(membership.role)) {
+      logStep("Role check failed", { role: membership.role });
+      return new Response(JSON.stringify({ error: "Insufficient role to upload videos" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Check workspace storage limits
     const { data: storageData, error: storageError } = await supabase
       .from("workspace_storage")

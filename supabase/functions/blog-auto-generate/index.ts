@@ -264,8 +264,8 @@ serve(async (req) => {
 
     console.log(`[BLOG-AUTO] Run type: ${isManual ? "manual" : "scheduled"}`);
 
-    // Check auth for manual triggers
     if (isManual) {
+      // Manual triggers require an authenticated system admin
       const authHeader = req.headers.get("Authorization");
       if (!authHeader) {
         return new Response(JSON.stringify({ error: "Não autorizado" }), {
@@ -294,6 +294,20 @@ serve(async (req) => {
       if (!adminData) {
         return new Response(JSON.stringify({ error: "Acesso negado" }), {
           status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } else {
+      // Scheduled runs require a shared CRON secret to prevent unauthenticated abuse
+      const cronSecret = Deno.env.get("CRON_SECRET");
+      const providedSecret =
+        req.headers.get("x-cron-secret") ??
+        req.headers.get("X-Cron-Secret") ??
+        "";
+      if (!cronSecret || providedSecret !== cronSecret) {
+        console.warn("[BLOG-AUTO] Rejected scheduled run: missing/invalid CRON secret");
+        return new Response(JSON.stringify({ error: "Não autorizado" }), {
+          status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }

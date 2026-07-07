@@ -119,6 +119,22 @@ serve(async (req) => {
       });
     }
 
+    // Verify workspace membership + role — service role bypasses video_versions RLS
+    const { data: memberRow, error: memberErr } = await supabase
+      .from("workspace_members")
+      .select("role")
+      .eq("workspace_id", workspaceId)
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (memberErr || !memberRow || !["admin", "edicao"].includes(memberRow.role)) {
+      logStep("Workspace role check failed", { role: memberRow?.role });
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const isReplacement = !!replaceVersionId;
     let versionData: any;
     let nextVersion: number;

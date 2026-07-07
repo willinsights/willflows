@@ -54,6 +54,21 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Only workspace admins for the automation's workspace may send test emails
+    const { data: adminCheck } = await supabase
+      .from('workspace_members')
+      .select('role')
+      .eq('workspace_id', automation.workspace_id)
+      .eq('user_id', userData.user.id)
+      .eq('role', 'admin')
+      .eq('is_active', true)
+      .maybeSingle()
+    if (!adminCheck) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     // Pick project: explicit > most recent with active approval token > most recent
     let project: any = null
     if (project_id) {

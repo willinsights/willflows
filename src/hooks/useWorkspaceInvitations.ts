@@ -132,7 +132,7 @@ export function useWorkspaceInvitations() {
         role,
         invited_by: user.id,
       })
-      .select('id, token')
+      .select('id')
       .single();
 
     if (insertError || !invitation) {
@@ -147,7 +147,7 @@ export function useWorkspaceInvitations() {
       .eq('id', user.id)
       .single();
 
-    // Send invitation email via edge function
+    // Send invitation email via edge function (token resolved server-side from invitation_id)
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -160,7 +160,7 @@ export function useWorkspaceInvitations() {
               workspaceName: currentWorkspace.name,
               inviterName: inviterProfile?.full_name || inviterProfile?.email || 'Um utilizador',
               role,
-              token: invitation.token,
+              invitation_id: invitation.id,
             },
           },
         });
@@ -210,7 +210,7 @@ export function useWorkspaceInvitations() {
     // Fetch invitation directly from DB (not from memory list which may be stale)
     const { data: invitation, error: fetchError } = await supabase
       .from('workspace_invitations')
-      .select('id, email, role, token')
+      .select('id, email, role')
       .eq('id', invitationId)
       .eq('workspace_id', currentWorkspace.id)
       .is('accepted_at', null)
@@ -235,7 +235,7 @@ export function useWorkspaceInvitations() {
       return { success: false, error: 'Erro ao reenviar convite' };
     }
 
-    // Send the invitation email again
+    // Send the invitation email again (token resolved server-side)
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session && currentWorkspace) {
@@ -254,7 +254,7 @@ export function useWorkspaceInvitations() {
               workspaceName: currentWorkspace.name,
               inviterName: inviterProfile?.full_name || inviterProfile?.email || 'Um utilizador',
               role: invitation.role,
-              token: invitation.token,
+              invitation_id: invitation.id,
             },
           },
         });
