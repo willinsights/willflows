@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Target, Pencil, Lock, Check, X, Trophy, PartyPopper } from 'lucide-react';
+import { Target, Pencil, Lock, Check, X, Trophy, PartyPopper, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
 import { useWorkspaceGoals } from '@/hooks/useWorkspaceGoals';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
@@ -115,6 +116,16 @@ export function MonthlyGoalsCard({
               <Target className="h-4 w-4 text-primary" />
             </div>
             Metas de {currentMonthName}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" className="text-muted-foreground hover:text-foreground" aria-label="Como as metas são calculadas">
+                  <Info className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[240px]">
+                <p className="text-xs">Metas são comparadas sempre com valores <strong>realizados</strong> (receita de projetos entregues no mês atual), independentemente do modo financeiro selecionado.</p>
+              </TooltipContent>
+            </Tooltip>
           </CardTitle>
           {isAdmin && !isEditing && (
             <Button 
