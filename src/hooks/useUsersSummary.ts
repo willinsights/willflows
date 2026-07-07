@@ -210,7 +210,6 @@ export function useUsersSummary() {
           id: inv.id,
           email: inv.email,
           role: inv.role,
-          token: inv.token,
           workspaceId: inv.workspace_id,
           workspaceName: workspacesMap.get(inv.workspace_id) || 'N/A',
           invitedByEmail: inviterProfile?.email || 'N/A',
