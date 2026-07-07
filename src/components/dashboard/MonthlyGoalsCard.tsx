@@ -116,6 +116,16 @@ export function MonthlyGoalsCard({
               <Target className="h-4 w-4 text-primary" />
             </div>
             Metas de {currentMonthName}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" className="text-muted-foreground hover:text-foreground" aria-label="Como as metas são calculadas">
+                  <Info className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[240px]">
+                <p className="text-xs">Metas são comparadas sempre com valores <strong>realizados</strong> (receita de projetos entregues no mês atual), independentemente do modo financeiro selecionado.</p>
+              </TooltipContent>
+            </Tooltip>
           </CardTitle>
           {isAdmin && !isEditing && (
             <Button 
