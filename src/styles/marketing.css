@@ -265,8 +265,9 @@
    ========================================== */
 
 .blog-content {
-  @apply text-foreground;
+  color: hsl(var(--foreground));
 }
+
 
 .blog-content a {
   color: hsl(var(--primary));
