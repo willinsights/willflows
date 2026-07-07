@@ -48,7 +48,7 @@ export function generatePdfHtml(options: PdfExportOptions): string {
     headers,
     data,
     totalLabel,
-    brandColor = '#8224e3',
+    brandColor = '#5B4AE4',
   } = options;
 
   const currentDateTime = format(new Date(), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt });

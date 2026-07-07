@@ -1,3 +1,4 @@
+import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
@@ -58,6 +59,7 @@ export function ProfitControl({
   workspaceName = 'WillFlow',
 }: ProfitControlProps) {
   const { hideValues } = useHideValues();
+  const { formatCurrencyRaw } = useFormatCurrency();
   const { currentWorkspace } = useWorkspace();
   const [projects, setProjects] = useState<ProjectProfit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,7 +144,7 @@ export function ProfitControl({
           ? format(new Date(project.delivered_at), 'dd/MM/yyyy', { locale: pt })
           : '-',
       status: project.is_delivered ? 'Entregue' : 'Em Curso',
-      valor: formatCurrency(getProfit(project)),
+      valor: formatCurrencyRaw(getProfit(project)),
     }));
   }, [filteredProjects, formatCurrency]);
 

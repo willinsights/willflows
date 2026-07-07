@@ -1,3 +1,4 @@
+import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -52,6 +53,7 @@ export function ExtraCostsPaymentsControl({
   workspaceName = 'WillFlow',
 }: ExtraCostsPaymentsControlProps) {
   const { hideValues } = useHideValues();
+  const { formatCurrencyRaw } = useFormatCurrency();
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: null,
     dateTo: null,
@@ -100,7 +102,7 @@ export function ExtraCostsPaymentsControl({
           ? format(new Date(cost.delivery_date), 'dd/MM/yyyy', { locale: pt })
           : '-',
       status: statusLabels[cost.custos_extras_payment_status || 'pendente'] || 'Pendente',
-      valor: formatCurrency(cost.custos_extras || 0),
+      valor: formatCurrencyRaw(cost.custos_extras || 0),
     }));
   }, [filteredCosts, formatCurrency]);
 

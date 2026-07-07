@@ -297,8 +297,8 @@ export default function Finalizados() {
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #1a1a1a; background: #fff; }
-          .header { border-left: 4px solid #8224e3; padding-left: 20px; margin-bottom: 30px; }
-          .header h1 { color: #8224e3; font-size: 28px; margin-bottom: 8px; }
+          .header { border-left: 4px solid #5B4AE4; padding-left: 20px; margin-bottom: 30px; }
+          .header h1 { color: #5B4AE4; font-size: 28px; margin-bottom: 8px; }
           .header .workspace-name { color: #666; font-size: 16px; margin-bottom: 4px; }
           .header .date { color: #999; font-size: 12px; }
           .stats-bar { display: flex; gap: 20px; margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, #f8f4ff 0%, #f0e8ff 100%); border-radius: 12px; flex-wrap: wrap; }
@@ -306,15 +306,15 @@ export default function Finalizados() {
           .stat-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
           .stat-value { font-size: 22px; font-weight: 700; color: #1a1a1a; }
           .stat-value.success { color: #16a34a; }
-          .stat-value.primary { color: #8224e3; }
+          .stat-value.primary { color: #5B4AE4; }
           table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
           th, td { border: 1px solid #e5e5e5; padding: 10px 8px; text-align: left; }
-          th { background: #8224e3; color: white; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
+          th { background: #5B4AE4; color: white; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
           th.right, td.right { text-align: right; }
           tr:nth-child(even) { background-color: #fafafa; }
           tr:hover { background-color: #f5f0ff; }
           .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e5e5; display: flex; justify-content: space-between; align-items: center; }
-          .footer-brand { color: #8224e3; font-weight: 600; font-size: 14px; }
+          .footer-brand { color: #5B4AE4; font-weight: 600; font-size: 14px; }
           .footer-date { color: #999; font-size: 11px; }
           .positive { color: #16a34a; }
           .negative { color: #dc2626; }

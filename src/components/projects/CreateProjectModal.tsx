@@ -818,6 +818,7 @@ export function CreateProjectModal({
                           size="icon"
                           className="h-6 w-6"
                           onClick={() => removeMediaLink(index)}
+                          aria-label="Remover link de media"
                         >
                           <X className="h-4 w-4" />
                         </Button>

@@ -1,3 +1,4 @@
+import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
@@ -62,6 +63,7 @@ export function ProjectRevenueControl({
   workspaceName = 'WillFlow',
 }: ProjectRevenueControlProps) {
   const { hideValues } = useHideValues();
+  const { formatCurrencyRaw } = useFormatCurrency();
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: null,
     dateTo: null,
@@ -131,7 +133,7 @@ export function ProjectRevenueControl({
           ? format(new Date(project.delivery_date), 'dd/MM/yyyy', { locale: pt })
           : '-',
       status: statusLabels[project.client_payment_status || 'pendente'],
-      valor: formatCurrency(project.agreed_value || 0),
+      valor: formatCurrencyRaw(project.agreed_value || 0),
     }));
   }, [filteredProjects, formatCurrency]);
 
