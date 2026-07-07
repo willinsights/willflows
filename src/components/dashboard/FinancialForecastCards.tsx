@@ -191,20 +191,22 @@ export function FinancialForecastCards({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Target className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-medium text-muted-foreground">
-            {modeLabels[viewMode]}
-          </h3>
+      {!hideMonthPicker && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-medium text-muted-foreground">
+              {modeLabels[viewMode]}
+            </h3>
+          </div>
+          <MonthPicker
+            selectedMonth={selectedMonth}
+            onPrevious={onPreviousMonth}
+            onNext={onNextMonth}
+            onToday={onCurrentMonth}
+          />
         </div>
-        <MonthPicker
-          selectedMonth={selectedMonth}
-          onPrevious={onPreviousMonth}
-          onNext={onNextMonth}
-          onToday={onCurrentMonth}
-        />
-      </div>
+      )}
 
       <div className="grid grid-cols-3 gap-2">
         {forecastCards.map((card, index) => {
