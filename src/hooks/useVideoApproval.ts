@@ -264,12 +264,13 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
           expires_at: expiresAt,
           created_by: user.id,
         })
-        .select('id, task_id, project_id, workspace_id, token, client_email, client_name, expires_at, is_active, created_by, created_at')
+        .select('id, task_id, project_id, workspace_id, client_email, client_name, expires_at, is_active, created_by, created_at')
         .single();
 
       if (error) throw error;
 
-      const fullToken = data as VideoApprovalToken;
+      // Caller generated newToken locally; combine with returned metadata
+      const fullToken = { ...(data as any), token: newToken } as VideoApprovalToken;
       setToken(fullToken);
       toast({ title: 'Link de aprovação gerado' });
       return fullToken;
