@@ -131,7 +131,7 @@ export function PendingPaymentsList({
                         </p>
                         <div className="flex items-center gap-2 mt-0.5">
                           {payment.dueDate && (
-                            <span className={`text-xs ${payment.isOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
+                            <span className={`text-xs tabular-nums ${payment.isOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
                               {format(parseISO(payment.dueDate), "d MMM", { locale: pt })}
                             </span>
                           )}
@@ -144,7 +144,7 @@ export function PendingPaymentsList({
                         </div>
                       </div>
                       <span className={cn(
-                        'text-sm font-semibold whitespace-nowrap ml-3',
+                        'text-sm font-semibold whitespace-nowrap ml-3 tabular-nums',
                         payment.isOverdue ? 'text-destructive' : 'text-warning',
                         hideValues && 'blur-md select-none'
                       )}>
@@ -160,7 +160,7 @@ export function PendingPaymentsList({
                 <span className="text-xs text-muted-foreground">
                   Total ({payments.length} pagamento{payments.length !== 1 ? 's' : ''})
                 </span>
-                <span className={cn("text-base font-bold text-warning", hideValues && "blur-md select-none")}>
+                <span className={cn("text-base font-bold text-warning tabular-nums", hideValues && "blur-md select-none")}>
                   {formatCurrency(totalAmount)}
                 </span>
               </div>

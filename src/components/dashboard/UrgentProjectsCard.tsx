@@ -97,7 +97,7 @@ export function UrgentProjectsCard({ urgentProjects, loading, onProjectClick }: 
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {project.date && (
-                          <span className="text-xs text-muted-foreground hidden sm:block">
+                          <span className="text-xs text-muted-foreground hidden sm:block tabular-nums">
                             {format(new Date(project.date), 'dd/MM')}
                           </span>
                         )}

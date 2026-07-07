@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, MapPin, Video, Camera, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowRight, Calendar, Clock, MapPin, Video, Camera, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { format, isToday, isTomorrow } from 'date-fns';
@@ -86,19 +88,30 @@ export function UpcomingEventsCard({ events, loading, onRefresh }: UpcomingEvent
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25 }}
       >
-        <Card className="glass-card h-[280px]">
-          <CardHeader className="py-3 px-4">
+        <Card className="glass-card h-[280px] flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between py-3 px-4 shrink-0">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <div className="p-1.5 rounded-md bg-primary/10">
                 <Calendar className="h-4 w-4 text-primary" />
               </div>
               Próximos Compromissos
             </CardTitle>
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs px-2 text-primary hover:text-primary"
+            >
+              <Link to="/app/calendario">
+                Ver tudo
+                <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </Link>
+            </Button>
           </CardHeader>
-          <CardContent className="px-4 pb-4">
+          <CardContent className="px-4 pb-4 flex-1 min-h-0">
             {loading ? (
               <div className="space-y-3">
-                {[...Array(3)].map((_, i) => (
+                {[...Array(4)].map((_, i) => (
                   <div key={i} className="flex items-center gap-3">
                     <Skeleton className="h-10 w-10 rounded-md" />
                     <div className="flex-1 space-y-1">
@@ -109,9 +122,12 @@ export function UpcomingEventsCard({ events, loading, onRefresh }: UpcomingEvent
                 ))}
               </div>
             ) : events.length === 0 ? (
-              <div className="text-center py-6 text-muted-foreground">
-                <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Sem eventos próximos</p>
+              <div className="h-full flex flex-col items-center justify-center text-center py-6">
+                <div className="w-10 h-10 rounded-full bg-muted/60 flex items-center justify-center mb-2">
+                  <Calendar className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-medium">Sem eventos próximos</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Os próximos 7 dias estão livres</p>
               </div>
             ) : (
               <div className="space-y-2 max-h-[195px] overflow-y-auto pr-1">
@@ -139,7 +155,7 @@ export function UpcomingEventsCard({ events, loading, onRefresh }: UpcomingEvent
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{event.title}</p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 tabular-nums">
                           <span className={cn(isEventToday && "text-primary font-medium")}>
                             {formatEventDate(event.startAt)}
                           </span>

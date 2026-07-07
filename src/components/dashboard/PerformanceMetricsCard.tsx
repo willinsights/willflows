@@ -87,13 +87,15 @@ export function PerformanceMetricsCard({ metrics, loading }: PerformanceMetricsC
       transition={{ delay: 0.3 }}
     >
       <Card className="glass-card h-full">
-        <CardHeader className="pb-2">
+        <CardHeader className="py-3 px-4">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <PieChart className="h-4 w-4 text-primary" />
+            <div className="p-1.5 rounded-md bg-primary/10">
+              <PieChart className="h-4 w-4 text-primary" />
+            </div>
             Métricas de Desempenho
           </CardTitle>
         </CardHeader>
-        <CardContent className="pt-0 space-y-4">
+        <CardContent className="px-4 pb-4 space-y-4">
           {loading ? (
             <div className="space-y-4">
               {[...Array(2)].map((_, i) => (
@@ -112,7 +114,7 @@ export function PerformanceMetricsCard({ metrics, loading }: PerformanceMetricsC
                       <item.icon className={cn("h-3.5 w-3.5", item.color)} />
                       <span className="text-xs text-muted-foreground">{item.label}</span>
                     </div>
-                    <span className={cn("text-sm font-semibold", item.color)}>{item.value}</span>
+                    <span className={cn("text-sm font-semibold tabular-nums", item.color)}>{item.value}</span>
                   </div>
                   {item.progress !== undefined && (
                     <div className="h-1.5 bg-muted rounded-full overflow-hidden">

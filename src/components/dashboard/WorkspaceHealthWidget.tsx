@@ -77,22 +77,24 @@ export function WorkspaceHealthWidget() {
   const config = levelConfig[level];
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Activity className="h-4 w-4 text-primary" />
-            Saúde do Workspace
+    <Card className="glass-card h-full">
+      <CardHeader className="py-3 px-4">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2 min-w-0">
+            <div className="p-1.5 rounded-md bg-primary/10">
+              <Activity className="h-4 w-4 text-primary" />
+            </div>
+            <span className="truncate">Saúde do Workspace</span>
           </CardTitle>
-          <Badge variant="outline" className={cn('text-xs', config.color, config.bg)}>
+          <Badge variant="outline" className={cn('text-[10px] shrink-0', config.color, config.bg)}>
             {config.label}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="px-4 pb-4 space-y-4">
         {/* Overall Score */}
         <div className="flex items-center gap-4">
-          <div className={cn('text-4xl font-bold', config.color)}>
+          <div className={cn('text-4xl font-bold tabular-nums', config.color)}>
             {overallScore}
           </div>
           <div className="flex-1">
@@ -108,14 +110,14 @@ export function WorkspaceHealthWidget() {
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">{m.label}</span>
                 <span className={cn(
-                  'text-xs font-medium',
+                  'text-xs font-medium tabular-nums',
                   m.score >= 70 ? 'text-success' : m.score >= 40 ? 'text-yellow-500' : 'text-destructive'
                 )}>
                   {m.score}
                 </span>
               </div>
               <Progress value={m.score} className="h-1" />
-              <p className="text-[10px] text-muted-foreground">{m.detail}</p>
+              <p className="text-[10px] text-muted-foreground tabular-nums">{m.detail}</p>
             </div>
           ))}
         </div>
