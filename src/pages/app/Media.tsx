@@ -1,3 +1,4 @@
+import { EmptyState } from '@/components/ui/empty-state';
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
