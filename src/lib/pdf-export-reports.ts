@@ -35,8 +35,8 @@ export function generateReportPdfHtml(opts: ReportPdfOptions): string {
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #1a1a1a; background: #fff; }
-    .header { border-left: 4px solid #8224e3; padding-left: 20px; margin-bottom: 30px; }
-    .header h1 { color: #8224e3; font-size: 28px; margin-bottom: 8px; }
+    .header { border-left: 4px solid #5B4AE4; padding-left: 20px; margin-bottom: 30px; }
+    .header h1 { color: #5B4AE4; font-size: 28px; margin-bottom: 8px; }
     .header .workspace-name { color: #666; font-size: 16px; margin-bottom: 4px; }
     .header .date { color: #999; font-size: 12px; }
     .stats-bar { display: flex; gap: 20px; margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, #f8f4ff 0%, #f0e8ff 100%); border-radius: 12px; flex-wrap: wrap; }
@@ -45,11 +45,11 @@ export function generateReportPdfHtml(opts: ReportPdfOptions): string {
     .stat-value { font-size: 22px; font-weight: 700; color: #1a1a1a; }
     .stat-value.success { color: #16a34a; }
     .stat-value.negative { color: #dc2626; }
-    .stat-value.primary { color: #8224e3; }
-    h2 { color: #8224e3; margin-top: 30px; margin-bottom: 15px; font-size: 16px; }
+    .stat-value.primary { color: #5B4AE4; }
+    h2 { color: #5B4AE4; margin-top: 30px; margin-bottom: 15px; font-size: 16px; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
     th, td { border: 1px solid #e5e5e5; padding: 10px 8px; text-align: left; }
-    th { background: #8224e3; color: white; font-weight: 600; font-size: 11px; text-transform: uppercase; }
+    th { background: #5B4AE4; color: white; font-weight: 600; font-size: 11px; text-transform: uppercase; }
     th.right, td.right { text-align: right; }
     tr:nth-child(even) { background-color: #fafafa; }
     tr.total { background-color: #f8f4ff; font-weight: bold; }
@@ -57,12 +57,12 @@ export function generateReportPdfHtml(opts: ReportPdfOptions): string {
     .negative { color: #dc2626; }
     .rankings { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px; }
     .ranking-card { background: #fafafa; border-radius: 12px; padding: 20px; }
-    .ranking-card h3 { color: #8224e3; font-size: 14px; margin-bottom: 15px; }
+    .ranking-card h3 { color: #5B4AE4; font-size: 14px; margin-bottom: 15px; }
     .ranking-list { list-style: none; }
     .ranking-list li { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e5e5; font-size: 12px; }
     .ranking-list li:last-child { border-bottom: none; }
     .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e5e5; display: flex; justify-content: space-between; }
-    .footer-brand { color: #8224e3; font-weight: 600; font-size: 14px; }
+    .footer-brand { color: #5B4AE4; font-weight: 600; font-size: 14px; }
     .footer-date { color: #999; font-size: 11px; }
     @media print { body { padding: 20px; } .stats-bar, .rankings { break-inside: avoid; } }
   </style>
