@@ -339,25 +339,12 @@ export default function Leads() {
         <Card className="glass-card">
           <CardContent className="p-4">
             {filteredLeads.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col items-center justify-center py-12 text-center"
-              >
-                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                  <Target className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">Nenhum lead encontrado</h3>
-                <p className="text-muted-foreground max-w-sm mb-4">
-                  {searchQuery ? 'Tente ajustar sua pesquisa.' : 'Comece adicionando seu primeiro lead.'}
-                </p>
-                {!searchQuery && (
-                  <Button className="gradient-primary" onClick={() => setShowCreateModal(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Novo Lead
-                  </Button>
-                )}
-              </motion.div>
+              <EmptyState
+                icon={Target}
+                title="Nenhum lead encontrado"
+                description={searchQuery ? 'Tente ajustar sua pesquisa.' : 'Comece adicionando seu primeiro lead.'}
+                action={!searchQuery ? { label: 'Novo Lead', onClick: () => setShowCreateModal(true), icon: Plus } : undefined}
+              />
             ) : (
               <div className="space-y-2">
                 {/* Select All Header */}
