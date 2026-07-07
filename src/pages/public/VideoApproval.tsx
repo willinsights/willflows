@@ -241,6 +241,7 @@ export default function VideoApproval() {
     videoRef,
     url: videoUrl ?? null,
     type: hlsSourceType,
+    preferHighestQuality: true,
     onFatalError: (errData) => {
       logger.error('[VideoApproval] HLS fatal error after recovery attempts:', errData);
     },
