@@ -133,7 +133,7 @@ export function ProjectRevenueControl({
           ? format(new Date(project.delivery_date), 'dd/MM/yyyy', { locale: pt })
           : '-',
       status: statusLabels[project.client_payment_status || 'pendente'],
-      valor: formatCurrency(project.agreed_value || 0),
+      valor: formatCurrencyRaw(project.agreed_value || 0),
     }));
   }, [filteredProjects, formatCurrency]);
 

@@ -214,7 +214,7 @@ export function FreelancerPaymentsControl({
         dataEntrega: deliveredAt ? format(new Date(deliveredAt), 'dd/MM/yyyy') : '-',
         colaboradores,
         status,
-        valor: formatCurrency(totalValor),
+        valor: formatCurrencyRaw(totalValor),
       };
     });
   }, [sortedPayments, formatCurrency, projects, clients]);

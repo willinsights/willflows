@@ -102,7 +102,7 @@ export function ExtraCostsPaymentsControl({
           ? format(new Date(cost.delivery_date), 'dd/MM/yyyy', { locale: pt })
           : '-',
       status: statusLabels[cost.custos_extras_payment_status || 'pendente'] || 'Pendente',
-      valor: formatCurrency(cost.custos_extras || 0),
+      valor: formatCurrencyRaw(cost.custos_extras || 0),
     }));
   }, [filteredCosts, formatCurrency]);
 

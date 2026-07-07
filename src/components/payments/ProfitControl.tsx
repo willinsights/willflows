@@ -144,7 +144,7 @@ export function ProfitControl({
           ? format(new Date(project.delivered_at), 'dd/MM/yyyy', { locale: pt })
           : '-',
       status: project.is_delivered ? 'Entregue' : 'Em Curso',
-      valor: formatCurrency(getProfit(project)),
+      valor: formatCurrencyRaw(getProfit(project)),
     }));
   }, [filteredProjects, formatCurrency]);
 

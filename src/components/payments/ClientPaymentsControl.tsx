@@ -117,7 +117,7 @@ export function ClientPaymentsControl({
           ? format(new Date(payment.due_date), 'dd/MM/yyyy', { locale: pt })
           : '-',
         status: statusLabels[payment.status] || payment.status,
-        valor: formatCurrency(payment.amount),
+        valor: formatCurrencyRaw(payment.amount),
       };
     });
   }, [filteredPayments, formatCurrency, projects]);
