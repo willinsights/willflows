@@ -1,3 +1,4 @@
+import "@/styles/marketing.css";
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, LucideIcon } from 'lucide-react';

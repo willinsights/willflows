@@ -1,3 +1,4 @@
+import "@/styles/marketing.css";
 import { memo, useCallback, KeyboardEvent } from 'react';
 
 interface FloatingScreenshotProps {
