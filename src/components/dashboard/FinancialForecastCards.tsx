@@ -22,6 +22,8 @@ interface FinancialForecastCardsProps {
   onPreviousMonth: () => void;
   onNextMonth: () => void;
   onCurrentMonth: () => void;
+  /** Hide the internal month picker/title bar (when parent renders its own control bar). */
+  hideMonthPicker?: boolean;
 }
 
 export function FinancialForecastCards({
