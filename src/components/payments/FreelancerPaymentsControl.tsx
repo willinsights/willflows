@@ -201,7 +201,7 @@ export function FreelancerPaymentsControl({
     return Array.from(grouped.entries()).map(([projectId, payments]) => {
       const deliveredAt = getProjectDeliveredAt(projectId);
       const colaboradores = payments
-        .map(tp => `${getMemberName(tp.user_id)} (${formatCurrency(tp.payment_amount || 0)})`)
+        .map(tp => `${getMemberName(tp.user_id)} (${formatCurrencyRaw(tp.payment_amount || 0)})`)
         .join(', ');
       const totalValor = payments.reduce((sum, tp) => sum + (tp.payment_amount || 0), 0);
       const allPaid = payments.every(tp => tp.payment_status === 'pago');
