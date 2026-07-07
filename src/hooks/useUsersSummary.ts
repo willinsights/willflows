@@ -301,7 +301,7 @@ export function useUsersSummary() {
               workspaceName: invite.workspaceName,
               inviterName: 'Administrador',
               role: invite.role,
-              token: invite.token,
+              invitation_id: invite.id,
             },
           },
         });
