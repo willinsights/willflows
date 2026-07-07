@@ -42,6 +42,49 @@ Deno.serve(async (req) => {
     const payload: AutomationPayload = await req.json()
     const { event_type, project_id, workspace_id, to_column_id, from_column_id, triggered_by } = payload
 
+    // Auth: allow either internal callers with x-cron-secret, or authenticated
+    // workspace members who belong to the given workspace_id.
+    const cronSecret = Deno.env.get('CRON_SECRET')
+    const providedSecret = req.headers.get('x-cron-secret')
+    const isInternal = !!cronSecret && providedSecret === cronSecret
+
+    if (!isInternal) {
+      const authHeader = req.headers.get('Authorization')
+      if (!authHeader?.startsWith('Bearer ')) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      const token = authHeader.replace('Bearer ', '')
+      const { data: userData, error: userErr } = await supabase.auth.getUser(token)
+      if (userErr || !userData?.user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      if (!workspace_id) {
+        return new Response(JSON.stringify({ error: 'workspace_id required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      const { data: membership } = await supabase
+        .from('workspace_members')
+        .select('id')
+        .eq('user_id', userData.user.id)
+        .eq('workspace_id', workspace_id)
+        .eq('is_active', true)
+        .maybeSingle()
+      if (!membership) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
     if (!event_type || !project_id || !workspace_id) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400,
