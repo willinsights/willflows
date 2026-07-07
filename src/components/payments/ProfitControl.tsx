@@ -1,3 +1,4 @@
+import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
