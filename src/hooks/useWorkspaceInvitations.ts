@@ -13,7 +13,7 @@ export interface WorkspaceInvitation {
   email: string;
   email_masked: string | null; // Masked email for display (e.g., w***n@gmail.com)
   role: AppRole;
-  token: string;
+  token?: string;
   expires_at: string;
   created_at: string;
   invited_by: string | null;
