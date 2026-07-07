@@ -161,6 +161,21 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'execute') {
+      // Production safety guard: require explicit confirmation string AND opt-in env flag
+      const allowReset = (Deno.env.get('ALLOW_BILLING_RESET') ?? '').toLowerCase() === 'true';
+      if (!allowReset || confirmation !== 'RESET-BILLING') {
+        logStep('Billing reset blocked by guard', {
+          allowReset,
+          confirmationProvided: confirmation === 'RESET-BILLING',
+        });
+        return new Response(
+          JSON.stringify({
+            error: 'Billing reset is disabled in this environment. Set ALLOW_BILLING_RESET=true and pass confirmation: "RESET-BILLING" in the request body to proceed.',
+          }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       logStep('Executing billing reset');
 
       // Get protected user IDs (from DB + test accounts)
