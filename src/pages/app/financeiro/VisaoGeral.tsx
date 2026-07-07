@@ -191,6 +191,7 @@ export default function VisaoGeral() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.08, duration: 0.4, ease: 'easeOut' }}
+            className="snap-start shrink-0 basis-[75%] md:basis-auto md:shrink"
           >
             <Card className={cn("glass-card hover:shadow-md transition-shadow", card.borderClass)}>
               <CardContent className="p-4 text-center">
