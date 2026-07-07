@@ -18,6 +18,11 @@ interface UseHlsPlayerOptions {
    * hls.startLoad() for transient network errors before bubbling up.
    */
   autoRecover?: boolean;
+  /**
+   * When true, forces the highest available HLS quality level on manifest parse
+   * and disables adaptive downscaling based on player size.
+   */
+  preferHighestQuality?: boolean;
 }
 
 interface UseHlsPlayerResult {
@@ -43,6 +48,7 @@ export function useHlsPlayer({
   onManifestParsed,
   onFatalError,
   autoRecover = true,
+  preferHighestQuality = false,
 }: UseHlsPlayerOptions): UseHlsPlayerResult {
   const hlsRef = useRef<Hls | null>(null);
   const mediaRecoveryAttemptedRef = useRef(false);
@@ -94,12 +100,19 @@ export function useHlsPlayer({
     const hls = new Hls({
       enableWorker: true,
       lowLatencyMode: false,
+      capLevelToPlayerSize: !preferHighestQuality,
+      startLevel: preferHighestQuality ? -1 : undefined,
+      autoStartLoad: true,
     });
 
     hls.loadSource(url);
     hls.attachMedia(video);
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      if (preferHighestQuality && hls.levels && hls.levels.length > 0) {
+        hls.currentLevel = hls.levels.length - 1;
+        hls.nextLevel = hls.levels.length - 1;
+      }
       if (preservedTime !== undefined) video.currentTime = preservedTime;
       onManifestParsedRef.current?.();
     });
@@ -121,7 +134,7 @@ export function useHlsPlayer({
     });
 
     hlsRef.current = hls;
-  }, [videoRef, url, type, autoRecover]);
+  }, [videoRef, url, type, autoRecover, preferHighestQuality]);
 
   // (Re)attach whenever the stable URL or type changes
   useEffect(() => {

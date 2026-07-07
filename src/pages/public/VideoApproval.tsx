@@ -241,6 +241,7 @@ export default function VideoApproval() {
     videoRef,
     url: videoUrl ?? null,
     type: hlsSourceType,
+    preferHighestQuality: true,
     onFatalError: (errData) => {
       logger.error('[VideoApproval] HLS fatal error after recovery attempts:', errData);
     },
@@ -794,14 +795,14 @@ export default function VideoApproval() {
                 <>
                   <Card className="overflow-hidden">
                     <div
-                      className="relative bg-black flex justify-center items-center cursor-pointer min-h-[300px] max-h-[70vh]"
+                      className="relative bg-black w-full aspect-video max-h-[85vh] cursor-pointer"
                       onMouseMove={handlePlayerMouseMove}
                       onMouseLeave={handlePlayerMouseLeave}
                     >
                       {videoUrl ? (
                         <video
                           ref={videoRef}
-                          className="max-w-full max-h-[70vh] object-contain"
+                          className="absolute inset-0 w-full h-full object-contain"
                           poster={posterUrl}
                           onTimeUpdate={handleTimeUpdate}
                           onLoadedMetadata={handleLoadedMetadata}
