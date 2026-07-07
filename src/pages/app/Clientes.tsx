@@ -396,25 +396,12 @@ export default function Clientes() {
         </CardHeader>
         <CardContent className="pt-0">
           {pagination.totalItems === 0 ? (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center justify-center py-12 text-center"
-            >
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <Users className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Nenhum cliente encontrado</h3>
-              <p className="text-muted-foreground max-w-sm mb-4">
-                {searchQuery ? 'Tente ajustar sua pesquisa.' : 'Comece adicionando seu primeiro cliente.'}
-              </p>
-              {!searchQuery && (
-                <Button className="gradient-primary" onClick={() => setShowCreateModal(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Novo Cliente
-                </Button>
-              )}
-            </motion.div>
+            <EmptyState
+              icon={Users}
+              title="Nenhum cliente encontrado"
+              description={searchQuery ? 'Tente ajustar sua pesquisa.' : 'Comece adicionando seu primeiro cliente.'}
+              action={!searchQuery ? { label: 'Novo Cliente', onClick: () => setShowCreateModal(true), icon: Plus } : undefined}
+            />
           ) : (
             <div className="space-y-3">
               {pagination.paginatedItems.map((client, index) => {
