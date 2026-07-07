@@ -143,24 +143,23 @@
   .lens-flare:hover::before {
     opacity: 1;
   }
+
+
+/* Screenshot fog effect - ClickUp style fade to background */
+.screenshot-fog {
+  mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
 }
 
-
-  /* Screenshot fog effect - ClickUp style fade to background */
-  .screenshot-fog {
-    mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
-    -webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
-  }
-
-  .screenshot-fog-hero {
-    mask-image: linear-gradient(to bottom, black 40%, transparent 95%),
-                linear-gradient(to left, black 80%, transparent 100%);
-    -webkit-mask-image: linear-gradient(to bottom, black 40%, transparent 95%),
-                        linear-gradient(to left, black 80%, transparent 100%);
-    mask-composite: intersect;
-    -webkit-mask-composite: source-in;
-  }
+.screenshot-fog-hero {
+  mask-image: linear-gradient(to bottom, black 40%, transparent 95%),
+              linear-gradient(to left, black 80%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 40%, transparent 95%),
+                      linear-gradient(to left, black 80%, transparent 100%);
+  mask-composite: intersect;
+  -webkit-mask-composite: source-in;
 }
+
 
 /* Float-in animation used by FloatingScreenshot */
 @keyframes float-in {
