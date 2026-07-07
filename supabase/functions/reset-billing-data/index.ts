@@ -101,7 +101,8 @@ Deno.serve(async (req) => {
     const protectedEmailsFromDB = (protectedAccounts || []).map(a => a.email);
     logStep('Protected emails loaded from DB', { count: protectedEmailsFromDB.length });
 
-    const { action } = await req.json();
+    const body = await req.json();
+    const { action, confirmation } = body ?? {};
 
     if (action === 'preview') {
       logStep('Generating preview');
