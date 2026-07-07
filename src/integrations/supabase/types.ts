@@ -5043,6 +5043,7 @@ export type Database = {
             }
             Returns: Json
           }
+      email_queue_dispatch: { Args: never; Returns: undefined }
       encrypt_oauth_token: {
         Args: { _token: string; _user_id: string }
         Returns: string
