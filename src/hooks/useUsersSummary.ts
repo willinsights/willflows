@@ -30,7 +30,6 @@ export interface PendingInvite {
   id: string;
   email: string;
   role: string;
-  token: string;
   workspaceId: string;
   workspaceName: string;
   invitedByEmail: string;
