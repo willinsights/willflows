@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Target, Pencil, Lock, Check, X, Trophy, PartyPopper } from 'lucide-react';
+import { Target, Pencil, Lock, Check, X, Trophy, PartyPopper, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
 import { useWorkspaceGoals } from '@/hooks/useWorkspaceGoals';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
