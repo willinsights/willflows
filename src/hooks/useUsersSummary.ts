@@ -109,14 +109,13 @@ export function useUsersSummary() {
         .from('user_subscriptions')
         .select('user_id, subscription_plan');
 
-      // 5. Get pending invitations (including token for resend)
+      // 5. Get pending invitations (token is resolved server-side by send-transactional-email)
       const { data: invitationsData } = await supabase
         .from('workspace_invitations')
         .select(`
           id,
           email,
           role,
-          token,
           workspace_id,
           invited_by,
           created_at,
