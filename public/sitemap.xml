@@ -17,6 +17,10 @@
   <url><loc>https://willflow.app/seguranca</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://willflow.app/ajuda</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://willflow.app/blog</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://willflow.app/blog/categoria/novidades</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://willflow.app/blog/categoria/tutorial</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://willflow.app/blog/categoria/comparacao</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://willflow.app/blog/categoria/dicas</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>
   <url><loc>https://willflow.app/sobre</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://willflow.app/contato</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://willflow.app/tutorial</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>

@@ -184,8 +184,8 @@ export default function Features() {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>Funcionalidades | WillFlow - Kanban, CRM, Chat, Calendário e Mais</title>
-        <meta name="description" content="Descubra todas as funcionalidades do WillFlow: Kanban visual, CRM integrado, chat de equipa, calendário com Google Calendar, gestão de pagamentos, relatórios financeiros e muito mais." />
+        <title>Funcionalidades WillFlow — Kanban, CRM, Chat e Calendário</title>
+        <meta name="description" content="Conheça as funcionalidades do WillFlow: Kanban, CRM, chat de equipa, calendário Google, pagamentos e relatórios num só lugar." />
         <link rel="canonical" href="https://willflow.app/funcionalidades" />
         <meta property="og:title" content="Funcionalidades | WillFlow - Kanban, CRM, Chat, Calendário e Mais" />
         <meta property="og:description" content="Descubra todas as funcionalidades do WillFlow: Kanban visual, CRM integrado, chat de equipa, calendário com Google Calendar, gestão de pagamentos, relatórios financeiros e muito mais." />

@@ -107,7 +107,7 @@ export default function About() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Sobre Nós | WillFlow - A Nossa História e Missão</title>
-        <meta name="description" content="Conheça a história do WillFlow, o sistema de gestão criado por produtores para produtores. A nossa missão é simplificar a gestão de projetos de fotografia e vídeo em Portugal e Brasil." />
+        <meta name="description" content="A história do WillFlow: sistema criado por produtores para simplificar a gestão de projetos de fotografia e vídeo em Portugal e no Brasil." />
         <link rel="canonical" href="https://willflow.app/sobre" />
         <meta property="og:title" content="Sobre Nós | WillFlow - A Nossa História" />
         <meta property="og:description" content="Conheça a história do WillFlow, o sistema de gestão criado por produtores para produtores." />

@@ -232,7 +232,7 @@ export default function Landing() {
     <div className="min-h-screen">
       <Helmet>
         <title>WillFlow - Gestão de Projetos para Fotógrafos e Filmmakers</title>
-        <meta name="description" content="WillFlow é o sistema completo de gestão de projetos e produção para fotógrafos, filmmakers, agências e produtoras. Kanban, CRM, calendário e finanças num só lugar." />
+        <meta name="description" content="Sistema completo de gestão de projetos para fotógrafos, filmmakers, agências e produtoras. Kanban, CRM, calendário e finanças num só lugar." />
         <link rel="canonical" href="https://willflow.app" />
         
         {/* Open Graph */}
