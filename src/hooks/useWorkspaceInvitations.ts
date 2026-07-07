@@ -46,7 +46,7 @@ export function useWorkspaceInvitations() {
     
     const { data, error } = await supabase
       .from('workspace_invitations')
-      .select('*')
+      .select('id, workspace_id, email, email_masked, role, expires_at, created_at, invited_by, accepted_at')
       .eq('workspace_id', currentWorkspace.id)
       .is('accepted_at', null)
       .gt('expires_at', new Date().toISOString())
