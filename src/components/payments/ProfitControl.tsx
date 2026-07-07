@@ -59,6 +59,7 @@ export function ProfitControl({
   workspaceName = 'WillFlow',
 }: ProfitControlProps) {
   const { hideValues } = useHideValues();
+  const { formatCurrencyRaw } = useFormatCurrency();
   const { currentWorkspace } = useWorkspace();
   const [projects, setProjects] = useState<ProjectProfit[]>([]);
   const [loading, setLoading] = useState(true);

@@ -53,6 +53,7 @@ export function ClientPaymentsControl({
   workspaceName = 'WillFlow',
 }: ClientPaymentsControlProps) {
   const { hideValues } = useHideValues();
+  const { formatCurrencyRaw } = useFormatCurrency();
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: null,
     dateTo: null,

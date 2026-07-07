@@ -53,6 +53,7 @@ export function ExtraCostsPaymentsControl({
   workspaceName = 'WillFlow',
 }: ExtraCostsPaymentsControlProps) {
   const { hideValues } = useHideValues();
+  const { formatCurrencyRaw } = useFormatCurrency();
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: null,
     dateTo: null,

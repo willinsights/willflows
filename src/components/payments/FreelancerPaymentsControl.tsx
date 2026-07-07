@@ -81,6 +81,7 @@ export function FreelancerPaymentsControl({
   filterByUserId,
 }: FreelancerPaymentsControlProps) {
   const { hideValues } = useHideValues();
+  const { formatCurrencyRaw } = useFormatCurrency();
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: null,
     dateTo: null,

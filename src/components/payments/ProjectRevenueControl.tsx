@@ -63,6 +63,7 @@ export function ProjectRevenueControl({
   workspaceName = 'WillFlow',
 }: ProjectRevenueControlProps) {
   const { hideValues } = useHideValues();
+  const { formatCurrencyRaw } = useFormatCurrency();
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: null,
     dateTo: null,
