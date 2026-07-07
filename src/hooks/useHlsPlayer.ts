@@ -18,6 +18,11 @@ interface UseHlsPlayerOptions {
    * hls.startLoad() for transient network errors before bubbling up.
    */
   autoRecover?: boolean;
+  /**
+   * When true, forces the highest available HLS quality level on manifest parse
+   * and disables adaptive downscaling based on player size.
+   */
+  preferHighestQuality?: boolean;
 }
 
 interface UseHlsPlayerResult {
