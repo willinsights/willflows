@@ -23,6 +23,7 @@ import { ContractCard } from '@/components/contracts/ContractCard';
 import { ContractViewModal } from '@/components/contracts/ContractViewModal';
 import { AccessDenied } from '@/components/ui/access-denied';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { toast } from 'sonner';
 
 export default function Contratos() {
