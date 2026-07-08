@@ -85,12 +85,17 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
             if (labels.length === 0) return null;
             return (
               <div className="hidden md:flex items-center gap-1 ml-1 shrink-0">
-                {labels.map((label, i) => (
-                  <span key={i} className="flex items-center gap-1">
-                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-sm font-medium">{label}</span>
-                  </span>
-                ))}
+                {labels.map((label, i) => {
+                  const isLast = i === labels.length - 1;
+                  return (
+                    <span key={i} className="flex items-center gap-1">
+                      <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
+                      <span className={cn('text-sm', isLast ? 'font-semibold text-foreground' : 'text-muted-foreground')}>
+                        {label}
+                      </span>
+                    </span>
+                  );
+                })}
               </div>
             );
           })()}
