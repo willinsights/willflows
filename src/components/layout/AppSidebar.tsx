@@ -73,7 +73,7 @@ export function AppSidebar({ collapsed, onToggle, isMobile, autoCollapseOnNav = 
     <div className="flex flex-col h-full">
       {/* Logo Header */}
       <div className={cn(
-        'flex items-center h-16 px-4 border-b border-sidebar-border',
+        'flex items-center h-14 px-4 border-b border-sidebar-border',
         collapsed && !isMobile ? 'justify-center' : 'justify-between'
       )}>
         <button
