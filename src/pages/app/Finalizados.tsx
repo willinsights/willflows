@@ -27,6 +27,7 @@ import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 import { ProjectDetailsSheet } from '@/components/projects/ProjectDetailsSheet';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/layout/PageHeader';
 const typeIcons: Record<string, any> = {
   fotografia: Camera,
   video: Film,
