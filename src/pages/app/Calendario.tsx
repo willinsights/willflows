@@ -29,6 +29,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFilteredProjects, ProjectWithClient } from '@/hooks/useFilteredProjects';
 import { useCalendarEvents } from '@/hooks/useCalendarEvents';
@@ -75,7 +77,7 @@ interface CalendarEventDetails {
 }
 
 export default function Calendario() {
-  const { projects, refresh } = useFilteredProjects();
+  const { projects, refresh, loading: projectsLoading } = useFilteredProjects();
   const updateProject = async (id: string, updates: any) => {
     const { error } = await supabase
       .from('projects')
@@ -83,7 +85,7 @@ export default function Calendario() {
       .eq('id', id);
     if (!error) refresh();
   };
-  const { events, createEvent, updateEvent, deleteEvent, refresh: refreshEvents, sourceFilter, setSourceFilter } = useCalendarEvents();
+  const { events, createEvent, updateEvent, deleteEvent, refresh: refreshEvents, sourceFilter, setSourceFilter, loading: eventsLoading } = useCalendarEvents();
   const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
@@ -614,16 +616,23 @@ export default function Calendario() {
                 })}
               </div>
 
-              {/* Empty State Overlay for no items */}
-              {calendarItems.length === 0 && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-10 pointer-events-none">
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <CalendarIcon className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2">Calendário vazio</h3>
-                  <p className="text-muted-foreground text-sm max-w-xs text-center">
-                    Comece adicionando projetos com datas de captação ou crie eventos.
-                  </p>
+              {/* Loading skeleton overlay during initial fetch */}
+              {(projectsLoading || eventsLoading) && calendarItems.length === 0 && (
+                <div className="absolute inset-0 grid grid-cols-7 grid-rows-6 gap-px bg-background/60 backdrop-blur-sm z-10 pointer-events-none p-2">
+                  {Array.from({ length: 42 }).map((_, i) => (
+                    <Skeleton key={i} className="h-full w-full opacity-60" />
+                  ))}
+                </div>
+              )}
+
+              {/* Empty state when no data and not loading */}
+              {!projectsLoading && !eventsLoading && calendarItems.length === 0 && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10 pointer-events-none">
+                  <EmptyState
+                    icon={CalendarIcon}
+                    title="Calendário vazio"
+                    description="Comece adicionando projetos com datas de captação ou crie o primeiro evento."
+                  />
                 </div>
               )}
             </CardContent>
@@ -851,9 +860,12 @@ export default function Calendario() {
           
           <ScrollArea className="max-h-[60vh]">
             {selectedDateItems.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                Nenhum evento neste dia
-              </p>
+              <EmptyState
+                icon={CalendarIcon}
+                title="Nenhum evento neste dia"
+                description="Adiciona um evento para preencher esta data."
+                compact
+              />
             ) : (
               <div className="space-y-3">
                 {selectedDateItems.map(item => {

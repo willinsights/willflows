@@ -303,8 +303,8 @@ export default function Dashboard() {
             />
 
             {/* Chart (2/3) + Goals (1/3) */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-              <div className="lg:col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="md:col-span-2 lg:col-span-2">
                 <FinancialChart
                   monthlyData={monthlyData}
                   annualComparison={annualComparison}
@@ -315,7 +315,7 @@ export default function Dashboard() {
                   timeSeries={timeSeries}
                 />
               </div>
-              <div className="lg:col-span-1">
+              <div className="md:col-span-2 lg:col-span-1">
                 <MonthlyGoalsCard
                   currentRevenue={metrics.receita}
                   currentProjectsDelivered={metrics.entregues}
@@ -335,7 +335,7 @@ export default function Dashboard() {
       {/* ============ ZONE 2: Precisa de ação ============ */}
       <motion.section variants={fadeUp} className="space-y-4">
         <ZoneTitle>Precisa de ação</ZoneTitle>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           <UrgentProjectsCard
             urgentProjects={urgentProjects}
             loading={loading || loadingProject}

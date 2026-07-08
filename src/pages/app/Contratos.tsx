@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useContracts, CONTRACT_STATUS_LABELS, type Contract, type ContractStatus } from '@/hooks/useContracts';
 import { useContractTemplates, type ContractTemplate } from '@/hooks/useContractTemplates';
 import { CreateContractModal } from '@/components/contracts/CreateContractModal';
@@ -202,23 +203,24 @@ export default function Contratos() {
                 ))}
               </div>
             ) : filteredContracts.length === 0 ? (
-              <div className="text-center py-12">
-                <FileText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                <h3 className="font-medium text-lg mb-1">
-                  {searchQuery || statusFilter !== 'all' ? 'Nenhum contrato encontrado' : 'Sem contratos'}
-                </h3>
-                <p className="text-muted-foreground text-sm mb-4">
-                  {searchQuery || statusFilter !== 'all' 
-                    ? 'Tente ajustar os filtros de pesquisa'
-                    : 'Crie o seu primeiro contrato para começar'}
-                </p>
-                {!searchQuery && statusFilter === 'all' && (
-                  <Button onClick={() => setCreateModalOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Novo Contrato
-                  </Button>
-                )}
-              </div>
+              searchQuery || statusFilter !== 'all' ? (
+                <EmptyState
+                  icon={FileText}
+                  title="Nenhum contrato encontrado"
+                  description="Tente ajustar os filtros de pesquisa."
+                />
+              ) : (
+                <EmptyState
+                  icon={FileText}
+                  title="Sem contratos"
+                  description="Crie o seu primeiro contrato para começar."
+                  action={{
+                    label: 'Novo Contrato',
+                    icon: Plus,
+                    onClick: () => setCreateModalOpen(true),
+                  }}
+                />
+              )
             ) : (
               <div className="space-y-3">
                 {filteredContracts.map(contract => (
@@ -244,20 +246,19 @@ export default function Contratos() {
                 ))}
               </div>
             ) : templates.length === 0 ? (
-              <div className="text-center py-12">
-                <FileCode className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                <h3 className="font-medium text-lg mb-1">Sem templates</h3>
-                <p className="text-muted-foreground text-sm mb-4">
-                  Crie templates reutilizáveis para os seus contratos
-                </p>
-                <Button onClick={() => {
-                  setEditingTemplate(null);
-                  setTemplateModalOpen(true);
-                }}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Novo Template
-                </Button>
-              </div>
+              <EmptyState
+                icon={FileCode}
+                title="Sem templates"
+                description="Crie templates reutilizáveis para acelerar a criação de contratos."
+                action={{
+                  label: 'Novo Template',
+                  icon: Plus,
+                  onClick: () => {
+                    setEditingTemplate(null);
+                    setTemplateModalOpen(true);
+                  },
+                }}
+              />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {templates.map(template => (
