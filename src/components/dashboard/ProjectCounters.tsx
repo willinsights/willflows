@@ -76,7 +76,7 @@ export function ProjectCounters({ metrics, loading }: ProjectCountersProps) {
                     <Skeleton className={cn(counter.hero ? 'h-9 w-12' : 'h-7 w-8')} />
                   ) : (
                     <>
-                      <span className={cn('font-bold leading-none', counter.hero ? 'text-3xl md:text-4xl' : 'text-2xl')}>
+                      <span className={cn('font-bold leading-none tabular-nums', counter.hero ? 'text-3xl md:text-4xl' : 'text-3xl')}>
                         {counter.value}
                       </span>
                       <ChangeIndicator change={counter.change} />

@@ -11,8 +11,8 @@
 
 @layer base {
   :root {
-    /* Core backgrounds - Light gray for depth */
-    --background: 220 14% 96%;
+    /* Core backgrounds - Cooler, deeper light gray for surface hierarchy */
+    --background: 220 16% 95%;
     --foreground: 240 10% 10%;
 
     /* Cards with soft shadows */
@@ -55,12 +55,12 @@
     --info: 217 91% 60%;
     --info-foreground: 0 0% 100%;
 
-    /* Borders and inputs - More visible gray */
-    --border: 220 13% 86%;
-    --input: 220 13% 86%;
+    /* Borders and inputs - Subtler tone for card lift */
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
     --ring: 246 74% 59%;
 
-    --radius: 1.25rem;
+    --radius: 0.75rem;
 
     /* Sidebar - Light gray background */
     --sidebar-background: 0 0% 100%;
@@ -176,7 +176,7 @@
     --shadow: 0px 1px 20.5px 0px hsla(0, 0%, 0%, 0.1);
     --shadow-md: 0px 1px 30.75px 0px hsla(0, 0%, 0%, 0.1);
     --shadow-lg: 0px 1px 51.25px 0px hsla(0, 0%, 0%, 0.1);
-    --radius: 1.25rem;
+    --radius: 0.75rem;
   }
 }
 

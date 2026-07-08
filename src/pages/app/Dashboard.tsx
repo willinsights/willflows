@@ -3,6 +3,14 @@ import { motion } from 'framer-motion';
 import { ProductTour } from '@/components/tour/ProductTour';
 import { TrialBanner } from '@/components/dashboard/TrialBanner';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { format } from 'date-fns';
+import { pt } from 'date-fns/locale';
+import { Eye, EyeOff } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useAuth } from '@/contexts/AuthContext';
+import { useHideValues } from '@/hooks/useHideValues';
 import { QuickActionsCard } from '@/components/dashboard/QuickActionsCard';
 import { ProjectCounters } from '@/components/dashboard/ProjectCounters';
 import { FinancialForecastCards } from '@/components/dashboard/FinancialForecastCards';
@@ -64,6 +72,59 @@ function ZoneTitle({ children }: { children: React.ReactNode }) {
     <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80 px-1">
       {children}
     </h2>
+  );
+}
+
+/** Dashboard page header — greeting + hide-values + quick actions. */
+function DashboardPageHeader({ currentTime }: { currentTime: Date }) {
+  const { user } = useAuth();
+  const { currentWorkspace } = useWorkspace();
+  const { hideValues, toggleHideValues } = useHideValues();
+
+  const getGreeting = () => {
+    const hour = currentTime.getHours();
+    if (hour < 12) return 'Bom dia';
+    if (hour < 19) return 'Boa tarde';
+    return 'Boa noite';
+  };
+  const userName = user?.user_metadata?.full_name || currentWorkspace?.name || 'Utilizador';
+  const firstName = userName.split(' ')[0];
+  const formattedDate = format(currentTime, "EEEE, d 'de' MMMM", { locale: pt });
+  const formattedTime = format(currentTime, 'HH:mm');
+
+  return (
+    <PageHeader
+      title={
+        <>
+          {getGreeting()}, <span className="gradient-text">{firstName}</span>!
+        </>
+      }
+      description={<span className="capitalize">{formattedDate} • {formattedTime}</span>}
+      actions={
+        <>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleHideValues}
+                className="h-8 w-8 p-0"
+              >
+                {hideValues ? (
+                  <EyeOff className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Eye className="h-4 w-4 text-muted-foreground" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p className="text-xs">{hideValues ? 'Mostrar valores' : 'Esconder valores'}</p>
+            </TooltipContent>
+          </Tooltip>
+          <QuickActionsCard />
+        </>
+      }
+    />
   );
 }
 
@@ -261,10 +322,9 @@ export default function Dashboard() {
         <OnboardingChecklist />
       </motion.div>
 
-      {/* Header with Quick Actions */}
-      <motion.div variants={fadeUp} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <DashboardHeader currentTime={currentTime} />
-        <QuickActionsCard />
+      {/* Page header with greeting + Quick Actions */}
+      <motion.div variants={fadeUp}>
+        <DashboardPageHeader currentTime={currentTime} />
       </motion.div>
 
       {/* ============ ZONE 1: Visão do mês ============ */}

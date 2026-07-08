@@ -520,7 +520,7 @@ export default function Planos() {
                                 variant={isPopular ? 'default' : 'outline'}
                                 onClick={() => handleUpgrade(planId)}
                                 disabled={checkoutLoading === planId}
-                                className={cn('w-full', isPopular && 'gradient-primary')}
+                                className="w-full"
                               >
                                 {checkoutLoading === planId && (
                                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />

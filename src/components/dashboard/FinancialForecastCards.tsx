@@ -233,7 +233,7 @@ export function FinancialForecastCards({
                 ) : (
                   <p
                     className={cn(
-                      'font-bold text-2xl md:text-3xl leading-tight tabular-nums mt-1',
+                      'font-bold text-3xl md:text-4xl leading-tight tabular-nums mt-1',
                       card.valueClass,
                       hideValues && 'blur-md select-none',
                     )}
