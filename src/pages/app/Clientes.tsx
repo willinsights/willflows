@@ -48,6 +48,7 @@ import { AccessDenied } from '@/components/ui/access-denied';
 import { cn } from '@/lib/utils';
 import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 export default function Clientes() {
   const { canViewClients, canViewClientFinancials, canEditClients, canCreateClients } = useFinancialPermissions();
@@ -247,18 +248,18 @@ export default function Clientes() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Clientes</h1>
-          <p className="text-muted-foreground">Gestão de clientes e análise de receitas</p>
-        </div>
-        {canCreateClients && (
-          <Button className="gradient-primary" onClick={() => setShowCreateModal(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Cliente
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Clientes"
+        description="Gestão de clientes e análise de receitas"
+        actions={
+          canCreateClients ? (
+            <Button className="gradient-primary" onClick={() => setShowCreateModal(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Cliente
+            </Button>
+          ) : undefined
+        }
+      />
 
       {/* Filters Row */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">

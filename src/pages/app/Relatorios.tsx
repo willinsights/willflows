@@ -41,6 +41,7 @@ import { TeamPerformanceReport } from '@/components/reports/TeamPerformanceRepor
 import { RevenueForecastReport } from '@/components/reports/RevenueForecastReport';
 import { ReportSectionHeader } from '@/components/reports/ReportSectionHeader';
 import { supabase } from '@/integrations/supabase/client';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 export default function Relatorios() {
   const { canViewReports } = useFinancialPermissions();
@@ -133,12 +134,10 @@ export default function Relatorios() {
   if (projects.length === 0) {
     return (
       <div className="p-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold">Relatórios</h1>
-            <p className="text-muted-foreground">Análises e métricas do seu negócio</p>
-          </div>
-        </div>
+        <PageHeader
+          title="Relatórios"
+          description="Análises e métricas do seu negócio"
+        />
         <EmptyState
           icon={FolderKanban}
           title="Sem dados para analisar"
@@ -152,87 +151,87 @@ export default function Relatorios() {
   return (
     <div className="p-4 sm:p-6 space-y-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4 }}>
-          <h1 className="text-2xl font-bold tracking-tight">Relatórios</h1>
-          <p className="text-muted-foreground text-sm">Análises e métricas do seu negócio</p>
-        </motion.div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
-            {(['1M', '3M', '6M', '12M', 'YTD'] as PeriodType[]).map((p) => (
-              <Button
-                key={p}
-                variant={periodType === p ? 'default' : 'ghost'}
-                size="sm"
-                className={cn("h-8 px-3", periodType === p && "bg-primary text-primary-foreground")}
-                onClick={() => setPeriodType(p)}
-              >
-                {p === 'YTD' ? 'YTD' : p}
+      <PageHeader
+        title="Relatórios"
+        description="Análises e métricas do seu negócio"
+        actions={
+          <>
+            <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
+              {(['1M', '3M', '6M', '12M', 'YTD'] as PeriodType[]).map((p) => (
+                <Button
+                  key={p}
+                  variant={periodType === p ? 'default' : 'ghost'}
+                  size="sm"
+                  className={cn("h-8 px-3", periodType === p && "bg-primary text-primary-foreground")}
+                  onClick={() => setPeriodType(p)}
+                >
+                  {p === 'YTD' ? 'YTD' : p}
+                </Button>
+              ))}
+            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={periodType === 'custom' ? 'default' : 'outline'}
+                  size="sm"
+                  className={cn("h-8 gap-2", periodType === 'custom' && "bg-primary text-primary-foreground")}
+                  onClick={() => setPeriodType('custom')}
+                >
+                  <CalendarDays className="h-4 w-4" />
+                  {periodType === 'custom' && customDateRange.from && customDateRange.to
+                    ? `${format(customDateRange.from, 'dd/MM')} - ${format(customDateRange.to, 'dd/MM')}`
+                    : 'Personalizado'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <CalendarComponent
+                  mode="range"
+                  selected={{ from: customDateRange.from, to: customDateRange.to }}
+                  onSelect={(range) => {
+                    setCustomDateRange({ from: range?.from, to: range?.to });
+                    if (range?.from && range?.to) setPeriodType('custom');
+                  }}
+                  numberOfMonths={2}
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+            {canExportExcel ? (
+              <Button variant="outline" size="sm" onClick={handleExportExcel} className="h-8">
+                <FileSpreadsheet className="h-4 w-4 mr-2" />Excel
               </Button>
-            ))}
-          </div>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant={periodType === 'custom' ? 'default' : 'outline'}
-                size="sm"
-                className={cn("h-8 gap-2", periodType === 'custom' && "bg-primary text-primary-foreground")}
-                onClick={() => setPeriodType('custom')}
-              >
-                <CalendarDays className="h-4 w-4" />
-                {periodType === 'custom' && customDateRange.from && customDateRange.to
-                  ? `${format(customDateRange.from, 'dd/MM')} - ${format(customDateRange.to, 'dd/MM')}`
-                  : 'Personalizado'}
+            ) : (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" onClick={() => requireExcelExport(handleExportExcel)} className="h-8 gap-2">
+                      <Lock className="h-4 w-4" /><Crown className="h-3 w-3 text-primary" />Excel
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent><p>Disponível no plano Pro</p></TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            {canExportPdf ? (
+              <Button variant="outline" size="sm" onClick={handleExportPDF} className="h-8">
+                <FileText className="h-4 w-4 mr-2" />PDF
               </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <CalendarComponent
-                mode="range"
-                selected={{ from: customDateRange.from, to: customDateRange.to }}
-                onSelect={(range) => {
-                  setCustomDateRange({ from: range?.from, to: range?.to });
-                  if (range?.from && range?.to) setPeriodType('custom');
-                }}
-                numberOfMonths={2}
-                className="pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
-          {canExportExcel ? (
-            <Button variant="outline" size="sm" onClick={handleExportExcel} className="h-8">
-              <FileSpreadsheet className="h-4 w-4 mr-2" />Excel
-            </Button>
-          ) : (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={() => requireExcelExport(handleExportExcel)} className="h-8 gap-2">
-                    <Lock className="h-4 w-4" /><Crown className="h-3 w-3 text-primary" />Excel
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent><p>Disponível no plano Pro</p></TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-          {canExportPdf ? (
-            <Button variant="outline" size="sm" onClick={handleExportPDF} className="h-8">
-              <FileText className="h-4 w-4 mr-2" />PDF
-            </Button>
-          ) : (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={() => requirePdfExport(handleExportPDF)} className="h-8 gap-2">
-                    <Lock className="h-4 w-4" /><Crown className="h-3 w-3 text-primary" />PDF
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent><p>Disponível no plano Pro</p></TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-          <UpgradeAlertComponent />
-        </div>
-      </div>
+            ) : (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" onClick={() => requirePdfExport(handleExportPDF)} className="h-8 gap-2">
+                      <Lock className="h-4 w-4" /><Crown className="h-3 w-3 text-primary" />PDF
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent><p>Disponível no plano Pro</p></TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            <UpgradeAlertComponent />
+          </>
+        }
+      />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

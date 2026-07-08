@@ -27,6 +27,7 @@ import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 import { ProjectDetailsSheet } from '@/components/projects/ProjectDetailsSheet';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/layout/PageHeader';
 const typeIcons: Record<string, any> = {
   fotografia: Camera,
   video: Film,
@@ -409,41 +410,37 @@ export default function Finalizados() {
   };
   return <div className="p-6 space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-      >
-        <div>
-          <h1 className="text-2xl font-bold text-primary">Projetos Finalizados</h1>
-          <p className="text-muted-foreground">Histórico completo de projetos concluídos</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {canViewAllFinancials && (
-            <Button variant="ghost" size="icon" onClick={toggleHideValues} className="h-9 w-9">
-              {hideValues ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      <PageHeader
+        title="Projetos Finalizados"
+        description="Histórico completo de projetos concluídos"
+        actions={
+          <>
+            {canViewAllFinancials && (
+              <Button variant="ghost" size="icon" onClick={toggleHideValues} className="h-9 w-9">
+                {hideValues ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            )}
+            <Button variant="outline" size="sm" className="gap-2" onClick={exportToExcel} disabled={completedProjects.length === 0}>
+              <FileSpreadsheet className="h-4 w-4" />
+              Excel
             </Button>
-          )}
-          <Button variant="outline" size="sm" className="gap-2" onClick={exportToExcel} disabled={completedProjects.length === 0}>
-            <FileSpreadsheet className="h-4 w-4" />
-            Excel
-          </Button>
-          {canExportPdf ? <Button variant="outline" size="sm" className="gap-2" onClick={exportToPDF} disabled={completedProjects.length === 0}>
-              <FileText className="h-4 w-4" />
-              PDF
-            </Button> : <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2 opacity-60" onClick={() => checkFeature('exportPdf')}>
-                  <Lock className="h-4 w-4" />
-                  PDF
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Disponível nos planos Pro e Studio
-              </TooltipContent>
-            </Tooltip>}
-        </div>
-      </motion.div>
+            {canExportPdf ? <Button variant="outline" size="sm" className="gap-2" onClick={exportToPDF} disabled={completedProjects.length === 0}>
+                <FileText className="h-4 w-4" />
+                PDF
+              </Button> : <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2 opacity-60" onClick={() => checkFeature('exportPdf')}>
+                    <Lock className="h-4 w-4" />
+                    PDF
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Disponível nos planos Pro e Studio
+                </TooltipContent>
+              </Tooltip>}
+          </>
+        }
+      />
 
       {/* Filters Card */}
       <Card className="glass-card">
