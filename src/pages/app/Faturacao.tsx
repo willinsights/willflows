@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
   CreditCard, 
@@ -216,16 +217,15 @@ export default function Faturacao() {
       ) : !billingInfo?.hasCustomer ? (
         <Card>
           <CardContent className="pt-6">
-            <div className="text-center py-12">
-              <Receipt className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">Sem histórico de faturação</h3>
-              <p className="text-muted-foreground mb-4">
-                Ainda não existe nenhuma informação de faturação associada à sua conta.
-              </p>
-              <Button onClick={() => window.location.href = '/planos'}>
-                Ver Planos
-              </Button>
-            </div>
+            <EmptyState
+              icon={Receipt}
+              title="Sem histórico de faturação"
+              description="Ainda não existe nenhuma informação de faturação associada à sua conta."
+              action={{
+                label: 'Ver Planos',
+                onClick: () => (window.location.href = '/planos'),
+              }}
+            />
           </CardContent>
         </Card>
       ) : (
@@ -334,70 +334,131 @@ export default function Faturacao() {
             </CardHeader>
             <CardContent>
               {billingInfo.invoices.length === 0 ? (
-                <div className="text-center py-12">
-                  <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">Sem faturas disponíveis</p>
-                </div>
+                <EmptyState
+                  icon={FileText}
+                  title="Sem faturas disponíveis"
+                  description="Assim que existirem faturas emitidas, aparecerão aqui."
+                  compact
+                />
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nº Fatura</TableHead>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Descrição</TableHead>
-                        <TableHead>Estado</TableHead>
-                        <TableHead className="text-right">Valor</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {billingInfo.invoices.map((invoice) => (
-                        <TableRow key={invoice.id}>
-                          <TableCell className="font-medium">
-                            {invoice.number || invoice.id.slice(-8).toUpperCase()}
-                          </TableCell>
-                          <TableCell>
-                            {format(new Date(invoice.created * 1000), "d MMM yyyy", { locale: pt })}
-                          </TableCell>
-                          <TableCell className="max-w-[200px] truncate">
-                            {invoice.description}
-                          </TableCell>
-                          <TableCell>
-                            {getStatusBadge(invoice.status)}
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {formatCurrency(invoice.amount, invoice.currency)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              {invoice.invoicePdf && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => window.open(invoice.invoicePdf!, '_blank')}
-                                  title="Baixar PDF"
-                                >
-                                  <Download className="h-4 w-4" />
-                                </Button>
-                              )}
-                              {invoice.hostedInvoiceUrl && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => window.open(invoice.hostedInvoiceUrl!, '_blank')}
-                                  title="Ver online"
-                                >
-                                  <ExternalLink className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
+                <>
+                  {/* Mobile cards (<md) */}
+                  <div className="md:hidden space-y-3">
+                    {billingInfo.invoices.map((invoice) => (
+                      <div
+                        key={invoice.id}
+                        className="rounded-lg border bg-card/60 p-4 space-y-2"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(invoice.created * 1000), "d MMM yyyy", { locale: pt })}
+                            </p>
+                            <p className="font-medium truncate">
+                              {invoice.number || invoice.id.slice(-8).toUpperCase()}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {invoice.description}
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="font-semibold tabular-nums">
+                              {formatCurrency(invoice.amount, invoice.currency)}
+                            </p>
+                            <div className="mt-1 flex justify-end">{getStatusBadge(invoice.status)}</div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          {invoice.invoicePdf && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => window.open(invoice.invoicePdf!, '_blank')}
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              PDF
+                            </Button>
+                          )}
+                          {invoice.hostedInvoiceUrl && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => window.open(invoice.hostedInvoiceUrl!, '_blank')}
+                            >
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              Ver online
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop table (≥md) */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nº Fatura</TableHead>
+                          <TableHead>Data</TableHead>
+                          <TableHead>Descrição</TableHead>
+                          <TableHead>Estado</TableHead>
+                          <TableHead className="text-right">Valor</TableHead>
+                          <TableHead className="text-right">Ações</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {billingInfo.invoices.map((invoice) => (
+                          <TableRow key={invoice.id}>
+                            <TableCell className="font-medium">
+                              {invoice.number || invoice.id.slice(-8).toUpperCase()}
+                            </TableCell>
+                            <TableCell>
+                              {format(new Date(invoice.created * 1000), "d MMM yyyy", { locale: pt })}
+                            </TableCell>
+                            <TableCell className="max-w-[200px] truncate">
+                              {invoice.description}
+                            </TableCell>
+                            <TableCell>
+                              {getStatusBadge(invoice.status)}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatCurrency(invoice.amount, invoice.currency)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                {invoice.invoicePdf && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => window.open(invoice.invoicePdf!, '_blank')}
+                                    title="Baixar PDF"
+                                    aria-label="Baixar PDF"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                {invoice.hostedInvoiceUrl && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => window.open(invoice.hostedInvoiceUrl!, '_blank')}
+                                    title="Ver online"
+                                    aria-label="Ver fatura online"
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
