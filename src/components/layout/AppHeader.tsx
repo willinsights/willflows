@@ -68,7 +68,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
 
   return (
     <>
-      <header className="flex items-center h-16 px-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="flex items-center h-14 px-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         {/* Menu Button (Mobile) */}
         <Button variant="ghost" size="icon" onClick={onMenuClick} className="md:hidden mr-2" type="button">
           <Menu className="h-5 w-5" />
