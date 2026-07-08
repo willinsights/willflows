@@ -13,6 +13,7 @@ import { useHideValues } from '@/hooks/useHideValues';
 import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 import { usePaymentsData } from '@/hooks/usePaymentsData';
 import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/layout/PageHeader';
 import type { ProjectTeamPayment } from '@/components/payments/FreelancerPaymentsControl';
 
 const subNavItems = [
