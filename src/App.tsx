@@ -1,4 +1,5 @@
 import { Suspense, lazy } from "react";
+import { MotionConfig } from "framer-motion";
 import { HelmetProvider } from "react-helmet-async";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -108,6 +109,7 @@ const AdminWebhooks = lazy(() => import("./pages/admin/AdminWebhooks"));
 // API health check confirmed — backend is operational
 const App = () => (
   <HelmetProvider>
+    <MotionConfig reducedMotion="user">
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
@@ -240,6 +242,7 @@ const App = () => (
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
+    </MotionConfig>
   </HelmetProvider>
 );
 

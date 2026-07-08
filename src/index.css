@@ -578,3 +578,37 @@ html.theme-transition *::after {
   animation: pulse-dot 1s ease-in-out infinite;
 }
 
+/* Respect user's reduced-motion preference.
+   Shortens (does not remove) design-system animations so functionality
+   stays intact for users who don't set the preference. */
+@media (prefers-reduced-motion: reduce) {
+  .shimmer,
+  .animate-in-up,
+  .animate-in-scale,
+  .animate-pulse-dot,
+  .animate-pulse,
+  html.theme-transition,
+  html.theme-transition *,
+  html.theme-transition *::before,
+  html.theme-transition *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  /* Disable transform-based hover lifts (buttons, cards) */
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+
+  .hover\:-translate-y-0\.5:hover,
+  .hover\:-translate-y-1:hover,
+  .hover\:translate-y-0:hover,
+  .hover-scale:hover {
+    transform: none !important;
+  }
+}
+
+
