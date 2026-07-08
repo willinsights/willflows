@@ -269,10 +269,9 @@ export default function Dashboard() {
         <OnboardingChecklist />
       </motion.div>
 
-      {/* Header with Quick Actions */}
-      <motion.div variants={fadeUp} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <DashboardHeader currentTime={currentTime} />
-        <QuickActionsCard />
+      {/* Page header with greeting + Quick Actions */}
+      <motion.div variants={fadeUp}>
+        <DashboardPageHeader currentTime={currentTime} />
       </motion.div>
 
       {/* ============ ZONE 1: Visão do mês ============ */}
