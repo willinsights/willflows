@@ -69,7 +69,7 @@ function getInitialViewMode(): FinancialViewMode {
 /** Discreet uppercase zone title used consistently across the dashboard. */
 function ZoneTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80 px-1">
+    <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60 px-1">
       {children}
     </h2>
   );
