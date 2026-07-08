@@ -52,6 +52,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 type AppRole = Database['public']['Enums']['app_role'];
 
