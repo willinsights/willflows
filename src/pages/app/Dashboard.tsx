@@ -75,6 +75,59 @@ function ZoneTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Dashboard page header — greeting + hide-values + quick actions. */
+function DashboardPageHeader({ currentTime }: { currentTime: Date }) {
+  const { user } = useAuth();
+  const { currentWorkspace } = useWorkspace();
+  const { hideValues, toggleHideValues } = useHideValues();
+
+  const getGreeting = () => {
+    const hour = currentTime.getHours();
+    if (hour < 12) return 'Bom dia';
+    if (hour < 19) return 'Boa tarde';
+    return 'Boa noite';
+  };
+  const userName = user?.user_metadata?.full_name || currentWorkspace?.name || 'Utilizador';
+  const firstName = userName.split(' ')[0];
+  const formattedDate = format(currentTime, "EEEE, d 'de' MMMM", { locale: pt });
+  const formattedTime = format(currentTime, 'HH:mm');
+
+  return (
+    <PageHeader
+      title={
+        <>
+          {getGreeting()}, <span className="gradient-text">{firstName}</span>!
+        </>
+      }
+      description={<span className="capitalize">{formattedDate} • {formattedTime}</span>}
+      actions={
+        <>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleHideValues}
+                className="h-8 w-8 p-0"
+              >
+                {hideValues ? (
+                  <EyeOff className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Eye className="h-4 w-4 text-muted-foreground" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p className="text-xs">{hideValues ? 'Mostrar valores' : 'Esconder valores'}</p>
+            </TooltipContent>
+          </Tooltip>
+          <QuickActionsCard />
+        </>
+      }
+    />
+  );
+}
+
 export default function Dashboard() {
   const { currentWorkspace } = useWorkspace();
   const { canViewAllFinancials, isCollaborator } = useFinancialPermissions();
