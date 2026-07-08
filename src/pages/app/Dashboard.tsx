@@ -69,7 +69,7 @@ function getInitialViewMode(): FinancialViewMode {
 /** Discreet uppercase zone title used consistently across the dashboard. */
 function ZoneTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80 px-1">
+    <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60 px-1">
       {children}
     </h2>
   );
@@ -222,7 +222,7 @@ export default function Dashboard() {
   // ============ MOBILE LAYOUT ============
   if (isMobile) {
     return (
-      <div className="p-4 space-y-8 pb-24">
+      <div className="p-4 space-y-10 pb-24">
         {showTour && <ProductTour onComplete={completeTour} onSkip={skipTour} />}
         <TrialBanner />
         <WelcomeWizard />
@@ -310,7 +310,7 @@ export default function Dashboard() {
 
   return (
     <motion.div
-      className="p-3 md:p-4 space-y-8 max-w-[1400px] mx-auto"
+      className="p-3 md:p-4 space-y-10 max-w-[1400px] mx-auto"
       variants={stagger}
       initial="hidden"
       animate="visible"

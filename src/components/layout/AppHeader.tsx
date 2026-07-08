@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { labelFromSegment } from '@/lib/route-labels';
 import { useCommandPalette } from '@/components/command/CommandPaletteProvider';
+import { cn } from '@/lib/utils';
 
 interface AppHeaderProps {
   onMenuClick: () => void;
@@ -68,7 +69,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
 
   return (
     <>
-      <header className="flex items-center h-16 px-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="flex items-center h-14 px-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         {/* Menu Button (Mobile) */}
         <Button variant="ghost" size="icon" onClick={onMenuClick} className="md:hidden mr-2" type="button">
           <Menu className="h-5 w-5" />
@@ -85,12 +86,17 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
             if (labels.length === 0) return null;
             return (
               <div className="hidden md:flex items-center gap-1 ml-1 shrink-0">
-                {labels.map((label, i) => (
-                  <span key={i} className="flex items-center gap-1">
-                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-sm font-medium">{label}</span>
-                  </span>
-                ))}
+                {labels.map((label, i) => {
+                  const isLast = i === labels.length - 1;
+                  return (
+                    <span key={i} className="flex items-center gap-1">
+                      <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
+                      <span className={cn('text-sm', isLast ? 'font-semibold text-foreground' : 'text-muted-foreground')}>
+                        {label}
+                      </span>
+                    </span>
+                  );
+                })}
               </div>
             );
           })()}
