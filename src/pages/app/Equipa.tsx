@@ -185,36 +185,36 @@ export default function Equipa() {
   return (
     <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
-      <div className="flex flex-col gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Equipa</h1>
-          <p className="text-sm text-muted-foreground">Gerir membros e permissões do workspace</p>
-        </div>
-        {isAdmin && (
-          <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gradient-primary w-full sm:w-auto sm:self-start">
-                <UserPlus className="h-4 w-4 mr-2" />
-                Convidar membro
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Convidar novo membro</DialogTitle>
-                <DialogDescription>
-                  Envie um convite por email para adicionar um novo membro ao workspace.
-                </DialogDescription>
-              </DialogHeader>
-              <InviteMemberForm
-                onSuccess={() => {
-                  setInviteDialogOpen(false);
-                  refreshInvitations();
-                }}
-              />
-            </DialogContent>
-          </Dialog>
-        )}
-      </div>
+      <PageHeader
+        title="Equipa"
+        description="Gerir membros e permissões do workspace"
+        actions={
+          isAdmin ? (
+            <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gradient-primary">
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Convidar membro
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Convidar novo membro</DialogTitle>
+                  <DialogDescription>
+                    Envie um convite por email para adicionar um novo membro ao workspace.
+                  </DialogDescription>
+                </DialogHeader>
+                <InviteMemberForm
+                  onSuccess={() => {
+                    setInviteDialogOpen(false);
+                    refreshInvitations();
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
+          ) : undefined
+        }
+      />
 
       {/* Stats Cards */}
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
