@@ -58,15 +58,15 @@ serve(async (req) => {
     // Parse request
     const { streamUid, versionId, isReplacement } = await req.json();
 
-    if (!streamUid) {
-      return new Response(JSON.stringify({ error: "Missing streamUid" }), {
+    if (!streamUid || !versionId) {
+      return new Response(JSON.stringify({ error: "Missing streamUid or versionId" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // Authorize: caller must belong to the video version's workspace (admin/edicao)
-    if (versionId) {
+    {
       const { data: versionRow, error: verErr } = await supabase
         .from("video_versions")
         .select("workspace_id")
