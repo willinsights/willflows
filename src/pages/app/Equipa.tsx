@@ -281,7 +281,146 @@ export default function Equipa() {
           </div>
         </CardHeader>
         <CardContent className="p-0 sm:p-6 sm:pt-0">
-          <div className="rounded-md border overflow-x-auto">
+          {/* Mobile card list (<md) */}
+          <div className="md:hidden space-y-2 p-3">
+            {membersLoading || invitationsLoading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div key={`m-skel-${i}`} className="flex items-center gap-3 rounded-lg border bg-card/60 p-3">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                </div>
+              ))
+            ) : filteredMembers.length === 0 && invitations.length === 0 ? (
+              <EmptyState
+                icon={Users}
+                title="Sem membros na equipa"
+                description="Convida o primeiro membro para começar a colaborar neste workspace."
+                compact
+              />
+            ) : (
+              <>
+                {filteredMembers.map((member) => {
+                  const isMe = member.user_id === user?.id;
+                  const initials = (member.full_name || member.email)
+                    .split(' ')
+                    .map((n) => n[0])
+                    .join('')
+                    .toUpperCase()
+                    .slice(0, 2);
+                  return (
+                    <div
+                      key={`m-card-${member.id}`}
+                      className={cn(
+                        'rounded-lg border bg-card/60 p-3 flex items-center gap-3',
+                        isMe && 'bg-primary/5 border-primary/20'
+                      )}
+                    >
+                      <Avatar className="h-10 w-10 shrink-0">
+                        <AvatarImage src={member.avatar_url || undefined} />
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium truncate text-sm">
+                            {member.full_name || member.email.split('@')[0]}
+                          </p>
+                          {isMe && (
+                            <Badge variant="outline" className="text-[10px] h-5">Você</Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+                        <div className="mt-1">
+                          <Badge variant="outline" className="text-[10px] font-normal">
+                            {getRoleLabel(member.role as AppRole)}
+                          </Badge>
+                        </div>
+                      </div>
+                      {isAdmin && !isMe && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="Ações do membro">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            {ALL_ROLES.filter((r) => r !== member.role).map((r) => (
+                              <DropdownMenuItem
+                                key={r}
+                                onClick={() => handleRoleChange(member.id, r)}
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Definir como {getRoleLabel(r)}
+                              </DropdownMenuItem>
+                            ))}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => handleRemoveMember(member.id)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Remover membro
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
+                  );
+                })}
+                {isAdmin &&
+                  invitations.map((invitation) => (
+                    <div
+                      key={`inv-card-${invitation.id}`}
+                      className="rounded-lg border border-dashed bg-muted/30 p-3 flex items-center gap-3"
+                    >
+                      <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{invitation.email}</p>
+                        <div className="mt-1 flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline" className="text-[10px] font-normal">
+                            {getRoleLabel(invitation.role as AppRole)}
+                          </Badge>
+                          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            Convite pendente
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          aria-label="Reenviar convite"
+                          onClick={() => handleResendInvite(invitation.id)}
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive"
+                          aria-label="Cancelar convite"
+                          onClick={() => handleCancelInvite(invitation.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+              </>
+            )}
+          </div>
+
+          {/* Desktop table (≥md) */}
+          <div className="hidden md:block rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
