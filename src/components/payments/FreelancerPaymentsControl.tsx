@@ -269,9 +269,12 @@ export function FreelancerPaymentsControl({
       </CardHeader>
       <CardContent>
         {pagination.totalItems === 0 ? (
-          <p className="text-center text-muted-foreground py-8">
-            Nenhum pagamento encontrado — apenas projetos entregues aparecem aqui.
-          </p>
+          <EmptyState
+            compact
+            icon={Users}
+            title="Nenhum pagamento a colaborador"
+            description="Apenas projetos entregues aparecem aqui."
+          />
         ) : (
           <>
             {/* Mobile card view */}
