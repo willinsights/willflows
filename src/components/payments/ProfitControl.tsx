@@ -312,12 +312,12 @@ export function ProfitControl({
         </CardHeader>
         <CardContent>
           {pagination.totalItems === 0 ? (
-            <div className="text-center py-8">
-              <BarChart3 className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-muted-foreground">
-                Nenhum projeto com receita definida
-              </p>
-            </div>
+            <EmptyState
+              compact
+              icon={BarChart3}
+              title="Nenhum projeto com receita definida"
+              description="Defina o Preço Cliente nos projetos entregues para calcular o lucro."
+            />
           ) : (
             <>
               <Table>
