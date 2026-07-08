@@ -29,6 +29,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFilteredProjects, ProjectWithClient } from '@/hooks/useFilteredProjects';
 import { useCalendarEvents } from '@/hooks/useCalendarEvents';
@@ -75,7 +77,7 @@ interface CalendarEventDetails {
 }
 
 export default function Calendario() {
-  const { projects, refresh } = useFilteredProjects();
+  const { projects, refresh, loading: projectsLoading } = useFilteredProjects();
   const updateProject = async (id: string, updates: any) => {
     const { error } = await supabase
       .from('projects')
@@ -83,7 +85,7 @@ export default function Calendario() {
       .eq('id', id);
     if (!error) refresh();
   };
-  const { events, createEvent, updateEvent, deleteEvent, refresh: refreshEvents, sourceFilter, setSourceFilter } = useCalendarEvents();
+  const { events, createEvent, updateEvent, deleteEvent, refresh: refreshEvents, sourceFilter, setSourceFilter, loading: eventsLoading } = useCalendarEvents();
   const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
