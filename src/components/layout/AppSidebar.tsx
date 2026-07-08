@@ -128,7 +128,7 @@ export function AppSidebar({ collapsed, onToggle, isMobile, autoCollapseOnNav = 
                 )
               ) : (
                 <div className="px-3 mb-2">
-                  <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/60 uppercase">
+                  <span className="text-[10px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
                     {section.title}
                   </span>
                 </div>
@@ -139,35 +139,35 @@ export function AppSidebar({ collapsed, onToggle, isMobile, autoCollapseOnNav = 
                   const active = isActive(item.path);
                   const isChat = item.path === '/app/chat';
                   const showBadge = isChat && totalUnread > 0;
-                  
-                  return (
+                  const isCollapsedDesktop = collapsed && !isMobile;
+
+                  const linkNode = (
                     <NavLink
                       key={item.path}
                       to={item.path}
-                      title={collapsed && !isMobile ? item.label : undefined}
-                      aria-label={collapsed && !isMobile ? item.label : undefined}
+                      aria-label={isCollapsedDesktop ? item.label : undefined}
                       onClick={() => !isMobile && !collapsed && autoCollapseOnNav && onToggle()}
                       className={cn(
                         'relative group',
-                        collapsed && !isMobile 
-                          ? 'flex items-center justify-center px-1 py-2.5 rounded-lg transition-all duration-200'
-                          : 'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
+                        isCollapsedDesktop
+                          ? 'flex items-center justify-center px-1 py-2 rounded-lg transition-all duration-200'
+                          : 'flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200',
                         'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                        active && 'bg-primary/10 text-primary font-medium shadow-sm'
+                        active && 'bg-primary/10 text-primary shadow-sm'
                       )}
                     >
                       {/* Active indicator bar */}
-                      {active && !collapsed && !isMobile && (
+                      {active && !isCollapsedDesktop && (
                         <motion.div
                           layoutId="sidebar-active"
                           className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary"
                           transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                         />
                       )}
-                      <item.icon className={cn('flex-shrink-0 h-5 w-5 transition-colors', active && 'text-primary')} />
-                      {collapsed && !isMobile ? null : (
+                      <item.icon className={cn('flex-shrink-0 h-[18px] w-[18px] transition-colors', active && 'text-primary')} />
+                      {isCollapsedDesktop ? null : (
                         <>
-                          <span className="truncate">{item.label}</span>
+                          <span className={cn('truncate', active ? 'font-semibold' : 'font-medium')}>{item.label}</span>
                           {/* Badge for chat unread messages - expanded sidebar */}
                           <AnimatePresence>
                             {showBadge && (
@@ -185,7 +185,7 @@ export function AppSidebar({ collapsed, onToggle, isMobile, autoCollapseOnNav = 
                       )}
                       {/* Badge for chat unread messages - collapsed sidebar */}
                       <AnimatePresence>
-                        {showBadge && collapsed && !isMobile && (
+                        {showBadge && isCollapsedDesktop && (
                           <motion.span
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
@@ -197,6 +197,17 @@ export function AppSidebar({ collapsed, onToggle, isMobile, autoCollapseOnNav = 
                         )}
                       </AnimatePresence>
                     </NavLink>
+                  );
+
+                  return isCollapsedDesktop ? (
+                    <Tooltip key={item.path} delayDuration={200}>
+                      <TooltipTrigger asChild>{linkNode}</TooltipTrigger>
+                      <TooltipContent side="right" className="text-xs">
+                        {item.label}
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <div key={item.path}>{linkNode}</div>
                   );
                 })}
               </div>
