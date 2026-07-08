@@ -42,6 +42,7 @@ import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { cn } from '@/lib/utils';
 import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 export default function Leads() {
   const { canViewLeads } = useFinancialPermissions();
