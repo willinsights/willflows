@@ -729,7 +729,7 @@ export default function BetaAdmin() {
                   <Button 
                     onClick={approveAllWaitlist} 
                     disabled={approvingAll}
-                    /* solid primary */
+                    
                   >
                     {approvingAll ? (
                       <>
