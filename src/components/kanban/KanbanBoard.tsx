@@ -306,50 +306,51 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
         <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] bg-success/[0.02] dark:bg-success/[0.03] rounded-full blur-[60px]" />
       </div>
       {/* Header - Compact */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-3 py-2 border-b border-border/40 shrink-0">
-        <div>
-          <h1 className="text-base font-semibold">{title}</h1>
-          <p className="text-[11px] text-muted-foreground">{description}</p>
-        </div>
-        <div className="flex items-center gap-1.5 w-full sm:w-auto">
-          <div className="relative flex-1 sm:flex-initial">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-            <Input
-              placeholder="Pesquisar..."
-              className="pl-7 h-7 text-[11px] w-full sm:w-[160px]"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              aria-label="Pesquisar projetos por nome, cliente ou código"
-            />
-          </div>
-          <KanbanFilters
-            filters={filters}
-            onFiltersChange={setFilters}
-            clients={uniqueClients}
-            teamMembers={uniqueTeamMembers}
-            categories={categories}
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-[11px] px-2"
-            onClick={() => setImportModalOpen(true)}
-          >
-            <Upload className="h-3 w-3 mr-0.5" />
-            <span className="hidden sm:inline">Importar</span>
-          </Button>
-          <Button
-            size="sm"
-            className="gradient-primary h-7 text-[11px] px-2"
-            onClick={() => {
-              setSelectedColumnId(null);
-              setCreateModalOpen(true);
-            }}
-          >
-            <Plus className="h-3 w-3 mr-0.5" />
-            <span className="hidden sm:inline">Novo</span>
-          </Button>
-        </div>
+      <div className="px-3 pt-3 shrink-0">
+        <PageHeader
+          title={title}
+          description={description}
+          actions={
+            <>
+              <div className="relative w-full sm:w-auto">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Pesquisar..."
+                  className="pl-8 h-9 w-full sm:w-[200px]"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  aria-label="Pesquisar projetos por nome, cliente ou código"
+                />
+              </div>
+              <KanbanFilters
+                filters={filters}
+                onFiltersChange={setFilters}
+                clients={uniqueClients}
+                teamMembers={uniqueTeamMembers}
+                categories={categories}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setImportModalOpen(true)}
+              >
+                <Upload className="h-4 w-4 mr-1.5" />
+                <span className="hidden sm:inline">Importar</span>
+              </Button>
+              <Button
+                size="sm"
+                className="gradient-primary"
+                onClick={() => {
+                  setSelectedColumnId(null);
+                  setCreateModalOpen(true);
+                }}
+              >
+                <Plus className="h-4 w-4 mr-1.5" />
+                <span className="hidden sm:inline">Novo</span>
+              </Button>
+            </>
+          }
+        />
       </div>
 
       {/* Kanban Board */}
