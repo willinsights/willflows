@@ -21,6 +21,7 @@ import { Plus, Search, Loader2, Upload } from 'lucide-react';
 import { isToday, isThisWeek, isThisMonth, isPast } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { KanbanColumn } from './KanbanColumn';
 import { KanbanCard } from './KanbanCard';
 import { KanbanFilters, KanbanFilterState } from './KanbanFilters';
