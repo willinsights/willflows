@@ -61,16 +61,14 @@ Deno.serve(async (req) => {
 
     const { data: membership, error: memErr } = await admin
       .from("workspace_members")
-      .select("role, status")
+      .select("role, is_active")
       .eq("workspace_id", workspace_id)
       .eq("user_id", userId)
+      .eq("is_active", true)
       .maybeSingle();
 
     if (memErr || !membership) {
       return json({ error: "Not a workspace member" }, 403);
-    }
-    if (membership.status && membership.status !== "active") {
-      return json({ error: "Membership not active" }, 403);
     }
     if (membership.role !== "admin") {
       return json({ error: "Admin role required" }, 403);

@@ -206,6 +206,18 @@ serve(async (req) => {
       
       const googleUser = await userInfoResponse.json();
       console.log(`[google-oauth] Got user info for: ${googleUser.email}`);
+
+      // Reject unverified Google emails (account takeover prevention)
+      if (googleUser.verified_email !== true) {
+        console.error(`[google-oauth] Rejected unverified email: ${googleUser.email}`);
+        return new Response(null, {
+          status: 302,
+          headers: {
+            'Location': `${state.redirectUri}?error=email_not_verified`,
+            ...corsHeaders,
+          },
+        });
+      }
       
       // Create Supabase admin client
       const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
