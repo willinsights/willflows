@@ -134,12 +134,10 @@ export default function Relatorios() {
   if (projects.length === 0) {
     return (
       <div className="p-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold">Relatórios</h1>
-            <p className="text-muted-foreground">Análises e métricas do seu negócio</p>
-          </div>
-        </div>
+        <PageHeader
+          title="Relatórios"
+          description="Análises e métricas do seu negócio"
+        />
         <EmptyState
           icon={FolderKanban}
           title="Sem dados para analisar"
