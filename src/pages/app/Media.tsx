@@ -205,36 +205,25 @@ export default function Media() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <FolderOpen className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">Media & Uploads</h1>
-            <p className="text-muted-foreground">
-              Links de NAS, Frame.io, Vimeo e outros associados aos projetos
-            </p>
-          </div>
-        </div>
-        <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as 'links' | 'storage')}>
-          <TabsList>
-            <TabsTrigger value="links" className="gap-2">
-              <Link2 className="h-4 w-4" />
-              Links
-            </TabsTrigger>
-            <TabsTrigger value="storage" className="gap-2">
-              <HardDrive className="h-4 w-4" />
-              Armazenamento
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </motion.div>
+      {/* Header */}
+      <PageHeader
+        title="Media & Uploads"
+        description="Links de NAS, Frame.io, Vimeo e outros associados aos projetos"
+        actions={
+          <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as 'links' | 'storage')}>
+            <TabsList>
+              <TabsTrigger value="links" className="gap-2">
+                <Link2 className="h-4 w-4" />
+                Links
+              </TabsTrigger>
+              <TabsTrigger value="storage" className="gap-2">
+                <HardDrive className="h-4 w-4" />
+                Armazenamento
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        }
+      />
 
       {/* Storage Manager Tab */}
       {mainTab === 'storage' ? (
