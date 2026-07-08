@@ -25,6 +25,7 @@ import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
 import { logger } from '@/lib/logger';
+import { PageHeader } from '@/components/layout/PageHeader';
 interface Invoice {
   id: string;
   number: string | null;
