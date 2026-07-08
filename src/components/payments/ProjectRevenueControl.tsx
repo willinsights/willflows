@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { TrendingUp, Euro } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePagination } from '@/hooks/usePagination';
 import { ListPagination } from '@/components/ui/list-pagination';
@@ -179,15 +180,12 @@ export function ProjectRevenueControl({
         </CardHeader>
         <CardContent>
           {pagination.totalItems === 0 ? (
-            <div className="text-center py-8">
-              <TrendingUp className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-muted-foreground">
-                Nenhum projeto com Preço Cliente definido
-              </p>
-              <p className="text-sm text-muted-foreground/70 mt-1">
-                Adicione um valor em "Preço Cliente" nos seus projetos para visualizar a receita aqui.
-              </p>
-            </div>
+            <EmptyState
+              compact
+              icon={TrendingUp}
+              title="Nenhum projeto com Preço Cliente definido"
+              description='Adicione um valor em "Preço Cliente" nos seus projetos para visualizar a receita aqui.'
+            />
           ) : (
             <>
               {/* Mobile card view */}

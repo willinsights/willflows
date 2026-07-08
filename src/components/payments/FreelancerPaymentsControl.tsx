@@ -2,6 +2,7 @@ import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Users } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { usePagination } from '@/hooks/usePagination';
@@ -268,9 +269,12 @@ export function FreelancerPaymentsControl({
       </CardHeader>
       <CardContent>
         {pagination.totalItems === 0 ? (
-          <p className="text-center text-muted-foreground py-8">
-            Nenhum pagamento encontrado — apenas projetos entregues aparecem aqui.
-          </p>
+          <EmptyState
+            compact
+            icon={Users}
+            title="Nenhum pagamento a colaborador"
+            description="Apenas projetos entregues aparecem aqui."
+          />
         ) : (
           <>
             {/* Mobile card view */}

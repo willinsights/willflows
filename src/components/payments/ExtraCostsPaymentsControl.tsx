@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Package } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
 import { PaymentFilters, type FilterState } from './PaymentFilters';
 import { PaymentExportButtons } from './PaymentExportButtons';
@@ -147,9 +148,12 @@ export function ExtraCostsPaymentsControl({
       </CardHeader>
       <CardContent>
         {filteredCosts.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">
-            Nenhum custo extra encontrado
-          </p>
+          <EmptyState
+            compact
+            icon={Package}
+            title="Nenhum custo extra"
+            description="Ainda não existem custos extras para os filtros selecionados."
+          />
         ) : (
           <>
             {/* Mobile card view */}

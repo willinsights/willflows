@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { TrendingUp, BarChart3 } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { usePagination } from '@/hooks/usePagination';
@@ -311,12 +312,12 @@ export function ProfitControl({
         </CardHeader>
         <CardContent>
           {pagination.totalItems === 0 ? (
-            <div className="text-center py-8">
-              <BarChart3 className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-muted-foreground">
-                Nenhum projeto com receita definida
-              </p>
-            </div>
+            <EmptyState
+              compact
+              icon={BarChart3}
+              title="Nenhum projeto com receita definida"
+              description="Defina o Preço Cliente nos projetos entregues para calcular o lucro."
+            />
           ) : (
             <>
               <Table>

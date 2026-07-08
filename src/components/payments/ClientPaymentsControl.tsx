@@ -3,7 +3,8 @@ import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { TrendingUp } from 'lucide-react';
+import { TrendingUp, Receipt } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { usePagination } from '@/hooks/usePagination';
@@ -159,9 +160,12 @@ export function ClientPaymentsControl({
       </CardHeader>
       <CardContent>
         {pagination.totalItems === 0 ? (
-          <p className="text-center text-muted-foreground py-8">
-            Nenhum pagamento de cliente encontrado
-          </p>
+          <EmptyState
+            compact
+            icon={Receipt}
+            title="Nenhum pagamento de cliente"
+            description="Ainda não existem pagamentos de clientes para os filtros selecionados."
+          />
         ) : (
           <>
             {/* Mobile card view */}
