@@ -656,7 +656,7 @@ export default function Configuracoes() {
 
 
                     <Button 
-                      className="gradient-primary" 
+                      
                       onClick={handleSaveGeneral}
                       disabled={saving}
                     >
@@ -852,7 +852,7 @@ export default function Configuracoes() {
                 </div>
 
                 <Button 
-                  className="gradient-primary" 
+                  
                   onClick={handleSaveProfile}
                   disabled={savingProfile}
                 >
@@ -952,7 +952,7 @@ export default function Configuracoes() {
                       </SelectContent>
                     </Select>
                     <Button 
-                      className="gradient-primary" 
+                      
                       onClick={handleInvite}
                       disabled={inviting || !inviteEmail.trim()}
                     >
