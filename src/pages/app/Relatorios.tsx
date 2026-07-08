@@ -41,6 +41,7 @@ import { TeamPerformanceReport } from '@/components/reports/TeamPerformanceRepor
 import { RevenueForecastReport } from '@/components/reports/RevenueForecastReport';
 import { ReportSectionHeader } from '@/components/reports/ReportSectionHeader';
 import { supabase } from '@/integrations/supabase/client';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 export default function Relatorios() {
   const { canViewReports } = useFinancialPermissions();
