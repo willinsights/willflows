@@ -455,43 +455,43 @@ export default function Calendario() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Calendário</h1>
-          <p className="text-muted-foreground">Captações, entregas e compromissos</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={handlePrev}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" className="min-w-[180px] capitalize">
-            {getHeaderLabel()}
-          </Button>
-          <Button variant="outline" size="icon" onClick={handleNext}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          {selectionMode ? (
-            <Button variant="outline" onClick={exitSelectionMode} className="gap-2">
-              <X className="h-4 w-4" />
-              Cancelar
+      <PageHeader
+        title="Calendário"
+        description="Captações, entregas e compromissos"
+        actions={
+          <>
+            <Button variant="outline" size="icon" onClick={handlePrev}>
+              <ChevronLeft className="h-4 w-4" />
             </Button>
-          ) : (
-            <Button 
-              variant="outline" 
-              onClick={() => setSelectionMode(true)} 
-              className="gap-2"
-              disabled={deletableEvents.length === 0}
-            >
-              <CheckSquare className="h-4 w-4" />
-              Selecionar
+            <Button variant="outline" className="min-w-[180px] capitalize">
+              {getHeaderLabel()}
             </Button>
-          )}
-          <Button onClick={() => handleSlotClick(currentDate)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Novo Evento
-          </Button>
-        </div>
-      </div>
+            <Button variant="outline" size="icon" onClick={handleNext}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            {selectionMode ? (
+              <Button variant="outline" onClick={exitSelectionMode} className="gap-2">
+                <X className="h-4 w-4" />
+                Cancelar
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => setSelectionMode(true)}
+                className="gap-2"
+                disabled={deletableEvents.length === 0}
+              >
+                <CheckSquare className="h-4 w-4" />
+                Selecionar
+              </Button>
+            )}
+            <Button onClick={() => handleSlotClick(currentDate)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Novo Evento
+            </Button>
+          </>
+        }
+      />
 
       {/* View Mode and Source Filter */}
       <div className="flex flex-wrap items-center gap-4">
