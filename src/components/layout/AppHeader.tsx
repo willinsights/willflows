@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { labelFromSegment } from '@/lib/route-labels';
 import { useCommandPalette } from '@/components/command/CommandPaletteProvider';
+import { cn } from '@/lib/utils';
 
 interface AppHeaderProps {
   onMenuClick: () => void;
