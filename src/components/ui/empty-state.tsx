@@ -3,15 +3,19 @@ import { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
+interface EmptyStateAction {
+  label: string;
+  onClick: () => void;
+  icon?: LucideIcon;
+}
+
 interface EmptyStateProps {
   icon: LucideIcon;
   title: string;
   description: string;
-  action?: {
-    label: string;
-    onClick: () => void;
-    icon?: LucideIcon;
-  };
+  action?: EmptyStateAction;
+  /** Optional secondary action rendered as an outline button next to the primary. */
+  secondaryAction?: EmptyStateAction;
   className?: string;
   compact?: boolean;
 }
@@ -21,6 +25,7 @@ export function EmptyState({
   title,
   description,
   action,
+  secondaryAction,
   className,
   compact = false,
 }: EmptyStateProps) {
@@ -34,16 +39,19 @@ export function EmptyState({
         className
       )}
     >
+      {/* Gradient-ring icon container */}
       <div
         className={cn(
-          'rounded-full bg-muted flex items-center justify-center mb-4',
-          compact ? 'w-12 h-12' : 'w-16 h-16'
+          'relative rounded-full flex items-center justify-center mb-4',
+          'bg-gradient-to-br from-primary/15 via-primary/5 to-accent/10',
+          'ring-1 ring-inset ring-primary/15 shadow-sm',
+          compact ? 'w-14 h-14' : 'w-20 h-20'
         )}
       >
         <Icon
           className={cn(
-            'text-muted-foreground',
-            compact ? 'h-6 w-6' : 'h-8 w-8'
+            'text-primary/60',
+            compact ? 'h-6 w-6' : 'h-9 w-9'
           )}
         />
       </div>
@@ -63,15 +71,29 @@ export function EmptyState({
       >
         {description}
       </p>
-      {action && (
-        <Button
-          className="gradient-primary"
-          size={compact ? 'sm' : 'default'}
-          onClick={action.onClick}
-        >
-          {action.icon && <action.icon className="h-4 w-4 mr-2" />}
-          {action.label}
-        </Button>
+      {(action || secondaryAction) && (
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {action && (
+            <Button
+              className="gradient-primary"
+              size={compact ? 'sm' : 'default'}
+              onClick={action.onClick}
+            >
+              {action.icon && <action.icon className="h-4 w-4 mr-2" />}
+              {action.label}
+            </Button>
+          )}
+          {secondaryAction && (
+            <Button
+              variant="outline"
+              size={compact ? 'sm' : 'default'}
+              onClick={secondaryAction.onClick}
+            >
+              {secondaryAction.icon && <secondaryAction.icon className="h-4 w-4 mr-2" />}
+              {secondaryAction.label}
+            </Button>
+          )}
+        </div>
       )}
     </motion.div>
   );

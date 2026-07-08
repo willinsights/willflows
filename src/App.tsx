@@ -109,6 +109,7 @@ const AdminWebhooks = lazy(() => import("./pages/admin/AdminWebhooks"));
 // API health check confirmed — backend is operational
 const App = () => (
   <HelmetProvider>
+    <MotionConfig reducedMotion="user">
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
@@ -241,6 +242,7 @@ const App = () => (
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
+    </MotionConfig>
   </HelmetProvider>
 );
 
