@@ -148,9 +148,12 @@ export function ExtraCostsPaymentsControl({
       </CardHeader>
       <CardContent>
         {filteredCosts.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">
-            Nenhum custo extra encontrado
-          </p>
+          <EmptyState
+            compact
+            icon={Package}
+            title="Nenhum custo extra"
+            description="Ainda não existem custos extras para os filtros selecionados."
+          />
         ) : (
           <>
             {/* Mobile card view */}
