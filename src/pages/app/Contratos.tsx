@@ -100,32 +100,25 @@ export default function Contratos() {
 
       <div className="p-6 space-y-6">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-        >
-          <div>
-            <h1 className="text-2xl font-bold">Contratos</h1>
-            <p className="text-muted-foreground">
-              Gestão de contratos e assinaturas digitais
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => {
-              setEditingTemplate(null);
-              setTemplateModalOpen(true);
-            }}>
-              <FileCode className="h-4 w-4 mr-2" />
-              Novo Template
-            </Button>
-            <Button className="gradient-primary" onClick={() => setCreateModalOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Contrato
-            </Button>
-          </div>
-        </motion.div>
+        <PageHeader
+          title="Contratos"
+          description="Gestão de contratos e assinaturas digitais"
+          actions={
+            <>
+              <Button variant="outline" onClick={() => {
+                setEditingTemplate(null);
+                setTemplateModalOpen(true);
+              }}>
+                <FileCode className="h-4 w-4 mr-2" />
+                Novo Template
+              </Button>
+              <Button className="gradient-primary" onClick={() => setCreateModalOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Contrato
+              </Button>
+            </>
+          }
+        />
 
         {/* Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
