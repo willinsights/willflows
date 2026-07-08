@@ -23,6 +23,7 @@ import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useGlobalBadge } from '@/hooks/useGlobalBadge';
 import { HideValuesProvider } from '@/contexts/HideValuesContext';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { CommandPaletteProvider } from '@/components/command/CommandPaletteProvider';
 
 
 const RETRY_COOLDOWN_MS = 5000; // 5 seconds cooldown between retries
@@ -41,12 +42,13 @@ export function AppLayout() {
   const isMobile = useIsMobile();
   useDocumentTitle();
 
-
-
-  // Wrap both layouts with HideValuesProvider for shared state
+  // Wrap both layouts with providers for shared state.
+  // CommandPaletteProvider registers the global ⌘K / Ctrl+K shortcut once.
   return (
     <HideValuesProvider>
-      {isMobile ? <MobileAppLayout /> : <DesktopAppLayout />}
+      <CommandPaletteProvider>
+        {isMobile ? <MobileAppLayout /> : <DesktopAppLayout />}
+      </CommandPaletteProvider>
     </HideValuesProvider>
   );
 }
