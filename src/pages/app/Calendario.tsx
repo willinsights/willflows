@@ -44,6 +44,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { GoogleCalendarSettings } from '@/components/calendar/GoogleCalendarSettings';
 import { Checkbox } from '@/components/ui/checkbox';
+import { PageHeader } from '@/components/layout/PageHeader';
 import {
   AlertDialog,
   AlertDialogAction,
