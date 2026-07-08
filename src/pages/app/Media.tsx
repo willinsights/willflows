@@ -1,4 +1,5 @@
 import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
