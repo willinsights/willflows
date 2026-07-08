@@ -1,9 +1,18 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, UserPlus, Crown, Shield, Search } from 'lucide-react';
+import { Users, UserPlus, Crown, Shield, Search, MoreHorizontal, Edit, Trash2, Mail, RefreshCw, Clock } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
