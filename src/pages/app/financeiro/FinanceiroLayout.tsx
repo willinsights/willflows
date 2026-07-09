@@ -119,7 +119,7 @@ export default function FinanceiroLayout() {
       />
 
       {/* Summary Cards — horizontally scrollable on mobile */}
-      {canViewAllFinancials && (
+      {canViewAllFinancials && !isHub && (
         <ScrollArea className="w-full">
           <div className="flex gap-3 pb-2 min-w-max sm:min-w-0 sm:grid sm:grid-cols-3 lg:grid-cols-6">
             {[
