@@ -26,6 +26,8 @@ const subNavItems = [
 ];
 
 export default function FinanceiroLayout() {
+  const location = useLocation();
+  const isHub = location.pathname === '/app/financeiro' || location.pathname === '/app/financeiro/';
   const { payments, loading } = usePayments();
   const { teamPayments } = useTeamPayments();
   const { canViewAllFinancials, canViewOwnFinancials, isLoading: permissionsLoading } = useFinancialPermissions();
