@@ -817,6 +817,126 @@ export type Database = {
           },
         ]
       }
+      closing_items: {
+        Row: {
+          amount_snapshot: number
+          closing_id: string
+          created_at: string
+          id: string
+          kind: string
+          project_id: string
+          team_payment_id: string | null
+        }
+        Insert: {
+          amount_snapshot?: number
+          closing_id: string
+          created_at?: string
+          id?: string
+          kind: string
+          project_id: string
+          team_payment_id?: string | null
+        }
+        Update: {
+          amount_snapshot?: number
+          closing_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          project_id?: string
+          team_payment_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "closing_items_closing_id_fkey"
+            columns: ["closing_id"]
+            isOneToOne: false
+            referencedRelation: "closings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "closing_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "closing_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_profit"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "closing_items_team_payment_id_fkey"
+            columns: ["team_payment_id"]
+            isOneToOne: false
+            referencedRelation: "project_team"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "closing_items_team_payment_id_fkey"
+            columns: ["team_payment_id"]
+            isOneToOne: false
+            referencedRelation: "v_collaborator_payments"
+            referencedColumns: ["team_id"]
+          },
+        ]
+      }
+      closings: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          created_by: string
+          id: string
+          label: string
+          notes: string | null
+          received_at: string | null
+          status: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          label?: string
+          notes?: string | null
+          received_at?: string | null
+          status?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          label?: string
+          notes?: string | null
+          received_at?: string | null
+          status?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "closings_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "closings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contract_templates: {
         Row: {
           category: string | null
