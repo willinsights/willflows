@@ -157,7 +157,7 @@ export default function FinanceiroLayout() {
               <NavLink
                 key={item.path}
                 to={item.path}
-                end={item.end}
+                
                 className={({ isActive }) => cn(
                   'flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap',
                   isActive
