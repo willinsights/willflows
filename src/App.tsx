@@ -57,6 +57,7 @@ const FinanceiroCustos = lazy(() => import("./pages/app/financeiro/Custos"));
 const FinanceiroCustosExtras = lazy(() => import("./pages/app/financeiro/CustosExtras"));
 const FinanceiroLucro = lazy(() => import("./pages/app/financeiro/Lucro"));
 const FinanceiroFechoMensal = lazy(() => import("./pages/app/financeiro/FechoMensal"));
+const FinanceiroHub = lazy(() => import("./pages/app/financeiro/FinanceiroHub"));
 const RelatoriosFeature = lazy(() => import("./pages/features/Relatorios"));
 const MediaHubFeature = lazy(() => import("./pages/features/MediaHub"));
 const VideoApprovalFeature = lazy(() => import("./pages/features/VideoApproval"));
