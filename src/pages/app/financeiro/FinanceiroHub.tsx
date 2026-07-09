@@ -39,8 +39,10 @@ import { usePaymentsData } from '@/hooks/usePaymentsData';
 import { useTeamPayments } from '@/hooks/usePayments';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useClients } from '@/hooks/useClients';
+import { useProjects } from '@/hooks/useProjects';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { ProjectDetailsSheet } from '@/components/projects/ProjectDetailsSheet';
 import type { ProjectTeamPayment } from '@/components/payments/FreelancerPaymentsControl';
 
 type Mode = 'freelancer' | 'studio';
