@@ -152,7 +152,7 @@ export default function FinanceiroLayout() {
       )}
 
       {/* Sub Navigation — scrollable on mobile */}
-      {canViewAllFinancials && (
+      {canViewAllFinancials && !isHub && (
         <ScrollArea className="w-full">
           <nav className="flex gap-1 bg-muted/50 rounded-lg p-1 min-w-max sm:min-w-0">
             {subNavItems.map(item => (
