@@ -18,7 +18,7 @@ import { useHideValues } from '@/hooks/useHideValues';
 import { cn } from '@/lib/utils';
 import { TeamMemberPaymentInput } from './TeamMemberPaymentInput';
 import { ProjectCostLinesCard } from '@/components/financeiro/ProjectCostLinesCard';
-import { ProjectInvoicesCard } from '@/components/financeiro/ProjectInvoicesCard';
+
 import { ProjectHealthScoreBadge } from '@/components/projects/ProjectHealthScoreBadge';
 import { useProjectHealthScore } from '@/hooks/useProjectHealthScore';
 import type { Tables } from '@/integrations/supabase/types';
