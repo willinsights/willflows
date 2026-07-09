@@ -17,12 +17,12 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import type { ProjectTeamPayment } from '@/components/payments/FreelancerPaymentsControl';
 
 const subNavItems = [
-  { label: 'Visão Geral', path: '/app/financeiro', end: true, icon: Euro },
-  { label: 'Receitas', path: '/app/financeiro/receitas', icon: TrendingUp },
-  { label: 'Custos Equipa', path: '/app/financeiro/custos', icon: TrendingDown },
-  { label: 'Custos Extras', path: '/app/financeiro/custos-extras', icon: Package },
-  { label: 'Lucro', path: '/app/financeiro/lucro', icon: BarChart3 },
-  { label: 'Fecho Mensal', path: '/app/financeiro/fecho', icon: Receipt },
+  { label: 'Visão Geral', path: '/app/financeiro/legacy/visao-geral', icon: Euro },
+  { label: 'Receitas', path: '/app/financeiro/legacy/receitas', icon: TrendingUp },
+  { label: 'Custos Equipa', path: '/app/financeiro/legacy/custos', icon: TrendingDown },
+  { label: 'Custos Extras', path: '/app/financeiro/legacy/custos-extras', icon: Package },
+  { label: 'Lucro', path: '/app/financeiro/legacy/lucro', icon: BarChart3 },
+  { label: 'Fecho Mensal', path: '/app/financeiro/legacy/fecho', icon: Receipt },
 ];
 
 export default function FinanceiroLayout() {
