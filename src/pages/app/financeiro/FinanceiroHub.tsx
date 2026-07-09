@@ -358,6 +358,7 @@ function ClosingDetail({
   const { formatCurrency, formatCurrencyRaw } = useFormatCurrency();
   const { closings, items, markReceived, deleteClosing } = useClosings();
   const { handleFreelancerStatusChange, handleCostStatusChange, allProjectCosts, projectRevenue } = usePaymentsData();
+  const { teamPayments } = useTeamPayments();
   const { members } = useWorkspaceMembers();
   const { clients } = useClients();
   const { toast } = useToast();
@@ -376,30 +377,36 @@ function ClosingDetail({
 
   const projectMap = new Map(projectRevenue.map((p) => [p.id, p]));
   const extraMap = new Map(allProjectCosts.map((c) => [c.id, c]));
+  const typedTeam = teamPayments as ProjectTeamPayment[];
+  const teamById = new Map(typedTeam.map((t) => [t.id, t]));
+
+  const nameOf = (userId: string | null) => {
+    if (!userId) return 'Sem editor';
+    const m = members.find((mm) => mm.user_id === userId);
+    return m?.full_name || m?.email || 'Editor';
+  };
 
   const editorGroups = useMemo(() => {
     const map = new Map<string, { name: string; rows: Array<{ id: string; projectId: string; project: string; amount: number; status: string; teamId: string }>; total: number }>();
     for (const it of teamItems) {
       const proj = projectMap.get(it.project_id);
-      // find team_payment via project revenue? we don't have team list here; fetch from teamPayments?
-      // Use members: try to locate a payment with matching team_payment_id from usePaymentsData? Not accessible; encode from useTeamPayments instead.
-      const editorId = 'unknown';
-      const key = `${editorId}:${it.team_payment_id}`;
-      // Placeholder — resolved below via team payments
-      const cur = map.get(editorId) || { name: 'Editor', rows: [], total: 0 };
+      const tp = it.team_payment_id ? teamById.get(it.team_payment_id) : undefined;
+      const editorId = tp?.user_id || 'sem-editor';
+      const cur = map.get(editorId) || { name: nameOf(tp?.user_id ?? null), rows: [], total: 0 };
       cur.rows.push({
         id: it.id,
         projectId: it.project_id,
         project: proj?.name || it.project_id.slice(0, 8),
         amount: Number(it.amount_snapshot),
-        status: 'pendente',
+        status: tp?.payment_status || 'pendente',
         teamId: it.team_payment_id || '',
       });
       cur.total += Number(it.amount_snapshot);
       map.set(editorId, cur);
     }
     return map;
-  }, [teamItems, projectMap]);
+  }, [teamItems, projectMap, teamById, members]);
+
 
   if (!closing) {
     return (
