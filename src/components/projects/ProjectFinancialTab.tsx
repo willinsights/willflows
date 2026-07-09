@@ -602,9 +602,8 @@ export function ProjectFinancialTab({
 
           {/* Granular Cost Lines */}
           <ProjectCostLinesCard projectId={projectId} />
+          {/* Faturas removidas — substituídas pelo Fecho Mensal */}
 
-          {/* Invoices */}
-          <ProjectInvoicesCard projectId={projectId} clientId={project.client_id} />
         </>
       )}
 
