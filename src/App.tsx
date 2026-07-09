@@ -215,12 +215,13 @@ const App = () => (
                       <Route path="calendario" element={<Calendario />} />
                       <Route path="pagamentos" element={<Pagamentos />} />
                       <Route path="financeiro" element={<FinanceiroLayout />}>
-                        <Route index element={<FinanceiroVisaoGeral />} />
-                        <Route path="receitas" element={<FinanceiroReceitas />} />
-                        <Route path="custos" element={<FinanceiroCustos />} />
-                        <Route path="custos-extras" element={<FinanceiroCustosExtras />} />
-                        <Route path="lucro" element={<FinanceiroLucro />} />
-                        <Route path="fecho" element={<FinanceiroFechoMensal />} />
+                        <Route index element={<FinanceiroHub />} />
+                        <Route path="legacy/visao-geral" element={<FinanceiroVisaoGeral />} />
+                        <Route path="legacy/receitas" element={<FinanceiroReceitas />} />
+                        <Route path="legacy/custos" element={<FinanceiroCustos />} />
+                        <Route path="legacy/custos-extras" element={<FinanceiroCustosExtras />} />
+                        <Route path="legacy/lucro" element={<FinanceiroLucro />} />
+                        <Route path="legacy/fecho" element={<FinanceiroFechoMensal />} />
                       </Route>
                       <Route path="relatorios" element={<Relatorios />} />
                       <Route path="configuracoes" element={<Configuracoes />} />
