@@ -208,8 +208,12 @@ function UnbilledPool({
               </thead>
               <tbody>
                 {filtered.map((r) => (
-                  <tr key={r.projectId} className="border-t hover:bg-muted/20 transition-colors">
-                    <td className="p-2">
+                  <tr
+                    key={r.projectId}
+                    className="border-t hover:bg-muted/20 transition-colors cursor-pointer"
+                    onClick={() => setOpenProjectId(r.projectId)}
+                  >
+                    <td className="p-2" onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={!!selected[r.projectId]}
                         onCheckedChange={(v) => setSelected((s) => ({ ...s, [r.projectId]: !!v }))}
