@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Lock, Euro, TrendingUp, TrendingDown, Package, BarChart3, Receipt } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
