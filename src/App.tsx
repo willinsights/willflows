@@ -56,6 +56,7 @@ const FinanceiroReceitas = lazy(() => import("./pages/app/financeiro/Receitas"))
 const FinanceiroCustos = lazy(() => import("./pages/app/financeiro/Custos"));
 const FinanceiroCustosExtras = lazy(() => import("./pages/app/financeiro/CustosExtras"));
 const FinanceiroLucro = lazy(() => import("./pages/app/financeiro/Lucro"));
+const FinanceiroFechoMensal = lazy(() => import("./pages/app/financeiro/FechoMensal"));
 const RelatoriosFeature = lazy(() => import("./pages/features/Relatorios"));
 const MediaHubFeature = lazy(() => import("./pages/features/MediaHub"));
 const VideoApprovalFeature = lazy(() => import("./pages/features/VideoApproval"));
@@ -218,6 +219,7 @@ const App = () => (
                         <Route path="custos" element={<FinanceiroCustos />} />
                         <Route path="custos-extras" element={<FinanceiroCustosExtras />} />
                         <Route path="lucro" element={<FinanceiroLucro />} />
+                        <Route path="fecho" element={<FinanceiroFechoMensal />} />
                       </Route>
                       <Route path="relatorios" element={<Relatorios />} />
                       <Route path="configuracoes" element={<Configuracoes />} />
