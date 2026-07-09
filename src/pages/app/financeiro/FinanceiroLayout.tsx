@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Lock, Euro, TrendingUp, TrendingDown, Package, BarChart3 } from 'lucide-react';
+import { Eye, EyeOff, Lock, Euro, TrendingUp, TrendingDown, Package, BarChart3, Receipt } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,6 +22,7 @@ const subNavItems = [
   { label: 'Custos Equipa', path: '/app/financeiro/custos', icon: TrendingDown },
   { label: 'Custos Extras', path: '/app/financeiro/custos-extras', icon: Package },
   { label: 'Lucro', path: '/app/financeiro/lucro', icon: BarChart3 },
+  { label: 'Fecho Mensal', path: '/app/financeiro/fecho', icon: Receipt },
 ];
 
 export default function FinanceiroLayout() {
