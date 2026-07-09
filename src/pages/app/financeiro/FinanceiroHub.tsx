@@ -39,8 +39,10 @@ import { usePaymentsData } from '@/hooks/usePaymentsData';
 import { useTeamPayments } from '@/hooks/usePayments';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useClients } from '@/hooks/useClients';
+import { useProjects } from '@/hooks/useProjects';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { ProjectDetailsSheet } from '@/components/projects/ProjectDetailsSheet';
 import type { ProjectTeamPayment } from '@/components/payments/FreelancerPaymentsControl';
 
 type Mode = 'freelancer' | 'studio';
@@ -66,6 +68,7 @@ function UnbilledPool({
   const { rows, loading } = useUnbilledPool();
   const { members } = useWorkspaceMembers();
   const { clients } = useClients();
+  const { projects, refresh: refreshProjects } = useProjects();
   const { createClosing } = useClosings();
   const { toast } = useToast();
 
@@ -76,6 +79,8 @@ function UnbilledPool({
   const [includeExtras, setIncludeExtras] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [label, setLabel] = useState('');
+  const [openProjectId, setOpenProjectId] = useState<string | null>(null);
+  const openProject = openProjectId ? projects.find((p) => p.id === openProjectId) ?? null : null;
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
@@ -203,8 +208,12 @@ function UnbilledPool({
               </thead>
               <tbody>
                 {filtered.map((r) => (
-                  <tr key={r.projectId} className="border-t hover:bg-muted/20 transition-colors">
-                    <td className="p-2">
+                  <tr
+                    key={r.projectId}
+                    className="border-t hover:bg-muted/20 transition-colors cursor-pointer"
+                    onClick={() => setOpenProjectId(r.projectId)}
+                  >
+                    <td className="p-2" onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={!!selected[r.projectId]}
                         onCheckedChange={(v) => setSelected((s) => ({ ...s, [r.projectId]: !!v }))}
@@ -288,6 +297,13 @@ function UnbilledPool({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <ProjectDetailsSheet
+          open={!!openProjectId}
+          onOpenChange={(o) => !o && setOpenProjectId(null)}
+          project={openProject as never}
+          onUpdate={refreshProjects}
+        />
       </CardContent>
     </Card>
   );
