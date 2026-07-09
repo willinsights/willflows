@@ -31,7 +31,7 @@ import {
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from '@/components/ui/accordion';
-import { PageHeader } from '@/components/layout/PageHeader';
+
 import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 import { useUnbilledPool } from '@/hooks/useUnbilledPool';
 import { useClosings, type Closing, type ClosingItem } from '@/hooks/useClosings';
