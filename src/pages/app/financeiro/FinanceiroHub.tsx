@@ -68,6 +68,7 @@ function UnbilledPool({
   const { rows, loading } = useUnbilledPool();
   const { members } = useWorkspaceMembers();
   const { clients } = useClients();
+  const { projects, refresh: refreshProjects } = useProjects();
   const { createClosing } = useClosings();
   const { toast } = useToast();
 
@@ -78,6 +79,8 @@ function UnbilledPool({
   const [includeExtras, setIncludeExtras] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [label, setLabel] = useState('');
+  const [openProjectId, setOpenProjectId] = useState<string | null>(null);
+  const openProject = openProjectId ? projects.find((p) => p.id === openProjectId) ?? null : null;
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
