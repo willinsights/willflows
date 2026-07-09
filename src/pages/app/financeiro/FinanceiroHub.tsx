@@ -36,10 +36,12 @@ import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 import { useUnbilledPool } from '@/hooks/useUnbilledPool';
 import { useClosings, type Closing, type ClosingItem } from '@/hooks/useClosings';
 import { usePaymentsData } from '@/hooks/usePaymentsData';
+import { useTeamPayments } from '@/hooks/usePayments';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useClients } from '@/hooks/useClients';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import type { ProjectTeamPayment } from '@/components/payments/FreelancerPaymentsControl';
 
 type Mode = 'freelancer' | 'studio';
 
