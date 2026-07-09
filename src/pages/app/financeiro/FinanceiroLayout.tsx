@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Lock, Euro, TrendingUp, TrendingDown, Package, BarChart3, Receipt } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,15 +17,17 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import type { ProjectTeamPayment } from '@/components/payments/FreelancerPaymentsControl';
 
 const subNavItems = [
-  { label: 'Visão Geral', path: '/app/financeiro', end: true, icon: Euro },
-  { label: 'Receitas', path: '/app/financeiro/receitas', icon: TrendingUp },
-  { label: 'Custos Equipa', path: '/app/financeiro/custos', icon: TrendingDown },
-  { label: 'Custos Extras', path: '/app/financeiro/custos-extras', icon: Package },
-  { label: 'Lucro', path: '/app/financeiro/lucro', icon: BarChart3 },
-  { label: 'Fecho Mensal', path: '/app/financeiro/fecho', icon: Receipt },
+  { label: 'Visão Geral', path: '/app/financeiro/legacy/visao-geral', icon: Euro },
+  { label: 'Receitas', path: '/app/financeiro/legacy/receitas', icon: TrendingUp },
+  { label: 'Custos Equipa', path: '/app/financeiro/legacy/custos', icon: TrendingDown },
+  { label: 'Custos Extras', path: '/app/financeiro/legacy/custos-extras', icon: Package },
+  { label: 'Lucro', path: '/app/financeiro/legacy/lucro', icon: BarChart3 },
+  { label: 'Fecho Mensal', path: '/app/financeiro/legacy/fecho', icon: Receipt },
 ];
 
 export default function FinanceiroLayout() {
+  const location = useLocation();
+  const isHub = location.pathname === '/app/financeiro' || location.pathname === '/app/financeiro/';
   const { payments, loading } = usePayments();
   const { teamPayments } = useTeamPayments();
   const { canViewAllFinancials, canViewOwnFinancials, isLoading: permissionsLoading } = useFinancialPermissions();
@@ -117,7 +119,7 @@ export default function FinanceiroLayout() {
       />
 
       {/* Summary Cards — horizontally scrollable on mobile */}
-      {canViewAllFinancials && (
+      {canViewAllFinancials && !isHub && (
         <ScrollArea className="w-full">
           <div className="flex gap-3 pb-2 min-w-max sm:min-w-0 sm:grid sm:grid-cols-3 lg:grid-cols-6">
             {[
@@ -150,14 +152,14 @@ export default function FinanceiroLayout() {
       )}
 
       {/* Sub Navigation — scrollable on mobile */}
-      {canViewAllFinancials && (
+      {canViewAllFinancials && !isHub && (
         <ScrollArea className="w-full">
           <nav className="flex gap-1 bg-muted/50 rounded-lg p-1 min-w-max sm:min-w-0">
             {subNavItems.map(item => (
               <NavLink
                 key={item.path}
                 to={item.path}
-                end={item.end}
+                
                 className={({ isActive }) => cn(
                   'flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap',
                   isActive
