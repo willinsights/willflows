@@ -297,6 +297,13 @@ function UnbilledPool({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <ProjectDetailsSheet
+          open={!!openProjectId}
+          onOpenChange={(o) => !o && setOpenProjectId(null)}
+          project={openProject as never}
+          onUpdate={refreshProjects}
+        />
       </CardContent>
     </Card>
   );
