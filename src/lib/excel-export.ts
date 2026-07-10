@@ -153,8 +153,7 @@ function styleDataRow(row: ExcelJS.Row, index: number, numericFlags: boolean[]) 
 }
 
 function applyTotalsRow(worksheet: ExcelJS.Worksheet, label: string, values: (number | null)[], numericFlags: boolean[]) {
-  const rowValues = numericFlags.map((f, i) => (f ? values[i] : ''));
-  // Place label in first non-numeric column, else col 1
+  const rowValues: (string | number | null)[] = numericFlags.map((f, i) => (f ? values[i] : ''));
   const firstNonNumIdx = numericFlags.findIndex(f => !f);
   const labelIdx = firstNonNumIdx === -1 ? 0 : firstNonNumIdx;
   rowValues[labelIdx] = label;
