@@ -450,25 +450,75 @@ function ClosingDetail({
     catch (e) { toast({ title: 'Erro', description: String((e as Error).message), variant: 'destructive' }); }
   };
 
-  const handleExportProfit = () => {
-    const lines = [
-      ['Fecho', closing.label],
-      ['Cliente', clientName],
-      ['Data', format(new Date(closing.created_at), 'dd/MM/yyyy', { locale: pt })],
-      [],
-      ['Projeto', 'Receita'],
-      ...revenueItems.map((i) => [projectMap.get(i.project_id)?.name || i.project_id, formatCurrencyRaw(Number(i.amount_snapshot))]),
-      [],
-      ['Receita total', formatCurrencyRaw(revenue)],
-      ['Custos', formatCurrencyRaw(teamCost + extraCost)],
-      ['Lucro', formatCurrencyRaw(profit)],
-    ];
-    const csv = lines.map((r) => r.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `${closing.label || 'fecho'}-lucro.csv`; a.click();
-    URL.revokeObjectURL(url);
+  const handleExportProfit = async () => {
+    const { exportMultiSectionToExcel } = await import('@/lib/excel-export');
+
+    const receitaSection = {
+      title: 'Receita por Projeto',
+      headers: ['Projeto', 'Receita'],
+      data: revenueItems.map((i) => [
+        projectMap.get(i.project_id)?.name || i.project_id.slice(0, 8),
+        formatCurrencyRaw(Number(i.amount_snapshot)),
+      ]) as (string | number)[][],
+      showTotal: true,
+    };
+
+    const equipaSection = teamItems.length > 0 ? {
+      title: 'Pagamentos a Colaboradores',
+      headers: ['Projeto', 'Editor', 'Valor'],
+      data: teamItems.map((i) => {
+        const tp = i.team_payment_id ? teamById.get(i.team_payment_id) : undefined;
+        return [
+          projectMap.get(i.project_id)?.name || i.project_id.slice(0, 8),
+          nameOf(tp?.user_id ?? null),
+          formatCurrencyRaw(Number(i.amount_snapshot)),
+        ];
+      }) as (string | number)[][],
+      showTotal: true,
+    } : null;
+
+    const extrasSection = extraItems.length > 0 ? {
+      title: 'Custos Extras',
+      headers: ['Projeto', 'Descrição', 'Valor'],
+      data: extraItems.map((i) => {
+        const extra = extraMap.get(i.project_id);
+        return [
+          projectMap.get(i.project_id)?.name || i.project_id.slice(0, 8),
+          extra?.description || '—',
+          formatCurrencyRaw(Number(i.amount_snapshot)),
+        ];
+      }) as (string | number)[][],
+      showTotal: true,
+    } : null;
+
+    const resumoSection = {
+      title: 'Resumo do Fecho',
+      headers: ['Indicador', 'Valor'],
+      data: [
+        ['Receita Total', formatCurrencyRaw(revenue)],
+        ['Custos com Equipa', formatCurrencyRaw(teamCost)],
+        ['Custos Extras', formatCurrencyRaw(extraCost)],
+        ['Custos Totais', formatCurrencyRaw(teamCost + extraCost)],
+        ['Lucro Líquido', formatCurrencyRaw(profit)],
+      ] as (string | number)[][],
+    };
+
+    await exportMultiSectionToExcel({
+      title: `Fecho — ${closing.label || 'Sem nome'}`,
+      subtitle: 'WillFlow',
+      clientName,
+      periodLabel: format(new Date(closing.created_at), "d 'de' MMMM 'de' yyyy", { locale: pt }),
+      sections: [
+        resumoSection,
+        receitaSection,
+        ...(equipaSection ? [equipaSection] : []),
+        ...(extrasSection ? [extrasSection] : []),
+      ],
+      filename: `fecho-${(closing.label || 'sem-nome').replace(/[^a-zA-Z0-9-_]/g, '_')}-lucro-${format(new Date(), 'yyyy-MM-dd')}`,
+      disclaimer: 'Documento gerado automaticamente pelo WillFlow · Confidencial',
+    });
+
+    toast({ title: 'Exportado', description: 'Ficheiro Excel do fecho exportado com sucesso.' });
   };
 
   return (
