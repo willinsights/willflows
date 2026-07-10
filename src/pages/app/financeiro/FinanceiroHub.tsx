@@ -479,12 +479,10 @@ function ClosingDetail({
 
     const extrasSection = extraItems.length > 0 ? {
       title: 'Custos Extras',
-      headers: ['Projeto', 'Descrição', 'Valor'],
+      headers: ['Projeto', 'Valor'],
       data: extraItems.map((i) => {
-        const extra = extraMap.get(i.project_id);
         return [
-          projectMap.get(i.project_id)?.name || i.project_id.slice(0, 8),
-          extra?.description || '—',
+          projectMap.get(i.project_id)?.name || extraMap.get(i.project_id)?.name || i.project_id.slice(0, 8),
           formatCurrencyRaw(Number(i.amount_snapshot)),
         ];
       }) as (string | number)[][],
