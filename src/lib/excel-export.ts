@@ -249,6 +249,7 @@ export async function exportToExcel(options: ExcelExportOptions): Promise<void> 
 
   // Numeric column detection
   const numericFlags = options.headers.map((h, i) => {
+    if (isTextHeader(h)) return false;
     if (isCurrencyHeader(h)) return true;
     let numeric = 0, filled = 0;
     for (const row of options.data) {
