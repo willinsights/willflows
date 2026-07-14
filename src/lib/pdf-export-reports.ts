@@ -244,6 +244,7 @@ export function generateReportPdfHtml(opts: ReportPdfOptions): string {
     <span>Gerado por <span class="brand">WillFlow</span> · ${emittedAt}</span>
     <span>Documento interno · confidencial</span>
   </div>
+</div>
 </body>
 </html>`;
 }
