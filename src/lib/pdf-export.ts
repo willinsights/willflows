@@ -366,6 +366,7 @@ export function generatePdfHtml(options: PdfExportOptions): string {
     <span>Gerado por <span class="brand">WillFlow</span> · ${currentDateTime}</span>
     <span>Documento interno · confidencial</span>
   </div>
+</div>
 </body>
 </html>`;
 }
