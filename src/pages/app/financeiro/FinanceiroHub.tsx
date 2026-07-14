@@ -3,9 +3,12 @@ import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { motion } from 'framer-motion';
 import {
-  Receipt, ChevronDown, ChevronRight, Check, Download, FileText,
+  Receipt, ChevronDown, ChevronRight, Check, Download, FileText, FileSpreadsheet,
   Search, Filter, Plus, Trash2, ArrowLeft, TrendingUp, TrendingDown, Wallet,
 } from 'lucide-react';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
