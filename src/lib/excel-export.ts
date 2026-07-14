@@ -343,6 +343,7 @@ function renderSectionsToWorksheet(
     sTitle.height = 20;
 
     const numericFlags = section.headers.map((h, i) => {
+      if (isTextHeader(h)) return false;
       if (isCurrencyHeader(h)) return true;
       let numeric = 0, filled = 0;
       for (const row of section.data) {
