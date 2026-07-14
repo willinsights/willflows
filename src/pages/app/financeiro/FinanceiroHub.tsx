@@ -467,7 +467,7 @@ function ClosingDetail({
       title: 'Resumo — Receita',
       headers: ['Indicador', 'Valor'],
       data: [
-        ['Nº de projetos com receita', revenueItems.length],
+        ['Nº de projetos com receita', `${revenueItems.length} projetos`],
         ['Receita Total', formatCurrencyRaw(revenue)],
       ] as (string | number)[][],
     };
