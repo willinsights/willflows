@@ -162,6 +162,7 @@ export function generateReportPdfHtml(opts: ReportPdfOptions): string {
   </style>
 </head>
 <body>
+<div class="page">
   <header class="brand-header">
     <div class="brand-mark">
       <div class="logo">W</div>
