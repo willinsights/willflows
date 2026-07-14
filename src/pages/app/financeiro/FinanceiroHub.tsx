@@ -453,137 +453,104 @@ function ClosingDetail({
     catch (e) { toast({ title: 'Erro', description: String((e as Error).message), variant: 'destructive' }); }
   };
 
-  const handleExportProfit = async () => {
-    const { exportMultiSheetToExcel } = await import('@/lib/excel-export');
+  // ---- Build unified flat list matching the reference export design ----
+  const buildFlatExport = () => {
+    const headers = ['Código', 'Projeto', 'Data Entrega', 'Tipo', 'Detalhe', 'Status', 'Valor'];
 
-    // === Receita ===
-    const receitaDetalheSection = {
-      title: 'Detalhe da Receita por Projeto',
-      headers: ['Projeto', 'Receita'],
-      data: revenueItems.map((i) => [
-        projectMap.get(i.project_id)?.name || i.project_id.slice(0, 8),
-        formatCurrencyRaw(Number(i.amount_snapshot)),
-      ]) as (string | number)[][],
-      showTotal: true,
-    };
-    const receitaResumoSection = {
-      title: `Resumo — Receita  (${revenueItems.length} ${revenueItems.length === 1 ? 'projeto' : 'projetos'})`,
-      headers: ['Indicador', 'Valor'],
-      data: [
-        ['Receita Total', formatCurrencyRaw(revenue)],
-      ] as (string | number)[][],
-    };
+    const fmtDate = (v?: string | null) =>
+      v ? format(new Date(v), 'dd/MM/yyyy', { locale: pt }) : '—';
 
-    // === Custos ===
-    const custosEquipaSection = teamItems.length > 0 ? {
-      title: 'Custos — Pagamentos a Colaboradores',
-      headers: ['Projeto', 'Editor', 'Valor'],
-      data: teamItems.map((i) => {
-        const tp = i.team_payment_id ? teamById.get(i.team_payment_id) : undefined;
-        return [
-          projectMap.get(i.project_id)?.name || i.project_id.slice(0, 8),
-          nameOf(tp?.user_id ?? null),
-          formatCurrencyRaw(Number(i.amount_snapshot)),
-        ];
-      }) as (string | number)[][],
-      showTotal: true,
-    } : null;
+    const rows: (string | number)[][] = [];
 
-    const custosExtrasSection = extraItems.length > 0 ? {
-      title: 'Custos — Extras',
-      headers: ['Projeto', 'Valor'],
-      data: extraItems.map((i) => [
-        projectMap.get(i.project_id)?.name || extraMap.get(i.project_id)?.name || i.project_id.slice(0, 8),
-        formatCurrencyRaw(Number(i.amount_snapshot)),
-      ]) as (string | number)[][],
-      showTotal: true,
-    } : null;
-
-    const custosResumoSection = {
-      title: 'Resumo — Custos',
-      headers: ['Indicador', 'Valor'],
-      data: [
-        ['Custos com Equipa', formatCurrencyRaw(teamCost)],
-        ['Custos Extras', formatCurrencyRaw(extraCost)],
-        ['Custos Totais', formatCurrencyRaw(teamCost + extraCost)],
-      ] as (string | number)[][],
-    };
-
-    // === Lucro ===
-    const lucroResumoSection = {
-      title: 'Resumo do Fecho — Lucro',
-      headers: ['Indicador', 'Valor'],
-      data: [
-        ['Receita Total', formatCurrencyRaw(revenue)],
-        ['Custos com Equipa', formatCurrencyRaw(teamCost)],
-        ['Custos Extras', formatCurrencyRaw(extraCost)],
-        ['Custos Totais', formatCurrencyRaw(teamCost + extraCost)],
-        ['Lucro Líquido', formatCurrencyRaw(profit)],
-        ['Margem', revenue > 0 ? `${((profit / revenue) * 100).toFixed(1)}%` : '—'],
-      ] as (string | number)[][],
-    };
-
-    // Detalhe por projeto: receita - custos = lucro
-    const lucroPorProjetoMap = new Map<string, { receita: number; custo: number }>();
+    // Receita
     revenueItems.forEach((i) => {
-      const agg = lucroPorProjetoMap.get(i.project_id) || { receita: 0, custo: 0 };
-      agg.receita += Number(i.amount_snapshot);
-      lucroPorProjetoMap.set(i.project_id, agg);
+      const p = projectMap.get(i.project_id);
+      rows.push([
+        (p?.id || i.project_id).slice(0, 8).toUpperCase(),
+        p?.name || i.project_id.slice(0, 8),
+        fmtDate(p?.delivered_at ?? null),
+        'Receita',
+        clientName,
+        'Recebido',
+        formatCurrencyRaw(Number(i.amount_snapshot)),
+      ]);
     });
-    teamItems.forEach((i) => {
-      const agg = lucroPorProjetoMap.get(i.project_id) || { receita: 0, custo: 0 };
-      agg.custo += Number(i.amount_snapshot);
-      lucroPorProjetoMap.set(i.project_id, agg);
-    });
-    extraItems.forEach((i) => {
-      const agg = lucroPorProjetoMap.get(i.project_id) || { receita: 0, custo: 0 };
-      agg.custo += Number(i.amount_snapshot);
-      lucroPorProjetoMap.set(i.project_id, agg);
-    });
-    const lucroDetalheSection = {
-      title: 'Detalhe do Lucro por Projeto',
-      headers: ['Projeto', 'Receita', 'Custos', 'Lucro'],
-      data: Array.from(lucroPorProjetoMap.entries()).map(([pid, agg]) => [
-        projectMap.get(pid)?.name || extraMap.get(pid)?.name || pid.slice(0, 8),
-        formatCurrencyRaw(agg.receita),
-        formatCurrencyRaw(agg.custo),
-        formatCurrencyRaw(agg.receita - agg.custo),
-      ]) as (string | number)[][],
-      showTotal: true,
-    };
 
-    await exportMultiSheetToExcel({
-      title: `Fecho — ${closing.label || 'Sem nome'}`,
+    // Custos — Equipa
+    teamItems.forEach((i) => {
+      const p = projectMap.get(i.project_id);
+      const tp = i.team_payment_id ? teamById.get(i.team_payment_id) : undefined;
+      rows.push([
+        (p?.id || i.project_id).slice(0, 8).toUpperCase(),
+        p?.name || i.project_id.slice(0, 8),
+        fmtDate(p?.delivered_at ?? null),
+        'Colaborador',
+        `${nameOf(tp?.user_id ?? null)} (${formatCurrencyRaw(Number(i.amount_snapshot))})`,
+        statusLabel(tp?.payment_status || 'pendente'),
+        formatCurrencyRaw(Number(i.amount_snapshot)),
+      ]);
+    });
+
+    // Custos — Extras
+    extraItems.forEach((i) => {
+      const c = extraMap.get(i.project_id);
+      rows.push([
+        (c?.id || i.project_id).slice(0, 8).toUpperCase(),
+        c?.name || i.project_id.slice(0, 8),
+        fmtDate(c?.delivered_at ?? null),
+        'Custo Extra',
+        '—',
+        statusLabel(c?.custos_extras_payment_status || 'pendente'),
+        formatCurrencyRaw(Number(i.amount_snapshot)),
+      ]);
+    });
+
+    const title = `Fecho — ${closing.label || 'Sem nome'}`;
+    const filename = `fecho-${(closing.label || 'sem-nome').replace(/[^a-zA-Z0-9-_]/g, '_')}-${format(new Date(), 'yyyy-MM-dd')}`;
+
+    return { headers, rows, title, filename };
+  };
+
+  const handleExportExcel = async () => {
+    const { exportToExcel } = await import('@/lib/excel-export');
+    const { headers, rows, title, filename } = buildFlatExport();
+    await exportToExcel({
+      title,
       subtitle: 'WillFlow',
       clientName,
       periodLabel: format(new Date(closing.created_at), "d 'de' MMMM 'de' yyyy", { locale: pt }),
-      sheets: [
-        {
-          name: 'Receita',
-          title: `Receita — ${closing.label || 'Sem nome'}`,
-          sections: [receitaResumoSection, receitaDetalheSection],
-        },
-        {
-          name: 'Custos',
-          title: `Custos — ${closing.label || 'Sem nome'}`,
-          sections: [
-            custosResumoSection,
-            ...(custosEquipaSection ? [custosEquipaSection] : []),
-            ...(custosExtrasSection ? [custosExtrasSection] : []),
-          ],
-        },
-        {
-          name: 'Lucro',
-          title: `Lucro — ${closing.label || 'Sem nome'}`,
-          sections: [lucroResumoSection, lucroDetalheSection],
-        },
-      ],
-      filename: `fecho-${(closing.label || 'sem-nome').replace(/[^a-zA-Z0-9-_]/g, '_')}-${format(new Date(), 'yyyy-MM-dd')}`,
-      disclaimer: 'Documento gerado automaticamente pelo WillFlow · Confidencial',
+      headers,
+      data: rows.map((r) => r.map((c) => String(c))),
+      filename,
+    });
+    toast({ title: 'Excel exportado', description: `${rows.length} registos.` });
+  };
+
+  const handleExportPdf = async () => {
+    const { generatePdfHtml, printPdf } = await import('@/lib/pdf-export');
+    const { headers, rows, title } = buildFlatExport();
+
+    const statsBar = [
+      { label: 'Receita', value: formatCurrencyRaw(revenue), className: 'success' as const },
+      { label: 'Custos', value: formatCurrencyRaw(teamCost + extraCost), className: 'destructive' as const },
+      { label: 'Lucro', value: formatCurrencyRaw(profit), className: profit >= 0 ? 'success' as const : 'destructive' as const },
+    ];
+
+    const html = generatePdfHtml({
+      title,
+      workspaceName: 'WillFlow',
+      statsBar,
+      headers,
+      data: rows.map((r) => ({
+        cells: r.map((c, idx) => (idx === headers.length - 1 ? { value: String(c), className: 'positive' } : String(c))),
+      })),
+      totalLabel: `Total: ${rows.length} registos`,
     });
 
-    toast({ title: 'Exportado', description: 'Ficheiro Excel do fecho exportado com sucesso.' });
+    printPdf(html);
+    toast({ title: 'PDF gerado', description: 'Janela de impressão aberta.' });
   };
+
 
 
   return (
