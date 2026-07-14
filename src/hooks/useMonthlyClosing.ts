@@ -132,8 +132,13 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
       .filter((r) => r.status === 'pago')
       .reduce((s, r) => s + r.amount, 0);
 
+    const captacaoCosts = deliveredThisMonth.reduce((s, p) => s + (p.custo_captacao || 0), 0);
+    const edicaoCosts = deliveredThisMonth.reduce((s, p) => s + (p.custo_edicao || 0), 0);
+
     const totalCosts = editorRows.reduce((s, r) => s + r.amount, 0)
-      + extraRows.reduce((s, r) => s + r.amount, 0);
+      + extraRows.reduce((s, r) => s + r.amount, 0)
+      + captacaoCosts
+      + edicaoCosts;
     const ownerProfit = revenue - totalCosts;
     const alreadyPaid = editorPaid + extrasPaid;
 
