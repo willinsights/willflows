@@ -162,6 +162,8 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
       alreadyPaid,
       extrasPayable,
       extrasPaid,
+      captacaoCosts,
+      edicaoCosts,
       deliveredProjectCount: deliveredThisMonth.length,
       byEditor,
       settlements,
