@@ -449,6 +449,7 @@ export async function exportMultiSheetToExcel(options: ExcelExportMultiSheetOpti
       sections: sheet.sections,
       disclaimer: options.disclaimer,
     });
+    configurePage(worksheet);
   });
 
   const buffer = await workbook.xlsx.writeBuffer();
