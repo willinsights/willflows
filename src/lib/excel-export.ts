@@ -73,7 +73,14 @@ export interface ExcelExportMultiSheetOptions {
 
 // Detects numeric / currency columns to apply € format + right alignment
 function isCurrencyHeader(label: string): boolean {
+  if (isTextHeader(label)) return false;
   return /(valor|preço|preco|custo|total|receita|lucro|saldo|montante|iva|€|pago|pendente|vencido)/i.test(label);
+}
+
+// Headers that must always render as plain text (dates, codes, names, statuses).
+// Prevents parseCurrency from converting values like "22/05/2026" or "AB1234CD" into numbers.
+function isTextHeader(label: string): boolean {
+  return /(data|código|codigo|referência|referencia|projeto|nome|cliente|detalhe|status|tipo|categoria|descrição|descricao|observ|período|periodo|mês|mes|ano|dia|hora|email|telefone|nif|iban|morada)/i.test(label);
 }
 
 // Attempts to parse a cell that may be a currency string like "-€ 1.234,56" or "+1.234,56 €"
@@ -242,6 +249,7 @@ export async function exportToExcel(options: ExcelExportOptions): Promise<void> 
 
   // Numeric column detection
   const numericFlags = options.headers.map((h, i) => {
+    if (isTextHeader(h)) return false;
     if (isCurrencyHeader(h)) return true;
     let numeric = 0, filled = 0;
     for (const row of options.data) {
@@ -335,6 +343,7 @@ function renderSectionsToWorksheet(
     sTitle.height = 20;
 
     const numericFlags = section.headers.map((h, i) => {
+      if (isTextHeader(h)) return false;
       if (isCurrencyHeader(h)) return true;
       let numeric = 0, filled = 0;
       for (const row of section.data) {
