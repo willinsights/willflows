@@ -37,20 +37,38 @@ export interface ExcelExportOptions {
   brandColor?: string;
 }
 
+export interface ExcelSection {
+  title: string;
+  headers: string[];
+  data: (string | number)[][];
+  showTotal?: boolean;
+}
+
 export interface ExcelExportMultiSectionOptions {
   title: string;
   subtitle?: string;
-  sections: {
-    title: string;
-    headers: string[];
-    data: (string | number)[][];
-    showTotal?: boolean;
-  }[];
+  sections: ExcelSection[];
   filename: string;
   clientName?: string;
   periodLabel?: string;
   disclaimer?: string;
   brandColor?: string;
+}
+
+export interface ExcelSheetSpec {
+  name: string;         // Worksheet tab name (max ~31 chars)
+  title: string;        // Title shown in the branded header of the sheet
+  sections: ExcelSection[];
+}
+
+export interface ExcelExportMultiSheetOptions {
+  title: string;
+  subtitle?: string;
+  sheets: ExcelSheetSpec[];
+  filename: string;
+  clientName?: string;
+  periodLabel?: string;
+  disclaimer?: string;
 }
 
 // Detects numeric / currency columns to apply € format + right alignment
