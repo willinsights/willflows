@@ -39,6 +39,8 @@ export interface MonthlyClosing {
   alreadyPaid: number;
   extrasPayable: number;
   extrasPaid: number;
+  captacaoCosts: number;
+  edicaoCosts: number;
   deliveredProjectCount: number;
   byEditor: EditorSummary[];
   settlements: ClosingSettlement[];
