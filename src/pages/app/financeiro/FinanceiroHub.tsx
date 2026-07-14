@@ -451,10 +451,11 @@ function ClosingDetail({
   };
 
   const handleExportProfit = async () => {
-    const { exportMultiSectionToExcel } = await import('@/lib/excel-export');
+    const { exportMultiSheetToExcel } = await import('@/lib/excel-export');
 
-    const receitaSection = {
-      title: 'Receita por Projeto',
+    // === Receita ===
+    const receitaDetalheSection = {
+      title: 'Detalhe da Receita por Projeto',
       headers: ['Projeto', 'Receita'],
       data: revenueItems.map((i) => [
         projectMap.get(i.project_id)?.name || i.project_id.slice(0, 8),
@@ -462,9 +463,18 @@ function ClosingDetail({
       ]) as (string | number)[][],
       showTotal: true,
     };
+    const receitaResumoSection = {
+      title: 'Resumo — Receita',
+      headers: ['Indicador', 'Valor'],
+      data: [
+        ['Nº de projetos com receita', revenueItems.length],
+        ['Receita Total', formatCurrencyRaw(revenue)],
+      ] as (string | number)[][],
+    };
 
-    const equipaSection = teamItems.length > 0 ? {
-      title: 'Pagamentos a Colaboradores',
+    // === Custos ===
+    const custosEquipaSection = teamItems.length > 0 ? {
+      title: 'Custos — Pagamentos a Colaboradores',
       headers: ['Projeto', 'Editor', 'Valor'],
       data: teamItems.map((i) => {
         const tp = i.team_payment_id ? teamById.get(i.team_payment_id) : undefined;
@@ -477,20 +487,29 @@ function ClosingDetail({
       showTotal: true,
     } : null;
 
-    const extrasSection = extraItems.length > 0 ? {
-      title: 'Custos Extras',
+    const custosExtrasSection = extraItems.length > 0 ? {
+      title: 'Custos — Extras',
       headers: ['Projeto', 'Valor'],
-      data: extraItems.map((i) => {
-        return [
-          projectMap.get(i.project_id)?.name || extraMap.get(i.project_id)?.name || i.project_id.slice(0, 8),
-          formatCurrencyRaw(Number(i.amount_snapshot)),
-        ];
-      }) as (string | number)[][],
+      data: extraItems.map((i) => [
+        projectMap.get(i.project_id)?.name || extraMap.get(i.project_id)?.name || i.project_id.slice(0, 8),
+        formatCurrencyRaw(Number(i.amount_snapshot)),
+      ]) as (string | number)[][],
       showTotal: true,
     } : null;
 
-    const resumoSection = {
-      title: 'Resumo do Fecho',
+    const custosResumoSection = {
+      title: 'Resumo — Custos',
+      headers: ['Indicador', 'Valor'],
+      data: [
+        ['Custos com Equipa', formatCurrencyRaw(teamCost)],
+        ['Custos Extras', formatCurrencyRaw(extraCost)],
+        ['Custos Totais', formatCurrencyRaw(teamCost + extraCost)],
+      ] as (string | number)[][],
+    };
+
+    // === Lucro ===
+    const lucroResumoSection = {
+      title: 'Resumo do Fecho — Lucro',
       headers: ['Indicador', 'Valor'],
       data: [
         ['Receita Total', formatCurrencyRaw(revenue)],
@@ -498,26 +517,72 @@ function ClosingDetail({
         ['Custos Extras', formatCurrencyRaw(extraCost)],
         ['Custos Totais', formatCurrencyRaw(teamCost + extraCost)],
         ['Lucro Líquido', formatCurrencyRaw(profit)],
+        ['Margem', revenue > 0 ? `${((profit / revenue) * 100).toFixed(1)}%` : '—'],
       ] as (string | number)[][],
     };
 
-    await exportMultiSectionToExcel({
+    // Detalhe por projeto: receita - custos = lucro
+    const lucroPorProjetoMap = new Map<string, { receita: number; custo: number }>();
+    revenueItems.forEach((i) => {
+      const agg = lucroPorProjetoMap.get(i.project_id) || { receita: 0, custo: 0 };
+      agg.receita += Number(i.amount_snapshot);
+      lucroPorProjetoMap.set(i.project_id, agg);
+    });
+    teamItems.forEach((i) => {
+      const agg = lucroPorProjetoMap.get(i.project_id) || { receita: 0, custo: 0 };
+      agg.custo += Number(i.amount_snapshot);
+      lucroPorProjetoMap.set(i.project_id, agg);
+    });
+    extraItems.forEach((i) => {
+      const agg = lucroPorProjetoMap.get(i.project_id) || { receita: 0, custo: 0 };
+      agg.custo += Number(i.amount_snapshot);
+      lucroPorProjetoMap.set(i.project_id, agg);
+    });
+    const lucroDetalheSection = {
+      title: 'Detalhe do Lucro por Projeto',
+      headers: ['Projeto', 'Receita', 'Custos', 'Lucro'],
+      data: Array.from(lucroPorProjetoMap.entries()).map(([pid, agg]) => [
+        projectMap.get(pid)?.name || extraMap.get(pid)?.name || pid.slice(0, 8),
+        formatCurrencyRaw(agg.receita),
+        formatCurrencyRaw(agg.custo),
+        formatCurrencyRaw(agg.receita - agg.custo),
+      ]) as (string | number)[][],
+      showTotal: true,
+    };
+
+    await exportMultiSheetToExcel({
       title: `Fecho — ${closing.label || 'Sem nome'}`,
       subtitle: 'WillFlow',
       clientName,
       periodLabel: format(new Date(closing.created_at), "d 'de' MMMM 'de' yyyy", { locale: pt }),
-      sections: [
-        resumoSection,
-        receitaSection,
-        ...(equipaSection ? [equipaSection] : []),
-        ...(extrasSection ? [extrasSection] : []),
+      sheets: [
+        {
+          name: 'Receita',
+          title: `Receita — ${closing.label || 'Sem nome'}`,
+          sections: [receitaResumoSection, receitaDetalheSection],
+        },
+        {
+          name: 'Custos',
+          title: `Custos — ${closing.label || 'Sem nome'}`,
+          sections: [
+            custosResumoSection,
+            ...(custosEquipaSection ? [custosEquipaSection] : []),
+            ...(custosExtrasSection ? [custosExtrasSection] : []),
+          ],
+        },
+        {
+          name: 'Lucro',
+          title: `Lucro — ${closing.label || 'Sem nome'}`,
+          sections: [lucroResumoSection, lucroDetalheSection],
+        },
       ],
-      filename: `fecho-${(closing.label || 'sem-nome').replace(/[^a-zA-Z0-9-_]/g, '_')}-lucro-${format(new Date(), 'yyyy-MM-dd')}`,
+      filename: `fecho-${(closing.label || 'sem-nome').replace(/[^a-zA-Z0-9-_]/g, '_')}-${format(new Date(), 'yyyy-MM-dd')}`,
       disclaimer: 'Documento gerado automaticamente pelo WillFlow · Confidencial',
     });
 
     toast({ title: 'Exportado', description: 'Ficheiro Excel do fecho exportado com sucesso.' });
   };
+
 
   return (
     <div className="space-y-4">
