@@ -558,9 +558,21 @@ function ClosingDetail({
       <div className="flex items-center justify-between gap-2">
         <Button variant="ghost" onClick={onBack} className="gap-2"><ArrowLeft className="h-4 w-4" /> Voltar</Button>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportProfit} className="gap-2">
-            <Download className="h-4 w-4" /> Exportar lucro
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Download className="h-4 w-4" /> Exportar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportExcel} className="gap-2">
+                <FileSpreadsheet className="h-4 w-4" /> Excel (.xlsx)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportPdf} className="gap-2">
+                <FileText className="h-4 w-4" /> PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {closing.status !== 'received' && (
             <Button size="sm" onClick={handleMarkReceived} disabled={markReceived.isPending} className="gap-2">
               <Check className="h-4 w-4" /> Marcar recebido
