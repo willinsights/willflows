@@ -50,9 +50,15 @@ export function generateReportPdfHtml(opts: ReportPdfOptions): string {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      color: #0f172a; background: #fff; font-size: 10pt; line-height: 1.45;
+      color: #0f172a; background: #f1f5f9; font-size: 10pt; line-height: 1.45;
       -webkit-font-smoothing: antialiased;
     }
+    body { padding: 20px; }
+    .page {
+      width: 269mm; max-width: 100%; min-height: 190mm;
+      margin: 0 auto; background: #fff; padding: 12mm 10mm;
+    }
+    @media print { body { background: #fff; padding: 0; } .page { width: 100%; padding: 0; box-shadow: none; } }
 
     .brand-header {
       display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
@@ -156,6 +162,7 @@ export function generateReportPdfHtml(opts: ReportPdfOptions): string {
   </style>
 </head>
 <body>
+<div class="page">
   <header class="brand-header">
     <div class="brand-mark">
       <div class="logo">W</div>
@@ -237,6 +244,7 @@ export function generateReportPdfHtml(opts: ReportPdfOptions): string {
     <span>Gerado por <span class="brand">WillFlow</span> · ${emittedAt}</span>
     <span>Documento interno · confidencial</span>
   </div>
+</div>
 </body>
 </html>`;
 }

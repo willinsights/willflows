@@ -128,12 +128,20 @@ export function generatePdfHtml(options: PdfExportOptions): string {
     html, body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       color: #0f172a;
-      background: #fff;
+      background: #f1f5f9;
       font-size: 10pt;
       line-height: 1.45;
       -webkit-font-smoothing: antialiased;
     }
-    body { padding: 0; }
+    body { padding: 20px; }
+    .page {
+      width: 269mm; max-width: 100%; min-height: 190mm;
+      margin: 0 auto; background: #fff; padding: 12mm 10mm;
+      box-shadow: 0 2px 12px rgba(15,23,42,0.08);
+    }
+    @media screen and (max-width: 900px) { .page { width: 100%; padding: 16px; } }
+    @media print { body { background: #fff; padding: 0; } .page { width: 100%; padding: 0; box-shadow: none; min-height: 0; } }
+
 
     /* ---- Brand header ---- */
     .brand-header {
@@ -316,6 +324,7 @@ export function generatePdfHtml(options: PdfExportOptions): string {
   </style>
 </head>
 <body>
+<div class="page">
   <header class="brand-header">
     <div class="brand-mark">
       <div class="logo">W</div>
@@ -357,6 +366,7 @@ export function generatePdfHtml(options: PdfExportOptions): string {
     <span>Gerado por <span class="brand">WillFlow</span> · ${currentDateTime}</span>
     <span>Documento interno · confidencial</span>
   </div>
+</div>
 </body>
 </html>`;
 }
