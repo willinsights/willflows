@@ -119,7 +119,7 @@ export function generatePdfHtml(options: PdfExportOptions): string {
   <title>${esc(title)} — ${esc(workspaceName)}</title>
   <style>
     @page {
-      size: A4;
+      size: A4 landscape;
       margin: 18mm 14mm 20mm 14mm;
       @bottom-left { content: "WillFlow · ${esc(workspaceName)}"; font-family: 'Inter', sans-serif; font-size: 8pt; color: #94a3b8; }
       @bottom-right { content: "Página " counter(page) " de " counter(pages); font-family: 'Inter', sans-serif; font-size: 8pt; color: #94a3b8; }
