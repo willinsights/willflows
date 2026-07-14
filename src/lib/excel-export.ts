@@ -302,32 +302,32 @@ export async function exportToExcel(options: ExcelExportOptions): Promise<void> 
 }
 
 /**
- * Export multi-section report with the same premium formatting.
+ * Render a set of sections into an existing worksheet using the brand styling.
+ * Adds the brand header, sections, optional disclaimer and page setup.
  */
-export async function exportMultiSectionToExcel(options: ExcelExportMultiSectionOptions): Promise<void> {
-  const ExcelJSLib = await loadExcelJS();
-  const workbook = new ExcelJSLib.Workbook();
-  workbook.creator = 'WillFlow';
-  workbook.company = 'WillFlow';
-  workbook.created = new Date();
-
-  const worksheet = workbook.addWorksheet('Relatório', {
-    views: [{ state: 'frozen', ySplit: 6, showGridLines: false }],
-  });
-
-  const maxCols = Math.max(...options.sections.map(s => s.headers.length));
+function renderSectionsToWorksheet(
+  worksheet: ExcelJS.Worksheet,
+  spec: {
+    title: string;
+    subtitle?: string;
+    clientName?: string;
+    periodLabel?: string;
+    sections: ExcelSection[];
+    disclaimer?: string;
+  },
+) {
+  const maxCols = Math.max(1, ...spec.sections.map(s => s.headers.length));
   applyBrandHeader(worksheet, {
-    title: options.title,
-    subtitle: options.subtitle,
-    workspaceName: options.subtitle,
-    clientName: options.clientName,
-    periodLabel: options.periodLabel,
+    title: spec.title,
+    subtitle: spec.subtitle,
+    workspaceName: spec.subtitle,
+    clientName: spec.clientName,
+    periodLabel: spec.periodLabel,
     colCount: maxCols,
   });
 
-  options.sections.forEach((section) => {
+  spec.sections.forEach((section) => {
     worksheet.addRow([]);
-    // Section title
     const sTitle = worksheet.addRow([section.title]);
     worksheet.mergeCells(`A${sTitle.number}:${String.fromCharCode(64 + Math.max(1, section.headers.length))}${sTitle.number}`);
     sTitle.getCell(1).font = { name: 'Calibri', bold: true, size: 12, color: { argb: BRAND.primaryDark } };
@@ -374,31 +374,85 @@ export async function exportMultiSectionToExcel(options: ExcelExportMultiSection
     }
   });
 
-  // Column widths across sections
   for (let i = 0; i < maxCols; i++) {
-    const values = options.sections.flatMap(s => [
+    const values = spec.sections.flatMap(s => [
       s.headers[i] || '',
       ...s.data.map(row => String(row[i] ?? '')),
     ]);
-    const maxLength = Math.max(...values.map(v => v.length));
+    const maxLength = Math.max(0, ...values.map(v => v.length));
     if (worksheet.columns[i]) {
       worksheet.columns[i].width = Math.min(Math.max(maxLength + 4, 14), 48);
     }
   }
 
-  if (options.disclaimer) {
+  if (spec.disclaimer) {
     worksheet.addRow([]);
-    const dRow = worksheet.addRow([options.disclaimer]);
+    const dRow = worksheet.addRow([spec.disclaimer]);
     worksheet.mergeCells(`A${dRow.number}:${String.fromCharCode(64 + maxCols)}${dRow.number}`);
     dRow.getCell(1).font = { name: 'Calibri', italic: true, size: 9, color: { argb: BRAND.mute } };
     dRow.getCell(1).alignment = { wrapText: true, vertical: 'top' };
   }
 
   configurePage(worksheet);
+}
+
+/**
+ * Export multi-section report with the same premium formatting (single worksheet).
+ */
+export async function exportMultiSectionToExcel(options: ExcelExportMultiSectionOptions): Promise<void> {
+  const ExcelJSLib = await loadExcelJS();
+  const workbook = new ExcelJSLib.Workbook();
+  workbook.creator = 'WillFlow';
+  workbook.company = 'WillFlow';
+  workbook.created = new Date();
+
+  const worksheet = workbook.addWorksheet('Relatório', {
+    views: [{ state: 'frozen', ySplit: 6, showGridLines: false }],
+  });
+
+  renderSectionsToWorksheet(worksheet, {
+    title: options.title,
+    subtitle: options.subtitle,
+    clientName: options.clientName,
+    periodLabel: options.periodLabel,
+    sections: options.sections,
+    disclaimer: options.disclaimer,
+  });
 
   const buffer = await workbook.xlsx.writeBuffer();
   downloadBuffer(buffer, options.filename);
 }
+
+/**
+ * Export a workbook with multiple named worksheets, each with its own sections.
+ */
+export async function exportMultiSheetToExcel(options: ExcelExportMultiSheetOptions): Promise<void> {
+  const ExcelJSLib = await loadExcelJS();
+  const workbook = new ExcelJSLib.Workbook();
+  workbook.creator = 'WillFlow';
+  workbook.company = 'WillFlow';
+  workbook.created = new Date();
+
+  options.sheets.forEach((sheet) => {
+    // Excel worksheet names must be ≤ 31 chars and cannot contain []:*?/\
+    const safeName = sheet.name.replace(/[\[\]:*?/\\]/g, ' ').slice(0, 31);
+    const worksheet = workbook.addWorksheet(safeName, {
+      views: [{ state: 'frozen', ySplit: 6, showGridLines: false }],
+    });
+    renderSectionsToWorksheet(worksheet, {
+      title: sheet.title,
+      subtitle: options.subtitle,
+      clientName: options.clientName,
+      periodLabel: options.periodLabel,
+      sections: sheet.sections,
+      disclaimer: options.disclaimer,
+    });
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  downloadBuffer(buffer, options.filename);
+}
+
 
 function downloadBuffer(buffer: ExcelJS.Buffer, filename: string): void {
   const blob = new Blob([buffer], {
