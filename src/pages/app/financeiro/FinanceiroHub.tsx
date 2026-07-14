@@ -464,10 +464,9 @@ function ClosingDetail({
       showTotal: true,
     };
     const receitaResumoSection = {
-      title: 'Resumo — Receita',
+      title: `Resumo — Receita  (${revenueItems.length} ${revenueItems.length === 1 ? 'projeto' : 'projetos'})`,
       headers: ['Indicador', 'Valor'],
       data: [
-        ['Nº de projetos com receita', `${revenueItems.length} projetos`],
         ['Receita Total', formatCurrencyRaw(revenue)],
       ] as (string | number)[][],
     };
