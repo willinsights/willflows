@@ -419,6 +419,8 @@ export async function exportMultiSectionToExcel(options: ExcelExportMultiSection
     disclaimer: options.disclaimer,
   });
 
+  configurePage(worksheet);
+
   const buffer = await workbook.xlsx.writeBuffer();
   downloadBuffer(buffer, options.filename);
 }
@@ -447,6 +449,7 @@ export async function exportMultiSheetToExcel(options: ExcelExportMultiSheetOpti
       sections: sheet.sections,
       disclaimer: options.disclaimer,
     });
+    configurePage(worksheet);
   });
 
   const buffer = await workbook.xlsx.writeBuffer();
