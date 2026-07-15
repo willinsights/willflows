@@ -810,8 +810,12 @@ function GlobalProfitView({ closings, items }: { closings: Closing[]; items: Clo
 export default function FinanceiroHub() {
   const { closings, items, loading } = useClosings();
   const { members } = useWorkspaceMembers();
+  const { formatCurrency } = useFormatCurrency();
+  const { rows: unbilled } = useUnbilledPool();
   const [openClosingId, setOpenClosingId] = useState<string | null>(null);
   const [monthFilter, setMonthFilter] = useState<string>('all');
+  const [statusTab, setStatusTab] = useState<'all' | 'open' | 'received'>('all');
+  const [poolOpen, setPoolOpen] = useState<boolean>(true);
   const [detailOpen, setDetailOpen] = useState(false);
 
   const mode: Mode = members.length <= 1 ? 'freelancer' : 'studio';
@@ -822,21 +826,116 @@ export default function FinanceiroHub() {
     return Array.from(set).sort().reverse();
   }, [closings]);
 
-  if (loading) return <div className="p-6 space-y-4"><Skeleton className="h-40" /><Skeleton className="h-64" /></div>;
+  // Hub KPIs computed from closings + pool
+  const hubKpis = useMemo(() => {
+    let openTotal = 0;
+    let receivedTotal = 0;
+    let openCount = 0;
+    let receivedCount = 0;
+    closings.forEach((c) => {
+      const rev = items
+        .filter((i) => i.closing_id === c.id && i.kind === 'revenue')
+        .reduce((s, i) => s + Number(i.amount_snapshot), 0);
+      if (c.status === 'received') {
+        receivedTotal += rev;
+        receivedCount += 1;
+      } else {
+        openTotal += rev;
+        openCount += 1;
+      }
+    });
+    const poolTotal = unbilled.reduce((s, r) => s + r.agreedValue, 0);
+    return { openTotal, receivedTotal, openCount, receivedCount, poolTotal, poolCount: unbilled.length };
+  }, [closings, items, unbilled]);
+
+  // Closings filtered by month + status tab
+  const visibleClosings = useMemo(() => {
+    return closings.filter((c) => {
+      if (monthFilter !== 'all' && !c.created_at.startsWith(monthFilter)) return false;
+      if (statusTab === 'open' && c.status === 'received') return false;
+      if (statusTab === 'received' && c.status !== 'received') return false;
+      return true;
+    });
+  }, [closings, monthFilter, statusTab]);
+
+  const tabCounts = useMemo(() => {
+    const inMonth = monthFilter === 'all' ? closings : closings.filter((c) => c.created_at.startsWith(monthFilter));
+    return {
+      all: inMonth.length,
+      open: inMonth.filter((c) => c.status !== 'received').length,
+      received: inMonth.filter((c) => c.status === 'received').length,
+    };
+  }, [closings, monthFilter]);
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-3 gap-3"><Skeleton className="h-24" /><Skeleton className="h-24" /><Skeleton className="h-24" /></div>
+        <Skeleton className="h-40" />
+        <Skeleton className="h-64" />
+      </div>
+    );
+  }
 
   if (openClosingId) {
-    return <div className="p-4 sm:p-6"><ClosingDetail closingId={openClosingId} onBack={() => setOpenClosingId(null)} mode={mode} /></div>;
+    return <ClosingDetail closingId={openClosingId} onBack={() => setOpenClosingId(null)} mode={mode} />;
   }
 
   return (
-    <div className="space-y-6">
-      <UnbilledPool onCreated={() => { /* refresh handled by cache */ }} mode={mode} />
+    <div className="space-y-5">
+      {/* KPI strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <KpiTile
+          label="Por receber"
+          value={formatCurrency(hubKpis.openTotal)}
+          hint={`${hubKpis.openCount} fecho${hubKpis.openCount !== 1 ? 's' : ''}`}
+          tone="warning"
+        />
+        <KpiTile
+          label="Recebido"
+          value={formatCurrency(hubKpis.receivedTotal)}
+          hint={`${hubKpis.receivedCount} fecho${hubKpis.receivedCount !== 1 ? 's' : ''}`}
+          tone="success"
+        />
+        <KpiTile
+          label="Por faturar"
+          value={formatCurrency(hubKpis.poolTotal)}
+          hint={`${hubKpis.poolCount} projeto${hubKpis.poolCount !== 1 ? 's' : ''} na pool`}
+          tone="primary"
+          onClick={() => setPoolOpen(true)}
+        />
+      </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-3 gap-2">
+      {/* Collapsible pool */}
+      <Collapsible open={poolOpen} onOpenChange={setPoolOpen}>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="w-full flex items-center justify-between rounded-lg border bg-muted/30 hover:bg-muted/50 px-4 py-2.5 transition-colors"
+          >
+            <span className="flex items-center gap-2 text-sm font-semibold">
+              <Wallet className="h-4 w-4 text-primary" />
+              Pool "Por faturar"
+              {hubKpis.poolCount > 0 && (
+                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-[10px]">
+                  {hubKpis.poolCount}
+                </Badge>
+              )}
+            </span>
+            {poolOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-3">
+          <UnbilledPool onCreated={() => { /* refresh handled by cache */ }} mode={mode} />
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Fechos header + tabs + month */}
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">Fechos criados</h2>
           <Select value={monthFilter} onValueChange={setMonthFilter}>
-            <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-[180px] h-9"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os meses</SelectItem>
               {months.map((m) => (
@@ -845,7 +944,39 @@ export default function FinanceiroHub() {
             </SelectContent>
           </Select>
         </div>
-        <ClosingsList closings={closings} items={items} onOpen={setOpenClosingId} monthFilter={monthFilter} />
+
+        <div className="inline-flex items-center gap-1 rounded-lg bg-muted/50 p-1">
+          {[
+            { id: 'all',      label: 'Todos',      count: tabCounts.all },
+            { id: 'open',     label: 'Por receber', count: tabCounts.open },
+            { id: 'received', label: 'Recebidos',  count: tabCounts.received },
+          ].map((t) => {
+            const active = statusTab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setStatusTab(t.id as typeof statusTab)}
+                className={cn(
+                  'px-3 py-1 text-xs font-medium rounded-md transition-all inline-flex items-center gap-1.5',
+                  active
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {t.label}
+                <span className={cn(
+                  'text-[10px] tabular-nums rounded-full px-1.5 py-px',
+                  active ? 'bg-muted' : 'bg-background/60',
+                )}>
+                  {t.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <ClosingsList closings={visibleClosings} items={items} onOpen={setOpenClosingId} />
       </div>
 
       <GlobalProfitView closings={closings} items={items} />
@@ -876,3 +1007,39 @@ export default function FinanceiroHub() {
     </div>
   );
 }
+
+// -----------------------------------------------------------------------------
+
+function KpiTile({
+  label, value, hint, tone, onClick,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+  tone: 'success' | 'warning' | 'primary';
+  onClick?: () => void;
+}) {
+  const toneMap = {
+    success: { text: 'text-success',  border: 'border-success/25',  bg: 'from-success/[0.06]' },
+    warning: { text: 'text-warning',  border: 'border-warning/25',  bg: 'from-warning/[0.06]' },
+    primary: { text: 'text-primary',  border: 'border-primary/25',  bg: 'from-primary/[0.06]' },
+  }[tone];
+  return (
+    <Card
+      onClick={onClick}
+      className={cn(
+        'glass-card overflow-hidden bg-gradient-to-br to-transparent',
+        toneMap.border,
+        toneMap.bg,
+        onClick && 'cursor-pointer hover:shadow-md transition-shadow',
+      )}
+    >
+      <CardContent className="p-4">
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">{label}</p>
+        <div className={cn('mt-1 text-2xl font-bold tabular-nums leading-tight', toneMap.text)}>{value}</div>
+        <p className="text-[11px] text-muted-foreground mt-1">{hint}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
