@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FolderOpen, User2, CheckSquare, Plus, ArrowRight } from 'lucide-react';
+import { FolderOpen, User2, CheckSquare, Plus, ArrowRight, Wallet } from 'lucide-react';
+import { FINANCE_TABS } from '@/pages/app/financeiro/tabs';
 import {
   CommandDialog,
   CommandEmpty,
@@ -244,6 +245,29 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
               );
             })}
           </CommandGroup>
+
+          {canViewAllFinancials && (
+            <>
+              <CommandSeparator />
+              <CommandGroup heading="Finanças">
+                {FINANCE_TABS.filter((t) => t.enabled).map((t) => (
+                  <CommandItem
+                    key={`fin-${t.id}`}
+                    value={`fin ${t.label} ${t.id}`}
+                    onSelect={() => {
+                      onOpenChange(false);
+                      navigate(`/app/financeiro?tab=${t.id}`);
+                    }}
+                    className="gap-3"
+                  >
+                    <Wallet className="h-4 w-4 text-muted-foreground" />
+                    <span className="flex-1">Financeiro · {t.label}</span>
+                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-60" />
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </>
+          )}
 
           <CommandSeparator />
 
