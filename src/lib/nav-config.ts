@@ -19,7 +19,6 @@ import {
   Upload,
   Euro,
   Receipt,
-  BarChart3,
   UserCog,
   Settings,
   Crown,
@@ -76,9 +75,8 @@ export const navSections: NavSection[] = [
   {
     title: 'FINANÇAS',
     items: [
-    { icon: Euro, label: 'Finanças', path: '/app/financeiro', permissionKey: 'financials.view' },
+      { icon: Euro, label: 'Finanças', path: '/app/financeiro', permissionKey: 'financials.view' },
       { icon: Receipt, label: 'Faturação', path: '/app/faturacao', permissionKey: 'reports.view' },
-      { icon: BarChart3, label: 'Relatórios', path: '/app/relatorios', permissionKey: 'reports.view' },
     ],
   },
   {
