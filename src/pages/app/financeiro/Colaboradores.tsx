@@ -194,7 +194,7 @@ export default function Colaboradores() {
                           </div>
                           <p className="text-xs text-muted-foreground truncate">{t.detail}</p>
                         </div>
-                        <DateCell value={t.date} className="text-xs text-muted-foreground w-20 text-right" />
+                        {t.date && <DateCell date={t.date} className="text-xs text-muted-foreground w-20 text-right" />}
                         <Badge
                           variant="outline"
                           className={cn(
