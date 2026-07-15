@@ -312,19 +312,14 @@ function UnbilledPool({
   );
 }
 
-/** ---------- Closings list ---------- */
+/** ---------- Closings list (redesigned card grid) ---------- */
 function ClosingsList({
-  closings, items, onOpen, monthFilter,
-}: { closings: Closing[]; items: ClosingItem[]; onOpen: (id: string) => void; monthFilter: string }) {
+  closings, items, onOpen,
+}: { closings: Closing[]; items: ClosingItem[]; onOpen: (id: string) => void }) {
   const { formatCurrency } = useFormatCurrency();
   const { clients } = useClients();
 
-  const visible = closings.filter((c) => {
-    if (monthFilter === 'all') return true;
-    return c.created_at.startsWith(monthFilter);
-  });
-
-  if (visible.length === 0) {
+  if (closings.length === 0) {
     return (
       <EmptyState
         icon={Receipt}
@@ -335,40 +330,101 @@ function ClosingsList({
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {visible.map((c) => {
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {closings.map((c, idx) => {
         const its = items.filter((i) => i.closing_id === c.id);
         const revenue = its.filter((i) => i.kind === 'revenue').reduce((s, i) => s + Number(i.amount_snapshot), 0);
         const costs = its.filter((i) => i.kind !== 'revenue').reduce((s, i) => s + Number(i.amount_snapshot), 0);
+        const profit = revenue - costs;
+        const margin = revenue > 0 ? Math.round((profit / revenue) * 100) : 0;
         const nVideos = new Set(its.filter((i) => i.kind === 'revenue').map((i) => i.project_id)).size;
         const clientName = c.client_id ? clients.find((cl) => cl.id === c.client_id)?.name || '—' : 'Misto';
+        const received = c.status === 'received';
+
         return (
-          <Card key={c.id} className="glass-card hover:shadow-md transition-shadow cursor-pointer" onClick={() => onOpen(c.id)}>
-            <CardContent className="p-4 space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="font-semibold">{c.label || 'Sem nome'}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {format(new Date(c.created_at), 'dd MMM yyyy', { locale: pt })} · {clientName}
+          <motion.div
+            key={c.id}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22, delay: idx * 0.03 }}
+          >
+            <Card
+              onClick={() => onOpen(c.id)}
+              className={cn(
+                'glass-card cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 border overflow-hidden',
+                received ? 'border-success/25' : 'border-border',
+              )}
+            >
+              {/* Accent bar */}
+              <div className={cn('h-1', received ? 'bg-success/70' : 'bg-primary/50')} />
+
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2 min-w-0">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-sm truncate">{c.label || 'Sem nome'}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      {format(new Date(c.created_at), "dd MMM ''yy", { locale: pt })} · {clientName}
+                    </div>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'text-[10px] font-medium border shrink-0',
+                      received
+                        ? 'bg-success/10 text-success border-success/30'
+                        : 'bg-warning/10 text-warning border-warning/30',
+                    )}
+                  >
+                    {received ? 'Recebido' : 'Por receber'}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Vídeos</div>
+                    <div className="text-sm font-semibold tabular-nums mt-0.5">{nVideos}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Receita</div>
+                    <div className="text-sm font-semibold tabular-nums text-success mt-0.5">{formatCurrency(revenue)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Lucro</div>
+                    <div className={cn(
+                      'text-sm font-semibold tabular-nums mt-0.5',
+                      profit >= 0 ? 'text-primary' : 'text-destructive',
+                    )}>
+                      {formatCurrency(profit)}
+                    </div>
                   </div>
                 </div>
-                <Badge variant={c.status === 'received' ? 'default' : 'outline'}>
-                  {c.status === 'received' ? 'Recebido' : 'Por receber'}
-                </Badge>
-              </div>
-              <Separator />
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                <div><div className="text-muted-foreground">Vídeos</div><div className="font-semibold">{nVideos}</div></div>
-                <div><div className="text-muted-foreground">Receita</div><div className="font-semibold text-success">{formatCurrency(revenue)}</div></div>
-                <div><div className="text-muted-foreground">Lucro</div><div className="font-semibold">{formatCurrency(revenue - costs)}</div></div>
-              </div>
-            </CardContent>
-          </Card>
+
+                {revenue > 0 && (
+                  <div>
+                    <div className="flex items-baseline justify-between text-[10px] mb-1">
+                      <span className="text-muted-foreground uppercase tracking-wide">Margem</span>
+                      <span className="tabular-nums font-medium">{margin}%</span>
+                    </div>
+                    <div className="h-1 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={cn(
+                          'h-full rounded-full transition-all',
+                          profit >= 0 ? 'bg-primary/70' : 'bg-destructive/70',
+                        )}
+                        style={{ width: `${Math.min(Math.max(margin, 0), 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
         );
       })}
     </div>
   );
 }
+
 
 /** ---------- Closing detail ---------- */
 function ClosingDetail({
@@ -754,8 +810,12 @@ function GlobalProfitView({ closings, items }: { closings: Closing[]; items: Clo
 export default function FinanceiroHub() {
   const { closings, items, loading } = useClosings();
   const { members } = useWorkspaceMembers();
+  const { formatCurrency } = useFormatCurrency();
+  const { rows: unbilled } = useUnbilledPool();
   const [openClosingId, setOpenClosingId] = useState<string | null>(null);
   const [monthFilter, setMonthFilter] = useState<string>('all');
+  const [statusTab, setStatusTab] = useState<'all' | 'open' | 'received'>('all');
+  const [poolOpen, setPoolOpen] = useState<boolean>(true);
   const [detailOpen, setDetailOpen] = useState(false);
 
   const mode: Mode = members.length <= 1 ? 'freelancer' : 'studio';
@@ -766,21 +826,116 @@ export default function FinanceiroHub() {
     return Array.from(set).sort().reverse();
   }, [closings]);
 
-  if (loading) return <div className="p-6 space-y-4"><Skeleton className="h-40" /><Skeleton className="h-64" /></div>;
+  // Hub KPIs computed from closings + pool
+  const hubKpis = useMemo(() => {
+    let openTotal = 0;
+    let receivedTotal = 0;
+    let openCount = 0;
+    let receivedCount = 0;
+    closings.forEach((c) => {
+      const rev = items
+        .filter((i) => i.closing_id === c.id && i.kind === 'revenue')
+        .reduce((s, i) => s + Number(i.amount_snapshot), 0);
+      if (c.status === 'received') {
+        receivedTotal += rev;
+        receivedCount += 1;
+      } else {
+        openTotal += rev;
+        openCount += 1;
+      }
+    });
+    const poolTotal = unbilled.reduce((s, r) => s + r.agreedValue, 0);
+    return { openTotal, receivedTotal, openCount, receivedCount, poolTotal, poolCount: unbilled.length };
+  }, [closings, items, unbilled]);
+
+  // Closings filtered by month + status tab
+  const visibleClosings = useMemo(() => {
+    return closings.filter((c) => {
+      if (monthFilter !== 'all' && !c.created_at.startsWith(monthFilter)) return false;
+      if (statusTab === 'open' && c.status === 'received') return false;
+      if (statusTab === 'received' && c.status !== 'received') return false;
+      return true;
+    });
+  }, [closings, monthFilter, statusTab]);
+
+  const tabCounts = useMemo(() => {
+    const inMonth = monthFilter === 'all' ? closings : closings.filter((c) => c.created_at.startsWith(monthFilter));
+    return {
+      all: inMonth.length,
+      open: inMonth.filter((c) => c.status !== 'received').length,
+      received: inMonth.filter((c) => c.status === 'received').length,
+    };
+  }, [closings, monthFilter]);
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-3 gap-3"><Skeleton className="h-24" /><Skeleton className="h-24" /><Skeleton className="h-24" /></div>
+        <Skeleton className="h-40" />
+        <Skeleton className="h-64" />
+      </div>
+    );
+  }
 
   if (openClosingId) {
-    return <div className="p-4 sm:p-6"><ClosingDetail closingId={openClosingId} onBack={() => setOpenClosingId(null)} mode={mode} /></div>;
+    return <ClosingDetail closingId={openClosingId} onBack={() => setOpenClosingId(null)} mode={mode} />;
   }
 
   return (
-    <div className="space-y-6">
-      <UnbilledPool onCreated={() => { /* refresh handled by cache */ }} mode={mode} />
+    <div className="space-y-5">
+      {/* KPI strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <KpiTile
+          label="Por receber"
+          value={formatCurrency(hubKpis.openTotal)}
+          hint={`${hubKpis.openCount} fecho${hubKpis.openCount !== 1 ? 's' : ''}`}
+          tone="warning"
+        />
+        <KpiTile
+          label="Recebido"
+          value={formatCurrency(hubKpis.receivedTotal)}
+          hint={`${hubKpis.receivedCount} fecho${hubKpis.receivedCount !== 1 ? 's' : ''}`}
+          tone="success"
+        />
+        <KpiTile
+          label="Por faturar"
+          value={formatCurrency(hubKpis.poolTotal)}
+          hint={`${hubKpis.poolCount} projeto${hubKpis.poolCount !== 1 ? 's' : ''} na pool`}
+          tone="primary"
+          onClick={() => setPoolOpen(true)}
+        />
+      </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-3 gap-2">
+      {/* Collapsible pool */}
+      <Collapsible open={poolOpen} onOpenChange={setPoolOpen}>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="w-full flex items-center justify-between rounded-lg border bg-muted/30 hover:bg-muted/50 px-4 py-2.5 transition-colors"
+          >
+            <span className="flex items-center gap-2 text-sm font-semibold">
+              <Wallet className="h-4 w-4 text-primary" />
+              Pool "Por faturar"
+              {hubKpis.poolCount > 0 && (
+                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-[10px]">
+                  {hubKpis.poolCount}
+                </Badge>
+              )}
+            </span>
+            {poolOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-3">
+          <UnbilledPool onCreated={() => { /* refresh handled by cache */ }} mode={mode} />
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Fechos header + tabs + month */}
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">Fechos criados</h2>
           <Select value={monthFilter} onValueChange={setMonthFilter}>
-            <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-[180px] h-9"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os meses</SelectItem>
               {months.map((m) => (
@@ -789,7 +944,39 @@ export default function FinanceiroHub() {
             </SelectContent>
           </Select>
         </div>
-        <ClosingsList closings={closings} items={items} onOpen={setOpenClosingId} monthFilter={monthFilter} />
+
+        <div className="inline-flex items-center gap-1 rounded-lg bg-muted/50 p-1">
+          {[
+            { id: 'all',      label: 'Todos',      count: tabCounts.all },
+            { id: 'open',     label: 'Por receber', count: tabCounts.open },
+            { id: 'received', label: 'Recebidos',  count: tabCounts.received },
+          ].map((t) => {
+            const active = statusTab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setStatusTab(t.id as typeof statusTab)}
+                className={cn(
+                  'px-3 py-1 text-xs font-medium rounded-md transition-all inline-flex items-center gap-1.5',
+                  active
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {t.label}
+                <span className={cn(
+                  'text-[10px] tabular-nums rounded-full px-1.5 py-px',
+                  active ? 'bg-muted' : 'bg-background/60',
+                )}>
+                  {t.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <ClosingsList closings={visibleClosings} items={items} onOpen={setOpenClosingId} />
       </div>
 
       <GlobalProfitView closings={closings} items={items} />
@@ -820,3 +1007,39 @@ export default function FinanceiroHub() {
     </div>
   );
 }
+
+// -----------------------------------------------------------------------------
+
+function KpiTile({
+  label, value, hint, tone, onClick,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+  tone: 'success' | 'warning' | 'primary';
+  onClick?: () => void;
+}) {
+  const toneMap = {
+    success: { text: 'text-success',  border: 'border-success/25',  bg: 'from-success/[0.06]' },
+    warning: { text: 'text-warning',  border: 'border-warning/25',  bg: 'from-warning/[0.06]' },
+    primary: { text: 'text-primary',  border: 'border-primary/25',  bg: 'from-primary/[0.06]' },
+  }[tone];
+  return (
+    <Card
+      onClick={onClick}
+      className={cn(
+        'glass-card overflow-hidden bg-gradient-to-br to-transparent',
+        toneMap.border,
+        toneMap.bg,
+        onClick && 'cursor-pointer hover:shadow-md transition-shadow',
+      )}
+    >
+      <CardContent className="p-4">
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">{label}</p>
+        <div className={cn('mt-1 text-2xl font-bold tabular-nums leading-tight', toneMap.text)}>{value}</div>
+        <p className="text-[11px] text-muted-foreground mt-1">{hint}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
