@@ -248,6 +248,7 @@ Deno.serve(async (req) => {
         text,
         purpose: 'transactional',
         label: template,
+        idempotency_key: `${template}:${messageId}`,
         queued_at: new Date().toISOString(),
       },
     })
