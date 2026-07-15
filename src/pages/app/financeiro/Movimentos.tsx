@@ -113,14 +113,11 @@ export default function Movimentos() {
   }, [filtered]);
 
   const pagination = usePagination({
-    totalItems: filtered.length,
+    items: filtered,
     itemsPerPage: PAGE_SIZE,
   });
 
-  const paged = useMemo(
-    () => filtered.slice(pagination.startIndex - 1, pagination.endIndex),
-    [filtered, pagination.startIndex, pagination.endIndex],
-  );
+  const paged = pagination.paginatedItems;
 
   const anyFilter = kind !== 'all' || status !== 'all' || !!search;
 
@@ -242,10 +239,10 @@ export default function Movimentos() {
         hasNextPage={pagination.hasNextPage}
         hasPreviousPage={pagination.hasPreviousPage}
         onPageChange={pagination.goToPage}
-        onNextPage={pagination.goToNext}
-        onPreviousPage={pagination.goToPrevious}
-        onFirstPage={pagination.goToFirst}
-        onLastPage={pagination.goToLast}
+        onNextPage={pagination.goToNextPage}
+        onPreviousPage={pagination.goToPreviousPage}
+        onFirstPage={pagination.goToFirstPage}
+        onLastPage={pagination.goToLastPage}
       />
     </div>
   );

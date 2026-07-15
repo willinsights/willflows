@@ -96,7 +96,7 @@ export function useTransactionFeed({ filterByUserId }: Params = {}): {
         kind: 'extra',
         amount: c.custos_extras,
         status: (c.custos_extras_payment_status as FinanceTxStatus) ?? 'pendente',
-        date: c.delivered_at || c.delivery_date || c.created_at || null,
+        date: c.delivered_at || c.delivery_date || null,
         dueDate: null,
         projectId: c.id,
         projectName: c.name,
