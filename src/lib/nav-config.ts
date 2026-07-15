@@ -18,7 +18,6 @@ import {
   CheckCircle2,
   Upload,
   Euro,
-  CreditCard,
   Receipt,
   BarChart3,
   UserCog,
