@@ -9,6 +9,6 @@ export const FINANCE_TABS: Array<{ id: FinanceTab; label: string; enabled: boole
   { id: 'visao',         label: 'Visão',         enabled: true  },
   { id: 'fechos',        label: 'Fechos',        enabled: true  },
   { id: 'movimentos',    label: 'Movimentos',    enabled: true  },
-  { id: 'colaboradores', label: 'Colaboradores', enabled: false },
-  { id: 'relatorios',    label: 'Relatórios',    enabled: false },
+  { id: 'colaboradores', label: 'Colaboradores', enabled: true  },
+  { id: 'relatorios',    label: 'Relatórios',    enabled: true  },
 ];
