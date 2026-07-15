@@ -7,6 +7,7 @@ import FinanceiroHub from './FinanceiroHub';
 import { FINANCE_TABS, type FinanceTab } from './tabs';
 
 const FinanceVisao = lazy(() => import('./FinanceVisao'));
+const Movimentos = lazy(() => import('./Movimentos'));
 
 /**
  * Tab switcher for /app/financeiro.
@@ -23,7 +24,7 @@ export default function FinanceIndex() {
     <Suspense fallback={<Skeleton className="h-96 w-full rounded-xl" />}>
       {tab === 'visao'  && <FinanceVisao />}
       {tab === 'fechos' && <FinanceiroHub />}
-      {tab === 'movimentos'    && <ComingSoon title="Movimentos" description="Feed unificado de receitas e custos com virtual scroll, filtros em chips e detalhe lateral. Chega na Fase 3 do redesign." />}
+      {tab === 'movimentos'    && <Movimentos />}
       {tab === 'colaboradores' && <ComingSoon title="Colaboradores" description="Vista agregada por editor com pagamentos pendentes cross-fecho." />}
       {tab === 'relatorios'    && <ComingSoon title="Relatórios" description="A absorver /app/relatorios com exportações centralizadas." />}
     </Suspense>
