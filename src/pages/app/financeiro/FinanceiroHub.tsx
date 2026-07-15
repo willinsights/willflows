@@ -453,55 +453,57 @@ function ClosingDetail({
     catch (e) { toast({ title: 'Erro', description: String((e as Error).message), variant: 'destructive' }); }
   };
 
-  // ---- Build unified flat list matching the reference export design ----
+  // ---- Build unified flat list: one row per project ----
   const buildFlatExport = () => {
-    const headers = ['Código', 'Projeto', 'Data Entrega', 'Tipo', 'Detalhe', 'Status', 'Valor'];
+    const headers = [
+      'Código', 'Projeto', 'Data Entrega', 'Cliente',
+      'Receita', 'Colaborador', 'Custo Colab.', 'Extras',
+      'Status', 'Lucro',
+    ];
 
     const fmtDate = (v?: string | null) =>
       v ? format(new Date(v), 'dd/MM/yyyy', { locale: pt }) : '—';
 
+    const projectIdSet = new Set<string>([
+      ...revenueItems.map((i) => i.project_id),
+      ...teamItems.map((i) => i.project_id),
+      ...extraItems.map((i) => i.project_id),
+    ]);
+
     const rows: (string | number)[][] = [];
 
-    // Receita
-    revenueItems.forEach((i) => {
-      const p = projectMap.get(i.project_id);
+    Array.from(projectIdSet).forEach((pid) => {
+      const p = projectMap.get(pid);
+      const rev = revenueItems
+        .filter((i) => i.project_id === pid)
+        .reduce((s, i) => s + Number(i.amount_snapshot), 0);
+      const teamRows = teamItems.filter((i) => i.project_id === pid);
+      const teamCostSum = teamRows.reduce((s, i) => s + Number(i.amount_snapshot), 0);
+      const extraSum = extraItems
+        .filter((i) => i.project_id === pid)
+        .reduce((s, i) => s + Number(i.amount_snapshot), 0);
+
+      const editorNames = teamRows
+        .map((i) => {
+          const tp = i.team_payment_id ? teamById.get(i.team_payment_id) : undefined;
+          return nameOf(tp?.user_id ?? null);
+        })
+        .filter((n, idx, arr) => arr.indexOf(n) === idx)
+        .join(', ') || '—';
+
+      const rowProfit = rev - teamCostSum - extraSum;
+
       rows.push([
-        (p?.id || i.project_id).slice(0, 8).toUpperCase(),
-        p?.name || i.project_id.slice(0, 8),
+        (p?.id || pid).slice(0, 8).toUpperCase(),
+        p?.name || pid.slice(0, 8),
         fmtDate(p?.delivered_at ?? null),
-        'Receita',
         clientName,
-        'Recebido',
-        formatCurrencyRaw(Number(i.amount_snapshot)),
-      ]);
-    });
-
-    // Custos — Equipa
-    teamItems.forEach((i) => {
-      const p = projectMap.get(i.project_id);
-      const tp = i.team_payment_id ? teamById.get(i.team_payment_id) : undefined;
-      rows.push([
-        (p?.id || i.project_id).slice(0, 8).toUpperCase(),
-        p?.name || i.project_id.slice(0, 8),
-        fmtDate(p?.delivered_at ?? null),
-        'Colaborador',
-        `${nameOf(tp?.user_id ?? null)} (${formatCurrencyRaw(Number(i.amount_snapshot))})`,
-        statusLabel(tp?.payment_status || 'pendente'),
-        formatCurrencyRaw(Number(i.amount_snapshot)),
-      ]);
-    });
-
-    // Custos — Extras
-    extraItems.forEach((i) => {
-      const c = extraMap.get(i.project_id);
-      rows.push([
-        (c?.id || i.project_id).slice(0, 8).toUpperCase(),
-        c?.name || i.project_id.slice(0, 8),
-        fmtDate(c?.delivered_at ?? null),
-        'Custo Extra',
-        '—',
-        statusLabel(c?.custos_extras_payment_status || 'pendente'),
-        formatCurrencyRaw(Number(i.amount_snapshot)),
+        formatCurrencyRaw(rev),
+        editorNames,
+        formatCurrencyRaw(teamCostSum),
+        formatCurrencyRaw(extraSum),
+        closing.status === 'received' ? 'Recebido' : 'Por receber',
+        formatCurrencyRaw(rowProfit),
       ]);
     });
 
