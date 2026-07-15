@@ -1,13 +1,14 @@
 import { lazy, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Sparkles } from 'lucide-react';
 
 import FinanceiroHub from './FinanceiroHub';
 import { FINANCE_TABS, type FinanceTab } from './tabs';
 
 const FinanceVisao = lazy(() => import('./FinanceVisao'));
 const Movimentos = lazy(() => import('./Movimentos'));
+const Colaboradores = lazy(() => import('./Colaboradores'));
+const Relatorios = lazy(() => import('@/pages/app/Relatorios'));
 
 /**
  * Tab switcher for /app/financeiro.
@@ -22,21 +23,11 @@ export default function FinanceIndex() {
 
   return (
     <Suspense fallback={<Skeleton className="h-96 w-full rounded-xl" />}>
-      {tab === 'visao'  && <FinanceVisao />}
-      {tab === 'fechos' && <FinanceiroHub />}
+      {tab === 'visao'         && <FinanceVisao />}
+      {tab === 'fechos'        && <FinanceiroHub />}
       {tab === 'movimentos'    && <Movimentos />}
-      {tab === 'colaboradores' && <ComingSoon title="Colaboradores" description="Vista agregada por editor com pagamentos pendentes cross-fecho." />}
-      {tab === 'relatorios'    && <ComingSoon title="Relatórios" description="A absorver /app/relatorios com exportações centralizadas." />}
+      {tab === 'colaboradores' && <Colaboradores />}
+      {tab === 'relatorios'    && <Relatorios />}
     </Suspense>
-  );
-}
-
-function ComingSoon({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="glass-card rounded-xl border p-10 text-center">
-      <Sparkles className="h-10 w-10 mx-auto text-primary/60 mb-3" />
-      <p className="text-lg font-semibold mb-2">{title}</p>
-      <p className="text-sm text-muted-foreground max-w-md mx-auto">{description}</p>
-    </div>
   );
 }
