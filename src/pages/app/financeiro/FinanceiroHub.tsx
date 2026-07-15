@@ -312,19 +312,14 @@ function UnbilledPool({
   );
 }
 
-/** ---------- Closings list ---------- */
+/** ---------- Closings list (redesigned card grid) ---------- */
 function ClosingsList({
-  closings, items, onOpen, monthFilter,
-}: { closings: Closing[]; items: ClosingItem[]; onOpen: (id: string) => void; monthFilter: string }) {
+  closings, items, onOpen,
+}: { closings: Closing[]; items: ClosingItem[]; onOpen: (id: string) => void }) {
   const { formatCurrency } = useFormatCurrency();
   const { clients } = useClients();
 
-  const visible = closings.filter((c) => {
-    if (monthFilter === 'all') return true;
-    return c.created_at.startsWith(monthFilter);
-  });
-
-  if (visible.length === 0) {
+  if (closings.length === 0) {
     return (
       <EmptyState
         icon={Receipt}
@@ -335,40 +330,101 @@ function ClosingsList({
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {visible.map((c) => {
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {closings.map((c, idx) => {
         const its = items.filter((i) => i.closing_id === c.id);
         const revenue = its.filter((i) => i.kind === 'revenue').reduce((s, i) => s + Number(i.amount_snapshot), 0);
         const costs = its.filter((i) => i.kind !== 'revenue').reduce((s, i) => s + Number(i.amount_snapshot), 0);
+        const profit = revenue - costs;
+        const margin = revenue > 0 ? Math.round((profit / revenue) * 100) : 0;
         const nVideos = new Set(its.filter((i) => i.kind === 'revenue').map((i) => i.project_id)).size;
         const clientName = c.client_id ? clients.find((cl) => cl.id === c.client_id)?.name || '—' : 'Misto';
+        const received = c.status === 'received';
+
         return (
-          <Card key={c.id} className="glass-card hover:shadow-md transition-shadow cursor-pointer" onClick={() => onOpen(c.id)}>
-            <CardContent className="p-4 space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="font-semibold">{c.label || 'Sem nome'}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {format(new Date(c.created_at), 'dd MMM yyyy', { locale: pt })} · {clientName}
+          <motion.div
+            key={c.id}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22, delay: idx * 0.03 }}
+          >
+            <Card
+              onClick={() => onOpen(c.id)}
+              className={cn(
+                'glass-card cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 border overflow-hidden',
+                received ? 'border-success/25' : 'border-border',
+              )}
+            >
+              {/* Accent bar */}
+              <div className={cn('h-1', received ? 'bg-success/70' : 'bg-primary/50')} />
+
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2 min-w-0">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-sm truncate">{c.label || 'Sem nome'}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      {format(new Date(c.created_at), "dd MMM ''yy", { locale: pt })} · {clientName}
+                    </div>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'text-[10px] font-medium border shrink-0',
+                      received
+                        ? 'bg-success/10 text-success border-success/30'
+                        : 'bg-warning/10 text-warning border-warning/30',
+                    )}
+                  >
+                    {received ? 'Recebido' : 'Por receber'}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Vídeos</div>
+                    <div className="text-sm font-semibold tabular-nums mt-0.5">{nVideos}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Receita</div>
+                    <div className="text-sm font-semibold tabular-nums text-success mt-0.5">{formatCurrency(revenue)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Lucro</div>
+                    <div className={cn(
+                      'text-sm font-semibold tabular-nums mt-0.5',
+                      profit >= 0 ? 'text-primary' : 'text-destructive',
+                    )}>
+                      {formatCurrency(profit)}
+                    </div>
                   </div>
                 </div>
-                <Badge variant={c.status === 'received' ? 'default' : 'outline'}>
-                  {c.status === 'received' ? 'Recebido' : 'Por receber'}
-                </Badge>
-              </div>
-              <Separator />
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                <div><div className="text-muted-foreground">Vídeos</div><div className="font-semibold">{nVideos}</div></div>
-                <div><div className="text-muted-foreground">Receita</div><div className="font-semibold text-success">{formatCurrency(revenue)}</div></div>
-                <div><div className="text-muted-foreground">Lucro</div><div className="font-semibold">{formatCurrency(revenue - costs)}</div></div>
-              </div>
-            </CardContent>
-          </Card>
+
+                {revenue > 0 && (
+                  <div>
+                    <div className="flex items-baseline justify-between text-[10px] mb-1">
+                      <span className="text-muted-foreground uppercase tracking-wide">Margem</span>
+                      <span className="tabular-nums font-medium">{margin}%</span>
+                    </div>
+                    <div className="h-1 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={cn(
+                          'h-full rounded-full transition-all',
+                          profit >= 0 ? 'bg-primary/70' : 'bg-destructive/70',
+                        )}
+                        style={{ width: `${Math.min(Math.max(margin, 0), 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
         );
       })}
     </div>
   );
 }
+
 
 /** ---------- Closing detail ---------- */
 function ClosingDetail({
