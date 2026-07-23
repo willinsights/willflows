@@ -95,6 +95,14 @@ export default function AdminCampaigns() {
   const [subjectActive, setSubjectActive] = useState(ACTIVE_SUBJECT);
   const [bodyActive, setBodyActive] = useState(ACTIVE_BODY);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [testEmail, setTestEmail] = useState<string>('');
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      setTestEmail(data.user?.email || 'geral@willflow.app');
+    })();
+  }, []);
 
   async function loadRecipients() {
     setLoading(true);
@@ -147,13 +155,18 @@ export default function AdminCampaigns() {
       toast({ title: 'Assunto e corpo são obrigatórios', variant: 'destructive' });
       return;
     }
+    const target = testEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target)) {
+      toast({ title: 'Email de teste inválido', variant: 'destructive' });
+      return;
+    }
     setTestSending(true);
     try {
       const { data, error } = await supabase.functions.invoke('admin-campaign', {
-        body: { action: 'send-test', subject, body },
+        body: { action: 'send-test', subject, body, testEmail: target },
       });
       if (error) throw error;
-      toast({ title: 'Teste enviado', description: `Enviado para ${data?.to || 'o teu email'}` });
+      toast({ title: 'Teste enviado', description: `Enviado para ${data?.to || target}` });
     } catch (e: any) {
       toast({ title: 'Falha no teste', description: e?.message ?? 'Erro', variant: 'destructive' });
     } finally {
@@ -331,10 +344,20 @@ export default function AdminCampaigns() {
         </CardContent>
       </Card>
 
-      <div className="flex flex-wrap gap-3 justify-end sticky bottom-4 bg-background/80 backdrop-blur border rounded-lg p-3">
+      <div className="flex flex-wrap items-end gap-3 justify-end sticky bottom-4 bg-background/80 backdrop-blur border rounded-lg p-3">
+        <div className="flex-1 min-w-[220px] max-w-sm">
+          <Label htmlFor="testEmail" className="text-xs text-muted-foreground">Email de teste</Label>
+          <Input
+            id="testEmail"
+            type="email"
+            value={testEmail}
+            onChange={(e) => setTestEmail(e.target.value)}
+            placeholder="destinatario@exemplo.com"
+          />
+        </div>
         <Button variant="outline" onClick={handleSendTest} disabled={testSending || sending}>
           {testSending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <TestTube2 className="h-4 w-4 mr-2" />}
-          Enviar teste para mim
+          Enviar teste
         </Button>
         <Button
           onClick={() => setConfirmOpen(true)}
