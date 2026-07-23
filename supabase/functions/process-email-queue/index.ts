@@ -17,6 +17,25 @@ function isRateLimited(error: unknown): boolean {
   return error instanceof Error && error.message.includes('429')
 }
 
+// Permanent client-side rejections (4xx, excluding 429). These will never
+// succeed on retry with the same idempotency key — the provider returns 409
+// "run_failed" on subsequent attempts. Fail fast to DLQ.
+function isPermanentClientError(error: unknown): boolean {
+  if (error && typeof error === 'object' && 'status' in error) {
+    const status = (error as { status: number }).status
+    return typeof status === 'number' && status >= 400 && status < 500 && status !== 429
+  }
+  if (error instanceof Error) {
+    // Fallback: message contains "Email API error: 4xx" (but not 429)
+    const m = error.message.match(/Email API error:\s*(\d{3})/)
+    if (m) {
+      const status = Number(m[1])
+      return status >= 400 && status < 500 && status !== 429
+    }
+  }
+  return false
+}
+
 // Extract Retry-After seconds from a structured EmailAPIError, or default to 60s.
 function getRetryAfterSeconds(error: unknown): number {
   if (error && typeof error === 'object' && 'retryAfterSeconds' in error) {
@@ -317,7 +336,34 @@ Deno.serve(async (req) => {
           )
         }
 
-        // Log non-429 failures to track real retry attempts.
+        // Permanent 4xx rejection (e.g. missing_unsubscribe, invalid recipient):
+        // retrying with the same idempotency key returns 409 "run_failed" forever.
+        // Fail fast to DLQ and stop counting retries for this message.
+        if (isPermanentClientError(error)) {
+          await supabase.from('email_send_log').insert({
+            message_id: payload.message_id,
+            template_name: payload.label || queue,
+            recipient_email: payload.to,
+            status: 'dlq',
+            error_message: `Permanent send rejection (no retry): ${errorMsg.slice(0, 900)}`,
+          })
+          const { error: permDlqError } = await supabase.rpc('move_to_dlq', {
+            source_queue: queue,
+            dlq_name: dlq,
+            message_id: msg.msg_id,
+            payload,
+          })
+          if (permDlqError) {
+            console.error('Failed to move permanently-failed message to DLQ', {
+              queue,
+              msg_id: msg.msg_id,
+              error: permDlqError,
+            })
+          }
+          continue
+        }
+
+        // Transient failures (5xx, network): log and let VT expire for retry.
         await supabase.from('email_send_log').insert({
           message_id: payload.message_id,
           template_name: payload.label || queue,
@@ -329,7 +375,7 @@ Deno.serve(async (req) => {
           failedAttemptsByMessageId.set(payload.message_id, failedAttempts + 1)
         }
 
-        // Non-429 errors: message stays invisible until VT expires, then retried
+        // Transient errors: message stays invisible until VT expires, then retried
       }
 
       // Small delay between sends to smooth bursts
