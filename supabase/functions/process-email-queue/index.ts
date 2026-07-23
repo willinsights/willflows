@@ -336,7 +336,34 @@ Deno.serve(async (req) => {
           )
         }
 
-        // Log non-429 failures to track real retry attempts.
+        // Permanent 4xx rejection (e.g. missing_unsubscribe, invalid recipient):
+        // retrying with the same idempotency key returns 409 "run_failed" forever.
+        // Fail fast to DLQ and stop counting retries for this message.
+        if (isPermanentClientError(error)) {
+          await supabase.from('email_send_log').insert({
+            message_id: payload.message_id,
+            template_name: payload.label || queue,
+            recipient_email: payload.to,
+            status: 'dlq',
+            error_message: `Permanent send rejection (no retry): ${errorMsg.slice(0, 900)}`,
+          })
+          const { error: permDlqError } = await supabase.rpc('move_to_dlq', {
+            source_queue: queue,
+            dlq_name: dlq,
+            message_id: msg.msg_id,
+            payload,
+          })
+          if (permDlqError) {
+            console.error('Failed to move permanently-failed message to DLQ', {
+              queue,
+              msg_id: msg.msg_id,
+              error: permDlqError,
+            })
+          }
+          continue
+        }
+
+        // Transient failures (5xx, network): log and let VT expire for retry.
         await supabase.from('email_send_log').insert({
           message_id: payload.message_id,
           template_name: payload.label || queue,
@@ -348,7 +375,7 @@ Deno.serve(async (req) => {
           failedAttemptsByMessageId.set(payload.message_id, failedAttempts + 1)
         }
 
-        // Non-429 errors: message stays invisible until VT expires, then retried
+        // Transient errors: message stays invisible until VT expires, then retried
       }
 
       // Small delay between sends to smooth bursts
