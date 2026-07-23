@@ -108,6 +108,7 @@ const AdminBilling = lazy(() => import("./pages/admin/AdminBilling"));
 const AdminGrowth = lazy(() => import("./pages/admin/AdminGrowth"));
 const AdminSystem = lazy(() => import("./pages/admin/AdminSystem"));
 const AdminWebhooks = lazy(() => import("./pages/admin/AdminWebhooks"));
+const AdminCampaigns = lazy(() => import("./pages/admin/AdminCampaigns"));
 
 // API health check confirmed — backend is operational
 const App = () => (
@@ -176,6 +177,7 @@ const App = () => (
                       <Route path="growth" element={<AdminGrowth />} />
                       <Route path="system" element={<AdminSystem />} />
                       <Route path="webhooks" element={<AdminWebhooks />} />
+                      <Route path="campaigns" element={<AdminCampaigns />} />
                     </Route>
                     
                     {/* Protected Routes */}
