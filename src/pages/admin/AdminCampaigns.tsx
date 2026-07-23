@@ -375,7 +375,25 @@ export default function AdminCampaigns() {
             automaticamente no rodapé.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <div className="grid gap-2 sm:grid-cols-[minmax(0,320px),1fr] sm:items-center">
+            <div>
+              <Label htmlFor="template">Template</Label>
+              <Select value={templateId} onValueChange={applyTemplate}>
+                <SelectTrigger id="template">
+                  <SelectValue placeholder="Escolher template" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEMPLATES.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground sm:pt-6">
+              {TEMPLATES.find((t) => t.id === templateId)?.description}
+            </p>
+          </div>
           <Tabs defaultValue="default">
             <TabsList>
               <TabsTrigger value="default">Padrão (trialing / canceled)</TabsTrigger>
