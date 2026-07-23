@@ -127,6 +127,25 @@ async function ensureUnsubscribeToken(
   return token
 }
 
+function renderSubject(subjectTpl: string, name: string): string {
+  const trimmedName = (name || '').trim()
+  let out = subjectTpl
+  if (trimmedName) {
+    out = out.replace(/\{nome\}/g, trimmedName)
+  } else {
+    // Remove "{nome}, " / "{nome} " / "{nome}" cleanly and fix leading punctuation
+    out = out
+      .replace(/\{nome\}\s*[,;:\-–—]\s*/g, '')
+      .replace(/\{nome\}\s*/g, '')
+      .replace(/^\s*[,;:\-–—]\s*/, '')
+    // Capitalize first letter if it became lowercase after removal
+    if (out.length > 0) out = out.charAt(0).toUpperCase() + out.slice(1)
+  }
+  // Strip em/en dashes for consistency with body treatment
+  out = out.replace(/\s*[—–]\s*/g, ', ').replace(/\s+/g, ' ').trim()
+  return out
+}
+
 async function sendOne(params: {
   admin: ReturnType<typeof createClient>
   userToken: string
@@ -139,6 +158,10 @@ async function sendOne(params: {
   const unsubscribeToken = await ensureUnsubscribeToken(admin, recipient.email)
   const unsubscribeUrl = `${SUPABASE_URL}/functions/v1/handle-email-unsubscribe?token=${unsubscribeToken}`
 
+  const recipientName = firstName(recipient.full_name)
+  const resolvedSubject = renderSubject(subject, recipientName)
+
+
   const res = await fetch(`${SUPABASE_URL}/functions/v1/send-transactional-email`, {
     method: 'POST',
     headers: {
@@ -150,11 +173,12 @@ async function sendOne(params: {
       template: 'reactivation',
       to: recipient.email,
       data: {
-        name: firstName(recipient.full_name),
+        name: recipientName,
         bodyText,
-        subject,
+        subject: resolvedSubject,
         unsubscribeUrl,
       },
+
     }),
   })
 
