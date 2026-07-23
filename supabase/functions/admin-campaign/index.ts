@@ -192,15 +192,26 @@ Deno.serve(async (req) => {
     if (action === 'send-test') {
       const subject = String(body.subject || '').trim()
       const bodyText = String(body.body || '').trim()
+      const rawTestEmail = String(body.testEmail || '').trim().toLowerCase()
       if (!subject || !bodyText) {
         return new Response(JSON.stringify({ error: 'subject e body são obrigatórios' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
+      const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      const targetEmail = rawTestEmail && EMAIL_RE.test(rawTestEmail)
+        ? rawTestEmail
+        : (auth.user.email || '').toLowerCase()
+      if (!targetEmail || !EMAIL_RE.test(targetEmail)) {
+        return new Response(JSON.stringify({ error: 'Email de teste inválido' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
       const recipient: Recipient = {
         id: auth.user.id,
-        email: auth.user.email!,
+        email: targetEmail,
         full_name: (auth.user.user_metadata as any)?.full_name ?? null,
         last_login_at: null,
         subscription_status: 'admin-test',
