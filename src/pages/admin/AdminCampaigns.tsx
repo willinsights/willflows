@@ -163,6 +163,18 @@ export default function AdminCampaigns() {
   const [bodyActive, setBodyActive] = useState(ACTIVE_BODY);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [testEmail, setTestEmail] = useState<string>('');
+  const [templateId, setTemplateId] = useState<string>('reactivation');
+
+  function applyTemplate(id: string) {
+    const tpl = TEMPLATES.find((t) => t.id === id);
+    if (!tpl) return;
+    setTemplateId(id);
+    setSubject(tpl.subject);
+    setBody(tpl.body);
+    setSubjectActive(tpl.subjectActive ?? tpl.subject);
+    setBodyActive(tpl.bodyActive ?? tpl.body);
+    toast({ title: 'Template aplicado', description: tpl.label });
+  }
 
   useEffect(() => {
     (async () => {
