@@ -344,10 +344,20 @@ export default function AdminCampaigns() {
         </CardContent>
       </Card>
 
-      <div className="flex flex-wrap gap-3 justify-end sticky bottom-4 bg-background/80 backdrop-blur border rounded-lg p-3">
+      <div className="flex flex-wrap items-end gap-3 justify-end sticky bottom-4 bg-background/80 backdrop-blur border rounded-lg p-3">
+        <div className="flex-1 min-w-[220px] max-w-sm">
+          <Label htmlFor="testEmail" className="text-xs text-muted-foreground">Email de teste</Label>
+          <Input
+            id="testEmail"
+            type="email"
+            value={testEmail}
+            onChange={(e) => setTestEmail(e.target.value)}
+            placeholder="destinatario@exemplo.com"
+          />
+        </div>
         <Button variant="outline" onClick={handleSendTest} disabled={testSending || sending}>
           {testSending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <TestTube2 className="h-4 w-4 mr-2" />}
-          Enviar teste para mim
+          Enviar teste
         </Button>
         <Button
           onClick={() => setConfirmOpen(true)}
