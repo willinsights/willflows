@@ -241,6 +241,39 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Ensure unsubscribe_token (required by the send provider for transactional emails).
+    // Reuse the existing token for this address if one is still active, otherwise create one.
+    const recipientLower = to.toLowerCase()
+    let unsubscribeToken: string | null = null
+    {
+      const { data: existingToken } = await supabase
+        .from('email_unsubscribe_tokens')
+        .select('token')
+        .eq('email', recipientLower)
+        .is('used_at', null)
+        .maybeSingle()
+      if (existingToken?.token) {
+        unsubscribeToken = existingToken.token as string
+      } else {
+        const newToken = crypto.randomUUID()
+        const { error: tokenErr } = await supabase
+          .from('email_unsubscribe_tokens')
+          .insert({ email: recipientLower, token: newToken })
+        if (tokenErr) {
+          // Race: fetch again
+          const { data: retry } = await supabase
+            .from('email_unsubscribe_tokens')
+            .select('token')
+            .eq('email', recipientLower)
+            .is('used_at', null)
+            .maybeSingle()
+          unsubscribeToken = (retry?.token as string) ?? newToken
+        } else {
+          unsubscribeToken = newToken
+        }
+      }
+    }
+
     // Render template
     const html = await renderAsync(React.createElement(templateConfig.component, data))
     const text = await renderAsync(React.createElement(templateConfig.component, data), { plainText: true })
@@ -270,6 +303,7 @@ Deno.serve(async (req) => {
         purpose: 'transactional',
         label: template,
         idempotency_key: `${template}:${messageId}`,
+        unsubscribe_token: unsubscribeToken,
         queued_at: new Date().toISOString(),
       },
     })
