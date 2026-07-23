@@ -173,11 +173,12 @@ async function sendOne(params: {
       template: 'reactivation',
       to: recipient.email,
       data: {
-        name: firstName(recipient.full_name),
+        name: recipientName,
         bodyText,
-        subject,
+        subject: resolvedSubject,
         unsubscribeUrl,
       },
+
     }),
   })
 
