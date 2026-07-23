@@ -11,6 +11,7 @@ import { BetaInviteEmail } from '../_shared/email-templates/beta-invite.tsx'
 import { ContactMessageEmail } from '../_shared/email-templates/contact-message.tsx'
 import { AutomationTestEmail } from '../_shared/email-templates/automation-test.tsx'
 import { AdminSubscriptionDiscrepancyEmail } from '../_shared/email-templates/admin-subscription-discrepancy.tsx'
+import { ReactivationEmail } from '../_shared/email-templates/reactivation.tsx'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -77,6 +78,10 @@ const TEMPLATES: Record<string, { component: React.ComponentType<any>; subject: 
   admin_subscription_discrepancy: {
     component: AdminSubscriptionDiscrepancyEmail,
     subject: (data) => `⚠️ ${data.totalDiscrepancies || 1} divergência(s) Stripe detetada(s)`,
+  },
+  reactivation: {
+    component: ReactivationEmail,
+    subject: (data) => String(data.subject || 'O teu WillFlow está à tua espera'),
   },
 }
 
