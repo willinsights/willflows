@@ -155,13 +155,18 @@ export default function AdminCampaigns() {
       toast({ title: 'Assunto e corpo são obrigatórios', variant: 'destructive' });
       return;
     }
+    const target = testEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target)) {
+      toast({ title: 'Email de teste inválido', variant: 'destructive' });
+      return;
+    }
     setTestSending(true);
     try {
       const { data, error } = await supabase.functions.invoke('admin-campaign', {
-        body: { action: 'send-test', subject, body },
+        body: { action: 'send-test', subject, body, testEmail: target },
       });
       if (error) throw error;
-      toast({ title: 'Teste enviado', description: `Enviado para ${data?.to || 'o teu email'}` });
+      toast({ title: 'Teste enviado', description: `Enviado para ${data?.to || target}` });
     } catch (e: any) {
       toast({ title: 'Falha no teste', description: e?.message ?? 'Erro', variant: 'destructive' });
     } finally {
