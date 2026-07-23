@@ -9,6 +9,7 @@ import {
   Heading,
   Hr,
   Html,
+  Img,
   Link,
   Preview,
   Section,
@@ -23,6 +24,8 @@ interface ReactivationEmailProps {
   variant?: 'default' | 'active'
 }
 
+const LOGO_URL = 'https://willflow.app/logo-willflow-purple.png'
+
 /**
  * Reactivation campaign template.
  * Renders the admin-provided body (plain text with \n line breaks) into paragraphs,
@@ -35,9 +38,10 @@ export const ReactivationEmail = ({
   unsubscribeUrl,
 }: ReactivationEmailProps) => {
   const greetingName = name?.trim() || null
-  // Split body into paragraphs on blank lines
+  // Strip em/en dashes (AI-tell) and split body into paragraphs on blank lines
   const paragraphs = bodyText
     .replace(/\{nome\}/g, greetingName ?? '')
+    .replace(/\s*[—–]\s*/g, ', ')
     .split(/\n\s*\n/)
     .map(p => p.trim())
     .filter(Boolean)
@@ -45,11 +49,23 @@ export const ReactivationEmail = ({
   return (
     <Html lang="pt" dir="ltr">
       <Head />
-      <Preview>O teu WillFlow está à tua espera.</Preview>
+      <Preview>Temos novidades no WillFlow.</Preview>
       <Body style={main}>
         <Container style={container}>
           <Section style={header}>
-            <Heading style={h1}>WillFlow</Heading>
+            <Img
+              src={LOGO_URL}
+              alt="WillFlow"
+              width="140"
+              style={{ margin: '0 auto', display: 'block' }}
+            />
+          </Section>
+
+          <Section style={newsBadge}>
+            <Text style={badgeLabel}>NOVIDADES</Text>
+            <Text style={badgeText}>
+              Temos novidades no sistema. Entra para veres o que mudou.
+            </Text>
           </Section>
 
           <Section style={content}>
@@ -57,7 +73,7 @@ export const ReactivationEmail = ({
               <Text key={i} style={paragraph}>{p}</Text>
             ))}
 
-            <Section style={{ textAlign: 'center', margin: '32px 0' }}>
+            <Section style={{ textAlign: 'center', margin: '28px 0 8px' }}>
               <Button href={appUrl} style={button}>
                 Entrar no WillFlow
               </Button>
@@ -68,7 +84,7 @@ export const ReactivationEmail = ({
 
           <Section style={footer}>
             <Text style={footerText}>
-              WillFlow — Gestão para criativos
+              WillFlow, gestão para criativos
             </Text>
             <Text style={footerSmall}>
               Recebeste este email porque tens uma conta no WillFlow.{' '}
@@ -93,23 +109,36 @@ const container = {
   padding: '40px 24px',
 }
 const header = { textAlign: 'center' as const, marginBottom: '24px' }
-const h1 = {
-  fontSize: '22px',
+const newsBadge = {
+  backgroundColor: '#f5f3ff',
+  border: '1px solid #ddd6fe',
+  borderRadius: '10px',
+  padding: '14px 18px',
+  margin: '0 0 20px 0',
+}
+const badgeLabel = {
+  fontSize: '11px',
   fontWeight: '700',
-  color: '#0f172a',
+  color: '#6d28d9',
+  letterSpacing: '0.08em',
+  margin: '0 0 4px 0',
+}
+const badgeText = {
+  fontSize: '14px',
+  color: '#4c1d95',
   margin: '0',
-  letterSpacing: '-0.02em',
+  lineHeight: '1.5',
 }
 const content = { padding: '8px 0' }
 const paragraph = {
   fontSize: '15px',
   lineHeight: '1.65',
   color: '#334155',
-  margin: '0 0 16px 0',
+  margin: '0 0 14px 0',
   whiteSpace: 'pre-line' as const,
 }
 const button = {
-  backgroundColor: '#0f172a',
+  backgroundColor: '#6d28d9',
   color: '#ffffff',
   padding: '12px 28px',
   borderRadius: '8px',
