@@ -17,6 +17,25 @@ function isRateLimited(error: unknown): boolean {
   return error instanceof Error && error.message.includes('429')
 }
 
+// Permanent client-side rejections (4xx, excluding 429). These will never
+// succeed on retry with the same idempotency key — the provider returns 409
+// "run_failed" on subsequent attempts. Fail fast to DLQ.
+function isPermanentClientError(error: unknown): boolean {
+  if (error && typeof error === 'object' && 'status' in error) {
+    const status = (error as { status: number }).status
+    return typeof status === 'number' && status >= 400 && status < 500 && status !== 429
+  }
+  if (error instanceof Error) {
+    // Fallback: message contains "Email API error: 4xx" (but not 429)
+    const m = error.message.match(/Email API error:\s*(\d{3})/)
+    if (m) {
+      const status = Number(m[1])
+      return status >= 400 && status < 500 && status !== 429
+    }
+  }
+  return false
+}
+
 // Extract Retry-After seconds from a structured EmailAPIError, or default to 60s.
 function getRetryAfterSeconds(error: unknown): number {
   if (error && typeof error === 'object' && 'retryAfterSeconds' in error) {
