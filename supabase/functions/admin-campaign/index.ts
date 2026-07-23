@@ -79,22 +79,14 @@ async function requireAdmin(req: Request) {
   const { data: userData, error: userErr } = await authClient.auth.getUser(token)
   if (userErr || !userData?.user) return { error: 'Unauthorized', status: 401 as const }
 
-  // Verify system admin using SECURITY DEFINER RPC (bypasses RLS)
+  // Verify system admin via direct table lookup with service role
   const admin = createClient(SUPABASE_URL, SERVICE_KEY)
-  const { data: isAdmin, error: adminErr } = await admin.rpc('is_system_admin', {
-    _user_id: userData.user.id,
-  })
-  if (adminErr) {
-    // Fallback with no-arg variant
-    const { data: isAdmin2 } = await admin
-      .from('system_admins')
-      .select('user_id')
-      .eq('user_id', userData.user.id)
-      .maybeSingle()
-    if (!isAdmin2) return { error: 'Forbidden', status: 403 as const }
-  } else if (!isAdmin) {
-    return { error: 'Forbidden', status: 403 as const }
-  }
+  const { data: isAdminRow } = await admin
+    .from('system_admins')
+    .select('user_id')
+    .eq('user_id', userData.user.id)
+    .maybeSingle()
+  if (!isAdminRow) return { error: 'Forbidden', status: 403 as const }
 
   return { user: userData.user, admin, token }
 }
