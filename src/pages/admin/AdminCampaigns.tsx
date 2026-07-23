@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   AlertDialog,
@@ -71,6 +72,72 @@ Se algo não funcionou como esperavas, responde a este email — leio pessoalmen
 Um abraço,
 Wilker — WillFlow`;
 
+type CampaignTemplate = {
+  id: string;
+  label: string;
+  description: string;
+  subject: string;
+  body: string;
+  subjectActive?: string;
+  bodyActive?: string;
+};
+
+const NOVIDADES_SUBJECT = '{nome}, 3 novidades no WillFlow que te vão poupar horas';
+const NOVIDADES_BODY = `Olá {nome},
+
+Enquanto estiveste fora, o WillFlow cresceu. Três novidades que mudam o dia a dia:
+
+- Dashboard Financeiro — receita, margem e movimentos de cada projeto num só ecrã. Sabes na hora se um trabalho foi rentável.
+- Exportação para Excel e PDF — fecho de contas com um clique, pronto para o contabilista ou o cliente.
+- Review Studio — o cliente comenta e aprova cada versão do vídeo no ponto exato, sem trocas de WeTransfer.
+
+Tudo sobre o que já conheces: Kanban, CRM, chat e calendário Google.
+
+Entra e vê: https://willflow.app
+
+Um abraço,
+Wilker — WillFlow`;
+
+const WINBACK_SUBJECT = '{nome}, ficámos com pena de te ver partir';
+const WINBACK_BODY = `Olá {nome},
+
+Vi que cancelaste o WillFlow — e queria mesmo saber: o que faltou?
+
+Se houve algo que não correspondeu às tuas expectativas, responde a este email. Leio pessoalmente e ajuda-nos a melhorar.
+
+A tua conta e os teus dados continuam guardados — se quiseres voltar, está tudo onde deixaste. Entretanto melhorámos bastante o lado financeiro (dashboard de margens e exportação de relatórios) e a aprovação de vídeos com o cliente.
+
+Quando quiseres voltar: https://willflow.app
+
+Um abraço,
+Wilker — WillFlow`;
+
+const TEMPLATES: CampaignTemplate[] = [
+  {
+    id: 'reactivation',
+    label: 'Reativação (dormentes)',
+    description: 'Mensagem para utilizadores que não entram há algum tempo.',
+    subject: DEFAULT_SUBJECT,
+    body: DEFAULT_BODY,
+    subjectActive: ACTIVE_SUBJECT,
+    bodyActive: ACTIVE_BODY,
+  },
+  {
+    id: 'novidades',
+    label: 'Novidades',
+    description: 'Anuncia as 3 melhorias recentes: Financeiro, Export, Review Studio.',
+    subject: NOVIDADES_SUBJECT,
+    body: NOVIDADES_BODY,
+  },
+  {
+    id: 'winback',
+    label: 'Win-back (cancelados)',
+    description: 'Reconquista utilizadores que cancelaram. Sem descontos ou ofertas.',
+    subject: WINBACK_SUBJECT,
+    body: WINBACK_BODY,
+  },
+];
+
 function formatDate(iso: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -96,6 +163,18 @@ export default function AdminCampaigns() {
   const [bodyActive, setBodyActive] = useState(ACTIVE_BODY);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [testEmail, setTestEmail] = useState<string>('');
+  const [templateId, setTemplateId] = useState<string>('reactivation');
+
+  function applyTemplate(id: string) {
+    const tpl = TEMPLATES.find((t) => t.id === id);
+    if (!tpl) return;
+    setTemplateId(id);
+    setSubject(tpl.subject);
+    setBody(tpl.body);
+    setSubjectActive(tpl.subjectActive ?? tpl.subject);
+    setBodyActive(tpl.bodyActive ?? tpl.body);
+    toast({ title: 'Template aplicado', description: tpl.label });
+  }
 
   useEffect(() => {
     (async () => {
@@ -296,7 +375,25 @@ export default function AdminCampaigns() {
             automaticamente no rodapé.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <div className="grid gap-2 sm:grid-cols-[minmax(0,320px),1fr] sm:items-center">
+            <div>
+              <Label htmlFor="template">Template</Label>
+              <Select value={templateId} onValueChange={applyTemplate}>
+                <SelectTrigger id="template">
+                  <SelectValue placeholder="Escolher template" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEMPLATES.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground sm:pt-6">
+              {TEMPLATES.find((t) => t.id === templateId)?.description}
+            </p>
+          </div>
           <Tabs defaultValue="default">
             <TabsList>
               <TabsTrigger value="default">Padrão (trialing / canceled)</TabsTrigger>
