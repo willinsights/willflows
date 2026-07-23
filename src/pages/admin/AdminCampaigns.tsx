@@ -95,6 +95,14 @@ export default function AdminCampaigns() {
   const [subjectActive, setSubjectActive] = useState(ACTIVE_SUBJECT);
   const [bodyActive, setBodyActive] = useState(ACTIVE_BODY);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [testEmail, setTestEmail] = useState<string>('');
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      setTestEmail(data.user?.email || 'geral@willflow.app');
+    })();
+  }, []);
 
   async function loadRecipients() {
     setLoading(true);
