@@ -79,6 +79,10 @@ const TEMPLATES: Record<string, { component: React.ComponentType<any>; subject: 
     component: AdminSubscriptionDiscrepancyEmail,
     subject: (data) => `⚠️ ${data.totalDiscrepancies || 1} divergência(s) Stripe detetada(s)`,
   },
+  reactivation: {
+    component: ReactivationEmail,
+    subject: (data) => String(data.subject || 'O teu WillFlow está à tua espera'),
+  },
 }
 
 
