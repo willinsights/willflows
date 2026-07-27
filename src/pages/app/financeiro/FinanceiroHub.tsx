@@ -712,11 +712,19 @@ function ClosingDetail({
             {Array.from(editorGroups.entries()).map(([editorId, grp]) => (
               <AccordionItem key={editorId} value={editorId}>
                 <AccordionTrigger>
-                  <span className="flex justify-between w-full pr-4">
-                    <span>{grp.name}</span>
-                    <span className="tabular-nums">{formatCurrency(grp.total)}</span>
+                  <span className="flex justify-between w-full pr-4 items-center gap-2">
+                    <span className="flex items-center gap-2">
+                      {grp.name}
+                      {grp.isFixedMonthly && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-primary/30 text-primary">
+                          mensal fixo
+                        </Badge>
+                      )}
+                    </span>
+                    <span className={cn('tabular-nums', grp.isFixedMonthly && 'text-muted-foreground')}>{formatCurrency(grp.total)}</span>
                   </span>
                 </AccordionTrigger>
+
                 <AccordionContent>
                   <div className="space-y-1">
                     {grp.rows.map((r) => (
