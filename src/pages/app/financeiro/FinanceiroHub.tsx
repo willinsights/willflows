@@ -556,6 +556,8 @@ function ClosingDetail({
         .reduce((s, i) => s + Number(i.amount_snapshot), 0);
       const teamRows = teamItems.filter((i) => i.project_id === pid);
       const teamCostSum = teamRows.reduce((s, i) => s + Number(i.amount_snapshot), 0);
+      const theoretical = Number(fullProjectMap.get(pid)?.custo_edicao || 0);
+      const effectiveEditCost = Math.max(teamCostSum, theoretical);
       const extraSum = extraItems
         .filter((i) => i.project_id === pid)
         .reduce((s, i) => s + Number(i.amount_snapshot), 0);
@@ -563,12 +565,13 @@ function ClosingDetail({
       const editorNames = teamRows
         .map((i) => {
           const tp = i.team_payment_id ? teamById.get(i.team_payment_id) : undefined;
-          return nameOf(tp?.user_id ?? null);
+          const isFixed = Number(i.amount_snapshot) === 0 && theoretical > 0;
+          return `${nameOf(tp?.user_id ?? null)}${isFixed ? ' (mensal fixo)' : ''}`;
         })
         .filter((n, idx, arr) => arr.indexOf(n) === idx)
         .join(', ') || '—';
 
-      const rowProfit = rev - teamCostSum - extraSum;
+      const rowProfit = rev - effectiveEditCost - extraSum;
 
       rows.push([
         p?.project_code || (p?.id || pid).slice(0, 8).toUpperCase(),
@@ -577,8 +580,9 @@ function ClosingDetail({
         clientName,
         formatCurrencyRaw(rev),
         editorNames,
-        formatCurrencyRaw(teamCostSum),
+        formatCurrencyRaw(effectiveEditCost),
         formatCurrencyRaw(extraSum),
+
         closing.status === 'received' ? 'Recebido' : 'Por receber',
         formatCurrencyRaw(rowProfit),
       ]);
