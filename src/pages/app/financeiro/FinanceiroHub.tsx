@@ -580,7 +580,7 @@ function ClosingDetail({
         clientName,
         formatCurrencyRaw(rev),
         editorNames,
-        formatCurrencyRaw(effectiveEditCost),
+        formatCurrencyRaw(teamCostSum),
         formatCurrencyRaw(extraSum),
 
         closing.status === 'received' ? 'Recebido' : 'Por receber',
