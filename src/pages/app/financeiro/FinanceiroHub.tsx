@@ -780,16 +780,33 @@ function ClosingDetail({
 /** ---------- Global profit view ---------- */
 function GlobalProfitView({ closings, items }: { closings: Closing[]; items: ClosingItem[] }) {
   const { formatCurrency } = useFormatCurrency();
+  const { projects } = useProjects();
   const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'received'>('all');
+
+  const projectEditCost = useMemo(
+    () => new Map(projects.map((p) => [p.id, Number(p.custo_edicao || 0)])),
+    [projects],
+  );
 
   const rows = closings
     .filter((c) => statusFilter === 'all' || c.status === (statusFilter === 'received' ? 'received' : 'open'))
     .map((c) => {
       const its = items.filter((i) => i.closing_id === c.id);
       const revenue = its.filter((i) => i.kind === 'revenue').reduce((s, i) => s + Number(i.amount_snapshot), 0);
-      const costs = its.filter((i) => i.kind !== 'revenue').reduce((s, i) => s + Number(i.amount_snapshot), 0);
+      const extras = its.filter((i) => i.kind === 'extra').reduce((s, i) => s + Number(i.amount_snapshot), 0);
+      // Per-project effective edit cost = max(sum of team snapshots, projects.custo_edicao).
+      const teamProjectIds = new Set(its.filter((i) => i.kind === 'team').map((i) => i.project_id));
+      let editCost = 0;
+      for (const pid of teamProjectIds) {
+        const teamSum = its
+          .filter((i) => i.kind === 'team' && i.project_id === pid)
+          .reduce((s, i) => s + Number(i.amount_snapshot), 0);
+        editCost += Math.max(teamSum, projectEditCost.get(pid) || 0);
+      }
+      const costs = editCost + extras;
       return { c, revenue, costs, profit: revenue - costs };
     });
+
 
   const totals = rows.reduce((acc, r) => ({
     revenue: acc.revenue + r.revenue, costs: acc.costs + r.costs, profit: acc.profit + r.profit,
