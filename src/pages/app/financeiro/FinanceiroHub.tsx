@@ -550,7 +550,7 @@ function ClosingDetail({
       const rowProfit = rev - teamCostSum - extraSum;
 
       rows.push([
-        (p?.id || pid).slice(0, 8).toUpperCase(),
+        p?.project_code || (p?.id || pid).slice(0, 8).toUpperCase(),
         p?.name || pid.slice(0, 8),
         fmtDate(p?.delivered_at ?? null),
         clientName,
