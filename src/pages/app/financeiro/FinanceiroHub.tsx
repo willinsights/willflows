@@ -436,6 +436,7 @@ function ClosingDetail({
   const { teamPayments } = useTeamPayments();
   const { members } = useWorkspaceMembers();
   const { clients } = useClients();
+  const { projects } = useProjects();
   const { toast } = useToast();
 
   const closing = closings.find((c) => c.id === closingId);
@@ -445,15 +446,32 @@ function ClosingDetail({
   const teamItems = its.filter((i) => i.kind === 'team');
   const extraItems = its.filter((i) => i.kind === 'extra');
 
-  const revenue = revenueItems.reduce((s, i) => s + Number(i.amount_snapshot), 0);
-  const teamCost = teamItems.reduce((s, i) => s + Number(i.amount_snapshot), 0);
-  const extraCost = extraItems.reduce((s, i) => s + Number(i.amount_snapshot), 0);
-  const profit = revenue - teamCost - extraCost;
-
   const projectMap = new Map(projectRevenue.map((p) => [p.id, p]));
   const extraMap = new Map(allProjectCosts.map((c) => [c.id, c]));
   const typedTeam = teamPayments as ProjectTeamPayment[];
   const teamById = new Map(typedTeam.map((t) => [t.id, t]));
+  const fullProjectMap = new Map(projects.map((p) => [p.id, p]));
+
+  // Effective edit cost per project: max(sum of team snapshots, projects.custo_edicao).
+  // Guarantees "monthly-fixed" editors (Savio = 0€) still count the theoretical cost
+  // in the profit calculation instead of inflating it.
+  const projectEffectiveCost = useMemo(() => {
+    const map = new Map<string, { teamSum: number; theoretical: number; effective: number }>();
+    const projectIds = new Set(teamItems.map((i) => i.project_id));
+    for (const pid of projectIds) {
+      const teamSum = teamItems
+        .filter((i) => i.project_id === pid)
+        .reduce((s, i) => s + Number(i.amount_snapshot), 0);
+      const theoretical = Number(fullProjectMap.get(pid)?.custo_edicao || 0);
+      map.set(pid, { teamSum, theoretical, effective: Math.max(teamSum, theoretical) });
+    }
+    return map;
+  }, [teamItems, fullProjectMap]);
+
+  const revenue = revenueItems.reduce((s, i) => s + Number(i.amount_snapshot), 0);
+  const teamCost = Array.from(projectEffectiveCost.values()).reduce((s, v) => s + v.effective, 0);
+  const extraCost = extraItems.reduce((s, i) => s + Number(i.amount_snapshot), 0);
+  const profit = revenue - teamCost - extraCost;
 
   const nameOf = (userId: string | null) => {
     if (!userId) return 'Sem editor';
@@ -462,12 +480,12 @@ function ClosingDetail({
   };
 
   const editorGroups = useMemo(() => {
-    const map = new Map<string, { name: string; rows: Array<{ id: string; projectId: string; project: string; amount: number; status: string; teamId: string }>; total: number }>();
+    const map = new Map<string, { name: string; rows: Array<{ id: string; projectId: string; project: string; amount: number; status: string; teamId: string }>; total: number; isFixedMonthly: boolean }>();
     for (const it of teamItems) {
       const proj = projectMap.get(it.project_id);
       const tp = it.team_payment_id ? teamById.get(it.team_payment_id) : undefined;
       const editorId = tp?.user_id || 'sem-editor';
-      const cur = map.get(editorId) || { name: nameOf(tp?.user_id ?? null), rows: [], total: 0 };
+      const cur = map.get(editorId) || { name: nameOf(tp?.user_id ?? null), rows: [], total: 0, isFixedMonthly: true };
       cur.rows.push({
         id: it.id,
         projectId: it.project_id,
@@ -477,10 +495,13 @@ function ClosingDetail({
         teamId: it.team_payment_id || '',
       });
       cur.total += Number(it.amount_snapshot);
+      if (Number(it.amount_snapshot) > 0) cur.isFixedMonthly = false;
       map.set(editorId, cur);
     }
     return map;
   }, [teamItems, projectMap, teamById, members]);
+
+
 
 
   if (!closing) {
@@ -535,6 +556,8 @@ function ClosingDetail({
         .reduce((s, i) => s + Number(i.amount_snapshot), 0);
       const teamRows = teamItems.filter((i) => i.project_id === pid);
       const teamCostSum = teamRows.reduce((s, i) => s + Number(i.amount_snapshot), 0);
+      const theoretical = Number(fullProjectMap.get(pid)?.custo_edicao || 0);
+      const effectiveEditCost = Math.max(teamCostSum, theoretical);
       const extraSum = extraItems
         .filter((i) => i.project_id === pid)
         .reduce((s, i) => s + Number(i.amount_snapshot), 0);
@@ -542,12 +565,13 @@ function ClosingDetail({
       const editorNames = teamRows
         .map((i) => {
           const tp = i.team_payment_id ? teamById.get(i.team_payment_id) : undefined;
-          return nameOf(tp?.user_id ?? null);
+          const isFixed = Number(i.amount_snapshot) === 0 && theoretical > 0;
+          return `${nameOf(tp?.user_id ?? null)}${isFixed ? ' (mensal fixo)' : ''}`;
         })
         .filter((n, idx, arr) => arr.indexOf(n) === idx)
         .join(', ') || '—';
 
-      const rowProfit = rev - teamCostSum - extraSum;
+      const rowProfit = rev - effectiveEditCost - extraSum;
 
       rows.push([
         p?.project_code || (p?.id || pid).slice(0, 8).toUpperCase(),
@@ -556,8 +580,9 @@ function ClosingDetail({
         clientName,
         formatCurrencyRaw(rev),
         editorNames,
-        formatCurrencyRaw(teamCostSum),
+        formatCurrencyRaw(effectiveEditCost),
         formatCurrencyRaw(extraSum),
+
         closing.status === 'received' ? 'Recebido' : 'Por receber',
         formatCurrencyRaw(rowProfit),
       ]);
@@ -687,11 +712,19 @@ function ClosingDetail({
             {Array.from(editorGroups.entries()).map(([editorId, grp]) => (
               <AccordionItem key={editorId} value={editorId}>
                 <AccordionTrigger>
-                  <span className="flex justify-between w-full pr-4">
-                    <span>{grp.name}</span>
-                    <span className="tabular-nums">{formatCurrency(grp.total)}</span>
+                  <span className="flex justify-between w-full pr-4 items-center gap-2">
+                    <span className="flex items-center gap-2">
+                      {grp.name}
+                      {grp.isFixedMonthly && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-primary/30 text-primary">
+                          mensal fixo
+                        </Badge>
+                      )}
+                    </span>
+                    <span className={cn('tabular-nums', grp.isFixedMonthly && 'text-muted-foreground')}>{formatCurrency(grp.total)}</span>
                   </span>
                 </AccordionTrigger>
+
                 <AccordionContent>
                   <div className="space-y-1">
                     {grp.rows.map((r) => (
@@ -747,16 +780,33 @@ function ClosingDetail({
 /** ---------- Global profit view ---------- */
 function GlobalProfitView({ closings, items }: { closings: Closing[]; items: ClosingItem[] }) {
   const { formatCurrency } = useFormatCurrency();
+  const { projects } = useProjects();
   const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'received'>('all');
+
+  const projectEditCost = useMemo(
+    () => new Map(projects.map((p) => [p.id, Number(p.custo_edicao || 0)])),
+    [projects],
+  );
 
   const rows = closings
     .filter((c) => statusFilter === 'all' || c.status === (statusFilter === 'received' ? 'received' : 'open'))
     .map((c) => {
       const its = items.filter((i) => i.closing_id === c.id);
       const revenue = its.filter((i) => i.kind === 'revenue').reduce((s, i) => s + Number(i.amount_snapshot), 0);
-      const costs = its.filter((i) => i.kind !== 'revenue').reduce((s, i) => s + Number(i.amount_snapshot), 0);
+      const extras = its.filter((i) => i.kind === 'extra').reduce((s, i) => s + Number(i.amount_snapshot), 0);
+      // Per-project effective edit cost = max(sum of team snapshots, projects.custo_edicao).
+      const teamProjectIds = new Set(its.filter((i) => i.kind === 'team').map((i) => i.project_id));
+      let editCost = 0;
+      for (const pid of teamProjectIds) {
+        const teamSum = its
+          .filter((i) => i.kind === 'team' && i.project_id === pid)
+          .reduce((s, i) => s + Number(i.amount_snapshot), 0);
+        editCost += Math.max(teamSum, projectEditCost.get(pid) || 0);
+      }
+      const costs = editCost + extras;
       return { c, revenue, costs, profit: revenue - costs };
     });
+
 
   const totals = rows.reduce((acc, r) => ({
     revenue: acc.revenue + r.revenue, costs: acc.costs + r.costs, profit: acc.profit + r.profit,
