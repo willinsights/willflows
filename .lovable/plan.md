@@ -1,42 +1,59 @@
-## Auditoria — Cards do Savio (Bliss Travel)
+## Objetivo
 
-Regra: Savio recebe mensal fixo → `project_team.payment_amount = 0` em todas as linhas dele. Projetos ainda seguem tabela padrão de agreed_value/custo_edicao por duração:
+Garantir que os cards do Savio contam **custo de edição teórico** no lucro (ex.: Bliss Mista → 346€ − 60€ = **286€ lucro por card**), mas **sem** duplicar essa despesa como pagamento real a freelancer (Savio é mensal fixo, fora do sistema).
 
-| Cenário | agreed | custo_edicao |
-|---|---|---|
-| Só curta (≤25s) | 16 € | 10 € |
-| Só longa (>25s) | 48 € | 30 € |
-| Mista | 52 € | 40 € |
-| Bliss padrão (sem versões) | 96 € | 60 € |
+## Diagnóstico atual
 
-## Correções a executar
-
-### 1) `project_team` — Savio a 0 €
-Zerar `payment_amount` em linhas **pendentes** do Savio na Bliss onde ainda está com valor (13 linhas de 18/06 com 60 € pendentes):
+O cálculo em `useMonthlyClosing.ts` faz hoje:
 
 ```
-Farm to Table Feast, Private Cruise to Blue Lagoon, Athens TailorMade Tour,
-Athens Street Food Tour, Argolida Chronicles, Acropolis Insights,
-Majestic Sounio, Wine & History in the Peloponnese, Historic Athens,
-History in the Peloponnese (Epidauros)
+lucro = receita − (project_team.payment_amount)   ← Savio = 0 ✅
+             − custos_extras
+             − custo_captacao
+             − custo_edicao                       ← Savio = 60 ✅
 ```
-+ qualquer outra linha pendente do Savio ainda >0 (rows `pago` mantêm-se).
 
-### 2) `projects` — alinhar 0 €/0 € entregues (por duração real)
+Ou seja, **para Bliss Mista do Savio já dá 346 − 0 − 60 = 286€**. A conta está matematicamente correta e alinhada com a regra escolhida ("manter custo teórico 60€ / lucro 286€"). 
 
-| Projeto | Curtas | Longas | Novo agreed / custo |
-|---|---|---|---|
-| Athens Segway Adventure | 1 | 3 | 52 / 40 |
-| Chia Laguna - Hotel Village Sardinia | 0 | 1 | 48 / 30 |
-| Lake Kaiak | 2 | 2 | 52 / 40 (custo já 60 → manter) |
-| Nafplio Highlights Walking Tour | 2 | 2 | 52 / 40 |
-| Nafplio Tasting Tour | 1 | 3 | 52 / 40 |
-| TRILHA AGROTURISMO CANALES | 2 | 3 | 52 / 40 (custo já 60 → manter) |
-| Wine & Tales Beneath the Parthenon | 0 | 2 | 48 / 30 |
+Problema real → **apresentação e consistência de dados**, não fórmula:
 
-Nota: para "Lake Kaiak" e "TRILHA…" o `custo_edicao` já está a 60 € (pago). Só atualizo `agreed_value` para não mexer no pago histórico.
+1. Alguns cards antigos do Savio podem ter `custo_edicao` fora da tabela (ex.: 36€ em vez de 60€ para Mista, ou 0€), o que faz o lucro parecer inflado (346€ em vez de 286€).
+2. Na tabela "Acertos" o Savio aparece a 0€ e cria a sensação de que "não há custo" — falta um sinal visual a explicar que o custo está no card, não no acerto.
 
-### 3) Verificação final
-`SELECT` no fim para confirmar que nenhuma linha pendente do Savio ficou com valor >0 na Bliss.
+## Plano
 
-Sem alterações de schema nem de código — só data ops via insert tool.
+### 1) Auditoria de dados (read-only, para confirmar)
+Rodar `read_query` para listar todos os cards Bliss Travel do Savio dos últimos 90 dias e comparar `custo_edicao` real vs. regra:
+- Só curta → 10€
+- Só longa → 50€
+- Mista → 60€
+
+Objetivo: identificar cards com `custo_edicao` desalinhado (ex.: 36€ herdado da regra antiga, ou 0€).
+
+### 2) Correção pontual dos cards desalinhados
+Via `insert` tool, atualizar `projects.custo_edicao` para o valor teórico correto por duração, **sem** tocar em `project_team.payment_amount` (fica 0€ para o Savio). Assim o lucro de cada card passa a mostrar 286€ / 30€ / 6€ conforme o tipo.
+
+Também garantir Anzarya:
+- Curta 10€, Longa 30€, Mista 40€ nos cards do Savio.
+
+### 3) Ajuste visual em `ClosingByEditor.tsx` (opcional, pequeno)
+Adicionar uma badge "mensal fixo" ao lado do nome quando **todas** as linhas do editor no mês têm `payment_amount = 0`. Deixa explícito que o 0€ é intencional e o custo teórico está no card. Sem alteração de lógica.
+
+### 4) Validação
+Após a correção, rodar `read_query` para confirmar por card Bliss Mista do Savio:
+- `agreed_value = 346`
+- `custo_edicao = 60`
+- `project_team.payment_amount = 0`
+- Lucro efetivo por card = 286€ ✅
+
+## O que NÃO muda
+
+- Fórmula de `useMonthlyClosing` — já está certa.
+- `project_team` do Savio continua a 0€ (não recebe por card).
+- Salário mensal do Savio continua fora do sistema (decisão do utilizador).
+
+## Detalhes técnicos
+
+- Escopo dos writes: apenas `UPDATE projects SET custo_edicao = X` nas linhas do Savio identificadas na auditoria.
+- Sem migrações de schema.
+- Alteração de UI (passo 3) é 3 linhas em `ClosingByEditor.tsx`.

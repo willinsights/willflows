@@ -25,19 +25,31 @@ export function ClosingByEditor({ byEditor, formatCurrency }: Props) {
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {byEditor.map((e) => (
-            <div key={e.userId} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors">
-              <div className="min-w-0">
-                <p className="font-medium text-sm truncate">{e.name}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {e.cards} card{e.cards !== 1 ? 's' : ''} · Pago {formatCurrency(e.paid)}
-                </p>
+          {byEditor.map((e) => {
+            const isFixedMonthly = e.cards > 0 && e.payable === 0 && e.paid === 0;
+            return (
+              <div key={e.userId} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-sm truncate">{e.name}</p>
+                    {isFixedMonthly && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-primary/30 text-primary shrink-0">
+                        mensal fixo
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    {e.cards} card{e.cards !== 1 ? 's' : ''}
+                    {isFixedMonthly ? ' · custo já no card' : ` · Pago ${formatCurrency(e.paid)}`}
+                  </p>
+                </div>
+                <span className={cn('font-semibold text-sm shrink-0', isFixedMonthly ? 'text-muted-foreground' : 'text-destructive', hideValues && 'blur-md select-none')}>
+                  {formatCurrency(e.payable)}
+                </span>
               </div>
-              <span className={cn('font-semibold text-sm text-destructive shrink-0', hideValues && 'blur-md select-none')}>
-                {formatCurrency(e.payable)}
-              </span>
-            </div>
-          ))}
+            );
+          })}
+
         </div>
       </CardContent>
     </Card>
