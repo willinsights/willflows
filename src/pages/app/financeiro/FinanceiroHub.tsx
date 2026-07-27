@@ -436,6 +436,7 @@ function ClosingDetail({
   const { teamPayments } = useTeamPayments();
   const { members } = useWorkspaceMembers();
   const { clients } = useClients();
+  const { projects } = useProjects();
   const { toast } = useToast();
 
   const closing = closings.find((c) => c.id === closingId);
@@ -445,15 +446,32 @@ function ClosingDetail({
   const teamItems = its.filter((i) => i.kind === 'team');
   const extraItems = its.filter((i) => i.kind === 'extra');
 
-  const revenue = revenueItems.reduce((s, i) => s + Number(i.amount_snapshot), 0);
-  const teamCost = teamItems.reduce((s, i) => s + Number(i.amount_snapshot), 0);
-  const extraCost = extraItems.reduce((s, i) => s + Number(i.amount_snapshot), 0);
-  const profit = revenue - teamCost - extraCost;
-
   const projectMap = new Map(projectRevenue.map((p) => [p.id, p]));
   const extraMap = new Map(allProjectCosts.map((c) => [c.id, c]));
   const typedTeam = teamPayments as ProjectTeamPayment[];
   const teamById = new Map(typedTeam.map((t) => [t.id, t]));
+  const fullProjectMap = new Map(projects.map((p) => [p.id, p]));
+
+  // Effective edit cost per project: max(sum of team snapshots, projects.custo_edicao).
+  // Guarantees "monthly-fixed" editors (Savio = 0€) still count the theoretical cost
+  // in the profit calculation instead of inflating it.
+  const projectEffectiveCost = useMemo(() => {
+    const map = new Map<string, { teamSum: number; theoretical: number; effective: number }>();
+    const projectIds = new Set(teamItems.map((i) => i.project_id));
+    for (const pid of projectIds) {
+      const teamSum = teamItems
+        .filter((i) => i.project_id === pid)
+        .reduce((s, i) => s + Number(i.amount_snapshot), 0);
+      const theoretical = Number(fullProjectMap.get(pid)?.custo_edicao || 0);
+      map.set(pid, { teamSum, theoretical, effective: Math.max(teamSum, theoretical) });
+    }
+    return map;
+  }, [teamItems, fullProjectMap]);
+
+  const revenue = revenueItems.reduce((s, i) => s + Number(i.amount_snapshot), 0);
+  const teamCost = Array.from(projectEffectiveCost.values()).reduce((s, v) => s + v.effective, 0);
+  const extraCost = extraItems.reduce((s, i) => s + Number(i.amount_snapshot), 0);
+  const profit = revenue - teamCost - extraCost;
 
   const nameOf = (userId: string | null) => {
     if (!userId) return 'Sem editor';
@@ -462,12 +480,12 @@ function ClosingDetail({
   };
 
   const editorGroups = useMemo(() => {
-    const map = new Map<string, { name: string; rows: Array<{ id: string; projectId: string; project: string; amount: number; status: string; teamId: string }>; total: number }>();
+    const map = new Map<string, { name: string; rows: Array<{ id: string; projectId: string; project: string; amount: number; status: string; teamId: string }>; total: number; isFixedMonthly: boolean }>();
     for (const it of teamItems) {
       const proj = projectMap.get(it.project_id);
       const tp = it.team_payment_id ? teamById.get(it.team_payment_id) : undefined;
       const editorId = tp?.user_id || 'sem-editor';
-      const cur = map.get(editorId) || { name: nameOf(tp?.user_id ?? null), rows: [], total: 0 };
+      const cur = map.get(editorId) || { name: nameOf(tp?.user_id ?? null), rows: [], total: 0, isFixedMonthly: true };
       cur.rows.push({
         id: it.id,
         projectId: it.project_id,
@@ -477,10 +495,13 @@ function ClosingDetail({
         teamId: it.team_payment_id || '',
       });
       cur.total += Number(it.amount_snapshot);
+      if (Number(it.amount_snapshot) > 0) cur.isFixedMonthly = false;
       map.set(editorId, cur);
     }
     return map;
   }, [teamItems, projectMap, teamById, members]);
+
+
 
 
   if (!closing) {
