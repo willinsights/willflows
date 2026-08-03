@@ -141,6 +141,23 @@ export function useActivityReportData() {
     },
   });
 
+  const refetchAll = async () => {
+    await Promise.all([
+      projetos.refetch(),
+      gravacoes.refetch(),
+      diarias.refetch(),
+      trabalhos.refetch(),
+      cambio.refetch(),
+    ]);
+  };
+
+  const isRefetching =
+    projetos.isFetching ||
+    gravacoes.isFetching ||
+    diarias.isFetching ||
+    trabalhos.isFetching ||
+    cambio.isFetching;
+
   return {
     projetos: projetos.data ?? [],
     gravacoes: gravacoes.data ?? [],
@@ -149,6 +166,8 @@ export function useActivityReportData() {
     cambio: cambio.data ?? [],
     isLoading:
       projetos.isLoading || gravacoes.isLoading || diarias.isLoading || trabalhos.isLoading,
+    refetchAll,
+    isRefetching,
   };
 }
 
