@@ -19,6 +19,7 @@ import {
   Upload,
   Euro,
   Receipt,
+  BarChart3,
   UserCog,
   Settings,
   Crown,
