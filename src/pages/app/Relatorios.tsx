@@ -156,6 +156,16 @@ export default function Relatorios() {
         description="Análises e métricas do seu negócio"
         actions={
           <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-2"
+              onClick={() => navigate('/app/relatorio-atividade')}
+            >
+              <Activity className="h-4 w-4" />
+              Relatório de Atividade
+            </Button>
+
             <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
               {(['1M', '3M', '6M', '12M', 'YTD'] as PeriodType[]).map((p) => (
                 <Button
