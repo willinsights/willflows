@@ -65,6 +65,8 @@ export function useActivityReportData() {
   const projetos = useQuery({
     queryKey: ['report-projetos', workspaceId],
     enabled: !!workspaceId,
+    staleTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const { data, error } = await supabase
         .from('projetos')
@@ -79,6 +81,8 @@ export function useActivityReportData() {
   const gravacoes = useQuery({
     queryKey: ['report-gravacoes', workspaceId],
     enabled: !!workspaceId,
+    staleTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const { data, error } = await supabase
         .from('gravacoes')
@@ -93,6 +97,8 @@ export function useActivityReportData() {
   const diarias = useQuery({
     queryKey: ['report-diarias', workspaceId],
     enabled: !!workspaceId,
+    staleTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const { data, error } = await supabase
         .from('estudio_diarias')
@@ -107,6 +113,8 @@ export function useActivityReportData() {
   const trabalhos = useQuery({
     queryKey: ['report-trabalhos', workspaceId],
     enabled: !!workspaceId,
+    staleTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const { data, error } = await supabase
         .from('trabalhos_complementares')
@@ -121,6 +129,8 @@ export function useActivityReportData() {
   const cambio = useQuery({
     queryKey: ['report-cambio', workspaceId],
     enabled: !!workspaceId,
+    staleTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const { data, error } = await supabase
         .from('cambio')
