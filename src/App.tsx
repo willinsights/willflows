@@ -87,6 +87,8 @@ const Clientes = lazy(() => import("./pages/app/Clientes"));
 const Calendario = lazy(() => import("./pages/app/Calendario"));
 const Pagamentos = lazy(() => import("./pages/app/Pagamentos"));
 const Relatorios = lazy(() => import("./pages/app/Relatorios"));
+const RelatorioAtividade = lazy(() => import("./pages/app/RelatorioAtividade"));
+const RelatorioImportar = lazy(() => import("./pages/app/RelatorioImportar"));
 const Configuracoes = lazy(() => import("./pages/app/Configuracoes"));
 const Equipa = lazy(() => import("./pages/app/Equipa"));
 const Faturacao = lazy(() => import("./pages/app/Faturacao"));
