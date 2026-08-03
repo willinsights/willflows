@@ -342,7 +342,7 @@ export default function RelatorioAtividade() {
         </div>
         <div className="rp-card p-5">
           <SectionTitle>Detalhe por cliente</SectionTitle>
-          <div className="max-h-[300px] overflow-auto">
+          <div className="rp-scroll">
             <table className="rp-table">
               <thead>
                 <tr>
@@ -444,7 +444,7 @@ export default function RelatorioAtividade() {
       <section className="grid grid-cols-1 xl:grid-cols-3 gap-4 rp-page-break">
         <div className="rp-card p-5">
           <SectionTitle>Dias de gravação</SectionTitle>
-          <div className="max-h-[280px] overflow-auto">
+          <div className="rp-scroll">
             <table className="rp-table">
               <thead>
                 <tr><th>Data</th><th>Local</th><th>Cliente</th><th>Produções</th></tr>
