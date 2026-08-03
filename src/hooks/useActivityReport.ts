@@ -158,6 +158,9 @@ export function useActivityReportData() {
     trabalhos.isFetching ||
     cambio.isFetching;
 
+  const error =
+    projetos.error || gravacoes.error || diarias.error || trabalhos.error || cambio.error || null;
+
   return {
     projetos: projetos.data ?? [],
     gravacoes: gravacoes.data ?? [],
@@ -168,6 +171,7 @@ export function useActivityReportData() {
       projetos.isLoading || gravacoes.isLoading || diarias.isLoading || trabalhos.isLoading,
     refetchAll,
     isRefetching,
+    error,
   };
 }
 
