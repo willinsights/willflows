@@ -546,7 +546,7 @@ export default function RelatorioAtividade() {
                 <td>{i + 1}</td>
                 <td>{MES_LABEL[monthOf(p) ?? ''] ?? '—'}</td>
                 <td>{p.cliente || '—'}</td>
-                <td className="font-medium">{p.titulo || p.nome || '—'}</td>
+                <td className="font-medium">{p.projeto || p.codigo || '—'}</td>
                 <td>{p.captacao || '—'}</td>
                 <td>{p.edicao || '—'}</td>
                 <td className="rp-num">{Number(p.versoes || 1)}</td>
