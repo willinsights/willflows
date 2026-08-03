@@ -227,6 +227,8 @@ const App = () => (
                         <Route path="legacy/fecho" element={<FinanceiroFechoMensal />} />
                       </Route>
                       <Route path="relatorios" element={<Relatorios />} />
+                      <Route path="relatorio-atividade" element={<RelatorioAtividade />} />
+                      <Route path="relatorio-atividade/importar" element={<RelatorioImportar />} />
                       <Route path="configuracoes" element={<Configuracoes />} />
                       <Route path="equipa" element={<Equipa />} />
                       <Route path="faturacao" element={<Faturacao />} />
