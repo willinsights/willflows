@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 import {
   BarChart,
   Bar,
