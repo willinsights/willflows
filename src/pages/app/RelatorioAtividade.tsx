@@ -64,6 +64,7 @@ function monthOf(p: { mes: string | null; data_entrega: string | null }) {
 export default function RelatorioAtividade() {
   const data = useActivityReportData();
   const isEmpty = !data.isLoading && data.projetos.length === 0;
+  const { refetchAll, isRefetching } = data;
 
   const projetos = isEmpty ? SAMPLE_PROJETOS : data.projetos;
   const gravacoes = isEmpty ? SAMPLE_GRAVACOES : data.gravacoes;
