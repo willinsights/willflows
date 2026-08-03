@@ -591,6 +591,44 @@ export type Database = {
           },
         ]
       }
+      cambio: {
+        Row: {
+          created_at: string
+          de: string
+          id: string
+          para: string
+          taxa: number
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          de: string
+          id?: string
+          para: string
+          taxa?: number
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          de?: string
+          id?: string
+          para?: string
+          taxa?: number
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cambio_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           color: string | null
@@ -1322,6 +1360,53 @@ export type Database = {
         }
         Relationships: []
       }
+      estudio_diarias: {
+        Row: {
+          ano: number | null
+          colaborador: string
+          created_at: string
+          data: string
+          id: string
+          notas: string | null
+          tipo: string
+          updated_at: string
+          valor: number
+          workspace_id: string
+        }
+        Insert: {
+          ano?: number | null
+          colaborador: string
+          created_at?: string
+          data: string
+          id?: string
+          notas?: string | null
+          tipo?: string
+          updated_at?: string
+          valor?: number
+          workspace_id: string
+        }
+        Update: {
+          ano?: number | null
+          colaborador?: string
+          created_at?: string
+          data?: string
+          id?: string
+          notas?: string | null
+          tipo?: string
+          updated_at?: string
+          valor?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estudio_diarias_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_attendees: {
         Row: {
           created_at: string
@@ -1635,6 +1720,56 @@ export type Database = {
             columns: ["connection_id"]
             isOneToOne: false
             referencedRelation: "google_calendar_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gravacoes: {
+        Row: {
+          ano: number | null
+          cliente: string | null
+          colaboradores: string[]
+          created_at: string
+          data: string
+          id: string
+          local: string | null
+          ponto_encontro: string | null
+          producoes: string[]
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          ano?: number | null
+          cliente?: string | null
+          colaboradores?: string[]
+          created_at?: string
+          data: string
+          id?: string
+          local?: string | null
+          ponto_encontro?: string | null
+          producoes?: string[]
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          ano?: number | null
+          cliente?: string | null
+          colaboradores?: string[]
+          created_at?: string
+          data?: string
+          id?: string
+          local?: string | null
+          ponto_encontro?: string | null
+          producoes?: string[]
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gravacoes_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -2948,6 +3083,83 @@ export type Database = {
           },
         ]
       }
+      projetos: {
+        Row: {
+          ano: number | null
+          captacao: string | null
+          cliente: string | null
+          codigo: string | null
+          created_at: string
+          custo: number
+          custo_colab: number
+          data_entrega: string | null
+          edicao: string | null
+          extras: number
+          id: string
+          lucro: number
+          mes: string | null
+          projeto: string
+          receita: number
+          status: string
+          tipo: string | null
+          updated_at: string
+          versoes: number
+          workspace_id: string
+        }
+        Insert: {
+          ano?: number | null
+          captacao?: string | null
+          cliente?: string | null
+          codigo?: string | null
+          created_at?: string
+          custo?: number
+          custo_colab?: number
+          data_entrega?: string | null
+          edicao?: string | null
+          extras?: number
+          id?: string
+          lucro?: number
+          mes?: string | null
+          projeto: string
+          receita?: number
+          status?: string
+          tipo?: string | null
+          updated_at?: string
+          versoes?: number
+          workspace_id: string
+        }
+        Update: {
+          ano?: number | null
+          captacao?: string | null
+          cliente?: string | null
+          codigo?: string | null
+          created_at?: string
+          custo?: number
+          custo_colab?: number
+          data_entrega?: string | null
+          edicao?: string | null
+          extras?: number
+          id?: string
+          lucro?: number
+          mes?: string | null
+          projeto?: string
+          receita?: number
+          status?: string
+          tipo?: string | null
+          updated_at?: string
+          versoes?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projetos_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       promo_code_redemptions: {
         Row: {
           id: string
@@ -3714,6 +3926,50 @@ export type Database = {
           },
           {
             foreignKeyName: "time_sessions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trabalhos_complementares: {
+        Row: {
+          ano: number | null
+          cliente: string | null
+          created_at: string
+          data: string
+          descricao: string
+          id: string
+          updated_at: string
+          valor: number
+          workspace_id: string
+        }
+        Insert: {
+          ano?: number | null
+          cliente?: string | null
+          created_at?: string
+          data: string
+          descricao: string
+          id?: string
+          updated_at?: string
+          valor?: number
+          workspace_id: string
+        }
+        Update: {
+          ano?: number | null
+          cliente?: string | null
+          created_at?: string
+          data?: string
+          descricao?: string
+          id?: string
+          updated_at?: string
+          valor?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trabalhos_complementares_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
