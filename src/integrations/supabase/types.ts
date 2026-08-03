@@ -5384,7 +5384,9 @@ export type Database = {
         }
         Returns: string
       }
-      mark_contract_viewed: { Args: { _token: string }; Returns: Json }
+      mark_contract_viewed:
+        | { Args: { _token: string }; Returns: Json }
+        | { Args: { _token: string; _user_agent?: string }; Returns: Json }
       mask_email: { Args: { _email: string }; Returns: string }
       move_to_dlq: {
         Args: {
