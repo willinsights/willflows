@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 import {
   BarChart,
   Bar,
@@ -21,6 +22,7 @@ import {
   Euro,
   Plane,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react';
 import {
   Select,
@@ -63,6 +65,7 @@ function monthOf(p: { mes: string | null; data_entrega: string | null }) {
 export default function RelatorioAtividade() {
   const data = useActivityReportData();
   const isEmpty = !data.isLoading && data.projetos.length === 0;
+  const { refetchAll, isRefetching } = data;
 
   const projetos = isEmpty ? SAMPLE_PROJETOS : data.projetos;
   const gravacoes = isEmpty ? SAMPLE_GRAVACOES : data.gravacoes;
@@ -258,6 +261,16 @@ export default function RelatorioAtividade() {
               </SelectContent>
             </Select>
 
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 bg-white"
+              onClick={() => refetchAll()}
+              disabled={isRefetching}
+            >
+              <RefreshCw className={cn('h-4 w-4 mr-1.5', isRefetching && 'animate-spin')} />
+              Recarregar dados
+            </Button>
             <Button asChild variant="outline" size="sm" className="h-9 bg-white">
               <Link to="/app/relatorio-atividade/importar">
                 <Upload className="h-4 w-4 mr-1.5" /> Importar
