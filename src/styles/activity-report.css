@@ -77,6 +77,11 @@
   text-align: right;
 }
 
+.report-root .rp-scroll {
+  max-height: 300px;
+  overflow: auto;
+}
+
 @media print {
   @page {
     size: A4 landscape;
@@ -95,7 +100,27 @@
     box-shadow: none;
     break-inside: avoid;
   }
+  /* Nunca cortar conteúdo com scroll no PDF */
+  .report-root .rp-scroll,
+  .report-root [class*='max-h-'],
+  .report-root [class*='overflow-'] {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .report-root .rp-full-detail {
+    break-inside: auto;
+  }
+  .report-root .rp-full-detail table.rp-table {
+    font-size: 0.62rem;
+  }
+  .report-root .rp-full-detail tr {
+    break-inside: avoid;
+  }
+  .report-root table.rp-table thead {
+    display: table-header-group;
+  }
   .rp-page-break {
     break-before: page;
   }
 }
+

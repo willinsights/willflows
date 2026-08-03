@@ -342,7 +342,7 @@ export default function RelatorioAtividade() {
         </div>
         <div className="rp-card p-5">
           <SectionTitle>Detalhe por cliente</SectionTitle>
-          <div className="max-h-[300px] overflow-auto">
+          <div className="rp-scroll">
             <table className="rp-table">
               <thead>
                 <tr>
@@ -444,7 +444,7 @@ export default function RelatorioAtividade() {
       <section className="grid grid-cols-1 xl:grid-cols-3 gap-4 rp-page-break">
         <div className="rp-card p-5">
           <SectionTitle>Dias de gravação</SectionTitle>
-          <div className="max-h-[280px] overflow-auto">
+          <div className="rp-scroll">
             <table className="rp-table">
               <thead>
                 <tr><th>Data</th><th>Local</th><th>Cliente</th><th>Produções</th></tr>
@@ -521,9 +521,50 @@ export default function RelatorioAtividade() {
           </table>
         </div>
       </section>
+
+      {/* Detalhe completo — todos os projetos (visível no PDF) */}
+      <section className="rp-card p-5 mt-4 rp-page-break rp-full-detail">
+        <SectionTitle>Detalhe completo de projetos ({filtered.length})</SectionTitle>
+        <table className="rp-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Mês</th>
+              <th>Cliente</th>
+              <th>Projeto</th>
+              <th>Captação</th>
+              <th>Edição</th>
+              <th className="rp-num">Versões</th>
+              <th className="rp-num">Receita</th>
+              <th className="rp-num">Custo</th>
+              <th className="rp-num">Lucro</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((p, i) => (
+              <tr key={p.id}>
+                <td>{i + 1}</td>
+                <td>{MES_LABEL[monthOf(p) ?? ''] ?? '—'}</td>
+                <td>{p.cliente || '—'}</td>
+                <td className="font-medium">{p.projeto || p.codigo || '—'}</td>
+                <td>{p.captacao || '—'}</td>
+                <td>{p.edicao || '—'}</td>
+                <td className="rp-num">{Number(p.versoes || 1)}</td>
+                <td className="rp-num">{fmt(Number(p.receita || 0))}</td>
+                <td className="rp-num">{fmt(Number(p.custo || 0))}</td>
+                <td className="rp-num">{fmt(Number(p.lucro ?? (Number(p.receita || 0) - Number(p.custo || 0))))}</td>
+              </tr>
+            ))}
+            {!filtered.length && (
+              <tr><td colSpan={10} className="text-center py-6 text-sm text-slate-500">Sem projetos no período</td></tr>
+            )}
+          </tbody>
+        </table>
+      </section>
     </div>
   );
 }
+
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="text-base font-semibold mb-3" style={{ color: PALETTE.ink }}>{children}</h2>;
