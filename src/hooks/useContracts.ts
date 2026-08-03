@@ -410,17 +410,12 @@ export function usePublicContract(token: string | undefined) {
         }
 
         // Mark as viewed using secure RPC if not already viewed
+        // (the RPC also records the view server-side after validating the token)
         if (fetchedContract.status === 'sent') {
-          await supabase.rpc('mark_contract_viewed', { _token: token });
-          
-          // Log the view
-          await supabase
-            .from('contract_views')
-            .insert({
-              contract_id: fetchedContract.id,
-              ip_address: null,
-              user_agent: navigator.userAgent,
-            });
+          await supabase.rpc('mark_contract_viewed', {
+            _token: token,
+            _user_agent: navigator.userAgent,
+          });
 
           fetchedContract.status = 'viewed';
           fetchedContract.viewed_at = new Date().toISOString();
