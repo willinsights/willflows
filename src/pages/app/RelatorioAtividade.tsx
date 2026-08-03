@@ -273,7 +273,16 @@ export default function RelatorioAtividade() {
               size="sm"
               className="h-9 text-white"
               style={{ backgroundColor: PALETTE.teal }}
-              onClick={() => window.print()}
+              onClick={() => {
+                document.body.classList.add('rp-printing');
+                const cleanup = () => {
+                  document.body.classList.remove('rp-printing');
+                  window.removeEventListener('afterprint', cleanup);
+                };
+                window.addEventListener('afterprint', cleanup);
+                setTimeout(() => window.print(), 50);
+              }}
+
             >
               <Printer className="h-4 w-4 mr-1.5" /> Exportar PDF
             </Button>
