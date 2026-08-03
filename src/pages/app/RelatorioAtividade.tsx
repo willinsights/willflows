@@ -33,12 +33,6 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { useActivityReportData } from '@/hooks/useActivityReport';
-import {
-  SAMPLE_PROJETOS,
-  SAMPLE_GRAVACOES,
-  SAMPLE_DIARIAS,
-  SAMPLE_TRABALHOS,
-} from '@/lib/report/sampleData';
 import '@/styles/activity-report.css';
 
 const PALETTE = {
@@ -67,10 +61,10 @@ export default function RelatorioAtividade() {
   const isEmpty = !data.isLoading && data.projetos.length === 0;
   const { refetchAll, isRefetching } = data;
 
-  const projetos = isEmpty ? SAMPLE_PROJETOS : data.projetos;
-  const gravacoes = isEmpty ? SAMPLE_GRAVACOES : data.gravacoes;
-  const diarias = isEmpty ? SAMPLE_DIARIAS : data.diarias;
-  const trabalhos = isEmpty ? SAMPLE_TRABALHOS : data.trabalhos;
+  const projetos = data.projetos;
+  const gravacoes = data.gravacoes;
+  const diarias = data.diarias;
+  const trabalhos = data.trabalhos;
 
   const anos = useMemo(() => {
     const set = new Set<number>();
@@ -217,7 +211,6 @@ export default function RelatorioAtividade() {
             <span className="rp-badge mt-2">
               <Sparkles className="h-3 w-3" />
               Atualizado em {new Date().toLocaleDateString('pt-PT')}
-              {isEmpty && ' · dados de exemplo'}
             </span>
           </div>
 
@@ -288,12 +281,27 @@ export default function RelatorioAtividade() {
         </div>
       </header>
 
-      {isEmpty && (
+      {data.error && (
         <div className="rp-card p-5 mb-4 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
           <div>
-            <p className="font-semibold">Ainda não importaste dados do WillFlow</p>
+            <p className="font-semibold">Não foi possível carregar os dados reais</p>
             <p className="text-sm" style={{ color: '#64748b' }}>
-              Estás a ver dados de exemplo para pré-visualizar o layout. Importa CSV, XLSX ou cola JSON.
+              Tenta recarregar o relatório. Nenhum valor de exemplo será apresentado.
+            </p>
+          </div>
+          <Button variant="outline" className="rp-no-print" onClick={() => refetchAll()} disabled={isRefetching}>
+            <RefreshCw className={cn('h-4 w-4 mr-1.5', isRefetching && 'animate-spin')} />
+            Tentar novamente
+          </Button>
+        </div>
+      )}
+
+      {isEmpty && !data.error && (
+        <div className="rp-card p-5 mb-4 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+          <div>
+            <p className="font-semibold">Ainda não existem dados neste relatório</p>
+            <p className="text-sm" style={{ color: '#64748b' }}>
+              Importa CSV, XLSX ou cola JSON para começar.
             </p>
           </div>
           <Button asChild className="text-white rp-no-print" style={{ backgroundColor: PALETTE.blue }}>
