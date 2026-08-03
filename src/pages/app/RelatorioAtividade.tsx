@@ -260,6 +260,16 @@ export default function RelatorioAtividade() {
               </SelectContent>
             </Select>
 
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 bg-white"
+              onClick={() => refetchAll()}
+              disabled={isRefetching}
+            >
+              <RefreshCw className={cn('h-4 w-4 mr-1.5', isRefetching && 'animate-spin')} />
+              Recarregar dados
+            </Button>
             <Button asChild variant="outline" size="sm" className="h-9 bg-white">
               <Link to="/app/relatorio-atividade/importar">
                 <Upload className="h-4 w-4 mr-1.5" /> Importar
