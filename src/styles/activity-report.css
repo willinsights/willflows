@@ -87,6 +87,29 @@
     size: A4 landscape;
     margin: 10mm;
   }
+  /* O layout da app usa h-screen + overflow-hidden, o que limita a impressão
+     a uma única página. Neutralizar isso durante a impressão. */
+  html,
+  body,
+  #root {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  body.rp-printing *,
+  body.rp-printing {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  body.rp-printing .h-screen,
+  body.rp-printing .min-h-screen {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  body.rp-printing .fixed,
+  body.rp-printing .sticky {
+    position: static !important;
+  }
   body {
     background: #fff !important;
   }
@@ -96,6 +119,7 @@
   .report-root {
     background: #fff;
   }
+
   .report-root .rp-card {
     box-shadow: none;
     break-inside: avoid;
