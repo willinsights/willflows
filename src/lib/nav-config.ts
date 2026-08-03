@@ -77,6 +77,7 @@ export const navSections: NavSection[] = [
     items: [
       { icon: Euro, label: 'Finanças', path: '/app/financeiro', permissionKey: 'financials.view' },
       { icon: Receipt, label: 'Faturação', path: '/app/faturacao', permissionKey: 'reports.view' },
+      { icon: BarChart3, label: 'Relatório de Atividade', path: '/app/relatorio-atividade', permissionKey: 'reports.view' },
     ],
   },
   {
