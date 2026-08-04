@@ -93,7 +93,7 @@ export function MobileUpcomingEvents({
               <div className="p-1.5 rounded-md bg-primary/10">
                 <Calendar className="h-4 w-4 text-primary" />
               </div>
-              Próximos Compromissos
+              Próximas Tarefas
             </CardTitle>
             {hasMore && (
               <Button 

@@ -489,7 +489,7 @@ export function ImportProjectsModal({ open, onOpenChange, phase, onSuccess }: Im
                             <SelectItem value="projeto_completo">Completo</SelectItem>
                             <SelectItem value="projeto_captacao">Captação</SelectItem>
                             <SelectItem value="projeto_edicao">Edição</SelectItem>
-                            <SelectItem value="reuniao">Reunião</SelectItem>
+                            <SelectItem value="reuniao">Tarefa</SelectItem>
                           </SelectContent>
                         </Select>
                         {project.clientId && (
