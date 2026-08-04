@@ -293,6 +293,9 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
           category: editForm.category,
           custom_category_id: editForm.custom_category_id || null,
           priority: editForm.priority,
+          edit_kind: (editForm.item_type === 'projeto_edicao' || editForm.item_type === 'projeto_completo')
+            ? (editForm.edit_kind || null)
+            : null,
           shoot_date: editForm.shoot_date ? format(editForm.shoot_date, 'yyyy-MM-dd') : null,
           delivery_date: editForm.delivery_date ? format(editForm.delivery_date, 'yyyy-MM-dd') : null,
           shoot_start_time: editForm.shoot_start_time || null,
