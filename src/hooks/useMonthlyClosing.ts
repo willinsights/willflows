@@ -41,6 +41,8 @@ export interface MonthlyClosing {
   alreadyPaid: number;
   extrasPayable: number;
   extrasPaid: number;
+  workLogsPayable: number;
+  workLogCount: number;
   captacaoCosts: number;
   edicaoCosts: number;
   deliveredProjectCount: number;
