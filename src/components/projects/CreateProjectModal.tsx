@@ -158,7 +158,9 @@ export function CreateProjectModal({
       project_code: '',
       client_id: '',
       custom_category_id: '',
-      priority: 'media',
+      priority: undefined,
+      edit_kind: undefined,
+
       city: '',
       notes: '',
       agreed_value: 0,
