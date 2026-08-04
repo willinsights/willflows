@@ -117,7 +117,31 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
         deliveredAt: c.delivered_at ?? null,
       }));
 
-    const settlements = [...editorRows, ...extraRows];
+    // Work log rows (Registo de Trabalhos) for the month
+    const workLogRows: ClosingSettlement[] = workLogs
+      .filter((w) => {
+        const ref = w.completed_at || w.requested_at;
+        return !!ref && isWithinInterval(new Date(ref), { start, end });
+      })
+      .map((w) => ({
+        key: `worklog:${w.id}`,
+        type: 'worklog' as const,
+        projectId: w.project_id || w.id,
+        projectCode: w.project_id
+          ? (projects.find((p) => p.id === w.project_id)?.project_code
+            || w.project_id.slice(0, 8).toUpperCase())
+          : '—',
+        projectName: `${w.title} (${WORK_LOG_TYPE_LABELS[w.work_type] || w.work_type})`,
+        editorId: w.assignee_id,
+        editorName: nameOf(w.assignee_id),
+        phase: 'edicao' as const,
+        amount: Number(w.amount ?? 0),
+        status: w.status === 'concluido' ? 'pendente' : 'pendente',
+        deliveredAt: w.completed_at || w.requested_at,
+      }));
+
+    const settlements = [...editorRows, ...extraRows, ...workLogRows];
+
 
     const revenue = deliveredThisMonth.reduce((s, p) => s + (p.agreed_value || 0), 0);
 
