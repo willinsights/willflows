@@ -2930,6 +2930,7 @@ export type Database = {
           drive_folder_url: string | null
           dropbox_folder_url: string | null
           edicao_column_id: string | null
+          edit_kind: string | null
           estimated_costs: number | null
           frameio_project_id: string | null
           google_meet_url: string | null
@@ -2977,6 +2978,7 @@ export type Database = {
           drive_folder_url?: string | null
           dropbox_folder_url?: string | null
           edicao_column_id?: string | null
+          edit_kind?: string | null
           estimated_costs?: number | null
           frameio_project_id?: string | null
           google_meet_url?: string | null
@@ -3024,6 +3026,7 @@ export type Database = {
           drive_folder_url?: string | null
           dropbox_folder_url?: string | null
           edicao_column_id?: string | null
+          edit_kind?: string | null
           estimated_costs?: number | null
           frameio_project_id?: string | null
           google_meet_url?: string | null
@@ -4695,6 +4698,92 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      work_logs: {
+        Row: {
+          amount: number | null
+          assignee_id: string | null
+          client_id: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_urgent: boolean
+          project_id: string | null
+          requested_at: string
+          status: string
+          title: string
+          updated_at: string
+          work_type: string
+          workspace_id: string
+        }
+        Insert: {
+          amount?: number | null
+          assignee_id?: string | null
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_urgent?: boolean
+          project_id?: string | null
+          requested_at?: string
+          status?: string
+          title: string
+          updated_at?: string
+          work_type?: string
+          workspace_id: string
+        }
+        Update: {
+          amount?: number | null
+          assignee_id?: string | null
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_urgent?: boolean
+          project_id?: string | null
+          requested_at?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          work_type?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_logs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_profit"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_logs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workflow_automations: {
         Row: {
