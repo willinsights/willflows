@@ -204,6 +204,22 @@ export function CreateEventModal({
         ? format(date, "yyyy-MM-dd'T'23:59:59")
         : `${format(date, 'yyyy-MM-dd')}T${correctedEndTime}:00`;
 
+      // Novas tarefas são registadas apenas na lista de Trabalhos.
+      if (!isEditMode) {
+        await createWorkLog.mutateAsync({
+          title: title.trim(),
+          description: description.trim() || null,
+          work_type: 'outro',
+          project_id: initialProjectId || null,
+          requested_at: startAt,
+          status: 'pendente',
+          is_urgent: eventType === 'deadline',
+        });
+        toast.success('Trabalho registado');
+        onOpenChange(false);
+        return null;
+      }
+
       const result = await onSubmit({
         title: title.trim(),
         description: description.trim() || undefined,
