@@ -58,6 +58,7 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
   const { teamPayments } = useTeamPayments();
   const { allProjectCosts } = usePaymentsData();
   const { members } = useWorkspaceMembers();
+  const { workLogs } = useWorkLogs();
 
   return useMemo(() => {
     const start = startOfMonth(month);
