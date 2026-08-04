@@ -220,6 +220,8 @@ export function CreateProjectModal({
       category: 'outro',
       custom_category_id: data.custom_category_id || null,
       priority: data.priority,
+      edit_kind: data.edit_kind ?? null,
+
       client_id: data.client_id || null,
       shoot_date: data.shoot_date ? format(data.shoot_date, 'yyyy-MM-dd') : null,
       shoot_start_time: data.shoot_start_time || null,
