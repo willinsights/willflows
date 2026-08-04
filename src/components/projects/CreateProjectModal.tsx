@@ -477,15 +477,49 @@ export function CreateProjectModal({
                   </div>
                 </div>
 
+                {hasEdicao && (
+                  <div className="space-y-2">
+                    <Label>Tipo de trabalho de edição *</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        ['edicao', 'Edição'],
+                        ['reedicao', 'Reedição'],
+                      ] as const).map(([value, label]) => (
+                        <Button
+                          key={value}
+                          type="button"
+                          variant={form.watch('edit_kind') === value ? 'default' : 'outline'}
+                          className={cn(
+                            'h-auto py-2.5 justify-center',
+                            form.watch('edit_kind') === value && 'gradient-primary'
+                          )}
+                          onClick={() =>
+                            form.setValue('edit_kind', value, { shouldValidate: true })
+                          }
+                        >
+                          {label}
+                        </Button>
+                      ))}
+                    </div>
+                    {form.formState.errors.edit_kind && (
+                      <p className="text-sm text-destructive">
+                        {form.formState.errors.edit_kind.message}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Prioridade</Label>
+                    <Label>Prioridade *</Label>
                     <Select
-                      value={form.watch('priority')}
-                      onValueChange={(value) => form.setValue('priority', value as any)}
+                      value={form.watch('priority') ?? ''}
+                      onValueChange={(value) =>
+                        form.setValue('priority', value as any, { shouldValidate: true })
+                      }
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Selecionar prioridade" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="baixa">Baixa</SelectItem>
@@ -494,7 +528,13 @@ export function CreateProjectModal({
                         <SelectItem value="urgente">Urgente</SelectItem>
                       </SelectContent>
                     </Select>
+                    {form.formState.errors.priority && (
+                      <p className="text-sm text-destructive">
+                        {form.formState.errors.priority.message}
+                      </p>
+                    )}
                   </div>
+
 
                   <div className="space-y-2">
                     <Label htmlFor="city">Localização</Label>
