@@ -27,6 +27,8 @@ export const projectSchema = z.object({
   frameio_project_id: z.string().max(100).nullable().optional(),
   payment_method: z.string().max(50).nullable().optional(),
   item_type: z.string().max(50).nullable().optional(),
+  edit_kind: z.enum(['edicao', 'reedicao']).nullable().optional(),
+
 });
 
 export type ValidatedProject = z.infer<typeof projectSchema>;

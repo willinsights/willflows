@@ -33,6 +33,8 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { useActivityReportData } from '@/hooks/useActivityReport';
+import { useWorkLogs, WORK_LOG_TYPE_LABELS } from '@/hooks/useWorkLogs';
+import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import '@/styles/activity-report.css';
 
 const PALETTE = {
@@ -110,6 +112,40 @@ export default function RelatorioAtividade() {
     });
     return [...set].sort();
   }, [projetos]);
+
+  const { workLogs } = useWorkLogs();
+  const { members } = useWorkspaceMembers();
+
+  const workLogsFiltrados = useMemo(
+    () =>
+      workLogs.filter((l) => {
+        if (Number(l.requested_at.slice(0, 4)) !== anoAtivo) return false;
+        if (mes !== ALL && l.requested_at.slice(5, 7) !== mes) return false;
+        return true;
+      }),
+    [workLogs, anoAtivo, mes],
+  );
+
+  const workLogsPorColaborador = useMemo(() => {
+    const map = new Map<string, { nome: string; total: number; urgentes: number; concluidos: number; tipos: Record<string, number> }>();
+    workLogsFiltrados.forEach((l) => {
+      const key = l.assignee_id ?? '__none__';
+      const member = members.find((m) => m.user_id === l.assignee_id);
+      const entry = map.get(key) ?? {
+        nome: member?.full_name || member?.email || 'Sem responsável',
+        total: 0,
+        urgentes: 0,
+        concluidos: 0,
+        tipos: {} as Record<string, number>,
+      };
+      entry.total += 1;
+      if (l.is_urgent) entry.urgentes += 1;
+      if (l.status === 'concluido') entry.concluidos += 1;
+      entry.tipos[l.work_type] = (entry.tipos[l.work_type] ?? 0) + 1;
+      map.set(key, entry);
+    });
+    return [...map.values()].sort((a, b) => b.total - a.total);
+  }, [workLogsFiltrados, members]);
 
   const filtered = useMemo(
     () =>
@@ -569,6 +605,68 @@ export default function RelatorioAtividade() {
             )}
           </tbody>
         </table>
+      </section>
+
+      {/* Registo de trabalhos por colaborador */}
+      <section className="rp-card p-5 mt-4 rp-page-break rp-full-detail">
+        <SectionTitle>Registo de trabalhos por colaborador ({workLogsFiltrados.length})</SectionTitle>
+        <table className="rp-table">
+          <thead>
+            <tr>
+              <th>Colaborador</th>
+              <th className="rp-num">Trabalhos</th>
+              <th className="rp-num">Concluídos</th>
+              <th className="rp-num">Urgentes</th>
+              <th>Tipos</th>
+            </tr>
+          </thead>
+          <tbody>
+            {workLogsPorColaborador.map((c) => (
+              <tr key={c.nome}>
+                <td className="font-medium">{c.nome}</td>
+                <td className="rp-num">{c.total}</td>
+                <td className="rp-num">{c.concluidos}</td>
+                <td className="rp-num">{c.urgentes}</td>
+                <td>
+                  {Object.entries(c.tipos)
+                    .map(([t, n]) => `${WORK_LOG_TYPE_LABELS[t as keyof typeof WORK_LOG_TYPE_LABELS] ?? t}: ${n}`)
+                    .join(' · ')}
+                </td>
+              </tr>
+            ))}
+            {!workLogsPorColaborador.length && (
+              <tr><td colSpan={5} className="text-center py-6 text-sm text-slate-500">Sem trabalhos registados no período</td></tr>
+            )}
+          </tbody>
+        </table>
+
+        {workLogsFiltrados.length > 0 && (
+          <table className="rp-table mt-4">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Trabalho</th>
+                <th>Tipo</th>
+                <th>Colaborador</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {workLogsFiltrados.map((l) => {
+                const member = members.find((m) => m.user_id === l.assignee_id);
+                return (
+                  <tr key={l.id}>
+                    <td>{`${l.requested_at.slice(8, 10)}/${l.requested_at.slice(5, 7)}`}</td>
+                    <td className="font-medium">{l.title}{l.is_urgent ? ' (urgente)' : ''}</td>
+                    <td>{WORK_LOG_TYPE_LABELS[l.work_type]}</td>
+                    <td>{member?.full_name || member?.email || '—'}</td>
+                    <td>{l.status === 'concluido' ? 'Concluído' : l.status === 'em_curso' ? 'Em curso' : 'Pendente'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </section>
     </div>
   );

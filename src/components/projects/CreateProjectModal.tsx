@@ -49,8 +49,12 @@ const projectSchema = z.object({
   item_type: z.enum(['projeto_captacao', 'projeto_edicao', 'projeto_completo', 'reuniao']),
   project_code: z.string().optional(),
   client_id: z.string().optional(),
-  custom_category_id: z.string().optional(),
-  priority: z.enum(['baixa', 'media', 'alta', 'urgente']),
+  custom_category_id: z.string().min(1, 'Categoria é obrigatória'),
+  priority: z.enum(['baixa', 'media', 'alta', 'urgente'], {
+    required_error: 'Prioridade é obrigatória',
+    invalid_type_error: 'Prioridade é obrigatória',
+  }),
+  edit_kind: z.enum(['edicao', 'reedicao']).optional(),
   shoot_date: z.date().optional(),
   shoot_start_time: z.string().optional(),
   shoot_end_time: z.string().optional(),
@@ -61,7 +65,18 @@ const projectSchema = z.object({
   custo_captacao: z.number().min(0, 'Valor não pode ser negativo').optional(),
   custo_edicao: z.number().min(0, 'Valor não pode ser negativo').optional(),
   custos_extras: z.number().min(0, 'Valor não pode ser negativo').optional(),
+}).superRefine((data, ctx) => {
+  const requiresEditKind =
+    data.item_type === 'projeto_edicao' || data.item_type === 'projeto_completo';
+  if (requiresEditKind && !data.edit_kind) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['edit_kind'],
+      message: 'Seleciona se é Edição ou Reedição',
+    });
+  }
 });
+
 
 type ProjectFormData = z.infer<typeof projectSchema>;
 
@@ -143,7 +158,9 @@ export function CreateProjectModal({
       project_code: '',
       client_id: '',
       custom_category_id: '',
-      priority: 'media',
+      priority: undefined,
+      edit_kind: undefined,
+
       city: '',
       notes: '',
       agreed_value: 0,
@@ -203,6 +220,8 @@ export function CreateProjectModal({
       category: 'outro',
       custom_category_id: data.custom_category_id || null,
       priority: data.priority,
+      edit_kind: data.edit_kind ?? null,
+
       client_id: data.client_id || null,
       shoot_date: data.shoot_date ? format(data.shoot_date, 'yyyy-MM-dd') : null,
       shoot_start_time: data.shoot_start_time || null,
@@ -383,7 +402,7 @@ export function CreateProjectModal({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Category with + Create option first */}
                   <div className="space-y-2">
-                    <Label>Categoria</Label>
+                    <Label>Categoria *</Label>
                     <Select
                       value={form.watch('custom_category_id') || ''}
                       onValueChange={(value) => {
@@ -417,7 +436,13 @@ export function CreateProjectModal({
                         ))}
                       </SelectContent>
                     </Select>
+                    {form.formState.errors.custom_category_id && (
+                      <p className="text-sm text-destructive">
+                        {form.formState.errors.custom_category_id.message}
+                      </p>
+                    )}
                   </div>
+
 
                   {/* Client with + Create option first */}
                   <div className="space-y-2">
@@ -452,15 +477,49 @@ export function CreateProjectModal({
                   </div>
                 </div>
 
+                {hasEdicao && (
+                  <div className="space-y-2">
+                    <Label>Tipo de trabalho de edição *</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        ['edicao', 'Edição'],
+                        ['reedicao', 'Reedição'],
+                      ] as const).map(([value, label]) => (
+                        <Button
+                          key={value}
+                          type="button"
+                          variant={form.watch('edit_kind') === value ? 'default' : 'outline'}
+                          className={cn(
+                            'h-auto py-2.5 justify-center',
+                            form.watch('edit_kind') === value && 'gradient-primary'
+                          )}
+                          onClick={() =>
+                            form.setValue('edit_kind', value, { shouldValidate: true })
+                          }
+                        >
+                          {label}
+                        </Button>
+                      ))}
+                    </div>
+                    {form.formState.errors.edit_kind && (
+                      <p className="text-sm text-destructive">
+                        {form.formState.errors.edit_kind.message}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Prioridade</Label>
+                    <Label>Prioridade *</Label>
                     <Select
-                      value={form.watch('priority')}
-                      onValueChange={(value) => form.setValue('priority', value as any)}
+                      value={form.watch('priority') ?? ''}
+                      onValueChange={(value) =>
+                        form.setValue('priority', value as any, { shouldValidate: true })
+                      }
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Selecionar prioridade" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="baixa">Baixa</SelectItem>
@@ -469,7 +528,13 @@ export function CreateProjectModal({
                         <SelectItem value="urgente">Urgente</SelectItem>
                       </SelectContent>
                     </Select>
+                    {form.formState.errors.priority && (
+                      <p className="text-sm text-destructive">
+                        {form.formState.errors.priority.message}
+                      </p>
+                    )}
                   </div>
+
 
                   <div className="space-y-2">
                     <Label htmlFor="city">Localização</Label>

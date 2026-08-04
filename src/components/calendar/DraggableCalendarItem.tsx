@@ -61,7 +61,7 @@ export function getTypeLabel(type: CalendarItem['type']) {
   switch (type) {
     case 'shoot': return 'Captação';
     case 'delivery': return 'Entrega';
-    case 'meeting': return 'Reunião';
+    case 'meeting': return 'Tarefa';
     case 'event': return 'Evento';
     default: return type;
   }

@@ -67,8 +67,8 @@ interface EventDetailsModalProps {
 
 const eventTypeConfig: Record<string, { icon: typeof CalendarIcon; label: string; color: string }> = {
   sessao: { icon: Camera, label: 'Sessão', color: 'bg-primary text-primary-foreground' },
-  reuniao: { icon: Users, label: 'Reunião', color: 'bg-info text-info-foreground' },
-  meeting: { icon: Users, label: 'Reunião', color: 'bg-info text-info-foreground' },
+  reuniao: { icon: Users, label: 'Tarefa', color: 'bg-info text-info-foreground' },
+  meeting: { icon: Users, label: 'Tarefa', color: 'bg-info text-info-foreground' },
   videocall: { icon: Video, label: 'Videochamada', color: 'bg-info text-info-foreground' },
   deadline: { icon: Clock, label: 'Deadline', color: 'bg-warning text-warning-foreground' },
   reminder: { icon: Clock, label: 'Lembrete', color: 'bg-warning text-warning-foreground' },

@@ -235,7 +235,7 @@ export function CreateEventModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarIcon className="h-5 w-5 text-primary" />
-            {isEditMode ? 'Editar Evento' : 'Novo Evento'}
+            {isEditMode ? 'Editar Tarefa' : 'Criar Tarefa'}
           </DialogTitle>
         </DialogHeader>
 
@@ -263,13 +263,13 @@ export function CreateEventModal({
 
           {/* Event Type */}
           <div className="space-y-2">
-            <Label>Tipo de Evento</Label>
+            <Label>Tipo de Tarefa</Label>
             <Select value={eventType} onValueChange={setEventType}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="meeting">Reunião</SelectItem>
+                <SelectItem value="meeting">Tarefa</SelectItem>
                 <SelectItem value="reminder">Lembrete</SelectItem>
                 <SelectItem value="deadline">Prazo</SelectItem>
                 <SelectItem value="other">Outro</SelectItem>
@@ -483,7 +483,7 @@ export function CreateEventModal({
                   {autoCreateMeet ? 'A criar Meet...' : isEditMode ? 'A guardar...' : 'A criar...'}
                 </>
               ) : (
-                isEditMode ? 'Guardar Alterações' : 'Criar Evento'
+                isEditMode ? 'Guardar Alterações' : 'Criar Tarefa'
               )}
             </Button>
           </DialogFooter>
