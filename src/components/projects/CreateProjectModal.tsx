@@ -436,7 +436,13 @@ export function CreateProjectModal({
                         ))}
                       </SelectContent>
                     </Select>
+                    {form.formState.errors.custom_category_id && (
+                      <p className="text-sm text-destructive">
+                        {form.formState.errors.custom_category_id.message}
+                      </p>
+                    )}
                   </div>
+
 
                   {/* Client with + Create option first */}
                   <div className="space-y-2">
