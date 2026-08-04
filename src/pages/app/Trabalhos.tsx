@@ -24,7 +24,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import {
   useWorkLogs,
@@ -38,7 +37,6 @@ import { toast } from 'sonner';
 const ALL = '__all__';
 
 export default function Trabalhos() {
-  useDocumentTitle('Registo de Trabalhos');
   const { workLogs, isLoading, deleteWorkLog } = useWorkLogs();
   const { members } = useWorkspaceMembers();
 
