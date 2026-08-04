@@ -70,9 +70,9 @@ export const navSections: NavSection[] = [
     items: [
       { icon: Video, label: 'Captação', path: '/app/captacao' },
       { icon: Film, label: 'Edição', path: '/app/edicao' },
+      { icon: ClipboardList, label: 'Trabalhos', path: '/app/trabalhos' },
       { icon: CheckCircle2, label: 'Finalizados', path: '/app/finalizados' },
       { icon: Upload, label: 'Media', path: '/app/media' },
-      { icon: ClipboardList, label: 'Trabalhos', path: '/app/trabalhos' },
     ],
   },
   {
