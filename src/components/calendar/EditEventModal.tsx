@@ -151,7 +151,7 @@ export function EditEventModal({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="meeting">Reunião</SelectItem>
+                <SelectItem value="meeting">Tarefa</SelectItem>
                 <SelectItem value="videocall">Videochamada</SelectItem>
                 <SelectItem value="deadline">Deadline</SelectItem>
                 <SelectItem value="reminder">Lembrete</SelectItem>

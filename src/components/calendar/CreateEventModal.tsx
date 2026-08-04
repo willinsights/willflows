@@ -483,7 +483,7 @@ export function CreateEventModal({
                   {autoCreateMeet ? 'A criar Meet...' : isEditMode ? 'A guardar...' : 'A criar...'}
                 </>
               ) : (
-                isEditMode ? 'Guardar Alterações' : 'Criar Evento'
+                isEditMode ? 'Guardar Alterações' : 'Criar Tarefa'
               )}
             </Button>
           </DialogFooter>

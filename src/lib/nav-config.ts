@@ -7,6 +7,7 @@
  */
 import type { ComponentType } from 'react';
 import {
+  ClipboardList,
   LayoutDashboard,
   MessageSquare,
   Calendar,
@@ -71,6 +72,7 @@ export const navSections: NavSection[] = [
       { icon: Film, label: 'Edição', path: '/app/edicao' },
       { icon: CheckCircle2, label: 'Finalizados', path: '/app/finalizados' },
       { icon: Upload, label: 'Media', path: '/app/media' },
+      { icon: ClipboardList, label: 'Trabalhos', path: '/app/trabalhos' },
     ],
   },
   {

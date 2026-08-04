@@ -29,6 +29,7 @@ export const routeLabels: Record<string, string> = {
   tutorial: 'Tutorial',
   beta: 'Beta',
   feedback: 'Feedback',
+  trabalhos: 'Registo de Trabalhos',
   // Finanças
   financeiro: 'Finanças',
   receitas: 'Receitas',
