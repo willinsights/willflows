@@ -33,6 +33,8 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { useActivityReportData } from '@/hooks/useActivityReport';
+import { useWorkLogs, WORK_LOG_TYPE_LABELS } from '@/hooks/useWorkLogs';
+import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import '@/styles/activity-report.css';
 
 const PALETTE = {
