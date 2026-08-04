@@ -162,16 +162,19 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
     const captacaoCosts = deliveredThisMonth.reduce((s, p) => s + (p.custo_captacao || 0), 0);
     const edicaoCosts = deliveredThisMonth.reduce((s, p) => s + (p.custo_edicao || 0), 0);
 
+    const workLogsPayable = workLogRows.reduce((s, r) => s + r.amount, 0);
+
     const totalCosts = editorRows.reduce((s, r) => s + r.amount, 0)
       + extraRows.reduce((s, r) => s + r.amount, 0)
+      + workLogsPayable
       + captacaoCosts
       + edicaoCosts;
     const ownerProfit = revenue - totalCosts;
     const alreadyPaid = editorPaid + extrasPaid;
 
-    // By editor summary
+    // By editor summary (inclui trabalhos registados)
     const map = new Map<string, EditorSummary>();
-    for (const r of editorRows) {
+    for (const r of [...editorRows, ...workLogRows]) {
       const key = r.editorId || 'unknown';
       const cur = map.get(key) || { userId: key, name: r.editorName, cards: 0, payable: 0, paid: 0 };
       cur.cards += 1;
@@ -184,16 +187,18 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
     return {
       monthLabel: '',
       revenue,
-      editorPayable: editorPayable + extrasPayable, // includes extras in "a pagar"
+      editorPayable: editorPayable + extrasPayable + workLogsPayable,
       ownerProfit,
       alreadyPaid,
       extrasPayable,
       extrasPaid,
+      workLogsPayable,
+      workLogCount: workLogRows.length,
       captacaoCosts,
       edicaoCosts,
       deliveredProjectCount: deliveredThisMonth.length,
       byEditor,
       settlements,
     };
-  }, [projects, teamPayments, allProjectCosts, members, month]);
+  }, [projects, teamPayments, allProjectCosts, members, workLogs, month]);
 }
