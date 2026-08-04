@@ -164,6 +164,7 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
     category: 'outro' as 'hotel' | 'experiencia' | 'evento' | 'outro',
     custom_category_id: '',
     priority: 'media' as 'baixa' | 'media' | 'alta' | 'urgente',
+    edit_kind: '' as '' | 'edicao' | 'reedicao',
     shoot_date: null as Date | null,
     delivery_date: null as Date | null,
     shoot_start_time: '',
@@ -193,6 +194,7 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
         category: project.category,
         custom_category_id: project.custom_category_id || '',
         priority: project.priority,
+        edit_kind: ((project as any).edit_kind as '' | 'edicao' | 'reedicao') || '',
         shoot_date: project.shoot_date ? new Date(project.shoot_date) : null,
         delivery_date: project.delivery_date ? new Date(project.delivery_date) : null,
         shoot_start_time: project.shoot_start_time || '',
@@ -291,6 +293,9 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
           category: editForm.category,
           custom_category_id: editForm.custom_category_id || null,
           priority: editForm.priority,
+          edit_kind: (editForm.item_type === 'projeto_edicao' || editForm.item_type === 'projeto_completo')
+            ? (editForm.edit_kind || null)
+            : null,
           shoot_date: editForm.shoot_date ? format(editForm.shoot_date, 'yyyy-MM-dd') : null,
           delivery_date: editForm.delivery_date ? format(editForm.delivery_date, 'yyyy-MM-dd') : null,
           shoot_start_time: editForm.shoot_start_time || null,
@@ -1001,6 +1006,25 @@ function EditModeContent({
           </Select>
         </div>
       </div>
+
+      {(editForm.item_type === 'projeto_edicao' || editForm.item_type === 'projeto_completo') && (
+        <div className="space-y-2">
+          <Label>Tipo de trabalho de edição</Label>
+          <Select
+            value={editForm.edit_kind || "__none__"}
+            onValueChange={(value) => setEditForm((prev: any) => ({ ...prev, edit_kind: value === "__none__" ? "" : value }))}
+          >
+            <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Não definido</SelectItem>
+              <SelectItem value="edicao">Edição</SelectItem>
+              <SelectItem value="reedicao">Reedição</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+
 
       {categories.length > 0 && (
         <div className="space-y-2">
