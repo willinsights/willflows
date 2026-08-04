@@ -49,8 +49,12 @@ const projectSchema = z.object({
   item_type: z.enum(['projeto_captacao', 'projeto_edicao', 'projeto_completo', 'reuniao']),
   project_code: z.string().optional(),
   client_id: z.string().optional(),
-  custom_category_id: z.string().optional(),
-  priority: z.enum(['baixa', 'media', 'alta', 'urgente']),
+  custom_category_id: z.string().min(1, 'Categoria é obrigatória'),
+  priority: z.enum(['baixa', 'media', 'alta', 'urgente'], {
+    required_error: 'Prioridade é obrigatória',
+    invalid_type_error: 'Prioridade é obrigatória',
+  }),
+  edit_kind: z.enum(['edicao', 'reedicao']).optional(),
   shoot_date: z.date().optional(),
   shoot_start_time: z.string().optional(),
   shoot_end_time: z.string().optional(),
@@ -61,7 +65,18 @@ const projectSchema = z.object({
   custo_captacao: z.number().min(0, 'Valor não pode ser negativo').optional(),
   custo_edicao: z.number().min(0, 'Valor não pode ser negativo').optional(),
   custos_extras: z.number().min(0, 'Valor não pode ser negativo').optional(),
+}).superRefine((data, ctx) => {
+  const requiresEditKind =
+    data.item_type === 'projeto_edicao' || data.item_type === 'projeto_completo';
+  if (requiresEditKind && !data.edit_kind) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['edit_kind'],
+      message: 'Seleciona se é Edição ou Reedição',
+    });
+  }
 });
+
 
 type ProjectFormData = z.infer<typeof projectSchema>;
 
