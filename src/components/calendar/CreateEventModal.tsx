@@ -102,8 +102,11 @@ export function CreateEventModal({
 
   const { connection, loading: loadingConnection } = useGoogleCalendar();
   const isGoogleConnected = connection?.is_connected;
+  const { createWorkLog } = useWorkLogs();
+  const toast = useAppToast();
 
   const isEditMode = !!editingEvent;
+
 
   // Populate form when editing
   useEffect(() => {
