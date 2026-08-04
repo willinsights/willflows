@@ -94,7 +94,7 @@ export function UpcomingEventsCard({ events, loading, onRefresh }: UpcomingEvent
               <div className="p-1.5 rounded-md bg-primary/10">
                 <Calendar className="h-4 w-4 text-primary" />
               </div>
-              Próximos Compromissos
+              Próximas Tarefas
             </CardTitle>
             <Button
               asChild

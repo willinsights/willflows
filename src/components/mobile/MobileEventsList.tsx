@@ -37,7 +37,7 @@ const getEventTypeColor = (type: string) => {
 const getEventTypeLabel = (type: string) => {
   switch (type) {
     case 'shoot': return 'Gravação';
-    case 'meeting': return 'Reunião';
+    case 'meeting': return 'Tarefa';
     case 'delivery': return 'Entrega';
     default: return 'Evento';
   }
@@ -74,7 +74,7 @@ export function MobileEventsList({ events, loading, maxItems = 5 }: MobileEvents
           <div className="p-2 rounded-xl bg-primary/10">
             <CalendarDays className="h-4 w-4 text-primary" />
           </div>
-          <h2 className="font-semibold">Próximos Compromissos</h2>
+          <h2 className="font-semibold">Próximas Tarefas</h2>
         </div>
         <button 
           onClick={() => navigate('/app/calendario')}

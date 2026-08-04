@@ -112,14 +112,14 @@ const itemTypeLabels: Record<string, string> = {
   projeto_captacao: 'Projeto de Captação',
   projeto_edicao: 'Projeto de Edição',
   projeto_completo: 'Captação + Edição',
-  reuniao: 'Reunião/Compromisso',
+  reuniao: 'Tarefa',
 };
 
 const itemTypeOptions = [
   { value: 'projeto_captacao', label: 'Projeto de Captação' },
   { value: 'projeto_edicao', label: 'Projeto de Edição' },
   { value: 'projeto_completo', label: 'Captação + Edição' },
-  { value: 'reuniao', label: 'Reunião/Compromisso' },
+  { value: 'reuniao', label: 'Tarefa' },
 ];
 
 export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onSilentUpdate }: ProjectDetailsSheetProps) {

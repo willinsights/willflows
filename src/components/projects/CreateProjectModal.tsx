@@ -98,7 +98,7 @@ const itemTypeLabels = {
   projeto_captacao: 'Projeto de Captação',
   projeto_edicao: 'Projeto de Edição',
   projeto_completo: 'Captação + Edição',
-  reuniao: 'Reunião / Compromisso',
+  reuniao: 'Tarefa',
 };
 
 const linkTypeLabels: Record<string, string> = {
