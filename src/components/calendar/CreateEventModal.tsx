@@ -30,6 +30,8 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
+import { useWorkLogs } from '@/hooks/useWorkLogs';
+import { useAppToast } from '@/hooks/useAppToast';
 import type { CalendarEventWithProject } from '@/hooks/useCalendarEvents';
 
 // Google Meet icon SVG
