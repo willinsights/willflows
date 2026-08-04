@@ -4,9 +4,10 @@ import { useProjects } from '@/hooks/useProjects';
 import { useTeamPayments } from '@/hooks/usePayments';
 import { usePaymentsData } from '@/hooks/usePaymentsData';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
+import { useWorkLogs, WORK_LOG_TYPE_LABELS } from '@/hooks/useWorkLogs';
 import type { ProjectTeamPayment } from '@/components/payments/FreelancerPaymentsControl';
 
-export type SettlementType = 'editor' | 'extra';
+export type SettlementType = 'editor' | 'extra' | 'worklog';
 
 export interface ClosingSettlement {
   key: string;
@@ -22,6 +23,7 @@ export interface ClosingSettlement {
   teamId?: string; // present for editor rows
   deliveredAt: string | null;
 }
+
 
 export interface EditorSummary {
   userId: string;
@@ -39,6 +41,8 @@ export interface MonthlyClosing {
   alreadyPaid: number;
   extrasPayable: number;
   extrasPaid: number;
+  workLogsPayable: number;
+  workLogCount: number;
   captacaoCosts: number;
   edicaoCosts: number;
   deliveredProjectCount: number;
@@ -56,6 +60,7 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
   const { teamPayments } = useTeamPayments();
   const { allProjectCosts } = usePaymentsData();
   const { members } = useWorkspaceMembers();
+  const { workLogs } = useWorkLogs();
 
   return useMemo(() => {
     const start = startOfMonth(month);
@@ -114,7 +119,31 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
         deliveredAt: c.delivered_at ?? null,
       }));
 
-    const settlements = [...editorRows, ...extraRows];
+    // Work log rows (Registo de Trabalhos) for the month
+    const workLogRows: ClosingSettlement[] = workLogs
+      .filter((w) => {
+        const ref = w.completed_at || w.requested_at;
+        return !!ref && isWithinInterval(new Date(ref), { start, end });
+      })
+      .map((w) => ({
+        key: `worklog:${w.id}`,
+        type: 'worklog' as const,
+        projectId: w.project_id || w.id,
+        projectCode: w.project_id
+          ? (projects.find((p) => p.id === w.project_id)?.project_code
+            || w.project_id.slice(0, 8).toUpperCase())
+          : '—',
+        projectName: `${w.title} (${WORK_LOG_TYPE_LABELS[w.work_type] || w.work_type})`,
+        editorId: w.assignee_id,
+        editorName: nameOf(w.assignee_id),
+        phase: 'edicao' as const,
+        amount: Number(w.amount ?? 0),
+        status: 'pendente',
+        deliveredAt: w.completed_at || w.requested_at,
+      }));
+
+    const settlements = [...editorRows, ...extraRows, ...workLogRows];
+
 
     const revenue = deliveredThisMonth.reduce((s, p) => s + (p.agreed_value || 0), 0);
 
@@ -135,16 +164,19 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
     const captacaoCosts = deliveredThisMonth.reduce((s, p) => s + (p.custo_captacao || 0), 0);
     const edicaoCosts = deliveredThisMonth.reduce((s, p) => s + (p.custo_edicao || 0), 0);
 
+    const workLogsPayable = workLogRows.reduce((s, r) => s + r.amount, 0);
+
     const totalCosts = editorRows.reduce((s, r) => s + r.amount, 0)
       + extraRows.reduce((s, r) => s + r.amount, 0)
+      + workLogsPayable
       + captacaoCosts
       + edicaoCosts;
     const ownerProfit = revenue - totalCosts;
     const alreadyPaid = editorPaid + extrasPaid;
 
-    // By editor summary
+    // By editor summary (inclui trabalhos registados)
     const map = new Map<string, EditorSummary>();
-    for (const r of editorRows) {
+    for (const r of [...editorRows, ...workLogRows]) {
       const key = r.editorId || 'unknown';
       const cur = map.get(key) || { userId: key, name: r.editorName, cards: 0, payable: 0, paid: 0 };
       cur.cards += 1;
@@ -157,16 +189,18 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
     return {
       monthLabel: '',
       revenue,
-      editorPayable: editorPayable + extrasPayable, // includes extras in "a pagar"
+      editorPayable: editorPayable + extrasPayable + workLogsPayable,
       ownerProfit,
       alreadyPaid,
       extrasPayable,
       extrasPaid,
+      workLogsPayable,
+      workLogCount: workLogRows.length,
       captacaoCosts,
       edicaoCosts,
       deliveredProjectCount: deliveredThisMonth.length,
       byEditor,
       settlements,
     };
-  }, [projects, teamPayments, allProjectCosts, members, month]);
+  }, [projects, teamPayments, allProjectCosts, members, workLogs, month]);
 }

@@ -19,6 +19,7 @@ interface Props {
 const typeLabels: Record<ClosingSettlement['type'], string> = {
   editor: 'Edição',
   extra: 'Custo extra',
+  worklog: 'Trabalho',
 };
 
 export function ClosingSettlementsTable({ settlements, formatCurrency, hideEditorColumn }: Props) {

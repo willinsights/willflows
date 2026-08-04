@@ -31,17 +31,22 @@ export default function FechoMensal() {
   const isFreelancerView = !canViewAllFinancials || activeMembers <= 1;
 
   const pending = useMemo(
-    () => closing.settlements.filter((s) => s.status !== 'pago' && s.status !== 'cancelado'),
+    () => closing.settlements.filter(
+      (s) => s.type !== 'worklog' && s.status !== 'pago' && s.status !== 'cancelado',
+    ),
     [closing.settlements],
   );
   const pendingTotal = pending.reduce((s, r) => s + r.amount, 0);
+
+  const typeLabel = (t: ClosingSettlement['type']) =>
+    t === 'editor' ? 'Edição' : t === 'extra' ? 'Custo extra' : 'Trabalho';
 
   const exportData = useMemo(
     () => closing.settlements.map((s) => ({
       id: s.projectCode,
       projeto: s.projectName,
       contraparte: s.editorName,
-      tipo: s.type === 'editor' ? 'Edição' : 'Custo extra',
+      tipo: typeLabel(s.type),
       vencimento: s.deliveredAt ? format(new Date(s.deliveredAt), 'dd/MM/yyyy', { locale: pt }) : '-',
       status: paymentStatusLabels[s.status] || s.status,
       valor: `-${formatCurrency(s.amount)}`,
