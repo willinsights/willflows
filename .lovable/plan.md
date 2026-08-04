@@ -1,59 +1,59 @@
-## Objetivo
+# Tarefas no calendário + Registo de Trabalhos + campos obrigatórios nos cards
 
-Garantir que os cards do Savio contam **custo de edição teórico** no lucro (ex.: Bliss Mista → 346€ − 60€ = **286€ lucro por card**), mas **sem** duplicar essa despesa como pagamento real a freelancer (Savio é mensal fixo, fora do sistema).
+## 1. Renomear "Reunião/Compromisso" para "Tarefa"
 
-## Diagnóstico atual
+No calendário e nos atalhos (Dashboard, detalhes de projeto), a criação de eventos passa a chamar-se **Tarefa**:
 
-O cálculo em `useMonthlyClosing.ts` faz hoje:
+- Botão "Novo evento"/"Criar reunião" passa a "Nova tarefa" / "Criar tarefa".
+- Título do modal: "Nova tarefa" / "Editar tarefa".
+- Textos de sucesso e detalhes do evento acompanham o novo nome.
 
-```
-lucro = receita − (project_team.payment_amount)   ← Savio = 0 ✅
-             − custos_extras
-             − custo_captacao
-             − custo_edicao                       ← Savio = 60 ✅
-```
+Só muda a linguagem da interface — a estrutura de dados dos eventos mantém-se.
 
-Ou seja, **para Bliss Mista do Savio já dá 346 − 0 − 60 = 286€**. A conta está matematicamente correta e alinhada com a regra escolhida ("manter custo teórico 60€ / lucro 286€"). 
+## 2. Novo módulo "Registo de Trabalhos"
 
-Problema real → **apresentação e consistência de dados**, não fórmula:
+Nome proposto para o módulo: **Registo de Trabalhos** (menu: "Trabalhos"). Serve para deixar registado qualquer trabalho pedido fora dos cards normais, por exemplo:
 
-1. Alguns cards antigos do Savio podem ter `custo_edicao` fora da tabela (ex.: 36€ em vez de 60€ para Mista, ou 0€), o que faz o lucro parecer inflado (346€ em vez de 286€).
-2. Na tabela "Acertos" o Savio aparece a 0€ e cria a sensação de que "não há custo" — falta um sinal visual a explicar que o custo está no card, não no acerto.
+- "Edição urgente de um vídeo"
+- "Edição de uma foto"
+- "Sessão de fotografia de uma pessoa no estúdio"
 
-## Plano
+Cada registo tem:
 
-### 1) Auditoria de dados (read-only, para confirmar)
-Rodar `read_query` para listar todos os cards Bliss Travel do Savio dos últimos 90 dias e comparar `custo_edicao` real vs. regra:
-- Só curta → 10€
-- Só longa → 50€
-- Mista → 60€
+- Título / descrição do que foi pedido
+- Colaborador responsável (membro do workspace)
+- Tipo de trabalho (edição de vídeo, edição de foto, fotografia, captação, outro)
+- Cliente e projeto associados (opcionais)
+- Data do pedido e data de conclusão
+- Estado: pendente / em curso / concluído
+- Urgência (normal / urgente)
+- Valor opcional (para quando o trabalho tem custo associado)
 
-Objetivo: identificar cards com `custo_edicao` desalinhado (ex.: 36€ herdado da regra antiga, ou 0€).
+Página `/app/trabalhos` com lista filtrável por mês, colaborador, tipo e estado, criação/edição rápida e vista em cartões no telemóvel.
 
-### 2) Correção pontual dos cards desalinhados
-Via `insert` tool, atualizar `projects.custo_edicao` para o valor teórico correto por duração, **sem** tocar em `project_team.payment_amount` (fica 0€ para o Savio). Assim o lucro de cada card passa a mostrar 286€ / 30€ / 6€ conforme o tipo.
+## 3. Relatório mensal por colaborador
 
-Também garantir Anzarya:
-- Curta 10€, Longa 30€, Mista 40€ nos cards do Savio.
+Nova secção no **Relatório de Atividade**: "Trabalhos por colaborador".
 
-### 3) Ajuste visual em `ClosingByEditor.tsx` (opcional, pequeno)
-Adicionar uma badge "mensal fixo" ao lado do nome quando **todas** as linhas do editor no mês têm `payment_amount = 0`. Deixa explícito que o 0€ é intencional e o custo teórico está no card. Sem alteração de lógica.
+- Total de trabalhos por colaborador no período
+- Repartição por tipo de trabalho
+- Tabela detalhada (data, colaborador, tipo, descrição, cliente, estado, valor)
+- Incluída no export PDF já existente
 
-### 4) Validação
-Após a correção, rodar `read_query` para confirmar por card Bliss Mista do Savio:
-- `agreed_value = 346`
-- `custo_edicao = 60`
-- `project_team.payment_amount = 0`
-- Lucro efetivo por card = 286€ ✅
+## 4. Campos obrigatórios nos cards de edição
 
-## O que NÃO muda
+No modal de criação de card (e na edição):
 
-- Fórmula de `useMonthlyClosing` — já está certa.
-- `project_team` do Savio continua a 0€ (não recebe por card).
-- Salário mensal do Savio continua fora do sistema (decisão do utilizador).
+- Novo campo obrigatório **Edição ou Reedição**, visível e exigido apenas quando o item é "Projeto de edição" ou "Projeto completo".
+- **Categoria** passa a obrigatória.
+- **Prioridade** passa a obrigatória (deixa de vir pré-preenchida como "Média" — obriga a escolha explícita).
+
+Mensagens de erro em PT-BR por baixo de cada campo em falta.
 
 ## Detalhes técnicos
 
-- Escopo dos writes: apenas `UPDATE projects SET custo_edicao = X` nas linhas do Savio identificadas na auditoria.
-- Sem migrações de schema.
-- Alteração de UI (passo 3) é 3 linhas em `ClosingByEditor.tsx`.
+- Migração: tabela `work_logs` (workspace_id, title, description, work_type, assignee_id, client_id, project_id, requested_at, completed_at, status, is_urgent, amount, created_by, timestamps) com GRANTs, RLS por membro do workspace e trigger de `updated_at`.
+- Migração: coluna `edit_kind` em `projects` (`edicao` | `reedicao`, nullable para dados existentes).
+- Hook `useWorkLogs.ts` (react-query) para CRUD e agregação mensal por colaborador.
+- `CreateProjectModal.tsx`: zod passa a exigir `custom_category_id`, `priority` sem default e `edit_kind` condicional via `superRefine`.
+- `RelatorioAtividade.tsx`: nova secção alimentada por `useWorkLogs`, respeitando as classes de impressão já existentes.
