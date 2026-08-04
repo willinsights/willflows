@@ -4,9 +4,10 @@ import { useProjects } from '@/hooks/useProjects';
 import { useTeamPayments } from '@/hooks/usePayments';
 import { usePaymentsData } from '@/hooks/usePaymentsData';
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
+import { useWorkLogs, WORK_LOG_TYPE_LABELS } from '@/hooks/useWorkLogs';
 import type { ProjectTeamPayment } from '@/components/payments/FreelancerPaymentsControl';
 
-export type SettlementType = 'editor' | 'extra';
+export type SettlementType = 'editor' | 'extra' | 'worklog';
 
 export interface ClosingSettlement {
   key: string;
@@ -22,6 +23,7 @@ export interface ClosingSettlement {
   teamId?: string; // present for editor rows
   deliveredAt: string | null;
 }
+
 
 export interface EditorSummary {
   userId: string;
