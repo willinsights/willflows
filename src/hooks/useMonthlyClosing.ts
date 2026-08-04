@@ -136,7 +136,7 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
         editorName: nameOf(w.assignee_id),
         phase: 'edicao' as const,
         amount: Number(w.amount ?? 0),
-        status: w.status === 'concluido' ? 'pendente' : 'pendente',
+        status: 'pendente',
         deliveredAt: w.completed_at || w.requested_at,
       }));
 
