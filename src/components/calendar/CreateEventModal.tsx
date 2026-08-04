@@ -235,7 +235,7 @@ export function CreateEventModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarIcon className="h-5 w-5 text-primary" />
-            {isEditMode ? 'Editar Evento' : 'Novo Evento'}
+            {isEditMode ? 'Editar Tarefa' : 'Criar Tarefa'}
           </DialogTitle>
         </DialogHeader>
 
