@@ -1007,6 +1007,25 @@ function EditModeContent({
         </div>
       </div>
 
+      {(editForm.item_type === 'projeto_edicao' || editForm.item_type === 'projeto_completo') && (
+        <div className="space-y-2">
+          <Label>Tipo de trabalho de edição</Label>
+          <Select
+            value={editForm.edit_kind || "__none__"}
+            onValueChange={(value) => setEditForm((prev: any) => ({ ...prev, edit_kind: value === "__none__" ? "" : value }))}
+          >
+            <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Não definido</SelectItem>
+              <SelectItem value="edicao">Edição</SelectItem>
+              <SelectItem value="reedicao">Reedição</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+
+
       {categories.length > 0 && (
         <div className="space-y-2">
           <Label>Categoria</Label>
