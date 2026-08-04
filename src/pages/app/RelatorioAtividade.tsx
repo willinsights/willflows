@@ -115,6 +115,42 @@ export default function RelatorioAtividade() {
 
   const filtered = useMemo(
     () =>
+  const { workLogs } = useWorkLogs();
+  const { members } = useWorkspaceMembers();
+
+  const workLogsFiltrados = useMemo(
+    () =>
+      workLogs.filter((l) => {
+        if (Number(l.requested_at.slice(0, 4)) !== anoAtivo) return false;
+        if (mes !== ALL && l.requested_at.slice(5, 7) !== mes) return false;
+        return true;
+      }),
+    [workLogs, anoAtivo, mes],
+  );
+
+  const workLogsPorColaborador = useMemo(() => {
+    const map = new Map<string, { nome: string; total: number; urgentes: number; concluidos: number; tipos: Record<string, number> }>();
+    workLogsFiltrados.forEach((l) => {
+      const key = l.assignee_id ?? '__none__';
+      const member = members.find((m) => m.user_id === l.assignee_id);
+      const entry = map.get(key) ?? {
+        nome: member?.full_name || member?.email || 'Sem responsável',
+        total: 0,
+        urgentes: 0,
+        concluidos: 0,
+        tipos: {} as Record<string, number>,
+      };
+      entry.total += 1;
+      if (l.is_urgent) entry.urgentes += 1;
+      if (l.status === 'concluido') entry.concluidos += 1;
+      entry.tipos[l.work_type] = (entry.tipos[l.work_type] ?? 0) + 1;
+      map.set(key, entry);
+    });
+    return [...map.values()].sort((a, b) => b.total - a.total);
+  }, [workLogsFiltrados, members]);
+
+  const filtered = useMemo(
+    () =>
       projetos.filter((p) => {
         if ((p.ano ?? anoAtivo) !== anoAtivo) return false;
         if (cliente !== ALL && p.cliente !== cliente) return false;
