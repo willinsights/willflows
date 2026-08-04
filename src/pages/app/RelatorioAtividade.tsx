@@ -606,6 +606,68 @@ export default function RelatorioAtividade() {
           </tbody>
         </table>
       </section>
+
+      {/* Registo de trabalhos por colaborador */}
+      <section className="rp-card p-5 mt-4 rp-page-break rp-full-detail">
+        <SectionTitle>Registo de trabalhos por colaborador ({workLogsFiltrados.length})</SectionTitle>
+        <table className="rp-table">
+          <thead>
+            <tr>
+              <th>Colaborador</th>
+              <th className="rp-num">Trabalhos</th>
+              <th className="rp-num">Concluídos</th>
+              <th className="rp-num">Urgentes</th>
+              <th>Tipos</th>
+            </tr>
+          </thead>
+          <tbody>
+            {workLogsPorColaborador.map((c) => (
+              <tr key={c.nome}>
+                <td className="font-medium">{c.nome}</td>
+                <td className="rp-num">{c.total}</td>
+                <td className="rp-num">{c.concluidos}</td>
+                <td className="rp-num">{c.urgentes}</td>
+                <td>
+                  {Object.entries(c.tipos)
+                    .map(([t, n]) => `${WORK_LOG_TYPE_LABELS[t as keyof typeof WORK_LOG_TYPE_LABELS] ?? t}: ${n}`)
+                    .join(' · ')}
+                </td>
+              </tr>
+            ))}
+            {!workLogsPorColaborador.length && (
+              <tr><td colSpan={5} className="text-center py-6 text-sm text-slate-500">Sem trabalhos registados no período</td></tr>
+            )}
+          </tbody>
+        </table>
+
+        {workLogsFiltrados.length > 0 && (
+          <table className="rp-table mt-4">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Trabalho</th>
+                <th>Tipo</th>
+                <th>Colaborador</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {workLogsFiltrados.map((l) => {
+                const member = members.find((m) => m.user_id === l.assignee_id);
+                return (
+                  <tr key={l.id}>
+                    <td>{`${l.requested_at.slice(8, 10)}/${l.requested_at.slice(5, 7)}`}</td>
+                    <td className="font-medium">{l.title}{l.is_urgent ? ' (urgente)' : ''}</td>
+                    <td>{WORK_LOG_TYPE_LABELS[l.work_type]}</td>
+                    <td>{member?.full_name || member?.email || '—'}</td>
+                    <td>{l.status === 'concluido' ? 'Concluído' : l.status === 'em_curso' ? 'Em curso' : 'Pendente'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </section>
     </div>
   );
 }
