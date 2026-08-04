@@ -113,8 +113,6 @@ export default function RelatorioAtividade() {
     return [...set].sort();
   }, [projetos]);
 
-  const filtered = useMemo(
-    () =>
   const { workLogs } = useWorkLogs();
   const { members } = useWorkspaceMembers();
 
