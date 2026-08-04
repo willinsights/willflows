@@ -402,7 +402,7 @@ export function CreateProjectModal({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Category with + Create option first */}
                   <div className="space-y-2">
-                    <Label>Categoria</Label>
+                    <Label>Categoria *</Label>
                     <Select
                       value={form.watch('custom_category_id') || ''}
                       onValueChange={(value) => {
