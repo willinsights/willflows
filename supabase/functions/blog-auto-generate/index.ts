@@ -364,50 +364,54 @@ serve(async (req) => {
       console.log(`\n[BLOG-AUTO] ========== GENERATING ARTICLE ${articleIndex + 1}/${articlesToGenerate} ==========`);
 
       try {
-        // Step 1: Discover trending topics from current news using Perplexity
-        let selectedTopic = "";
-        let newsContext = "";
-        let topicUrgency = "medium";
+        // Step 1: Pick an evergreen, search-intent topic (not a news item).
+        // News articles age in 48h and have no search demand; guides keep bringing traffic.
+        const evergreenTopics: string[] = (settings.preferred_topics?.length
+          ? settings.preferred_topics
+          : [
+              "quanto cobrar por um vídeo institucional",
+              "como fazer um orçamento de fotografia profissional",
+              "contrato de prestação de serviços de vídeo: o que incluir",
+              "como calcular o preço/hora de um freelancer de audiovisual",
+              "checklist de produção de vídeo corporativo",
+              "como organizar ficheiros e backups de projetos de vídeo",
+              "como cobrar reedições e alterações extra a clientes",
+              "como gerir vários projetos de vídeo ao mesmo tempo",
+              "quanto custa um vídeo de casamento e como orçamentar",
+              "como apresentar vídeos para aprovação do cliente",
+              "erros de gestão financeira em estúdios de fotografia",
+              "como criar um workflow de pós-produção eficiente",
+              "como definir prazos de entrega realistas em audiovisual",
+              "como faturar e receber a tempo como fotógrafo freelancer",
+              "melhores práticas para gerir equipas de filmagem",
+              "como calcular a margem de lucro de um projeto audiovisual",
+              "portfolio ou proposta comercial: como fechar mais clientes",
+              "como escolher software de gestão para produtoras de vídeo",
+            ]) as string[];
 
+        const usedTitles = [...recentTitles, ...results.map((r) => (r.title || "").toLowerCase())];
+        const freshTopics = evergreenTopics.filter(
+          (t) => !usedTitles.some((title) => title.includes(t.toLowerCase().slice(0, 18)))
+        );
+        const pool = freshTopics.length ? freshTopics : evergreenTopics;
+        const selectedTopic = pool[(articleIndex + new Date().getDate()) % pool.length];
+        console.log(`[BLOG-AUTO] Selected evergreen topic: "${selectedTopic}"`);
+
+        // Step 2: Research real, verifiable context for the topic (optional)
+        let researchContext = "";
         if (perplexityApiKey) {
           try {
-            console.log("[BLOG-AUTO] Discovering trending topics from current news...");
-            
-            // Trending topics discovery query
-            const trendingQuery = `Quais são as 5 notícias/tendências mais faladas HOJE no mundo da:
-- Fotografia e vídeo profissional
-- Tecnologia para criativos (câmaras, lentes, drones, gimbals)
-- Produção audiovisual e cinema
-- Software para fotógrafos e filmmakers
-- Redes sociais e marketing visual
-- Equipamentos novos (Sony, Canon, Nikon, DJI, Blackmagic)
+            const researchQuery = `Reúne informação prática, atual e verificável sobre: "${selectedTopic}", no contexto de fotógrafos, videomakers, agências e produtoras em Portugal e no Brasil.
 
-FOCA EM:
-1. Lançamentos de produtos nas últimas 24-48 horas
-2. Notícias virais ou controversas do setor
-3. Eventos importantes (festivais, premiações, exposições)
-4. Tendências emergentes em IA para criativos
-5. Mudanças no mercado (preços, aquisições, encerramentos)
+Inclui:
+- Intervalos de preços/valores praticados no mercado (indica moeda e fonte)
+- Boas práticas concretas e passos acionáveis
+- Erros comuns e como evitá-los
+- Obrigações legais/fiscais relevantes, se aplicável
 
-NÃO INCLUIR estes temas que já foram abordados recentemente:
-${recentTitles.slice(0, 10).join("\n")}
+Responde em português europeu, em texto corrido com bullets. Não inventes dados: se não houver fonte, diz que varia.`;
 
-Para o artigo ${articleIndex + 1}, foca num tema DIFERENTE dos anteriores.
-
-Retorna APENAS JSON válido:
-{
-  "trends": [
-    {
-      "topic": "Tema/notícia principal",
-      "headline": "O que aconteceu (2-3 frases)",
-      "angle": "Ângulo interessante para um artigo (como relacionar com o dia-a-dia de fotógrafos)",
-      "urgency": "high|medium|low",
-      "keywords": ["palavra1", "palavra2"]
-    }
-  ]
-}`;
-            
-            const trendingResponse = await fetch("https://api.perplexity.ai/chat/completions", {
+            const researchResponse = await fetch("https://api.perplexity.ai/chat/completions", {
               method: "POST",
               headers: {
                 Authorization: `Bearer ${perplexityApiKey}`,
@@ -418,94 +422,53 @@ Retorna APENAS JSON válido:
                 messages: [
                   {
                     role: "system",
-                    content: "És um analista de tendências especializado em fotografia e produção de vídeo profissional. Respondes sempre em português europeu (pt-PT) e em JSON válido.",
+                    content:
+                      "És um investigador especializado no negócio da fotografia e produção de vídeo. Respondes em português europeu com informação factual e verificável.",
                   },
-                  { role: "user", content: trendingQuery },
+                  { role: "user", content: researchQuery },
                 ],
-                search_recency_filter: "day", // Only last 24 hours
               }),
             });
 
-            if (trendingResponse.ok) {
-              const trendingData = await trendingResponse.json();
-              const trendingContent = trendingData.choices?.[0]?.message?.content || "";
-              console.log("[BLOG-AUTO] Trending topics response received");
-              
-              // Parse trending topics
-              try {
-                const jsonMatch = trendingContent.match(/\{[\s\S]*"trends"[\s\S]*\}/);
-                if (jsonMatch) {
-                  const parsed = JSON.parse(jsonMatch[0]);
-                  const trends = parsed.trends || [];
-                  
-                  // Filter out topics similar to recent articles AND previous articles in this run
-                  const generatedTitles = results.map(r => r.title?.toLowerCase() || '');
-                  const allRecentTitles = [...recentTitles, ...generatedTitles];
-                  
-                  const freshTrends = trends.filter((trend: any) => 
-                    !allRecentTitles.some(title => 
-                      trend.keywords?.some((kw: string) => title.includes(kw.toLowerCase())) ||
-                      title.includes(trend.topic.toLowerCase().slice(0, 15))
-                    )
-                  );
-                  
-                  // Select based on article index to get variety
-                  const trendIndex = articleIndex % Math.max(freshTrends.length, 1);
-                  const selected = freshTrends[trendIndex] || freshTrends[0] || trends[trendIndex] || trends[0];
-                  
-                  if (selected) {
-                    selectedTopic = selected.topic;
-                    topicUrgency = selected.urgency || "medium";
-                    newsContext = `NOTÍCIA/TENDÊNCIA ATUAL:\n**${selected.topic}**\n${selected.headline}\n\nÂngulo sugerido: ${selected.angle}`;
-                    console.log(`[BLOG-AUTO] Selected trending topic: "${selectedTopic}" (urgency: ${topicUrgency})`);
-                  }
-                }
-              } catch (parseError) {
-                console.log("[BLOG-AUTO] Could not parse trending topics JSON, using raw content");
-                newsContext = trendingContent;
-              }
+            if (researchResponse.ok) {
+              const researchData = await researchResponse.json();
+              researchContext = researchData.choices?.[0]?.message?.content || "";
+              console.log("[BLOG-AUTO] Research context received");
             }
           } catch (e) {
-            console.log("[BLOG-AUTO] Trending topics discovery failed:", e);
+            console.log("[BLOG-AUTO] Research step failed:", e);
           }
         }
-        
-        // Fallback to random topic if no trending topic found
-        if (!selectedTopic) {
-          const fallbackTopics = settings.preferred_topics || ["fotografia", "video", "produção audiovisual", "gestão de projetos criativos"];
-          // Use different topic for each article
-          selectedTopic = fallbackTopics[(articleIndex) % fallbackTopics.length];
-          console.log(`[BLOG-AUTO] Using fallback topic: ${selectedTopic}`);
-        }
 
-        // Step 2: Generate article with Lovable AI based on trending topic
-        const articlePrompt = `Escreve um artigo de blog profissional BASEADO NESTA NOTÍCIA/TENDÊNCIA ATUAL:
+        // Step 3: Generate a search-intent guide (not a news commentary)
+        const articlePrompt = `Escreve um GUIA prático e evergreen que responda diretamente a esta pesquisa no Google:
 
-**TEMA PRINCIPAL:** ${selectedTopic}
+**PESQUISA-ALVO (keyword):** ${selectedTopic}
 
-${newsContext ? `${newsContext}\n\n` : ""}
+${researchContext ? `CONTEXTO DE INVESTIGAÇÃO (usa apenas o que for credível):\n${researchContext}\n\n` : ""}
+
+OBJETIVO: ser a melhor resposta possível a quem pesquisa isto — útil hoje e daqui a dois anos. NÃO escrevas sobre notícias, lançamentos de produtos ou eventos datados.
 
 REQUISITOS OBRIGATÓRIOS:
 
-1. TÍTULO: Atrativo e SEO-friendly (max 70 caracteres) - DEVE refletir a notícia atual
+1. TÍTULO: contém a keyword de forma natural, máx. 65 caracteres. Nada de clickbait.
 
-2. EXCERPT: Resumo cativante que capture a essência (max 160 caracteres)
+2. EXCERPT: resposta curta e direta à pergunta (máx. 155 caracteres).
 
-3. CONTEÚDO (1000-1500 palavras):
-   - HTML semântico bem estruturado
-   - CONECTAR a notícia/tendência com a realidade dos fotógrafos portugueses e brasileiros
-   - Mostrar como o WillFlow pode ajudar neste contexto
-   
-   ESTRUTURA OBRIGATÓRIA:
-   - Introdução envolvente que explica a notícia/tendência
-   - Análise do impacto para profissionais de fotografia/vídeo
-   - 3-5 secções principais com <h2> claros e descritivos
-   - Subsecções com <h3> quando apropriado
-   - Cada secção: 2-4 parágrafos bem desenvolvidos
-   - Mínimo 2 listas (<ul> ou <ol>) com 4-6 items práticos
-   - Pelo menos 1 <blockquote> com insight ou citação relevante
-   - Conclusão com call-to-action sutil para WillFlow
-   
+3. CONTEÚDO (1200-1800 palavras), HTML semântico:
+   - Primeiro parágrafo responde à pergunta em 2-3 frases (resposta direta)
+   - 4-6 secções <h2> que cobrem as sub-perguntas reais do tema
+   - Passos numerados, exemplos com números concretos, tabelas simples quando ajudar
+   - Pelo menos 2 listas e 1 <blockquote>
+   - Uma secção final <h2>Perguntas frequentes</h2> com 3-4 perguntas em <h3> e respostas curtas
+   - NÃO inventes estatísticas, estudos, preços exatos ou testemunhos. Se variar, diz que varia e explica os fatores.
+
+4. LINKS INTERNOS OBRIGATÓRIOS (usa 2 a 3, integrados no texto, com âncoras naturais):
+   - <a href="/ferramentas/calculadora-preco-video" class="text-primary hover:underline">calculadora de preço de vídeo</a>
+   - <a href="/ferramentas/calculadora-preco-hora" class="text-primary hover:underline">calculadora de preço/hora</a>
+   - <a href="/funcionalidades/relatorios" class="text-primary hover:underline">relatórios financeiros por projeto</a>
+   - <a href="/para-videomakers" class="text-primary hover:underline">gestão para videomakers</a>
+
    FORMATAÇÃO HTML:
    <h2 class="text-2xl font-bold mt-10 mb-4 text-foreground">Título da Secção</h2>
    <h3 class="text-xl font-semibold mt-8 mb-3 text-foreground">Subtítulo</h3>
@@ -517,18 +480,13 @@ REQUISITOS OBRIGATÓRIOS:
      <li class="text-muted-foreground">Item numerado</li>
    </ol>
    <blockquote class="border-l-4 border-primary pl-6 py-2 my-8 bg-muted/30 rounded-r-lg">
-     <p class="italic text-foreground">"Citação impactante..."</p>
+     <p class="italic text-foreground">"Insight relevante..."</p>
    </blockquote>
    <strong class="font-semibold text-foreground">Texto destacado</strong>
-   <em class="italic">Texto em itálico</em>
 
-   TOM:
-   - Atual e relevante (falar sobre o que está a acontecer AGORA)
-   - Profissional mas conversacional
-   - Prático e orientado a ação
-   - Empático com os desafios do sector
+   TOM: português europeu, profissional e direto, orientado a ação, sem enchimento nem linguagem de marketing vazia. Menciona o WillFlow no máximo duas vezes e só onde faz sentido prático.
 
-4. CATEGORIA: Uma de [novidades, tutorial, comparacao, dicas] - escolhe a mais apropriada para o tema
+4. CATEGORIA: uma de [tutorial, dicas, comparacao, novidades] — para guias usa "tutorial" ou "dicas".
 
 Responde APENAS com JSON válido neste formato:
 {
@@ -537,6 +495,7 @@ Responde APENAS com JSON válido neste formato:
   "content": "<html completo do artigo>",
   "category": "categoria"
 }`;
+
 
         console.log("[BLOG-AUTO] Generating article with AI...");
         const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

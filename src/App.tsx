@@ -42,6 +42,13 @@ const ParaAgencias = lazy(() => import("./pages/ParaAgencias"));
 const ParaProdutoras = lazy(() => import("./pages/ParaProdutoras"));
 const Contact = lazy(() => import("./pages/Contact"));
 
+// Free tool pages (SEO)
+const ToolsHub = lazy(() => import("./pages/tools/ToolsHub"));
+const CalculadoraPrecoVideo = lazy(() => import("./pages/tools/CalculadoraPrecoVideo"));
+const CalculadoraPrecoHora = lazy(() => import("./pages/tools/CalculadoraPrecoHora"));
+
+
+
 // Feature pages
 const ChatFeature = lazy(() => import("./pages/features/Chat"));
 const KanbanFeature = lazy(() => import("./pages/features/Kanban"));
@@ -162,6 +169,10 @@ const App = () => (
                     <Route path="/para-agencias" element={<ParaAgencias />} />
                     <Route path="/para-produtoras" element={<ParaProdutoras />} />
                     <Route path="/contato" element={<Contact />} />
+                    <Route path="/ferramentas" element={<ToolsHub />} />
+                    <Route path="/ferramentas/calculadora-preco-video" element={<CalculadoraPrecoVideo />} />
+                    <Route path="/ferramentas/calculadora-preco-hora" element={<CalculadoraPrecoHora />} />
+
                     <Route path="/contrato/:token" element={<ContractSign />} />
                     <Route path="/video-approval/:token" element={<VideoApproval />} />
                     <Route path="/vs" element={<ComparisonsHub />} />

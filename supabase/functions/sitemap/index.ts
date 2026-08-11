@@ -67,6 +67,10 @@ Deno.serve(async (req) => {
       { loc: '/integracoes', priority: '0.7', changefreq: 'monthly' },
       { loc: '/contato', priority: '0.7', changefreq: 'monthly' },
       { loc: '/blog', priority: '0.8', changefreq: 'daily' },
+      { loc: '/ferramentas', priority: '0.9', changefreq: 'monthly' },
+      { loc: '/ferramentas/calculadora-preco-video', priority: '0.9', changefreq: 'monthly' },
+      { loc: '/ferramentas/calculadora-preco-hora', priority: '0.9', changefreq: 'monthly' },
+
       { loc: '/blog/categoria/novidades', priority: '0.7', changefreq: 'weekly' },
       { loc: '/blog/categoria/tutorial', priority: '0.7', changefreq: 'weekly' },
       { loc: '/blog/categoria/comparacao', priority: '0.7', changefreq: 'weekly' },

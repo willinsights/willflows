@@ -400,8 +400,24 @@ export default function BlogPost() {
                 <Link to="/blog">Ver Mais Artigos</Link>
               </Button>
             </div>
+
+            <div className="mt-10 pt-8 border-t max-w-2xl mx-auto">
+              <p className="text-sm font-semibold mb-3">Ferramentas gratuitas</p>
+              <div className="flex flex-wrap gap-x-6 gap-y-2 justify-center text-sm">
+                <Link className="text-primary hover:underline" to="/ferramentas/calculadora-preco-video">
+                  Calculadora de preço de vídeo
+                </Link>
+                <Link className="text-primary hover:underline" to="/ferramentas/calculadora-preco-hora">
+                  Calculadora de preço/hora
+                </Link>
+                <Link className="text-primary hover:underline" to="/ferramentas">
+                  Todas as ferramentas
+                </Link>
+              </div>
+            </div>
           </div>
         </section>
+
       </main>
 
       <PublicFooter />
