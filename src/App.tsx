@@ -169,6 +169,10 @@ const App = () => (
                     <Route path="/para-agencias" element={<ParaAgencias />} />
                     <Route path="/para-produtoras" element={<ParaProdutoras />} />
                     <Route path="/contato" element={<Contact />} />
+                    <Route path="/ferramentas" element={<ToolsHub />} />
+                    <Route path="/ferramentas/calculadora-preco-video" element={<CalculadoraPrecoVideo />} />
+                    <Route path="/ferramentas/calculadora-preco-hora" element={<CalculadoraPrecoHora />} />
+
                     <Route path="/contrato/:token" element={<ContractSign />} />
                     <Route path="/video-approval/:token" element={<VideoApproval />} />
                     <Route path="/vs" element={<ComparisonsHub />} />
