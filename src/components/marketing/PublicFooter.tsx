@@ -21,6 +21,8 @@ const footerLinks = {
   ],
   recursos: [
     { label: 'Blog', href: '/blog' },
+    { label: 'Ferramentas gratuitas', href: '/ferramentas' },
+
     { label: 'Ajuda & FAQ', href: '/ajuda' },
     { label: 'Segurança', href: '/seguranca' },
     { label: 'Sobre Nós', href: '/sobre' },
