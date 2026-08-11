@@ -42,6 +42,13 @@ const ParaAgencias = lazy(() => import("./pages/ParaAgencias"));
 const ParaProdutoras = lazy(() => import("./pages/ParaProdutoras"));
 const Contact = lazy(() => import("./pages/Contact"));
 
+// Free tool pages (SEO)
+const ToolsHub = lazy(() => import("./pages/tools/ToolsHub"));
+const CalculadoraPrecoVideo = lazy(() => import("./pages/tools/CalculadoraPrecoVideo"));
+const CalculadoraPrecoHora = lazy(() => import("./pages/tools/CalculadoraPrecoHora"));
+
+
+
 // Feature pages
 const ChatFeature = lazy(() => import("./pages/features/Chat"));
 const KanbanFeature = lazy(() => import("./pages/features/Kanban"));
