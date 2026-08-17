@@ -47,7 +47,7 @@ import type { KanbanPhase } from '@/hooks/useKanban';
 const projectSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   item_type: z.enum(['projeto_captacao', 'projeto_edicao', 'projeto_completo', 'reuniao']),
-  project_code: z.string().optional(),
+  project_code: z.string().max(100, 'ID do projeto muito longo (máx. 100 caracteres)').optional(),
   client_id: z.string().optional(),
   custom_category_id: z.string().min(1, 'Categoria é obrigatória'),
   priority: z.enum(['baixa', 'media', 'alta', 'urgente'], {
@@ -394,8 +394,14 @@ export function CreateProjectModal({
                     <Input
                       id="project_code"
                       placeholder="Ex: PRJ-2024-001"
+                      maxLength={100}
                       {...form.register('project_code')}
                     />
+                    {form.formState.errors.project_code && (
+                      <p className="text-sm text-destructive">
+                        {form.formState.errors.project_code.message}
+                      </p>
+                    )}
                   </div>
                 </div>
 

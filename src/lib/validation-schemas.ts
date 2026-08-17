@@ -20,7 +20,7 @@ export const projectSchema = z.object({
   city: z.string().max(100).nullable().optional(),
   country: z.string().max(100).nullable().optional(),
   region: z.string().max(100).nullable().optional(),
-  project_code: z.string().max(50).nullable().optional(),
+  project_code: z.string().max(100, 'ID do projeto muito longo (máx. 100 caracteres)').nullable().optional(),
   drive_folder_url: z.string().url('URL inválida').or(z.literal('')).nullable().optional(),
   dropbox_folder_url: z.string().url('URL inválida').or(z.literal('')).nullable().optional(),
   google_meet_url: z.string().url('URL inválida').or(z.literal('')).nullable().optional(),
