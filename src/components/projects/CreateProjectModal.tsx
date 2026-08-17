@@ -132,6 +132,7 @@ export function CreateProjectModal({
   phase,
 }: CreateProjectModalProps) {
   const { createProject } = useProjects();
+  const { createWorkLog } = useWorkLogs();
   const { clients, loading: clientsLoading, refresh: refreshClients } = useClients();
   const { categories, loading: categoriesLoading, refresh: refreshCategories } = useCategories();
   const { members: workspaceMembers, loading: membersLoading } = useWorkspaceMembers();
