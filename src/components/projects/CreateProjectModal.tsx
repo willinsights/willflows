@@ -43,6 +43,8 @@ import { CreateCategoryModal } from '@/components/categories/CreateCategoryModal
 import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 import { appToast } from '@/hooks/useAppToast';
 import type { KanbanPhase } from '@/hooks/useKanban';
+import { useWorkLogs } from '@/hooks/useWorkLogs';
+import { toast } from 'sonner';
 
 const projectSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
