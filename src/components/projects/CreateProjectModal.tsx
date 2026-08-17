@@ -43,17 +43,16 @@ import { CreateCategoryModal } from '@/components/categories/CreateCategoryModal
 import { UpgradeAlert } from '@/components/subscription/UpgradeAlert';
 import { appToast } from '@/hooks/useAppToast';
 import type { KanbanPhase } from '@/hooks/useKanban';
+import { useWorkLogs } from '@/hooks/useWorkLogs';
+import { toast } from 'sonner';
 
 const projectSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   item_type: z.enum(['projeto_captacao', 'projeto_edicao', 'projeto_completo', 'reuniao']),
   project_code: z.string().max(100, 'ID do projeto muito longo (máx. 100 caracteres)').optional(),
   client_id: z.string().optional(),
-  custom_category_id: z.string().min(1, 'Categoria é obrigatória'),
-  priority: z.enum(['baixa', 'media', 'alta', 'urgente'], {
-    required_error: 'Prioridade é obrigatória',
-    invalid_type_error: 'Prioridade é obrigatória',
-  }),
+  custom_category_id: z.string().optional(),
+  priority: z.enum(['baixa', 'media', 'alta', 'urgente']).optional(),
   edit_kind: z.enum(['edicao', 'reedicao']).optional(),
   shoot_date: z.date().optional(),
   shoot_start_time: z.string().optional(),
@@ -66,6 +65,23 @@ const projectSchema = z.object({
   custo_edicao: z.number().min(0, 'Valor não pode ser negativo').optional(),
   custos_extras: z.number().min(0, 'Valor não pode ser negativo').optional(),
 }).superRefine((data, ctx) => {
+  // Tarefas vão para o Registo de Trabalhos e não exigem campos de projeto
+  if (data.item_type === 'reuniao') return;
+
+  if (!data.custom_category_id) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['custom_category_id'],
+      message: 'Categoria é obrigatória',
+    });
+  }
+  if (!data.priority) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['priority'],
+      message: 'Prioridade é obrigatória',
+    });
+  }
   const requiresEditKind =
     data.item_type === 'projeto_edicao' || data.item_type === 'projeto_completo';
   if (requiresEditKind && !data.edit_kind) {
@@ -118,6 +134,7 @@ export function CreateProjectModal({
   phase,
 }: CreateProjectModalProps) {
   const { createProject } = useProjects();
+  const { createWorkLog } = useWorkLogs();
   const { clients, loading: clientsLoading, refresh: refreshClients } = useClients();
   const { categories, loading: categoriesLoading, refresh: refreshCategories } = useCategories();
   const { members: workspaceMembers, loading: membersLoading } = useWorkspaceMembers();
@@ -199,12 +216,39 @@ export function CreateProjectModal({
   };
 
   const onSubmit = async (data: ProjectFormData) => {
+    // Tarefas são registadas no Registo de Trabalhos, não no Kanban
+    if (data.item_type === 'reuniao') {
+      setLoading(true);
+      try {
+        await createWorkLog.mutateAsync({
+          title: data.name,
+          description: data.notes || null,
+          work_type: 'outro',
+          assignee_id: responsaveisEdicao[0] || responsaveisCaptacao[0] || null,
+          client_id: data.client_id || null,
+          requested_at: format(data.shoot_date ?? new Date(), 'yyyy-MM-dd'),
+          status: 'pendente',
+          is_urgent: data.priority === 'urgente',
+          amount: data.agreed_value || null,
+        });
+        toast.success('Trabalho registado em Trabalhos');
+        onSuccess();
+        onOpenChange(false);
+      } catch (err) {
+        toast.error('Não foi possível registar o trabalho');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     // Check project limit before creating
     if (!checkFeature('projects')) {
       return; // UpgradeAlert will be shown automatically
     }
     
     setLoading(true);
+    
     
     // Determine initial phase based on item_type
     let currentPhase: KanbanPhase = 'captacao';
