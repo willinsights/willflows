@@ -213,12 +213,39 @@ export function CreateProjectModal({
   };
 
   const onSubmit = async (data: ProjectFormData) => {
+    // Tarefas são registadas no Registo de Trabalhos, não no Kanban
+    if (data.item_type === 'reuniao') {
+      setLoading(true);
+      try {
+        await createWorkLog.mutateAsync({
+          title: data.name,
+          description: data.notes || null,
+          work_type: 'outro',
+          assignee_id: responsaveisEdicao[0] || responsaveisCaptacao[0] || null,
+          client_id: data.client_id || null,
+          requested_at: format(data.shoot_date ?? new Date(), 'yyyy-MM-dd'),
+          status: 'pendente',
+          is_urgent: data.priority === 'urgente',
+          amount: data.agreed_value || null,
+        });
+        toast.success('Trabalho registado em Trabalhos');
+        onSuccess();
+        onOpenChange(false);
+      } catch (err) {
+        toast.error('Não foi possível registar o trabalho');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     // Check project limit before creating
     if (!checkFeature('projects')) {
       return; // UpgradeAlert will be shown automatically
     }
     
     setLoading(true);
+    
     
     // Determine initial phase based on item_type
     let currentPhase: KanbanPhase = 'captacao';
