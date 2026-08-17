@@ -49,11 +49,8 @@ const projectSchema = z.object({
   item_type: z.enum(['projeto_captacao', 'projeto_edicao', 'projeto_completo', 'reuniao']),
   project_code: z.string().max(100, 'ID do projeto muito longo (máx. 100 caracteres)').optional(),
   client_id: z.string().optional(),
-  custom_category_id: z.string().min(1, 'Categoria é obrigatória'),
-  priority: z.enum(['baixa', 'media', 'alta', 'urgente'], {
-    required_error: 'Prioridade é obrigatória',
-    invalid_type_error: 'Prioridade é obrigatória',
-  }),
+  custom_category_id: z.string().optional(),
+  priority: z.enum(['baixa', 'media', 'alta', 'urgente']).optional(),
   edit_kind: z.enum(['edicao', 'reedicao']).optional(),
   shoot_date: z.date().optional(),
   shoot_start_time: z.string().optional(),
@@ -66,6 +63,23 @@ const projectSchema = z.object({
   custo_edicao: z.number().min(0, 'Valor não pode ser negativo').optional(),
   custos_extras: z.number().min(0, 'Valor não pode ser negativo').optional(),
 }).superRefine((data, ctx) => {
+  // Tarefas vão para o Registo de Trabalhos e não exigem campos de projeto
+  if (data.item_type === 'reuniao') return;
+
+  if (!data.custom_category_id) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['custom_category_id'],
+      message: 'Categoria é obrigatória',
+    });
+  }
+  if (!data.priority) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['priority'],
+      message: 'Prioridade é obrigatória',
+    });
+  }
   const requiresEditKind =
     data.item_type === 'projeto_edicao' || data.item_type === 'projeto_completo';
   if (requiresEditKind && !data.edit_kind) {
