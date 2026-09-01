@@ -75,18 +75,33 @@ Deno.serve(async (req: Request) => {
     let isPublicApproval = false;
 
     if (approval_token) {
-      const { data: task } = await supabase
-        .from('tasks')
-        .select('id, workspace_id')
-        .eq('client_approval_token', approval_token)
-        .single();
-
-      if (task) {
-        isPublicApproval = true;
-        workspaceId = task.workspace_id;
-        console.log('[video-download-url] Public approval access for task:', task.id);
+      const rlId = clientIdentifier(req, approval_token);
+      if (await isRateLimited(supabase, rlId, 'approval_token')) {
+        return rateLimitResponse(corsHeaders);
       }
+
+      // Unified approval token model: video_approval_tokens (active + not expired)
+      const { data: tokenData } = await supabase
+        .from('video_approval_tokens')
+        .select('id, workspace_id, task_id, project_id, expires_at, is_active')
+        .eq('token', approval_token)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (!tokenData || (tokenData.expires_at && new Date(tokenData.expires_at) < new Date())) {
+        await logAttempt(supabase, rlId, 'approval_token', false);
+        return new Response(
+          JSON.stringify({ error: 'Link de aprovação inválido ou expirado' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      isPublicApproval = true;
+      workspaceId = tokenData.workspace_id;
+      approvalTaskId = tokenData.task_id;
+      approvalProjectId = tokenData.project_id;
     }
+
 
     if (!isPublicApproval) {
       const authHeader = req.headers.get('Authorization');
