@@ -10,7 +10,7 @@ Data: 2026-09-01
 | Severidade | Nº | Estado |
 |---|---|---|
 | Crítico | 2 | ✅ Corrigido (2026-09-01) |
-| Alto | 4 | 3 corrigidos / 1 pendente (A4) |
+| Alto | 4 | ✅ Corrigido (2026-09-01) |
 | Médio | 7 | Por corrigir |
 | Baixo / higiene | 6 | Opcional |
 
