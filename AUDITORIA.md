@@ -136,3 +136,7 @@ Sem pendentes: todos os achados críticos, altos e médios estão corrigidos.
 **Baixo — encerrado sem ação (2026-09-01):** os `project_code` "duplicados" foram verificados um a um (5 grupos, 11 projetos). Não são duplicados a limpar: são projetos distintos do mesmo cliente que reutilizam o código do cliente (`PRJ_BIRIBEIRO` em 3 datas diferentes, `PRJ_CLUBEDOSCAVALHEIROS` em 2 eventos, etc.). Criar índice único parcial em `(workspace_id, lower(trim(project_code)))` **quebraria** este uso legítimo, por isso não foi criado. Único caso realmente redundante seria `NZ-SOU-2026-EXP-004…` (dois cards do mesmo trabalho criados com 4 min de diferença) — decisão do utilizador se quer fundir.
 
 
+
+**Baixo — encerrado com ação (2026-09-01):** clientes duplicados verificados. Apenas 2 grupos reais (`TempoVip DMC Portugal` e `Thiago Santos`), em ambos o registo duplicado estava vazio (0 projetos, 0 pagamentos, 0 faturas, 0 contratos, 0 notas, 0 comunicações, 0 trabalhos). Os duplicados vazios foram apagados; ficaram as fichas com histórico. Não foi criado índice único em `clients` para não bloquear homónimos legítimos em workspaces distintos.
+
+**Auditoria concluída** — nenhum achado em aberto.
