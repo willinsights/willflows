@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { secretEquals } from "../_shared/timing-safe.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -304,7 +305,7 @@ serve(async (req) => {
         req.headers.get("x-cron-secret") ??
         req.headers.get("X-Cron-Secret") ??
         "";
-      if (!cronSecret || providedSecret !== cronSecret) {
+      if (!secretEquals(cronSecret, providedSecret)) {
         console.warn("[BLOG-AUTO] Rejected scheduled run: missing/invalid CRON secret");
         return new Response(JSON.stringify({ error: "Não autorizado" }), {
           status: 401,

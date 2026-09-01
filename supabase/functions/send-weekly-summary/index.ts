@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { format, subDays, startOfWeek, endOfWeek } from 'npm:date-fns@3.6.0'
 import { pt } from 'npm:date-fns@3.6.0/locale'
+import { secretEquals } from "../_shared/timing-safe.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,7 +15,7 @@ Deno.serve(async (req) => {
 
   const cronSecret = Deno.env.get('CRON_SECRET')
   const providedSecret = req.headers.get('x-cron-secret')
-  if (!cronSecret || providedSecret !== cronSecret) {
+  if (!secretEquals(cronSecret, providedSecret)) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

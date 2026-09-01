@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { secretEquals } from "../_shared/timing-safe.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -46,7 +47,7 @@ Deno.serve(async (req) => {
     // workspace members who belong to the given workspace_id.
     const cronSecret = Deno.env.get('CRON_SECRET')
     const providedSecret = req.headers.get('x-cron-secret')
-    const isInternal = !!cronSecret && providedSecret === cronSecret
+    const isInternal = secretEquals(cronSecret, providedSecret)
 
     if (!isInternal) {
       const authHeader = req.headers.get('Authorization')

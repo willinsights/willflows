@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { S3Client, DeleteObjectCommand } from "https://esm.sh/@aws-sdk/client-s3@3.709.0";
+import { secretEquals } from "../_shared/timing-safe.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,7 +20,7 @@ serve(async (req) => {
 
   const cronSecret = Deno.env.get('CRON_SECRET');
   const providedSecret = req.headers.get('x-cron-secret');
-  if (!cronSecret || providedSecret !== cronSecret) {
+  if (!secretEquals(cronSecret, providedSecret)) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

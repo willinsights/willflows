@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { secretEquals } from "../_shared/timing-safe.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,7 +30,7 @@ serve(async (req) => {
   const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
   const cronSecret = Deno.env.get("CRON_SECRET");
   const providedSecret = req.headers.get("x-cron-secret");
-  const isCron = !!cronSecret && providedSecret === cronSecret;
+  const isCron = secretEquals(cronSecret, providedSecret);
   const isServiceRole = !!serviceKey && bearer === serviceKey;
   if (!isCron && !isServiceRole) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
