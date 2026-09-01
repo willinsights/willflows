@@ -127,4 +127,9 @@ Os problemas reais concentram-se em **billing**: os limites de plano e a expira�
 - **M3** — nova tabela `public_access_attempts` + RPCs `check_public_rate_limit`/`log_public_access_attempt` e helper `_shared/rate-limit.ts`; tokens públicos bloqueiam após 10 falhas por IP/token em 15 min (`get-video-approval-data`, `submit-video-feedback`, `delete-video-comment`, `video-download-url`).
 - **M4** — `ai-generate-blog-post` e `ai-generate-blog-image` exigem system admin (verificado), eliminando o custo por chamada de qualquer autenticado.
 
+- **Higiene (índices)** — criados 82 índices em falta nas chaves estrangeiras (projetos, tarefas, pagamentos, vídeos, chat, automações, faturação), eliminando os scans sequenciais em listas grandes.
+
 Sem pendentes: todos os achados críticos, altos e médios estão corrigidos.
+
+**Pendente opcional (baixo):** limpeza de `project_code` duplicados antes de criar índice único parcial em `(workspace_id, lower(trim(project_code)))`.
+
