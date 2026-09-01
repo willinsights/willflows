@@ -92,9 +92,11 @@ Os problemas reais concentram-se em **billing**: os limites de plano e a expira�
 ## 7. UI/UX e performance
 
 - **Responsivo: sem problemas.** Teste automático a 1280/768/390 px em 8 páginas: `scrollWidth - clientWidth = 0` em todas (zero overflow horizontal). As tabelas largas estão corretamente dentro de contentores com scroll próprio.
-- `console.log` residual em `src/lib/debug-flags.ts`.
-- CSS injetado sem sanitização em `src/components/ui/chart.tsx` (baixo risco: input é config interna).
-- Risco de N+1 em `AdminGrowth.tsx` (queries por linha).
+- ✅ **`console.log` residual — falso positivo.** Varredura a 593 ficheiros: o único `console.log` está em `src/lib/logger.ts` (gated por ambiente). `debug-flags.ts` usa `console.warn/error` já protegidos por flag.
+- ✅ **Aviso `Function components cannot be given refs` — não é código da app.** Reproduzido em browser headless: dispara para *todos* os componentes (App, providers, Radix, framer-motion), sinal de instrumentação do `componentTagger` que só corre em `mode === "development"` (`vite.config.ts`). Não existe em produção; nada a corrigir.
+- CSS injetado sem sanitização em `src/components/ui/chart.tsx` (baixo risco: input é config interna do shadcn, não input de utilizador) — mantido.
+- `AdminGrowth.tsx`: não há N+1 no carregamento (as duas listas vêm em `Promise.all`); a única iteração sequencial é a importação em massa de convites, que é intencional (um email por convite, erros reportados linha a linha).
+
 
 ---
 
