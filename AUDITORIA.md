@@ -50,9 +50,8 @@ Os problemas reais concentram-se em **billing**: os limites de plano e a expira�
 - Basta um JWT válido de qualquer utilizador para disparar qualquer template (`payment_alert`, `weekly_summary`, …) para um `to` arbitrário (`index.ts:94-133`).
 - **Correção:** para chamadas não-service-role, forçar `to === user.email` ou restringir templates privilegiados a service-role.
 
-### A4 — `state` OAuth do Google Calendar não é assinado
-- `google-calendar-auth/index.ts:82-92` faz apenas `atob(state)`; sem HMAC/nonce/expiração, é forjável (ligar tokens Google ao par user/workspace errado).
-- **Correção:** assinar o state com segredo do servidor + expiração (o `google-oauth` já tem allowlist de redirect bem feita — usar como referência).
+### A4 ✅ CORRIGIDO — `state` OAuth do Google Calendar não é assinado
+- `google-calendar-auth` passou a assinar o state com HMAC-SHA256 + validade de 10 min, allowlist de `redirect_uri` e verificação de pertença ativa ao workspace no `authorize`.
 
 ---
 
