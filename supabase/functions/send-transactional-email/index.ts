@@ -108,6 +108,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     const isServiceRole = token === supabaseServiceKey
+    let callerEmail: string | null = null
     if (!isServiceRole) {
       const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
       const authClient = createClient(supabaseUrl, anonKey, {
@@ -120,9 +121,29 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
+      callerEmail = userData.user.email ?? null
     }
 
     const { template, to, data }: TransactionalEmailRequest = await req.json()
+
+    // Non service-role callers may only trigger self-service templates,
+    // and only towards their own email address.
+    if (!isServiceRole) {
+      const SELF_SERVICE_TEMPLATES = ['password_reset', 'contact_message', 'automation_test']
+      if (!SELF_SERVICE_TEMPLATES.includes(String(template))) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      const recipient = String(to || '').trim().toLowerCase()
+      if (template !== 'contact_message' && recipient !== (callerEmail || '').toLowerCase()) {
+        return new Response(JSON.stringify({ error: 'Forbidden recipient' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
 
     if (!template || !to || !data) {
       return new Response(JSON.stringify({ error: 'Missing required fields: template, to, data' }), {

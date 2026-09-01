@@ -5617,6 +5617,10 @@ export type Database = {
           week_views: number
         }[]
       }
+      get_plan_resource_limit: {
+        Args: { p_plan: string; p_resource: string }
+        Returns: number
+      }
       get_plan_seat_limit: { Args: { p_plan: string }; Returns: number }
       get_project_time_summary: {
         Args: { p_project_id: string }
@@ -5831,6 +5835,10 @@ export type Database = {
       }
       webhook_inbox_resolve: { Args: { p_id: string }; Returns: undefined }
       webhook_inbox_retry_now: { Args: { p_id: string }; Returns: undefined }
+      workspace_is_active: {
+        Args: { p_workspace_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "edicao" | "captacao" | "gestao" | "visualizacao"

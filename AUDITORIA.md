@@ -9,8 +9,8 @@ Data: 2026-09-01
 
 | Severidade | Nº | Estado |
 |---|---|---|
-| Crítico | 2 | Por corrigir |
-| Alto | 4 | Por corrigir |
+| Crítico | 2 | ✅ Corrigido (2026-09-01) |
+| Alto | 4 | 3 corrigidos / 1 pendente (A4) |
 | Médio | 7 | Por corrigir |
 | Baixo / higiene | 6 | Opcional |
 
@@ -22,13 +22,13 @@ Os problemas reais concentram-se em **billing**: os limites de plano e a expira�
 
 ## 2. Críticos
 
-### C1 — Expiração de trial/plano não é aplicada no servidor
+### C1 ✅ CORRIGIDO — Expiração de trial/plano não é aplicada no servidor
 - **Onde:** gating apenas em `src/lib/plans.ts` + hooks; nenhuma policy RLS, trigger ou função valida `workspaces.subscription_status` / `trial_ends_at`.
 - **Impacto:** qualquer utilizador com trial expirado continua a criar projetos, clientes, uploads e a usar features pagas chamando a API/PostgREST diretamente (ou simplesmente mantendo a sessão aberta).
 - **Evidência real:** 36 de 38 workspaces com `subscription_status = 'trialing'` já têm `trial_ends_at` no passado — e continuam operacionais.
 - **Correção:** função `workspace_is_active(workspace_id)` (SECURITY DEFINER) que valide status + `trial_ends_at`, e incluí-la nas policies de INSERT das tabelas de escrita principais (`projects`, `clients`, `video_versions`, `tasks`, `work_logs`), além do gate visual existente.
 
-### C2 — Limites de plano (projetos/clientes) não são aplicados na BD
+### C2 ✅ CORRIGIDO — Limites de plano (projetos/clientes) não são aplicados na BD
 - **Onde:** policies de INSERT de `projects` e `clients` verificam apenas `has_workspace_permission(...)`; não existe trigger de contagem (ao contrário de `workspace_members`, que tem `trg_enforce_workspace_seat_limit`).
 - **Impacto:** plano Free/Starter pode exceder ilimitadamente as quotas via API.
 - **Correção:** replicar o padrão de `enforce_workspace_seat_limit` com triggers `BEFORE INSERT` de contagem por plano.
@@ -37,16 +37,16 @@ Os problemas reais concentram-se em **billing**: os limites de plano e a expira�
 
 ## 3. Altos
 
-### A1 — `workspace_storage.storage_limit_bytes` é escrivível por admin de workspace
+### A1 ✅ CORRIGIDO — `workspace_storage.storage_limit_bytes` é escrivível por admin de workspace
 - Policy `Workspace admins can manage storage` é `FOR ALL` com `WITH CHECK (is_workspace_admin(...))` → qualquer admin de workspace pode aumentar o próprio limite de storage e contornar o addon pago.
 - **Correção:** restringir escrita a `service_role`; admins só `SELECT`. O `used_bytes` já é seguro (trigger `trg_sync_storage_video_versions`).
 
-### A2 — `create-checkout` não valida a pertença ao `workspaceId`
+### A2 ✅ CORRIGIDO — `create-checkout` não valida a pertença ao `workspaceId`
 - `supabase/functions/create-checkout/index.ts:57-59` recebe `workspaceId` do corpo e injeta-o na metadata do Stripe; o `stripe-webhook` confia nessa metadata para atribuir o plano.
 - **Impacto:** um utilizador pode pagar/atribuir plano a um workspace que não é seu (ou, em cenários de downgrade/reconciliação, alterar estado alheio).
 - **Correção:** validar membro/admin antes de criar a sessão, como já faz `create-storage-addon-checkout/index.ts:120-131`.
 
-### A3 — `send-transactional-email` permite enviar para qualquer destinatário
+### A3 ✅ CORRIGIDO — `send-transactional-email` permite enviar para qualquer destinatário
 - Basta um JWT válido de qualquer utilizador para disparar qualquer template (`payment_alert`, `weekly_summary`, …) para um `to` arbitrário (`index.ts:94-133`).
 - **Correção:** para chamadas não-service-role, forçar `to === user.email` ou restringir templates privilegiados a service-role.
 
@@ -106,3 +106,15 @@ Os problemas reais concentram-se em **billing**: os limites de plano e a expira�
 3. A2 + A3 — validação de workspace no checkout e restrição de destinatário nos emails transacionais.
 4. A4 + M1 + M2 — assinar state OAuth, restringir push genérico, unificar tokens de aprovação com expiração.
 5. M4–M7 e higiene (índices FK, duplicados, `console.log`, `forwardRef`).
+
+---
+
+## 9. Correções aplicadas (2026-09-01)
+
+- **C1** — `workspace_is_active()` + triggers `BEFORE INSERT` em `projects`, `clients`, `tasks`, `work_logs`, `video_versions`. Workspaces com trial expirado ou subscrição cancelada deixam de poder criar registos (service-role isento).
+- **C2** — `get_plan_resource_limit()` + triggers `trg_plan_project_limit` e `trg_plan_client_limit` (Starter 20/20, Pro 999/100, Studio ilimitado prático).
+- **A1** — policy `Workspace admins can manage storage` removida; membros só têm `SELECT`, escrita reservada a service-role.
+- **A2** — `create-checkout` valida que o utilizador é admin ativo do `workspaceId` recebido antes de criar a sessão Stripe.
+- **A3** — `send-transactional-email` restringe chamadas com JWT de utilizador a templates self-service e ao próprio email.
+
+Pendentes: A4 (assinar state OAuth) e M1–M7.

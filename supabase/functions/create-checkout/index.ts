@@ -58,6 +58,30 @@ serve(async (req) => {
     if (!priceId) throw new Error("Price ID is required");
     logStep("Request body parsed", { priceId, workspaceId });
 
+    // Security: never trust the workspaceId from the body.
+    // The caller must be an active admin of the workspace it is paying for.
+    if (workspaceId) {
+      const adminClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      );
+      const { data: membership, error: memberError } = await adminClient
+        .from("workspace_members")
+        .select("role")
+        .eq("workspace_id", workspaceId)
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (memberError || !membership || membership.role !== "admin") {
+        return new Response(
+          JSON.stringify({ error: "Não tem permissão para subscrever este workspace." }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      logStep("Workspace ownership verified", { workspaceId });
+    }
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
     // Check if a Stripe customer already exists for this user
