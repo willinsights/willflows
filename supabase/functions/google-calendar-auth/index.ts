@@ -252,12 +252,32 @@ serve(async (req) => {
         });
       }
 
-      // Build state with user info
-       const state = btoa(JSON.stringify({
-         userId,
-         workspaceId,
-         redirectUri,
-       }));
+      if (!isAllowedRedirect(redirectUri)) {
+        return new Response(JSON.stringify({ error: 'invalid_redirect_uri' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Caller must be an active member of the target workspace
+      const { data: membership } = await supabaseAdmin
+        .from('workspace_members')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('workspace_id', workspaceId)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (!membership) {
+        return new Response(JSON.stringify({ error: 'Not a member of this workspace' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Build signed state with user info
+      const state = await signState({ userId, workspaceId, redirectUri });
+
 
       const scopes = [
         'https://www.googleapis.com/auth/calendar',
