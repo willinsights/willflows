@@ -60,9 +60,9 @@ Os problemas reais concentram-se em **billing**: os limites de plano e a expira�
 | # | Achado | Local | Correção |
 |---|---|---|---|
 | M1 ✅ | `send-push-notification` permite a qualquer co-membro enviar push com título/corpo arbitrários a outro membro | `send-push-notification/index.ts:83-112` | Restringir pushes genéricos a service-role |
-| M2 | Dois modelos de token de aprovação em paralelo (`video_approval_tokens` vs `tasks.client_approval_token`); o segundo **não verifica expiração** | `video-download-url/index.ts:77-89` | Unificar num só fluxo com expiração |
-| M3 | Sem rate limiting/lockout em tentativas de token de aprovação público | `get-video-approval-data`, `submit-video-feedback`, `delete-video-comment` | Contador de falhas por IP/token |
-| M4 | Geração de blog/imagem por IA acessível a qualquer autenticado (custo por chamada) | `ai-generate-blog-post/index.ts:801-838` | Rate limit por utilizador ou restringir a admins |
+| M2 ✅ | Dois modelos de token de aprovação em paralelo (`video_approval_tokens` vs `tasks.client_approval_token`); o segundo **não verifica expiração** | `video-download-url/index.ts:77-89` | Unificar num só fluxo com expiração |
+| M3 ✅ | Sem rate limiting/lockout em tentativas de token de aprovação público | `get-video-approval-data`, `submit-video-feedback`, `delete-video-comment` | Contador de falhas por IP/token |
+| M4 ✅ | Geração de blog/imagem por IA acessível a qualquer autenticado (custo por chamada) | `ai-generate-blog-post/index.ts:801-838` | Rate limit por utilizador ou restringir a admins |
 | M5 ✅ | `cleanup-users` apaga todos os users/workspaces não protegidos sem confirmação explícita | `cleanup-users/index.ts:151-255` | Aplicar o duplo guard de `reset-billing-data/index.ts:164-177` |
 | M6 ✅ | Comparação de `CRON_SECRET` com `!==` (não constant-time) em ~10 funções | vários | `timingSafeEqual` |
 | M7 ✅ | `error.message` cru devolvido ao cliente em vários catch blocks | `admin-create-stripe-plans:208`, `google-oauth:334-341`, … | Mensagem genérica + log server-side |
@@ -123,4 +123,8 @@ Os problemas reais concentram-se em **billing**: os limites de plano e a expira�
 - **M6** — novo helper `_shared/timing-safe.ts` (`secretEquals`) aplicado às 10 funções que comparavam `CRON_SECRET`/`AUTOMATION_CRON_SECRET`.
 - **M7** — `admin-create-stripe-plans`, `google-oauth` e `cleanup-users` devolvem mensagem genérica; detalhe apenas nos logs do servidor.
 
-Pendentes: M2 (unificar tokens de aprovação), M3 (rate limiting em tokens públicos), M4 (rate limit na geração de conteúdo IA).
+- **M2** — `video-download-url` deixou de aceitar `tasks.client_approval_token`; usa apenas `video_approval_tokens` (activo, não expirado) e valida que a versão pertence à task/projeto do token.
+- **M3** — nova tabela `public_access_attempts` + RPCs `check_public_rate_limit`/`log_public_access_attempt` e helper `_shared/rate-limit.ts`; tokens públicos bloqueiam após 10 falhas por IP/token em 15 min (`get-video-approval-data`, `submit-video-feedback`, `delete-video-comment`, `video-download-url`).
+- **M4** — `ai-generate-blog-post` e `ai-generate-blog-image` exigem system admin (verificado), eliminando o custo por chamada de qualquer autenticado.
+
+Sem pendentes: todos os achados críticos, altos e médios estão corrigidos.
