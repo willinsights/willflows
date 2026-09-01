@@ -131,5 +131,6 @@ Os problemas reais concentram-se em **billing**: os limites de plano e a expira�
 
 Sem pendentes: todos os achados críticos, altos e médios estão corrigidos.
 
-**Pendente opcional (baixo):** limpeza de `project_code` duplicados antes de criar índice único parcial em `(workspace_id, lower(trim(project_code)))`.
+**Baixo — encerrado sem ação (2026-09-01):** os `project_code` "duplicados" foram verificados um a um (5 grupos, 11 projetos). Não são duplicados a limpar: são projetos distintos do mesmo cliente que reutilizam o código do cliente (`PRJ_BIRIBEIRO` em 3 datas diferentes, `PRJ_CLUBEDOSCAVALHEIROS` em 2 eventos, etc.). Criar índice único parcial em `(workspace_id, lower(trim(project_code)))` **quebraria** este uso legítimo, por isso não foi criado. Único caso realmente redundante seria `NZ-SOU-2026-EXP-004…` (dois cards do mesmo trabalho criados com 4 min de diferença) — decisão do utilizador se quer fundir.
+
 
