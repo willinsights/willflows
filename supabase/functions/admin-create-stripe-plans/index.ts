@@ -205,7 +205,7 @@ serve(async (req) => {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { msg });
-    return new Response(JSON.stringify({ ok: false, error: msg }), {
+    return new Response(JSON.stringify({ ok: false, error: "Erro interno" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import webpush from "https://esm.sh/web-push@3.6.7";
+import { secretEquals } from "../_shared/timing-safe.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,8 +25,8 @@ Deno.serve(async (req) => {
     const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
     const cronSecret = Deno.env.get('CRON_SECRET');
     const providedSecret = req.headers.get('x-cron-secret');
-    const isCron = !!cronSecret && providedSecret === cronSecret;
-    const isServiceRole = bearer && bearer === serviceRoleKey;
+    const isCron = secretEquals(cronSecret, providedSecret);
+    const isServiceRole = secretEquals(serviceRoleKey, bearer);
     if (!isCron && !isServiceRole) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),

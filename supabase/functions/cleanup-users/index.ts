@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
       ...(protectedUserWorkspaces?.map(w => (w.workspace as any)?.slug).filter(Boolean) || [])
     ]);
 
-    const { action } = await req.json();
+    const { action, confirmation } = await req.json();
 
     if (action === 'preview') {
       // Preview mode - just count what would be deleted
@@ -149,6 +149,18 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'execute') {
+      // M5: production safety guard — require explicit confirmation string AND opt-in env flag
+      const allowCleanup = (Deno.env.get('ALLOW_USER_CLEANUP') ?? '').toLowerCase() === 'true';
+      if (!allowCleanup || confirmation !== 'CLEANUP-USERS') {
+        console.warn('[cleanup-users] Blocked by guard', { allowCleanup, confirmationProvided: confirmation === 'CLEANUP-USERS' });
+        return new Response(JSON.stringify({
+          error: 'Limpeza de utilizadores desativada neste ambiente. Defina ALLOW_USER_CLEANUP=true e envie confirmation: "CLEANUP-USERS" no corpo do pedido.',
+        }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       console.log('Starting cleanup...');
       const results = {
         deletedUsers: 0,
@@ -261,8 +273,7 @@ Deno.serve(async (req) => {
 
   } catch (error: unknown) {
     console.error('Cleanup error:', error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: 'Erro interno' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

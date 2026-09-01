@@ -4,6 +4,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2.57.2'
 import Stripe from 'https://esm.sh/stripe@18.5.0'
+import { secretEquals } from "../_shared/timing-safe.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -50,7 +51,7 @@ Deno.serve(async (req) => {
   // Require CRON_SECRET header for cron/manual admin invocation.
   const cronSecret = Deno.env.get('CRON_SECRET')
   const provided = req.headers.get('x-cron-secret')
-  if (!cronSecret || provided !== cronSecret) {
+  if (!secretEquals(cronSecret, provided)) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
