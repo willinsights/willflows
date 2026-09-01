@@ -50,8 +50,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     // Authorize: require either service-role auth (internal callers) or an
-    // authenticated user who is targeting their own userId or shares an
-    // active workspace with the target user.
+    // authenticated user targeting their own userId.
     const authHeader = req.headers.get('Authorization') || '';
     const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
     const isServiceRole = bearer && bearer === serviceRoleKey;
@@ -81,34 +80,13 @@ Deno.serve(async (req) => {
         );
       }
       const callerId = userData.user.id;
+      // M1: generic pushes with arbitrary title/body are service-role only.
+      // Authenticated users may only send a push to themselves (e.g. test push).
       if (callerId !== userId) {
-        // Must share an active workspace with the target user
-        const { data: callerWs } = await supabase
-          .from('workspace_members')
-          .select('workspace_id')
-          .eq('user_id', callerId)
-          .eq('is_active', true);
-        const wsIds = (callerWs ?? []).map((r: { workspace_id: string }) => r.workspace_id);
-        if (wsIds.length === 0) {
-          return new Response(
-            JSON.stringify({ error: 'Forbidden' }),
-            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        const { data: shared } = await supabase
-          .from('workspace_members')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('is_active', true)
-          .in('workspace_id', wsIds)
-          .limit(1)
-          .maybeSingle();
-        if (!shared) {
-          return new Response(
-            JSON.stringify({ error: 'Forbidden' }),
-            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
+        return new Response(
+          JSON.stringify({ error: 'Forbidden' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
     }
 
