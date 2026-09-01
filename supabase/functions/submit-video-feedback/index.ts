@@ -1,5 +1,6 @@
 // v2
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { clientIdentifier, isRateLimited, logAttempt, rateLimitResponse } from '../_shared/rate-limit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -60,6 +61,11 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    const rlId = clientIdentifier(req, payload.token);
+    if (await isRateLimited(supabase, rlId, 'approval_token')) {
+      return rateLimitResponse(corsHeaders);
+    }
+
     // Validate token
     const { data: tokenData, error: tokenError } = await supabase
       .from('video_approval_tokens')
@@ -77,6 +83,7 @@ Deno.serve(async (req) => {
     }
 
     if (!tokenData) {
+      await logAttempt(supabase, rlId, 'approval_token', false);
       return new Response(
         JSON.stringify({ error: 'Link de aprovação inválido ou expirado' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
