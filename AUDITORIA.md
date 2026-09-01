@@ -115,5 +115,7 @@ Os problemas reais concentram-se em **billing**: os limites de plano e a expira�
 - **A1** — policy `Workspace admins can manage storage` removida; membros só têm `SELECT`, escrita reservada a service-role.
 - **A2** — `create-checkout` valida que o utilizador é admin ativo do `workspaceId` recebido antes de criar a sessão Stripe.
 - **A3** — `send-transactional-email` restringe chamadas com JWT de utilizador a templates self-service e ao próprio email.
+- **A4** — state OAuth do Google Calendar assinado (HMAC-SHA256, TTL 10 min), allowlist de redirect e validação de membro ativo do workspace.
+- **I/O da base de dados** — `process-automation-jobs` passou de 1 min para 2 min, `webhook-retry-worker` de 1 min para 5 min; purga de `automation_jobs` concluídos/mortos com +14 dias. BD em 52 MB.
 
-Pendentes: A4 (assinar state OAuth) e M1–M7.
+Pendentes: M1–M7 (higiene e hardening médio).
