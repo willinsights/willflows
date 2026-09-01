@@ -147,17 +147,17 @@ serve(async (req) => {
         });
       }
 
-      // Decode state
-      let stateData;
-      try {
-        stateData = JSON.parse(atob(state));
-      } catch {
-        return new Response('<html><body>Invalid state</body></html>', {
+      // Verify signed state (HMAC + TTL + redirect allowlist)
+      const stateData = await verifyState(state);
+      if (!stateData) {
+        return new Response('<html><body>Invalid or expired state</body></html>', {
+          status: 400,
           headers: { 'Content-Type': 'text/html' },
         });
       }
 
       const { userId, workspaceId, redirectUri } = stateData;
+
 
       // Exchange code for tokens
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
