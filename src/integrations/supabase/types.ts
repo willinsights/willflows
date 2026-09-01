@@ -3259,6 +3259,30 @@ export type Database = {
         }
         Relationships: []
       }
+      public_access_attempts: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          identifier: string
+          succeeded: boolean
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          identifier: string
+          succeeded?: boolean
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          identifier?: string
+          succeeded?: boolean
+        }
+        Relationships: []
+      }
       push_notification_queue: {
         Row: {
           attempts: number
@@ -5428,6 +5452,15 @@ export type Database = {
         Returns: boolean
       }
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
+      check_public_rate_limit: {
+        Args: {
+          _action: string
+          _identifier: string
+          _max_failures?: number
+          _window_minutes?: number
+        }
+        Returns: boolean
+      }
       check_storage_quota: {
         Args: { p_file_size_bytes: number; p_workspace_id: string }
         Returns: Json
@@ -5732,6 +5765,10 @@ export type Database = {
           p_target_type: string
         }
         Returns: string
+      }
+      log_public_access_attempt: {
+        Args: { _action: string; _identifier: string; _succeeded: boolean }
+        Returns: undefined
       }
       mark_contract_viewed: {
         Args: { _token: string; _user_agent?: string }
