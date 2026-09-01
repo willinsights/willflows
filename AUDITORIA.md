@@ -59,13 +59,13 @@ Os problemas reais concentram-se em **billing**: os limites de plano e a expira�
 
 | # | Achado | Local | Correção |
 |---|---|---|---|
-| M1 | `send-push-notification` permite a qualquer co-membro enviar push com título/corpo arbitrários a outro membro | `send-push-notification/index.ts:83-112` | Restringir pushes genéricos a service-role |
+| M1 ✅ | `send-push-notification` permite a qualquer co-membro enviar push com título/corpo arbitrários a outro membro | `send-push-notification/index.ts:83-112` | Restringir pushes genéricos a service-role |
 | M2 | Dois modelos de token de aprovação em paralelo (`video_approval_tokens` vs `tasks.client_approval_token`); o segundo **não verifica expiração** | `video-download-url/index.ts:77-89` | Unificar num só fluxo com expiração |
 | M3 | Sem rate limiting/lockout em tentativas de token de aprovação público | `get-video-approval-data`, `submit-video-feedback`, `delete-video-comment` | Contador de falhas por IP/token |
 | M4 | Geração de blog/imagem por IA acessível a qualquer autenticado (custo por chamada) | `ai-generate-blog-post/index.ts:801-838` | Rate limit por utilizador ou restringir a admins |
-| M5 | `cleanup-users` apaga todos os users/workspaces não protegidos sem confirmação explícita | `cleanup-users/index.ts:151-255` | Aplicar o duplo guard de `reset-billing-data/index.ts:164-177` |
-| M6 | Comparação de `CRON_SECRET` com `!==` (não constant-time) em ~10 funções | vários | `timingSafeEqual` |
-| M7 | `error.message` cru devolvido ao cliente em vários catch blocks | `admin-create-stripe-plans:208`, `google-oauth:334-341`, … | Mensagem genérica + log server-side |
+| M5 ✅ | `cleanup-users` apaga todos os users/workspaces não protegidos sem confirmação explícita | `cleanup-users/index.ts:151-255` | Aplicar o duplo guard de `reset-billing-data/index.ts:164-177` |
+| M6 ✅ | Comparação de `CRON_SECRET` com `!==` (não constant-time) em ~10 funções | vários | `timingSafeEqual` |
+| M7 ✅ | `error.message` cru devolvido ao cliente em vários catch blocks | `admin-create-stripe-plans:208`, `google-oauth:334-341`, … | Mensagem genérica + log server-side |
 
 **Nota:** o achado inicial de que `check-payment-alerts` estaria sem auth foi **verificado e é falso** — a função exige `x-cron-secret` e falha fechada se o segredo não estiver definido (`index.ts:14-22`).
 
@@ -118,4 +118,9 @@ Os problemas reais concentram-se em **billing**: os limites de plano e a expira�
 - **A4** — state OAuth do Google Calendar assinado (HMAC-SHA256, TTL 10 min), allowlist de redirect e validação de membro ativo do workspace.
 - **I/O da base de dados** — `process-automation-jobs` passou de 1 min para 2 min, `webhook-retry-worker` de 1 min para 5 min; purga de `automation_jobs` concluídos/mortos com +14 dias. BD em 52 MB.
 
-Pendentes: M1–M7 (higiene e hardening médio).
+- **M1** — `send-push-notification`: pushes com título/corpo arbitrários só via service-role; utilizador autenticado só pode enviar para si próprio.
+- **M5** — `cleanup-users`: duplo guard (`ALLOW_USER_CLEANUP=true` + `confirmation: "CLEANUP-USERS"`) antes do `execute`.
+- **M6** — novo helper `_shared/timing-safe.ts` (`secretEquals`) aplicado às 10 funções que comparavam `CRON_SECRET`/`AUTOMATION_CRON_SECRET`.
+- **M7** — `admin-create-stripe-plans`, `google-oauth` e `cleanup-users` devolvem mensagem genérica; detalhe apenas nos logs do servidor.
+
+Pendentes: M2 (unificar tokens de aprovação), M3 (rate limiting em tokens públicos), M4 (rate limit na geração de conteúdo IA).
