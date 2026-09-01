@@ -12,7 +12,75 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
+// ---- Signed OAuth state helpers (HMAC-SHA256, 10 min TTL) ----
+const STATE_TTL_MS = 10 * 60 * 1000;
+
+const ALLOWED_REDIRECT_ORIGINS = [
+  'https://willflow.app',
+  'https://www.willflow.app',
+  'https://willflows.lovable.app',
+  'http://localhost:5173',
+  'http://localhost:8080',
+];
+
+function isAllowedRedirect(uri: string): boolean {
+  try {
+    const u = new URL(uri);
+    const origin = `${u.protocol}//${u.host}`;
+    if (ALLOWED_REDIRECT_ORIGINS.includes(origin)) return true;
+    if (u.protocol === 'https:' && u.host.endsWith('.lovable.app')) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+const b64url = (bytes: Uint8Array) =>
+  btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+const fromB64url = (s: string) =>
+  Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+
+async function stateKey(): Promise<CryptoKey> {
+  return await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(SUPABASE_SERVICE_ROLE_KEY),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign', 'verify'],
+  );
+}
+
+async function signState(payload: Record<string, unknown>): Promise<string> {
+  const body = b64url(new TextEncoder().encode(JSON.stringify({ ...payload, iat: Date.now() })));
+  const sig = new Uint8Array(
+    await crypto.subtle.sign('HMAC', await stateKey(), new TextEncoder().encode(body)),
+  );
+  return `${body}.${b64url(sig)}`;
+}
+
+async function verifyState(state: string): Promise<any | null> {
+  const [body, sig] = state.split('.');
+  if (!body || !sig) return null;
+  const ok = await crypto.subtle.verify(
+    'HMAC',
+    await stateKey(),
+    fromB64url(sig),
+    new TextEncoder().encode(body),
+  );
+  if (!ok) return null;
+  try {
+    const data = JSON.parse(new TextDecoder().decode(fromB64url(body)));
+    if (!data?.iat || Date.now() - data.iat > STATE_TTL_MS) return null;
+    if (!data.userId || !data.workspaceId || !isAllowedRedirect(data.redirectUri)) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
 // Helper to validate the caller JWT using signing keys and extract claims.
+
 // IMPORTANT: With signing-keys, we must validate in code via getClaims().
 async function getClaimsFromRequest(req: Request) {
   const authHeader = req.headers.get('Authorization');
