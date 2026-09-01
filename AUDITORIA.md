@@ -10,7 +10,7 @@ Data: 2026-09-01
 | Severidade | Nº | Estado |
 |---|---|---|
 | Crítico | 2 | ✅ Corrigido (2026-09-01) |
-| Alto | 4 | 3 corrigidos / 1 pendente (A4) |
+| Alto | 4 | ✅ Corrigido (2026-09-01) |
 | Médio | 7 | Por corrigir |
 | Baixo / higiene | 6 | Opcional |
 
@@ -50,9 +50,8 @@ Os problemas reais concentram-se em **billing**: os limites de plano e a expira�
 - Basta um JWT válido de qualquer utilizador para disparar qualquer template (`payment_alert`, `weekly_summary`, …) para um `to` arbitrário (`index.ts:94-133`).
 - **Correção:** para chamadas não-service-role, forçar `to === user.email` ou restringir templates privilegiados a service-role.
 
-### A4 — `state` OAuth do Google Calendar não é assinado
-- `google-calendar-auth/index.ts:82-92` faz apenas `atob(state)`; sem HMAC/nonce/expiração, é forjável (ligar tokens Google ao par user/workspace errado).
-- **Correção:** assinar o state com segredo do servidor + expiração (o `google-oauth` já tem allowlist de redirect bem feita — usar como referência).
+### A4 ✅ CORRIGIDO — `state` OAuth do Google Calendar não é assinado
+- `google-calendar-auth` passou a assinar o state com HMAC-SHA256 + validade de 10 min, allowlist de `redirect_uri` e verificação de pertença ativa ao workspace no `authorize`.
 
 ---
 
@@ -116,5 +115,7 @@ Os problemas reais concentram-se em **billing**: os limites de plano e a expira�
 - **A1** — policy `Workspace admins can manage storage` removida; membros só têm `SELECT`, escrita reservada a service-role.
 - **A2** — `create-checkout` valida que o utilizador é admin ativo do `workspaceId` recebido antes de criar a sessão Stripe.
 - **A3** — `send-transactional-email` restringe chamadas com JWT de utilizador a templates self-service e ao próprio email.
+- **A4** — state OAuth do Google Calendar assinado (HMAC-SHA256, TTL 10 min), allowlist de redirect e validação de membro ativo do workspace.
+- **I/O da base de dados** — `process-automation-jobs` passou de 1 min para 2 min, `webhook-retry-worker` de 1 min para 5 min; purga de `automation_jobs` concluídos/mortos com +14 dias. BD em 52 MB.
 
-Pendentes: A4 (assinar state OAuth) e M1–M7.
+Pendentes: M1–M7 (higiene e hardening médio).
