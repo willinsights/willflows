@@ -198,6 +198,15 @@ serve(async (req) => {
           stream_playback_url: null,
           thumbnail_path: null,
           duration_seconds: null,
+          // Clear any legacy "corrected copy" columns so the player never falls back to old media
+          replacement_stream_uid: null,
+          replacement_playback_url: null,
+          replacement_r2_key: null,
+          replacement_status: null,
+          replacement_file_name: null,
+          replacement_file_size_bytes: null,
+          replacement_thumbnail_path: null,
+
           replaced_at: new Date().toISOString(),
         })
         .eq("id", replaceVersionId);
