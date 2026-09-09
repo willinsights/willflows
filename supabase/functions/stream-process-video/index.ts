@@ -44,6 +44,21 @@ async function generateSignedR2Url(
   return signedRequest.url.toString();
 }
 
+// Delete an object from R2
+async function deleteR2Object(
+  accountId: string,
+  accessKeyId: string,
+  secretAccessKey: string,
+  bucket: string,
+  key: string
+): Promise<void> {
+  const r2 = new AwsClient({ accessKeyId, secretAccessKey, region: "auto", service: "s3" });
+  const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
+  const url = new URL(`/${bucket}/${key}`, endpoint);
+  await r2.fetch(url.toString(), { method: "DELETE" });
+}
+
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -138,6 +153,10 @@ serve(async (req) => {
     const isReplacement = !!replaceVersionId;
     let versionData: any;
     let nextVersion: number;
+    let oldStreamUid: string | null = null;
+    let oldR2Key: string | null = null;
+    let oldFileSize = 0;
+
 
     if (isReplacement) {
       const { data: targetVersion, error: targetError } = await supabase
@@ -155,9 +174,14 @@ serve(async (req) => {
       }
 
       versionData = targetVersion;
+      // Remember old assets so they can be purged after the new copy exists
+      oldStreamUid = targetVersion.cloudflare_stream_uid || null;
+      oldR2Key = targetVersion.r2_key || null;
+      oldFileSize = targetVersion.file_size_bytes || 0;
       // Bump version number on in-place replacement so the timeline reflects the new iteration
       nextVersion = (targetVersion.version_number || 0) + 1;
       logStep("Replacement mode (in-place update)", { versionId: replaceVersionId, newVersion: nextVersion });
+
 
       await supabase
         .from("video_versions")
@@ -174,6 +198,15 @@ serve(async (req) => {
           stream_playback_url: null,
           thumbnail_path: null,
           duration_seconds: null,
+          // Clear any legacy "corrected copy" columns so the player never falls back to old media
+          replacement_stream_uid: null,
+          replacement_playback_url: null,
+          replacement_r2_key: null,
+          replacement_status: null,
+          replacement_file_name: null,
+          replacement_file_size_bytes: null,
+          replacement_thumbnail_path: null,
+
           replaced_at: new Date().toISOString(),
         })
         .eq("id", replaceVersionId);
@@ -305,6 +338,37 @@ serve(async (req) => {
     if (updateError) {
       logStep("Error updating version with stream data", { error: updateError.message });
     }
+
+    // On replacement: purge the previous media so nothing stale can be played or cached
+    if (isReplacement) {
+      if (oldStreamUid && oldStreamUid !== streamUid) {
+        try {
+          const delRes = await fetch(
+            `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${oldStreamUid}`,
+            { method: "DELETE", headers: { "Authorization": `Bearer ${streamToken}` } }
+          );
+          logStep("Old Stream video deleted", { oldStreamUid, ok: delRes.ok });
+        } catch (e) {
+          logStep("Failed deleting old Stream video", { error: e instanceof Error ? e.message : String(e) });
+        }
+      }
+      if (oldR2Key && oldR2Key !== key) {
+        try {
+          await deleteR2Object(accountId, r2AccessKeyId, r2SecretAccessKey, bucketName, oldR2Key);
+          logStep("Old R2 object deleted", { oldR2Key });
+        } catch (e) {
+          logStep("Failed deleting old R2 object", { error: e instanceof Error ? e.message : String(e) });
+        }
+      }
+      if (oldFileSize > 0) {
+        const { error: freeErr } = await supabase.rpc("add_workspace_storage", {
+          p_workspace_id: workspaceId,
+          p_bytes: -oldFileSize,
+        });
+        if (freeErr) logStep("Error freeing old storage", { error: freeErr.message });
+      }
+    }
+
 
     // Update workspace storage
     const { error: storageUpdateError } = await supabase.rpc("add_workspace_storage", {
