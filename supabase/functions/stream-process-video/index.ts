@@ -339,6 +339,37 @@ serve(async (req) => {
       logStep("Error updating version with stream data", { error: updateError.message });
     }
 
+    // On replacement: purge the previous media so nothing stale can be played or cached
+    if (isReplacement) {
+      if (oldStreamUid && oldStreamUid !== streamUid) {
+        try {
+          const delRes = await fetch(
+            `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${oldStreamUid}`,
+            { method: "DELETE", headers: { "Authorization": `Bearer ${streamToken}` } }
+          );
+          logStep("Old Stream video deleted", { oldStreamUid, ok: delRes.ok });
+        } catch (e) {
+          logStep("Failed deleting old Stream video", { error: e instanceof Error ? e.message : String(e) });
+        }
+      }
+      if (oldR2Key && oldR2Key !== key) {
+        try {
+          await deleteR2Object(accountId, r2AccessKeyId, r2SecretAccessKey, bucketName, oldR2Key);
+          logStep("Old R2 object deleted", { oldR2Key });
+        } catch (e) {
+          logStep("Failed deleting old R2 object", { error: e instanceof Error ? e.message : String(e) });
+        }
+      }
+      if (oldFileSize > 0) {
+        const { error: freeErr } = await supabase.rpc("add_workspace_storage", {
+          p_workspace_id: workspaceId,
+          p_bytes: -oldFileSize,
+        });
+        if (freeErr) logStep("Error freeing old storage", { error: freeErr.message });
+      }
+    }
+
+
     // Update workspace storage
     const { error: storageUpdateError } = await supabase.rpc("add_workspace_storage", {
       p_workspace_id: workspaceId,
