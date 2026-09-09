@@ -174,9 +174,14 @@ serve(async (req) => {
       }
 
       versionData = targetVersion;
+      // Remember old assets so they can be purged after the new copy exists
+      oldStreamUid = targetVersion.cloudflare_stream_uid || null;
+      oldR2Key = targetVersion.r2_key || null;
+      oldFileSize = targetVersion.file_size_bytes || 0;
       // Bump version number on in-place replacement so the timeline reflects the new iteration
       nextVersion = (targetVersion.version_number || 0) + 1;
       logStep("Replacement mode (in-place update)", { versionId: replaceVersionId, newVersion: nextVersion });
+
 
       await supabase
         .from("video_versions")
