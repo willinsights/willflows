@@ -44,6 +44,21 @@ async function generateSignedR2Url(
   return signedRequest.url.toString();
 }
 
+// Delete an object from R2
+async function deleteR2Object(
+  accountId: string,
+  accessKeyId: string,
+  secretAccessKey: string,
+  bucket: string,
+  key: string
+): Promise<void> {
+  const r2 = new AwsClient({ accessKeyId, secretAccessKey, region: "auto", service: "s3" });
+  const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
+  const url = new URL(`/${bucket}/${key}`, endpoint);
+  await r2.fetch(url.toString(), { method: "DELETE" });
+}
+
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
