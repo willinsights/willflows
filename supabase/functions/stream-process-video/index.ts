@@ -153,6 +153,10 @@ serve(async (req) => {
     const isReplacement = !!replaceVersionId;
     let versionData: any;
     let nextVersion: number;
+    let oldStreamUid: string | null = null;
+    let oldR2Key: string | null = null;
+    let oldFileSize = 0;
+
 
     if (isReplacement) {
       const { data: targetVersion, error: targetError } = await supabase
