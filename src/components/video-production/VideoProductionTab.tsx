@@ -82,12 +82,27 @@ function VideoProductionTabContent({
   const hasReplacement = !!(selectedVersion?.replacement_stream_uid || selectedVersion?.replacement_playback_url);
   const replacementProcessing = selectedVersion?.replacement_status === 'processing' || selectedVersion?.replacement_status === 'pending';
 
-  // Auto-select latest version
+  // Auto-select latest version and keep the selection in sync with fresh data
+  // (critical after a replacement: the row gets a brand-new stream uid/url)
   useEffect(() => {
-    if (versions.length > 0 && !selectedVersion) {
+    if (versions.length === 0) {
+      if (selectedVersion) setSelectedVersion(null);
+      return;
+    }
+    if (!selectedVersion) {
       setSelectedVersion(versions[0]);
+      return;
+    }
+    const fresh = versions.find(v => v.id === selectedVersion.id);
+    if (!fresh) {
+      setSelectedVersion(versions[0]);
+      return;
+    }
+    if (fresh !== selectedVersion) {
+      setSelectedVersion(fresh);
     }
   }, [versions, selectedVersion]);
+
 
   // Load video URL when version changes - handles both Cloudflare and legacy Supabase
   useEffect(() => {
