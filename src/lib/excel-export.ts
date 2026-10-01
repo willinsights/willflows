@@ -258,8 +258,8 @@ export async function exportToExcel(options: ExcelExportOptions): Promise<void> 
 
   // Numeric column detection
   const numericFlags = options.headers.map((h, i) => {
-    if (isTextHeader(h)) return false;
     if (isCurrencyHeader(h)) return true;
+    if (isTextHeader(h)) return false;
     let numeric = 0, filled = 0;
     for (const row of options.data) {
       const v = row[i];
@@ -352,8 +352,8 @@ function renderSectionsToWorksheet(
     sTitle.height = 20;
 
     const numericFlags = section.headers.map((h, i) => {
-      if (isTextHeader(h)) return false;
       if (isCurrencyHeader(h)) return true;
+      if (isTextHeader(h)) return false;
       let numeric = 0, filled = 0;
       for (const row of section.data) {
         const v = row[i];
