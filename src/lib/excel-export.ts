@@ -73,13 +73,21 @@ export interface ExcelExportMultiSheetOptions {
 
 // Detects numeric / currency columns to apply € format + right alignment
 function isCurrencyHeader(label: string): boolean {
+  if (isPercentHeader(label)) return false;
+  if (/(valor|preço|preco|custo|receita|lucro|saldo|montante|€)/i.test(label)) return true;
   if (isTextHeader(label)) return false;
-  return /(valor|preço|preco|custo|total|receita|lucro|saldo|montante|iva|€|pago|pendente|vencido)/i.test(label);
+  return /(total|iva|pago|pendente|vencido)/i.test(label);
+}
+
+// Percentage / ratio columns must never be treated as currency or summed.
+function isPercentHeader(label: string): boolean {
+  return /(margem|%|percent|taxa|ratio|rácio)/i.test(label);
 }
 
 // Headers that must always render as plain text (dates, codes, names, statuses).
 // Prevents parseCurrency from converting values like "22/05/2026" or "AB1234CD" into numbers.
 function isTextHeader(label: string): boolean {
+  if (isPercentHeader(label)) return true;
   return /(data|código|codigo|referência|referencia|projeto|nome|cliente|detalhe|status|tipo|categoria|descrição|descricao|observ|período|periodo|mês|mes|ano|dia|hora|email|telefone|nif|iban|morada)/i.test(label);
 }
 
@@ -88,6 +96,7 @@ function parseCurrency(v: string | number): number | null {
   if (typeof v === 'number') return v;
   if (!v || v === '-') return null;
   const s = String(v).replace(/<[^>]*>/g, '').trim();
+  if (s.includes('%')) return null;
   const negative = /^[\-−–]/.test(s) || /\(.+\)/.test(s);
   const cleaned = s.replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}\b)/g, '').replace(',', '.');
   const num = parseFloat(cleaned);
@@ -249,8 +258,8 @@ export async function exportToExcel(options: ExcelExportOptions): Promise<void> 
 
   // Numeric column detection
   const numericFlags = options.headers.map((h, i) => {
-    if (isTextHeader(h)) return false;
     if (isCurrencyHeader(h)) return true;
+    if (isTextHeader(h)) return false;
     let numeric = 0, filled = 0;
     for (const row of options.data) {
       const v = row[i];
@@ -343,8 +352,8 @@ function renderSectionsToWorksheet(
     sTitle.height = 20;
 
     const numericFlags = section.headers.map((h, i) => {
-      if (isTextHeader(h)) return false;
       if (isCurrencyHeader(h)) return true;
+      if (isTextHeader(h)) return false;
       let numeric = 0, filled = 0;
       for (const row of section.data) {
         const v = row[i];
