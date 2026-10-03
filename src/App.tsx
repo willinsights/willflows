@@ -86,6 +86,7 @@ const Media = lazy(() => import("./pages/app/Media"));
 const Clientes = lazy(() => import("./pages/app/Clientes"));
 const Calendario = lazy(() => import("./pages/app/Calendario"));
 const Trabalhos = lazy(() => import("./pages/app/Trabalhos"));
+const Hoje = lazy(() => import("./pages/app/Hoje"));
 const Pagamentos = lazy(() => import("./pages/app/Pagamentos"));
 const Relatorios = lazy(() => import("./pages/app/Relatorios"));
 const RelatorioAtividade = lazy(() => import("./pages/app/RelatorioAtividade"));
@@ -223,6 +224,7 @@ const App = () => (
                       <Route path="leads" element={<Leads />} />
                       <Route path="contratos" element={<Contratos />} />
                       <Route path="calendario" element={<Calendario />} />
+                      <Route path="hoje" element={<Hoje />} />
                       <Route path="trabalhos" element={<Trabalhos />} />
                       <Route path="pagamentos" element={<Pagamentos />} />
                       <Route path="financeiro" element={<FinanceiroLayout />}>

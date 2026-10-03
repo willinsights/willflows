@@ -8,6 +8,7 @@
 import type { ComponentType } from 'react';
 import {
   ClipboardList,
+  Sun,
   LayoutDashboard,
   MessageSquare,
   Calendar,
@@ -53,6 +54,7 @@ export const navSections: NavSection[] = [
     title: 'VISÃO GERAL',
     items: [
       { icon: LayoutDashboard, label: 'Dashboard', path: '/app' },
+      { icon: Sun, label: 'Hoje', path: '/app/hoje' },
       { icon: MessageSquare, label: 'Chat', path: '/app/chat' },
       { icon: Calendar, label: 'Calendário', path: '/app/calendario' },
     ],
@@ -71,7 +73,7 @@ export const navSections: NavSection[] = [
       { icon: Video, label: 'Captação', path: '/app/captacao' },
       { icon: Film, label: 'Edição', path: '/app/edicao' },
       { icon: ClipboardList, label: 'Trabalhos', path: '/app/trabalhos' },
-      { icon: CheckCircle2, label: 'Finalizados', path: '/app/finalizados' },
+      { icon: CheckCircle2, label: 'Entregues', path: '/app/finalizados' },
       { icon: Upload, label: 'Media', path: '/app/media' },
     ],
   },
@@ -80,7 +82,7 @@ export const navSections: NavSection[] = [
     items: [
       { icon: Euro, label: 'Finanças', path: '/app/financeiro', permissionKey: 'financials.view' },
       { icon: Receipt, label: 'Faturação', path: '/app/faturacao', permissionKey: 'reports.view' },
-      { icon: BarChart3, label: 'Relatório de Atividade', path: '/app/relatorio-atividade', permissionKey: 'reports.view' },
+      { icon: BarChart3, label: 'Atividade da equipa', path: '/app/relatorio-atividade', permissionKey: 'reports.view' },
     ],
   },
   {

@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { ChevronDown, ChevronRight, CheckCircle2, Wallet } from 'lucide-react';
+import { ChevronDown, ChevronRight, CheckCircle2, Wallet, Paperclip } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -43,6 +46,9 @@ export function PayablesByCollaborator({ teamPayments, projects, members, onStat
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [paying, setPaying] = useState(false);
+  const [receipt, setReceipt] = useState<File | null>(null);
+  const { currentWorkspace } = useWorkspace();
+  const { user } = useAuth();
 
   const groups = useMemo(() => {
     const projById = new Map(projects.map(p => [p.id, p]));
@@ -89,9 +95,25 @@ export function PayablesByCollaborator({ teamPayments, projects, members, onStat
     setPaying(true);
     const ids = Array.from(selected);
     let failed = 0;
+    let receiptId: string | null = null;
+    if (receipt && currentWorkspace?.id && user) {
+      const path = `${currentWorkspace.id}/${Date.now()}-${receipt.name.replace(/[^\w.-]/g, '_')}`;
+      const up = await supabase.storage.from('payment-receipts').upload(path, receipt);
+      if (!up.error) {
+        const { data } = await (supabase as any).from('payment_receipts')
+          .insert({ workspace_id: currentWorkspace.id, file_path: path, amount: selectedTotal, created_by: user.id })
+          .select('id').single();
+        receiptId = data?.id ?? null;
+      }
+      if (!receiptId) toast({ title: 'Comprovativo não foi guardado', description: 'Os pagamentos seguem sem anexo.', variant: 'destructive' });
+    }
     for (const id of ids) {
       try { await onStatusChange(id, 'pago'); } catch { failed++; }
     }
+    if (receiptId) {
+      await (supabase as any).from('project_team').update({ receipt_id: receiptId }).in('id', ids);
+    }
+    setReceipt(null);
     setPaying(false);
     setSelected(new Set());
     toast({
@@ -120,6 +142,11 @@ export function PayablesByCollaborator({ teamPayments, projects, members, onStat
           <span className="text-sm text-muted-foreground">
             Total: <PrivacyBlur><strong className="text-foreground">{formatCurrency(grandTotal)}</strong></PrivacyBlur>
           </span>
+          <label className="inline-flex items-center gap-1 text-xs text-muted-foreground cursor-pointer hover:text-foreground" title="Anexar comprovativo (opcional)">
+            <Paperclip className="h-4 w-4" />
+            <span className="max-w-[120px] truncate">{receipt ? receipt.name : 'Comprovativo'}</span>
+            <input type="file" accept="image/*,application/pdf" className="hidden" onChange={e => setReceipt(e.target.files?.[0] ?? null)} />
+          </label>
           <Button size="sm" disabled={selected.size === 0 || paying} onClick={paySelected}>
             <CheckCircle2 className="h-4 w-4 mr-1" />
             {paying ? 'A registar…' : `Marcar pagos (${selected.size})`}

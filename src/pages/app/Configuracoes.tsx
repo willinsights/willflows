@@ -35,7 +35,9 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { SeedDemoData } from '@/components/demo/SeedDemoData';
+import { IntegrationsTab } from '@/components/settings/IntegrationsTab';
+import { DemoDataTab } from '@/components/settings/DemoDataTab';
+import { DeleteAccountDialog } from '@/components/settings/DeleteAccountDialog';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -1154,44 +1156,7 @@ export default function Configuracoes() {
 
         {/* Integrações Tab */}
         <TabsContent value="integracoes">
-          <div className="grid gap-6">
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Google Calendar
-                </CardTitle>
-                <CardDescription>Sincronize eventos com o Google Calendar</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Status: Não conectado</p>
-                  </div>
-                  <Button variant="outline">Conectar</Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Video className="h-5 w-5" />
-                  Google Meet
-                </CardTitle>
-                <CardDescription>Links de reunião automáticos ao agendar eventos e comunicações</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Status: Activo</p>
-                  </div>
-                  <Badge variant="default" className="bg-success text-xs">Activo</Badge>
-                </div>
-              </CardContent>
-            </Card>
-
-          </div>
+          <IntegrationsTab />
         </TabsContent>
 
         {/* Permissões Tab */}
@@ -1202,31 +1167,7 @@ export default function Configuracoes() {
         {/* Dados Demo Tab */}
         {isAdmin && (
           <TabsContent value="dados">
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DatabaseIcon className="h-5 w-5" />
-                  Dados de Demonstração
-                </CardTitle>
-                <CardDescription>
-                  Popular a base de dados com dados de exemplo para testar o sistema
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="p-4 rounded-lg border border-warning/20 bg-warning/5">
-                  <p className="text-sm text-warning">
-                    <strong>Atenção:</strong> Esta funcionalidade irá criar clientes, projetos, tarefas, pagamentos e eventos de demonstração. 
-                    Os dados existentes serão limpos antes de criar os novos.
-                  </p>
-                </div>
-                
-                <SeedDemoData />
-              </CardContent>
-            </Card>
-
-            <div className="mt-6">
-              <WorkspaceDataExport />
-            </div>
+            <DemoDataTab />
           </TabsContent>
         )}
 
@@ -1264,55 +1205,14 @@ export default function Configuracoes() {
       )}
 
       {/* Delete Account Modal */}
-      <AlertDialog open={deleteAccountModalOpen} onOpenChange={setDeleteAccountModalOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive">Eliminar Conta Permanentemente</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <p>
-                Esta ação é <strong>irreversível</strong>. Todos os seus dados, incluindo:
-              </p>
-              <ul className="list-disc list-inside text-sm space-y-1">
-                <li>Perfil e preferências</li>
-                <li>Workspaces onde é o único admin (serão eliminados)</li>
-                <li>Projetos e tarefas associados</li>
-                <li>Histórico de pagamentos</li>
-              </ul>
-              <p className="font-medium pt-2">
-                Para confirmar, escreva <span className="text-destructive">ELIMINAR</span> abaixo:
-              </p>
-              <Input
-                value={deleteAccountConfirmText}
-                onChange={(e) => setDeleteAccountConfirmText(e.target.value.toUpperCase())}
-                placeholder="Escreva ELIMINAR"
-                className="mt-2"
-              />
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteAccountConfirmText('')}>
-              Cancelar
-            </AlertDialogCancel>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteAccount}
-              disabled={deletingAccount || deleteAccountConfirmText !== 'ELIMINAR'}
-            >
-              {deletingAccount ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  A eliminar...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Eliminar Conta
-                </>
-              )}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteAccountDialog
+        deleteAccountModalOpen={deleteAccountModalOpen}
+        setDeleteAccountModalOpen={setDeleteAccountModalOpen}
+        deleteAccountConfirmText={deleteAccountConfirmText}
+        setDeleteAccountConfirmText={setDeleteAccountConfirmText}
+        handleDeleteAccount={handleDeleteAccount}
+        deletingAccount={deletingAccount}
+      />
 
       {/* Category Management Modal */}
       <CategoryManagement 
