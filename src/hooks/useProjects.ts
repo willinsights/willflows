@@ -98,6 +98,21 @@ export function useProjects() {
     }
   }, [currentWorkspace?.id, fetchError, permissionsLoading, canViewAllProjects]);
 
+  // Refetch when another screen changes project data (event bridge from react-query invalidations)
+  useEffect(() => {
+    if (!currentWorkspace?.id) return;
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const onChange = () => {
+      if (t) clearTimeout(t);
+      t = setTimeout(() => { fetchProjects(); }, 300);
+    };
+    window.addEventListener('willflow:projects-changed', onChange);
+    return () => {
+      window.removeEventListener('willflow:projects-changed', onChange);
+      if (t) clearTimeout(t);
+    };
+  }, [currentWorkspace?.id, fetchProjects]);
+
   const createProject = async (project: Omit<ProjectInsert, 'workspace_id'>) => {
     if (!currentWorkspace) return null;
 
