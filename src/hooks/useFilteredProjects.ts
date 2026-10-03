@@ -6,6 +6,7 @@ import { useFinancialPermissions } from './useFinancialPermissions';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 import { logger } from '@/lib/logger';
+import { fetchAllRows } from '@/lib/fetch-all';
 export type Project = Tables<'projects'>;
 export type ProjectInsert = TablesInsert<'projects'>;
 
