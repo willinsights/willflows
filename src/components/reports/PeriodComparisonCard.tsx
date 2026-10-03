@@ -31,6 +31,7 @@ function ChangeIndicator({ value, suffix = '' }: { value: number; suffix?: strin
 export function PeriodComparisonCard({ projects }: PeriodComparisonCardProps) {
   const { formatCurrency } = useFormatCurrency();
 
+  const { workLogs } = useWorkLogs();
   const comparison = useMemo(() => {
     const now = new Date();
     const currentMonth = now;
@@ -75,7 +76,7 @@ export function PeriodComparisonCard({ projects }: PeriodComparisonCardProps) {
       previousMargin,
       marginChange: currentMargin - previousMargin,
     };
-  }, [projects]);
+  }, [projects, workLogs]);
 
   const rows = [
     { label: 'Receita', current: comparison.current.revenue, previous: comparison.previous.revenue, change: comparison.revenueChange },
