@@ -7,6 +7,7 @@ import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { handleDatabaseError } from '@/lib/error-handler';
 import { projectSchema, projectUpdateSchema, validateWithSchema } from '@/lib/validation-schemas';
 import { logger } from '@/lib/logger';
+import { fetchAllRows } from '@/lib/fetch-all';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 export type Project = Tables<'projects'>;
