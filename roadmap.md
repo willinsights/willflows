@@ -1,6 +1,6 @@
 # Roadmap — pendências da auditoria
 
-- [ ] Corrigir títulos e abas sobrepostos em telas pequenas (janela do projeto e cabeçalhos do app)
+- [x] Corrigir títulos e abas sobrepostos em telas pequenas (janela do projeto e cabeçalhos do app)
 
 - [x] 1. Vista "Hoje"
 - [x] 2. Zona de ação no Dashboard
