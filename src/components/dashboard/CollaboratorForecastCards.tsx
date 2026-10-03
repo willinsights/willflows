@@ -23,8 +23,13 @@ export function CollaboratorForecastCards() {
     pendingChange,
     paidChange,
     totalChange,
+    items,
+    olderPendingAmount,
     loading 
   } = useCollaboratorForecast(selectedMonth);
+  const [showItems, setShowItems] = useState(false);
+  const statusLabel = { pago: 'Pago', a_receber: 'A receber', em_curso: 'Em curso' } as const;
+  const statusClass = { pago: 'text-success', a_receber: 'text-warning', em_curso: 'text-muted-foreground' } as const;
 
   const goToPreviousMonth = () => {
     setSelectedMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
@@ -153,6 +158,41 @@ export function CollaboratorForecastCards() {
           );
         })}
       </div>
+
+      {!loading && olderPendingAmount > 0 && (
+        <p className="text-xs text-warning">
+          Ainda por receber de meses anteriores:{' '}
+          <span className={cn('font-semibold', hideValues && 'blur-md select-none')}>{formatCurrency(olderPendingAmount)}</span>
+        </p>
+      )}
+
+      {!loading && items.length > 0 && (
+        <div className="rounded-lg border border-border">
+          <button
+            type="button"
+            onClick={() => setShowItems(v => !v)}
+            className="w-full flex items-center justify-between px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <span>{items.length} trabalho(s) neste mês</span>
+            <span>{showItems ? 'Esconder' : 'Ver detalhe'}</span>
+          </button>
+          {showItems && (
+            <ul className="border-t border-border divide-y divide-border">
+              {items.map(it => (
+                <li key={it.id} className="flex items-center gap-3 px-3 py-2 text-sm">
+                  <span className="flex-1 truncate">
+                    <span className="text-muted-foreground mr-1">{it.projectCode}</span>{it.projectName}
+                  </span>
+                  <span className={cn('text-xs', statusClass[it.status])}>{statusLabel[it.status]}</span>
+                  <span className={cn('tabular-nums font-medium', hideValues && 'blur-md select-none')}>
+                    {formatCurrency(it.amount)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }
