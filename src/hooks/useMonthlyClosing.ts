@@ -165,6 +165,25 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
         deliveredAt: w.completed_at || w.requested_at,
       }));
 
+    // Linhas de custo detalhadas dos projetos do mês (tratadas como "extra")
+    for (const cl of costLines as any[]) {
+      if (!deliveredIds.has(cl.project_id) || !(Number(cl.actual_amount) > 0)) continue;
+      const proj = deliveredThisMonth.find((p) => p.id === cl.project_id)!;
+      extraRows.push({
+        key: `costline:${cl.id}`,
+        type: 'extra',
+        projectId: proj.id,
+        projectCode: proj.project_code || proj.id.slice(0, 8).toUpperCase(),
+        projectName: cl.description ? `${proj.name} — ${cl.description}` : proj.name,
+        editorId: null,
+        editorName: '—',
+        phase: 'extra',
+        amount: Number(cl.actual_amount),
+        status: cl.payment_status || 'pendente',
+        deliveredAt: proj.delivered_at ?? null,
+      });
+    }
+
     const settlements = [...editorRows, ...extraRows, ...workLogRows];
 
 
@@ -229,5 +248,5 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
       byEditor,
       settlements,
     };
-  }, [projects, teamPayments, allProjectCosts, members, workLogs, month]);
+  }, [projects, teamPayments, allProjectCosts, members, workLogs, costLines, month]);
 }
