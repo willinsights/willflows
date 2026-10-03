@@ -145,7 +145,7 @@ export function useProjects() {
 
       if (error) throw error;
 
-      toast({ title: 'Projeto criado com sucesso' });
+      toast({ title: 'Projeto criado com sucesso' }); window.dispatchEvent(new Event('willflow:projects-changed'));
       setProjects(prev => [data, ...prev]);
       return data;
     } catch (error) {
@@ -184,7 +184,7 @@ export function useProjects() {
         prev.map(p => (p.id === projectId ? { ...p, ...updates } : p))
       );
 
-      toast({ title: 'Projeto atualizado' });
+      toast({ title: 'Projeto atualizado' }); window.dispatchEvent(new Event('willflow:projects-changed'));
     } catch (error) {
       toast({
         title: 'Erro ao atualizar projeto',
@@ -204,7 +204,7 @@ export function useProjects() {
       if (error) throw error;
 
       setProjects(prev => prev.filter(p => p.id !== projectId));
-      toast({ title: 'Projeto removido' });
+      toast({ title: 'Projeto removido' }); window.dispatchEvent(new Event('willflow:projects-changed'));
     } catch (error) {
       toast({
         title: 'Erro ao remover projeto',
@@ -370,7 +370,7 @@ export function useProjects() {
         await supabase.from('project_media_links').insert(linksToInsert);
       }
 
-      toast({ title: 'Projeto duplicado com sucesso' });
+      toast({ title: 'Projeto duplicado com sucesso' }); window.dispatchEvent(new Event('willflow:projects-changed'));
       setProjects(prev => [newProject, ...prev]);
       return newProject;
     } catch (error) {
