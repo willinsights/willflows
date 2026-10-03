@@ -47,7 +47,6 @@ export default function Finalizados() {
     projects,
     refresh: refreshProjects
   } = useFilteredProjects();
-  const { currentWorkspace } = useWorkspace();
   const {
     clients
   } = useClients();
