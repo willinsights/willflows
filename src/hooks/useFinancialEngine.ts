@@ -52,12 +52,13 @@ export function useFinancialEngine(
     enabled: !!workspaceId,
     staleTime: STALE,
     queryFn: async (): Promise<FinancialProject[]> => {
-      const { data, error } = await supabase
-        .from('projects')
-        .select(PROJECT_COLS)
-        .eq('workspace_id', workspaceId!);
-      if (error) throw error;
-      return (data || []) as FinancialProject[];
+      const data = await fetchAllRows(() =>
+        supabase
+          .from('projects')
+          .select(PROJECT_COLS)
+          .eq('workspace_id', workspaceId!)
+      );
+      return data as FinancialProject[];
     },
   });
 
@@ -66,13 +67,14 @@ export function useFinancialEngine(
     enabled: !!workspaceId,
     staleTime: STALE,
     queryFn: async (): Promise<CostLinePayment[]> => {
-      const { data, error } = await supabase
-        .from('project_cost_lines')
-        .select('id, project_id, actual_amount, payment_status, paid_at')
-        .eq('workspace_id', workspaceId!)
-        .neq('payment_status', 'cancelado');
-      if (error) throw error;
-      return (data || []) as CostLinePayment[];
+      const data = await fetchAllRows(() =>
+        supabase
+          .from('project_cost_lines')
+          .select('id, project_id, actual_amount, payment_status, paid_at')
+          .eq('workspace_id', workspaceId!)
+          .neq('payment_status', 'cancelado')
+      );
+      return data as CostLinePayment[];
     },
   });
 

@@ -60,21 +60,22 @@ export function useProjects() {
         }
       }
       
-      let query = supabase
-        .from('projects')
-        .select('*, clients(name)')
-        .eq('workspace_id', currentWorkspace.id)
-        .order('created_at', { ascending: false });
-      
-      // Filter by assigned projects for collaborators
-      if (isCollaborator && assignedProjectIds !== null) {
-        query = query.in('id', assignedProjectIds);
-      }
+      // Paginated fetch — never silently cut at the 1000-row limit
+      const data = await fetchAllRows(() => {
+        let query = supabase
+          .from('projects')
+          .select('*, clients(name)')
+          .eq('workspace_id', currentWorkspace.id)
+          .order('created_at', { ascending: false });
 
-      const { data, error } = await query;
+        // Filter by assigned projects for collaborators
+        if (isCollaborator && assignedProjectIds !== null) {
+          query = query.in('id', assignedProjectIds);
+        }
+        return query;
+      });
 
-      if (error) throw error;
-      setProjects(data || []);
+      setProjects(data);
       lastFetchedWorkspaceIdRef.current = currentWorkspace.id;
     } catch (error) {
       logger.error('Error fetching projects:', error);

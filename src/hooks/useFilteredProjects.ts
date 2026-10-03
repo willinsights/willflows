@@ -38,15 +38,15 @@ export function useFilteredProjects() {
       isFetchingRef.current = true;
       setLoading(true);
       
-      // Fetch all projects
-      const { data: projectsData, error: projectsError } = await supabase
-        .from('projects')
-        .select('*, clients(name)')
-        .eq('workspace_id', currentWorkspace.id)
-        .order('created_at', { ascending: false });
-
-      if (projectsError) throw projectsError;
-      setAllProjects(projectsData || []);
+      // Fetch all projects (paginated — never silently cut at 1000 rows)
+      const projectsData = await fetchAllRows(() =>
+        supabase
+          .from('projects')
+          .select('*, clients(name)')
+          .eq('workspace_id', currentWorkspace.id)
+          .order('created_at', { ascending: false })
+      );
+      setAllProjects(projectsData);
 
       // Fetch user's project team memberships
       const { data: teamData, error: teamError } = await supabase
