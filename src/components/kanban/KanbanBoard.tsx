@@ -439,7 +439,13 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
       {/* Project Details Sheet */}
       <ProjectDetailsSheet
         open={!!selectedProjectId}
-        onOpenChange={(open) => !open && setSelectedProjectId(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedProjectId(null);
+            // Always resync after closing a card so edits made in sub-tabs (team, costs, checklist) show up
+            silentRefresh();
+          }
+        }}
         project={selectedProject}
         onUpdate={refresh}
         onSilentUpdate={silentRefresh}
