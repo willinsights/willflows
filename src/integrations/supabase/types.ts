@@ -5332,6 +5332,7 @@ export type Database = {
           client_paid_at: string | null
           client_payment_status: string | null
           competence_month: string | null
+          cost_lines_total: number | null
           created_at: string | null
           current_phase: Database["public"]["Enums"]["kanban_phase"] | null
           custo_captacao: number | null
