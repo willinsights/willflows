@@ -254,12 +254,29 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
       
       setMediaLinks(linksData || []);
 
-      const { data: teamData } = await supabase
-        .from('project_team')
-        .select('*')
-        .eq('project_id', project.id);
-      
-      setProjectTeam(teamData || []);
+      const [{ data: ownTeamData }, { data: rosterData }] = await Promise.all([
+        supabase.from('project_team').select('*').eq('project_id', project.id),
+        supabase.rpc('get_project_team_roster', { _project_id: project.id }),
+      ]);
+
+      // Colaboradores sem acesso financeiro só recebem a própria linha com valor;
+      // o roster completa a lista com nomes/fases (sem valores).
+      const visibleIds = new Set((ownTeamData || []).map(t => t.id));
+      const rosterOnly = (rosterData || [])
+        .filter(r => !visibleIds.has(r.id))
+        .map(r => ({
+          id: r.id,
+          project_id: project.id,
+          user_id: r.user_id,
+          phase: r.phase,
+          is_external: r.is_external,
+          external_name: r.external_name,
+          invitation_id: null,
+          payment_amount: null,
+        }) as unknown as ProjectTeam);
+      const teamData = [...(ownTeamData || []), ...rosterOnly];
+
+      setProjectTeam(teamData);
       
       // Map both user_id and invitation_id to selection IDs
       const captacaoMembers = (teamData || [])
