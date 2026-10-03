@@ -12,6 +12,35 @@ import { Money } from '@/components/finance/Money';
 import { DateCell } from '@/components/finance/DateCell';
 import { useTransactionFeed, type FinanceTx } from '@/hooks/useTransactionFeed';
 import { cn } from '@/lib/utils';
+import { useProjects } from '@/hooks/useProjects';
+import { useTeamPayments } from '@/hooks/usePayments';
+import { usePaymentsData } from '@/hooks/usePaymentsData';
+import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
+import { useFormatCurrency } from '@/hooks/useFormatCurrency';
+import { PayablesByCollaborator } from '@/components/payments/PayablesByCollaborator';
+import type { ProjectTeamPayment } from '@/components/payments/FreelancerPaymentsControl';
+
+function PayablesSection() {
+  const { projects } = useProjects();
+  const { teamPayments } = useTeamPayments();
+  const { members } = useWorkspaceMembers();
+  const { handleFreelancerStatusChange } = usePaymentsData();
+  const { formatCurrency } = useFormatCurrency();
+  const projectsList = useMemo(
+    () => projects.map(p => ({ id: p.id, name: p.name, project_code: p.project_code, delivered_at: p.delivered_at, is_delivered: p.is_delivered })),
+    [projects],
+  );
+  const membersList = useMemo(() => members.map(m => ({ user_id: m.user_id, full_name: m.full_name })), [members]);
+  return (
+    <PayablesByCollaborator
+      teamPayments={teamPayments as ProjectTeamPayment[]}
+      projects={projectsList}
+      members={membersList}
+      onStatusChange={handleFreelancerStatusChange}
+      formatCurrency={formatCurrency}
+    />
+  );
+}
 
 interface CollabAgg {
   key: string;
@@ -107,6 +136,7 @@ export default function Colaboradores() {
 
   return (
     <div className="space-y-4">
+      <PayablesSection />
       {/* Totals band */}
       <Card className="glass-card">
         <CardContent className="grid grid-cols-3 divide-x divide-border p-0">
