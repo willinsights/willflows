@@ -58,13 +58,6 @@ const PagamentosFeature = lazy(() => import("./pages/features/Pagamentos"));
 
 // Financeiro hub pages
 const FinanceiroLayout = lazy(() => import("./pages/app/financeiro/FinanceiroLayout"));
-const FinanceiroVisaoGeral = lazy(() => import("./pages/app/financeiro/VisaoGeral"));
-const FinanceiroReceitas = lazy(() => import("./pages/app/financeiro/Receitas"));
-const FinanceiroCustos = lazy(() => import("./pages/app/financeiro/Custos"));
-const FinanceiroCustosExtras = lazy(() => import("./pages/app/financeiro/CustosExtras"));
-const FinanceiroLucro = lazy(() => import("./pages/app/financeiro/Lucro"));
-const FinanceiroFechoMensal = lazy(() => import("./pages/app/financeiro/FechoMensal"));
-const FinanceiroHub = lazy(() => import("./pages/app/financeiro/FinanceiroHub"));
 const FinanceIndex = lazy(() => import("./pages/app/financeiro/FinanceIndex"));
 const RelatoriosFeature = lazy(() => import("./pages/features/Relatorios"));
 const MediaHubFeature = lazy(() => import("./pages/features/MediaHub"));
@@ -234,12 +227,7 @@ const App = () => (
                       <Route path="pagamentos" element={<Pagamentos />} />
                       <Route path="financeiro" element={<FinanceiroLayout />}>
                         <Route index element={<FinanceIndex />} />
-                        <Route path="legacy/visao-geral" element={<FinanceiroVisaoGeral />} />
-                        <Route path="legacy/receitas" element={<FinanceiroReceitas />} />
-                        <Route path="legacy/custos" element={<FinanceiroCustos />} />
-                        <Route path="legacy/custos-extras" element={<FinanceiroCustosExtras />} />
-                        <Route path="legacy/lucro" element={<FinanceiroLucro />} />
-                        <Route path="legacy/fecho" element={<FinanceiroFechoMensal />} />
+                        <Route path="legacy/*" element={<Navigate to="/app/financeiro" replace />} />
                       </Route>
                       <Route path="relatorios" element={<Relatorios />} />
                       <Route path="relatorio-atividade" element={<RelatorioAtividade />} />

@@ -5,5 +5,5 @@ import { Navigate } from 'react-router-dom';
  * Kept for backward compatibility with bookmarks/links.
  */
 export default function Pagamentos() {
-  return <Navigate to="/app/financeiro" replace />;
+  return <Navigate to="/app/financeiro?tab=movimentos" replace />;
 }
