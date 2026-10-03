@@ -486,17 +486,19 @@ export function useConversations() {
   useEffect(() => {
     if (!workspace?.id) return;
 
+    // Debounce: bursts of messages trigger a single list refresh
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const refresh = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => queryClient.invalidateQueries({ queryKey: ['conversations', workspace.id] }), 1000);
+    };
     const channel = supabase
       .channel(`conversations:${workspace.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations', filter: `workspace_id=eq.${workspace.id}` },
-        () => queryClient.invalidateQueries({ queryKey: ['conversations', workspace.id] })
-      )
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' },
-        () => queryClient.invalidateQueries({ queryKey: ['conversations', workspace.id] }) // Update last message
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations', filter: `workspace_id=eq.${workspace.id}` }, refresh)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, refresh)
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { if (timer) clearTimeout(timer); supabase.removeChannel(channel); };
   }, [workspace?.id, queryClient]);
 
   // Mutation to add member to channel
