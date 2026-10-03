@@ -1,5 +1,8 @@
 import { useMemo } from 'react';
-import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { startOfMonth, endOfMonth, isWithinInterval, format } from 'date-fns';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useProjects } from '@/hooks/useProjects';
 import { useTeamPayments } from '@/hooks/usePayments';
 import { usePaymentsData } from '@/hooks/usePaymentsData';
@@ -61,17 +64,37 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
   const { allProjectCosts } = usePaymentsData();
   const { members } = useWorkspaceMembers();
   const { workLogs } = useWorkLogs();
+  const { currentWorkspace } = useWorkspace();
+  const workspaceId = currentWorkspace?.id;
+
+  // Custos detalhados (linhas de custo) — fazem parte da fórmula única de lucro
+  const { data: costLines = [] } = useQuery({
+    queryKey: ['finance', 'engine-cost-lines', workspaceId, 'closing'] as const,
+    enabled: !!workspaceId,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('project_cost_lines')
+        .select('id, project_id, description, actual_amount, payment_status')
+        .eq('workspace_id', workspaceId!)
+        .neq('payment_status', 'cancelado');
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   return useMemo(() => {
     const start = startOfMonth(month);
     const end = endOfMonth(month);
+    const monthKey = format(month, 'yyyy-MM');
 
-    const deliveredThisMonth = projects.filter(
-      (p) =>
-        p.is_delivered &&
-        p.delivered_at &&
-        isWithinInterval(new Date(p.delivered_at), { start, end }),
-    );
+    // Mês de competência: competence_month manual, senão mês da entrega
+    const deliveredThisMonth = projects.filter((p) => {
+      if (!p.is_delivered) return false;
+      const comp = (p as any).competence_month as string | null | undefined;
+      if (comp) return comp.slice(0, 7) === monthKey;
+      return !!p.delivered_at && isWithinInterval(new Date(p.delivered_at), { start, end });
+    });
     const deliveredIds = new Set(deliveredThisMonth.map((p) => p.id));
 
     const nameOf = (userId: string | null) => {
@@ -142,6 +165,25 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
         deliveredAt: w.completed_at || w.requested_at,
       }));
 
+    // Linhas de custo detalhadas dos projetos do mês (tratadas como "extra")
+    for (const cl of costLines as any[]) {
+      if (!deliveredIds.has(cl.project_id) || !(Number(cl.actual_amount) > 0)) continue;
+      const proj = deliveredThisMonth.find((p) => p.id === cl.project_id)!;
+      extraRows.push({
+        key: `costline:${cl.id}`,
+        type: 'extra',
+        projectId: proj.id,
+        projectCode: proj.project_code || proj.id.slice(0, 8).toUpperCase(),
+        projectName: cl.description ? `${proj.name} — ${cl.description}` : proj.name,
+        editorId: null,
+        editorName: '—',
+        phase: 'extra',
+        amount: Number(cl.actual_amount),
+        status: cl.payment_status || 'pendente',
+        deliveredAt: proj.delivered_at ?? null,
+      });
+    }
+
     const settlements = [...editorRows, ...extraRows, ...workLogRows];
 
 
@@ -206,5 +248,5 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
       byEditor,
       settlements,
     };
-  }, [projects, teamPayments, allProjectCosts, members, workLogs, month]);
+  }, [projects, teamPayments, allProjectCosts, members, workLogs, costLines, month]);
 }
