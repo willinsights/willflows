@@ -26,9 +26,9 @@ export function PageHeader({
     <div className={cn('mb-6', className)}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+           <h1 className="min-w-0 break-words text-2xl font-bold">{title}</h1>
           {description && (
-            <p className="text-sm text-muted-foreground mt-1">{description}</p>
+             <p className="min-w-0 break-words text-sm text-muted-foreground mt-1">{description}</p>
           )}
         </div>
         {actions && (

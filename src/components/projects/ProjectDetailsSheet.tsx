@@ -594,34 +594,27 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="right" className="w-full sm:max-w-[66vw] p-0 flex flex-col">
-          <SheetHeader className="px-6 py-5 border-b border-border/60 shrink-0 bg-card/80 backdrop-blur-sm">
-            <SheetTitle className="flex items-center justify-between pr-8">
+           <SheetHeader className="px-4 sm:px-6 py-5 border-b border-border/60 shrink-0 bg-card/80 backdrop-blur-sm">
+             <SheetTitle className="flex min-w-0 items-start gap-3 pr-8">
               {isEditing ? (
                 <Input 
                   value={editForm.name} 
                   onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="text-lg font-semibold max-w-md"
+                   className="min-w-0 flex-1 text-lg font-semibold"
                   placeholder="Nome do projeto"
                 />
               ) : (
-                <span className="truncate max-w-md text-lg font-semibold">{project.name}</span>
+                 <span className="min-w-0 flex-1 break-words text-left text-lg font-semibold">{project.name}</span>
               )}
-              <Badge className={currentPriority?.color}>
+               <Badge className={cn('shrink-0 mt-0.5', currentPriority?.color)}>
                 {currentPriority?.label}
               </Badge>
             </SheetTitle>
           </SheetHeader>
 
           <Tabs defaultValue="details" className="flex-1 flex flex-col min-h-0">
-            <TabsList
-              className={cn(
-                "grid w-full shrink-0 mx-6 mt-4",
-                showVideoProductionTab
-                  ? (canViewOwnFinancials ? "grid-cols-7" : "grid-cols-6")
-                  : (canViewOwnFinancials ? "grid-cols-6" : "grid-cols-5")
-              )}
-              style={{ width: 'calc(100% - 48px)' }}
-            >
+             <div className="min-w-0 shrink-0 px-4 sm:px-6 mt-4 overflow-x-auto scrollbar-hide">
+               <TabsList className="flex w-max min-w-full justify-start">
               <TabsTrigger value="details">Detalhes</TabsTrigger>
               <TabsTrigger value="checklist">Checklist</TabsTrigger>
               <TabsTrigger value="timeline">Timeline</TabsTrigger>
@@ -629,9 +622,10 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
               <TabsTrigger value="tempo">Tempo</TabsTrigger>
               {canViewOwnFinancials && <TabsTrigger value="financial">Financeiro</TabsTrigger>}
               {showVideoProductionTab && <TabsTrigger value="video">Review Studio</TabsTrigger>}
-            </TabsList>
+               </TabsList>
+             </div>
 
-            <ScrollArea className="flex-1 px-6">
+             <ScrollArea className="min-w-0 flex-1 px-4 sm:px-6">
               <TabsContent value="details" className="space-y-4 py-4">
                 {isEditing ? (
                   <EditModeContent 
@@ -763,8 +757,8 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
           </Tabs>
 
           {/* Footer Actions */}
-          <div className="flex justify-between items-center gap-3 px-6 py-4 border-t border-border/60 shrink-0 bg-card/80 backdrop-blur-sm">
-            <div className="flex gap-2">
+           <div className="flex gap-3 px-4 sm:px-6 py-4 border-t border-border/60 shrink-0 bg-card/80 backdrop-blur-sm overflow-x-auto scrollbar-hide">
+             <div className="flex shrink-0 gap-2">
               <Button variant="destructive" size="sm" onClick={() => setShowDeleteDialog(true)}>
                 <Trash2 className="h-4 w-4 mr-1" />
                 Apagar
@@ -779,7 +773,7 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
               </Button>
             </div>
             
-            <div className="flex gap-2">
+             <div className="flex shrink-0 gap-2 ml-auto">
               {isEditing ? (
                 <>
                   <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}>

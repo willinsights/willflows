@@ -1,5 +1,7 @@
 # Roadmap — pendências da auditoria
 
+- [x] Corrigir títulos e abas sobrepostos em telas pequenas (janela do projeto e cabeçalhos do app)
+
 - [x] 1. Vista "Hoje"
 - [x] 2. Zona de ação no Dashboard
 - [x] 3. Glossário (Finalizados→Entregues, Relatório de Atividade→Atividade da equipa)

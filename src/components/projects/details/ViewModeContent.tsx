@@ -64,11 +64,11 @@ export function ViewModeContent({
   return (
     <>
       <div className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight">{project.name}</h1>
+         <h1 className="text-xl font-semibold break-words">{project.name}</h1>
         <Badge variant="outline" className="text-xs">{itemTypeLabels[project.item_type || 'projeto_completo']}</Badge>
       </div>
 
-      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
         <InfoRow label="Cliente" value={project.clients?.name} />
         <InfoRow label="Tipo" value={
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -106,9 +106,9 @@ export function ViewModeContent({
         <InfoRow label="Resp. Edição" value={
           <AvatarGroup userIds={responsaveisEdicao} members={workspaceMembers} />
         } />
-        <div className="flex items-center py-1.5 col-span-2">
+         <div className="flex min-w-0 items-center py-1.5 sm:col-span-2">
           <span className="w-28 text-sm font-medium shrink-0">ID</span>
-          <span className="text-sm font-mono text-primary">{project.project_code || '—'}</span>
+           <span className="min-w-0 break-all text-sm font-mono text-primary">{project.project_code || '—'}</span>
         </div>
       </div>
 
@@ -144,12 +144,12 @@ export function TabLoadingFallback() {
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-center py-1.5">
-      <span className="w-28 text-sm font-medium shrink-0">{label}</span>
+     <div className="flex min-w-0 items-center gap-2 py-1.5">
+       <span className="w-28 text-sm font-medium shrink-0">{label}</span>
       {typeof value === 'string' ? (
-        <span className="text-sm text-muted-foreground truncate">{value || '—'}</span>
+         <span className="min-w-0 break-words text-sm text-muted-foreground">{value || '—'}</span>
       ) : (
-        value
+         <div className="min-w-0 flex-1">{value}</div>
       )}
     </div>
   );
