@@ -39,11 +39,15 @@ const typeLabels: Record<string, string> = {
   foto_video: 'Foto + Vídeo'
 };
 import { CompetenceMonthSelect } from '@/components/financeiro/CompetenceMonthSelect';
+import { fetchAllRows } from '@/lib/fetch-all';
+import { getProjectCost } from '@/lib/finance/financialEngine';
 
 export default function Finalizados() {
   const {
-    projects
+    projects,
+    refresh: refreshProjects
   } = useFilteredProjects();
+  const { currentWorkspace } = useWorkspace();
   const {
     clients
   } = useClients();
@@ -78,33 +82,60 @@ export default function Finalizados() {
   }>>({});
   const { formatCurrency } = useFormatCurrency();
 
-  // Fetch project teams for all completed projects
+  // Cost lines per project (single profit rule: includes project_cost_lines)
+  const [costLinesByProject, setCostLinesByProject] = useState<Record<string, number>>({});
   useEffect(() => {
+    if (!canViewAllFinancials || !currentWorkspace?.id) return;
+    fetchAllRows(() =>
+      supabase
+        .from('project_cost_lines')
+        .select('project_id, actual_amount, payment_status')
+        .eq('workspace_id', currentWorkspace.id)
+        .neq('payment_status', 'cancelado')
+    ).then((rows) => {
+      const map: Record<string, number> = {};
+      rows.forEach((r) => {
+        if (!r.project_id) return;
+        map[r.project_id] = (map[r.project_id] || 0) + (Number(r.actual_amount) || 0);
+      });
+      setCostLinesByProject(map);
+    }).catch(() => setCostLinesByProject({}));
+  }, [canViewAllFinancials, currentWorkspace?.id, projects]);
+  const getCost = (project: typeof projects[number]) =>
+    getProjectCost({ ...project, cost_lines_total: costLinesByProject[project.id] || 0 } as Parameters<typeof getProjectCost>[0]);
+
+  // Fetch project teams (names only). Users without payment access can only read their own
+  // project_team rows, so they use the roster RPC which returns all members without values.
+  useEffect(() => {
+    let cancelled = false;
     const fetchProjectTeams = async () => {
-      const deliveredProjectIds = projects.filter(p => p.is_delivered).map(p => p.id);
-      if (deliveredProjectIds.length === 0) return;
-      const {
-        data
-      } = await supabase.from('project_team').select('project_id, user_id, phase').in('project_id', deliveredProjectIds);
-      if (data) {
-        const teamsMap: Record<string, {
-          captacao: string[];
-          edicao: string[];
-        }> = {};
-        data.forEach(item => {
-          if (!teamsMap[item.project_id]) {
-            teamsMap[item.project_id] = {
-              captacao: [],
-              edicao: []
-            };
-          }
-          teamsMap[item.project_id][item.phase].push(item.user_id);
-        });
-        setProjectTeams(teamsMap);
+      const ids = projects.filter(p => p.is_delivered).map(p => p.id);
+      if (ids.length === 0) return;
+      const rows: { project_id: string; user_id: string | null; phase: string }[] = [];
+      if (canViewAllFinancials) {
+        for (let i = 0; i < ids.length; i += 100) {
+          const { data } = await supabase.from('project_team').select('project_id, user_id, phase').in('project_id', ids.slice(i, i + 100));
+          if (data) rows.push(...data);
+        }
+      } else {
+        for (let i = 0; i < ids.length; i += 10) {
+          const chunk = ids.slice(i, i + 10);
+          const results = await Promise.all(chunk.map(id => supabase.rpc('get_project_team_roster', { _project_id: id })));
+          results.forEach((r, idx) => (r.data || []).forEach(m => rows.push({ project_id: chunk[idx], user_id: m.user_id, phase: m.phase })));
+        }
       }
+      if (cancelled) return;
+      const teamsMap: Record<string, { captacao: string[]; edicao: string[] }> = {};
+      rows.forEach(item => {
+        if (!item.user_id || (item.phase !== 'captacao' && item.phase !== 'edicao')) return;
+        if (!teamsMap[item.project_id]) teamsMap[item.project_id] = { captacao: [], edicao: [] };
+        teamsMap[item.project_id][item.phase].push(item.user_id);
+      });
+      setProjectTeams(teamsMap);
     };
     fetchProjectTeams();
-  }, [projects]);
+    return () => { cancelled = true; };
+  }, [projects, canViewAllFinancials]);
   const getMemberInfo = (userId: string) => {
     const member = workspaceMembers.find(m => m.user_id === userId);
     return member || null;
@@ -232,7 +263,7 @@ export default function Finalizados() {
     
     const data = completedProjects.map(project => {
       const team = projectTeams[project.id] || { captacao: [], edicao: [] };
-      const custo = (project.custo_captacao || 0) + (project.custo_edicao || 0) + (project.custos_extras || 0);
+      const custo = getCost(project);
       const lucro = (project.agreed_value || 0) - custo;
       
       const competence = project.competence_month
@@ -285,7 +316,7 @@ export default function Finalizados() {
     let totalCostsVal = 0;
     completedProjects.forEach(project => {
       totalRevenueVal += (project.agreed_value || 0);
-      totalCostsVal += (project.custo_captacao || 0) + (project.custo_edicao || 0) + (project.custos_extras || 0);
+      totalCostsVal += getCost(project);
     });
     const totalProfit = totalRevenueVal - totalCostsVal;
 
@@ -370,7 +401,7 @@ export default function Finalizados() {
           <tbody>
             ${completedProjects.map(project => {
               const team = projectTeams[project.id] || { captacao: [], edicao: [] };
-              const custo = (project.custo_captacao || 0) + (project.custo_edicao || 0) + (project.custos_extras || 0);
+              const custo = getCost(project);
               const lucro = (project.agreed_value || 0) - custo;
               return `
               <tr>
@@ -703,7 +734,7 @@ export default function Finalizados() {
       </div>
 
       {/* Project Details Sheet */}
-      {selectedProject && <ProjectDetailsSheet project={selectedProject} open={!!selectedProjectId} onOpenChange={open => !open && setSelectedProjectId(null)} onUpdate={() => {}} />}
+      {selectedProject && <ProjectDetailsSheet project={selectedProject} open={!!selectedProjectId} onOpenChange={open => !open && setSelectedProjectId(null)} onUpdate={refreshProjects} onSilentUpdate={refreshProjects} />}
 
       {/* Upgrade Alert */}
       <UpgradeAlert isOpen={upgradeAlert.isOpen} onClose={closeUpgradeAlert} feature={upgradeAlert.feature} requiredPlan={upgradeAlert.requiredPlan} />
