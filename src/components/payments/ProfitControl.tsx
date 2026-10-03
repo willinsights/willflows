@@ -79,14 +79,15 @@ export function ProfitControl({
     const fetchProjects = async () => {
       if (!currentWorkspace?.id) return;
       setLoading(true);
+      // Fórmula única de lucro: vista do servidor (equipa + extras + linhas de custo)
       const { data } = await supabase
-        .from('projects')
-        .select('id, name, project_code, agreed_value, custo_captacao, custo_edicao, custos_extras, client_payment_status, client_id, delivery_date, delivered_at, is_delivered, competence_month, clients(name)')
+        .from('v_project_profit' as any)
+        .select('id, name, project_code, agreed_value, custo_captacao, custo_edicao, custos_extras, cost_lines_total, client_payment_status, client_id, client_name, delivery_date, delivered_at, is_delivered, competence_month')
         .eq('workspace_id', currentWorkspace.id)
         .eq('is_delivered', true);
 
       if (data) {
-        setProjects(data as ProjectProfit[]);
+        setProjects((data as any[]).map(p => ({ ...p, clients: p.client_name ? { name: p.client_name } : null })) as ProjectProfit[]);
       }
       setLoading(false);
     };

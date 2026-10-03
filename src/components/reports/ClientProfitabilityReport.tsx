@@ -38,9 +38,10 @@ export function ClientProfitabilityReport() {
     if (!currentWorkspace?.id) return;
 
     const fetchData = async () => {
+      // Fórmula única de lucro: vista do servidor (equipa + extras + linhas de custo)
       const { data: projects } = await supabase
-        .from('projects')
-        .select('id, client_id, agreed_value, custo_captacao, custo_edicao, custos_extras, is_delivered, delivered_at, clients(name)')
+        .from('v_project_profit' as any)
+        .select('id, client_id, client_name, agreed_value, total_cost, is_delivered, delivered_at')
         .eq('workspace_id', currentWorkspace.id)
         .eq('is_delivered', true);
 
@@ -48,9 +49,9 @@ export function ClientProfitabilityReport() {
 
       const byClient: Record<string, ClientProfitability> = {};
 
-      projects.forEach((p: any) => {
+      (projects as any[]).forEach((p: any) => {
         if (!p.client_id) return;
-        const name = p.clients?.name || 'Desconhecido';
+        const name = p.client_name || 'Desconhecido';
         if (!byClient[p.client_id]) {
           byClient[p.client_id] = {
             clientId: p.client_id, name,
@@ -60,7 +61,7 @@ export function ClientProfitabilityReport() {
         }
         const c = byClient[p.client_id];
         const revenue = p.agreed_value || 0;
-        const costs = (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0);
+        const costs = Number(p.total_cost) || 0;
         c.totalRevenue += revenue;
         c.totalCosts += costs;
         c.projectCount += 1;
