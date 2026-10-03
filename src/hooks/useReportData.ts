@@ -62,6 +62,7 @@ export function useDateRange(periodType: PeriodType, customRange: { from: Date |
  * for consistent numbers across Dashboard, Relatórios and Pagamentos.
  */
 export function useMonthlyData(projects: any[], dateRange: DateRange): MonthlyReportData[] {
+  const { workLogs } = useWorkLogs();
   return useMemo(() => {
     const diffTime = Math.abs(dateRange.end.getTime() - dateRange.start.getTime());
     const periodMonths = Math.max(1, Math.ceil(Math.ceil(diffTime / (1000 * 60 * 60 * 24)) / 30));
@@ -105,7 +106,7 @@ export function useMonthlyData(projects: any[], dateRange: DateRange): MonthlyRe
       });
     }
     return months;
-  }, [projects, dateRange]);
+  }, [projects, dateRange, workLogs]);
 }
 
 export function useTopClients(projects: any[]): TopClientData[] {
