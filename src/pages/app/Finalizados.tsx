@@ -290,7 +290,7 @@ export default function Finalizados() {
     });
 
     await doExport({
-      title: 'Projetos Finalizados',
+      title: 'Projetos Entregues',
       subtitle: currentWorkspace?.name || 'WillFlow',
       headers,
       data,
@@ -441,7 +441,7 @@ export default function Finalizados() {
   return <div className="p-6 space-y-6">
       {/* Header */}
       <PageHeader
-        title="Projetos Finalizados"
+        title="Projetos Entregues"
         description="Histórico completo de projetos concluídos"
         actions={
           <>
