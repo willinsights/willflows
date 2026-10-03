@@ -10,7 +10,19 @@ import {
 } from '@/lib/finance/financialEngine';
 import type { FinancialProject } from '@/lib/finance/types';
 
+export interface CollaboratorForecastItem {
+  id: string;
+  projectName: string;
+  projectCode: string;
+  amount: number;
+  status: 'pago' | 'a_receber' | 'em_curso';
+  date: string | null;
+}
+
 export interface CollaboratorForecastData {
+  items: CollaboratorForecastItem[];
+  /** Entregue em meses anteriores e ainda não pago */
+  olderPendingAmount: number;
   pendingAmount: number;
   paidAmount: number;
   totalAmount: number;
@@ -26,6 +38,8 @@ export function useCollaboratorForecast(selectedMonth: Date): CollaboratorForeca
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
   const [data, setData] = useState<CollaboratorForecastData>({
+    items: [],
+    olderPendingAmount: 0,
     pendingAmount: 0,
     paidAmount: 0,
     totalAmount: 0,
@@ -51,7 +65,7 @@ export function useCollaboratorForecast(selectedMonth: Date): CollaboratorForeca
         .from('project_team')
         .select(`
           id, project_id, payment_amount, payment_status, phase,
-          projects!inner(delivery_date, shoot_date, is_delivered, workspace_id, created_at)
+          projects!inner(id, name, project_code, delivery_date, delivered_at, shoot_date, is_delivered, workspace_id, created_at)
         `)
         .eq('user_id', user.id)
         .eq('projects.workspace_id', currentWorkspace.id);
@@ -64,13 +78,18 @@ export function useCollaboratorForecast(selectedMonth: Date): CollaboratorForeca
 
       let prevPending = 0;
       let prevPaid = 0;
+      let olderPendingAmount = 0;
+      const items: CollaboratorForecastItem[] = [];
 
       teamPayments?.forEach((payment: any) => {
         const project = payment.projects as Partial<FinancialProject> | null;
         if (!project) return;
 
-        // Use the shared anchor date rule (delivery_date → shoot_date → created_at)
-        const anchorDate = getAnchorDate(project as FinancialProject);
+        // Entregue: conta no mês da entrega. Não entregue: data prevista (delivery_date → shoot_date → created_at)
+        const p = project as any;
+        const anchorDate = p.is_delivered && p.delivered_at
+          ? new Date(p.delivered_at)
+          : getAnchorDate(project as FinancialProject);
         if (!anchorDate) return;
 
         const paymentAmount = payment.payment_amount || 0;
@@ -85,11 +104,23 @@ export function useCollaboratorForecast(selectedMonth: Date): CollaboratorForeca
         if (inSelected || rolloverSelected) {
           if (isPaid) paidAmount += paymentAmount;
           else pendingAmount += paymentAmount;
+          items.push({
+            id: payment.id,
+            projectName: p.name || 'Projeto',
+            projectCode: p.project_code || String(payment.project_id).slice(0, 8).toUpperCase(),
+            amount: paymentAmount,
+            status: isPaid ? 'pago' : p.is_delivered ? 'a_receber' : 'em_curso',
+            date: p.delivered_at || p.delivery_date || null,
+          });
 
           if (!projectIds.has(payment.project_id)) {
             projectIds.add(payment.project_id);
             projectCount++;
           }
+        }
+
+        if (p.is_delivered && !isPaid && isBefore(anchorMonthStart, selectedMonthStart)) {
+          olderPendingAmount += paymentAmount;
         }
 
         // Previous month bucket: same logic vs. previous month
@@ -106,7 +137,10 @@ export function useCollaboratorForecast(selectedMonth: Date): CollaboratorForeca
       const totalAmount = pendingAmount + paidAmount;
       const prevTotal = prevPending + prevPaid;
 
+      items.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
       setData({
+        items,
+        olderPendingAmount,
         pendingAmount,
         paidAmount,
         totalAmount,
