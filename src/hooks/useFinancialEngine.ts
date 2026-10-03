@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useWorkLogs } from '@/hooks/useWorkLogs';
 import { subMonths } from 'date-fns';
 import {
   getMonthlyMetrics,
@@ -102,25 +103,27 @@ export function useFinancialEngine(
     },
   });
 
+  const { workLogs } = useWorkLogs();
+
   const teamPayments = viewMode === 'CAIXA' ? (teamQuery.data ?? []) : [];
 
   // Memoize derived calculations so they recompute only when inputs change
   const metrics = useMemo(
-    () => getMonthlyMetrics(projects, viewMode, selectedMonth, teamPayments, costLinePayments),
-    [projects, viewMode, selectedMonth, teamPayments, costLinePayments],
+    () => getMonthlyMetrics(projects, viewMode, selectedMonth, teamPayments, costLinePayments, workLogs),
+    [projects, viewMode, selectedMonth, teamPayments, costLinePayments, workLogs],
   );
 
   const previousMetrics = useMemo(() => {
     const previousMonth = subMonths(selectedMonth, 1);
-    return getMonthlyMetrics(projects, viewMode, previousMonth, teamPayments, costLinePayments);
-  }, [projects, viewMode, selectedMonth, teamPayments, costLinePayments]);
+    return getMonthlyMetrics(projects, viewMode, previousMonth, teamPayments, costLinePayments, workLogs);
+  }, [projects, viewMode, selectedMonth, teamPayments, costLinePayments, workLogs]);
 
   const summary = useMemo(() => getMonthlySummary(projects, selectedMonth), [projects, selectedMonth]);
 
   const timeSeries = useMemo(() => {
     const fromMonth = subMonths(selectedMonth, 5);
-    return getTimeSeries(projects, viewMode, fromMonth, selectedMonth, teamPayments, costLinePayments);
-  }, [projects, viewMode, selectedMonth, teamPayments, costLinePayments]);
+    return getTimeSeries(projects, viewMode, fromMonth, selectedMonth, teamPayments, costLinePayments, workLogs);
+  }, [projects, viewMode, selectedMonth, teamPayments, costLinePayments, workLogs]);
 
   const revenueChange = calculateChange(metrics.revenue, previousMetrics.revenue);
   const costChange = calculateChange(metrics.cost, previousMetrics.cost);

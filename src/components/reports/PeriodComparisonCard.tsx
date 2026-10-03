@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowUpRight, ArrowDownRight, Minus, GitCompare } from 'lucide-react';
 import { useFormatCurrency } from '@/hooks/useFormatCurrency';
+import { useWorkLogs } from '@/hooks/useWorkLogs';
 import { getMonthlyMetrics } from '@/lib/finance/financialEngine';
 import type { FinancialProject } from '@/lib/finance/types';
 import { cn } from '@/lib/utils';
@@ -30,6 +31,7 @@ function ChangeIndicator({ value, suffix = '' }: { value: number; suffix?: strin
 export function PeriodComparisonCard({ projects }: PeriodComparisonCardProps) {
   const { formatCurrency } = useFormatCurrency();
 
+  const { workLogs } = useWorkLogs();
   const comparison = useMemo(() => {
     const now = new Date();
     const currentMonth = now;
@@ -53,8 +55,8 @@ export function PeriodComparisonCard({ projects }: PeriodComparisonCardProps) {
       competence_month: p.competence_month,
     }));
 
-    const current = getMonthlyMetrics(mapped, 'REALIZADO', currentMonth);
-    const previous = getMonthlyMetrics(mapped, 'REALIZADO', previousMonth);
+    const current = getMonthlyMetrics(mapped, 'REALIZADO', currentMonth, [], [], workLogs);
+    const previous = getMonthlyMetrics(mapped, 'REALIZADO', previousMonth, [], [], workLogs);
 
     const revenueChange = previous.revenue > 0 ? ((current.revenue - previous.revenue) / previous.revenue * 100) : 0;
     const costChange = previous.cost > 0 ? ((current.cost - previous.cost) / previous.cost * 100) : 0;
@@ -74,7 +76,7 @@ export function PeriodComparisonCard({ projects }: PeriodComparisonCardProps) {
       previousMargin,
       marginChange: currentMargin - previousMargin,
     };
-  }, [projects]);
+  }, [projects, workLogs]);
 
   const rows = [
     { label: 'Receita', current: comparison.current.revenue, previous: comparison.previous.revenue, change: comparison.revenueChange },

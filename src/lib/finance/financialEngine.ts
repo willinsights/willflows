@@ -196,15 +196,35 @@ export function getMonthlyMetrics(
   month: Date,
   teamPayments: TeamPayment[] = [],
   costLinePayments: CostLinePayment[] = [],
+  workLogs: WorkLogCost[] = [],
 ): MonthlyMetrics {
   switch (viewMode) {
     case 'REALIZADO':
-      return getRealizadoMetrics(projects, month);
+      return addWorkLogCosts(getRealizadoMetrics(projects, month), workLogs, month);
     case 'PREVISAO':
-      return getPrevisaoMetrics(projects, month);
+      return addWorkLogCosts(getPrevisaoMetrics(projects, month), workLogs, month);
     case 'CAIXA':
       return getCaixaMetrics(projects, teamPayments, costLinePayments, month);
   }
+}
+
+/** Tarefas (work_logs) com valor contam como custo no mês em que foram concluídas (ou pedidas). */
+export interface WorkLogCost {
+  amount: number | null;
+  completed_at: string | null;
+  requested_at: string | null;
+}
+
+export function getWorkLogCostInMonth(workLogs: WorkLogCost[], month: Date): number {
+  return workLogs
+    .filter(w => isInMonth(w.completed_at || w.requested_at, month))
+    .reduce((s, w) => s + Number(w.amount || 0), 0);
+}
+
+function addWorkLogCosts(m: MonthlyMetrics, workLogs: WorkLogCost[], month: Date): MonthlyMetrics {
+  const extra = getWorkLogCostInMonth(workLogs, month);
+  if (!extra) return m;
+  return { ...m, cost: m.cost + extra, profit: m.profit - extra };
 }
 
 export function getTimeSeries(
@@ -214,13 +234,14 @@ export function getTimeSeries(
   toMonth: Date,
   teamPayments: TeamPayment[] = [],
   costLinePayments: CostLinePayment[] = [],
+  workLogs: WorkLogCost[] = [],
 ): TimeSeriesPoint[] {
   const points: TimeSeriesPoint[] = [];
   let current = startOfMonth(fromMonth);
   const end = startOfMonth(toMonth);
 
   while (current <= end) {
-    const metrics = getMonthlyMetrics(projects, viewMode, current, teamPayments, costLinePayments);
+    const metrics = getMonthlyMetrics(projects, viewMode, current, teamPayments, costLinePayments, workLogs);
     points.push({
       month: format(current, 'MMM', { locale: pt }),
       monthDate: new Date(current),

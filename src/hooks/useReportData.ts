@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, startOfYear } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { useWorkLogs } from '@/hooks/useWorkLogs';
 import { getMonthlyMetrics, getProjectCost, getProjectRevenue } from '@/lib/finance/financialEngine';
 import type { FinancialProject } from '@/lib/finance/types';
 
@@ -61,6 +62,7 @@ export function useDateRange(periodType: PeriodType, customRange: { from: Date |
  * for consistent numbers across Dashboard, Relatórios and Pagamentos.
  */
 export function useMonthlyData(projects: any[], dateRange: DateRange): MonthlyReportData[] {
+  const { workLogs } = useWorkLogs();
   return useMemo(() => {
     const diffTime = Math.abs(dateRange.end.getTime() - dateRange.start.getTime());
     const periodMonths = Math.max(1, Math.ceil(Math.ceil(diffTime / (1000 * 60 * 60 * 24)) / 30));
@@ -91,7 +93,7 @@ export function useMonthlyData(projects: any[], dateRange: DateRange): MonthlyRe
       if (end < dateRange.start) continue;
 
       // Delegate to financial engine — single source of truth
-      const metrics = getMonthlyMetrics(mappedProjects, 'REALIZADO', date);
+      const metrics = getMonthlyMetrics(mappedProjects, 'REALIZADO', date, [], [], workLogs);
 
       months.push({
         month: format(date, 'MMM yy', { locale: pt }),
@@ -104,7 +106,7 @@ export function useMonthlyData(projects: any[], dateRange: DateRange): MonthlyRe
       });
     }
     return months;
-  }, [projects, dateRange]);
+  }, [projects, dateRange, workLogs]);
 }
 
 export function useTopClients(projects: any[]): TopClientData[] {
