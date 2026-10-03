@@ -63,7 +63,7 @@ export default function Relatorios() {
   const dateRange = useDateRange(periodType, customDateRange);
   const monthlyData = useMonthlyData(projects, dateRange);
   const topClients = useTopClients(projects);
-  const summaryMetrics = useSummaryMetrics(projects, clients);
+  const summaryMetrics = useSummaryMetrics(projects, clients, monthlyData);
   const { projectsByStatus, projectsByPriority } = useProjectDistribution(projects);
 
   const deliveredProjectIds = useMemo(() => projects.filter(p => p.is_delivered).map(p => p.id), [projects]);
