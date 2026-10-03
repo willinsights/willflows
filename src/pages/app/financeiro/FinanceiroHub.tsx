@@ -1031,29 +1031,6 @@ export default function FinanceiroHub() {
 
       <GlobalProfitView closings={closings} items={items} />
 
-      <Collapsible open={detailOpen} onOpenChange={setDetailOpen}>
-        <CollapsibleTrigger asChild>
-          <Button variant="outline" className="w-full justify-between">
-            <span className="flex items-center gap-2"><FileText className="h-4 w-4" /> Ver detalhe (vistas antigas)</span>
-            {detailOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-3 space-y-2 text-sm">
-          <p className="text-muted-foreground">Acede às vistas granulares (mantidas para consulta):</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {[
-              { to: '/app/financeiro/legacy/visao-geral', label: 'Visão Geral' },
-              { to: '/app/financeiro/legacy/receitas', label: 'Receitas por projeto' },
-              { to: '/app/financeiro/legacy/custos', label: 'Custos de equipa' },
-              { to: '/app/financeiro/legacy/custos-extras', label: 'Custos extras' },
-              { to: '/app/financeiro/legacy/lucro', label: 'Lucro por projeto' },
-              { to: '/app/financeiro/legacy/fecho', label: 'Fecho mensal (antigo)' },
-            ].map((l) => (
-              <a key={l.to} href={l.to} className="rounded-md border px-3 py-2 hover:bg-muted/40 transition-colors">{l.label}</a>
-            ))}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
     </div>
   );
 }
