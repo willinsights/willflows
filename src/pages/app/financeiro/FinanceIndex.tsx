@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import FinanceiroHub from './FinanceiroHub';
+import { ClosedMonthsCard } from '@/components/financeiro/ClosedMonthsCard';
 import { FINANCE_TABS, type FinanceTab } from './tabs';
 
 const FinanceVisao = lazy(() => import('./FinanceVisao'));
@@ -24,7 +25,7 @@ export default function FinanceIndex() {
   return (
     <Suspense fallback={<Skeleton className="h-96 w-full rounded-xl" />}>
       {tab === 'visao'         && <FinanceVisao />}
-      {tab === 'fechos'        && <FinanceiroHub />}
+      {tab === 'fechos'        && <div className="space-y-4"><ClosedMonthsCard /><FinanceiroHub /></div>}
       {tab === 'movimentos'    && <Movimentos />}
       {tab === 'colaboradores' && <Colaboradores />}
       {tab === 'relatorios'    && <Relatorios />}
