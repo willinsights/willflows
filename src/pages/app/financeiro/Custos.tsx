@@ -6,7 +6,6 @@ import { useTeamPayments } from '@/hooks/usePayments';
 import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 import { usePaymentsData } from '@/hooks/usePaymentsData';
 import { FreelancerPaymentsControl, type ProjectTeamPayment } from '@/components/payments/FreelancerPaymentsControl';
-import { PayablesByCollaborator } from '@/components/payments/PayablesByCollaborator';
 
 export default function Custos() {
   const { clients } = useClients();
@@ -22,22 +21,13 @@ export default function Custos() {
   const projectsList = useMemo(() => projects.map(p => ({ id: p.id, name: p.name, project_code: p.project_code, client_id: p.client_id, delivery_date: p.delivery_date, delivered_at: p.delivered_at, is_delivered: p.is_delivered, created_at: p.created_at })), [projects]);
 
   return (
-    <div className="space-y-6">
-      <PayablesByCollaborator
-        teamPayments={typedTeamPayments}
-        projects={projectsList}
-        members={membersList}
-        onStatusChange={handleFreelancerStatusChange}
-        formatCurrency={formatCurrency}
-      />
-      <FreelancerPaymentsControl
-        teamPayments={typedTeamPayments}
-        projects={projectsList}
-        members={membersList}
-        clients={clientsList}
-        onStatusChange={handleFreelancerStatusChange}
-        formatCurrency={formatCurrency}
-      />
-    </div>
+    <FreelancerPaymentsControl
+      teamPayments={typedTeamPayments}
+      projects={projectsList}
+      members={membersList}
+      clients={clientsList}
+      onStatusChange={handleFreelancerStatusChange}
+      formatCurrency={formatCurrency}
+    />
   );
 }
