@@ -855,6 +855,35 @@ export type Database = {
           },
         ]
       }
+      closed_months: {
+        Row: {
+          closed_at: string
+          closed_by: string | null
+          month: string
+          workspace_id: string
+        }
+        Insert: {
+          closed_at?: string
+          closed_by?: string | null
+          month: string
+          workspace_id: string
+        }
+        Update: {
+          closed_at?: string
+          closed_by?: string | null
+          month?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "closed_months_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       closing_items: {
         Row: {
           amount_snapshot: number
@@ -2391,6 +2420,44 @@ export type Database = {
           },
         ]
       }
+      payment_receipts: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string
+          file_path: string
+          id: string
+          note: string | null
+          workspace_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          created_by: string
+          file_path: string
+          id?: string
+          note?: string | null
+          workspace_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string
+          file_path?: string
+          id?: string
+          note?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_receipts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -2788,6 +2855,7 @@ export type Database = {
           payment_status: Database["public"]["Enums"]["payment_status"]
           phase: Database["public"]["Enums"]["kanban_phase"]
           project_id: string
+          receipt_id: string | null
           user_id: string | null
           workspace_id: string | null
         }
@@ -2802,6 +2870,7 @@ export type Database = {
           payment_status?: Database["public"]["Enums"]["payment_status"]
           phase: Database["public"]["Enums"]["kanban_phase"]
           project_id: string
+          receipt_id?: string | null
           user_id?: string | null
           workspace_id?: string | null
         }
@@ -2816,6 +2885,7 @@ export type Database = {
           payment_status?: Database["public"]["Enums"]["payment_status"]
           phase?: Database["public"]["Enums"]["kanban_phase"]
           project_id?: string
+          receipt_id?: string | null
           user_id?: string | null
           workspace_id?: string | null
         }
@@ -2839,6 +2909,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "v_project_profit"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_team_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "payment_receipts"
             referencedColumns: ["id"]
           },
           {
@@ -5745,6 +5822,10 @@ export type Database = {
         Args: { check_user_id: string }
         Returns: boolean
       }
+      is_month_closed: {
+        Args: { _at: string; _workspace_id: string }
+        Returns: boolean
+      }
       is_project_chat_in_user_workspace: {
         Args: { p_conversation_id: string; p_user_id: string }
         Returns: boolean
@@ -5814,6 +5895,7 @@ export type Database = {
         Args: { p_phase: string; p_positions: Json; p_workspace_id: string }
         Returns: undefined
       }
+      send_month_end_reminders: { Args: never; Returns: undefined }
       sign_contract_public: {
         Args: {
           _ip_address?: string
