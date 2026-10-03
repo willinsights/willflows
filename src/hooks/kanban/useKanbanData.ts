@@ -206,6 +206,7 @@ export function useKanbanData(phase: KanbanPhase) {
     };
     window.addEventListener('focus', triggerRefresh);
     window.addEventListener('online', triggerRefresh);
+    window.addEventListener('willflow:projects-changed', triggerRefresh);
     document.addEventListener('visibilitychange', onVisibility);
     const pollId = setInterval(triggerRefresh, 60_000);
 
@@ -213,6 +214,7 @@ export function useKanbanData(phase: KanbanPhase) {
       supabase.removeChannel(channel);
       window.removeEventListener('focus', triggerRefresh);
       window.removeEventListener('online', triggerRefresh);
+      window.removeEventListener('willflow:projects-changed', triggerRefresh);
       document.removeEventListener('visibilitychange', onVisibility);
       clearInterval(pollId);
     };
