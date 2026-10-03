@@ -128,24 +128,43 @@ export function useTopClients(projects: any[]): TopClientData[] {
   }, [projects]);
 }
 
-export function useSummaryMetrics(projects: any[], clients: any[]): SummaryMetrics {
+/**
+ * Summary cards for the selected period. When monthlyData is given, totals are the sum
+ * of the same engine months shown in the charts, so cards and charts always agree.
+ */
+export function useSummaryMetrics(projects: any[], clients: any[], monthlyData?: MonthlyReportData[]): SummaryMetrics {
   return useMemo(() => {
+    const activeClients = clients.filter((c: any) => c.is_active).length;
+    if (monthlyData) {
+      const totalRevenue = monthlyData.reduce((s, m) => s + m.receita, 0);
+      const totalCosts = monthlyData.reduce((s, m) => s + m.custos, 0);
+      const delivered = monthlyData.reduce((s, m) => s + m.projetos, 0);
+      const profit = monthlyData.reduce((s, m) => s + m.lucro, 0);
+      return {
+        totalRevenue,
+        totalCosts,
+        profit,
+        margin: totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0,
+        avgProjectValue: delivered > 0 ? totalRevenue / delivered : 0,
+        totalProjects: projects.length,
+        deliveredProjects: delivered,
+        activeClients,
+      };
+    }
     const deliveredProjects = projects.filter((p: any) => p.is_delivered);
     const totalRevenue = deliveredProjects.reduce((sum: number, p: any) => sum + getProjectRevenue(p), 0);
     const totalCosts = deliveredProjects.reduce((sum: number, p: any) => sum + getProjectCost(p), 0);
-    const avgProjectValue = deliveredProjects.length > 0 ? totalRevenue / deliveredProjects.length : 0;
-
     return {
       totalRevenue,
       totalCosts,
       profit: totalRevenue - totalCosts,
       margin: totalRevenue > 0 ? ((totalRevenue - totalCosts) / totalRevenue * 100) : 0,
-      avgProjectValue,
+      avgProjectValue: deliveredProjects.length > 0 ? totalRevenue / deliveredProjects.length : 0,
       totalProjects: projects.length,
       deliveredProjects: deliveredProjects.length,
-      activeClients: clients.filter((c: any) => c.is_active).length,
+      activeClients,
     };
-  }, [projects, clients]);
+  }, [projects, clients, monthlyData]);
 }
 
 export function useProjectDistribution(projects: any[]) {
