@@ -28,6 +28,7 @@ import { PerformanceMetricsCard } from '@/components/dashboard/PerformanceMetric
 import { PaymentAlertsWidget } from '@/components/dashboard/PaymentAlertsWidget';
 import { WorkspaceHealthWidget } from '@/components/dashboard/WorkspaceHealthWidget';
 import { AdvancedKPIWidget } from '@/components/dashboard/AdvancedKPIWidget';
+import { TodayActionZone } from '@/components/today/TodayActionZone';
 import { WelcomeWizard } from '@/components/onboarding/WelcomeWizard';
 import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist';
 import { useProductTour } from '@/hooks/useProductTour';
@@ -229,6 +230,11 @@ export default function Dashboard() {
         <OnboardingChecklist />
         <DashboardHeader currentTime={currentTime} />
 
+        <section className="space-y-4">
+          <ZoneTitle>O que fazer agora</ZoneTitle>
+          <TodayActionZone showPayables={showFinancialZone} />
+        </section>
+
         {/* Zone 1: Visão do mês */}
         <section className="space-y-4">
           <ZoneTitle>Visão do mês</ZoneTitle>
@@ -326,6 +332,11 @@ export default function Dashboard() {
       <motion.div variants={fadeUp}>
         <DashboardPageHeader currentTime={currentTime} />
       </motion.div>
+
+      <motion.section variants={fadeUp} className="space-y-4">
+        <ZoneTitle>O que fazer agora</ZoneTitle>
+        <TodayActionZone showPayables={showFinancialZone} />
+      </motion.section>
 
       {/* ============ ZONE 1: Visão do mês ============ */}
       <motion.section variants={fadeUp} className="space-y-4">
