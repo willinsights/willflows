@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, startOfYear } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { useWorkLogs } from '@/hooks/useWorkLogs';
 import { getMonthlyMetrics, getProjectCost, getProjectRevenue } from '@/lib/finance/financialEngine';
 import type { FinancialProject } from '@/lib/finance/types';
 
@@ -91,7 +92,7 @@ export function useMonthlyData(projects: any[], dateRange: DateRange): MonthlyRe
       if (end < dateRange.start) continue;
 
       // Delegate to financial engine — single source of truth
-      const metrics = getMonthlyMetrics(mappedProjects, 'REALIZADO', date);
+      const metrics = getMonthlyMetrics(mappedProjects, 'REALIZADO', date, [], [], workLogs);
 
       months.push({
         month: format(date, 'MMM yy', { locale: pt }),
