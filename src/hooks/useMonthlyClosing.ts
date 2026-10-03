@@ -161,8 +161,12 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
       .filter((r) => r.status === 'pago')
       .reduce((s, r) => s + r.amount, 0);
 
-    const captacaoCosts = deliveredThisMonth.reduce((s, p) => s + (p.custo_captacao || 0), 0);
-    const edicaoCosts = deliveredThisMonth.reduce((s, p) => s + (p.custo_edicao || 0), 0);
+    // Equipa do projeto é a fonte única de custo de pessoas: os campos do card
+    // só contam em projetos antigos sem equipa (evita contar duas vezes).
+    const projectsWithTeam = new Set(editorRows.map((r) => r.projectId));
+    const legacyProjects = deliveredThisMonth.filter((p) => !projectsWithTeam.has(p.id));
+    const captacaoCosts = legacyProjects.reduce((s, p) => s + (p.custo_captacao || 0), 0);
+    const edicaoCosts = legacyProjects.reduce((s, p) => s + (p.custo_edicao || 0), 0);
 
     const workLogsPayable = workLogRows.reduce((s, r) => s + r.amount, 0);
 

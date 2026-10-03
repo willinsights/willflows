@@ -5655,6 +5655,16 @@ export type Database = {
         Returns: number
       }
       get_plan_seat_limit: { Args: { p_plan: string }; Returns: number }
+      get_project_team_roster: {
+        Args: { _project_id: string }
+        Returns: {
+          external_name: string
+          id: string
+          is_external: boolean
+          phase: string
+          user_id: string
+        }[]
+      }
       get_project_time_summary: {
         Args: { p_project_id: string }
         Returns: Json
