@@ -102,7 +102,7 @@ function UnbilledPool({
   const selectedRows = filtered.filter((r) => selected[r.projectId]);
   const totalRevenue = selectedRows.reduce((s, r) => s + r.agreedValue, 0);
   const totalTeam = selectedRows.reduce(
-    (s, r) => s + r.teamPayments.reduce((a, t) => a + t.amount, 0),
+    (s, r) => s + r.teamPayments.reduce((a, t) => a + t.cost, 0),
     0,
   );
   const totalExtras = includeExtras ? selectedRows.reduce((s, r) => s + r.extras, 0) : 0;
@@ -240,7 +240,7 @@ function UnbilledPool({
                     <td className="p-2 text-right font-medium">{formatCurrency(r.agreedValue)}</td>
                     {mode === 'studio' && (
                       <td className="p-2 text-right text-muted-foreground">
-                        {formatCurrency(r.teamPayments.reduce((a, t) => a + t.amount, 0))}
+                        {formatCurrency(r.teamPayments.reduce((a, t) => a + t.cost, 0))}
                       </td>
                     )}
                     <td className={cn('p-2 text-right', includeExtras ? '' : 'text-muted-foreground/50 line-through')}>
@@ -636,10 +636,11 @@ function ClosingDetail({
       clientName,
       periodLabel: format(new Date(closing.created_at), "d 'de' MMMM 'de' yyyy", { locale: pt }),
       headers,
-      data: rows.map((r) => r.map((c) => String(c))),
+      // A linha TOTAL é calculada automaticamente pelo Excel
+      data: rows.slice(0, -1).map((r) => r.map((c) => String(c))),
       filename,
     });
-    toast({ title: 'Excel exportado', description: `${rows.length} registos.` });
+    toast({ title: 'Excel exportado', description: `${rows.length - 1} registos.` });
   };
 
   const handleExportPdf = async () => {
@@ -660,7 +661,7 @@ function ClosingDetail({
       data: rows.map((r) => ({
         cells: r.map((c, idx) => (idx === headers.length - 1 ? { value: String(c), className: 'positive' } : String(c))),
       })),
-      totalLabel: `Total: ${rows.length} registos`,
+      totalLabel: `Total: ${rows.length - 1} projetos`,
     });
 
     printPdf(html);
