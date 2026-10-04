@@ -10,3 +10,9 @@
 - [x] 6. Lembrete de fim de mês
 - [~] 7. Componentes gigantes: Configurações dividida; Calendário e Criar Projeto adiados (risco alto, ganho invisível)
 - [x] 8. Subscrições do chat: já filtradas por conversa/permissões; reações/leituras filtradas no cliente (sem coluna de conversa)
+
+## Custo (card) vs Pagamento
+- [ ] cost_amount em project_team + trigger + guard
+- [ ] Formulário da equipa com Custo e Pagamento
+- [ ] Fecho/Movimentos: Receita | Edição | Captação | Lucro | Meu total
+- [ ] A pagar ignora pagamento 0
