@@ -213,6 +213,25 @@ export function ProjectFinancialTab({
     }
   }, [toast, onTeamPaymentUpdate]);
 
+  // Custo que conta no card/lucro. Vazio (null) = usa o Pagamento.
+  const handleTeamMemberCostAmountChange = useCallback(async (
+    memberId: string,
+    amount: number | null
+  ) => {
+    try {
+      const { error } = await supabase
+        .from('project_team')
+        .update({ cost_amount: amount } as any)
+        .eq('id', memberId);
+      if (error) throw error;
+      toast({ title: 'Custo do card atualizado' });
+      onTeamPaymentUpdate();
+    } catch (error: any) {
+      toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
+      throw error;
+    }
+  }, [toast, onTeamPaymentUpdate]);
+
   // Handler for payment status changes (Select component)
   const handleTeamMemberPaymentStatusChange = async (
     memberId: string, 
@@ -382,15 +401,31 @@ export function ProjectFinancialTab({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <TeamMemberPaymentInput
-                    memberId={member.id}
-                    initialAmount={member.payment_amount}
-                    suggestedAmount={suggestedAmount}
-                    isManuallyEdited={isManuallyEdited}
-                    disabled={loading}
-                    onSave={handleTeamMemberPaymentAmountChange}
-                  />
+                <div className="flex items-end gap-2">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] text-muted-foreground">Custo (card)</span>
+                    <TeamMemberPaymentInput
+                      memberId={member.id}
+                      initialAmount={(member as any).cost_amount ?? null}
+                      suggestedAmount={0}
+                      isManuallyEdited={false}
+                      disabled={loading}
+                      placeholder={`= ${(member.payment_amount || 0).toFixed(2)}`}
+                      allowEmpty
+                      onSave={handleTeamMemberCostAmountChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] text-muted-foreground">Pagamento</span>
+                    <TeamMemberPaymentInput
+                      memberId={member.id}
+                      initialAmount={member.payment_amount}
+                      suggestedAmount={suggestedAmount}
+                      isManuallyEdited={isManuallyEdited}
+                      disabled={loading}
+                      onSave={handleTeamMemberPaymentAmountChange}
+                    />
+                  </div>
                   
                   <Select
                     value={member.payment_status}
