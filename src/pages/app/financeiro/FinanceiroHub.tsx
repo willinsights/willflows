@@ -36,6 +36,9 @@ import {
 } from '@/components/ui/accordion';
 
 import { useFormatCurrency } from '@/hooks/useFormatCurrency';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useUnbilledPool } from '@/hooks/useUnbilledPool';
 import { useClosings, type Closing, type ClosingItem } from '@/hooks/useClosings';
 import { usePaymentsData } from '@/hooks/usePaymentsData';
@@ -438,6 +441,22 @@ function ClosingDetail({
   const { clients } = useClients();
   const { projects } = useProjects();
   const { toast } = useToast();
+  const { currentWorkspace } = useWorkspace();
+  const wsId = currentWorkspace?.id;
+  const { data: costLines = [] } = useQuery({
+    queryKey: ['finance', 'engine-cost-lines', wsId, 'closing-detail'] as const,
+    enabled: !!wsId,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('project_cost_lines')
+        .select('project_id, actual_amount, payment_status')
+        .eq('workspace_id', wsId!)
+        .neq('payment_status', 'cancelado');
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   const closing = closings.find((c) => c.id === closingId);
   const its = useMemo(() => items.filter((i) => i.closing_id === closingId), [items, closingId]);
@@ -532,10 +551,11 @@ function ClosingDetail({
 
   // ---- Build unified flat list: one row per project ----
   const buildFlatExport = () => {
+    // Colunas: custo do card (cost_amount ?? payment_amount, via projects.custo_*).
+    // Meu total = Receita − Edição; Lucro = Receita − (Edição + Captação + Extras + custos detalhados).
     const headers = [
-      'Código', 'Projeto', 'Data Entrega', 'Cliente',
-      'Receita', 'Colaborador', 'Custo Colab.', 'Extras',
-      'Status', 'Lucro',
+      'Código', 'Projeto', 'Data Entrega', 'Cliente', 'Colaborador',
+      'Receita', 'Edição', 'Captação', 'Lucro', 'Meu total',
     ];
 
     const fmtDate = (v?: string | null) =>
@@ -548,45 +568,58 @@ function ClosingDetail({
     ]);
 
     const rows: (string | number)[][] = [];
+    const tot = { rev: 0, ed: 0, cap: 0, profit: 0, mine: 0 };
 
     Array.from(projectIdSet).forEach((pid) => {
       const p = projectMap.get(pid);
+      const full = fullProjectMap.get(pid);
       const rev = revenueItems
         .filter((i) => i.project_id === pid)
         .reduce((s, i) => s + Number(i.amount_snapshot), 0);
       const teamRows = teamItems.filter((i) => i.project_id === pid);
-      const teamCostSum = teamRows.reduce((s, i) => s + Number(i.amount_snapshot), 0);
-      const theoretical = Number(fullProjectMap.get(pid)?.custo_edicao || 0);
-      const effectiveEditCost = Math.max(teamCostSum, theoretical);
+      const ed = Number(full?.custo_edicao || 0);
+      const cap = Number(full?.custo_captacao || 0);
       const extraSum = extraItems
         .filter((i) => i.project_id === pid)
         .reduce((s, i) => s + Number(i.amount_snapshot), 0);
+      const linesSum = (costLines as Array<{ project_id: string; actual_amount: number | null }>)
+        .filter((cl) => cl.project_id === pid)
+        .reduce((s, cl) => s + Number(cl.actual_amount || 0), 0);
 
       const editorNames = teamRows
         .map((i) => {
           const tp = i.team_payment_id ? teamById.get(i.team_payment_id) : undefined;
-          const isFixed = Number(i.amount_snapshot) === 0 && theoretical > 0;
-          return `${nameOf(tp?.user_id ?? null)}${isFixed ? ' (mensal fixo)' : ''}`;
+          return nameOf(tp?.user_id ?? null);
         })
         .filter((n, idx, arr) => arr.indexOf(n) === idx)
         .join(', ') || '—';
 
-      const rowProfit = rev - effectiveEditCost - extraSum;
+      const rowProfit = rev - (ed + cap + extraSum + linesSum);
+      const mine = rev - ed;
+      tot.rev += rev; tot.ed += ed; tot.cap += cap; tot.profit += rowProfit; tot.mine += mine;
 
       rows.push([
         p?.project_code || (p?.id || pid).slice(0, 8).toUpperCase(),
         p?.name || pid.slice(0, 8),
         fmtDate(p?.delivered_at ?? null),
         clientName,
-        formatCurrencyRaw(rev),
         editorNames,
-        formatCurrencyRaw(teamCostSum),
-        formatCurrencyRaw(extraSum),
-
-        closing.status === 'received' ? 'Recebido' : 'Por receber',
+        formatCurrencyRaw(rev),
+        formatCurrencyRaw(ed),
+        formatCurrencyRaw(cap),
         formatCurrencyRaw(rowProfit),
+        formatCurrencyRaw(mine),
       ]);
     });
+
+    rows.push([
+      'TOTAL', '', '', '', '',
+      formatCurrencyRaw(tot.rev),
+      formatCurrencyRaw(tot.ed),
+      formatCurrencyRaw(tot.cap),
+      formatCurrencyRaw(tot.profit),
+      formatCurrencyRaw(tot.mine),
+    ]);
 
     const title = `Fecho — ${closing.label || 'Sem nome'}`;
     const filename = `fecho-${(closing.label || 'sem-nome').replace(/[^a-zA-Z0-9-_]/g, '_')}-${format(new Date(), 'yyyy-MM-dd')}`;
