@@ -12,7 +12,7 @@
 - [x] 8. Subscrições do chat: já filtradas por conversa/permissões; reações/leituras filtradas no cliente (sem coluna de conversa)
 
 ## Custo (card) vs Pagamento
-- [ ] cost_amount em project_team + trigger + guard
-- [ ] Formulário da equipa com Custo e Pagamento
-- [ ] Fecho/Movimentos: Receita | Edição | Captação | Lucro | Meu total
-- [ ] A pagar ignora pagamento 0
+- [x] cost_amount em project_team + trigger + guard
+- [x] Formulário da equipa com Custo e Pagamento
+- [x] Fecho/Movimentos: Receita | Edição | Captação | Lucro | Meu total
+- [x] A pagar ignora pagamento 0
