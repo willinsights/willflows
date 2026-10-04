@@ -12,7 +12,10 @@ interface TeamMemberPaymentInputProps {
   suggestedAmount: number;
   isManuallyEdited: boolean;
   disabled: boolean;
-  onSave: (memberId: string, amount: number) => Promise<void>;
+  onSave: (memberId: string, amount: number | null) => Promise<void>;
+  placeholder?: string;
+  /** When true, an empty field saves null instead of 0. */
+  allowEmpty?: boolean;
 }
 
 export function TeamMemberPaymentInput({
@@ -22,6 +25,8 @@ export function TeamMemberPaymentInput({
   isManuallyEdited,
   disabled,
   onSave,
+  placeholder = '€0.00',
+  allowEmpty = false,
 }: TeamMemberPaymentInputProps) {
   // Local draft state - starts with server value
   const [draftValue, setDraftValue] = useState<number | null>(initialAmount);
@@ -39,10 +44,14 @@ export function TeamMemberPaymentInput({
   const handleChange = useCallback((value: number | null) => {
     setDraftValue(value);
     // Check if different from server value
+    if (allowEmpty && (value === null) !== (initialAmount === null)) {
+      setHasUnsavedChanges(true);
+      return;
+    }
     const serverValue = initialAmount || 0;
     const newValue = value || 0;
     setHasUnsavedChanges(Math.abs(serverValue - newValue) > 0.001);
-  }, [initialAmount]);
+  }, [initialAmount, allowEmpty]);
 
   // Save to server (on blur or Enter)
   const handleSave = useCallback(async () => {
@@ -50,7 +59,7 @@ export function TeamMemberPaymentInput({
     
     setIsSaving(true);
     try {
-      await onSave(memberId, draftValue || 0);
+      await onSave(memberId, allowEmpty && draftValue === null ? null : (draftValue || 0));
       setHasUnsavedChanges(false);
     } catch (error) {
       // On error, keep the unsaved state so user can retry
@@ -58,7 +67,7 @@ export function TeamMemberPaymentInput({
     } finally {
       setIsSaving(false);
     }
-  }, [hasUnsavedChanges, isSaving, memberId, draftValue, onSave]);
+  }, [hasUnsavedChanges, isSaving, memberId, draftValue, onSave, allowEmpty]);
 
   // Handle Enter key
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -90,7 +99,7 @@ export function TeamMemberPaymentInput({
   return (
     <div className="relative w-24">
       <CurrencyInput
-        placeholder="€0.00"
+        placeholder={placeholder}
         value={draftValue}
         onChange={handleChange}
         onBlur={handleSave}
