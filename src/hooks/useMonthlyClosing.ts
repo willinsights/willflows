@@ -21,7 +21,10 @@ export interface ClosingSettlement {
   editorId: string | null;
   editorName: string;
   phase: 'captacao' | 'edicao' | 'extra';
+  /** Valor a pagar (payment_amount para linhas da equipa). */
   amount: number;
+  /** Custo que conta no lucro (cost_amount ?? payment_amount na equipa; = amount nos restantes). */
+  cost: number;
   status: string; // pendente|pago|vencido|cancelado
   teamId?: string; // present for editor rows
   deliveredAt: string | null;
@@ -48,6 +51,12 @@ export interface MonthlyClosing {
   workLogCount: number;
   captacaoCosts: number;
   edicaoCosts: number;
+  /** Custo de edição dos cards (equipa + legado). */
+  edicaoCardCost: number;
+  /** Custo de captação dos cards (equipa + legado). */
+  captacaoCardCost: number;
+  /** Receita − custo de edição dos cards (captação não é descontada). */
+  myTotal: number;
   deliveredProjectCount: number;
   byEditor: EditorSummary[];
   settlements: ClosingSettlement[];
@@ -119,6 +128,7 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
           editorName: nameOf(tp.user_id),
           phase: tp.phase,
           amount: tp.payment_amount || 0,
+          cost: tp.cost_amount ?? tp.payment_amount ?? 0,
           status: tp.payment_status || 'pendente',
           teamId: tp.id,
           deliveredAt: proj.delivered_at ?? null,
@@ -138,6 +148,7 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
         editorName: '—',
         phase: 'extra' as const,
         amount: c.custos_extras || 0,
+        cost: c.custos_extras || 0,
         status: c.custos_extras_payment_status || 'pendente',
         deliveredAt: c.delivered_at ?? null,
       }));
@@ -161,6 +172,7 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
         editorName: nameOf(w.assignee_id),
         phase: 'edicao' as const,
         amount: Number(w.amount ?? 0),
+        cost: Number(w.amount ?? 0),
         status: 'pendente',
         deliveredAt: w.completed_at || w.requested_at,
       }));
@@ -179,6 +191,7 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
         editorName: '—',
         phase: 'extra',
         amount: Number(cl.actual_amount),
+        cost: Number(cl.actual_amount),
         status: cl.payment_status || 'pendente',
         deliveredAt: proj.delivered_at ?? null,
       });
@@ -212,17 +225,22 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
 
     const workLogsPayable = workLogRows.reduce((s, r) => s + r.amount, 0);
 
-    const totalCosts = editorRows.reduce((s, r) => s + r.amount, 0)
-      + extraRows.reduce((s, r) => s + r.amount, 0)
+    const totalCosts = editorRows.reduce((s, r) => s + r.cost, 0)
+      + extraRows.reduce((s, r) => s + r.cost, 0)
       + workLogsPayable
       + captacaoCosts
       + edicaoCosts;
     const ownerProfit = revenue - totalCosts;
     const alreadyPaid = editorPaid + extrasPaid;
+    const edicaoCardCost = editorRows.filter((r) => r.phase === 'edicao').reduce((s, r) => s + r.cost, 0) + edicaoCosts;
+    const captacaoCardCost = editorRows.filter((r) => r.phase === 'captacao').reduce((s, r) => s + r.cost, 0) + captacaoCosts;
+    const myTotal = revenue - edicaoCardCost;
 
     // By editor summary (inclui trabalhos registados)
     const map = new Map<string, EditorSummary>();
     for (const r of [...editorRows, ...workLogRows]) {
+      // Pagamento 0 (ex.: pago por terceiros) não conta como trabalho por pagar
+      if (!(r.amount > 0)) continue;
       const key = r.editorId || 'unknown';
       const cur = map.get(key) || { userId: key, name: r.editorName, cards: 0, payable: 0, paid: 0 };
       cur.cards += 1;
@@ -244,6 +262,9 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
       workLogCount: workLogRows.length,
       captacaoCosts,
       edicaoCosts,
+      edicaoCardCost,
+      captacaoCardCost,
+      myTotal,
       deliveredProjectCount: deliveredThisMonth.length,
       byEditor,
       settlements,

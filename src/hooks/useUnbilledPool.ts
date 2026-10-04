@@ -22,6 +22,8 @@ export interface PoolRow {
     editorName: string;
     phase: 'captacao' | 'edicao';
     amount: number;
+    /** Custo do card (cost_amount ?? payment_amount). */
+    cost: number;
     status: string;
   }>;
 }
@@ -86,6 +88,7 @@ export function useUnbilledPool() {
             editorName: nameOf(t.user_id),
             phase: t.phase,
             amount: t.payment_amount || 0,
+            cost: t.cost_amount ?? t.payment_amount ?? 0,
             status: t.payment_status,
           })),
         };

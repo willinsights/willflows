@@ -112,6 +112,7 @@ export function useTransactionFeed({ filterByUserId }: Params = {}): {
       if (filterByUserId && t.user_id !== filterByUserId) return;
       const project = projectsById.get(t.project_id);
       if (!project?.is_delivered) return; // financial single rule
+      if (!(Number(t.payment_amount) > 0)) return; // sem pagamento = não é saída
       const collab = t.user_id ? membersById.get(t.user_id) || 'Colaborador' : 'Colaborador';
       const phase = t.phase === 'captacao' ? 'Captação' : 'Edição';
       list.push({

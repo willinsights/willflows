@@ -35,6 +35,8 @@ export interface ProjectTeamPayment {
   user_id: string;
   phase: 'captacao' | 'edicao';
   payment_amount: number | null;
+  /** Custo que conta no card/lucro; null = usa payment_amount. */
+  cost_amount?: number | null;
   payment_status: string;
 }
 

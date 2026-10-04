@@ -1,0 +1,1 @@
+ALTER VIEW public.v_collaborator_payments SET (security_invoker = true);

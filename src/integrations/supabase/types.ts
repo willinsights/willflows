@@ -2845,6 +2845,7 @@ export type Database = {
       }
       project_team: {
         Row: {
+          cost_amount: number | null
           created_at: string
           external_name: string | null
           id: string
@@ -2860,6 +2861,7 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          cost_amount?: number | null
           created_at?: string
           external_name?: string | null
           id?: string
@@ -2875,6 +2877,7 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          cost_amount?: number | null
           created_at?: string
           external_name?: string | null
           id?: string
@@ -5347,6 +5350,7 @@ export type Database = {
           client_name: string | null
           collaborator_name: string | null
           competence_month: string | null
+          cost_amount: number | null
           delivered_at: string | null
           delivery_date: string | null
           external_name: string | null

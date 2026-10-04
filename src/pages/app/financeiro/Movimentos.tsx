@@ -32,6 +32,7 @@ import {
 } from '@/hooks/useTransactionFeed';
 
 import { Money } from '@/components/finance/Money';
+import { ProjectResultsByMonth } from '@/components/finance/ProjectResultsByMonth';
 import { DateCell } from '@/components/finance/DateCell';
 import { FilterChip } from '@/components/finance/FilterChip';
 import {
@@ -153,6 +154,8 @@ export default function Movimentos() {
           </CardContent>
         </Card>
       </div>
+
+      <ProjectResultsByMonth />
 
       {/* Filters bar */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
