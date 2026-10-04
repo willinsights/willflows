@@ -195,12 +195,12 @@ export function ProjectFinancialTab({
   // Handler for payment amount - used by TeamMemberPaymentInput
   const handleTeamMemberPaymentAmountChange = useCallback(async (
     memberId: string, 
-    amount: number
+    amount: number | null
   ) => {
     try {
       const { error } = await supabase
         .from('project_team')
-        .update({ payment_amount: amount })
+        .update({ payment_amount: amount ?? 0 })
         .eq('id', memberId);
 
       if (error) throw error;

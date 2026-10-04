@@ -225,7 +225,7 @@ export function useTeamPayments() {
       
       const { data, error } = await supabase
         .from('project_team')
-        .select('id, project_id, user_id, phase, payment_amount, payment_status')
+        .select('id, project_id, user_id, phase, payment_amount, cost_amount, payment_status')
         .in('project_id', projectIds);
       
       if (error) throw error;

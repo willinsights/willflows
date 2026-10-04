@@ -93,6 +93,8 @@ export function useCollaboratorForecast(selectedMonth: Date): CollaboratorForeca
         if (!anchorDate) return;
 
         const paymentAmount = payment.payment_amount || 0;
+        // Pagamento 0 (pago por terceiros) não entra nos ganhos nem nas contagens
+        if (paymentAmount <= 0) return;
         const isPaid = payment.payment_status === 'pago';
         const anchorMonthStart = startOfMonth(anchorDate);
 
