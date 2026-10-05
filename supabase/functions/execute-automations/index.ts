@@ -47,11 +47,13 @@ Deno.serve(async (req) => {
     // with the service-role key (function-to-function invokes), or
     // authenticated workspace members who belong to the given workspace_id.
     const cronSecret = Deno.env.get('CRON_SECRET')
+    const automationSecret = Deno.env.get('AUTOMATION_CRON_SECRET')
     const providedSecret = req.headers.get('x-cron-secret')
     const authHeader = req.headers.get('Authorization')
     const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
     const isInternal =
       secretEquals(cronSecret, providedSecret) ||
+      secretEquals(automationSecret, providedSecret) ||
       secretEquals(supabaseServiceKey, bearerToken)
 
     if (!isInternal) {
