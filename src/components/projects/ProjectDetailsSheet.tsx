@@ -306,8 +306,14 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
 
       const { data: existingTeam } = await supabase
         .from('project_team')
-        .select('user_id, invitation_id, phase, payment_amount, payment_status')
+        .select('user_id, invitation_id, phase, payment_amount, cost_amount, payment_status, paid_at')
         .eq('project_id', project.id);
+
+      // Os totais por fase são derivados da equipa (trigger). Se o utilizador alterou
+      // o total de uma fase, redistribui-o como "Custo (card)" pelos membros dessa fase;
+      // o Pagamento não muda.
+      const captacaoTotalChanged = Math.abs(Number(editForm.custo_captacao || 0) - Number(project.custo_captacao || 0)) > 0.001;
+      const edicaoTotalChanged = Math.abs(Number(editForm.custo_edicao || 0) - Number(project.custo_edicao || 0)) > 0.001;
 
       // Count all members (users + invitations) for payment calculation
       const captacaoCount = responsaveisCaptacao.length;
@@ -330,13 +336,16 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
           }
           return t.user_id === memberId && t.phase === phase;
         });
+        const totalChanged = phase === 'captacao' ? captacaoTotalChanged : edicaoTotalChanged;
         if (existing && existing.payment_amount !== null) {
           return { 
             payment_amount: existing.payment_amount, 
-            payment_status: existing.payment_status || 'pendente' 
+            cost_amount: totalChanged ? autoValue : ((existing as any).cost_amount ?? null),
+            payment_status: existing.payment_status || 'pendente',
+            paid_at: (existing as any).paid_at ?? null,
           };
         }
-        return { payment_amount: autoValue, payment_status: 'pendente' };
+        return { payment_amount: autoValue, cost_amount: totalChanged ? autoValue : null, payment_status: 'pendente', paid_at: null };
       };
 
       await supabase.from('project_team').delete().eq('project_id', project.id);
@@ -351,6 +360,8 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
             invitation_id: isInvitation ? memberId.replace('inv_', '') : null,
             phase: 'captacao' as const,
             payment_amount: paymentData.payment_amount,
+            cost_amount: paymentData.cost_amount,
+            paid_at: paymentData.paid_at,
             payment_status: paymentData.payment_status as 'pendente' | 'pago' | 'vencido' | 'cancelado',
           };
         }),
@@ -363,6 +374,8 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
             invitation_id: isInvitation ? memberId.replace('inv_', '') : null,
             phase: 'edicao' as const,
             payment_amount: paymentData.payment_amount,
+            cost_amount: paymentData.cost_amount,
+            paid_at: paymentData.paid_at,
             payment_status: paymentData.payment_status as 'pendente' | 'pago' | 'vencido' | 'cancelado',
           };
         }),
