@@ -51,6 +51,10 @@ project_id = "wppfmyseeigsdqutkgyc"
     verify_jwt = false
   [functions.process-email-queue]
     verify_jwt = true
+  [functions.execute-automations]
+    verify_jwt = false
+  [functions.process-automation-jobs]
+    verify_jwt = false
 
   # ---- User-scoped functions: JWT verification enforced at the gateway ----
   [functions.ai-generate-blog-image]
