@@ -43,14 +43,20 @@ Deno.serve(async (req) => {
     const payload: AutomationPayload = await req.json()
     const { event_type, project_id, workspace_id, to_column_id, from_column_id, triggered_by } = payload
 
-    // Auth: allow either internal callers with x-cron-secret, or authenticated
-    // workspace members who belong to the given workspace_id.
+    // Auth: allow internal callers with x-cron-secret, callers authenticated
+    // with the service-role key (function-to-function invokes), or
+    // authenticated workspace members who belong to the given workspace_id.
     const cronSecret = Deno.env.get('CRON_SECRET')
+    const automationSecret = Deno.env.get('AUTOMATION_CRON_SECRET')
     const providedSecret = req.headers.get('x-cron-secret')
-    const isInternal = secretEquals(cronSecret, providedSecret)
+    const authHeader = req.headers.get('Authorization')
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+    const isInternal =
+      secretEquals(cronSecret, providedSecret) ||
+      secretEquals(automationSecret, providedSecret) ||
+      secretEquals(supabaseServiceKey, bearerToken)
 
     if (!isInternal) {
-      const authHeader = req.headers.get('Authorization')
       if (!authHeader?.startsWith('Bearer ')) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), {
           status: 401,
