@@ -61,12 +61,15 @@ Deno.serve(async (req) => {
     // Process jobs in parallel (max 20 per batch is safe)
     await Promise.all(jobList.map(async (job) => {
       try {
-        // Invoke execute-automations with the original payload
+        // Invoke execute-automations with the original payload.
+        // Pass the cron secret so execute-automations accepts the internal call
+        // (the service-role bearer token is not a user JWT and would 401).
         const { data, error } = await supabase.functions.invoke('execute-automations', {
           body: {
             event_type: job.event_type,
             ...job.payload,
           },
+          headers: { 'x-cron-secret': automationSecret || cronSecret || '' },
         })
 
         if (error) throw new Error(error.message || 'execute-automations invoke failed')
