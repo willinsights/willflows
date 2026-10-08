@@ -291,7 +291,7 @@ export default function AdminCampaigns() {
       <Alert>
         <AlertTriangle className="h-4 w-4" />
         <AlertDescription>
-          Reutiliza a infraestrutura de email transacional (edge function <code>send-transactional-email</code>,
+          Reutiliza a infraestrutura de email transacional (edge function <code>app-email</code>,
           domínio <code>willflow.app</code>). O envio respeita a lista de supressão, preferências de marketing e
           contas internas/bloqueadas. Cada email inclui link de unsubscribe.
         </AlertDescription>

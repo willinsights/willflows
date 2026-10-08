@@ -152,7 +152,7 @@ export default function AdminGrowth() {
         throw new Error('Não autenticado');
       }
 
-      const { error } = await supabase.functions.invoke('send-transactional-email', {
+      const { error } = await supabase.functions.invoke('app-email', {
         body: { template: 'beta_invite', to: email, data: { name, inviteToken: token } },
       });
 

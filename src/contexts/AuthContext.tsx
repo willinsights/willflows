@@ -101,7 +101,7 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
     // Send welcome email if signup was successful
     if (!error && data.user) {
       try {
-        await supabase.functions.invoke('send-transactional-email', {
+        await supabase.functions.invoke('app-email', {
           body: {
             template: 'welcome',
             to: email,

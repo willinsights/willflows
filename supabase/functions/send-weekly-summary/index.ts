@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
         const formatCurrency = (v: number) => `€${v.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}`
 
         try {
-          await supabase.functions.invoke('send-transactional-email', {
+          await supabase.functions.invoke('app-email', {
             body: {
               template: 'weekly_summary',
               to: profile.email,

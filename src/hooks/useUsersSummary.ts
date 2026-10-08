@@ -108,7 +108,7 @@ export function useUsersSummary() {
         .from('user_subscriptions')
         .select('user_id, subscription_plan');
 
-      // 5. Get pending invitations (token is resolved server-side by send-transactional-email)
+      // 5. Get pending invitations (token is resolved server-side by app-email)
       const { data: invitationsData } = await supabase
         .from('workspace_invitations')
         .select(`
@@ -292,7 +292,7 @@ export function useUsersSummary() {
       // Send invitation email via edge function
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { error: emailError } = await supabase.functions.invoke('send-transactional-email', {
+        const { error: emailError } = await supabase.functions.invoke('app-email', {
           headers: { Authorization: `Bearer ${session.access_token}` },
           body: {
             template: 'invitation',
@@ -385,7 +385,7 @@ export function useUsersSummary() {
         }
 
         // Send beta invite email
-        const { error: emailError } = await supabase.functions.invoke('send-transactional-email', {
+        const { error: emailError } = await supabase.functions.invoke('app-email', {
           headers: { Authorization: `Bearer ${session.access_token}` },
           body: {
             template: 'beta_invite',
@@ -467,7 +467,7 @@ export function useUsersSummary() {
         .eq('email', email.toLowerCase());
 
       // Send beta invite email
-      await supabase.functions.invoke('send-transactional-email', {
+      await supabase.functions.invoke('app-email', {
         headers: { Authorization: `Bearer ${session.access_token}` },
         body: {
           template: 'beta_invite',
@@ -523,7 +523,7 @@ export function useUsersSummary() {
         .eq('id', invite.id);
 
       // Resend email
-      await supabase.functions.invoke('send-transactional-email', {
+      await supabase.functions.invoke('app-email', {
         headers: { Authorization: `Bearer ${session.access_token}` },
         body: {
           template: 'beta_invite',

@@ -163,7 +163,7 @@ async function sendOne(params: {
   const resolvedSubject = renderSubject(subject, recipientName)
 
 
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/send-transactional-email`, {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/app-email`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

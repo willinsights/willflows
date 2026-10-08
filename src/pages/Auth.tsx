@@ -240,7 +240,7 @@ export default function Auth() {
 
   const sendBetaWelcomeEmail = async (email: string, name: string) => {
     try {
-      const { error } = await supabase.functions.invoke('send-transactional-email', {
+      const { error } = await supabase.functions.invoke('app-email', {
         body: { template: 'beta_welcome', to: email, data: { name } },
       });
       if (error) {
