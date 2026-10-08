@@ -1,3 +1,4 @@
+import { EmailAPIError, sendLovableEmail } from 'npm:@lovable.dev/email-js@0.3.1'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { secretEquals } from "../_shared/timing-safe.ts";
 
@@ -273,62 +274,42 @@ Deno.serve(async (req) => {
           for (const recipient of recipients) {
             if (!recipient.email) continue
 
-            const recipientEmailLower = recipient.email.toLowerCase()
-
-            // Check suppression
-            const { data: suppressed } = await supabase
-              .from('suppressed_emails')
-              .select('id')
-              .eq('email', recipientEmailLower)
-              .maybeSingle()
-
-            if (suppressed) continue
-
-            // Get or create unsubscribe token
-            let unsubscribeToken: string
-            const { data: existingToken } = await supabase
-              .from('email_unsubscribe_tokens')
-              .select('token')
-              .eq('email', recipientEmailLower)
-              .is('used_at', null)
-              .maybeSingle()
-
-            if (existingToken?.token) {
-              unsubscribeToken = existingToken.token
-            } else {
-              unsubscribeToken = crypto.randomUUID()
-              await supabase.from('email_unsubscribe_tokens').insert({
-                email: recipientEmailLower,
-                token: unsubscribeToken,
+            const messageId = crypto.randomUUID()
+            const logSend = async (row: Record<string, unknown>) => {
+              const { error: logErr } = await supabase.from('email_send_log').insert({
+                message_id: messageId,
+                template_name: `automation_${automation.id}`,
+                recipient_email: recipient.email,
+                ...row,
               })
+              if (logErr) console.error('email_send_log insert failed', { code: logErr.code, message: logErr.message })
             }
 
-            const messageId = crypto.randomUUID()
-
-            await supabase.from('email_send_log').insert({
-              message_id: messageId,
-              template_name: `automation_${automation.id}`,
-              recipient_email: recipient.email,
-              status: 'pending',
-            })
-
-            await supabase.rpc('enqueue_email', {
-              queue_name: 'transactional_emails',
-              payload: {
-                message_id: messageId,
-                to: recipient.email,
-                from: FROM_ADDRESS,
-                sender_domain: SENDER_DOMAIN,
-                subject,
-                html,
-                text: body,
-                purpose: 'transactional',
-                idempotency_key: `automation-${automation.id}-${project_id}-${messageId}`,
-                unsubscribe_token: unsubscribeToken,
-                label: `automation_${automation.name}`,
-                queued_at: new Date().toISOString(),
-              },
-            })
+            try {
+              await sendLovableEmail(
+                {
+                  to: recipient.email,
+                  from: FROM_ADDRESS,
+                  sender_domain: SENDER_DOMAIN,
+                  subject,
+                  html,
+                  text: body,
+                  purpose: 'transactional',
+                  idempotency_key: `automation-${automation.id}-${project_id}-${messageId}`,
+                  label: `automation_${automation.name}`,
+                },
+                { apiKey: Deno.env.get('LOVABLE_API_KEY')!, sendUrl: Deno.env.get('LOVABLE_SEND_URL') }
+              )
+              await logSend({ status: 'sent' })
+            } catch (sendErr) {
+              if (sendErr instanceof EmailAPIError && sendErr.code === 'recipient_suppressed') {
+                await logSend({ status: 'suppressed' })
+              } else {
+                const msg = sendErr instanceof Error ? sendErr.message : String(sendErr)
+                console.error('Automation email send failed', { automation_id: automation.id, error: msg })
+                await logSend({ status: 'failed', error_message: msg.slice(0, 500) })
+              }
+            }
           }
         }
 
