@@ -154,7 +154,7 @@ const features = [
   },
   {
     icon: Film,
-    title: '🎬 Aprovação de Vídeo',
+    title: 'Aprovação de Vídeo',
     description: 'Portal de review para clientes com comentários por timestamp. Alternativa integrada ao Frame.io.',
     href: '/funcionalidades/video-approval',
     badge: 'Studio',
@@ -167,7 +167,7 @@ const features = [
   },
   {
     icon: Clapperboard,
-    title: '🎞️ Desenho de Timeline',
+    title: 'Desenho de Timeline',
     description: 'Estrutura visual para guiar a edição. Defina segmentos e durações antes de começar.',
     href: '/funcionalidades/timeline',
     badge: 'Studio',
@@ -231,7 +231,7 @@ export default function Features() {
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">
-                Começar teste grátis (30 dias)
+                Começar teste grátis (7 dias)
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
@@ -320,7 +320,7 @@ export default function Features() {
               Pronto para transformar a sua gestão?
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              🎉 30 dias grátis como bónus de lançamento! Sem cartão necessário.
+              7 dias grátis · Sem cartão
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">

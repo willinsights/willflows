@@ -11,7 +11,7 @@ import { logger } from '@/lib/logger';
 export function SettingsTab() {
   const { settings, isLoading, updateTrialSettings } = useSystemSettings();
   
-  const [trialDays, setTrialDays] = useState<number>(30);
+  const [trialDays, setTrialDays] = useState<number>(7);
   const [warningDays, setWarningDays] = useState<number>(2);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -77,8 +77,8 @@ export function SettingsTab() {
                 min={1}
                 max={365}
                 value={trialDays}
-                onChange={(e) => setTrialDays(parseInt(e.target.value) || 30)}
-                placeholder="30"
+                onChange={(e) => setTrialDays(parseInt(e.target.value) || 7)}
+                placeholder="7"
               />
               <p className="text-xs text-muted-foreground">
                 Número de dias de teste para novos utilizadores (1-365)
@@ -131,7 +131,7 @@ export function SettingsTab() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-lg border p-4">
               <p className="text-sm text-muted-foreground">Trial Padrão</p>
-              <p className="text-2xl font-bold">{settings?.trial.default_days ?? 30} dias</p>
+              <p className="text-2xl font-bold">{settings?.trial.default_days ?? 7} dias</p>
             </div>
             <div className="rounded-lg border p-4">
               <p className="text-sm text-muted-foreground">Aviso de Expiração</p>

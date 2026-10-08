@@ -209,7 +209,7 @@ export default function CRMFeature() {
               Conheça Melhor os Seus Clientes
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              30 dias grátis. Sem cartão necessário. Comece a construir relações mais fortes hoje.
+              7 dias grátis. Sem cartão necessário. Comece a construir relações mais fortes hoje.
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">

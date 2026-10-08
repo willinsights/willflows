@@ -96,7 +96,7 @@ export default function ParaProdutoras() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>WillFlow para Produtoras | Gestão de Produção Audiovisual</title>
-        <meta name="description" content="Software de gestão para produtoras de vídeo e cinema. Organize pré-produção, filmagem e pós-produção. Gerencie equipas, orçamentos e entregas. 30 dias grátis." />
+        <meta name="description" content="Software de gestão para produtoras de vídeo e cinema. Organize pré-produção, filmagem e pós-produção. Gerencie equipas, orçamentos e entregas. 7 dias grátis." />
         <link rel="canonical" href="https://willflow.app/para-produtoras" />
         <meta property="og:title" content="WillFlow para Produtoras | Gestão de Produção Audiovisual" />
         <meta property="og:description" content="Software de gestão para produtoras de vídeo e cinema. Organize todas as fases de produção." />
@@ -134,11 +134,6 @@ export default function ParaProdutoras() {
               "priceCurrency": "EUR",
               "priceValidUntil": "2026-12-31",
               "availability": "https://schema.org/InStock"
-            },
-            "aggregateRating": {
-              "@type": "AggregateRating",
-              "ratingValue": "4.8",
-              "reviewCount": "67"
             }
           })}
         </script>
@@ -176,7 +171,7 @@ export default function ParaProdutoras() {
                 <Link to="/auth?trial=true">
                   <Button size="lg" className="gradient-primary w-full sm:w-auto">
                     <Sparkles className="mr-2 h-5 w-5" />
-                    Começar 30 dias grátis
+                    Começar 7 dias grátis
                   </Button>
                 </Link>
                 <Link to="/funcionalidades">
@@ -377,7 +372,7 @@ export default function ParaProdutoras() {
               Produza mais, organize melhor
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              🎉 30 dias grátis como bónus de lançamento! Sem cartão necessário.
+              7 dias grátis · Sem cartão
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">

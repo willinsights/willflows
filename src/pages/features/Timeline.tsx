@@ -116,7 +116,7 @@ export default function TimelineFeature() {
               </Badge>
               
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
-                🎞️ Desenho de Timeline{' '}
+                Desenho de Timeline{' '}
                 <span className="gradient-text">para Edição</span>
               </h1>
               
@@ -129,7 +129,7 @@ export default function TimelineFeature() {
                 <Link to="/auth?trial=true">
                   <Button size="lg" className="gradient-primary w-full sm:w-auto">
                     <Sparkles className="mr-2 h-5 w-5" />
-                    Começar 30 dias grátis
+                    Começar 7 dias grátis
                   </Button>
                 </Link>
                 <Link to="/planos">
@@ -313,7 +313,7 @@ export default function TimelineFeature() {
                 Estruture os seus vídeos como um profissional
               </h2>
               <p className="text-lg text-muted-foreground mb-8">
-                Experimente o plano Studio com 30 dias grátis. Inclui desenho de timeline, 
+                Experimente o plano Studio com 7 dias grátis. Inclui desenho de timeline, 
                 aprovação de vídeo e 10GB de armazenamento.
               </p>
               <Link to="/auth?trial=true">

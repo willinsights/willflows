@@ -700,7 +700,7 @@ function ResetBillingSubTab() {
             <ul className="list-disc list-inside space-y-1 text-muted-foreground">
               <li>Apagar <strong>todos os invoices</strong> da base de dados</li>
               <li>Apagar <strong>todos os webhook logs</strong> da base de dados</li>
-              <li>Reset subscrições não-protegidas para <strong>trial de 30 dias</strong></li>
+              <li>Reset subscrições não-protegidas para <strong>trial de 7 dias</strong></li>
               <li>Limpar IDs do Stripe (stripe_customer_id, stripe_subscription_id)</li>
             </ul>
           </div>

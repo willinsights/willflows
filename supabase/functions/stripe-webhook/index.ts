@@ -323,9 +323,9 @@ serve(async (req) => {
           if (subscription.status === 'trialing' && subscription.trial_end) {
             trialEndsAt = new Date(subscription.trial_end * 1000).toISOString();
           } else if (subscription.status === 'trialing') {
-            // Fallback: set trial to 30 days from now (BÓNUS DE LANÇAMENTO)
+            // Fallback for a new Stripe trial without an explicit end date
             const trialEnd = new Date();
-            trialEnd.setDate(trialEnd.getDate() + 30);
+            trialEnd.setDate(trialEnd.getDate() + 7);
             trialEndsAt = trialEnd.toISOString();
           }
 

@@ -37,7 +37,7 @@ import {
 const faqs = [
   {
     question: 'Como funciona o período de teste?',
-    answer: 'Ao criar conta, tem automaticamente 30 dias grátis como bónus de lançamento para experimentar todas as funcionalidades sem precisar de cartão. Após o trial, escolhe o plano que melhor se adequa.',
+    answer: 'Ao criar conta, tem automaticamente 7 dias grátis para experimentar todas as funcionalidades sem precisar de cartão. Após o trial, escolhe o plano que melhor se adequa.',
   },
   {
     question: 'Posso mudar de plano a qualquer momento?',
@@ -127,10 +127,10 @@ export default function Pricing() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Planos e Preços | WillFlow - A partir de 14€/mês</title>
-        <meta name="description" content="Escolha o plano ideal para o seu estúdio. Starter, Pro ou Studio. 30 dias grátis, sem cartão. Facturação em EUR ou BRL. Cancele quando quiser." />
+        <meta name="description" content="Escolha o plano ideal para o seu estúdio. Starter, Pro ou Studio. 7 dias grátis, sem cartão. Facturação em EUR ou BRL. Cancele quando quiser." />
         <link rel="canonical" href="https://willflow.app/planos" />
         <meta property="og:title" content="Planos e Preços | WillFlow - A partir de 14€/mês" />
-        <meta property="og:description" content="Escolha o plano ideal para o seu estúdio. Starter, Pro ou Studio. 30 dias grátis, sem cartão. Facturação em EUR ou BRL." />
+        <meta property="og:description" content="Escolha o plano ideal para o seu estúdio. Starter, Pro ou Studio. 7 dias grátis, sem cartão. Facturação em EUR ou BRL." />
         <meta property="og:url" content="https://willflow.app/planos" />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://willflow.app/og-image.png" />
@@ -140,7 +140,7 @@ export default function Pricing() {
         <meta property="og:locale" content="pt_PT" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Planos e Preços | WillFlow - A partir de 14€/mês" />
-        <meta name="twitter:description" content="Escolha o plano ideal para o seu estúdio. Starter, Pro ou Studio. 30 dias grátis, sem cartão." />
+        <meta name="twitter:description" content="Escolha o plano ideal para o seu estúdio. Starter, Pro ou Studio. 7 dias grátis, sem cartão." />
         <meta name="twitter:image" content="https://willflow.app/og-image.png" />
         <script type="application/ld+json">
           {JSON.stringify({
@@ -219,7 +219,7 @@ export default function Pricing() {
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-success/10 border border-success/20 text-success mb-6">
               <Check className="h-4 w-4" />
               <span className="text-sm font-medium">
-                🎉 30 dias grátis • Bónus de lançamento!
+                7 dias grátis · Sem cartão
               </span>
             </div>
 
@@ -228,7 +228,7 @@ export default function Pricing() {
               <span className="gradient-text">negócio</span>
             </h1>
             <p className="text-xl text-muted-foreground mb-8">
-              Comece com 30 dias grátis e faça upgrade conforme cresce. Cancele a qualquer momento.
+              Comece com 7 dias grátis e faça upgrade conforme cresce. Cancele a qualquer momento.
             </p>
 
             {/* Toggles Container */}
@@ -308,7 +308,7 @@ export default function Pricing() {
                 >
                   {plan.popular && (
                     <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 gradient-primary px-4">
-                      Mais vendido
+                      Recomendado
                     </Badge>
                   )}
                   
@@ -351,11 +351,11 @@ export default function Pricing() {
                       <p className="text-xs font-semibold text-primary/80 uppercase tracking-wide mb-3">Exclusivo Studio</p>
                       <div className="space-y-2">
                         <div className="flex items-center gap-3">
-                          <span className="text-lg">🎬</span>
+                          
                           <span className="text-sm font-semibold text-foreground">Aprovação de vídeo e comparação A/B</span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="text-lg">🎞️</span>
+                          
                           <span className="text-sm font-semibold text-foreground">Desenho de Timeline</span>
                         </div>
                         <div className="flex items-center gap-3">
@@ -385,7 +385,7 @@ export default function Pricing() {
                     {loadingPlan === planId ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     ) : null}
-                    Começar 30 dias grátis
+                    Começar 7 dias grátis
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </motion.div>
@@ -496,7 +496,7 @@ export default function Pricing() {
             Pronto para começar?
           </h2>
           <p className="text-xl text-muted-foreground mb-8">
-            🎉 30 dias grátis como bónus de lançamento! Veja como o WillFlow pode transformar o seu negócio.
+            7 dias grátis · Sem cartão
           </p>
           <Button 
             size="lg" 

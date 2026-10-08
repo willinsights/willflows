@@ -168,7 +168,7 @@ export default function ComparisonsHub() {
               Pronto para experimentar?
             </h2>
             <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-              Teste o WillFlow grátis durante 30 dias. Sem cartão de crédito, sem compromisso.
+              Teste o WillFlow grátis durante 7 dias. Sem cartão de crédito, sem compromisso.
             </p>
             <Button size="lg" className="gradient-primary" asChild>
               <Link to="/auth?trial=true">

@@ -311,7 +311,7 @@ export default function BlogCategory() {
               Pronto para transformar a gestão do seu estúdio?
             </h2>
             <p className="text-muted-foreground mb-6">
-              Experimente o WillFlow gratuitamente durante 30 dias.
+              Experimente o WillFlow gratuitamente durante 7 dias.
             </p>
             <Button asChild size="lg" className="gradient-primary">
               <Link to="/auth">

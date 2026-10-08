@@ -1,5 +1,13 @@
 # Roadmap — pendências da auditoria
 
+## Site público e trial (outubro 2026)
+- [ ] Trial de 7 dias só para novas contas; alinhar referências e remover promoção terminada
+- [ ] Guarda fail-closed do blog automático, sem ativar cron ou publicar funções
+- [ ] Remover prova social fictícia e duplicados dos logótipos
+- [ ] Alinhar armazenamento Studio, exportação Starter e preço anual
+- [ ] Metadados/JSON-LD e copy formal da Landing
+- [ ] Testar e listar alterações por ficheiro; não publicar
+
 - [x] Corrigir títulos e abas sobrepostos em telas pequenas (janela do projeto e cabeçalhos do app)
 
 - [x] 1. Vista "Hoje"

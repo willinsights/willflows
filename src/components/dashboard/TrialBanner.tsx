@@ -21,13 +21,12 @@ export function TrialBanner() {
   // - Loading
   // - User is not owner of the workspace (shouldShowTrialUI handles this)
   // - Not in trial
-  // - More than 30 days remaining (BÓNUS DE LANÇAMENTO - 30 dias grátis)
   // - Trial already expired (handled by modal)
   if (loading) return null;
   if (!shouldShowTrialUI) return null;
   if (!isTrial) return null;
   if (trialDaysRemaining === null) return null;
-  if (trialDaysRemaining > 30 || trialDaysRemaining < 0) return null;
+  if (trialDaysRemaining < 0) return null;
 
   const isUrgent = trialDaysRemaining <= 2;
 

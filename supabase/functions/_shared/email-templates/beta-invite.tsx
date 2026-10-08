@@ -23,7 +23,7 @@ interface BetaInviteEmailProps {
 export const BetaInviteEmail = ({
   name,
   inviteLink,
-  freeDays = 30,
+  freeDays = 7,
 }: BetaInviteEmailProps) => {
   const displayName = name || 'criativo(a)'
   return (

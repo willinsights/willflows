@@ -230,7 +230,7 @@ export default function VsTrello() {
               Pronto para ir além do Kanban?
             </h2>
             <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-              Teste o WillFlow grátis durante 30 dias. Migre do Trello sem perder produtividade.
+              Teste o WillFlow grátis durante 7 dias. Migre do Trello sem perder produtividade.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" className="gradient-primary" asChild>

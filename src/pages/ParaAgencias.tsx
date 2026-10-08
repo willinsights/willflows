@@ -161,7 +161,7 @@ export default function ParaAgencias() {
                 <Link to="/auth?trial=true">
                   <Button size="lg" className="gradient-primary w-full sm:w-auto">
                     <Sparkles className="mr-2 h-5 w-5" />
-                    Começar 30 dias grátis
+                    Começar 7 dias grátis
                   </Button>
                 </Link>
                 <Link to="/funcionalidades">
@@ -377,7 +377,7 @@ export default function ParaAgencias() {
               Escale a sua agência com confiança
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              🎉 30 dias grátis como bónus de lançamento! Sem cartão necessário.
+              7 dias grátis · Sem cartão
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">

@@ -209,7 +209,7 @@ export default function KanbanFeature() {
               Veja os Seus Projetos em Ação
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              30 dias grátis. Sem cartão necessário. Experimente um Kanban feito para o seu tipo de trabalho.
+              7 dias grátis. Sem cartão necessário. Experimente um Kanban feito para o seu tipo de trabalho.
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">

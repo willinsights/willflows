@@ -418,7 +418,7 @@ export function useUsersSummary() {
   const sendBetaInviteToWaitlist = useCallback(async (
     email: string,
     name: string | null,
-    freeDays: number = 30
+    freeDays: number = 7
   ): Promise<{ success: boolean; error?: string }> => {
     try {
       const { data: { session } } = await supabase.auth.getSession();

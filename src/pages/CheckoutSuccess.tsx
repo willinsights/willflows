@@ -125,7 +125,7 @@ const CheckoutSuccess = () => {
             >
               <div className="flex items-center justify-center gap-2 text-sm">
                 <Sparkles className="h-4 w-4 text-primary" />
-                <span>O seu trial de 30 dias começou</span>
+                <span>O seu trial de 7 dias começou</span>
               </div>
               <p className="text-xs text-muted-foreground">
                 Explore todas as funcionalidades premium. Será cobrado

@@ -44,7 +44,7 @@ export function ImportContactsModal({ open, onClose, onImport }: ImportContactsM
   const { toast } = useToast();
   const [inputMethod, setInputMethod] = useState<'paste' | 'csv'>('paste');
   const [pastedText, setPastedText] = useState('');
-  const [freeDays, setFreeDays] = useState('30');
+  const [freeDays, setFreeDays] = useState('7');
   const [isImporting, setIsImporting] = useState(false);
   const [parsedEmails, setParsedEmails] = useState<string[]>([]);
   const [duplicates, setDuplicates] = useState(0);
@@ -147,7 +147,7 @@ export function ImportContactsModal({ open, onClose, onImport }: ImportContactsM
     setParsedEmails([]);
     setDuplicates(0);
     setInvalid(0);
-    setFreeDays('30');
+    setFreeDays('7');
     onClose();
   };
 

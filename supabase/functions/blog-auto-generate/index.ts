@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { secretEquals } from "../_shared/timing-safe.ts";
+import { isBlogAutoGenerateEnabled } from "../_shared/blog-auto-generate-enabled.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -242,6 +243,12 @@ function extractImageSearchTerms(title: string, summary: string): string {
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 serve(async (req) => {
+  if (!isBlogAutoGenerateEnabled(Deno.env.get("BLOG_AUTO_GENERATE_ENABLED"))) {
+    return new Response(JSON.stringify({ skipped: true }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });

@@ -16,7 +16,7 @@ import { logger } from '@/lib/logger';
 const faqs = [
   {
     question: 'Como posso começar a usar o WillFlow?',
-    answer: 'Basta criar uma conta gratuita e terá acesso a 30 dias de teste com todas as funcionalidades.',
+    answer: 'Basta criar uma conta gratuita e terá acesso a 7 dias de teste com todas as funcionalidades.',
   },
   {
     question: 'Posso migrar dados de outro sistema?',

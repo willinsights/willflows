@@ -50,9 +50,9 @@ export const InvitationEmail = ({
           </Text>
 
           <Section style={highlightBox}>
-            <Text style={highlightTitle}>🎁 Bónus de Lançamento</Text>
+            <Text style={highlightTitle}>7 dias grátis · Sem cartão</Text>
             <Text style={highlightItem}>
-              30 dias grátis para experimentares todas as funcionalidades.
+              7 dias grátis para experimentares todas as funcionalidades.
             </Text>
           </Section>
 
@@ -72,7 +72,7 @@ export const InvitationEmail = ({
           <Text style={linkText}>{inviteLink}</Text>
 
           <Text style={footerNote}>
-            Este convite expira em 30 dias. Se não o esperavas, podes ignorar
+            Este convite expira em 7 dias. Se não o esperavas, podes ignorar
             este email com segurança.
           </Text>
         </Section>

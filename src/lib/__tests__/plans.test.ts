@@ -42,7 +42,7 @@ describe('plans.ts - Plan Configuration', () => {
         users: 999,
         projects: 999,
         clients: 999,
-        storage: 100,
+        storage: 10,
       });
     });
   });
@@ -114,7 +114,7 @@ describe('plans.ts - Plan Configuration', () => {
     it('Pro: videoApproval should be FALSE (not included)', () => {
       const proFeatures = PLANS.pro.features;
       const videoApproval = proFeatures.find(f => f.key === 'videoApproval');
-      expect(videoApproval).toBeUndefined(); // Not in Pro features list
+      expect(videoApproval?.included).toBe(false);
     });
 
     it('Studio: videoApproval should be TRUE (included)', () => {
@@ -123,10 +123,9 @@ describe('plans.ts - Plan Configuration', () => {
       expect(videoApproval?.included).toBe(true);
     });
 
-    it('Studio: api should be TRUE (included)', () => {
-      const studioFeatures = PLANS.studio.features;
-      const api = studioFeatures.find(f => f.key === 'api');
-      expect(api?.included).toBe(true);
+    it('Studio: automations should be TRUE (included)', () => {
+      const automation = PLANS.studio.features.find(f => f.key === 'automations');
+      expect(automation?.included).toBe(true);
     });
 
   });
