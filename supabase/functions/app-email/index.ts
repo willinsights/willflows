@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { EmailAPIError, sendLovableEmail } from 'npm:@lovable.dev/email-js@0.3.1'
 import * as React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { PaymentAlertEmail } from '../_shared/email-templates/payment-alert.tsx'
@@ -248,53 +249,6 @@ Deno.serve(async (req) => {
       data.message = message.substring(0, 5000)
     }
 
-    // Check suppression list
-    const { data: suppressed } = await supabase
-      .from('suppressed_emails')
-      .select('id')
-      .eq('email', to.toLowerCase())
-      .maybeSingle()
-
-    if (suppressed) {
-      console.log('Email suppressed', { to, template })
-      return new Response(JSON.stringify({ success: true, suppressed: true }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    // Ensure unsubscribe_token (required by the send provider for transactional emails).
-    // Reuse the existing token for this address if one is still active, otherwise create one.
-    const recipientLower = to.toLowerCase()
-    let unsubscribeToken: string | null = null
-    {
-      const { data: existingToken } = await supabase
-        .from('email_unsubscribe_tokens')
-        .select('token')
-        .eq('email', recipientLower)
-        .is('used_at', null)
-        .maybeSingle()
-      if (existingToken?.token) {
-        unsubscribeToken = existingToken.token as string
-      } else {
-        const newToken = crypto.randomUUID()
-        const { error: tokenErr } = await supabase
-          .from('email_unsubscribe_tokens')
-          .insert({ email: recipientLower, token: newToken })
-        if (tokenErr) {
-          // Race: fetch again
-          const { data: retry } = await supabase
-            .from('email_unsubscribe_tokens')
-            .select('token')
-            .eq('email', recipientLower)
-            .is('used_at', null)
-            .maybeSingle()
-          unsubscribeToken = (retry?.token as string) ?? newToken
-        } else {
-          unsubscribeToken = newToken
-        }
-      }
-    }
-
     // Render template
     const html = await renderAsync(React.createElement(templateConfig.component, data))
     const text = await renderAsync(React.createElement(templateConfig.component, data), { plainText: true })
@@ -302,55 +256,58 @@ Deno.serve(async (req) => {
     const messageId = crypto.randomUUID()
     const subject = templateConfig.subject(data)
 
-    // Log pending
-    await supabase.from('email_send_log').insert({
-      message_id: messageId,
-      template_name: template,
-      recipient_email: to,
-      status: 'pending',
-    })
+    const apiKey = Deno.env.get('LOVABLE_API_KEY')
+    if (!apiKey) throw new Error('LOVABLE_API_KEY is not configured')
 
-    // Enqueue for async sending
-    const { error: enqueueError } = await supabase.rpc('enqueue_email', {
-      queue_name: 'transactional_emails',
-      payload: {
-        message_id: messageId,
-        to,
-        from: FROM_ADDRESS,
-        sender_domain: SENDER_DOMAIN,
-        subject,
-        html,
-        text,
-        purpose: 'transactional',
-        label: template,
-        idempotency_key: `${template}:${messageId}`,
-        unsubscribe_token: unsubscribeToken,
-        queued_at: new Date().toISOString(),
-      },
-    })
-
-    if (enqueueError) {
-      console.error('Failed to enqueue transactional email', { error: enqueueError, template, to })
-      await supabase.from('email_send_log').insert({
+    const logRow = async (row: Record<string, unknown>) => {
+      const { error } = await supabase.from('email_send_log').insert({
         message_id: messageId,
         template_name: template,
         recipient_email: to,
-        status: 'failed',
-        error_message: 'Failed to enqueue email',
+        ...row,
       })
-      return new Response(JSON.stringify({ error: 'Failed to enqueue email' }), {
+      if (error) console.error('email_send_log insert failed', { code: error.code, message: error.message })
+    }
+
+    try {
+      await sendLovableEmail(
+        {
+          to,
+          from: FROM_ADDRESS,
+          sender_domain: SENDER_DOMAIN,
+          subject,
+          html,
+          text,
+          purpose: 'transactional',
+          label: template,
+          idempotency_key: `${template}:${messageId}`,
+        },
+        { apiKey, sendUrl: Deno.env.get('LOVABLE_SEND_URL') }
+      )
+    } catch (sendError) {
+      if (sendError instanceof EmailAPIError && sendError.code === 'recipient_suppressed') {
+        await logRow({ status: 'suppressed' })
+        return new Response(JSON.stringify({ success: true, suppressed: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      const msg = sendError instanceof Error ? sendError.message : String(sendError)
+      console.error('Failed to send transactional email', { template, error: msg })
+      await logRow({ status: 'failed', error_message: msg.slice(0, 500) })
+      return new Response(JSON.stringify({ error: 'Failed to send email' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    console.log('Transactional email enqueued', { template, to, messageId })
+    await logRow({ status: 'sent' })
+    console.log('Transactional email sent', { template, messageId })
 
-    return new Response(JSON.stringify({ success: true, queued: true, messageId }), {
+    return new Response(JSON.stringify({ success: true, sent: true, messageId }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error) {
-    console.error('Error in send-transactional-email:', error)
+    console.error('Error in app-email:', error)
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

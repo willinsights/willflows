@@ -43,7 +43,7 @@ export default function Contact() {
     const message = formData.get('message') as string;
 
     try {
-      const { data, error } = await supabase.functions.invoke('send-transactional-email', {
+      const { data, error } = await supabase.functions.invoke('app-email', {
         body: {
           template: 'contact_message',
           to: 'geral@willflow.app',

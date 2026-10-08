@@ -151,7 +151,7 @@ export function useWorkspaceInvitations() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { error: emailError } = await supabase.functions.invoke('send-transactional-email', {
+        const { error: emailError } = await supabase.functions.invoke('app-email', {
           headers: { Authorization: `Bearer ${session.access_token}` },
           body: {
             template: 'invitation',
@@ -245,7 +245,7 @@ export function useWorkspaceInvitations() {
           .eq('id', user?.id)
           .single();
 
-        const { error: emailError } = await supabase.functions.invoke('send-transactional-email', {
+        const { error: emailError } = await supabase.functions.invoke('app-email', {
           headers: { Authorization: `Bearer ${session.access_token}` },
           body: {
             template: 'invitation',

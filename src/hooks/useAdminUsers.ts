@@ -269,7 +269,7 @@ export function useAdminUsers(filters: UserFilters) {
       const user = users.find(u => u.id === userId);
       if (!user) throw new Error('User not found');
 
-      const { error } = await supabase.functions.invoke('send-transactional-email', {
+      const { error } = await supabase.functions.invoke('app-email', {
         body: {
           template: 'password_reset',
           to: user.email,

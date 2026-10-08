@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
     const brandName = ws?.name || SITE_NAME
 
     // Delegate sending to unified pipeline
-    const { data: sendData, error: sendErr } = await supabase.functions.invoke('send-transactional-email', {
+    const { data: sendData, error: sendErr } = await supabase.functions.invoke('app-email', {
       body: {
         template: 'automation_test',
         to: recipient_email,
@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
 
     if (sendErr || (sendData as any)?.error) {
       const msg = sendErr?.message || (sendData as any)?.error || 'Failed to send'
-      console.error('send-transactional-email failed', msg)
+      console.error('app-email failed', msg)
       return new Response(JSON.stringify({ error: msg }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })

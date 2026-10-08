@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
               if (profile?.email) {
                 // Send email via transactional queue
                 try {
-                  await supabase.functions.invoke('send-transactional-email', {
+                  await supabase.functions.invoke('app-email', {
                     body: {
                       template: 'payment_alert',
                       to: profile.email,

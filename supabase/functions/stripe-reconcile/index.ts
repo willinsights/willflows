@@ -223,7 +223,7 @@ Deno.serve(async (req) => {
             .filter(Boolean)
 
           for (const email of adminEmails) {
-            await supabase.functions.invoke('send-transactional-email', {
+            await supabase.functions.invoke('app-email', {
               body: {
                 template: 'admin_subscription_discrepancy',
                 to: email,
