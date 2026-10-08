@@ -70,10 +70,10 @@ export default function ParaFotografos() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>WillFlow para Fotógrafos | Gestão de Sessões e Clientes</title>
-        <meta name="description" content="Sistema de gestão completo para fotógrafos. Organize sessões, clientes, pagamentos e entregas. Kanban visual, CRM integrado e calendário. 30 dias grátis." />
+        <meta name="description" content="Sistema de gestão completo para fotógrafos. Organize sessões, clientes, pagamentos e entregas. Kanban visual, CRM integrado e calendário. 7 dias grátis." />
         <link rel="canonical" href="https://willflow.app/para-fotografos" />
         <meta property="og:title" content="WillFlow para Fotógrafos | Gestão de Sessões e Clientes" />
-        <meta property="og:description" content="Sistema de gestão completo para fotógrafos. Organize sessões, clientes, pagamentos e entregas. 30 dias grátis." />
+        <meta property="og:description" content="Sistema de gestão completo para fotógrafos. Organize sessões, clientes, pagamentos e entregas. 7 dias grátis." />
         <meta property="og:url" content="https://willflow.app/para-fotografos" />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://willflow.app/og-image.png" />
@@ -83,7 +83,7 @@ export default function ParaFotografos() {
         <meta property="og:locale" content="pt_PT" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="WillFlow para Fotógrafos | Gestão de Sessões e Clientes" />
-        <meta name="twitter:description" content="Sistema de gestão completo para fotógrafos. Organize sessões, clientes, pagamentos e entregas. 30 dias grátis." />
+        <meta name="twitter:description" content="Sistema de gestão completo para fotógrafos. Organize sessões, clientes, pagamentos e entregas. 7 dias grátis." />
         <meta name="twitter:image" content="https://willflow.app/og-image.png" />
         <script type="application/ld+json">
           {JSON.stringify({
@@ -108,11 +108,6 @@ export default function ParaFotografos() {
               "priceCurrency": "EUR",
               "priceValidUntil": "2026-12-31",
               "availability": "https://schema.org/InStock"
-            },
-            "aggregateRating": {
-              "@type": "AggregateRating",
-              "ratingValue": "4.9",
-              "reviewCount": "89"
             }
           })}
         </script>
@@ -144,7 +139,7 @@ export default function ParaFotografos() {
                 <Link to="/auth?trial=true">
                   <Button size="lg" className="gradient-primary w-full sm:w-auto">
                     <Sparkles className="mr-2 h-5 w-5" />
-                    Começar 30 dias grátis
+                    Começar 7 dias grátis
                   </Button>
                 </Link>
                 <Link to="/funcionalidades">
@@ -321,7 +316,7 @@ export default function ParaFotografos() {
               Comece hoje mesmo
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              🎉 30 dias grátis como bónus de lançamento! Sem cartão necessário.
+              7 dias grátis · Sem cartão
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">

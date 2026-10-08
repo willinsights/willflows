@@ -61,7 +61,7 @@ export interface PlanInfo {
 export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
   starter: { workspaces: 1, users: 2, projects: 20, clients: 20, storage: 1 },
   pro: { workspaces: 3, users: 10, projects: 999, clients: 100, storage: 10 },
-  studio: { workspaces: 10, users: 999, projects: 999, clients: 999, storage: 100 },
+  studio: { workspaces: 10, users: 999, projects: 999, clients: 999, storage: 10 },
 };
 
 // Stripe Price IDs - LIVE PRODUCTION
@@ -321,7 +321,7 @@ export function getDisplayPrice(planId: PlanId, currency: Currency, interval: Bi
   const plan = PLANS[planId];
   if (interval === 'yearly') {
     // Monthly price with 20% discount
-    return Math.round(plan.prices[currency].monthly * 0.8);
+    return Math.round((plan.prices[currency].yearly / 12) * 100) / 100;
   }
   return plan.prices[currency].monthly;
 }
@@ -365,7 +365,7 @@ export function getCompactFeatures(planId: PlanId): string[] {
   
   switch (planId) {
     case 'starter':
-      return ['Kanban', 'CRM básico', 'Excel export'];
+      return ['Kanban', 'CRM básico', 'Calendário integrado'];
     case 'pro':
       return ['Tudo do Starter', 'Google Calendar', 'Meet', 'PDF'];
     case 'studio':
@@ -407,7 +407,7 @@ export function getDisplayPlans(currency: Currency): DisplayPlan[] {
       description: plan.description,
       popular: plan.popular || false,
       priceMonthly: plan.prices[currency].monthly,
-      priceAnnualMonthly: Math.round(plan.prices[currency].monthly * 0.8),
+      priceAnnualMonthly: getDisplayPrice(planId, currency, 'yearly'),
       priceAnnualTotal: plan.prices[currency].yearly,
       limits: plan.limitsDisplay,
       features: featuresForDisplay,

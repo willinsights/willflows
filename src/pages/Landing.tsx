@@ -36,10 +36,7 @@ import {
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
 import { WaitlistForm } from '@/components/marketing/WaitlistForm';
-import { LaunchBannerOptimized } from '@/components/marketing/LaunchBannerOptimized';
 
-import { TestimonialsSection } from '@/components/marketing/TestimonialsSection';
-import { SocialProofBanner } from '@/components/marketing/SocialProofBanner';
 
 
 // Detail screenshots for modal
@@ -52,12 +49,12 @@ const features = [
   {
     icon: Kanban,
     title: 'Kanban Visual',
-    description: 'Acompanhe cada projeto desde a captação até a entrega final com um fluxo visual intuitivo.',
+    description: 'Acompanhe cada projeto desde a captação até à entrega final com um fluxo visual intuitivo.',
   },
   {
     icon: Users,
     title: 'CRM Integrado',
-    description: 'Gerencie todos os seus clientes, contactos e histórico de projetos num só lugar.',
+    description: 'Gira todos os seus clientes, contactos e histórico de projetos num só lugar.',
   },
   {
     icon: Calendar,
@@ -67,17 +64,17 @@ const features = [
   {
     icon: CreditCard,
     title: 'Pagamentos',
-    description: 'Controle receitas, custos e pagamentos de forma simples e organizada.',
+    description: 'Gira receitas, custos e pagamentos de forma simples e organizada.',
   },
   {
     icon: Film,
-    title: '🎬 Aprovação de Vídeo',
+    title: 'Aprovação de Vídeo',
     description: 'Portal de review com comparação A/B de versões e comentários por timecode. Exclusivo Studio.',
     badge: 'Studio',
   },
   {
     icon: Clapperboard,
-    title: '🎞️ Timeline',
+    title: 'Timeline',
     description: 'Estrutura visual para guiar a edição de vídeo. Exclusivo Studio.',
     badge: 'Studio',
   },
@@ -114,7 +111,7 @@ const steps = [
 const faqs = [
   {
     question: 'Preciso de cartão para testar?',
-    answer: 'Não! O trial de 30 dias é completamente grátis e não precisa de cartão. É o nosso bónus de lançamento para si! Só adiciona o cartão quando decidir subscrever.',
+    answer: 'Não! O trial de 7 dias é completamente grátis e não precisa de cartão. Só adiciona o cartão quando decidir subscrever.',
   },
   {
     question: 'Posso trocar de EUR para BRL?',
@@ -122,7 +119,7 @@ const faqs = [
   },
   {
     question: 'Posso cancelar antes do trial acabar?',
-    answer: 'Sim! Pode cancelar a qualquer momento durante o trial de 30 dias e não será cobrado absolutamente nada.',
+    answer: 'Sim! Pode cancelar a qualquer momento durante o trial de 7 dias e não será cobrado absolutamente nada.',
   },
   {
     question: 'Dá para ter freelancers?',
@@ -139,13 +136,13 @@ const showcaseFeatures = [
     id: 'kanban',
     label: 'Kanban Visual',
     image: screenshotKanbanDetail,
-    description: 'Acompanhe cada projeto desde a captação até a entrega',
+    description: 'Acompanhe cada projeto desde a captação até à entrega',
   },
   {
     id: 'financas',
     label: 'Finanças',
     image: screenshotReceitaDetail,
-    description: 'Controle receitas, custos e lucro em tempo real',
+    description: 'Gira receitas, custos e lucro em tempo real',
   },
   {
     id: 'calendario',
@@ -237,7 +234,7 @@ export default function Landing() {
         
         {/* Open Graph */}
         <meta property="og:title" content="WillFlow - Gestão de Projetos para Fotógrafos e Filmmakers" />
-        <meta property="og:description" content="Sistema completo de gestão para produtores: Kanban visual, CRM, calendário, pagamentos e relatórios. 30 dias grátis." />
+        <meta property="og:description" content="Sistema completo de gestão para produtores: Kanban visual, CRM, calendário, pagamentos e relatórios. 7 dias grátis." />
         <meta property="og:url" content="https://willflow.app" />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://willflow.app/og-image.png" />
@@ -249,36 +246,9 @@ export default function Landing() {
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="WillFlow - Gestão de Projetos para Fotógrafos e Filmmakers" />
-        <meta name="twitter:description" content="Sistema completo de gestão para produtores: Kanban visual, CRM, calendário, pagamentos e relatórios. 30 dias grátis." />
+        <meta name="twitter:description" content="Sistema completo de gestão para produtores: Kanban visual, CRM, calendário, pagamentos e relatórios. 7 dias grátis." />
         <meta name="twitter:image" content="https://willflow.app/og-image.png" />
         
-        <script type="application/ld+json">
-          {JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "SoftwareApplication",
-            "name": "WillFlow",
-            "applicationCategory": "BusinessApplication",
-            "operatingSystem": "Web",
-            "description": "Sistema de gestão de projetos para fotógrafos, videomakers, agências e produtoras. Kanban, CRM, calendário e finanças num só lugar.",
-            "offers": {
-              "@type": "AggregateOffer",
-              "priceCurrency": "EUR",
-              "lowPrice": "14",
-              "highPrice": "42",
-              "offerCount": "3"
-            },
-            "creator": {
-              "@type": "Organization",
-              "name": "WillFlow",
-              "url": "https://willflow.app",
-              "logo": "https://willflow.app/logo-willflow-purple.png",
-              "sameAs": [
-                "https://www.instagram.com/willflow.app",
-                "https://www.linkedin.com/company/willflow"
-              ]
-            }
-          })}
-        </script>
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
@@ -340,9 +310,9 @@ export default function Landing() {
             >
               <Badge variant="secondary" className="mb-6 backdrop-blur-md bg-background/60 border-primary/20">
                 {isBetaMode ? (
-                  '🚀 Beta Privado • Acesso por convite'
+                  'Beta Privado · Acesso por convite'
                 ) : (
-                  '🎉 30 dias grátis • Bónus de lançamento!'
+                  '7 dias grátis · Sem cartão'
                 )}
               </Badge>
               
@@ -354,18 +324,18 @@ export default function Landing() {
               </h1>
               
               <p className="text-lg sm:text-xl text-muted-foreground mb-6 max-w-2xl leading-relaxed">
-                Captação → Edição → Entrega. Gerencie projetos, clientes, calendário e finanças num só lugar.
+                Captação → Edição → Entrega. Gira projetos, clientes, calendário e finanças num só lugar.
               </p>
               
               <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-10">
                 <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border/50">
-                  <Check className="h-4 w-4 text-success" /> 30 dias grátis
+                  <Check className="h-4 w-4 text-success" /> 7 dias grátis
                 </span>
                 <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border/50">
                   <Check className="h-4 w-4 text-success" /> EUR ou BRL
                 </span>
                 <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border/50">
-                  <Check className="h-4 w-4 text-success" /> Dark/Light mode
+                  <Check className="h-4 w-4 text-success" /> Modo claro/escuro
                 </span>
               </div>
               
@@ -473,9 +443,6 @@ export default function Landing() {
             >
               <CarouselContent className="-ml-8">
                 {[
-                  { src: "/logos/logo-cliente-1.png", name: "Produtora parceira" },
-                  { src: "/logos/logo-cliente-2.png", name: "Cliente parceiro" },
-                  { src: "/logos/tempspian.png", name: "Tempspian" },
                   { src: "/logos/logo-cliente-1.png", name: "Produtora parceira" },
                   { src: "/logos/logo-cliente-2.png", name: "Cliente parceiro" },
                   { src: "/logos/tempspian.png", name: "Tempspian" },
@@ -614,12 +581,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Social Proof Banner */}
-      <SocialProofBanner />
-
-      {/* Testimonials */}
-      <TestimonialsSection />
-
       {/* Pricing with Focal Zoom */}
       <section className="py-20 px-4 relative overflow-hidden" id="pricing">
         {/* Background bokeh */}
@@ -637,7 +598,7 @@ export default function Landing() {
             >
               <Check className="h-4 w-4" />
               <span className="text-sm font-medium">
-                🎉 30 dias grátis • Bónus de lançamento!
+                7 dias grátis · Sem cartão
               </span>
             </motion.div>
 
@@ -728,7 +689,7 @@ export default function Landing() {
                 >
                   {plan.popular && (
                     <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 gradient-primary px-4">
-                      Mais vendido
+                      Recomendado
                     </Badge>
                   )}
                   
@@ -743,6 +704,11 @@ export default function Landing() {
                       </span>
                       <span className="text-muted-foreground">/mês</span>
                     </div>
+                    {isAnnual && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Faturado anualmente ({currencySymbol}{plan.prices[currency].yearly}/ano)
+                      </p>
+                    )}
                   </div>
 
                   {/* Limits */}
@@ -765,11 +731,11 @@ export default function Landing() {
                       <p className="text-xs font-semibold text-primary/80 uppercase tracking-wide mb-3">Exclusivo Studio</p>
                       <div className="space-y-2">
                         <div className="flex items-center gap-3">
-                          <span className="text-lg">🎬</span>
+                          
                           <span className="text-sm font-semibold text-foreground">Aprovação de vídeo e comparação A/B</span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="text-lg">🎞️</span>
+                          
                           <span className="text-sm font-semibold text-foreground">Desenho de Timeline</span>
                         </div>
                         <div className="flex items-center gap-3">
@@ -795,7 +761,7 @@ export default function Landing() {
                       className={`w-full glow-ring ${plan.popular ? 'gradient-primary' : ''}`}
                       variant={plan.popular ? 'default' : 'outline'}
                     >
-                      Testar grátis 30 dias
+                      Testar grátis 7 dias
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
@@ -874,7 +840,7 @@ export default function Landing() {
               Pronto para transformar a sua gestão?
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              🎉 30 dias grátis como bónus de lançamento! Sem cartão necessário.
+              7 dias grátis · Sem cartão
             </p>
             <Link to="/auth?trial=true" onClick={() => trackCtaClick('footer-cta')}>
               <Button size="lg" className="gradient-primary text-lg px-8 glow-ring lens-flare">
@@ -889,8 +855,7 @@ export default function Landing() {
 
       <PublicFooter />
       
-      {/* Launch promotion banner - optimized */}
-      {!isBetaMode && <LaunchBannerOptimized />}
+
     </div>
   );
 }

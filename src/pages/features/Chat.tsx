@@ -251,7 +251,7 @@ export default function ChatFeature() {
               Experimente o Chat Integrado
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              30 dias grátis. Sem cartão necessário. Veja como a comunicação muda quando está conectada aos projetos.
+              7 dias grátis. Sem cartão necessário. Veja como a comunicação muda quando está conectada aos projetos.
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">

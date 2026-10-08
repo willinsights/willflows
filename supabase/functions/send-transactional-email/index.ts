@@ -65,7 +65,7 @@ const TEMPLATES: Record<string, { component: React.ComponentType<any>; subject: 
   },
   beta_invite: {
     component: BetaInviteEmail,
-    subject: (data) => `🎉 Convite exclusivo: ${data.freeDays || 30} dias grátis no WillFlow!`,
+    subject: (data) => `🎉 Convite exclusivo: ${data.freeDays || 7} dias grátis no WillFlow!`,
   },
   contact_message: {
     component: ContactMessageEmail,

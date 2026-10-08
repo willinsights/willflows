@@ -207,7 +207,7 @@ export default function MediaHubFeature() {
               Organize os Seus Ficheiros de Vez
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              30 dias grátis. Sem cartão necessário. Centralize todos os links num só lugar.
+              7 dias grátis. Sem cartão necessário. Centralize todos os links num só lugar.
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">

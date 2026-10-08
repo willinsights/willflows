@@ -209,7 +209,7 @@ export default function CalendarioFeature() {
               Organize a Sua Agenda de Produção
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              30 dias grátis. Sem cartão necessário. Conecte o Google Calendar e comece já.
+              7 dias grátis. Sem cartão necessário. Conecte o Google Calendar e comece já.
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">

@@ -108,7 +108,7 @@ export default function Onboarding() {
       
       toast({
         title: '🎉 Bem-vindo ao WillFlow!',
-        description: 'O seu trial de 30 dias começou. Explore à vontade!',
+        description: 'O seu trial de 7 dias começou. Explore à vontade!',
       });
 
       // Redirect directly to app (no Stripe checkout)
@@ -182,7 +182,7 @@ export default function Onboarding() {
                   <Sparkles className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium text-sm">30 dias grátis</p>
+                  <p className="font-medium text-sm">7 dias grátis</p>
                   <p className="text-xs text-muted-foreground">
                     Acesso completo • Sem cartão de crédito
                   </p>
@@ -312,7 +312,7 @@ export default function Onboarding() {
                 <p className="text-muted-foreground">
                   O seu workspace foi criado com sucesso.
                   <br />
-                  <span className="text-primary">30 dias de trial ativados!</span>
+                  <span className="text-primary">7 dias de trial ativados!</span>
                 </p>
               </div>
               <div className="flex justify-center">

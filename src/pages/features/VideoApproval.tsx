@@ -129,7 +129,7 @@ export default function VideoApprovalFeature() {
               </Badge>
               
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
-                🎬 Aprovação de Vídeo{' '}
+                Aprovação de Vídeo{' '}
                 <span className="gradient-text">para Clientes</span>
               </h1>
               
@@ -142,7 +142,7 @@ export default function VideoApprovalFeature() {
                 <Link to="/auth?trial=true">
                   <Button size="lg" className="gradient-primary w-full sm:w-auto">
                     <Sparkles className="mr-2 h-5 w-5" />
-                    Começar 30 dias grátis
+                    Começar 7 dias grátis
                   </Button>
                 </Link>
                 <Link to="/planos">
@@ -289,7 +289,7 @@ export default function VideoApprovalFeature() {
                 Pronto para simplificar aprovações?
               </h2>
               <p className="text-lg text-muted-foreground mb-8">
-                Experimente o plano Studio com 30 dias grátis. Inclui aprovação de vídeo, 
+                Experimente o plano Studio com 7 dias grátis. Inclui aprovação de vídeo, 
                 timeline design e 10GB de armazenamento.
               </p>
               <Link to="/auth?trial=true">

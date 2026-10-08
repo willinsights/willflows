@@ -207,7 +207,7 @@ export default function RelatoriosFeature() {
               Tome Decisões Baseadas em Dados
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              30 dias grátis. Sem cartão necessário. Veja o seu negócio de forma diferente.
+              7 dias grátis. Sem cartão necessário. Veja o seu negócio de forma diferente.
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">

@@ -165,7 +165,7 @@ const tutorialSteps = [
     description: 'Personalize o seu workspace, gerencie integrações e escolha o plano ideal para as suas necessidades.',
     screenshot: '/screenshots/banner-dashboard-overview.png',
     tips: [
-      'O trial de 30 dias dá acesso a todas as funcionalidades',
+      'O trial de 7 dias dá acesso a todas as funcionalidades',
       'Pode fazer upgrade a qualquer momento',
       'Configure notificações por email nas preferências',
     ],

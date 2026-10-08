@@ -14,7 +14,7 @@ export interface SystemSettings {
 
 const DEFAULT_SETTINGS: SystemSettings = {
   trial: {
-    default_days: 30,
+    default_days: 7,
     warning_days: 2,
   },
 };

@@ -209,7 +209,7 @@ export default function PagamentosFeature() {
               Tome Controlo das Suas Finanças
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              30 dias grátis. Sem cartão necessário. Saiba sempre onde está o seu dinheiro.
+              7 dias grátis. Sem cartão necessário. Saiba sempre onde está o seu dinheiro.
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">

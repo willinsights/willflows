@@ -68,7 +68,7 @@ function TestRunnerTab() {
       },
     },
     {
-      name: 'Trial: Expira após 30 dias',
+      name: 'Trial: Expira após 7 dias',
       test: async () => {
         return { passed: true, message: 'Lógica de trial OK' };
       },

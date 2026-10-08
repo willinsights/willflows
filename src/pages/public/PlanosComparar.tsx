@@ -228,7 +228,7 @@ export default function PlanosComparar() {
                       <th key={planId} className={`text-center py-6 px-4 ${plan.popular ? 'bg-primary/5' : ''}`}>
                         <div className="space-y-2">
                           {plan.popular && (
-                            <Badge className="gradient-primary mb-2">Mais popular</Badge>
+                            <Badge className="gradient-primary mb-2">Recomendado</Badge>
                           )}
                           <p className={`text-lg font-bold ${plan.popular ? 'gradient-text' : ''}`}>
                             {plan.name}
@@ -340,7 +340,7 @@ export default function PlanosComparar() {
             viewport={{ once: true }}
             className="text-center text-sm text-muted-foreground mt-8"
           >
-            Todos os planos incluem <strong>30 dias grátis</strong> como bónus de lançamento.
+            <strong>7 dias grátis · Sem cartão</strong>.
             Cancele a qualquer momento sem compromisso.
           </motion.p>
         </div>

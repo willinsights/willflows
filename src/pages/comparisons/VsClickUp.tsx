@@ -230,7 +230,7 @@ export default function VsClickUp() {
               Pronto para simplificar a gestão?
             </h2>
             <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-              Teste o WillFlow grátis durante 30 dias. Sem configurações complexas, sem curva de aprendizagem.
+              Teste o WillFlow grátis durante 7 dias. Sem configurações complexas, sem curva de aprendizagem.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" className="gradient-primary" asChild>

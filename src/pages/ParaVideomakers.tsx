@@ -76,10 +76,10 @@ export default function ParaVideomakers() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>WillFlow para Videomakers | Gestão de Produções de Vídeo</title>
-        <meta name="description" content="Sistema de gestão para videomakers e produtoras. Organize produções, equipas e entregas. Kanban com fases de vídeo, timeline de projetos e controlo financeiro. 30 dias grátis." />
+        <meta name="description" content="Sistema de gestão para videomakers e produtoras. Organize produções, equipas e entregas. Kanban com fases de vídeo, timeline de projetos e controlo financeiro. 7 dias grátis." />
         <link rel="canonical" href="https://willflow.app/para-videomakers" />
         <meta property="og:title" content="WillFlow para Videomakers | Gestão de Produções de Vídeo" />
-        <meta property="og:description" content="Sistema de gestão para videomakers e produtoras. Organize produções, equipas e entregas. 30 dias grátis." />
+        <meta property="og:description" content="Sistema de gestão para videomakers e produtoras. Organize produções, equipas e entregas. 7 dias grátis." />
         <meta property="og:url" content="https://willflow.app/para-videomakers" />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://willflow.app/og-image.png" />
@@ -89,7 +89,7 @@ export default function ParaVideomakers() {
         <meta property="og:locale" content="pt_PT" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="WillFlow para Videomakers | Gestão de Produções de Vídeo" />
-        <meta name="twitter:description" content="Sistema de gestão para videomakers e produtoras. Organize produções, equipas e entregas. 30 dias grátis." />
+        <meta name="twitter:description" content="Sistema de gestão para videomakers e produtoras. Organize produções, equipas e entregas. 7 dias grátis." />
         <meta name="twitter:image" content="https://willflow.app/og-image.png" />
         <script type="application/ld+json">
           {JSON.stringify({
@@ -114,11 +114,6 @@ export default function ParaVideomakers() {
               "priceCurrency": "EUR",
               "priceValidUntil": "2026-12-31",
               "availability": "https://schema.org/InStock"
-            },
-            "aggregateRating": {
-              "@type": "AggregateRating",
-              "ratingValue": "4.8",
-              "reviewCount": "67"
             }
           })}
         </script>
@@ -150,7 +145,7 @@ export default function ParaVideomakers() {
                 <Link to="/auth?trial=true">
                   <Button size="lg" className="gradient-primary w-full sm:w-auto">
                     <Sparkles className="mr-2 h-5 w-5" />
-                    Começar 30 dias grátis
+                    Começar 7 dias grátis
                   </Button>
                 </Link>
                 <Link to="/funcionalidades">
@@ -327,7 +322,7 @@ export default function ParaVideomakers() {
                 <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-purple-500/20">
                   <Film className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="text-xl font-bold">🎬 Aprovação de Vídeo</h3>
+                <h3 className="text-xl font-bold">Aprovação de Vídeo</h3>
               </div>
               <p className="text-muted-foreground mb-6">
                 Portal de review para clientes. Alternativa integrada ao Frame.io sem custos extra.
@@ -366,7 +361,7 @@ export default function ParaVideomakers() {
                 <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-purple-500/20">
                   <Clapperboard className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="text-xl font-bold">🎞️ Desenho de Timeline</h3>
+                <h3 className="text-xl font-bold">Desenho de Timeline</h3>
               </div>
               <p className="text-muted-foreground mb-6">
                 Estruture visualmente os vídeos antes de editar. Guie a equipa com templates.
@@ -452,7 +447,7 @@ export default function ParaVideomakers() {
               Comece hoje mesmo
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              🎉 30 dias grátis como bónus de lançamento! Sem cartão necessário.
+              7 dias grátis · Sem cartão
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">
