@@ -50,7 +50,7 @@ export const InvitationEmail = ({
           </Text>
 
           <Section style={highlightBox}>
-            <Text style={highlightTitle}>🎁 Bónus de Lançamento</Text>
+            <Text style={highlightTitle}>7 dias grátis · Sem cartão</Text>
             <Text style={highlightItem}>
               7 dias grátis para experimentares todas as funcionalidades.
             </Text>

@@ -15,7 +15,7 @@ const tourSteps: TourStep[] = [
   {
     id: 'welcome',
     title: 'Bem-vindo ao WillFlow! 🎉',
-    description: 'Está a usar o WillFlow com 30 dias grátis como bónus de lançamento! Vamos fazer um tour rápido. E não se esqueça: temos uma aba de Feedback — adoramos receber as suas sugestões!',
+    description: 'Novas contas incluem 7 dias grátis · Sem cartão. Vamos fazer um tour rápido. E não se esqueça: temos uma aba de Feedback — adoramos receber as suas sugestões!',
     icon: Sparkles,
   },
   {
