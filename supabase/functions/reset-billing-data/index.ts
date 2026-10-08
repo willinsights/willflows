@@ -211,7 +211,7 @@ Deno.serve(async (req) => {
 
       // 3. Reset non-protected subscriptions to trial
       const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+      trialEndsAt.setDate(trialEndsAt.getDate() + 30);
 
       let subscriptionsReset = 0;
 
