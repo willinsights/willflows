@@ -20,7 +20,7 @@ interface ReactivationEmailProps {
   name?: string
   bodyText: string
   appUrl?: string
-  unsubscribeUrl: string
+  unsubscribeUrl?: string
   variant?: 'default' | 'active'
 }
 
@@ -87,10 +87,15 @@ export const ReactivationEmail = ({
               WillFlow, gestão para criativos
             </Text>
             <Text style={footerSmall}>
-              Recebeste este email porque tens uma conta no WillFlow.{' '}
-              <Link href={unsubscribeUrl} style={footerLink}>
-                Cancelar subscrição
-              </Link>
+              Recebeste este email porque tens uma conta no WillFlow.
+              {unsubscribeUrl ? (
+                <>
+                  {' '}
+                  <Link href={unsubscribeUrl} style={footerLink}>
+                    Cancelar subscrição
+                  </Link>
+                </>
+              ) : null}
             </Text>
           </Section>
         </Container>

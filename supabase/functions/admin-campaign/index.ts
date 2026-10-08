@@ -156,8 +156,6 @@ async function sendOne(params: {
 }): Promise<{ ok: boolean; error?: string }> {
   const { admin, userToken, recipient, subject, bodyText } = params
 
-  const unsubscribeToken = await ensureUnsubscribeToken(admin, recipient.email)
-  const unsubscribeUrl = `${SUPABASE_URL}/functions/v1/handle-email-unsubscribe?token=${unsubscribeToken}`
 
   const recipientName = firstName(recipient.full_name)
   const resolvedSubject = renderSubject(subject, recipientName)
@@ -177,7 +175,6 @@ async function sendOne(params: {
         name: recipientName,
         bodyText,
         subject: resolvedSubject,
-        unsubscribeUrl,
       },
 
     }),
