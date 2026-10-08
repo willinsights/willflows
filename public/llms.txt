@@ -8,7 +8,7 @@ WillFlow centraliza o fluxo de trabalho de equipas criativas: captação de lead
 
 - [Início](/): visão geral do produto e principais benefícios.
 - [Funcionalidades](/funcionalidades): mapa completo das capacidades da plataforma.
-- [Planos e preços](/planos): planos disponíveis e teste grátis de 30 dias.
+- [Planos e preços](/planos): planos disponíveis. 7 dias grátis · Sem cartão.
 - [Comparar planos](/planos/comparar): tabela detalhada de comparação de planos.
 - [Integrações](/integracoes): Google Calendar, Google Meet, Stripe e mais.
 - [Segurança](/seguranca): práticas de segurança e proteção de dados.

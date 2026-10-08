@@ -5,3 +5,5 @@
 - Project details sheet: view/edit sub-panels and option lists live in src/components/projects/details/. Why: keeps the 900+ line sheet maintainable.
 - Today view and Dashboard action zone share src/hooks/useTodayAgenda.ts. Why: one source for "what to do now".
 - Closed months are enforced by DB triggers (closed_months); payment status changes stay allowed. Why: lock competência without blocking paying later.
+- Public SoftwareApplication structured data lives only in index.html; route-specific FAQ and breadcrumb schemas remain in their pages. Why: avoids duplicate application offers.
+- Blog generation checks the shared fail-closed enable predicate before any work. Why: prevents accidental publication when a schedule is re-enabled.
