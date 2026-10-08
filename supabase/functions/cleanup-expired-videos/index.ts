@@ -280,52 +280,85 @@ serve(async (req) => {
       }
     }
 
-    // 3. Clean up orphaned deleted videos (manual deletions)
+    // 2b. Delivered cards: videos expire 7 days after delivery
+    const deliveredCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: oldProjects } = await supabase
+      .from('projects')
+      .select('id')
+      .eq('is_delivered', true)
+      .lt('delivered_at', deliveredCutoff)
+      .limit(5000);
+    let deliveredMarked = 0;
+    const projectIds = (oldProjects || []).map((p: any) => p.id);
+    for (let i = 0; i < projectIds.length && deliveredMarked < 300; i += 100) {
+      const { data: vids } = await supabase
+        .from('video_versions')
+        .select('id, workspace_id, file_size_bytes, replacement_file_size_bytes')
+        .in('project_id', projectIds.slice(i, i + 100))
+        .eq('is_deleted', false)
+        .limit(300 - deliveredMarked);
+      if (!vids || vids.length === 0) continue;
+      const freed: Record<string, number> = {};
+      for (const v of vids as any[]) {
+        freed[v.workspace_id] = (freed[v.workspace_id] || 0) + (v.file_size_bytes || 0) + (v.replacement_file_size_bytes || 0);
+      }
+      await supabase.from('video_versions')
+        .update({ is_deleted: true, deleted_at: now })
+        .in('id', vids.map((v: any) => v.id));
+      for (const [ws, bytes] of Object.entries(freed)) {
+        const { data: st } = await supabase.from('workspace_storage')
+          .select('storage_used_bytes').eq('workspace_id', ws).maybeSingle();
+        if (st) {
+          await supabase.from('workspace_storage').update({
+            storage_used_bytes: Math.max(0, (st.storage_used_bytes || 0) - bytes),
+            last_calculated_at: now,
+          }).eq('workspace_id', ws);
+        }
+      }
+      deliveredMarked += vids.length;
+    }
+    logStep("Delivered videos marked for deletion", { count: deliveredMarked });
+
+    // 3. Clean up files of deleted videos (manual + delivered retention)
     const { data: orphanedVideos } = await supabase
       .from('video_versions')
-      .select('id, r2_key, cloudflare_stream_uid, workspace_id, file_size_bytes')
+      .select('id, r2_key, cloudflare_stream_uid, replacement_r2_key, replacement_stream_uid')
       .eq('is_deleted', true)
-      .not('r2_key', 'is', null)
-      .limit(50);
+      .or('r2_key.not.is.null,cloudflare_stream_uid.not.is.null,replacement_r2_key.not.is.null,replacement_stream_uid.not.is.null')
+      .limit(150);
 
     if (orphanedVideos && orphanedVideos.length > 0) {
       logStep("Cleaning up orphaned deleted videos", { count: orphanedVideos.length });
 
-      for (const video of orphanedVideos) {
-        // Delete from R2
-        if (video.r2_key && s3Client && bucketName) {
-          try {
-            await s3Client.send(new DeleteObjectCommand({
-              Bucket: bucketName,
-              Key: video.r2_key,
-            }));
-          } catch (e) {
-            // Ignore errors for orphaned cleanup
+      for (const video of orphanedVideos as any[]) {
+        for (const key of [video.r2_key, video.replacement_r2_key]) {
+          if (key && s3Client && bucketName) {
+            try {
+              await s3Client.send(new DeleteObjectCommand({ Bucket: bucketName, Key: key }));
+            } catch (_e) { /* ignore */ }
+          }
+        }
+        for (const uid of [video.cloudflare_stream_uid, video.replacement_stream_uid]) {
+          if (uid && accountId && streamToken) {
+            try {
+              const r = await fetch(
+                `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${uid}`,
+                { method: 'DELETE', headers: { 'Authorization': `Bearer ${streamToken}` } }
+              );
+              await r.text();
+            } catch (_e) { /* ignore */ }
           }
         }
 
-        // Delete from Stream
-        if (video.cloudflare_stream_uid && accountId && streamToken) {
-          try {
-            await fetch(
-              `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${video.cloudflare_stream_uid}`,
-              {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${streamToken}` },
-              }
-            );
-          } catch (e) {
-            // Ignore errors for orphaned cleanup
-          }
-        }
-
-        // Clear the keys
         await supabase
           .from('video_versions')
           .update({
             r2_key: null,
             cloudflare_stream_uid: null,
             stream_playback_url: null,
+            replacement_r2_key: null,
+            replacement_stream_uid: null,
+            replacement_playback_url: null,
           })
           .eq('id', video.id);
       }
