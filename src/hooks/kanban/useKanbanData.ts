@@ -76,17 +76,36 @@ export function useKanbanData(phase: KanbanPhase) {
       if (error) throw error;
 
       const result = data as { columns?: KanbanColumnWithProjects[] } | null;
+
+      const isUrgent = (p: Project) => p.priority === 'alta' || p.priority === 'urgente';
+      const timeOrInf = (d: string | null) => (d ? new Date(d).getTime() : Infinity);
+
+      // Edição: ordenação original — prioridade, depois delivery_date.
+      const compareEdicao = (a: Project, b: Project) => {
+        if (isUrgent(a) !== isUrgent(b)) return isUrgent(a) ? -1 : 1;
+        return timeOrInf(a.delivery_date) - timeOrInf(b.delivery_date);
+      };
+
+      // Captação: prioridade, depois shoot_date + shoot_start_time (nulls no fim),
+      // desempate por delivery_date e name (ordem determinística).
+      const compareCaptacao = (a: Project, b: Project) => {
+        if (isUrgent(a) !== isUrgent(b)) return isUrgent(a) ? -1 : 1;
+        const shootA = a.shoot_date ?? '￿';
+        const shootB = b.shoot_date ?? '￿';
+        if (shootA !== shootB) return shootA < shootB ? -1 : 1;
+        const timeA = a.shoot_start_time ?? '￿';
+        const timeB = b.shoot_start_time ?? '￿';
+        if (timeA !== timeB) return timeA < timeB ? -1 : 1;
+        const deliveryDiff = timeOrInf(a.delivery_date) - timeOrInf(b.delivery_date);
+        if (deliveryDiff !== 0) return deliveryDiff;
+        return (a.name ?? '').localeCompare(b.name ?? '', 'pt');
+      };
+
+      const compare = phase === 'captacao' ? compareCaptacao : compareEdicao;
+
       return (result?.columns || []).map((col) => ({
         ...col,
-        projects: (col.projects || []).slice().sort((a, b) => {
-          const isUrgentA = a.priority === 'alta' || a.priority === 'urgente';
-          const isUrgentB = b.priority === 'alta' || b.priority === 'urgente';
-          if (isUrgentA && !isUrgentB) return -1;
-          if (!isUrgentA && isUrgentB) return 1;
-          const dateA = a.delivery_date ? new Date(a.delivery_date).getTime() : Infinity;
-          const dateB = b.delivery_date ? new Date(b.delivery_date).getTime() : Infinity;
-          return dateA - dateB;
-        }),
+        projects: (col.projects || []).slice().sort(compare),
       }));
     } catch (error) {
       toast({
