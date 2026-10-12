@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
@@ -5601,10 +5601,6 @@ export type Database = {
         Args: { _encrypted_token: string; _user_id: string }
         Returns: string
       }
-      delete_email: {
-        Args: { message_id: number; queue_name: string }
-        Returns: boolean
-      }
       deliver_project:
         | {
             Args: {
@@ -5623,7 +5619,6 @@ export type Database = {
             }
             Returns: Json
           }
-      email_queue_dispatch: { Args: never; Returns: undefined }
       encrypt_oauth_token: {
         Args: { _token: string; _user_id: string }
         Returns: string
@@ -5631,10 +5626,6 @@ export type Database = {
       enqueue_automation_job: {
         Args: { _event_type: string; _payload: Json; _workspace_id: string }
         Returns: string
-      }
-      enqueue_email: {
-        Args: { payload: Json; queue_name: string }
-        Returns: number
       }
       get_blog_analytics: {
         Args: { days_back?: number }
@@ -5873,23 +5864,6 @@ export type Database = {
         Returns: Json
       }
       mask_email: { Args: { _email: string }; Returns: string }
-      move_to_dlq: {
-        Args: {
-          dlq_name: string
-          message_id: number
-          payload: Json
-          source_queue: string
-        }
-        Returns: number
-      }
-      read_email_batch: {
-        Args: { batch_size: number; queue_name: string; vt: number }
-        Returns: {
-          message: Json
-          msg_id: number
-          read_ct: number
-        }[]
-      }
       record_promo_redemption: {
         Args: { _promo_code_id: string; _workspace_id?: string }
         Returns: boolean
