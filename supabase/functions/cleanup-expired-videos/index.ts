@@ -18,9 +18,11 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const cronSecret = Deno.env.get('CRON_SECRET');
   const providedSecret = req.headers.get('x-cron-secret');
-  if (!secretEquals(cronSecret, providedSecret)) {
+  const authorized =
+    secretEquals(Deno.env.get('CRON_SECRET'), providedSecret) ||
+    secretEquals(Deno.env.get('AUTOMATION_CRON_SECRET'), providedSecret);
+  if (!authorized) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -327,15 +329,21 @@ serve(async (req) => {
       .or('r2_key.not.is.null,cloudflare_stream_uid.not.is.null,replacement_r2_key.not.is.null,replacement_stream_uid.not.is.null')
       .limit(150);
 
+    let orphanCleaned = 0;
+    let orphanFailures = 0;
     if (orphanedVideos && orphanedVideos.length > 0) {
       logStep("Cleaning up orphaned deleted videos", { count: orphanedVideos.length });
 
       for (const video of orphanedVideos as any[]) {
+        let ok = true;
         for (const key of [video.r2_key, video.replacement_r2_key]) {
           if (key && s3Client && bucketName) {
             try {
               await s3Client.send(new DeleteObjectCommand({ Bucket: bucketName, Key: key }));
-            } catch (_e) { /* ignore */ }
+            } catch (e) {
+              ok = false;
+              logStep("R2 delete failed", { key, error: e instanceof Error ? e.message : String(e) });
+            }
           }
         }
         for (const uid of [video.cloudflare_stream_uid, video.replacement_stream_uid]) {
@@ -345,11 +353,23 @@ serve(async (req) => {
                 `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${uid}`,
                 { method: 'DELETE', headers: { 'Authorization': `Bearer ${streamToken}` } }
               );
-              await r.text();
-            } catch (_e) { /* ignore */ }
+              const body = await r.text();
+              // 404 = already gone on Cloudflare
+              if (!r.ok && r.status !== 404) {
+                ok = false;
+                logStep("Stream delete failed", { uid, status: r.status, body: body.slice(0, 300) });
+              }
+            } catch (e) {
+              ok = false;
+              logStep("Stream delete failed", { uid, error: e instanceof Error ? e.message : String(e) });
+            }
           }
         }
 
+        // Only forget the Cloudflare ids once the files are really gone,
+        // so failures are retried on the next run.
+        if (!ok) { orphanFailures++; continue; }
+        orphanCleaned++;
         await supabase
           .from('video_versions')
           .update({
@@ -367,7 +387,9 @@ serve(async (req) => {
     const summary = {
       expiringNotified: expiringItems?.length || 0,
       expired: expiredItems?.length || 0,
-      orphanedCleaned: orphanedVideos?.length || 0,
+      deliveredMarked,
+      orphanedCleaned: orphanCleaned,
+      orphanFailures,
     };
 
     logStep("Cleanup job completed", summary);
