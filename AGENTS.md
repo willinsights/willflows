@@ -7,3 +7,4 @@
 - Closed months are enforced by DB triggers (closed_months); payment status changes stay allowed. Why: lock competência without blocking paying later.
 - Public SoftwareApplication structured data lives only in index.html; route-specific FAQ and breadcrumb schemas remain in their pages. Why: avoids duplicate application offers.
 - Blog generation checks the shared fail-closed enable predicate before any work. Why: prevents accidental publication when a schedule is re-enabled.
+- Historical closing personal reconciliation uses an optional immutable JSON snapshot on closings, separate from closing_items, invoices and team payments. Why: partial personal receipts must not mark full client revenue received or overwrite studio profit.
