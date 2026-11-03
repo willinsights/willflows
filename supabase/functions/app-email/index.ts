@@ -127,8 +127,9 @@ Deno.serve(async (req) => {
       callerId = userData.user.id
     }
 
-    const { template, data }: TransactionalEmailRequest = await req.json()
-    let to: string = (await req.clone().json().catch(() => ({})))?.to ?? ''
+    const body: TransactionalEmailRequest = await req.json()
+    const { template, data } = body
+    let to = body.to
 
     // Non service-role callers may only trigger self-service templates,
     // and only towards their own email address.
