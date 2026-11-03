@@ -110,6 +110,7 @@ Deno.serve(async (req) => {
 
     const isServiceRole = token === supabaseServiceKey
     let callerEmail: string | null = null
+    let callerId: string | null = null
     if (!isServiceRole) {
       const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
       const authClient = createClient(supabaseUrl, anonKey, {
@@ -123,9 +124,11 @@ Deno.serve(async (req) => {
         })
       }
       callerEmail = userData.user.email ?? null
+      callerId = userData.user.id
     }
 
-    const { template, to, data }: TransactionalEmailRequest = await req.json()
+    const { template, data }: TransactionalEmailRequest = await req.json()
+    let to: string = (await req.clone().json().catch(() => ({})))?.to ?? ''
 
     // Non service-role callers may only trigger self-service templates,
     // and only towards their own email address.
