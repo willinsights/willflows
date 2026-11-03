@@ -132,17 +132,48 @@ Deno.serve(async (req) => {
     let to = body.to
 
     // Non service-role callers may only trigger self-service templates,
-    // and only towards their own email address.
+    // and only towards their own email address. Workspace invitations are
+    // allowed for admins of the invitation's workspace (recipient forced to
+    // the invitation email); beta invites require a system admin.
     if (!isServiceRole) {
       const SELF_SERVICE_TEMPLATES = ['password_reset', 'contact_message', 'automation_test']
-      if (!SELF_SERVICE_TEMPLATES.includes(String(template))) {
+      let authorized = SELF_SERVICE_TEMPLATES.includes(String(template))
+
+      if (!authorized && template === 'invitation' && data?.invitation_id && callerId) {
+        const { data: inv } = await supabase
+          .from('workspace_invitations')
+          .select('email, workspace_id')
+          .eq('id', data.invitation_id as string)
+          .maybeSingle()
+        if (inv) {
+          const { data: membership } = await supabase
+            .from('workspace_members')
+            .select('id')
+            .eq('user_id', callerId)
+            .eq('workspace_id', inv.workspace_id)
+            .eq('role', 'admin')
+            .eq('is_active', true)
+            .maybeSingle()
+          if (membership) {
+            authorized = true
+            to = inv.email // never trust the client-provided recipient
+          }
+        }
+      }
+
+      if (!authorized && template === 'beta_invite' && callerId) {
+        const { data: isAdmin } = await supabase.rpc('is_system_admin', { _user_id: callerId })
+        if (isAdmin === true) authorized = true
+      }
+
+      if (!authorized) {
         return new Response(JSON.stringify({ error: 'Forbidden' }), {
           status: 403,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
       const recipient = String(to || '').trim().toLowerCase()
-      if (template !== 'contact_message' && recipient !== (callerEmail || '').toLowerCase()) {
+      if (SELF_SERVICE_TEMPLATES.includes(String(template)) && template !== 'contact_message' && recipient !== (callerEmail || '').toLowerCase()) {
         return new Response(JSON.stringify({ error: 'Forbidden recipient' }), {
           status: 403,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
