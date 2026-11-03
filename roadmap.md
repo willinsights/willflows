@@ -1,9 +1,9 @@
 # Roadmap — pendências da auditoria
 
 ## Reconciliação Morais — Setembro 2026
-- [ ] Registrar recebimento pessoal dos 17 hotéis sem marcar clientes integralmente pagos
-- [ ] Exibir no mesmo fecho lucro dos 22 cards, Morais pago e €312 pessoais pendentes
-- [ ] Verificar valores, exportação e leitura do fecho autenticado
+- [x] Registrar recebimento pessoal dos 17 hotéis sem marcar clientes integralmente pagos
+- [x] Exibir no mesmo fecho lucro dos 22 cards, Morais pago e €312 pessoais pendentes
+- [x] Verificar valores, exportação e leitura do fecho autenticado
 
 ## Site público e trial (outubro 2026)
 - [ ] Trial de 7 dias só para novas contas; alinhar referências e remover promoção terminada
