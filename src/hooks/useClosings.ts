@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
+import type { ClosingReconciliation } from '@/lib/finance/closingReconciliation';
 
 export interface Closing {
   id: string;
@@ -12,6 +13,7 @@ export interface Closing {
   status: 'open' | 'received';
   received_at: string | null;
   notes: string | null;
+  reconciliation?: ClosingReconciliation | null;
   created_at: string;
   updated_at: string;
 }

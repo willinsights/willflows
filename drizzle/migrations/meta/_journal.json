@@ -8,6 +8,13 @@
       "when": 1791470886574,
       "tag": "0000_new_workspace_trial_seven_days",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793736125422,
+      "tag": "0001_closing_personal_reconciliation",
+      "breakpoints": true
     }
   ]
 }
