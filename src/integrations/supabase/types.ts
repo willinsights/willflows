@@ -959,6 +959,7 @@ export type Database = {
           label: string
           notes: string | null
           received_at: string | null
+          reconciliation: Json | null
           status: string
           updated_at: string
           workspace_id: string
@@ -971,6 +972,7 @@ export type Database = {
           label?: string
           notes?: string | null
           received_at?: string | null
+          reconciliation?: Json | null
           status?: string
           updated_at?: string
           workspace_id: string
@@ -983,6 +985,7 @@ export type Database = {
           label?: string
           notes?: string | null
           received_at?: string | null
+          reconciliation?: Json | null
           status?: string
           updated_at?: string
           workspace_id?: string

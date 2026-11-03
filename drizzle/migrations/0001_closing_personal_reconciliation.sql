@@ -1,0 +1,2 @@
+ALTER TABLE public.closings ADD COLUMN IF NOT EXISTS reconciliation jsonb;
+COMMENT ON COLUMN public.closings.reconciliation IS 'Optional historical reconciliation snapshot: project revenue/cost/profit, personal already-received amounts and outstanding personal shares. Does not change invoices, project client payment status or team amounts.';
