@@ -13,6 +13,11 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     // Check localStorage first
+    // One-time switch to the new dark premium default
+    if (!localStorage.getItem('willflow-theme-v2')) {
+      localStorage.setItem('willflow-theme-v2', '1');
+      localStorage.setItem('willflow-theme', 'dark');
+    }
     const stored = localStorage.getItem('willflow-theme') as Theme;
     if (stored) return stored;
     // Dark premium is the default theme
