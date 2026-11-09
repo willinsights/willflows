@@ -213,23 +213,21 @@ export function useTeamPayments() {
     queryFn: async () => {
       if (!workspaceId) return [];
       
-      // Get workspace projects first
-      const { data: projectsData } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('workspace_id', workspaceId);
-      
-      const projectIds = projectsData?.map(p => p.id) || [];
-      
-      if (projectIds.length === 0) return [];
-      
-      const { data, error } = await supabase
-        .from('project_team')
-        .select('id, project_id, user_id, phase, payment_amount, cost_amount, payment_status')
-        .in('project_id', projectIds);
-      
-      if (error) throw error;
-      return data || [];
+      // Filter by workspace via join (a huge `.in()` list overflows the URL) and page past 1000 rows.
+      const pageSize = 1000;
+      const rows: Array<{ id: string; project_id: string; user_id: string | null; phase: string; payment_amount: number | null; cost_amount: number | null; payment_status: string | null }> = [];
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+          .from('project_team')
+          .select('id, project_id, user_id, phase, payment_amount, cost_amount, payment_status, projects!inner(workspace_id)')
+          .eq('projects.workspace_id', workspaceId)
+          .order('id')
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        (data || []).forEach(({ projects: _p, ...r }: any) => rows.push(r));
+        if (!data || data.length < pageSize) break;
+      }
+      return rows;
     },
     enabled: !!workspaceId,
     staleTime: 30000,
