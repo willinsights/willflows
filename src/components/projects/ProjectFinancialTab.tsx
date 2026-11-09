@@ -17,6 +17,8 @@ import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useHideValues } from '@/hooks/useHideValues';
 import { cn } from '@/lib/utils';
 import { TeamMemberPaymentInput } from './TeamMemberPaymentInput';
+import { TeamMemberValueInput } from './TeamMemberValueInput';
+import type { TeamValueAmounts } from '@/lib/finance/teamValue';
 import { ProjectCostLinesCard } from '@/components/financeiro/ProjectCostLinesCard';
 
 import { ProjectHealthScoreBadge } from '@/components/projects/ProjectHealthScoreBadge';
@@ -213,18 +215,19 @@ export function ProjectFinancialTab({
     }
   }, [toast, onTeamPaymentUpdate]);
 
-  // Custo que conta no card/lucro. Vazio (null) = usa o Pagamento.
-  const handleTeamMemberCostAmountChange = useCallback(async (
+  // Save the simplified controls atomically, without touching status or paid_at.
+  const handleTeamMemberValueChange = useCallback(async (
     memberId: string,
-    amount: number | null
+    updates: Partial<TeamValueAmounts>
   ) => {
+    if (Object.keys(updates).length === 0) return;
     try {
       const { error } = await supabase
         .from('project_team')
-        .update({ cost_amount: amount } as any)
+        .update(updates)
         .eq('id', memberId);
       if (error) throw error;
-      toast({ title: 'Custo do card atualizado' });
+      toast({ title: 'Valor atualizado' });
       onTeamPaymentUpdate();
     } catch (error: any) {
       toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
@@ -379,7 +382,7 @@ export function ProjectFinancialTab({
             return (
               <div 
                 key={member.id} 
-                className="flex items-center gap-3 p-3 bg-background/50 rounded-lg border border-border/30"
+                className="flex flex-wrap items-center gap-3 p-3 bg-background/50 rounded-lg border border-border/30"
               >
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={profile.avatar_url || undefined} />
@@ -401,20 +404,15 @@ export function ProjectFinancialTab({
                   </div>
                 </div>
 
-                <div className="flex items-end gap-2">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] text-muted-foreground">Custo (card)</span>
-                    <TeamMemberPaymentInput
+                <div className="flex flex-wrap items-end gap-2">
+                  {canViewAllFinancials ? (
+                    <TeamMemberValueInput
                       memberId={member.id}
-                      initialAmount={(member as any).cost_amount ?? null}
-                      suggestedAmount={0}
-                      isManuallyEdited={false}
+                      amounts={{ cost_amount: member.cost_amount, payment_amount: member.payment_amount }}
                       disabled={loading}
-                      placeholder={`= ${(member.payment_amount || 0).toFixed(2)}`}
-                      allowEmpty
-                      onSave={handleTeamMemberCostAmountChange}
+                      onSave={handleTeamMemberValueChange}
                     />
-                  </div>
+                  ) : (
                   <div className="flex flex-col gap-0.5">
                     <span className="text-[10px] text-muted-foreground">Pagamento</span>
                     <TeamMemberPaymentInput
@@ -426,6 +424,7 @@ export function ProjectFinancialTab({
                       onSave={handleTeamMemberPaymentAmountChange}
                     />
                   </div>
+                  )}
                   
                   <Select
                     value={member.payment_status}
