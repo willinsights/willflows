@@ -29,3 +29,7 @@
 - [x] Formulário da equipa com Custo e Pagamento
 - [x] Fecho/Movimentos: Receita | Edição | Captação | Lucro | Meu total
 - [x] A pagar ignora pagamento 0
+
+## Simplificação dos valores da equipe
+- [x] Substituir os dois campos por Valor e Não pago por mim, preservando diferenças existentes
+- [x] Testar regras e salvamento isolado; conferir a tela autenticada sem alterar dados históricos

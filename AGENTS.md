@@ -8,3 +8,4 @@
 - Public SoftwareApplication structured data lives only in index.html; route-specific FAQ and breadcrumb schemas remain in their pages. Why: avoids duplicate application offers.
 - Blog generation checks the shared fail-closed enable predicate before any work. Why: prevents accidental publication when a schedule is re-enabled.
 - Historical closing personal reconciliation uses an optional immutable JSON snapshot on closings, separate from closing_items, invoices and team payments. Why: partial personal receipts must not mark full client revenue received or overwrite studio profit.
+- Team value controls map to existing cost/payment columns through the shared teamValue helpers and save both atomically; unequal nonzero legacy amounts retain an advanced payment control. Why: simplify input without losing costs, historical payments, or intentional nulls.
