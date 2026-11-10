@@ -132,15 +132,15 @@ const showcaseFeatures = [
   },
   {
     id: 'financas',
-    label: 'Finanças',
+    label: 'Visão geral',
     image: paymentsPreview,
     description: 'Gira receitas, custos e lucro em tempo real',
   },
   {
     id: 'calendario',
-    label: 'Calendário',
+    label: 'Pagamentos',
     image: calendarPreview,
-    description: 'Visualize compromissos, sessões e entregas',
+    description: 'Acompanhe valores a receber e pagamentos pendentes',
   },
   {
     id: 'relatorios',
@@ -235,7 +235,7 @@ export default function Landing() {
           </p>
           <h1 className="mb-4 text-5xl font-bold sm:text-6xl lg:text-7xl">WillFlow</h1>
           <p className="mx-auto mb-6 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
-            Da captação à entrega, com tudo em ordem.<br className="hidden sm:block" />
+            Da captação à entrega, com tudo em ordem.{' '}<br className="hidden sm:block" />
             Projetos, equipa, clientes e finanças num só lugar.
           </p>
           {isBetaMode ? (
