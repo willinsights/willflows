@@ -2,7 +2,7 @@
 
 ## Restauração do site público — novembro 2026
 - [x] Restaurar a apresentação anterior em Landing, PublicHeader e marketing.css
-- [ ] Conferir imagens, movimento e navegação no computador e celular; não publicar
+- [x] Conferir imagens e navegação no computador e celular; animações anteriores restauradas; 54 testes aprovados; não publicar
 
 ## Reconciliação Morais — Setembro 2026
 - [x] Registrar recebimento pessoal dos 17 hotéis sem marcar clientes integralmente pagos
