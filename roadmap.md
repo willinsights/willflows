@@ -1,5 +1,10 @@
 # Roadmap — pendências da auditoria
 
+## Melhorias do site público — novembro 2026
+- [x] Melhorar hierarquia, prévias e conteúdo factual sem alterar o aplicativo
+- [x] Corrigir navegação móvel e ampliação acessível de imagens
+- [ ] Verificar navegação, preços e leitura em computador e celular; não publicar
+
 ## Reconciliação Morais — Setembro 2026
 - [x] Registrar recebimento pessoal dos 17 hotéis sem marcar clientes integralmente pagos
 - [x] Exibir no mesmo fecho lucro dos 22 cards, Morais pago e €312 pessoais pendentes

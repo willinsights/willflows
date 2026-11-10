@@ -264,6 +264,74 @@
    BLOG CONTENT STYLES
    ========================================== */
 
+/* Scoped landing refinements: do not affect the workspace or other pages. */
+.public-landing {
+  background-image: none;
+  font-size: 16px;
+}
+
+.public-landing h1,
+.public-landing h2,
+.public-landing h3,
+.public-landing p {
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.public-landing .landing-intro {
+  background: hsl(var(--background));
+}
+
+.landing-product-view {
+  max-height: 340px;
+  overflow: hidden;
+}
+
+.public-landing .text-muted-foreground {
+  color: hsl(var(--foreground) / 0.75);
+}
+
+.public-landing .focal-card {
+  border-radius: 8px;
+  backdrop-filter: none;
+  transition: border-color 180ms ease;
+}
+
+.public-landing .focal-card:hover,
+.public-landing .focal-container:has(.focal-card:hover) .focal-card:not(:hover) {
+  transform: none;
+  filter: none;
+  opacity: 1;
+  box-shadow: var(--glass-shadow);
+}
+
+.public-landing .focal-card:hover {
+  border-color: hsl(var(--primary) / 0.5);
+}
+
+.public-landing .glow-ring::before,
+.public-landing .lens-flare::before {
+  display: none;
+}
+
+.public-landing a:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 4px;
+}
+
+@media (max-width: 639px) {
+  .landing-product-view { max-height: 160px; }
+  .public-landing section { padding-top: 40px; padding-bottom: 40px; }
+  .public-landing .landing-intro { padding: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-landing *, #public-mobile-menu {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 .blog-content {
   color: hsl(var(--foreground));
 }
