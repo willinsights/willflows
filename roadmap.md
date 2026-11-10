@@ -1,9 +1,8 @@
 # Roadmap — pendências da auditoria
 
-## Melhorias do site público — novembro 2026
-- [x] Melhorar hierarquia, prévias e conteúdo factual sem alterar o aplicativo
-- [x] Corrigir navegação móvel e ampliação acessível de imagens
-- [x] Verificar navegação, preços e leitura em computador e celular; não publicar
+## Restauração do site público — novembro 2026
+- [x] Restaurar a apresentação anterior em Landing, PublicHeader e marketing.css
+- [ ] Conferir imagens, movimento e navegação no computador e celular; não publicar
 
 ## Reconciliação Morais — Setembro 2026
 - [x] Registrar recebimento pessoal dos 17 hotéis sem marcar clientes integralmente pagos

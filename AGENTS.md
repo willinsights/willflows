@@ -9,4 +9,4 @@
 - Blog generation checks the shared fail-closed enable predicate before any work. Why: prevents accidental publication when a schedule is re-enabled.
 - Historical closing personal reconciliation uses an optional immutable JSON snapshot on closings, separate from closing_items, invoices and team payments. Why: partial personal receipts must not mark full client revenue received or overwrite studio profit.
 - Team value controls map to existing cost/payment columns through the shared teamValue helpers and save both atomically; unequal nonzero legacy amounts retain an advanced payment control. Why: simplify input without losing costs, historical payments, or intentional nulls.
-- Landing refinements are scoped under .public-landing; screenshot enlargement uses the shared Dialog. Why: isolate public design changes and preserve accessible focus and dismissal without affecting workspace screens.
+- Restore public presentation from the version immediately before a rejected redesign, touching only marketing files. Why: keep workspace screens and financial behavior intact.

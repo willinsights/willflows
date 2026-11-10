@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, Sun, Menu, X, ChevronDown, Camera, Video, Scale, Building2, Film } from 'lucide-react';
@@ -40,22 +40,8 @@ export function PublicHeader() {
   const location = useLocation();
   const isBetaMode = isBetaModeEnabled();
 
-  useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [location.pathname]);
-
-  useEffect(() => {
-    if (!mobileMenuOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMobileMenuOpen(false);
-    };
-    window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [mobileMenuOpen]);
-
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
-      {location.pathname === '/' && <a href="#conteudo-principal" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-2 focus:z-50 focus:rounded-md focus:bg-background focus:p-3 focus:text-foreground focus:ring-2 focus:ring-ring">Ir para o conteúdo</a>}
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex-shrink-0">
@@ -63,12 +49,11 @@ export function PublicHeader() {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav aria-label="Navegação principal" className="hidden xl:flex items-center gap-1">
+        <nav className="hidden lg:flex items-center gap-1">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               to={link.href}
-              aria-current={location.pathname === link.href ? 'page' : undefined}
               className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 location.pathname === link.href
                   ? 'text-primary bg-primary/5'
@@ -82,7 +67,7 @@ export function PublicHeader() {
           {/* Solutions Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost"
+              <button
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
                   solutionsLinks.some(s => location.pathname === s.href)
                     ? 'text-primary bg-primary/5'
@@ -91,7 +76,7 @@ export function PublicHeader() {
               >
                 Soluções
                 <ChevronDown className="h-4 w-4" />
-              </Button>
+              </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="center" className="w-48">
               {solutionsLinks.map((link) => (
@@ -108,7 +93,7 @@ export function PublicHeader() {
           {/* Comparisons Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost"
+              <button
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
                   comparisonLinks.some(c => location.pathname === c.href) || location.pathname === '/vs'
                     ? 'text-primary bg-primary/5'
@@ -117,7 +102,7 @@ export function PublicHeader() {
               >
                 Comparações
                 <ChevronDown className="h-4 w-4" />
-              </Button>
+              </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="center" className="w-48">
               {comparisonLinks.map((link) => (
@@ -155,11 +140,10 @@ export function PublicHeader() {
           <Button
             variant="ghost"
             size="icon"
-            className="xl:hidden"
+            className="lg:hidden"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
             aria-expanded={mobileMenuOpen}
-            aria-controls="public-mobile-menu"
           >
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
@@ -173,10 +157,7 @@ export function PublicHeader() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            id="public-mobile-menu"
-            role="navigation"
-            aria-label="Navegação móvel"
-            className="xl:hidden max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-border bg-background"
+            className="lg:hidden border-t border-border bg-background"
           >
             <div className="container mx-auto px-4 py-4 space-y-2">
               {navLinks.map((link) => (

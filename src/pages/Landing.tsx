@@ -1,10 +1,11 @@
 import "@/styles/marketing.css";
-import { useState } from 'react';
+import { useState, memo, forwardRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { trackCtaClick } from '@/lib/google-ads';
 import { isBetaModeEnabled } from '@/contexts/BetaContext';
-import { MotionConfig, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
+import Autoplay from 'embla-carousel-autoplay';
 import {
   Calendar,
   CreditCard,
@@ -14,6 +15,7 @@ import {
   Kanban,
   FileSpreadsheet,
   BarChart3,
+  X,
   Film,
   Clapperboard,
 } from 'lucide-react';
@@ -26,16 +28,22 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import dashboardPreview from '@/assets/screenshot-dark-dashboard.png';
-import kanbanPreview from '@/assets/screenshot-dark-kanban.png';
-import calendarPreview from '@/assets/screenshot-dark-calendar.png';
-import paymentsPreview from '@/assets/screenshot-dark-payments.png';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+} from '@/components/ui/carousel';
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
 import { WaitlistForm } from '@/components/marketing/WaitlistForm';
 
 
+
+// Detail screenshots for modal
+import screenshotKanbanDetail from '@/assets/screenshot-kanban-detail.png';
+import screenshotReceitaDetail from '@/assets/screenshot-receita-detail.png';
+import screenshotCalendarioDetail from '@/assets/screenshot-calendario-detail.png';
+import screenshotMargemDetail from '@/assets/screenshot-margem-detail.png';
 
 const features = [
   {
@@ -61,7 +69,7 @@ const features = [
   {
     icon: Film,
     title: 'Aprovação de Vídeo',
-    description: 'Partilhe versões com os seus clientes e reúna comentários por instante do vídeo. Exclusivo Studio.',
+    description: 'Portal de review com comparação A/B de versões e comentários por timecode. Exclusivo Studio.',
     badge: 'Studio',
   },
   {
@@ -72,8 +80,8 @@ const features = [
   },
   {
     icon: FileSpreadsheet,
-    title: 'Exportação Excel e PDF',
-    description: 'Exporte relatórios em PDF e, nos planos Pro e Studio, também em Excel.',
+    title: 'Export Excel & PDF',
+    description: 'Exporte dados para faturar externamente ou criar relatórios personalizados.',
   },
   {
     icon: BarChart3,
@@ -114,8 +122,8 @@ const faqs = [
     answer: 'Sim! Pode cancelar a qualquer momento durante o trial de 7 dias e não será cobrado absolutamente nada.',
   },
   {
-    question: 'Posso trabalhar com freelancers?',
-    answer: 'Sim. Pode convidar membros para administração, edição, captação ou colaboração, com permissões de acesso adequadas à sua função.',
+    question: 'Dá para ter freelancers?',
+    answer: 'Sim! Pode convidar membros com diferentes roles: Admin, Editor, Captação, Freelancer ou Visualizador. Cada role tem permissões específicas.',
   },
   {
     question: 'Tem faturação?',
@@ -127,25 +135,25 @@ const showcaseFeatures = [
   {
     id: 'kanban',
     label: 'Kanban Visual',
-    image: kanbanPreview,
+    image: screenshotKanbanDetail,
     description: 'Acompanhe cada projeto desde a captação até à entrega',
   },
   {
     id: 'financas',
-    label: 'Visão geral',
-    image: paymentsPreview,
+    label: 'Finanças',
+    image: screenshotReceitaDetail,
     description: 'Gira receitas, custos e lucro em tempo real',
   },
   {
     id: 'calendario',
-    label: 'Pagamentos',
-    image: calendarPreview,
-    description: 'Acompanhe valores a receber e pagamentos pendentes',
+    label: 'Calendário',
+    image: screenshotCalendarioDetail,
+    description: 'Visualize compromissos, sessões e entregas',
   },
   {
     id: 'relatorios',
     label: 'Relatórios',
-    image: dashboardPreview,
+    image: screenshotMargemDetail,
     description: 'Analise o desempenho do seu negócio',
   },
 ];
@@ -158,6 +166,47 @@ import {
   type PlanId,
   type Currency,
 } from '@/lib/plans';
+
+// Memoized mobile screenshot card with forwardRef for AnimatePresence compatibility
+interface MobileScreenshotCardProps {
+  src: string;
+  alt: string;
+  index: number;
+  onClick: () => void;
+}
+
+const MobileScreenshotCard = memo(forwardRef<HTMLDivElement, MobileScreenshotCardProps>(
+  function MobileScreenshotCard({ src, alt, index, onClick }, ref) {
+    // First card is priority (LCP candidate on mobile)
+    const isPriority = index === 0;
+    
+    return (
+      <div
+        ref={ref}
+        role="button"
+        tabIndex={0}
+        aria-label={`Ver ${alt} em detalhe`}
+        className="flex-shrink-0 snap-center first:ml-4 last:mr-4 cursor-pointer animate-in fade-in slide-in-from-right-4"
+        style={{ animationDelay: `${0.3 + index * 0.1}s` }}
+        onClick={onClick}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onClick()}
+      >
+        <div className="w-64 sm:w-72 rounded-xl overflow-hidden shadow-xl shadow-black/30 border border-white/10">
+          <img 
+            src={src} 
+            alt={alt}
+            width={288}
+            height={187}
+            loading={isPriority ? 'eager' : 'lazy'}
+            decoding="async"
+            {...({ fetchpriority: isPriority ? 'high' : 'auto' } as any)}
+            className="w-full h-auto"
+          />
+        </div>
+      </div>
+    );
+  }
+));
 
 export default function Landing() {
   const [showBRL, setShowBRL] = useState(false);
@@ -172,9 +221,12 @@ export default function Landing() {
     return getDisplayPrice(planId, currency, isAnnual ? 'yearly' : 'monthly');
   };
 
+  const heroScreenshots = [
+    { src: '/screenshots/banner-dashboard-overview.png', alt: 'Dashboard WillFlow' },
+  ];
+
   return (
-    <MotionConfig reducedMotion="user">
-    <div className="public-landing min-h-screen bg-background">
+    <div className="min-h-screen">
       <Helmet>
         <title>WillFlow - Gestão de Projetos para Fotógrafos e Filmmakers</title>
         <meta name="description" content="Sistema completo de gestão de projetos para fotógrafos, filmmakers, agências e produtoras. Kanban, CRM, calendário e finanças num só lugar." />
@@ -227,58 +279,233 @@ export default function Landing() {
         </script>
       </Helmet>
       <PublicHeader />
-      <main id="conteudo-principal" tabIndex={-1}>
-      <section className="landing-intro relative overflow-hidden border-b border-border">
-        <div className="container relative z-10 mx-auto px-4 pt-28 pb-10 text-center">
-          <p className="mb-4 flex items-center justify-center gap-2 text-sm font-medium text-accent">
-            <Clapperboard className="h-4 w-4" /> Gestão para fotografia e vídeo
-          </p>
-          <h1 className="mb-4 text-5xl font-bold sm:text-6xl lg:text-7xl">WillFlow</h1>
-          <p className="mx-auto mb-6 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
-            Da captação à entrega, com tudo em ordem.{' '}<br className="hidden sm:block" />
-            Projetos, equipa, clientes e finanças num só lugar.
-          </p>
-          {isBetaMode ? (
-            <div className="mx-auto max-w-xl"><WaitlistForm variant="hero" /></div>
-          ) : (
-            <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Button asChild size="lg"><Link to="/auth?trial=true" onClick={() => trackCtaClick('hero')}>Começar teste grátis <ArrowRight /></Link></Button>
-              <Button asChild size="lg" variant="outline"><a href="#produto">Ver o WillFlow</a></Button>
-            </div>
-          )}
-          <p className="mt-4 text-sm text-muted-foreground">{isBetaMode ? 'Acesso por convite' : '7 dias grátis · Sem cartão'}</p>
+      <main>
+      {/* Hero Section - Split Layout */}
+      <section className="relative min-h-[90vh] pt-24 pb-20 overflow-visible">
+        {/* Gradient Background */}
+        <div className="absolute inset-0 -z-10">
+          <div 
+            className="absolute inset-0"
+            style={{
+              background: `
+                radial-gradient(ellipse 80% 60% at 50% 0%, hsl(var(--primary) / 0.25) 0%, transparent 50%),
+                radial-gradient(ellipse 60% 50% at 80% 50%, hsl(180 100% 45% / 0.2) 0%, transparent 50%),
+                radial-gradient(ellipse 50% 40% at 20% 80%, hsl(330 80% 55% / 0.15) 0%, transparent 50%),
+                linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--background) / 0.95) 100%)
+              `,
+            }}
+          />
+          <div className="gradient-orb gradient-orb-1 absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full opacity-30" aria-hidden="true" />
+          <div className="gradient-orb gradient-orb-2 absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full opacity-25" aria-hidden="true" />
+          <div className="gradient-orb gradient-orb-3 absolute top-1/2 left-0 w-[400px] h-[400px] rounded-full opacity-20" aria-hidden="true" />
         </div>
-        <div className="landing-product-view mx-auto max-w-5xl px-4">
-          <img src={dashboardPreview} alt="Exemplo do painel WillFlow com projetos, receitas, custos e calendário" width={1184} height={768} loading="eager" decoding="async" className="w-full h-auto" />
+
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="grid lg:grid-cols-[1fr_1.1fr] gap-8 lg:gap-16 items-center pt-12 lg:pt-20">
+            {/* Left - Text Content */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <Badge variant="secondary" className="mb-6 backdrop-blur-md bg-background/60 border-primary/20">
+                {isBetaMode ? (
+                  'Beta Privado · Acesso por convite'
+                ) : (
+                  '7 dias grátis · Sem cartão'
+                )}
+              </Badge>
+              
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-[1.1] tracking-tight">
+                O CRM + Kanban{' '}
+                <br className="hidden sm:block" />
+                feito para{' '}
+                <span className="gradient-text">Foto e Vídeo</span>
+              </h1>
+              
+              <p className="text-lg sm:text-xl text-muted-foreground mb-6 max-w-2xl leading-relaxed">
+                Captação → Edição → Entrega. Gira projetos, clientes, calendário e finanças num só lugar.
+              </p>
+              
+              <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-10">
+                <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border/50">
+                  <Check className="h-4 w-4 text-success" /> 7 dias grátis
+                </span>
+                <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border/50">
+                  <Check className="h-4 w-4 text-success" /> EUR ou BRL
+                </span>
+                <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border/50">
+                  <Check className="h-4 w-4 text-success" /> Modo claro/escuro
+                </span>
+              </div>
+              
+              {isBetaMode ? (
+                <div className="max-w-xl">
+                  <WaitlistForm variant="hero" />
+                  <div className="mt-4 flex items-center gap-4">
+                    <span className="text-muted-foreground">Já tem convite?</span>
+                    <Link to="/auth">
+                      <Button variant="ghost" size="sm">
+                        Entrar na conta
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row items-start gap-4">
+                  <Link to="/auth?trial=true" onClick={() => trackCtaClick('hero')}>
+                    <Button size="lg" className="gradient-primary text-lg px-8 h-14 glow-ring lens-flare">
+                      Começar teste grátis
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Button>
+                  </Link>
+                  <Link to="/funcionalidades">
+                    <Button size="lg" variant="outline" className="text-lg px-8 h-14 backdrop-blur-sm border-kanban-cyan/50 text-kanban-cyan hover:bg-kanban-cyan/10 hover:border-kanban-cyan">
+                      Ver funcionalidades
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </motion.div>
+
+            {/* Right - Dashboard Banner - No box, integrated */}
+            <motion.div
+              initial={{ opacity: 0, x: 40, scale: 0.95 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              transition={{ duration: 0.9, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              className="hidden lg:block relative lg:-mr-20 xl:-mr-32"
+            >
+              <img
+                src="/screenshots/banner-dashboard-overview.png"
+                alt="Dashboard WillFlow mostrando visão geral do produto com Kanban, CRM, Calendário e Finanças"
+                className="w-full screenshot-fog-hero"
+                loading="eager"
+                decoding="async"
+                {...({ fetchpriority: 'high' } as any)}
+              />
+            </motion.div>
+          </div>
+
+          {/* Mobile Screenshot */}
+          <div className="lg:hidden mt-12">
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+            >
+              <img
+                src="/screenshots/banner-dashboard-overview.png"
+                alt="Dashboard WillFlow"
+                className="w-full screenshot-fog"
+                loading="eager"
+                decoding="async"
+                {...({ fetchpriority: 'high' } as any)}
+              />
+            </motion.div>
+          </div>
         </div>
       </section>
 
-      <section id="produto" className="scroll-mt-20 border-b border-border py-12 px-4">
+      {/* Trusted By Section - Premium Carousel */}
+      <section className="py-16 px-4 border-y border-border/20 bg-gradient-to-b from-muted/10 to-background">
         <div className="container mx-auto">
-          <div className="mb-8 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-            <div><p className="mb-2 text-sm font-medium text-accent">O seu estúdio, organizado</p><h2 className="text-3xl font-bold">Uma visão de cada etapa</h2></div>
-            <p className="max-w-md text-sm text-muted-foreground">Prévia do produto com dados de exemplo.</p>
-          </div>
-          <div className="grid gap-6 md:grid-cols-2">
-            {showcaseFeatures.map(feature => (
-              <div key={feature.id} className="min-w-0">
-                <Button variant="ghost" className="landing-preview h-auto w-full overflow-hidden rounded-lg border border-border p-0" onClick={() => setSelectedImage(feature.image)} aria-label={`Ampliar ${feature.label}`}>
-                  <img src={feature.image} alt={`Exemplo de ${feature.label} no WillFlow`} width={1184} height={768} loading="lazy" decoding="async" className="aspect-[3/2] w-full object-contain bg-card" />
-                </Button>
-                <h3 className="mt-4 text-lg font-semibold">{feature.label}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{feature.description}</p>
-              </div>
-            ))}
-          </div>
+          <motion.p 
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="text-center text-xs text-muted-foreground mb-10 tracking-[0.25em] uppercase font-medium"
+          >
+            Usado por produtores em Portugal e Brasil
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="relative max-w-4xl mx-auto"
+          >
+            {/* Fade gradient left */}
+            <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
+            
+            <Carousel
+              opts={{
+                align: "center",
+                loop: true,
+              }}
+              plugins={[
+                Autoplay({
+                  delay: 3000,
+                  stopOnInteraction: false,
+                  stopOnMouseEnter: true,
+                }),
+              ]}
+              className="w-full"
+            >
+              <CarouselContent className="-ml-8">
+                {[
+                  { src: "/logos/logo-cliente-1.png", name: "Produtora parceira" },
+                  { src: "/logos/logo-cliente-2.png", name: "Cliente parceiro" },
+                  { src: "/logos/tempspian.png", name: "Tempspian" },
+                ].map((logo, index) => (
+                  <CarouselItem key={index} className="pl-8 basis-1/2 md:basis-1/3 lg:basis-1/4">
+                    <div className="flex items-center justify-center h-20 p-4">
+                      <img 
+                        src={logo.src}
+                        alt={logo.name}
+                        width={140}
+                        height={40}
+                        loading="lazy"
+                        decoding="async"
+                        className="h-10 w-auto max-w-[140px] object-contain 
+                                   invert dark:invert-0
+                                   opacity-50 hover:opacity-100 transition-all duration-500"
+                      />
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+            </Carousel>
+            
+            {/* Fade gradient right */}
+            <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
+          </motion.div>
         </div>
       </section>
-      <Dialog open={selectedImage !== null} onOpenChange={open => { if (!open) setSelectedImage(null); }}>
-        <DialogContent className="max-w-5xl rounded-lg p-4 pt-12">
-          <DialogTitle className="sr-only">Prévia do WillFlow</DialogTitle>
-          <DialogDescription className="sr-only">Imagem do produto com dados de exemplo.</DialogDescription>
-          {selectedImage && <img src={selectedImage} alt="Prévia ampliada do WillFlow" className="max-h-[75dvh] w-full object-contain" />}
-        </DialogContent>
-      </Dialog>
+
+      {/* Image Modal */}
+      <AnimatePresence>
+        {selectedImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={() => setSelectedImage(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="relative max-w-5xl w-full bg-card rounded-2xl overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setSelectedImage(null)}
+                className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+                aria-label="Fechar imagem ampliada"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <img 
+                src={selectedImage} 
+                alt="Screenshot ampliado do WillFlow"
+                className="w-full h-auto"
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* How it works */}
       <section className="py-20 px-4">
@@ -308,6 +535,8 @@ export default function Landing() {
 
       {/* Features with Focal Zoom */}
       <section className="py-20 px-4 bg-muted/30 relative overflow-hidden">
+        {/* Background bokeh */}
+        <div className="bokeh-orb bokeh-orb-glow w-96 h-96 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-10" />
         
         <div className="container mx-auto relative z-10">
           <div className="text-center mb-16">
@@ -354,6 +583,9 @@ export default function Landing() {
 
       {/* Pricing with Focal Zoom */}
       <section className="py-20 px-4 relative overflow-hidden" id="pricing">
+        {/* Background bokeh */}
+        <div className="bokeh-orb bokeh-orb-primary w-80 h-80 top-20 -left-20 opacity-15" />
+        <div className="bokeh-orb bokeh-orb-accent w-64 h-64 bottom-20 -right-20 opacity-10" />
         
         <div className="container mx-auto relative z-10">
           <div className="text-center mb-12">
@@ -387,7 +619,7 @@ export default function Landing() {
               {/* Currency Toggle */}
               <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-muted/50 backdrop-blur-sm border border-border/50">
                 <span className={`text-sm font-medium transition-colors ${!showBRL ? 'text-foreground' : 'text-muted-foreground'}`}>
-                  EUR
+                  🇵🇹 EUR
                 </span>
                 <Switch
                   checked={showBRL}
@@ -396,7 +628,7 @@ export default function Landing() {
                   aria-label="Alternar moeda entre Euro e Real Brasileiro"
                 />
                 <span className={`text-sm font-medium transition-colors ${showBRL ? 'text-foreground' : 'text-muted-foreground'}`}>
-                  BRL
+                  🇧🇷 BRL
                 </span>
               </div>
 
@@ -495,7 +727,7 @@ export default function Landing() {
 
                   {/* Studio Exclusive Highlight Box */}
                   {planId === 'studio' && (
-                    <div className="mb-4 border-l-2 border-accent pl-4">
+                    <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-primary/20 via-purple-500/15 to-pink-500/10 border border-primary/30 shadow-lg shadow-primary/5">
                       <p className="text-xs font-semibold text-primary/80 uppercase tracking-wide mb-3">Exclusivo Studio</p>
                       <div className="space-y-2">
                         <div className="flex items-center gap-3">
@@ -507,6 +739,7 @@ export default function Landing() {
                           <span className="text-sm font-semibold text-foreground">Desenho de Timeline</span>
                         </div>
                         <div className="flex items-center gap-3">
+                          <span className="text-lg">📦</span>
                           <span className="text-sm text-muted-foreground">10 GB armazenamento incluído</span>
                         </div>
                       </div>
@@ -549,6 +782,7 @@ export default function Landing() {
 
       {/* FAQ with premium styling */}
       <section className="py-20 px-4 bg-muted/30 relative overflow-hidden">
+        <div className="bokeh-orb bokeh-orb-glow w-72 h-72 top-1/2 left-0 -translate-y-1/2 opacity-10" />
         
         <div className="container mx-auto max-w-3xl relative z-10">
           <motion.h2 
@@ -584,7 +818,9 @@ export default function Landing() {
       </section>
 
       {/* CTA with premium depth effects */}
-      <section className="py-20 px-4 relative overflow-hidden border-t border-border">
+      <section className="py-20 px-4 relative overflow-hidden hero-depth">
+        <div className="bokeh-orb bokeh-orb-primary w-96 h-96 top-0 right-0 opacity-20" />
+        <div className="bokeh-orb bokeh-orb-accent w-64 h-64 bottom-0 left-0 opacity-15" />
         
         <div className="container mx-auto relative z-10">
           <motion.div
@@ -592,8 +828,14 @@ export default function Landing() {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="py-6 text-center max-w-3xl mx-auto relative overflow-hidden"
+            className="focal-card p-12 text-center max-w-3xl mx-auto relative overflow-hidden"
           >
+            {/* Premium gradient glow */}
+            <div className="absolute inset-0 -z-10">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-primary/15 rounded-full blur-3xl" />
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-[hsl(180_100%_45%/0.1)] rounded-full blur-3xl" />
+            </div>
+
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
               Pronto para transformar a sua gestão?
             </h2>
@@ -615,6 +857,5 @@ export default function Landing() {
       
 
     </div>
-    </MotionConfig>
   );
 }
