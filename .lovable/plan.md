@@ -29,3 +29,16 @@ Tudo o que eu não conseguir verificar fica marcado "Não verificada". Nenhum se
 ## Detalhes técnicos
 - Ferramentas: rg/leitura de src e supabase/functions, migrações, read_query, linter, scanner de segurança, slow_queries, logs em /tmp/observability e de funções, vitest existente, Playwright.
 - Relatório gerado com ReportLab, verificado página a página antes de entregar.
+
+## Condições adicionais aprovadas por si
+- Scanner automático de segurança autorizado, só diagnóstico.
+- Todas as 104 tabelas: regras de acesso, permissões, ligações entre tabelas, isolamento entre workspaces.
+- Financeiro completo: receitas, faturação, recebimentos, custos, pagamentos, lucro, competência e fechos.
+- Redundâncias apenas identificadas, nada eliminado.
+- Integrações: Stripe, emails, login, armazenamento, vídeo (Cloudflare) e outros serviços.
+- Desempenho real e custo atual da infraestrutura, com impacto das tecnologias propostas.
+- Permissões de todos os perfis: Super Admin, administradores, colaboradores, freelancers.
+- Cada achado de 25/10 confirmado individualmente: resolvido / ainda presente / não verificado.
+- Classificação: erro comprovado, vulnerabilidade confirmada, risco potencial, não verificado.
+- Cada melhoria com: problema e evidência, localização, solução, ficheiros, impacto e prioridade, dependências, complexidade, riscos, testes, reversão.
+- Entrega em PDF e Markdown: `/mnt/documents/willflow_2_0_auditoria.pdf` e `.md`.
