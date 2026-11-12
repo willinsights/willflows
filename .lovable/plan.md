@@ -1,44 +1,87 @@
-# WillFlow 2.0 — Auditoria completa (só leitura) e relatório
+# Auditoria de leitura — S01, S-DELIV e próximo passo (12/11/2026)
 
-## Objetivo
-Executar a auditoria descrita no documento WILLFLOW 2.0 sem alterar código, dados nem configurações. No fim entrego um relatório em PDF (e cópia em Markdown) com os 10 relatórios pedidos e o roadmap. Nenhuma correção é aplicada antes da sua aprovação, etapa a etapa.
+Nada foi alterado: sem código, dados, migrações nem publicação. Só leitura de ficheiros em Files e consultas SELECT à base real.
 
-## Como vou trabalhar
-Auditoria dividida em 6 frentes, investigadas em paralelo:
+## 1. Artefactos S01 (Files → S01/)
 
-1. **Arquitetura e código** (Fases 1, 4, 15): mapa real da app (React + Vite + Lovable Cloud — não Next.js/Prisma; confirmo no projeto), ficheiros grandes, duplicações, código morto, dependências.
-2. **Cibersegurança** (Fase 2): resultados do scanner de segurança, regras de acesso por tabela, funções privilegiadas, isolamento entre workspaces, funções do servidor, OAuth, emails. Retomo os achados da auditoria de 25/10 e confirmo o que ainda está aberto.
-3. **Base de dados e financeiro** (Fases 5, 7): 104 tabelas, índices, gatilhos, coerência das regras já decididas (entrega = competência, custo vs pagamento, lucro único, meses fechados). Consultas só de leitura para detetar dados inconsistentes.
-4. **Funcionalidades e erros** (Fases 3, 6): cada módulo (Kanban, projetos, revisão de vídeo, chat, calendário, clientes, orçamentos, fechos, colaboradores, automações, planos/Stripe, admin): o que faz, o que falha, o que é redundante. Logs recentes e testes existentes.
-5. **Desempenho, UX e site público** (Fases 8, 9, 10): consultas lentas, carregamentos repetidos, ecrãs pesados, testes no navegador em computador e telemóvel, site público e conversão (mantendo a versão visual que prefere).
-6. **Tecnologia, IA e mercado** (Fases 11, 12, 16): automações e IA úteis ao estúdio, tecnologias atuais adequadas, comparação com plataformas semelhantes.
+| Ficheiro | Estado vs. teste (09_resultados_testes_minima.md) |
+|---|---|
+| 10_migracao_producao_S01.sql (52 linhas) | Corpo da função `is_service_role()` igual, linha a linha, ao catálogo final do 09 (linhas 190–205 e 8427–8440). As 14 políticas `TO service_role` e "System admins can view all invoices" (`is_system_admin(auth.uid())`) iguais ao catálogo (linhas 8445–8490). |
+| 11_rollback_producao_S01.sql (5 linhas) | Só faz `DROP POLICY "System admins can view all invoices"`. Nunca repõe a função antiga. Está coerente. |
+| 12_alteracao_registo_Auth.diff (83 linhas) | Retira a leitura de `promo_codes`, o UPDATE de `trial_ends_at` e o `increment_promo_code_usage`. As mensagens dizem "não será aplicado / 7 dias normais". O efeito é o mesmo que o G6-UI-com do 09, mas o texto não foi comparado com o ficheiro do teste (não está disponível). |
+| 13_plano_execucao_S01.md | Passos 1–6 e verificações P1–P9 coerentes com o 10/11/12. |
 
-Tudo o que eu não conseguir verificar fica marcado "Não verificada". Nenhum segredo aparece no relatório.
+**Divergências e lacunas**
+- D1. O catálogo do 09 não mostra as permissões EXECUTE (`REVOKE FROM PUBLIC` / `GRANT anon, authenticated, service_role`). O 10 inclui-as, mas não há prova de teste direta. P1 tem de as conferir.
+- D2. `SECURITY INVOKER` é explícito no 10 e implícito no catálogo. Equivalente (o catálogo não mostra DEFINER).
+- D3. O diff tem números de linha (`@@ -180`, `@@ -279`, `@@ -319`) que não confirmei contra o Auth.tsx atual. Aplicar à mão e conferir.
+- D4. O caminho da cópia de segurança indicado no 13 ("Mais → Base de dados → Gerir → Cópias de segurança") não foi verificado. É uma condição para avançar e depende do proprietário.
+- D5. Ficam sem teste no 09: a matriz DELETE completa, o Studio no navegador autenticado, a aprovação pública de vídeo de ponta a ponta e os serviços externos (Stripe, Cloudflare, Google). P7 cobre-os só por observação dos registos.
+- D6. A função `increment_promo_code_usage` continua a poder ser chamada diretamente (não foi revista). Fica para a Fase 2.
 
-## Entrega
-- Relatório 1–10 conforme Fase 19, cada problema com gravidade (crítica/alta/média/baixa), evidência, impacto para o estúdio e correção proposta.
-- Proposta de arquitetura WillFlow 2.0 (evolução, não reescrita).
-- Roadmap em 7 etapas (Fase 18), cada uma com testes e reversão.
-- Ficheiro: `/mnt/documents/willflow_2_0_auditoria.pdf`.
+**Risco de aplicar:** baixo para os dados (só estrutura, uma transação). É alto em efeito comercial: 44 workspaces com teste terminado e o "Test Starter" passam a ficar bloqueados para criar. O In-Sights não é afetado. Os códigos promocionais ficam indisponíveis.
 
-## Limites
-- Só leitura: zero alterações à app, base de dados, utilizadores ou publicação.
-- A análise profunda de segurança automática pode ser iniciada se autorizar (demora 5–15 min).
-- É um trabalho grande: estimo que consuma bastantes créditos e algum tempo.
+## 2. Bypass S01 na base real (agora)
+- `is_service_role()`: SECURITY DEFINER, `... OR current_user = 'postgres' OR current_user = 'service_role'`. **Continua vulnerável.**
+- **14 políticas** dependem dela (contagem em pg_policies).
+- 3 funções a chamam: `enforce_plan_project_limit`, `enforce_plan_client_limit`, `enforce_workspace_subscription_active`.
 
-## Detalhes técnicos
-- Ferramentas: rg/leitura de src e supabase/functions, migrações, read_query, linter, scanner de segurança, slow_queries, logs em /tmp/observability e de funções, vitest existente, Playwright.
-- Relatório gerado com ReportLab, verificado página a página antes de entregar.
+## 3. S-DELIV — análise (sem implementar)
+Provas na base real:
+- `deliver_project` tem 2 versões (3 e 4 argumentos), ambas SECURITY DEFINER e executáveis por `authenticated`. A versão de 3 argumentos é um duplicado legado.
+- Nenhuma faz verificação de identidade: não usa `auth.uid()`, nem `is_workspace_member`, nem `can_edit_project`. Fazem `UPDATE projects` com privilégio de dono.
+- `p_target_column_id` não é validado: a coluna pode ser de outro workspace ou de outra fase.
+- `p_delivered_at` é livre. Uma data retroativa só é travada pelos gatilhos de mês fechado (não testado por esta via).
+- `can_deliver_project` (DEFINER, `authenticated`) revela a existência e as contagens de tarefas de projetos de outros workspaces.
+- Prova existente: ANTES-S-DELIV e DEPOIS-S-DELIV no 09 → `can_deliver = true` para um colaborador de outro workspace.
+- A app chama estas funções em ProjectDetailsSheet.tsx (linhas 426, 485) e em useKanbanProjectMoves.ts (linhas 126, 182, 280).
 
-## Condições adicionais aprovadas por si
-- Scanner automático de segurança autorizado, só diagnóstico.
-- Todas as 104 tabelas: regras de acesso, permissões, ligações entre tabelas, isolamento entre workspaces.
-- Financeiro completo: receitas, faturação, recebimentos, custos, pagamentos, lucro, competência e fechos.
-- Redundâncias apenas identificadas, nada eliminado.
-- Integrações: Stripe, emails, login, armazenamento, vídeo (Cloudflare) e outros serviços.
-- Desempenho real e custo atual da infraestrutura, com impacto das tecnologias propostas.
-- Permissões de todos os perfis: Super Admin, administradores, colaboradores, freelancers.
-- Cada achado de 25/10 confirmado individualmente: resolvido / ainda presente / não verificado.
-- Classificação: erro comprovado, vulnerabilidade confirmada, risco potencial, não verificado.
-- Cada melhoria com: problema e evidência, localização, solução, ficheiros, impacto e prioridade, dependências, complexidade, riscos, testes, reversão.
-- Entrega em PDF e Markdown: `/mnt/documents/willflow_2_0_auditoria.pdf` e `.md`.
+**Correção proposta (S-DELIV)**
+1. No início das duas funções: `auth.uid()` não nulo e `can_edit_project(auth.uid(), p_project_id)`, ou o serviço interno pela nova `is_service_role()`. Caso contrário, devolver `can_deliver=false` com "Sem permissão", sem revelar contagens.
+2. Validar que `p_target_column_id` pertence ao workspace do projeto e à fase `p_phase`.
+3. Recusar `p_delivered_at` no futuro. A data retroativa fica sujeita a `is_month_closed`.
+4. Retirar a versão de 3 argumentos (confirmar que a app só usa a de 4) ou fazê-la delegar na de 4.
+5. Manter a assinatura e o formato de resposta, para não mexer na app.
+
+**Matriz de testes isolados (dados fictícios, cópia separada)**
+
+| Perfil | Projeto próprio | Projeto de outro workspace | Coluna de outro workspace | Data no futuro / mês fechado |
+|---|---|---|---|---|
+| Admin | entrega | bloqueado | bloqueado | bloqueado |
+| Gestão / Edição com permissão | entrega | bloqueado | bloqueado | bloqueado |
+| Visualização | bloqueado | bloqueado | — | — |
+| Freelancer/colaborador sem edição | bloqueado | bloqueado | — | — |
+| Super Admin | conforme a regra global atual | registar resultado | bloqueado | bloqueado |
+| Anónimo | sem EXECUTE | sem EXECUTE | — | — |
+| Serviço interno / auto-entrega por Kanban | entrega | entrega (só serviço) | bloqueado | — |
+
+Para todos os perfis também se testa:
+- `can_deliver_project` não revela contagens de outro workspace;
+- regressão de "Entrega retroativa" e da auto-entrega por colunas finais;
+- recálculo do lucro e de "A pagar" depois da entrega;
+- contagens antes e depois iguais.
+
+## 4. Sequência após S01
+1. **Segurança:** S01 → S-DELIV → checkout com preço escolhido pelo cliente → password das contas "pro" no código → e-mail para qualquer destinatário → vídeos de outros editores → exportação após cancelamento → OAuth amplo.
+2. **Financeiro:** custo que não atualiza o lucro (C-F01), 54 projetos com custo divergente (C-F02), mês fechado incompleto (C-F03), competência e relatórios (C-F04/05), fechos não atómicos.
+3. **Operações:** 147 automações e 46 push mortas, limpeza de vídeos que apaga referências quando o Cloudflare falha, sucesso falso no Kanban, duas falhas da aprovação de vídeo (enum `owner` e falta de INSERT).
+4. **UX/Fase 2 S01:** códigos promocionais seguros com limite de tentativas, exceções comerciais só de revogação, bloqueio de concorrência nos limites, cancelamento auditado pelo Super Admin.
+
+## Próximo passo único
+**Aplicar a S01 em produção** com o 10 + 12 tal como estão, depois de autorização explícita.
+
+Condições de aceite:
+- O proprietário confirma a hora da cópia de segurança de hoje.
+- As pré-verificações repetidas são iguais às de hoje: função vulnerável, 14 políticas, 775 projetos e 59 workspaces.
+- P1 inclui as permissões EXECUTE (D1).
+- P1–P9 passam: 0 políticas com `is_service_role`, P3 dá "não" a todos os perfis humanos, P8 tem contagens idênticas.
+- Sem novos erros nos serviços internos durante 60 minutos.
+- O diff aplica-se sem conflito e a compilação fica OK (D3).
+- Se P1–P4 falharem: aplicar o 11 e nunca repor a função antiga.
+
+## Não verificado
+- O texto final da cópia de teste versus o 12.
+- O caminho da cópia de segurança.
+- A matriz DELETE.
+- O comportamento real dos serviços externos.
+- Se outra RPC SECURITY DEFINER partilha o padrão do S-DELIV (exige uma varredura dedicada).
