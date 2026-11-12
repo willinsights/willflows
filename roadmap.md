@@ -37,3 +37,5 @@
 ## Simplificação dos valores da equipe
 - [x] Substituir os dois campos por Valor e Não pago por mim, preservando diferenças existentes
 - [x] Testar regras e salvamento isolado; conferir a tela autenticada sem alterar dados históricos
+
+- [x] Auditoria WillFlow 2.0 (só leitura): 10 relatórios + proposta + roadmap em PDF e MD (análise profunda automática ainda a terminar)
