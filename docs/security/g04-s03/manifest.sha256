@@ -16,3 +16,4 @@ d253bbddb3aa8209ffaca79ce9cac2e21053c40e1cd2db1273d9e570d0aa0b68  supabase/funct
 0aee37e1a004f7477aac68ab4ac0fd93a682b55a340010b57199ca60f9aff579  supabase/functions/stream-process-video/index.ts
 d521db69535d5272769145ad5524d9d59737bd8092afe856ed53d656099d2653  supabase/functions/submit-video-feedback/index.ts
 23c5588254d7ffc87c938e5f2e1b0183ff3cd64d2690db6d2fbd3b10b05bc5fa  supabase/functions/video-download-url/index.ts
+a26a67910ac04be721fcfe620a5840287efeea365d7d08da1b3d1fb123a0da2f  docs/security/g04-s03/acl-before.txt
