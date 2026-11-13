@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
 
     // Validate subscription has required keys
     if (!subscription.endpoint || !subscription.keys?.p256dh || !subscription.keys?.auth) {
-      console.error('[send-push] Invalid subscription format:', JSON.stringify(subscription));
+      console.error(`[send-push] Invalid subscription format for user ${userId}`);
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid subscription format' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
