@@ -1,8 +1,8 @@
 # Roadmap — pendências da auditoria
 
 ## Candidatos G04/S03 — sem produção
-- [ ] Revisar transição em fonte isolada: chave histórica, Unicode, validade/reenvio seguro e associações históricas deriváveis
-- [ ] Validar fluxos positivos offline e documentar reversões individuais e commit
+- [x] Revisar transição em fonte isolada: chave histórica, Unicode, validade/reenvio seguro e associações históricas deriváveis
+- [x] Validar 19 fluxos positivos offline e documentar reversões individuais e revisão registrada
 - [x] Mapear upload/processamento/revisão/download e catálogo estrutural
 - [x] Preparar validações compartilhadas, chamadores e SQL/reversão candidatos fora do journal
 - [x] Validar 13 fluxos positivos simulados e SQL local fictício sem TCP; registrar hashes e implantação em docs/security/g04-s03
