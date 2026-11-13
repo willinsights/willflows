@@ -2,10 +2,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { clientIdentifier, isRateLimited, logAttempt, rateLimitResponse } from '../_shared/rate-limit.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { resolveVideoContext, tokenCoversVersion, activeVideoToken, requireScopedVersion, storedKeyMatchesVersion, safeObjectKey, VideoContextError } from '../_shared/video-context.ts';
 
 interface CommentPayload {
   type: 'comment';
@@ -57,8 +55,9 @@ Deno.serve(async (req) => {
     }
 
     // Create Supabase client with service role
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseUrl || !supabaseServiceKey) throw new Error('Missing server configuration');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const rlId = clientIdentifier(req, payload.token);
@@ -91,16 +90,19 @@ Deno.serve(async (req) => {
     }
 
     // Check expiration
-    if (tokenData.expires_at && new Date(tokenData.expires_at) < new Date()) {
+    if (!activeVideoToken(tokenData)) {
       return new Response(
         JSON.stringify({ error: 'Este link de aprovação expirou' }),
         { status: 410, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    const scope = await resolveVideoContext(supabase, tokenData);
+    const scopedVersion = await requireScopedVersion(supabase, payload.video_version_id, scope);
+    // Derive write associations from the authorized version (project links may cover tasks).
     // Get task_id or project_id from token
-    const taskId = tokenData.task_id;
-    const projectId = tokenData.project_id;
+    const taskId = scopedVersion.task_id;
+    const projectId = scopedVersion.project_id;
     const workspaceId = tokenData.workspace_id;
 
     if (payload.type === 'comment') {
@@ -164,7 +166,9 @@ Deno.serve(async (req) => {
       // Check if already approved
       let existingApprovalQuery = supabase
         .from('video_approvals')
-        .select('id');
+        .select('id')
+        .eq('workspace_id', scope.workspace_id)
+        .eq('project_id', scope.project_id);
 
       if (taskId) {
         existingApprovalQuery = existingApprovalQuery.eq('task_id', taskId);
@@ -225,7 +229,7 @@ Deno.serve(async (req) => {
     console.error('Unexpected error:', error);
     return new Response(
       JSON.stringify({ error: 'Erro interno do servidor' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: error instanceof VideoContextError ? 403 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

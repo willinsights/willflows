@@ -2,10 +2,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { clientIdentifier, isRateLimited, logAttempt, rateLimitResponse } from '../_shared/rate-limit.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { resolveVideoContext, tokenCoversVersion, activeVideoToken, requireScopedVersion, storedKeyMatchesVersion, safeObjectKey, VideoContextError } from '../_shared/video-context.ts';
 
 interface VideoVersion {
   id: string;
@@ -53,8 +51,9 @@ Deno.serve(async (req) => {
     }
 
     // Create Supabase client with service role
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseUrl || !supabaseServiceKey) throw new Error('Missing server configuration');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const rlId = clientIdentifier(req, token);
@@ -87,28 +86,32 @@ Deno.serve(async (req) => {
     }
 
     // Check expiration
-    if (tokenData.expires_at && new Date(tokenData.expires_at) < new Date()) {
+    if (!activeVideoToken(tokenData)) {
       return new Response(
         JSON.stringify({ error: 'Este link de aprovação expirou' }),
         { status: 410, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    const scope = await resolveVideoContext(supabase, tokenData);
     // Build query based on task_id or project_id
     let versionsQuery = supabase
       .from('video_versions')
       .select('*')
+      .eq('workspace_id', scope.workspace_id).eq('project_id', scope.project_id)
       .order('version_number', { ascending: false });
 
     let commentsQuery = supabase
       .from('video_comments')
       .select('*')
+      .eq('workspace_id', scope.workspace_id).eq('project_id', scope.project_id)
       .is('parent_id', null)
       .order('timestamp_seconds', { ascending: true });
 
     let approvalsQuery = supabase
       .from('video_approvals')
       .select('*, video_version:video_versions(version_number)')
+      .eq('workspace_id', scope.workspace_id).eq('project_id', scope.project_id)
       .order('approved_at', { ascending: false })
       .limit(1);
 
@@ -132,12 +135,13 @@ Deno.serve(async (req) => {
     let taskTitle = 'Vídeo';
     let projectName = '';
     let taskId = tokenData.task_id;
-    let projectId = tokenData.project_id;
+    let projectId = scope.project_id;
 
     if (tokenData.task_id) {
       const { data: taskData } = await supabase
         .from('tasks')
-        .select('id, title, project:projects(name)')
+        .select('id, title, project_id, project:projects(name)')
+        .eq('workspace_id', scope.workspace_id).eq('project_id', scope.project_id)
         .eq('id', tokenData.task_id)
         .single();
       
@@ -149,7 +153,7 @@ Deno.serve(async (req) => {
     } else if (tokenData.project_id) {
       const { data: projectData } = await supabase
         .from('projects')
-        .select('id, name')
+        .select('id, name').eq('workspace_id', scope.workspace_id)
         .eq('id', tokenData.project_id)
         .single();
       
@@ -175,9 +179,19 @@ Deno.serve(async (req) => {
     const { data: approvals } = await approvalsQuery;
     const approval = approvals?.[0] || null;
 
+    // Historical rows must also reference a version covered by this link.
+    for (const item of [...(comments || []), ...(approval ? [approval] : [])]) {
+      const version = await requireScopedVersion(supabase, item.video_version_id, scope);
+      if (item.workspace_id !== version.workspace_id || (item.project_id && item.project_id !== version.project_id) || (item.task_id && item.task_id !== version.task_id)) throw new VideoContextError('Revisão fora do escopo');
+    }
+
     // Generate video URLs - prefer Cloudflare Stream replacement, then original, fallback to signed Supabase URLs
     const videoUrls: Record<string, string> = {};
     for (const version of (versions || []) as any[]) {
+      const context = await resolveVideoContext(supabase, version);
+      if (!tokenCoversVersion(scope, context)) throw new VideoContextError('Versão fora do escopo');
+      if (version.r2_key && !storedKeyMatchesVersion(version.r2_key, { ...version, ...context })) throw new VideoContextError('Arquivo de vídeo incoerente');
+      if (version.replacement_r2_key && !storedKeyMatchesVersion(version.replacement_r2_key, { ...version, ...context })) throw new VideoContextError('Arquivo corrigido incoerente');
       // Prefer replacement (corrected) video when ready
       if (version.replacement_stream_uid && version.replacement_status === 'ready') {
         videoUrls[version.id] = `https://videodelivery.net/${version.replacement_stream_uid}/manifest/video.m3u8`;
@@ -189,6 +203,7 @@ Deno.serve(async (req) => {
         // Use stored stream URL (already canonical)
         videoUrls[version.id] = version.stream_playback_url;
       } else {
+        if (!safeObjectKey(version.file_path) || !version.file_path.startsWith(`${scope.workspace_id}/`)) throw new VideoContextError('Arquivo legado incoerente');
         // Fallback to Supabase Storage signed URL for legacy videos
         const { data: urlData, error: urlError } = await supabase.storage
           .from('video-versions')
@@ -222,7 +237,7 @@ Deno.serve(async (req) => {
       signed_urls: videoUrls,
     };
 
-    console.log(`Approval data fetched for token ${token.substring(0, 8)}... - ${(versions || []).length} versions, ${(comments || []).length} comments`);
+    console.log(`Approval data fetched: ${(versions || []).length} versions`);
 
     return new Response(
       JSON.stringify(responseData),
@@ -233,7 +248,7 @@ Deno.serve(async (req) => {
     console.error('Unexpected error:', error);
     return new Response(
       JSON.stringify({ error: 'Erro interno do servidor' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: error instanceof VideoContextError ? 403 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

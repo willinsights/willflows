@@ -2,10 +2,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';
 import { clientIdentifier, isRateLimited, logAttempt, rateLimitResponse } from '../_shared/rate-limit.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
+import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { resolveVideoContext, tokenCoversVersion, activeVideoToken, requireScopedVersion, storedKeyMatchesVersion, safeObjectKey, VideoContextError } from '../_shared/video-context.ts';
 
 interface DownloadRequest {
   video_version_id: string;
@@ -45,8 +43,8 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const cloudflareAccountId = Deno.env.get('CLOUDFLARE_ACCOUNT_ID');
     const r2AccessKeyId = Deno.env.get('CLOUDFLARE_R2_ACCESS_KEY');
     const r2SecretAccessKey = Deno.env.get('CLOUDFLARE_R2_SECRET_KEY');
@@ -60,6 +58,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    if (!supabaseUrl || !supabaseServiceKey) throw new Error('Missing server configuration');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { video_version_id, approval_token }: DownloadRequest = await req.json();
 
@@ -76,6 +75,7 @@ Deno.serve(async (req: Request) => {
     let isPublicApproval = false;
     let approvalTaskId: string | null = null;
     let approvalProjectId: string | null = null;
+    let approvalScope: Awaited<ReturnType<typeof resolveVideoContext>> | null = null;
 
     if (approval_token) {
       const rlId = clientIdentifier(req, approval_token);
@@ -91,7 +91,7 @@ Deno.serve(async (req: Request) => {
         .eq('is_active', true)
         .maybeSingle();
 
-      if (!tokenData || (tokenData.expires_at && new Date(tokenData.expires_at) < new Date())) {
+      if (!tokenData || !activeVideoToken(tokenData)) {
         await logAttempt(supabase, rlId, 'approval_token', false);
         return new Response(
           JSON.stringify({ error: 'Link de aprovação inválido ou expirado' }),
@@ -99,6 +99,7 @@ Deno.serve(async (req: Request) => {
         );
       }
 
+      approvalScope = await resolveVideoContext(supabase, tokenData);
       isPublicApproval = true;
       workspaceId = tokenData.workspace_id;
       approvalTaskId = tokenData.task_id;
@@ -131,7 +132,7 @@ Deno.serve(async (req: Request) => {
     // --- Fetch video version (including r2_key) ---
     const { data: version, error: versionError } = await supabase
       .from('video_versions')
-      .select('id, file_name, workspace_id, project_id, r2_key')
+      .select('id, file_name, workspace_id, project_id, task_id, r2_key, uploaded_by')
       .eq('id', video_version_id)
       .single();
 
@@ -161,7 +162,8 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    if (isPublicApproval && workspaceId !== version.workspace_id) {
+    const versionContext = await resolveVideoContext(supabase, version);
+    if (isPublicApproval && (!approvalScope || !tokenCoversVersion(approvalScope, versionContext))) {
       return new Response(
         JSON.stringify({ error: 'Not authorized to download this video' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -176,6 +178,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    if (!storedKeyMatchesVersion(version.r2_key, { ...version, ...versionContext })) throw new VideoContextError('Arquivo de vídeo incoerente');
     const downloadUrl = await generateSignedR2Url(
       cloudflareAccountId,
       r2AccessKeyId,
@@ -205,7 +208,7 @@ Deno.serve(async (req: Request) => {
     console.error('[video-download-url] Error:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: error instanceof VideoContextError ? 403 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

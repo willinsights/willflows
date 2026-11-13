@@ -2,10 +2,9 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { AwsClient } from "https://esm.sh/aws4fetch@1.0.20";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { resolveVideoContext, sameVideoContext, storedKeyMatchesVersion, validateUploadFile, VideoContextError } from '../_shared/video-context.ts';
+import { verifyUploadTicket } from '../_shared/video-upload-ticket.ts';
 
 const logStep = (step: string, details?: Record<string, unknown>) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
@@ -124,6 +123,7 @@ serve(async (req) => {
       fileName, 
       fileSize,
       replaceVersionId,
+      uploadTicket,
     } = await req.json();
 
     // taskId is optional - projectId is required when no taskId
@@ -158,6 +158,14 @@ serve(async (req) => {
       });
     }
 
+    validateUploadFile(fileName, fileSize);
+    const context = await resolveVideoContext(supabase, { workspace_id: workspaceId, project_id: projectId, task_id: taskId || null });
+    await verifyUploadTicket(uploadTicket, { ...context, user_id: userId, key, file_name: fileName, file_size: fileSize, replace_version_id: replaceVersionId || null }, supabaseServiceKey);
+    // Confirm actual object facts before any database mutation or Stream request.
+    const r2 = new AwsClient({ accessKeyId: r2AccessKeyId, secretAccessKey: r2SecretAccessKey, region: 'auto', service: 's3' });
+    const object = await r2.fetch(`https://${accountId}.r2.cloudflarestorage.com/${bucketName}/${key}`, { method: 'HEAD' });
+    if (!object.ok || Number(object.headers.get('content-length')) !== fileSize) throw new VideoContextError('Arquivo de upload não confirmado');
+
     const isReplacement = !!replaceVersionId;
     let versionData: any;
     let nextVersion: number;
@@ -181,6 +189,8 @@ serve(async (req) => {
         });
       }
 
+      const targetContext = await resolveVideoContext(supabase, targetVersion);
+      if (!sameVideoContext(targetContext, context) || (targetVersion.r2_key && !storedKeyMatchesVersion(targetVersion.r2_key, { ...targetVersion, ...targetContext }))) throw new VideoContextError('Versão de substituição incompatível');
       versionData = targetVersion;
       // Remember old assets so they can be purged after the new copy exists
       oldStreamUid = targetVersion.cloudflare_stream_uid || null;
@@ -191,7 +201,7 @@ serve(async (req) => {
       logStep("Replacement mode (in-place update)", { versionId: replaceVersionId, newVersion: nextVersion });
 
 
-      await supabase
+      const { data: replaced, error: replacementError } = await supabase
         .from("video_versions")
         .update({
           // Overwrite the main columns so the version row holds the new video
@@ -200,6 +210,7 @@ serve(async (req) => {
           file_name: fileName,
           file_size_bytes: fileSize,
           r2_key: key,
+          uploaded_by: userId,
           stream_status: "processing",
           // Reset stream URLs/uid until the new copy is created below
           cloudflare_stream_uid: null,
@@ -217,12 +228,19 @@ serve(async (req) => {
 
           replaced_at: new Date().toISOString(),
         })
-        .eq("id", replaceVersionId);
+        .eq("id", replaceVersionId)
+        .eq("workspace_id", workspaceId)
+        .eq("project_id", context.project_id)
+        .eq("r2_key", targetVersion.r2_key)
+        .select("id").single();
+      if (replacementError || !replaced) throw new Error("Failed to replace video version");
     } else {
       // Get next version number - query by taskId if available, otherwise by projectId
       let versionsQuery = supabase
         .from("video_versions")
         .select("version_number")
+        .eq("workspace_id", workspaceId)
+        .eq("project_id", context.project_id)
         .order("version_number", { ascending: false })
         .limit(1);
 
@@ -235,7 +253,7 @@ serve(async (req) => {
       const { data: existingVersions, error: versionsError } = await versionsQuery;
 
       if (versionsError) {
-        logStep("Error fetching versions", { error: versionsError.message });
+        throw new Error("Failed to read version sequence");
       }
 
       nextVersion = (existingVersions?.[0]?.version_number || 0) + 1;
@@ -344,7 +362,7 @@ serve(async (req) => {
       .eq("id", versionData.id);
 
     if (updateError) {
-      logStep("Error updating version with stream data", { error: updateError.message });
+      throw new Error("Failed to confirm video processing state");
     }
 
     // On replacement: purge the previous media so nothing stale can be played or cached
@@ -395,6 +413,8 @@ serve(async (req) => {
       let existingTokenQuery = supabase
         .from("video_approval_tokens")
         .select("id")
+        .eq("workspace_id", workspaceId)
+        .eq("project_id", context.project_id)
         .eq("is_active", true)
         .limit(1);
 
@@ -471,7 +491,7 @@ serve(async (req) => {
     logStep("ERROR", { message: errorMessage });
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+      status: error instanceof VideoContextError ? 403 : 500,
     });
   }
 });

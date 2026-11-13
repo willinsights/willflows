@@ -1,0 +1,22 @@
+-- Synthetic schema only: intentionally does not copy production or its complete RLS.
+CREATE ROLE authenticated;
+CREATE ROLE service_role;
+CREATE ROLE anon;
+CREATE TABLE public.projects(id uuid PRIMARY KEY, workspace_id uuid NOT NULL);
+CREATE TABLE public.tasks(id uuid PRIMARY KEY, workspace_id uuid NOT NULL, project_id uuid NOT NULL);
+CREATE TABLE public.video_versions(id uuid PRIMARY KEY,workspace_id uuid NOT NULL,project_id uuid NOT NULL,task_id uuid,r2_key text,replacement_r2_key text,file_path text,uploaded_by uuid,cloudflare_stream_uid text,replacement_stream_uid text,stream_playback_url text,replacement_playback_url text,is_deleted boolean);
+CREATE TABLE public.video_approval_tokens(id uuid PRIMARY KEY,workspace_id uuid NOT NULL,project_id uuid,task_id uuid,is_active boolean);
+CREATE TABLE public.video_comments(id uuid PRIMARY KEY,workspace_id uuid NOT NULL,project_id uuid,task_id uuid,video_version_id uuid NOT NULL,parent_id uuid,body text);
+CREATE TABLE public.video_approvals(id uuid PRIMARY KEY,workspace_id uuid NOT NULL,project_id uuid,task_id uuid,video_version_id uuid NOT NULL);
+GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO authenticated,service_role;
+CREATE FUNCTION public.is_service_role() RETURNS boolean LANGUAGE sql STABLE SET search_path=public AS $$SELECT current_setting('role') = 'service_role'$$;
+ALTER TABLE public.video_versions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.video_approval_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.video_comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.video_approvals ENABLE ROW LEVEL SECURITY;
+CREATE POLICY fixture ON public.video_versions TO authenticated,service_role USING(true) WITH CHECK(true);
+CREATE POLICY fixture ON public.video_approval_tokens TO authenticated,service_role USING(true) WITH CHECK(true);
+CREATE POLICY fixture ON public.video_comments TO authenticated,service_role USING(true) WITH CHECK(true);
+CREATE POLICY fixture ON public.video_approvals TO authenticated,service_role USING(true) WITH CHECK(true);
+INSERT INTO public.projects VALUES ('20000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001');
+INSERT INTO public.tasks VALUES ('30000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001');
