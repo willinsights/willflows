@@ -69,7 +69,7 @@ serve(async (req) => {
     {
       const { data: versionRow, error: verErr } = await supabase
         .from("video_versions")
-        .select("workspace_id")
+        .select("workspace_id, cloudflare_stream_uid, replacement_stream_uid")
         .eq("id", versionId)
         .maybeSingle();
       if (verErr || !versionRow) {
@@ -87,6 +87,14 @@ serve(async (req) => {
         .in("role", ["admin", "edicao"])
         .maybeSingle();
       if (!membership) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Bind streamUid to the authorized version
+      const expectedUid = isReplacement ? versionRow.replacement_stream_uid : versionRow.cloudflare_stream_uid;
+      if (!expectedUid || expectedUid !== streamUid) {
         return new Response(JSON.stringify({ error: "Forbidden" }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
