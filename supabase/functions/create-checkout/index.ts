@@ -14,6 +14,22 @@ const getCorsHeaders = (origin: string | null) => ({
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 });
 
+// Server-approved subscription prices (must match src/lib/plans.ts)
+const ALLOWED_PRICE_IDS = new Set<string>([
+  'price_1SrikWGr2lXbVyw9yonzyJlM',
+  'price_1SrikXGr2lXbVyw9NqSZ9svF',
+  'price_1SrikZGr2lXbVyw9359CeNDt',
+  'price_1SrikZGr2lXbVyw9NI0jXQ52',
+  'price_1SrikbGr2lXbVyw91Rz0i9zt',
+  'price_1SrikcGr2lXbVyw9uMfHWw6L',
+  'price_1SrikcGr2lXbVyw9JDMREfdR',
+  'price_1SrikdGr2lXbVyw98tP1rsYd',
+  'price_1SrikfGr2lXbVyw9fXBV7BGs',
+  'price_1SrikfGr2lXbVyw9KpGstQ2S',
+  'price_1SrikgGr2lXbVyw9Rt6xW57v',
+  'price_1SrikhGr2lXbVyw9JnFXF1E2',
+]);
+
 // Helper logging function for debugging - only logs when DEBUG=true
 const DEBUG = Deno.env.get("DEBUG") === "true";
 
@@ -55,7 +71,11 @@ serve(async (req) => {
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     const { priceId, workspaceId } = await req.json();
-    if (!priceId) throw new Error("Price ID is required");
+    if (!priceId || typeof priceId !== "string" || !ALLOWED_PRICE_IDS.has(priceId)) {
+      return new Response(JSON.stringify({ error: "Plano inválido." }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     logStep("Request body parsed", { priceId, workspaceId });
 
     // Security: never trust the workspaceId from the body.
@@ -95,7 +115,7 @@ serve(async (req) => {
       logStep("No existing Stripe customer found");
     }
 
-    const requestOrigin = req.headers.get("origin") || "https://willflow.app";
+    const requestOrigin = origin && allowedOrigins.includes(origin) ? origin : "https://willflow.app";
 
     // Create a subscription checkout session with full EU VAT compliance
     const session = await stripe.checkout.sessions.create({
