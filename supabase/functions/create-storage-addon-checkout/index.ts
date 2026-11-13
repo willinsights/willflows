@@ -145,7 +145,9 @@ serve(async (req) => {
       }
     }
 
-    const requestOrigin = req.headers.get("origin") || "https://willflow.app";
+    const ALLOWED_RETURN_ORIGINS = ["https://willflow.app", "https://www.willflow.app", "http://localhost:8080", "http://localhost:5173"];
+    const hdrOrigin = req.headers.get("origin");
+    const requestOrigin = hdrOrigin && ALLOWED_RETURN_ORIGINS.includes(hdrOrigin) ? hdrOrigin : "https://willflow.app";
 
     // Create checkout session for the storage addon
     const session = await stripe.checkout.sessions.create({
