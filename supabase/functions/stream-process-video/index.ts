@@ -134,6 +134,14 @@ serve(async (req) => {
       });
     }
 
+    // Bind the storage key to the caller's workspace (keys are issued as `${workspaceId}/...`)
+    if (typeof key !== "string" || !key.startsWith(`${workspaceId}/`) || key.includes("..") || key.includes("//")) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Verify workspace membership + role — service role bypasses video_versions RLS
     const { data: memberRow, error: memberErr } = await supabase
       .from("workspace_members")

@@ -244,11 +244,11 @@ Deno.serve(async (req) => {
           const { error } = await supabaseAdmin.auth.admin.deleteUser(profile.id);
 
           if (error) {
-            console.error(`Error deleting user ${profile.email}:`, error);
+            console.error(`Error deleting user ${profile.id}:`, error);
             results.errors.push(`User ${profile.email}: ${error.message}`);
           } else {
             results.deletedUsers++;
-            console.log(`Deleted user: ${profile.email}`);
+            console.log(`Deleted user: ${profile.id}`);
           }
         } catch (e: unknown) {
           const errorMessage = e instanceof Error ? e.message : String(e);

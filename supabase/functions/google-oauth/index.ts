@@ -205,11 +205,11 @@ serve(async (req) => {
       }
       
       const googleUser = await userInfoResponse.json();
-      console.log(`[google-oauth] Got user info for: ${googleUser.email}`);
+      console.log(`[google-oauth] Got user info`);
 
       // Reject unverified Google emails (account takeover prevention)
       if (googleUser.verified_email !== true) {
-        console.error(`[google-oauth] Rejected unverified email: ${googleUser.email}`);
+        console.error(`[google-oauth] Rejected unverified email`);
         return new Response(null, {
           status: 302,
           headers: {
@@ -249,7 +249,7 @@ serve(async (req) => {
         });
       } else {
         // Create new user
-        console.log(`[google-oauth] Creating new user for: ${googleUser.email}`);
+        console.log(`[google-oauth] Creating new user`);
         isNewUser = true;
         
         const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({

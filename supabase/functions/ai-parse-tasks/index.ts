@@ -37,7 +37,8 @@ serve(async (req) => {
       });
     }
 
-    const { text, currentPhase } = await req.json();
+    const { text, currentPhase: rawPhase } = await req.json();
+    const currentPhase = rawPhase === 'edicao' ? 'edicao' : 'captacao';
 
     if (!text || typeof text !== "string" || text.trim().length < 10) {
       return new Response(

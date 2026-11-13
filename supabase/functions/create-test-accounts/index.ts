@@ -1,6 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
+// Random per-invocation password (never hardcode credentials in source)
+const generateTestPassword = (): string => {
+  const bytes = new Uint8Array(18);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes)).replace(/[^A-Za-z0-9]/g, '').slice(0, 20) + 'Aa1!';
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -16,21 +23,21 @@ const logStep = (step: string, details?: any) => {
 const TEST_ACCOUNTS = [
   {
     email: 'starter@test.willflow.local',
-    password: 'Teste1234!',
+    password: generateTestPassword(),
     plan: 'starter',
     workspaceName: 'Test Starter',
     workspaceSlug: 'test-starter',
   },
   {
     email: 'pro@test.willflow.local',
-    password: 'Teste1234!',
+    password: generateTestPassword(),
     plan: 'pro',
     workspaceName: 'Test Pro',
     workspaceSlug: 'test-pro',
   },
   {
     email: 'studio@test.willflow.local',
-    password: 'Teste1234!',
+    password: generateTestPassword(),
     plan: 'studio',
     workspaceName: 'Test Studio',
     workspaceSlug: 'test-studio',
@@ -40,19 +47,19 @@ const TEST_ACCOUNTS = [
 const EDITOR_ACCOUNTS = [
   {
     email: 'editor+starter@test.willflow.local',
-    password: 'Teste1234!',
+    password: generateTestPassword(),
     workspaceSlug: 'test-starter',
     role: 'edicao',
   },
   {
     email: 'editor+pro@test.willflow.local',
-    password: 'Teste1234!',
+    password: generateTestPassword(),
     workspaceSlug: 'test-pro',
     role: 'edicao',
   },
   {
     email: 'editor+studio@test.willflow.local',
-    password: 'Teste1234!',
+    password: generateTestPassword(),
     workspaceSlug: 'test-studio',
     role: 'edicao',
   },

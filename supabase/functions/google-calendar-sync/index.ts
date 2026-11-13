@@ -303,6 +303,21 @@ serve(async (req) => {
 
     const userId = data.claims.sub as string;
 
+    // Caller must be an active member of the requested workspace
+    const { data: wsMember } = await supabaseAdmin
+      .from('workspace_members')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('workspace_id', workspaceId)
+      .eq('is_active', true)
+      .maybeSingle();
+    if (!workspaceId || !wsMember) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Get connection
     const { data: connection, error: connError } = await supabaseAdmin
       .from('google_calendar_connections')

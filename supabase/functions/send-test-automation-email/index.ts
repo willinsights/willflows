@@ -74,7 +74,9 @@ Deno.serve(async (req) => {
     if (project_id) {
       const { data } = await supabase.from('projects')
         .select('id, name, client_id, workspace_id')
-        .eq('id', project_id).maybeSingle()
+        .eq('id', project_id)
+        .eq('workspace_id', automation.workspace_id)
+        .maybeSingle()
       project = data
     }
     if (!project) {

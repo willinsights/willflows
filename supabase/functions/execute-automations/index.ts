@@ -153,7 +153,15 @@ Deno.serve(async (req) => {
       .from('projects')
       .select('id, name, client_id, workspace_id')
       .eq('id', project_id)
-      .single()
+      .eq('workspace_id', workspace_id)
+      .maybeSingle()
+
+    if (!project) {
+      return new Response(JSON.stringify({ error: 'Project not found in workspace' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
     let clientName = ''
     let clientEmail = ''
@@ -510,8 +518,16 @@ async function resolveRecipients(
   })
 }
 
-function buildEmailHtml(subject: string, body: string, brandName: string): string {
-  const bodyHtml = body.replace(/\n/g, '<br/>')
+function escapeHtml(v: string): string {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+}
+
+function buildEmailHtml(rawSubject: string, rawBody: string, rawBrand: string): string {
+  const subject = escapeHtml(rawSubject)
+  const brandName = escapeHtml(rawBrand)
+  const bodyHtml = escapeHtml(rawBody).replace(/\n/g, '<br/>')
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>

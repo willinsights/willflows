@@ -261,6 +261,8 @@ Deno.serve(async (req) => {
 
     // Server-side handling for contact_message: validate, sanitize, force recipient
     if (template === 'contact_message') {
+      // Never trust the client-provided recipient: contact messages always go to support
+      to = 'geral@willflow.app'
       const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
       const name = String(data.name ?? '').trim()
       const senderEmail = String(data.email ?? '').trim().toLowerCase()
