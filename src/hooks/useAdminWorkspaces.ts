@@ -4,6 +4,7 @@ import { useSuperAdmin } from './useSuperAdmin';
 import { useAdminAudit } from './useAdminAudit';
 import { useToast } from './use-toast';
 import { PLAN_LIMITS, PLAN_DB_MAPPING, type PlanId } from '@/lib/plans';
+import { manageWorkspaceBilling } from '@/lib/adminWorkspaceBilling';
 
 export interface AdminWorkspace {
   id: string;
