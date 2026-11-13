@@ -29,6 +29,13 @@
       "when": 1794573263915,
       "tag": "0003_harden_definer_functions_and_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794574051463,
+      "tag": "0004_approval_link_visible_to_editors",
+      "breakpoints": true
     }
   ]
 }
