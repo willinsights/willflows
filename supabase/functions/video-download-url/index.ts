@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';
+import { clientIdentifier, isRateLimited, logAttempt, rateLimitResponse } from '../_shared/rate-limit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -73,6 +74,8 @@ Deno.serve(async (req: Request) => {
     let userId: string | null = null;
     let workspaceId: string | null = null;
     let isPublicApproval = false;
+    let approvalTaskId: string | null = null;
+    let approvalProjectId: string | null = null;
 
     if (approval_token) {
       const rlId = clientIdentifier(req, approval_token);
