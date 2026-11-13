@@ -5,7 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 CATALOG = json.loads((ROOT / 'catalog-before.json').read_text())
-FUNCTIONS = '\n'.join(f['definition'] for f in CATALOG['functions'])
+FUNCTIONS = '\n'.join(f['definition'].rstrip() + ';' for f in CATALOG['functions'])
 SQL = (ROOT / 'positive-tests.sql').read_text() + '\n' + FUNCTIONS
 SQL += '\nCREATE TRIGGER synthetic_trial AFTER INSERT ON public.synthetic_signup FOR EACH ROW EXECUTE FUNCTION public.create_trial_subscription();\n'
 # One outer transaction fixes now() so the exact day assertions are deterministic.
