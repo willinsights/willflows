@@ -1,3 +1,4 @@
+import { FinancialDataState } from '@/components/reports/FinancialDataState';
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { ProductTour } from '@/components/tour/ProductTour';
@@ -157,6 +158,8 @@ export default function Dashboard() {
     costChange,
     profitChange,
     loading: engineLoading,
+    error: engineError,
+    refresh: refreshEngine,
   } = useFinancialEngine(viewMode, selectedMonth);
 
   // Non-financial data + legacy shape for widgets that still need it
@@ -241,13 +244,15 @@ export default function Dashboard() {
           <MobileKPICarousel metrics={metrics} loading={loading} />
           {showFinancialZone && (
             <>
+              <FinancialDataState loading={engineLoading} error={engineError} onRetry={refreshEngine}>
               <MobileFinancialSummary
-                monthlyData={monthlyData}
+                monthlyData={timeSeries.map(point => ({ month: point.month, receita: point.revenue, custos: point.cost, lucro: point.profit }))}
                 annualComparison={annualComparison}
-                loading={loading}
+                loading={engineLoading}
                 currentYearLabel={String(currentYear)}
                 previousYearLabel={String(currentYear - 1)}
               />
+              </FinancialDataState>
               <MobileGoalsSummary
                 currentRevenue={metrics.receita}
                 currentProjectsDelivered={metrics.entregues}
@@ -358,6 +363,7 @@ export default function Dashboard() {
               />
             </div>
 
+            <FinancialDataState loading={engineLoading} error={engineError} onRetry={refreshEngine}>
             {/* 3 forecast KPIs (engine-driven) */}
             <FinancialForecastCards
               viewMode={viewMode}
@@ -397,6 +403,7 @@ export default function Dashboard() {
 
             {/* Monthly summary strip closes zone 1 */}
             <MonthlySummaryBar summary={summary} loading={engineLoading} />
+            </FinancialDataState>
           </>
         )}
 

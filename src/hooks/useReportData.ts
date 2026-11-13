@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, startOfYear } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { useWorkLogs } from '@/hooks/useWorkLogs';
-import { getMonthlyMetrics, getProjectCost, getProjectRevenue } from '@/lib/finance/financialEngine';
-import type { FinancialProject } from '@/lib/finance/types';
+import { getMonthlyMetrics, getProjectCost, getProjectRevenue, withFinancialCostLines } from '@/lib/finance/financialEngine';
+import type { CostLinePayment, FinancialProject } from '@/lib/finance/types';
 
 export type PeriodType = '1M' | '3M' | '6M' | '12M' | 'YTD' | 'custom';
 
@@ -61,11 +61,10 @@ export function useDateRange(periodType: PeriodType, customRange: { from: Date |
  * Monthly report data — now delegated to financialEngine (REALIZADO mode)
  * for consistent numbers across Dashboard, Relatórios and Pagamentos.
  */
-export function useMonthlyData(projects: any[], dateRange: DateRange): MonthlyReportData[] {
+export function useMonthlyData(projects: any[], dateRange: DateRange, costLines?: CostLinePayment[]): MonthlyReportData[] {
   const { workLogs } = useWorkLogs();
   return useMemo(() => {
-    const diffTime = Math.abs(dateRange.end.getTime() - dateRange.start.getTime());
-    const periodMonths = Math.max(1, Math.ceil(Math.ceil(diffTime / (1000 * 60 * 60 * 24)) / 30));
+    const periodMonths = Math.max(1, (dateRange.end.getFullYear() - dateRange.start.getFullYear()) * 12 + dateRange.end.getMonth() - dateRange.start.getMonth() + 1);
     const months: MonthlyReportData[] = [];
 
     // Map raw projects to FinancialProject for the engine
@@ -87,13 +86,15 @@ export function useMonthlyData(projects: any[], dateRange: DateRange): MonthlyRe
       competence_month: p.competence_month,
     }));
 
+    const projectsWithCosts = withFinancialCostLines(mappedProjects, costLines ?? []);
+
     for (let i = periodMonths - 1; i >= 0; i--) {
-      const date = subMonths(dateRange.end, i);
+      const date = subMonths(startOfMonth(dateRange.end), i);
       const end = endOfMonth(date);
       if (end < dateRange.start) continue;
 
       // Delegate to financial engine — single source of truth
-      const metrics = getMonthlyMetrics(mappedProjects, 'REALIZADO', date, [], [], workLogs);
+      const metrics = getMonthlyMetrics(projectsWithCosts, 'REALIZADO', date, [], [], workLogs);
 
       months.push({
         month: format(date, 'MMM yy', { locale: pt }),
@@ -106,7 +107,7 @@ export function useMonthlyData(projects: any[], dateRange: DateRange): MonthlyRe
       });
     }
     return months;
-  }, [projects, dateRange, workLogs]);
+  }, [projects, dateRange, workLogs, costLines]);
 }
 
 export function useTopClients(projects: any[]): TopClientData[] {

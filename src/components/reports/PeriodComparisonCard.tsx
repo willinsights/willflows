@@ -7,12 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowUpRight, ArrowDownRight, Minus, GitCompare } from 'lucide-react';
 import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 import { useWorkLogs } from '@/hooks/useWorkLogs';
-import { getMonthlyMetrics } from '@/lib/finance/financialEngine';
-import type { FinancialProject } from '@/lib/finance/types';
+import { getMonthlyMetrics, withFinancialCostLines } from '@/lib/finance/financialEngine';
+import type { CostLinePayment, FinancialProject } from '@/lib/finance/types';
 import { cn } from '@/lib/utils';
 
 interface PeriodComparisonCardProps {
-  projects: any[];
+  projects: FinancialProject[];
+  costLines: CostLinePayment[];
+  selectedMonth: Date;
 }
 
 function ChangeIndicator({ value, suffix = '' }: { value: number; suffix?: string }) {
@@ -28,33 +30,14 @@ function ChangeIndicator({ value, suffix = '' }: { value: number; suffix?: strin
   );
 }
 
-export function PeriodComparisonCard({ projects }: PeriodComparisonCardProps) {
+export function PeriodComparisonCard({ projects, costLines, selectedMonth }: PeriodComparisonCardProps) {
   const { formatCurrency } = useFormatCurrency();
 
   const { workLogs } = useWorkLogs();
   const comparison = useMemo(() => {
-    const now = new Date();
-    const currentMonth = now;
-    const previousMonth = subMonths(now, 1);
-
-    const mapped: FinancialProject[] = projects.map(p => ({
-      id: p.id,
-      agreed_value: p.agreed_value,
-      custo_captacao: p.custo_captacao,
-      custo_edicao: p.custo_edicao,
-      custos_extras: p.custos_extras,
-      custos_extras_payment_status: p.custos_extras_payment_status,
-      custos_extras_paid_at: p.custos_extras_paid_at,
-      is_delivered: p.is_delivered,
-      delivered_at: p.delivered_at,
-      delivery_date: p.delivery_date,
-      shoot_date: p.shoot_date,
-      created_at: p.created_at,
-      client_payment_status: p.client_payment_status,
-      client_paid_at: p.client_paid_at,
-      competence_month: p.competence_month,
-    }));
-
+    const currentMonth = selectedMonth;
+    const previousMonth = subMonths(currentMonth, 1);
+    const mapped = withFinancialCostLines(projects, costLines);
     const current = getMonthlyMetrics(mapped, 'REALIZADO', currentMonth, [], [], workLogs);
     const previous = getMonthlyMetrics(mapped, 'REALIZADO', previousMonth, [], [], workLogs);
 
@@ -76,7 +59,7 @@ export function PeriodComparisonCard({ projects }: PeriodComparisonCardProps) {
       previousMargin,
       marginChange: currentMargin - previousMargin,
     };
-  }, [projects, workLogs]);
+  }, [projects, costLines, selectedMonth, workLogs]);
 
   const rows = [
     { label: 'Receita', current: comparison.current.revenue, previous: comparison.previous.revenue, change: comparison.revenueChange },

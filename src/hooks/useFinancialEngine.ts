@@ -1,11 +1,13 @@
+import { useFinancialProjects } from './useFinancialProjects';
+import { useFinancialCostLines } from './useFinancialCostLines';
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useWorkLogs } from '@/hooks/useWorkLogs';
-import { fetchAllRows } from '@/lib/fetch-all';
 import { subMonths } from 'date-fns';
 import {
+  withFinancialCostLines,
   getMonthlyMetrics,
   getTimeSeries,
   getMonthlySummary,
@@ -15,7 +17,6 @@ import type {
   FinancialViewMode,
   FinancialProject,
   TeamPayment,
-  CostLinePayment,
   MonthlyMetrics,
   MonthlySummary,
   TimeSeriesPoint,
@@ -30,17 +31,11 @@ export interface UseFinancialEngineResult {
   costChange: number | null;
   profitChange: number | null;
   loading: boolean;
+  error: unknown;
   refresh: () => void;
 }
 
 const STALE = 30_000;
-const PROJECT_COLS = `
-  id, agreed_value, custo_captacao, custo_edicao, custos_extras,
-  custos_extras_payment_status, custos_extras_paid_at,
-  is_delivered, delivered_at, delivery_date, shoot_date, created_at,
-  client_payment_status, client_paid_at, competence_month
-`;
-
 export function useFinancialEngine(
   viewMode: FinancialViewMode,
   selectedMonth: Date,
@@ -48,49 +43,17 @@ export function useFinancialEngine(
   const { currentWorkspace } = useWorkspace();
   const workspaceId = currentWorkspace?.id;
 
-  const projectsQuery = useQuery({
-    queryKey: ['finance', 'engine-projects', workspaceId] as const,
-    enabled: !!workspaceId,
-    staleTime: STALE,
-    queryFn: async (): Promise<FinancialProject[]> => {
-      const data = await fetchAllRows(() =>
-        supabase
-          .from('projects')
-          .select(PROJECT_COLS)
-          .eq('workspace_id', workspaceId!)
-      );
-      return data as FinancialProject[];
-    },
-  });
+  const projectsQuery = useFinancialProjects(workspaceId);
 
-  const costLinesQuery = useQuery({
-    queryKey: ['finance', 'engine-cost-lines', workspaceId] as const,
-    enabled: !!workspaceId,
-    staleTime: STALE,
-    queryFn: async (): Promise<CostLinePayment[]> => {
-      const data = await fetchAllRows(() =>
-        supabase
-          .from('project_cost_lines')
-          .select('id, project_id, actual_amount, payment_status, paid_at')
-          .eq('workspace_id', workspaceId!)
-          .neq('payment_status', 'cancelado')
-      );
-      return data as CostLinePayment[];
-    },
-  });
+  const costLinesQuery = useFinancialCostLines(workspaceId);
 
   const rawProjects = projectsQuery.data ?? [];
   const costLinePayments = costLinesQuery.data ?? [];
 
-  // Merge per-project sum of cost_lines.actual_amount onto projects
-  const projects = useMemo<FinancialProject[]>(() => {
-    if (costLinePayments.length === 0) return rawProjects;
-    const totals = new Map<string, number>();
-    for (const cl of costLinePayments) {
-      totals.set(cl.project_id, (totals.get(cl.project_id) || 0) + (cl.actual_amount || 0));
-    }
-    return rawProjects.map(p => ({ ...p, cost_lines_total: totals.get(p.id) || 0 }));
-  }, [rawProjects, costLinePayments]);
+  const projects = useMemo(
+    () => withFinancialCostLines(rawProjects, costLinePayments),
+    [rawProjects, costLinePayments],
+  );
 
   const teamQuery = useQuery({
     queryKey: ['finance', 'engine-team', workspaceId] as const,
@@ -106,7 +69,7 @@ export function useFinancialEngine(
     },
   });
 
-  const { workLogs } = useWorkLogs();
+  const { workLogs, isFetching: logsFetching, error: logsError, refetch: refetchLogs } = useWorkLogs();
 
   const teamPayments = viewMode === 'CAIXA' ? (teamQuery.data ?? []) : [];
 
@@ -140,8 +103,10 @@ export function useFinancialEngine(
     revenueChange,
     costChange,
     profitChange,
-    loading: projectsQuery.isLoading || costLinesQuery.isLoading || (viewMode === 'CAIXA' && teamQuery.isLoading),
+    loading: projectsQuery.isFetching || costLinesQuery.isFetching || !!logsFetching || (viewMode === 'CAIXA' && teamQuery.isFetching),
+    error: projectsQuery.error || costLinesQuery.error || logsError || (viewMode === 'CAIXA' ? teamQuery.error : null),
     refresh: () => {
+      refetchLogs?.();
       projectsQuery.refetch();
       costLinesQuery.refetch();
       if (viewMode === 'CAIXA') teamQuery.refetch();

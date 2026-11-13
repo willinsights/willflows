@@ -24,6 +24,8 @@ export interface CostLinePayment {
   id: string;
   project_id: string;
   actual_amount: number;
+  category?: string | null;
+  estimated_amount?: number | null;
   payment_status: string;
   paid_at: string | null;
 }
