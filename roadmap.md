@@ -1,5 +1,11 @@
 # Roadmap — pendências da auditoria
 
+## S01 — testes da versão mínima, somente neste draft
+- [x] Confirmar identidade da base isolada antes de qualquer alteração
+- [x] Preparar dados fictícios e executar G1–G9 antes/depois, atomicidade e rollback seguro
+- [x] Verificar registo e código promocional no navegador; corrigir apenas informação incorreta no draft
+- [x] Entregar relatório com evidências, falhas e testes não executados; nunca aceitar este draft
+
 ## Candidatos S02/S09 — sem aplicação em produção
 - [x] Mapear chamadores e catálogo de faturação, trial e promoções
 - [x] Guardar definições e ACL anteriores, sem dados pessoais

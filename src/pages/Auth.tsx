@@ -178,16 +178,12 @@ export default function Auth() {
       return;
     }
     
-    setValidatingPromo(true);
-    try {
-      // S01: promo codes are temporarily unavailable until the secure redemption (phase 2).
-      setPromoValidation({
-        valid: false,
-        message: 'Os códigos promocionais estão temporariamente indisponíveis. Este código não será aplicado e a conta recebe os 7 dias normais de teste.',
-      });
-    } finally {
-      setValidatingPromo(false);
-    }
+    // S01 minimal: no browser-side trial extension until secure redemption exists.
+    setValidatingPromo(false);
+    setPromoValidation({
+      valid: false,
+      message: 'Os códigos promocionais estão temporariamente indisponíveis. Pode criar a conta com o período de teste normal de 7 dias.',
+    });
   };
 
   const forgotPasswordForm = useForm<ForgotPasswordFormData>({
@@ -278,8 +274,8 @@ export default function Auth() {
     toast({
       title: 'Conta criada com sucesso!',
       description: data.promoCode?.trim()
-        ? 'Bem-vindo ao WillFlow! O código promocional não foi aplicado; tem os 7 dias normais de teste.'
-        : 'Bem-vindo ao WillFlow! Tem 7 dias de teste.',
+        ? 'O código promocional não foi aplicado. A sua conta tem o período de teste normal de 7 dias.'
+        : 'Bem-vindo ao WillFlow.',
     });
     navigate('/onboarding');
   };
