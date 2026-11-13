@@ -169,18 +169,7 @@ export function useAdminWorkspaces(filters: WorkspaceFilters) {
 
   const blockWorkspace = useMutation({
     mutationFn: async ({ workspaceId, blocked }: { workspaceId: string; blocked: boolean }) => {
-      const { error } = await supabase
-        .from('workspaces')
-        .update({ subscription_status: blocked ? 'canceled' : 'active' })
-        .eq('id', workspaceId);
-
-      if (error) throw error;
-
-      await logAction({
-        action: blocked ? 'block_workspace' : 'unblock_workspace',
-        targetType: 'workspace',
-        targetId: workspaceId,
-      });
+      await manageWorkspaceBilling(workspaceId, blocked ? 'block' : 'unblock');
     },
     onSuccess: (_, { blocked }) => {
       toast({
