@@ -4,7 +4,7 @@ import { AwsClient } from "https://esm.sh/aws4fetch@1.0.18";
 
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { resolveVideoContext, sameVideoContext, validateUploadFile, VideoContextError } from '../_shared/video-context.ts';
-import { issueUploadTicket } from '../_shared/video-upload-ticket.ts';
+import { issueUploadTicket, UPLOAD_URL_SECONDS, UPLOAD_TICKET_SECONDS } from '../_shared/video-upload-ticket.ts';
 
 const logStep = (step: string, details?: Record<string, unknown>) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
@@ -194,7 +194,7 @@ serve(async (req) => {
     const extension = fileName.split('.').pop() || 'mp4';
     const fileExt = /^[a-zA-Z0-9]{1,10}$/.test(extension) ? extension : 'mp4';
     const timestamp = Date.now();
-    const uniqueKey = `${workspaceId}/${context.project_id}/${context.task_id || "project"}/${userId}/${timestamp}_${crypto.randomUUID()}.${fileExt}`;
+    const uniqueKey = `${workspaceId}/${taskId}/${timestamp}_${crypto.randomUUID()}.${fileExt}`;
 
     logStep("Generating presigned URL", { key: uniqueKey, fileSize, mimeType });
 
@@ -206,17 +206,18 @@ serve(async (req) => {
       bucketName,
       uniqueKey,
       mimeType || "video/mp4",
-      3600
+      UPLOAD_URL_SECONDS
     );
 
-    const uploadTicket = await issueUploadTicket({ ...context, user_id: userId, key: uniqueKey, file_name: fileName, file_size: fileSize, expires_at: Date.now() + 3600 * 1000, replace_version_id: replaceVersionId || null }, supabaseServiceKey);
+    const uploadTicket = await issueUploadTicket({ ...context, user_id: userId, key: uniqueKey, file_name: fileName, file_size: fileSize, expires_at: Date.now() + UPLOAD_TICKET_SECONDS * 1000, replace_version_id: replaceVersionId || null }, supabaseServiceKey);
     logStep("Presigned URL generated successfully");
 
     return new Response(JSON.stringify({
       uploadUrl: presignedUrl,
       key: uniqueKey,
       uploadTicket,
-      expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + UPLOAD_URL_SECONDS * 1000).toISOString(),
+      ticketExpiresAt: new Date(Date.now() + UPLOAD_TICKET_SECONDS * 1000).toISOString(),
       workspaceId,
       taskId,
       projectId,

@@ -4,7 +4,7 @@ import { AwsClient } from "https://esm.sh/aws4fetch@1.0.20";
 
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { resolveVideoContext, sameVideoContext, storedKeyMatchesVersion, validateUploadFile, VideoContextError } from '../_shared/video-context.ts';
-import { verifyUploadTicket } from '../_shared/video-upload-ticket.ts';
+import { verifyUploadTicket, UploadTicketExpiredError } from '../_shared/video-upload-ticket.ts';
 
 const logStep = (step: string, details?: Record<string, unknown>) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
@@ -263,9 +263,9 @@ serve(async (req) => {
       const { data: inserted, error: insertError } = await supabase
         .from("video_versions")
         .insert({
-          task_id: taskId || null,
-          workspace_id: workspaceId,
-          project_id: projectId,
+          task_id: context.task_id,
+          workspace_id: context.workspace_id,
+          project_id: context.project_id,
           version_number: nextVersion,
           file_path: `r2://${bucketName}/${key}`,
           file_name: fileName,
@@ -491,7 +491,7 @@ serve(async (req) => {
     logStep("ERROR", { message: errorMessage });
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: error instanceof VideoContextError ? 403 : 500,
+      status: error instanceof UploadTicketExpiredError ? 409 : error instanceof VideoContextError ? 403 : 500,
     });
   }
 });
