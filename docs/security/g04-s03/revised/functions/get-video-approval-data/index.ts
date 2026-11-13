@@ -98,32 +98,30 @@ Deno.serve(async (req) => {
     let versionsQuery = supabase
       .from('video_versions')
       .select('*')
-      .eq('workspace_id', scope.workspace_id).eq('project_id', scope.project_id)
+      .eq('workspace_id', scope.workspace_id).or(`project_id.eq.${scope.project_id},project_id.is.null`)
       .order('version_number', { ascending: false });
 
     let commentsQuery = supabase
       .from('video_comments')
       .select('*')
-      .eq('workspace_id', scope.workspace_id).eq('project_id', scope.project_id)
+      .eq('workspace_id', scope.workspace_id)
       .is('parent_id', null)
       .order('timestamp_seconds', { ascending: true });
 
     let approvalsQuery = supabase
       .from('video_approvals')
       .select('*, video_version:video_versions(version_number)')
-      .eq('workspace_id', scope.workspace_id).eq('project_id', scope.project_id)
+      .eq('workspace_id', scope.workspace_id)
       .order('approved_at', { ascending: false })
       .limit(1);
 
     // Filter by task_id if present, otherwise by project_id
     if (tokenData.task_id) {
       versionsQuery = versionsQuery.eq('task_id', tokenData.task_id);
-      commentsQuery = commentsQuery.eq('task_id', tokenData.task_id);
-      approvalsQuery = approvalsQuery.eq('task_id', tokenData.task_id);
+
     } else if (tokenData.project_id) {
-      versionsQuery = versionsQuery.eq('project_id', tokenData.project_id);
-      commentsQuery = commentsQuery.eq('project_id', tokenData.project_id);
-      approvalsQuery = approvalsQuery.eq('project_id', tokenData.project_id);
+
+
     } else {
       return new Response(
         JSON.stringify({ error: 'Token sem projeto ou tarefa associada' }),
@@ -164,11 +162,20 @@ Deno.serve(async (req) => {
     }
 
     // Fetch versions
-    const { data: versions, error: versionsError } = await versionsQuery;
+    const { data: candidateVersions, error: versionsError } = await versionsQuery;
     if (versionsError) {
-      console.error('Versions query error:', versionsError);
+      throw new Error('Não foi possível confirmar as versões');
     }
 
+    const versions: any[] = [];
+    for (const version of candidateVersions || []) {
+      const context = await resolveVideoContext(supabase, version);
+      if (tokenCoversVersion(scope, context)) versions.push({ ...version, ...context });
+    }
+    const ids = versions.map(version => version.id);
+    // Link historical review rows through their validated version, not a nullable project field.
+    commentsQuery = commentsQuery.in('video_version_id', ids);
+    approvalsQuery = approvalsQuery.in('video_version_id', ids);
     // Fetch comments
     const { data: comments, error: commentsError } = await commentsQuery;
     if (commentsError) {
@@ -181,8 +188,8 @@ Deno.serve(async (req) => {
 
     // Historical rows must also reference a version covered by this link.
     for (const item of [...(comments || []), ...(approval ? [approval] : [])]) {
-      const version = await requireScopedVersion(supabase, item.video_version_id, scope);
-      if (item.workspace_id !== version.workspace_id || (item.project_id && item.project_id !== version.project_id) || (item.task_id && item.task_id !== version.task_id)) throw new VideoContextError('Revisão fora do escopo');
+      const version = versions.find(version => version.id === item.video_version_id);
+      if (!version || item.workspace_id !== version.workspace_id || (item.project_id && item.project_id !== version.project_id) || (item.task_id && item.task_id !== version.task_id)) throw new VideoContextError('Revisão fora do escopo');
     }
 
     // Generate video URLs - prefer Cloudflare Stream replacement, then original, fallback to signed Supabase URLs

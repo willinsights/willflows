@@ -195,7 +195,7 @@ export function useVideoVersions(
   ): Promise<void> => {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.timeout = 30 * 60 * 1000; // 30 min
+      xhr.timeout = 90 * 60 * 1000; // 90 min; URL valid for 120 min, ticket for 240 min
       
       xhr.upload.addEventListener('progress', (event) => {
         if (event.lengthComputable) {
@@ -334,6 +334,8 @@ export function useVideoVersions(
         throw new Error(urlData?.error || 'Failed to get upload URL');
       }
 
+      if (!urlData.uploadTicket) throw new Error('Envio indisponível: atualize a página e tente novamente');
+
       // Step 2: Upload directly to R2 with progress
       await uploadToR2(urlData.uploadUrl, file, (progress) => {
         // R2 upload is 0-80% of total progress
@@ -341,6 +343,8 @@ export function useVideoVersions(
       });
 
       setUploadProgress(80);
+
+      if (Date.parse(urlData.ticketExpiresAt) <= Date.now()) throw new Error('Prazo encerrado; selecione o arquivo novamente para iniciar um novo envio');
 
       // Step 3: Process video in Cloudflare Stream
       const { data: processData, error: processError } = await supabase.functions.invoke('stream-process-video', {
@@ -454,9 +458,13 @@ export function useVideoVersions(
         throw new Error(urlData?.error || 'Failed to get upload URL');
       }
 
+      if (!urlData.uploadTicket) throw new Error('Envio indisponível: atualize a página e tente novamente');
+
       // Step 2: Upload to R2
       await uploadToR2(urlData.uploadUrl, file, (p) => setUploadProgress(Math.round(p * 0.8)));
       setUploadProgress(80);
+
+      if (Date.parse(urlData.ticketExpiresAt) <= Date.now()) throw new Error('Prazo encerrado; selecione o arquivo novamente para iniciar um novo envio');
 
       // Step 3: Process as replacement
       const { data: processData, error: processError } = await supabase.functions.invoke('stream-process-video', {

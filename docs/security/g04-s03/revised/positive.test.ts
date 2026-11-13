@@ -3,8 +3,8 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
-import * as policy from '../../../supabase/functions/_shared/video-context';
-import * as tickets from '../../../supabase/functions/_shared/video-upload-ticket';
+import * as policy from './functions/_shared/video-context';
+import * as tickets from './functions/_shared/video-upload-ticket';
 
 const workspace = '10000000-0000-4000-8000-000000000001';
 const project = '20000000-0000-4000-8000-000000000001';
@@ -12,7 +12,7 @@ const task = '30000000-0000-4000-8000-000000000001';
 const user = '40000000-0000-4000-8000-000000000001';
 const versionId = '50000000-0000-4000-8000-000000000001';
 const context = { workspace_id: workspace, project_id: project, task_id: task };
-const key = `${workspace}/${project}/${task}/${user}/1_fixture.mp4`;
+const key = `${workspace}/${task}/1_fixture.mp4`;
 const version = { ...context, id: versionId, r2_key: key, uploaded_by: user, file_name: 'fixture.mp4', file_size_bytes: 8, version_number: 1, cloudflare_stream_uid: null };
 const token = { ...context, is_active: true, expires_at: null };
 function database(rows: Record<string, any>, calls: any[] = []) {
@@ -25,7 +25,7 @@ function database(rows: Record<string, any>, calls: any[] = []) {
       const result = () => ({ data: call.operation === 'insert' ? { ...call.value, id: versionId } : rows[table], error: null });
       const query: any = {
         select() { return query; }, eq(k: string, v: any) { call.filters.push([k, v]); return query; },
-        is(k: string, v: any) { call.filters.push([k, v]); return query; }, order() { return query; }, limit() { return query; },
+        in(k: string, v: any) { call.filters.push([k, v]); return query; }, or(v: string) { call.filters.push(['or', v]); return query; }, is(k: string, v: any) { call.filters.push([k, v]); return query; }, order() { return query; }, limit() { return query; },
         update(value: any) { call.operation = 'update'; call.value = value; return query; },
         insert(value: any) { call.operation = 'insert'; call.value = value; return query; },
         delete() { call.operation = 'delete'; return query; },
@@ -39,7 +39,7 @@ const rows = () => ({ projects: { id: project, workspace_id: workspace }, tasks:
 async function handler(name: string, db: ReturnType<typeof database>) {
   let captured: (request: Request) => Promise<Response> = async () => new Response('', { status: 500 });
   // Compile entrypoints in-memory and inject all remote dependencies. Never load remote modules.
-  const source = readFileSync(`supabase/functions/${name}/index.ts`, 'utf8').replace(/^import .*;\s*$/gm, '');
+  const source = readFileSync(`docs/security/g04-s03/revised/functions/${name}/index.ts`, 'utf8').replace(/^import .*;\s*$/gm, '');
   const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
   const signer = vi.fn(async (req: Request) => req);
   const objectFetch = vi.fn(async () => new Response(null, { headers: { 'content-length': '8' } }));
@@ -76,7 +76,7 @@ describe('G04/S03 positive flows — fictitious dependencies, no network', () =>
     const response = await h.run(request({ workspaceId: workspace, projectId: project, taskId: task, fileName: 'fixture.mp4', fileSize: 8 }));
     expect(response.status).toBe(200);
     const value = await response.json();
-    expect(value.key.startsWith(`${workspace}/${project}/${task}/${user}/`)).toBe(true);
+    expect(value.key.startsWith(`${workspace}/${task}/`)).toBe(true);
     expect(await tickets.verifyUploadTicket(value.uploadTicket, { ...ticketInput, key: value.key }, 'fictitious-test-only')).toMatchObject({ user_id: user, project_id: project });
     expect(h.signer).toHaveBeenCalledOnce();
   });
@@ -113,7 +113,7 @@ describe('G04/S03 positive flows — fictitious dependencies, no network', () =>
     const response = await h.run(new Request('http://fixture.invalid/?token=fictitious-link'));
     expect(response.status).toBe(200);
     expect((await response.json()).versions[0].id).toBe(versionId);
-    expect(db.calls.find(c => c.table === 'video_versions')?.filters).toEqual(expect.arrayContaining([['workspace_id', workspace], ['project_id', project], ['task_id', task]]));
+    expect(db.calls.find(c => c.table === 'video_versions')?.filters).toEqual(expect.arrayContaining([['workspace_id', workspace], ['task_id', task], ['or', `project_id.eq.${project},project_id.is.null`]]));
   });
   it.each([false, true])('processes a legitimate upload (replacement=%s) with mocked object and Stream', async (replacement) => {
     const db = database(rows()); const h = await handler('stream-process-video', db);
