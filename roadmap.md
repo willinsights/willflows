@@ -1,5 +1,10 @@
 # Roadmap — pendências da auditoria
 
+## Frontend S-DELIV — novembro 2026
+- [x] Integrar patches compartilhados de transferência e coluna inicial não final, com falha sem destino
+- [x] Confirmar gravação de competência antes de alterar o valor visual; corrigir label de reabertura
+- [x] Executar testes isolados específicos; conferir compilação automática; sem SQL, publicação ou dados de produção
+
 ## Restauração do site público — novembro 2026
 - [x] Restaurar a apresentação anterior em Landing, PublicHeader e marketing.css
 - [x] Conferir imagens e navegação no computador e celular; animações anteriores restauradas; 54 testes aprovados; não publicar

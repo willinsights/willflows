@@ -10,3 +10,4 @@
 - Historical closing personal reconciliation uses an optional immutable JSON snapshot on closings, separate from closing_items, invoices and team payments. Why: partial personal receipts must not mark full client revenue received or overwrite studio profit.
 - Team value controls map to existing cost/payment columns through the shared teamValue helpers and save both atomically; unequal nonzero legacy amounts retain an advanced payment control. Why: simplify input without losing costs, historical payments, or intentional nulls.
 - Restore public presentation from the version immediately before a rejected redesign, touching only marketing files. Why: keep workspace screens and financial behavior intact.
+- Kanban and project-details capture completion share transferToEditing and require a confirmed nonfinal editing destination. Why: prevent premature delivery and false success across both entry points.
