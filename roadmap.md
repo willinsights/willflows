@@ -1,5 +1,10 @@
 # Roadmap — pendências da auditoria
 
+## Release financeira isolada no Main — sem publicação
+- [x] Conferir SHA servido, allowlist financeira e recuperação completa do vídeo antes de editar
+- [ ] Integrar financeiro v2 e restaurar somente frontend de vídeo à base publicada
+- [ ] Verificar diff frontend exclusivamente financeiro, reversão e testes offline; conferir build automático
+
 ## Candidatos G04/S03 — sem produção
 - [x] Revisar transição em fonte isolada: chave histórica, Unicode, validade/reenvio seguro e associações históricas deriváveis
 - [x] Validar 19 fluxos positivos offline e documentar reversões individuais e revisão registrada
