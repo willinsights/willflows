@@ -12,7 +12,7 @@ BEGIN
   SET used_count = used_count + 1 
   WHERE code = code_text;
 END;
-$function$
+$function$;
 
 REVOKE ALL ON FUNCTION public.increment_promo_code_usage(text) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.increment_promo_code_usage(text) TO PUBLIC, anon, authenticated, service_role;

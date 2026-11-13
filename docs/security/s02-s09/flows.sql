@@ -41,3 +41,7 @@ SELECT public.assert_positive(NOT has_column_privilege('authenticated','public.w
 SELECT public.assert_positive(has_column_privilege('authenticated','public.workspaces','name','UPDATE'), 'name editable');
 SELECT public.assert_positive(NOT has_function_privilege('authenticated','public.increment_promo_code_usage(text)','EXECUTE'), 'promo restricted');
 SELECT public.assert_positive(has_function_privilege('service_role','public.increment_promo_code_usage(text)','EXECUTE'), 'promo service access preserved');
+SELECT public.assert_positive(NOT has_column_privilege('authenticated','public.workspaces','subscription_status','UPDATE'), 'subscription status protected');
+SELECT public.assert_positive(NOT has_column_privilege('authenticated','public.workspaces','stripe_customer_id','UPDATE'), 'customer binding protected');
+SELECT public.assert_positive(NOT has_column_privilege('authenticated','public.workspaces','stripe_subscription_id','UPDATE'), 'subscription binding protected');
+SELECT public.assert_positive(NOT has_function_privilege('anon','public.increment_promo_code_usage(text)','EXECUTE'), 'anonymous promo execution absent');
