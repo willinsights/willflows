@@ -455,7 +455,7 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
         return;
       }
       
-      // Projeto completo em Captação: conclui a fase sem entrega final.
+      // Projeto completo em Captação: conclui a fase e transfere para Edição (sem entrega final)
       if (shouldTransferToEditing(project.item_type, project.current_phase)) {
         const { data: captureFinal, error: captureFinalError } = await supabase
           .from('kanban_columns').select('id')

@@ -12,3 +12,5 @@
 - Restore public presentation from the version immediately before a rejected redesign, touching only marketing files. Why: keep workspace screens and financial behavior intact.
 - Kanban and project-details capture completion share transferToEditing and require a confirmed nonfinal editing destination. Why: prevent premature delivery and false success across both entry points.
 - Unapplied security SQL candidates live under docs/security, outside migration journals; workspace billing administration uses a server-authorized, audited RPC. Why: stage defenses without production side effects or browser-decided billing values.
+- During S01 minimal enforcement, signup must not extend trials directly from the browser; report promo unavailability until secure redemption exists. Why: never promise a trial extension the server rejected.
+- S01 verification scripts use only explicit loopback database connections and fictitious identities. Why: prevent isolated security tests from reaching a hosted database.

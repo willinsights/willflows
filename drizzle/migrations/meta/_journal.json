@@ -43,6 +43,13 @@
       "when": 1794579759538,
       "tag": "0005_s_deliv_defensive_reopen_and_closed_month",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794579759539,
+      "tag": "0006_s01_minimal_isolated_test",
+      "breakpoints": true
     }
   ]
 }

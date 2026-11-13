@@ -159,6 +159,7 @@ export function useKanbanProjectMoves({ phase, columns, setColumns, fetchColumns
           beforeWrite: () => markLocalUpdate(projectId),
         });
 
+        // Não anunciar sucesso antes de confirmar a transferência no servidor.
         if (transfer.ok === false) {
           toast({
             title: transfer.reason === 'no_column' || transfer.reason === 'columns_error'
