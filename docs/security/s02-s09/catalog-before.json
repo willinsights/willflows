@@ -1,0 +1,203 @@
+{
+  "captured_at": "2026-11-13T14:38:47.657486+00:00",
+  "column_acl": [],
+  "functions": [
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres,sandbox_exec_wppfmyseeigsdqutkgyc=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.complete_workspace_onboarding(p_workspace_id uuid, p_business_type text)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\nBEGIN\n  IF p_business_type NOT IN ('freelancer','studio','agency') THEN\n    RAISE EXCEPTION 'invalid business_type: %', p_business_type;\n  END IF;\n\n  IF NOT EXISTS (\n    SELECT 1 FROM public.workspace_members\n    WHERE workspace_id = p_workspace_id\n      AND user_id = auth.uid()\n      AND role = 'admin'::app_role\n      AND COALESCE(is_active, true) = true\n  ) THEN\n    RAISE EXCEPTION 'not authorized';\n  END IF;\n\n  UPDATE public.workspaces\n  SET onboarding_completed = true,\n      onboarding_business_type = p_business_type,\n      onboarding_completed_at = now(),\n      updated_at = now()\n  WHERE id = p_workspace_id;\nEND;\n$function$\n",
+      "owner": "postgres",
+      "signature": "complete_workspace_onboarding(uuid,text)"
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres,sandbox_exec_wppfmyseeigsdqutkgyc=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.create_trial_subscription()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\nBEGIN\n  -- Only create if user doesn't already have a subscription\n  IF NOT EXISTS (SELECT 1 FROM public.user_subscriptions WHERE user_id = NEW.id) THEN\n    INSERT INTO public.user_subscriptions (\n      user_id,\n      subscription_plan,\n      subscription_status,\n      trial_ends_at\n    ) VALUES (\n      NEW.id,\n      'essencial',\n      'trialing',\n      NOW() + INTERVAL '7 days'\n    );\n  END IF;\n  RETURN NEW;\nEND;\n$function$\n",
+      "owner": "postgres",
+      "signature": "create_trial_subscription()"
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres,sandbox_exec_wppfmyseeigsdqutkgyc=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.create_workspace_with_admin(p_name text, p_slug text, p_country country_region DEFAULT 'PT'::country_region, p_currency text DEFAULT 'EUR'::text, p_locale text DEFAULT 'pt-PT'::text, p_timezone text DEFAULT 'Europe/Lisbon'::text)\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\nDECLARE\n  v_workspace_id uuid;\n  v_user_id uuid;\n  v_is_super_admin boolean;\n  v_plan subscription_plan;\n  v_status text;\n  v_trial_ends timestamptz;\nBEGIN\n  -- Get current user\n  v_user_id := auth.uid();\n  IF v_user_id IS NULL THEN\n    RAISE EXCEPTION 'User must be authenticated';\n  END IF;\n\n  -- Check if user is a Super Admin\n  SELECT EXISTS (\n    SELECT 1 FROM public.system_admins WHERE user_id = v_user_id\n  ) INTO v_is_super_admin;\n\n  -- Set plan based on user type\n  IF v_is_super_admin THEN\n    v_plan := 'studio';\n    v_status := 'active';\n    v_trial_ends := NULL;  -- No expiration for super admins\n  ELSE\n    v_plan := 'essencial';\n    v_status := 'trialing';\n    v_trial_ends := now() + interval '7 days';  -- New-account trial\n  END IF;\n\n  -- Create workspace with appropriate values\n  INSERT INTO workspaces (\n    name, \n    slug, \n    country, \n    currency, \n    locale, \n    timezone,\n    subscription_status,\n    subscription_plan,\n    trial_ends_at\n  )\n  VALUES (\n    p_name, \n    p_slug, \n    p_country, \n    p_currency, \n    p_locale, \n    p_timezone,\n    v_status,\n    v_plan,\n    v_trial_ends\n  )\n  RETURNING id INTO v_workspace_id;\n\n  -- Add creator as admin\n  INSERT INTO workspace_members (workspace_id, user_id, role, is_active, joined_at)\n  VALUES (v_workspace_id, v_user_id, 'admin', true, now());\n\n  -- Initialize default permissions\n  PERFORM initialize_workspace_permissions(v_workspace_id);\n\n  RETURN v_workspace_id;\nEND;\n$function$\n",
+      "owner": "postgres",
+      "signature": "create_workspace_with_admin(text,text,country_region,text,text,text)"
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres,sandbox_exec_wppfmyseeigsdqutkgyc=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.increment_promo_code_usage(code_text text)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\nBEGIN\n  UPDATE promo_codes \n  SET used_count = used_count + 1 \n  WHERE code = code_text;\nEND;\n$function$\n",
+      "owner": "postgres",
+      "signature": "increment_promo_code_usage(text)"
+    },
+    {
+      "acl": "{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres,sandbox_exec_wppfmyseeigsdqutkgyc=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.is_service_role()\n RETURNS boolean\n LANGUAGE sql\n STABLE\n SET search_path TO 'public'\nAS $function$\n  SELECT COALESCE(auth.role(), '') = 'service_role'\n      OR COALESCE(NULLIF(current_setting('request.jwt.claims', true), '')::jsonb->>'role', '') = 'service_role'\n      OR (\n        session_user = 'postgres'\n        AND COALESCE(NULLIF(current_setting('request.jwt.claims', true), ''), '{}')::jsonb = '{}'::jsonb\n        AND COALESCE(current_setting('request.jwt.claim.role', true), '') = ''\n        AND COALESCE(current_setting('role', true), 'none') IN ('none', 'postgres')\n      );\n$function$\n",
+      "owner": "postgres",
+      "signature": "is_service_role()"
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres,sandbox_exec_wppfmyseeigsdqutkgyc=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.is_system_admin()\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\n  SELECT EXISTS (\n    SELECT 1 FROM public.system_admins \n    WHERE user_id = auth.uid()\n  );\n$function$\n",
+      "owner": "postgres",
+      "signature": "is_system_admin()"
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres,sandbox_exec_wppfmyseeigsdqutkgyc=X/postgres}",
+      "definition": "CREATE OR REPLACE FUNCTION public.is_system_admin(_user_id uuid)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\n  SELECT _user_id IS NOT NULL AND _user_id = auth.uid() AND public.is_system_admin();\n$function$\n",
+      "owner": "postgres",
+      "signature": "is_system_admin(uuid)"
+    }
+  ],
+  "new_function_exists": false,
+  "policies": [
+    {
+      "cmd": "ALL",
+      "policyname": "Service role manages subscriptions",
+      "qual": "true",
+      "roles": [
+        "service_role"
+      ],
+      "schemaname": "public",
+      "tablename": "user_subscriptions",
+      "with_check": "true"
+    },
+    {
+      "cmd": "SELECT",
+      "policyname": "System admins can view all subscriptions",
+      "qual": "is_system_admin()",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "user_subscriptions",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policyname": "Users can read own subscription",
+      "qual": "(auth.uid() = user_id)",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "user_subscriptions",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policyname": "Users can view own subscription",
+      "qual": "(user_id = auth.uid())",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "user_subscriptions",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "policyname": "Service role manages storage",
+      "qual": "(( SELECT ((current_setting('request.jwt.claims'::text, true))::json ->> 'role'::text)) = 'service_role'::text)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "workspace_storage",
+      "with_check": "(( SELECT ((current_setting('request.jwt.claims'::text, true))::json ->> 'role'::text)) = 'service_role'::text)"
+    },
+    {
+      "cmd": "SELECT",
+      "policyname": "System admins can view all storage",
+      "qual": "is_system_admin()",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "workspace_storage",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policyname": "Workspace admins can view storage",
+      "qual": "((auth.uid() IS NOT NULL) AND is_workspace_member(auth.uid(), workspace_id))",
+      "roles": [
+        "authenticated"
+      ],
+      "schemaname": "public",
+      "tablename": "workspace_storage",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policyname": "Workspace members can view storage",
+      "qual": "((auth.uid() IS NOT NULL) AND is_workspace_member(auth.uid(), workspace_id))",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "workspace_storage",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "policyname": "Admins can update their workspaces",
+      "qual": "is_workspace_admin(auth.uid(), id)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "workspaces",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policyname": "Invited users can view workspace name",
+      "qual": "(is_workspace_member(auth.uid(), id) OR (EXISTS ( SELECT 1\n   FROM workspace_invitations wi\n  WHERE ((wi.workspace_id = workspaces.id) AND (wi.accepted_at IS NULL) AND (wi.expires_at > now()) AND (auth.email() IS NOT NULL) AND (lower(wi.email) = lower(auth.email()))))))",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "workspaces",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policyname": "System admins can view all workspaces",
+      "qual": "is_system_admin()",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "workspaces",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policyname": "Users can view workspaces they belong to",
+      "qual": "is_workspace_member(auth.uid(), id)",
+      "roles": [
+        "public"
+      ],
+      "schemaname": "public",
+      "tablename": "workspaces",
+      "with_check": null
+    }
+  ],
+  "tables": [
+    {
+      "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres,sandbox_exec_wppfmyseeigsdqutkgyc=ar/postgres,sandbox_exec=ar/postgres}",
+      "name": "user_subscriptions",
+      "owner": "postgres",
+      "rls": true
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres,sandbox_exec_wppfmyseeigsdqutkgyc=ar/postgres,sandbox_exec=ar/postgres}",
+      "name": "workspace_storage",
+      "owner": "postgres",
+      "rls": true
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres,sandbox_exec_wppfmyseeigsdqutkgyc=ar/postgres,sandbox_exec=ar/postgres}",
+      "name": "workspaces",
+      "owner": "postgres",
+      "rls": true
+    }
+  ]
+}
