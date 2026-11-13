@@ -1,7 +1,7 @@
 # Validation results — 2026-11-13 UTC
 
 - Candidate SQL executed ONLY on empty local PostgreSQL 17.11 via Unix socket.
-- Positive flows and 15 SQL assertions passed: exact seven-day signup/workspace
+- Positive flows and 16 SQL assertions passed: exact seven-day signup/workspace
   trial, legitimate configuration/onboarding, administrative extension/conversion/
   block/unblock with four atomic audit rows, service billing update and service
   promo increment; static ACL checks, including all five protected billing fields.
