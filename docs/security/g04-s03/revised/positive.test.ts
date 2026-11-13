@@ -1,0 +1,187 @@
+// @vitest-environment node
+/// <reference types="node" />
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import ts from 'typescript';
+import * as policy from './functions/_shared/video-context';
+import * as tickets from './functions/_shared/video-upload-ticket';
+
+const workspace = '10000000-0000-4000-8000-000000000001';
+const project = '20000000-0000-4000-8000-000000000001';
+const task = '30000000-0000-4000-8000-000000000001';
+const user = '40000000-0000-4000-8000-000000000001';
+const versionId = '50000000-0000-4000-8000-000000000001';
+const context = { workspace_id: workspace, project_id: project, task_id: task };
+const key = `${workspace}/${task}/1_fixture.mp4`;
+const version = { ...context, id: versionId, r2_key: key, uploaded_by: user, file_name: 'fixture.mp4', file_size_bytes: 8, version_number: 1, cloudflare_stream_uid: null };
+const token = { ...context, is_active: true, expires_at: null };
+function database(rows: Record<string, any>, calls: any[] = []) {
+  return {
+    calls,
+    auth: { getUser: vi.fn(async () => ({ data: { user: { id: user } }, error: null })) },
+    rpc: vi.fn(async () => ({ data: false, error: null })),
+    from(table: string) {
+      const call = { table, operation: 'select', value: undefined as any, filters: [] as any[] }; calls.push(call);
+      const result = () => {
+        let data = call.operation === 'insert' ? { ...call.value, id: versionId } : rows[table];
+        if (Array.isArray(data) && call.operation === 'select') data = data.filter(row => call.filters.every(([k, v]) => {
+          if (k === 'or') { const id = String(v).split(',')[0].split('.').slice(2).join('.'); return row.project_id === null || row.project_id === id; }
+          return Array.isArray(v) ? v.includes(row[k]) : row[k] === v;
+        }));
+        return { data, error: null };
+      };
+      const query: any = {
+        select() { return query; }, eq(k: string, v: any) { call.filters.push([k, v]); return query; },
+        in(k: string, v: any) { call.filters.push([k, v]); return query; }, or(v: string) { call.filters.push(['or', v]); return query; }, is(k: string, v: any) { call.filters.push([k, v]); return query; }, order() { return query; }, limit() { return query; },
+        update(value: any) { call.operation = 'update'; call.value = value; return query; },
+        insert(value: any) { call.operation = 'insert'; call.value = value; return query; },
+        delete() { call.operation = 'delete'; return query; },
+        maybeSingle: async () => result(), single: async () => result(),
+        then(resolve: any) { return Promise.resolve(result()).then(resolve); },
+      }; return query;
+    },
+  };
+}
+const rows = () => ({ projects: { id: project, workspace_id: workspace }, tasks: { id: task, workspace_id: workspace, project_id: project, title: 'Fixture' }, workspace_members: { role: 'edicao' }, workspace_storage: { storage_used_bytes: 0, storage_limit_bytes: 100, extra_storage_bytes: 0 }, video_versions: version, video_approval_tokens: token, video_comments: { ...context, id: versionId, video_version_id: versionId, is_client_comment: true, client_name: 'Fictício' }, video_approvals: null });
+async function handler(name: string, db: ReturnType<typeof database>) {
+  let captured: (request: Request) => Promise<Response> = async () => new Response('', { status: 500 });
+  // Compile entrypoints in-memory and inject all remote dependencies. Never load remote modules.
+  const source = readFileSync(`docs/security/g04-s03/revised/functions/${name}/index.ts`, 'utf8').replace(/^import .*;\s*$/gm, '');
+  const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+  const signer = vi.fn(async (req: Request) => req);
+  const objectFetch = vi.fn(async () => new Response(null, { headers: { 'content-length': '8' } }));
+  class FakeAws { sign = signer; fetch = objectFetch; }
+  const deno = { env: { get: () => 'fictitious-test-only' }, serve: (fn: typeof captured) => { captured = fn; } };
+  const injected = { Deno: deno, serve: deno.serve, createClient: () => db, AwsClient: FakeAws, corsHeaders: {}, ...policy, ...tickets, clientIdentifier: () => 'fixture', isRateLimited: async () => false, logAttempt: async () => {}, rateLimitResponse: () => new Response('', { status: 429 }) };
+  new Function(...Object.keys(injected), js)(...Object.values(injected));
+  return { run: captured, signer, objectFetch };
+}
+const request = (body: any) => new Request('http://fixture.invalid/', { method: 'POST', headers: { Authorization: 'Bearer fictitious' }, body: JSON.stringify(body) });
+const ticketInput = { ...context, user_id: user, key, file_name: 'fixture.mp4', file_size: 8, replace_version_id: null };
+
+beforeEach(() => { vi.stubGlobal('fetch', vi.fn(() => { throw new Error('Network forbidden in candidate tests'); })); });
+afterEach(() => vi.unstubAllGlobals());
+describe('G04/S03 positive flows — fictitious dependencies, no network', () => {
+  it('resolves an existing task-only approval link from its real task/project', async () => {
+    expect(await policy.resolveVideoContext(database(rows()), { ...context, project_id: null })).toEqual(context);
+  });
+  it('preserves project-wide links for versions of tasks in the same project', async () => {
+    expect(policy.tokenCoversVersion({ ...context, task_id: null }, context)).toBe(true);
+    expect(policy.activeVideoToken(token)).toBe(true);
+  });
+  it('preserves persisted legacy task and project-only keys', () => {
+    expect(policy.storedKeyMatchesVersion(`${workspace}/${task}/1_fixture.mp4`, version)).toBe(true);
+    expect(policy.storedKeyMatchesVersion(`${workspace}/undefined/1_fixture.mp4`, { ...version, task_id: null })).toBe(true);
+    expect(policy.storedKeyMatchesVersion(`${workspace}/null/1_fixture.mp4`, { ...version, task_id: null })).toBe(true);
+  });
+  it('issues and verifies a server-bound upload ticket for a legitimate editor', async () => {
+    const value = await tickets.issueUploadTicket({ ...ticketInput, expires_at: Date.now() + 60000 }, 'fictitious-test-only');
+    expect(await tickets.verifyUploadTicket(value, ticketInput, 'fictitious-test-only')).toMatchObject(ticketInput);
+  });
+  it('issues a Unicode filename with exact UTF-8 roundtrip through the real signer', async () => {
+    const h = await handler('r2-upload-url', database(rows()));
+    const fileName = 'Revisão 東京 🎬.mp4';
+    const response = await h.run(request({ workspaceId: workspace, projectId: project, taskId: task, fileName, fileSize: 8 }));
+    expect(response.status).toBe(200);
+    const value = await response.json();
+    expect((await tickets.verifyUploadTicket(value.uploadTicket, { ...ticketInput, key: value.key, file_name: fileName }, 'fictitious-test-only')).file_name).toBe(fileName);
+  });
+  it('retains project-only historical key format during issuance', async () => {
+    const h = await handler('r2-upload-url', database(rows()));
+    const value = await (await h.run(request({ workspaceId: workspace, projectId: project, fileName: 'fixture.mp4', fileSize: 8 }))).json();
+    expect(value.key.startsWith(`${workspace}/undefined/`)).toBe(true);
+    expect((await tickets.verifyUploadTicket(value.uploadTicket, { ...ticketInput, task_id: null, key: value.key }, 'fictitious-test-only')).project_id).toBe(project);
+  });
+  it('allows a 90-minute legitimate upload within 120-minute URL and 240-minute receipt windows', async () => {
+    const issued = Date.now();
+    const h = await handler('r2-upload-url', database(rows()));
+    const value = await (await h.run(request({ workspaceId: workspace, projectId: project, taskId: task, fileName: 'fixture.mp4', fileSize: 8 }))).json();
+    expect(new URL(value.uploadUrl).searchParams.get('X-Amz-Expires')).toBe('7200');
+    expect(Date.parse(value.ticketExpiresAt) - issued).toBeGreaterThanOrEqual(14400000);
+    expect((await tickets.verifyUploadTicket(value.uploadTicket, { ...ticketInput, key: value.key }, 'fictitious-test-only', issued + 90 * 60000)).key).toBe(value.key);
+  });
+  it('expired legitimate upload instructs restart before object access or any write; new issuance works', async () => {
+    const db = database(rows()); const h = await handler('stream-process-video', db);
+    const uploadTicket = await tickets.issueUploadTicket({ ...ticketInput, expires_at: Date.now() - 1 }, 'fictitious-test-only');
+    const response = await h.run(request({ workspaceId: workspace, projectId: project, taskId: task, key, fileName: 'fixture.mp4', fileSize: 8, uploadTicket }));
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ code: 'UPLOAD_EXPIRED', restartUpload: true });
+    expect(h.objectFetch).not.toHaveBeenCalled();
+    expect(db.calls.filter(call => call.operation !== 'select')).toEqual([]);
+    const fresh = await tickets.issueUploadTicket({ ...ticketInput, key: `${workspace}/${task}/2_fresh.mp4`, expires_at: Date.now() + 14400000 }, 'fictitious-test-only');
+    expect((await tickets.verifyUploadTicket(fresh, { ...ticketInput, key: `${workspace}/${task}/2_fresh.mp4` }, 'fictitious-test-only')).key).toContain('2_fresh.mp4');
+  });
+  it('upload signer returns a context/uploader key and ticket', async () => {
+    const db = database(rows()); const h = await handler('r2-upload-url', db);
+    const response = await h.run(request({ workspaceId: workspace, projectId: project, taskId: task, fileName: 'fixture.mp4', fileSize: 8 }));
+    expect(response.status).toBe(200);
+    const value = await response.json();
+    expect(value.key.startsWith(`${workspace}/${task}/`)).toBe(true);
+    expect(await tickets.verifyUploadTicket(value.uploadTicket, { ...ticketInput, key: value.key }, 'fictitious-test-only')).toMatchObject({ user_id: user, project_id: project });
+    expect(h.signer).toHaveBeenCalledOnce();
+  });
+  it('authenticated download signs a coherent persisted version', async () => {
+    const h = await handler('video-download-url', database(rows()));
+    const response = await h.run(request({ video_version_id: versionId }));
+    expect(response.status).toBe(200); expect(h.signer).toHaveBeenCalledOnce();
+    expect((await response.json()).file_name).toBe('fixture.mp4');
+  });
+  it('existing public task link downloads its version', async () => {
+    const h = await handler('video-download-url', database(rows()));
+    expect((await h.run(request({ video_version_id: versionId, approval_token: 'fictitious-link' }))).status).toBe(200);
+    expect(h.signer).toHaveBeenCalledOnce();
+  });
+  it('project link feedback derives the actual task from the authorized version', async () => {
+    const db = database({ ...rows(), video_approval_tokens: { ...token, task_id: null } });
+    const h = await handler('submit-video-feedback', db);
+    expect((await h.run(request({ type: 'comment', token: 'fictitious-link', video_version_id: versionId, client_name: 'Fictício', body: 'Comentário fictício', timestamp_seconds: 2 }))).status).toBe(201);
+    expect(db.calls.find(c => c.table === 'video_comments' && c.operation === 'insert')?.value).toMatchObject(context);
+  });
+  it('existing task link approves its authorized version', async () => {
+    const db = database(rows()); const h = await handler('submit-video-feedback', db);
+    expect((await h.run(request({ type: 'approval', token: 'fictitious-link', video_version_id: versionId, client_name: 'Fictício' }))).status).toBe(201);
+    expect(db.calls.find(c => c.table === 'video_approvals' && c.operation === 'insert')?.value).toMatchObject(context);
+  });
+  it('existing coherent client comment remains removable within its task link', async () => {
+    const db = database(rows()); const h = await handler('delete-video-comment', db);
+    expect((await h.run(request({ token: 'fictitious-link', comment_id: versionId, client_name: 'Fictício' }))).status).toBe(200);
+    expect(db.calls.find(c => c.table === 'video_comments' && c.operation === 'delete')).toBeDefined();
+  });
+  it('existing task-only link loads review with workspace/project/task filters', async () => {
+    const db = database({ ...rows(), video_approval_tokens: { ...token, project_id: null }, video_versions: [{ ...version, cloudflare_stream_uid: 'fixture-stream', stream_status: 'ready' }], video_comments: [], video_approvals: [] });
+    const h = await handler('get-video-approval-data', db);
+    const response = await h.run(new Request('http://fixture.invalid/?token=fictitious-link'));
+    expect(response.status).toBe(200);
+    expect((await response.json()).versions[0].id).toBe(versionId);
+    expect(db.calls.find(c => c.table === 'video_versions')?.filters).toEqual(expect.arrayContaining([['workspace_id', workspace], ['task_id', task], ['or', `project_id.eq.${project},project_id.is.null`]]));
+  });
+  it('loads historical version, comment and approval with nullable project derived through the task', async () => {
+    const legacy = { ...version, project_id: null, cloudflare_stream_uid: 'fixture-stream', stream_status: 'ready' };
+    const comment = { ...context, project_id: null, id: versionId, video_version_id: versionId, parent_id: null };
+    const approval = { ...comment, approved_at: '2026-11-13', client_name: 'Fixture' };
+    const h = await handler('get-video-approval-data', database({ ...rows(), video_approval_tokens: { ...token, project_id: null }, video_versions: [legacy], video_comments: [comment], video_approvals: [approval] }));
+    const response = await h.run(new Request('http://fixture.invalid/?token=fictitious-link'));
+    expect(response.status).toBe(200);
+    const value = await response.json();
+    expect(value.versions[0].project_id).toBe(project); expect(value.comments).toHaveLength(1); expect(value.approval.client_name).toBe('Fixture');
+  });
+  it('removes coherent historical comment whose project is derived from its version', async () => {
+    const db = database({ ...rows(), video_comments: { ...rows().video_comments, project_id: null } });
+    const h = await handler('delete-video-comment', db);
+    expect((await h.run(request({ token: 'fictitious-link', comment_id: versionId, client_name: 'Fictício' }))).status).toBe(200);
+  });
+  it.each([false, true])('processes a legitimate upload (replacement=%s) with mocked object and Stream', async (replacement) => {
+    const db = database({ ...rows(), video_versions: { ...version, project_id: replacement ? null : project, uploaded_by: '40000000-0000-4000-8000-000000000002' } }); const h = await handler('stream-process-video', db);
+    const input = { ...ticketInput, replace_version_id: replacement ? versionId : null };
+    const uploadTicket = await tickets.issueUploadTicket({ ...input, expires_at: Date.now() + 60000 }, 'fictitious-test-only');
+    // The provider is a local mock; every other network request still throws.
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (!url.endsWith('/stream/copy')) throw new Error('Unexpected provider request');
+      return Response.json({ success: true, result: { uid: 'fixture-stream', status: { state: 'processing' } } });
+    }));
+    const response = await h.run(request({ workspaceId: workspace, projectId: project, taskId: task, key, fileName: 'fixture.mp4', fileSize: 8, replaceVersionId: input.replace_version_id, uploadTicket }));
+    expect(response.status).toBe(200); expect((await response.json()).versionId).toBe(versionId);
+    expect(h.objectFetch).toHaveBeenCalledOnce();
+    expect(db.calls.find(c => c.table === 'video_versions' && c.operation === (replacement ? 'update' : 'insert'))?.value).toMatchObject({ r2_key: key, uploaded_by: user, project_id: project, task_id: task });
+  });
+});

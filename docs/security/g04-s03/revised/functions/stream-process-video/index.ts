@@ -1,0 +1,499 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { AwsClient } from "https://esm.sh/aws4fetch@1.0.20";
+
+import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { resolveVideoContext, sameVideoContext, storedKeyMatchesVersion, validateUploadFile, VideoContextError } from '../_shared/video-context.ts';
+import { verifyUploadTicket, UploadTicketExpiredError } from '../_shared/video-upload-ticket.ts';
+
+const logStep = (step: string, details?: Record<string, unknown>) => {
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  console.log(`[STREAM-PROCESS-VIDEO] ${step}${detailsStr}`);
+};
+
+// Generate a signed R2 URL for reading the file
+async function generateSignedR2Url(
+  accountId: string,
+  accessKeyId: string,
+  secretAccessKey: string,
+  bucket: string,
+  key: string,
+  expiresIn: number = 3600
+): Promise<string> {
+  const r2 = new AwsClient({
+    accessKeyId,
+    secretAccessKey,
+    region: "auto",
+    service: "s3",
+  });
+
+  const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
+  const url = new URL(`/${bucket}/${key}`, endpoint);
+  url.searchParams.set('X-Amz-Expires', String(expiresIn));
+
+  const signedRequest = await r2.sign(
+    new Request(url.toString(), {
+      method: 'GET',
+    }),
+    {
+      aws: { signQuery: true },
+    }
+  );
+
+  return signedRequest.url.toString();
+}
+
+// Delete an object from R2
+async function deleteR2Object(
+  accountId: string,
+  accessKeyId: string,
+  secretAccessKey: string,
+  bucket: string,
+  key: string
+): Promise<void> {
+  const r2 = new AwsClient({ accessKeyId, secretAccessKey, region: "auto", service: "s3" });
+  const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
+  const url = new URL(`/${bucket}/${key}`, endpoint);
+  await r2.fetch(url.toString(), { method: "DELETE" });
+}
+
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    logStep("Request received");
+
+    // Validate environment variables
+    const accountId = Deno.env.get("CLOUDFLARE_ACCOUNT_ID");
+    const streamToken = Deno.env.get("CLOUDFLARE_STREAM_TOKEN");
+    const bucketName = Deno.env.get("CLOUDFLARE_R2_BUCKET");
+    const r2AccessKeyId = Deno.env.get("CLOUDFLARE_R2_ACCESS_KEY");
+    const r2SecretAccessKey = Deno.env.get("CLOUDFLARE_R2_SECRET_KEY");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!accountId || !streamToken || !bucketName) {
+      throw new Error("Missing Cloudflare configuration");
+    }
+
+    if (!r2AccessKeyId || !r2SecretAccessKey) {
+      throw new Error("Missing R2 credentials for signed URL generation");
+    }
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error("Missing Supabase configuration");
+    }
+
+    // Authenticate user
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { persistSession: false },
+    });
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabase.auth.getUser(token);
+    
+    if (claimsError || !claimsData.user) {
+      logStep("Auth error", { error: claimsError?.message });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const userId = claimsData.user.id;
+    logStep("User authenticated", { userId });
+
+    // Parse request body
+    const { 
+      key, 
+      taskId, 
+      workspaceId, 
+      projectId, 
+      fileName, 
+      fileSize,
+      replaceVersionId,
+      uploadTicket,
+    } = await req.json();
+
+    // taskId is optional - projectId is required when no taskId
+    if (!key || !workspaceId || !projectId || !fileName || !fileSize) {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Bind the storage key to the caller's workspace (keys are issued as `${workspaceId}/...`)
+    if (typeof key !== "string" || !key.startsWith(`${workspaceId}/`) || key.includes("..") || key.includes("//")) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Verify workspace membership + role — service role bypasses video_versions RLS
+    const { data: memberRow, error: memberErr } = await supabase
+      .from("workspace_members")
+      .select("role")
+      .eq("workspace_id", workspaceId)
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (memberErr || !memberRow || !["admin", "edicao"].includes(memberRow.role)) {
+      logStep("Workspace role check failed", { role: memberRow?.role });
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    validateUploadFile(fileName, fileSize);
+    const context = await resolveVideoContext(supabase, { workspace_id: workspaceId, project_id: projectId, task_id: taskId || null });
+    await verifyUploadTicket(uploadTicket, { ...context, user_id: userId, key, file_name: fileName, file_size: fileSize, replace_version_id: replaceVersionId || null }, supabaseServiceKey);
+    // Confirm actual object facts before any database mutation or Stream request.
+    const r2 = new AwsClient({ accessKeyId: r2AccessKeyId, secretAccessKey: r2SecretAccessKey, region: 'auto', service: 's3' });
+    const object = await r2.fetch(`https://${accountId}.r2.cloudflarestorage.com/${bucketName}/${key}`, { method: 'HEAD' });
+    if (!object.ok || Number(object.headers.get('content-length')) !== fileSize) throw new VideoContextError('Arquivo de upload não confirmado');
+
+    const isReplacement = !!replaceVersionId;
+    let versionData: any;
+    let nextVersion: number;
+    let oldStreamUid: string | null = null;
+    let oldR2Key: string | null = null;
+    let oldFileSize = 0;
+
+
+    if (isReplacement) {
+      const { data: targetVersion, error: targetError } = await supabase
+        .from("video_versions")
+        .select("*")
+        .eq("id", replaceVersionId)
+        .eq("workspace_id", workspaceId)
+        .maybeSingle();
+
+      if (targetError || !targetVersion) {
+        return new Response(JSON.stringify({ error: "Target version not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const targetContext = await resolveVideoContext(supabase, targetVersion);
+      if (!sameVideoContext(targetContext, context) || (targetVersion.r2_key && !storedKeyMatchesVersion(targetVersion.r2_key, { ...targetVersion, ...targetContext }))) throw new VideoContextError('Versão de substituição incompatível');
+      versionData = targetVersion;
+      // Remember old assets so they can be purged after the new copy exists
+      oldStreamUid = targetVersion.cloudflare_stream_uid || null;
+      oldR2Key = targetVersion.r2_key || null;
+      oldFileSize = targetVersion.file_size_bytes || 0;
+      // Bump version number on in-place replacement so the timeline reflects the new iteration
+      nextVersion = (targetVersion.version_number || 0) + 1;
+      logStep("Replacement mode (in-place update)", { versionId: replaceVersionId, newVersion: nextVersion });
+
+
+      const { data: replaced, error: replacementError } = await supabase
+        .from("video_versions")
+        .update({
+          // Overwrite the main columns so the version row holds the new video
+          version_number: nextVersion,
+          file_path: `r2://${bucketName}/${key}`,
+          file_name: fileName,
+          file_size_bytes: fileSize,
+          r2_key: key,
+          uploaded_by: userId,
+          project_id: context.project_id,
+          task_id: context.task_id,
+          stream_status: "processing",
+          // Reset stream URLs/uid until the new copy is created below
+          cloudflare_stream_uid: null,
+          stream_playback_url: null,
+          thumbnail_path: null,
+          duration_seconds: null,
+          // Clear any legacy "corrected copy" columns so the player never falls back to old media
+          replacement_stream_uid: null,
+          replacement_playback_url: null,
+          replacement_r2_key: null,
+          replacement_status: null,
+          replacement_file_name: null,
+          replacement_file_size_bytes: null,
+          replacement_thumbnail_path: null,
+
+          replaced_at: new Date().toISOString(),
+        })
+        .eq("id", replaceVersionId)
+        .eq("workspace_id", workspaceId)
+        .or(`project_id.eq.${context.project_id},project_id.is.null`)
+        .eq("r2_key", targetVersion.r2_key)
+        .select("id").single();
+      if (replacementError || !replaced) throw new Error("Failed to replace video version");
+    } else {
+      // Get next version number - query by taskId if available, otherwise by projectId
+      let versionsQuery = supabase
+        .from("video_versions")
+        .select("version_number")
+        .eq("workspace_id", workspaceId)
+        .or(`project_id.eq.${context.project_id},project_id.is.null`)
+        .order("version_number", { ascending: false })
+        .limit(1);
+
+      if (taskId) {
+        versionsQuery = versionsQuery.eq("task_id", taskId);
+      } else {
+        versionsQuery = versionsQuery.is("task_id", null).eq("project_id", projectId);
+      }
+
+      const { data: existingVersions, error: versionsError } = await versionsQuery;
+
+      if (versionsError) {
+        throw new Error("Failed to read version sequence");
+      }
+
+      nextVersion = (existingVersions?.[0]?.version_number || 0) + 1;
+      logStep("Next version", { nextVersion });
+
+      // Create video version record with pending status
+      const { data: inserted, error: insertError } = await supabase
+        .from("video_versions")
+        .insert({
+          task_id: context.task_id,
+          workspace_id: context.workspace_id,
+          project_id: context.project_id,
+          version_number: nextVersion,
+          file_path: `r2://${bucketName}/${key}`,
+          file_name: fileName,
+          file_size_bytes: fileSize,
+          mime_type: "video/mp4",
+          uploaded_by: userId,
+          r2_key: key,
+          stream_status: "processing",
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        logStep("Error inserting version", { error: insertError.message });
+        throw new Error("Failed to create video version record");
+      }
+
+      versionData = inserted;
+      logStep("Version record created", { versionId: versionData.id });
+    }
+
+    // Generate signed R2 URL for Stream to fetch the video
+    const signedR2Url = await generateSignedR2Url(
+      accountId,
+      r2AccessKeyId,
+      r2SecretAccessKey,
+      bucketName,
+      key,
+      3600 // 1 hour expiry
+    );
+    
+    logStep("Generated signed R2 URL for Stream");
+
+    // Submit video to Cloudflare Stream using the signed URL
+    const streamResponse = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/copy`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${streamToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url: signedR2Url,
+          meta: {
+            name: fileName,
+            workspaceId,
+            taskId,
+            projectId,
+            versionId: versionData.id,
+          },
+          requireSignedURLs: false,
+          allowedOrigins: [],
+        }),
+      }
+    );
+
+    if (!streamResponse.ok) {
+      const errorText = await streamResponse.text();
+      logStep("Stream API error", { status: streamResponse.status, error: errorText });
+      
+      // Update status to error on the appropriate column
+      await supabase
+        .from("video_versions")
+        .update({ stream_status: "error" })
+        .eq("id", versionData.id);
+
+      throw new Error(`Stream API error: ${errorText}`);
+    }
+
+    const streamData = await streamResponse.json();
+    logStep("Stream response", { success: streamData.success });
+
+    if (!streamData.success || !streamData.result) {
+      throw new Error("Invalid Stream API response");
+    }
+
+    const streamUid = streamData.result.uid;
+    // Use canonical videodelivery.net domain for better compatibility
+    const playbackUrl = `https://videodelivery.net/${streamUid}/manifest/video.m3u8`;
+    // Default thumbnail at 50% of video to avoid black fade-in frames
+    const thumbnailUrl = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg?time=50p`;
+
+    // Update version with Stream information — in-place for both new and replacement uploads
+    const updatePayload = {
+      cloudflare_stream_uid: streamUid,
+      stream_playback_url: playbackUrl,
+      stream_status: streamData.result.status?.state || "processing",
+    };
+
+    const { error: updateError } = await supabase
+      .from("video_versions")
+      .update(updatePayload)
+      .eq("id", versionData.id);
+
+    if (updateError) {
+      throw new Error("Failed to confirm video processing state");
+    }
+
+    // On replacement: purge the previous media so nothing stale can be played or cached
+    if (isReplacement) {
+      if (oldStreamUid && oldStreamUid !== streamUid) {
+        try {
+          const delRes = await fetch(
+            `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${oldStreamUid}`,
+            { method: "DELETE", headers: { "Authorization": `Bearer ${streamToken}` } }
+          );
+          logStep("Old Stream video deleted", { oldStreamUid, ok: delRes.ok });
+        } catch (e) {
+          logStep("Failed deleting old Stream video", { error: e instanceof Error ? e.message : String(e) });
+        }
+      }
+      if (oldR2Key && oldR2Key !== key) {
+        try {
+          await deleteR2Object(accountId, r2AccessKeyId, r2SecretAccessKey, bucketName, oldR2Key);
+          logStep("Old R2 object deleted", { oldR2Key });
+        } catch (e) {
+          logStep("Failed deleting old R2 object", { error: e instanceof Error ? e.message : String(e) });
+        }
+      }
+      if (oldFileSize > 0) {
+        const { error: freeErr } = await supabase.rpc("add_workspace_storage", {
+          p_workspace_id: workspaceId,
+          p_bytes: -oldFileSize,
+        });
+        if (freeErr) logStep("Error freeing old storage", { error: freeErr.message });
+      }
+    }
+
+
+    // Update workspace storage
+    const { error: storageUpdateError } = await supabase.rpc("add_workspace_storage", {
+      p_workspace_id: workspaceId,
+      p_bytes: fileSize,
+    });
+
+    if (storageUpdateError) {
+      logStep("Error updating storage", { error: storageUpdateError.message });
+      // Non-fatal, continue
+    }
+
+    // Auto-create approval token if none active exists for this task/project
+    // (skip for replacements — token already exists for the original)
+    if (!isReplacement) try {
+      let existingTokenQuery = supabase
+        .from("video_approval_tokens")
+        .select("id")
+        .eq("workspace_id", workspaceId)
+        .eq("project_id", context.project_id)
+        .eq("is_active", true)
+        .limit(1);
+
+      if (taskId) {
+        existingTokenQuery = existingTokenQuery.eq("task_id", taskId);
+      } else {
+        existingTokenQuery = existingTokenQuery.is("task_id", null).eq("project_id", projectId);
+      }
+
+      const { data: existingToken } = await existingTokenQuery.maybeSingle();
+
+      if (!existingToken) {
+        let clientName: string | null = null;
+        let clientEmail: string | null = null;
+        const { data: projectRow } = await supabase
+          .from("projects")
+          .select("client_id")
+          .eq("id", projectId)
+          .maybeSingle();
+        if (projectRow?.client_id) {
+          const { data: clientRow } = await supabase
+            .from("clients")
+            .select("name, email")
+            .eq("id", projectRow.client_id)
+            .maybeSingle();
+          clientName = clientRow?.name || null;
+          clientEmail = clientRow?.email || null;
+        }
+
+        const { error: tokenError } = await supabase
+          .from("video_approval_tokens")
+          .insert({
+            task_id: taskId || null,
+            project_id: projectId,
+            workspace_id: workspaceId,
+            client_name: clientName,
+            client_email: clientEmail,
+            expires_at: null,
+            is_active: true,
+            created_by: userId,
+          });
+
+        if (tokenError) {
+          logStep("Error auto-creating approval token", { error: tokenError.message });
+        } else {
+          logStep("Approval token auto-created", { taskId, projectId });
+        }
+      }
+    } catch (tokenErr) {
+      const msg = tokenErr instanceof Error ? tokenErr.message : String(tokenErr);
+      logStep("Error in approval token auto-create block", { error: msg });
+    }
+
+    logStep("Video processing initiated", { 
+      versionId: versionData.id, 
+      streamUid,
+      status: streamData.result.status?.state 
+    });
+
+    return new Response(JSON.stringify({
+      success: true,
+      versionId: versionData.id,
+      versionNumber: nextVersion,
+      streamUid,
+      playbackUrl,
+      thumbnailUrl,
+      status: streamData.result.status?.state || "processing",
+    }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep("ERROR", { message: errorMessage });
+    return new Response(JSON.stringify({ error: errorMessage, ...(error instanceof UploadTicketExpiredError ? { code: 'UPLOAD_EXPIRED', restartUpload: true } : {}) }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: error instanceof UploadTicketExpiredError ? 409 : error instanceof VideoContextError ? 403 : 500,
+    });
+  }
+});
