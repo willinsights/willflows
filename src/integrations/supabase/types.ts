@@ -5516,6 +5516,15 @@ export type Database = {
         Args: { p_bytes: number; p_workspace_id: string }
         Returns: undefined
       }
+      admin_manage_workspace_billing: {
+        Args: {
+          p_action: string
+          p_days?: number
+          p_reason?: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       can_access_feature: {
         Args: { p_feature: string; p_workspace_id: string }
         Returns: boolean
