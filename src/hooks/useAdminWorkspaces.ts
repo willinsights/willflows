@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useSuperAdmin } from './useSuperAdmin';
-import { useAdminAudit } from './useAdminAudit';
 import { useToast } from './use-toast';
 import { PLAN_LIMITS, PLAN_DB_MAPPING, type PlanId } from '@/lib/plans';
 import { manageWorkspaceBilling } from '@/lib/adminWorkspaceBilling';
@@ -39,7 +38,6 @@ export interface WorkspaceFilters {
 
 export function useAdminWorkspaces(filters: WorkspaceFilters) {
   const { isSuperAdmin } = useSuperAdmin();
-  const { logAction } = useAdminAudit();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 

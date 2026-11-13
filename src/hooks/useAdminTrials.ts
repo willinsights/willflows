@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useSuperAdmin } from './useSuperAdmin';
-import { useAdminAudit } from './useAdminAudit';
 import { toast } from '@/hooks/use-toast';
 import { manageWorkspaceBilling } from '@/lib/adminWorkspaceBilling';
 
@@ -37,7 +36,6 @@ const calculateDaysRemaining = (trialEndsAt: string | null): number => {
 
 export function useAdminTrials() {
   const { isSuperAdmin } = useSuperAdmin();
-  const { logAction } = useAdminAudit();
   const queryClient = useQueryClient();
 
   const { data: trialWorkspaces = [], isLoading } = useQuery({

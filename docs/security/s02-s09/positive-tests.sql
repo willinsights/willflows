@@ -12,9 +12,10 @@ GRANT USAGE ON SCHEMA auth TO authenticated, service_role;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA auth TO authenticated, service_role;
 CREATE TYPE public.country_region AS ENUM ('PT','BR');
 CREATE TYPE public.subscription_plan AS ENUM ('starter','essencial','pro','studio');
+CREATE TYPE public.app_role AS ENUM ('admin','edicao','captacao','gestao','visualizacao');
 CREATE TABLE public.system_admins (user_id uuid);
 CREATE TABLE public.workspace_members (
-  workspace_id uuid, user_id uuid, role text, is_active boolean, joined_at timestamptz);
+  workspace_id uuid, user_id uuid, role app_role, is_active boolean, joined_at timestamptz);
 CREATE TABLE public.workspaces (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text, slug text,
   country country_region, currency text, timezone text, locale text, logo_url text,
