@@ -38,7 +38,8 @@ describe('transferência simulada', () => {
   });
   it('sem coluna elegível não grava', async () => {
     st.cols = [{ id: 'ed-final', workspace_id: W, phase: 'edicao', is_final: true, position: 0 }];
-    expect(await transferToEditing({ projectId: P, workspaceId: W, captureColumnId: CAP })).toEqual({ ok: false, reason: 'no_column' });
+    const r = await transferToEditing({ projectId: P, workspaceId: W, captureColumnId: CAP });
+    expect(r).toEqual({ ok: false, reason: 'no_column' });
     expect(st.writes).toHaveLength(0);
   });
   it('falha de gravação não é sucesso', async () => {
