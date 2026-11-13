@@ -1,0 +1,20 @@
+SET ROLE service_role;
+INSERT INTO public.video_versions(id,workspace_id,project_id,task_id,r2_key,file_path,uploaded_by) VALUES
+('50000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001/30000000-0000-4000-8000-000000000001/fixture.mp4','r2://fixture/key','40000000-0000-4000-8000-000000000001');
+UPDATE public.video_versions SET r2_key='10000000-0000-4000-8000-000000000001/20000000-0000-4000-8000-000000000001/30000000-0000-4000-8000-000000000001/40000000-0000-4000-8000-000000000001/fixture.mp4' WHERE id='50000000-0000-4000-8000-000000000001';
+SET ROLE authenticated;
+INSERT INTO public.video_approval_tokens VALUES ('60000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001',NULL,'30000000-0000-4000-8000-000000000001',true);
+INSERT INTO public.video_comments(id,workspace_id,video_version_id,body) VALUES ('70000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','50000000-0000-4000-8000-000000000001','Fixture');
+INSERT INTO public.video_comments(id,workspace_id,video_version_id,parent_id,body) VALUES ('70000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000001','50000000-0000-4000-8000-000000000001','70000000-0000-4000-8000-000000000001','Reply');
+INSERT INTO public.video_approvals(id,workspace_id,video_version_id) VALUES ('80000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','50000000-0000-4000-8000-000000000001');
+UPDATE public.video_approval_tokens SET is_active=false;
+UPDATE public.video_versions SET is_deleted=true;
+RESET ROLE;
+DO $$ BEGIN
+ IF (SELECT count(*) FROM public.video_comments WHERE project_id='20000000-0000-4000-8000-000000000001' AND task_id='30000000-0000-4000-8000-000000000001') <> 2 THEN RAISE EXCEPTION 'Comment derivation failed'; END IF;
+ IF (SELECT project_id FROM public.video_approval_tokens LIMIT 1) IS DISTINCT FROM '20000000-0000-4000-8000-000000000001'::uuid THEN RAISE EXCEPTION 'Legacy token derivation failed'; END IF;
+ IF (SELECT task_id FROM public.video_approvals LIMIT 1) IS DISTINCT FROM '30000000-0000-4000-8000-000000000001'::uuid THEN RAISE EXCEPTION 'Approval derivation failed'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM public.video_versions WHERE is_deleted) THEN RAISE EXCEPTION 'Metadata update failed'; END IF;
+ IF has_function_privilege('authenticated','public.g04_s03_video_context_guard()','EXECUTE') OR has_function_privilege('anon','public.g04_s03_video_context_guard()','EXECUTE') THEN RAISE EXCEPTION 'Unexpected direct execute'; END IF;
+ IF (SELECT count(*) FROM pg_trigger WHERE tgname='g04_s03_video_context' AND (tgtype & 2)=2) <> 4 THEN RAISE EXCEPTION 'BEFORE guards missing'; END IF;
+END $$;
