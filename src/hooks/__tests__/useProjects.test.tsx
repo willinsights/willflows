@@ -32,7 +32,7 @@ describe('useProjects', () => {
   });
   it.each(['createProject','duplicateProject'] as const)('%s usa coluna não final', async (operation) => {
     const { result } = renderHook(useProjects);
-    await act(async () => { if (operation === 'createProject') await result.current.createProject({ name: 'Fictício' }); else await result.current.duplicateProject('original'); });
+    await act(async () => { if (operation === 'createProject') await result.current.createProject({ name: 'Fictício', type: 'video' }); else await result.current.duplicateProject('original'); });
     expect(st.filters.find(x => x.table === 'kanban_columns').filters).toContainEqual(['is_final', false]);
     expect(st.inserts[0].data.captacao_column_id).toBe('nonfinal');
     if (operation === 'duplicateProject') expect(st.inserts[0].data.is_delivered).toBe(false);
@@ -40,7 +40,7 @@ describe('useProjects', () => {
   it.each(['createProject','duplicateProject'] as const)('%s sem coluna não insere projeto', async (operation) => {
     st.column=false; const { result } = renderHook(useProjects);
     let value: unknown;
-    await act(async () => { value = operation === 'createProject' ? await result.current.createProject({ name: 'Fictício' }) : await result.current.duplicateProject('original'); });
+    await act(async () => { value = operation === 'createProject' ? await result.current.createProject({ name: 'Fictício', type: 'video' }) : await result.current.duplicateProject('original'); });
     expect(value).toBeNull(); expect(st.inserts).toHaveLength(0); expect(st.toast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' }));
   });
 });
