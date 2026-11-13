@@ -1,9 +1,9 @@
 # Roadmap — pendências da auditoria
 
 ## Candidatos G04/S03 — sem produção
-- [ ] Mapear upload/processamento/revisão/download e catálogo estrutural
-- [ ] Preparar validações compartilhadas, chamadores e eventual SQL/reversão candidatos
-- [ ] Validar fluxos legítimos fictícios sem rede; registrar arquivos, hashes e ordem de implantação
+- [x] Mapear upload/processamento/revisão/download e catálogo estrutural
+- [x] Preparar validações compartilhadas, chamadores e SQL/reversão candidatos fora do journal
+- [x] Validar 13 fluxos positivos simulados e SQL local fictício sem TCP; registrar hashes e implantação em docs/security/g04-s03
 
 ## S01 — testes da versão mínima, somente neste draft
 - [x] Confirmar identidade da base isolada antes de qualquer alteração
