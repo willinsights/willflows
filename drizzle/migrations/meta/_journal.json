@@ -36,6 +36,13 @@
       "when": 1794574051463,
       "tag": "0004_approval_link_visible_to_editors",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794579759538,
+      "tag": "0005_s_deliv_defensive_reopen_and_closed_month",
+      "breakpoints": true
     }
   ]
 }
