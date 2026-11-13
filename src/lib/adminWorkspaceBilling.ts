@@ -23,5 +23,6 @@ export async function manageWorkspaceBilling(
       || (result.trial_ends_at !== null && typeof result.trial_ends_at !== 'string')) {
     throw new Error('Não foi possível confirmar a alteração administrativa.');
   }
-  return { workspace_id: workspaceId, trial_ends_at: result.trial_ends_at };
+  const trialEnd = result.trial_ends_at;
+  return { workspace_id: workspaceId, trial_ends_at: typeof trialEnd === 'string' ? trialEnd : null };
 }
