@@ -491,7 +491,7 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: errorMessage, ...(error instanceof UploadTicketExpiredError ? { code: 'UPLOAD_EXPIRED', restartUpload: true } : {}) }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: error instanceof UploadTicketExpiredError ? 409 : error instanceof VideoContextError ? 403 : 500,
     });
