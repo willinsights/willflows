@@ -74,6 +74,8 @@ Deno.serve(async (req: Request) => {
     let userId: string | null = null;
     let workspaceId: string | null = null;
     let isPublicApproval = false;
+    let approvalTaskId: string | null = null;
+    let approvalProjectId: string | null = null;
 
     if (approval_token) {
       const rlId = clientIdentifier(req, approval_token);
