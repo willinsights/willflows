@@ -1,5 +1,11 @@
 # Roadmap — pendências da auditoria
 
+## Candidatos S02/S09 — sem aplicação em produção
+- [x] Mapear chamadores e catálogo de faturação, trial e promoções
+- [ ] Guardar definições e ACL anteriores, sem dados pessoais
+- [ ] Preparar SQL transacional fora das pastas de migrações aplicáveis e ajustes mínimos de chamadores
+- [ ] Validar análise estática e fluxos positivos com dados fictícios isolados; registrar arquivos e revisão
+
 ## Frontend S-DELIV — novembro 2026
 - [x] Integrar patches compartilhados de transferência e coluna inicial não final, com falha sem destino
 - [x] Confirmar gravação de competência antes de alterar o valor visual; corrigir label de reabertura
