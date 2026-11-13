@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useSuperAdmin } from './useSuperAdmin';
-import { useAdminAudit } from './useAdminAudit';
 import { useToast } from './use-toast';
 import { PLAN_LIMITS, PLAN_DB_MAPPING, type PlanId } from '@/lib/plans';
+import { manageWorkspaceBilling } from '@/lib/adminWorkspaceBilling';
 
 export interface AdminWorkspace {
   id: string;
@@ -38,7 +38,6 @@ export interface WorkspaceFilters {
 
 export function useAdminWorkspaces(filters: WorkspaceFilters) {
   const { isSuperAdmin } = useSuperAdmin();
-  const { logAction } = useAdminAudit();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -169,18 +168,7 @@ export function useAdminWorkspaces(filters: WorkspaceFilters) {
 
   const blockWorkspace = useMutation({
     mutationFn: async ({ workspaceId, blocked }: { workspaceId: string; blocked: boolean }) => {
-      const { error } = await supabase
-        .from('workspaces')
-        .update({ subscription_status: blocked ? 'canceled' : 'active' })
-        .eq('id', workspaceId);
-
-      if (error) throw error;
-
-      await logAction({
-        action: blocked ? 'block_workspace' : 'unblock_workspace',
-        targetType: 'workspace',
-        targetId: workspaceId,
-      });
+      await manageWorkspaceBilling(workspaceId, blocked ? 'block' : 'unblock');
     },
     onSuccess: (_, { blocked }) => {
       toast({

@@ -11,3 +11,4 @@
 - Team value controls map to existing cost/payment columns through the shared teamValue helpers and save both atomically; unequal nonzero legacy amounts retain an advanced payment control. Why: simplify input without losing costs, historical payments, or intentional nulls.
 - Restore public presentation from the version immediately before a rejected redesign, touching only marketing files. Why: keep workspace screens and financial behavior intact.
 - Kanban and project-details capture completion share transferToEditing and require a confirmed nonfinal editing destination. Why: prevent premature delivery and false success across both entry points.
+- Unapplied security SQL candidates live under docs/security, outside migration journals; workspace billing administration uses a server-authorized, audited RPC. Why: stage defenses without production side effects or browser-decided billing values.

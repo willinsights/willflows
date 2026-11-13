@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useSuperAdmin } from './useSuperAdmin';
-import { useAdminAudit } from './useAdminAudit';
 import { toast } from '@/hooks/use-toast';
+import { manageWorkspaceBilling } from '@/lib/adminWorkspaceBilling';
 
 export interface TrialWorkspace {
   id: string;
@@ -36,7 +36,6 @@ const calculateDaysRemaining = (trialEndsAt: string | null): number => {
 
 export function useAdminTrials() {
   const { isSuperAdmin } = useSuperAdmin();
-  const { logAction } = useAdminAudit();
   const queryClient = useQueryClient();
 
   const { data: trialWorkspaces = [], isLoading } = useQuery({
@@ -114,44 +113,9 @@ export function useAdminTrials() {
       days: number;
       reason: string;
     }) => {
-      // Get current trial_ends_at
-      const { data: workspace, error: fetchError } = await supabase
-        .from('workspaces')
-        .select('trial_ends_at')
-        .eq('id', workspaceId)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      // Calculate new end date
-      const currentEndDate = workspace.trial_ends_at 
-        ? new Date(workspace.trial_ends_at) 
-        : new Date();
-      
-      // If expired, start from now
-      const baseDate = currentEndDate < new Date() ? new Date() : currentEndDate;
-      const newEndDate = new Date(baseDate);
-      newEndDate.setDate(newEndDate.getDate() + days);
-
-      // Update workspace
-      const { error: updateError } = await supabase
-        .from('workspaces')
-        .update({ 
-          trial_ends_at: newEndDate.toISOString(),
-          subscription_status: 'trialing', // Ensure status is trialing
-        })
-        .eq('id', workspaceId);
-
-      if (updateError) throw updateError;
-
-      // Log audit action
-      await logAction({
-        action: 'extend_trial',
-        targetType: 'workspace',
-        targetId: workspaceId,
-        details: { days_added: days, reason, new_end_date: newEndDate.toISOString() },
-      });
-
+      const saved = await manageWorkspaceBilling(workspaceId, 'extend_trial', { days, reason });
+      if (!saved.trial_ends_at) throw new Error('O servidor não confirmou a data do trial.');
+      const newEndDate = new Date(saved.trial_ends_at);
       return { workspaceId, newEndDate };
     },
     onSuccess: () => {
@@ -179,24 +143,7 @@ export function useAdminTrials() {
       workspaceId: string;
       reason: string;
     }) => {
-      const { error } = await supabase
-        .from('workspaces')
-        .update({ 
-          subscription_status: 'active',
-          trial_ends_at: null, // Clear trial end date
-        })
-        .eq('id', workspaceId);
-
-      if (error) throw error;
-
-      // Log audit action
-      await logAction({
-        action: 'convert_trial',
-        targetType: 'workspace',
-        targetId: workspaceId,
-        details: { reason, converted_at: new Date().toISOString() },
-      });
-
+      await manageWorkspaceBilling(workspaceId, 'convert_trial', { reason });
       return { workspaceId };
     },
     onSuccess: () => {
