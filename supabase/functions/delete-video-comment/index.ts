@@ -2,10 +2,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { clientIdentifier, isRateLimited, logAttempt, rateLimitResponse } from '../_shared/rate-limit.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { resolveVideoContext, tokenCoversVersion, activeVideoToken, requireScopedVersion, storedKeyMatchesVersion, safeObjectKey, VideoContextError } from '../_shared/video-context.ts';
 
 interface DeleteCommentPayload {
   token: string;
@@ -51,8 +49,9 @@ Deno.serve(async (req) => {
     }
 
     // Create Supabase client with service role
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseUrl || !supabaseServiceKey) throw new Error('Missing server configuration');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const rlId = clientIdentifier(req, payload.token);
@@ -85,7 +84,7 @@ Deno.serve(async (req) => {
     }
 
     // Check expiration
-    if (tokenData.expires_at && new Date(tokenData.expires_at) < new Date()) {
+    if (!activeVideoToken(tokenData)) {
       return new Response(
         JSON.stringify({ error: 'Este link de aprovação expirou' }),
         { status: 410, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -134,9 +133,9 @@ Deno.serve(async (req) => {
     }
 
     // Verify the comment belongs to this token's task/project
-    const commentMatchesToken = 
-      (tokenData.task_id && comment.task_id === tokenData.task_id) ||
-      (tokenData.project_id && comment.project_id === tokenData.project_id);
+    const scope = await resolveVideoContext(supabase, tokenData);
+    const version = await requireScopedVersion(supabase, comment.video_version_id, scope);
+    const commentMatchesToken = tokenCoversVersion(scope, comment) && comment.workspace_id === version.workspace_id && comment.project_id === version.project_id && comment.task_id === version.task_id;
 
     if (!commentMatchesToken) {
       return new Response(
@@ -170,7 +169,7 @@ Deno.serve(async (req) => {
     console.error('Unexpected error:', error);
     return new Response(
       JSON.stringify({ error: 'Erro interno do servidor' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: error instanceof VideoContextError ? 403 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

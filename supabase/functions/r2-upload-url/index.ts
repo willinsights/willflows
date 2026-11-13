@@ -2,10 +2,9 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { AwsClient } from "https://esm.sh/aws4fetch@1.0.18";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { resolveVideoContext, sameVideoContext, validateUploadFile, VideoContextError } from '../_shared/video-context.ts';
+import { issueUploadTicket } from '../_shared/video-upload-ticket.ts';
 
 const logStep = (step: string, details?: Record<string, unknown>) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
@@ -103,7 +102,7 @@ serve(async (req) => {
     logStep("User authenticated", { userId });
 
     // Parse request body
-    const { workspaceId, taskId, projectId, fileName, fileSize, mimeType } = await req.json();
+    const { workspaceId, taskId, projectId, fileName, fileSize, mimeType, replaceVersionId } = await req.json();
 
     // taskId is optional - projectId is required when no taskId
     if (!workspaceId || !projectId || !fileName || !fileSize) {
@@ -137,6 +136,13 @@ serve(async (req) => {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    validateUploadFile(fileName, fileSize);
+    const context = await resolveVideoContext(supabase, { workspace_id: workspaceId, project_id: projectId, task_id: taskId || null });
+    if (replaceVersionId) {
+      const { data: target, error } = await supabase.from('video_versions').select('workspace_id,project_id,task_id').eq('id', replaceVersionId).maybeSingle();
+      if (error || !target || !sameVideoContext(await resolveVideoContext(supabase, target), context)) throw new VideoContextError('Versão de substituição incompatível');
     }
 
     // Check workspace storage limits
@@ -185,9 +191,10 @@ serve(async (req) => {
     }
 
     // Generate unique file key
-    const fileExt = fileName.split('.').pop() || 'mp4';
+    const extension = fileName.split('.').pop() || 'mp4';
+    const fileExt = /^[a-zA-Z0-9]{1,10}$/.test(extension) ? extension : 'mp4';
     const timestamp = Date.now();
-    const uniqueKey = `${workspaceId}/${taskId}/${timestamp}_${crypto.randomUUID()}.${fileExt}`;
+    const uniqueKey = `${workspaceId}/${context.project_id}/${context.task_id || "project"}/${userId}/${timestamp}_${crypto.randomUUID()}.${fileExt}`;
 
     logStep("Generating presigned URL", { key: uniqueKey, fileSize, mimeType });
 
@@ -202,11 +209,13 @@ serve(async (req) => {
       3600
     );
 
+    const uploadTicket = await issueUploadTicket({ ...context, user_id: userId, key: uniqueKey, file_name: fileName, file_size: fileSize, expires_at: Date.now() + 3600 * 1000, replace_version_id: replaceVersionId || null }, supabaseServiceKey);
     logStep("Presigned URL generated successfully");
 
     return new Response(JSON.stringify({
       uploadUrl: presignedUrl,
       key: uniqueKey,
+      uploadTicket,
       expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(),
       workspaceId,
       taskId,
@@ -220,7 +229,7 @@ serve(async (req) => {
     logStep("ERROR", { message: errorMessage });
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+      status: error instanceof VideoContextError ? 403 : 500,
     });
   }
 });

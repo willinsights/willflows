@@ -346,6 +346,7 @@ export function useVideoVersions(
       const { data: processData, error: processError } = await supabase.functions.invoke('stream-process-video', {
         body: {
           key: urlData.key,
+          uploadTicket: urlData.uploadTicket,
           taskId,
           workspaceId,
           projectId,
@@ -440,6 +441,7 @@ export function useVideoVersions(
       const { data: urlData, error: urlError } = await supabase.functions.invoke('r2-upload-url', {
         body: {
           workspaceId: target.workspace_id,
+          replaceVersionId: versionId,
           taskId: target.task_id,
           projectId: target.project_id,
           fileName: file.name,
@@ -460,6 +462,7 @@ export function useVideoVersions(
       const { data: processData, error: processError } = await supabase.functions.invoke('stream-process-video', {
         body: {
           key: urlData.key,
+          uploadTicket: urlData.uploadTicket,
           taskId: target.task_id,
           workspaceId: target.workspace_id,
           projectId: target.project_id,
