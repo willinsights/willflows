@@ -1,4 +1,5 @@
 // @vitest-environment node
+/// <reference types="node" />
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
@@ -105,6 +106,14 @@ describe('G04/S03 positive flows — fictitious dependencies, no network', () =>
     const db = database(rows()); const h = await handler('delete-video-comment', db);
     expect((await h.run(request({ token: 'fictitious-link', comment_id: versionId, client_name: 'Fictício' }))).status).toBe(200);
     expect(db.calls.find(c => c.table === 'video_comments' && c.operation === 'delete')).toBeDefined();
+  });
+  it('existing task-only link loads review with workspace/project/task filters', async () => {
+    const db = database({ ...rows(), video_approval_tokens: { ...token, project_id: null }, video_versions: [{ ...version, cloudflare_stream_uid: 'fixture-stream', stream_status: 'ready' }], video_comments: [], video_approvals: [] });
+    const h = await handler('get-video-approval-data', db);
+    const response = await h.run(new Request('http://fixture.invalid/?token=fictitious-link'));
+    expect(response.status).toBe(200);
+    expect((await response.json()).versions[0].id).toBe(versionId);
+    expect(db.calls.find(c => c.table === 'video_versions')?.filters).toEqual(expect.arrayContaining([['workspace_id', workspace], ['project_id', project], ['task_id', task]]));
   });
   it.each([false, true])('processes a legitimate upload (replacement=%s) with mocked object and Stream', async (replacement) => {
     const db = database(rows()); const h = await handler('stream-process-video', db);

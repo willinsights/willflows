@@ -17,7 +17,7 @@ export async function resolveVideoContext(db: VideoDatabase, input: VideoContext
     if (error || !task || task.workspace_id !== input.workspace_id || !isUuid(task.project_id) || (projectId && task.project_id !== projectId)) deny();
     projectId = task.project_id;
   }
-  if (!isUuid(projectId)) deny();
+  if (!isUuid(projectId)) return deny();
   const { data: project, error }: QueryResult = await db.from('projects').select('id,workspace_id').eq('id', projectId).maybeSingle();
   if (error || !project || project.workspace_id !== input.workspace_id) deny();
   return { workspace_id: input.workspace_id, project_id: projectId, task_id: input.task_id };
