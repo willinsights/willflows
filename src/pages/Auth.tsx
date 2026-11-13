@@ -180,31 +180,11 @@ export default function Auth() {
     
     setValidatingPromo(true);
     try {
-      const { data, error } = await supabase
-        .from('promo_codes')
-        .select('*')
-        .eq('code', code.trim().toUpperCase())
-        .eq('is_active', true)
-        .maybeSingle();
-      
-      if (error) throw error;
-      
-      if (!data) {
-        setPromoValidation({ valid: false, message: 'Código inválido' });
-      } else if (data.max_uses && data.used_count >= data.max_uses) {
-        setPromoValidation({ valid: false, message: 'Código esgotado' });
-      } else if (data.expires_at && new Date(data.expires_at) < new Date()) {
-        setPromoValidation({ valid: false, message: 'Código expirado' });
-      } else {
-        setPromoValidation({ 
-          valid: true, 
-          trialDays: data.trial_days,
-          message: `${data.trial_days} dias grátis!`
-        });
-      }
-    } catch (error) {
-      logger.error('Error validating promo code:', error);
-      setPromoValidation({ valid: false, message: 'Erro ao validar código' });
+      // S01: promo codes are temporarily unavailable until the secure redemption (phase 2).
+      setPromoValidation({
+        valid: false,
+        message: 'Os códigos promocionais estão temporariamente indisponíveis. Este código não será aplicado e a conta recebe os 7 dias normais de teste.',
+      });
     } finally {
       setValidatingPromo(false);
     }
@@ -279,29 +259,7 @@ export default function Auth() {
       return;
     }
 
-    // If promo code is valid, update the user's trial period
-    if (promoValidation?.valid && promoValidation.trialDays && data.promoCode) {
-      try {
-        const userId = result.data?.user?.id;
-        if (userId) {
-          // Update subscription with extended trial
-          const trialEndsAt = new Date();
-          trialEndsAt.setDate(trialEndsAt.getDate() + promoValidation.trialDays);
-          
-          await supabase
-            .from('user_subscriptions')
-            .update({ trial_ends_at: trialEndsAt.toISOString() })
-            .eq('user_id', userId);
-          
-          // Increment promo code used count using database function
-          const promoCode = data.promoCode.trim().toUpperCase();
-          await supabase.rpc('increment_promo_code_usage' as any, { code_text: promoCode });
-        }
-      } catch (promoError) {
-        logger.error('Error applying promo code:', promoError);
-        // Don't fail signup if promo application fails
-      }
-    }
+    // S01: no client-side trial extension; every new account gets the standard 7 days.
 
     // Mark invite as used if in beta mode
     if (isBetaMode && inviteToken) {
@@ -319,9 +277,9 @@ export default function Auth() {
     
     toast({
       title: 'Conta criada com sucesso!',
-      description: promoValidation?.valid 
-        ? `Bem-vindo ao WillFlow! Tem ${promoValidation.trialDays} dias grátis.`
-        : 'Bem-vindo ao WillFlow.',
+      description: data.promoCode?.trim()
+        ? 'Bem-vindo ao WillFlow! O código promocional não foi aplicado; tem os 7 dias normais de teste.'
+        : 'Bem-vindo ao WillFlow! Tem 7 dias de teste.',
     });
     navigate('/onboarding');
   };
