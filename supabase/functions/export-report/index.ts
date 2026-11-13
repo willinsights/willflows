@@ -161,12 +161,13 @@ Deno.serve(async (req) => {
     // Check if user has Pro or Studio plan for exports
     const { data: subscription } = await supabase
       .from('user_subscriptions')
-      .select('subscription_plan')
+      .select('subscription_plan, subscription_status')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
     const plan = subscription?.subscription_plan || 'starter';
-    if (plan === 'starter') {
+    const statusOk = ['active', 'trialing'].includes(String(subscription?.subscription_status || ''));
+    if (plan === 'starter' || !statusOk) {
       // Check for super admin
       const { data: isAdmin } = await supabase
         .rpc('is_system_admin');
@@ -465,7 +466,10 @@ function convertToExcelCSV(data: any[]): string {
       headers.map(header => {
         const value = row[header];
         if (value === null || value === undefined) return '""';
-        const stringValue = String(value).replace(/"/g, '""');
+        let raw = String(value);
+        // Neutralize spreadsheet formula injection
+        if (/^[=+\-@\t\r]/.test(raw)) raw = `'${raw}`;
+        const stringValue = raw.replace(/"/g, '""');
         return `"${stringValue}"`;
       }).join(';')
     )
