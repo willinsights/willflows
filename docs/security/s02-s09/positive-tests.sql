@@ -3,6 +3,7 @@
 CREATE ROLE anon;
 CREATE ROLE authenticated;
 CREATE ROLE service_role BYPASSRLS;
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 CREATE SCHEMA auth;
 CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS
   $$ SELECT nullif(current_setting('test.uid', true), '')::uuid $$;
