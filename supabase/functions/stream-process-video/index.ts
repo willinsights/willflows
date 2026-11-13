@@ -230,6 +230,8 @@ serve(async (req) => {
         })
         .eq("id", replaceVersionId)
         .eq("workspace_id", workspaceId)
+        .eq("project_id", context.project_id)
+        .eq("r2_key", targetVersion.r2_key)
         .select("id").single();
       if (replacementError || !replaced) throw new Error("Failed to replace video version");
     } else {
@@ -360,7 +362,7 @@ serve(async (req) => {
       .eq("id", versionData.id);
 
     if (updateError) {
-      logStep("Error updating version with stream data", { error: updateError.message });
+      throw new Error("Failed to confirm video processing state");
     }
 
     // On replacement: purge the previous media so nothing stale can be played or cached

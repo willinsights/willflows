@@ -179,12 +179,19 @@ Deno.serve(async (req) => {
     const { data: approvals } = await approvalsQuery;
     const approval = approvals?.[0] || null;
 
+    // Historical rows must also reference a version covered by this link.
+    for (const item of [...(comments || []), ...(approval ? [approval] : [])]) {
+      const version = await requireScopedVersion(supabase, item.video_version_id, scope);
+      if (item.workspace_id !== version.workspace_id || (item.project_id && item.project_id !== version.project_id) || (item.task_id && item.task_id !== version.task_id)) throw new VideoContextError('Revisão fora do escopo');
+    }
+
     // Generate video URLs - prefer Cloudflare Stream replacement, then original, fallback to signed Supabase URLs
     const videoUrls: Record<string, string> = {};
     for (const version of (versions || []) as any[]) {
       const context = await resolveVideoContext(supabase, version);
       if (!tokenCoversVersion(scope, context)) throw new VideoContextError('Versão fora do escopo');
       if (version.r2_key && !storedKeyMatchesVersion(version.r2_key, { ...version, ...context })) throw new VideoContextError('Arquivo de vídeo incoerente');
+      if (version.replacement_r2_key && !storedKeyMatchesVersion(version.replacement_r2_key, { ...version, ...context })) throw new VideoContextError('Arquivo corrigido incoerente');
       // Prefer replacement (corrected) video when ready
       if (version.replacement_stream_uid && version.replacement_status === 'ready') {
         videoUrls[version.id] = `https://videodelivery.net/${version.replacement_stream_uid}/manifest/video.m3u8`;
