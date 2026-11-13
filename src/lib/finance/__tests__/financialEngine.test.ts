@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   getMonthlyMetrics,
+  withFinancialCostLines,
   getTimeSeries,
   getMonthlySummary,
   calculateChange,
@@ -189,6 +190,17 @@ describe('getMonthlyMetrics — PREVISAO', () => {
     expect(metrics.revenue).toBe(0);
     expect(metrics.projectCount).toBe(0);
   });
+});
+
+it('includes project cost lines in the realized cost and profit of the delivery month', () => {
+  const projects = [makeProject({ is_delivered: true, competence_month: '2025-06' })];
+  const withCosts = withFinancialCostLines(projects, [
+    { id: 'line-1', project_id: 'p-1', actual_amount: 80, payment_status: 'pendente', paid_at: null },
+  ]);
+  expect(getMonthlyMetrics(withCosts, 'REALIZADO', JUN_2025)).toMatchObject({
+    revenue: 1000, cost: 430, profit: 570,
+  });
+  expect(getMonthlyMetrics(withCosts, 'REALIZADO', JUL_2025).cost).toBe(0);
 });
 
 // === CAIXA ===

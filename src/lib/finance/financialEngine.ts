@@ -1,3 +1,4 @@
+import { uniqueFinancialCostLines } from './costLineRows';
 import {
   startOfMonth,
   endOfMonth,
@@ -48,6 +49,14 @@ export function getEffectiveMonth(project: FinancialProject): Date | null {
     return startOfMonth(parseISO(project.delivered_at));
   }
   return null;
+}
+
+export function withFinancialCostLines(projects: FinancialProject[], lines: CostLinePayment[]): FinancialProject[] {
+  const totals = new Map<string, number>();
+  for (const line of uniqueFinancialCostLines(lines)) {
+    totals.set(line.project_id, (totals.get(line.project_id) ?? 0) + (line.actual_amount ?? 0));
+  }
+  return projects.map(project => ({ ...project, cost_lines_total: totals.get(project.id) ?? 0 }));
 }
 
 /** Total project cost = custo_captacao + custo_edicao + custos_extras + sum(project_cost_lines.actual_amount). */
@@ -168,7 +177,7 @@ function getCaixaMetrics(
     .reduce((s, p) => s + (p.custos_extras || 0), 0);
 
   // Cost-line expenses: paid_at in month and status 'pago'
-  const costLinesExpenses = costLinePayments
+  const costLinesExpenses = uniqueFinancialCostLines(costLinePayments)
     .filter(cl => cl.payment_status === 'pago' && cl.paid_at && isInMonth(cl.paid_at, month))
     .reduce((s, cl) => s + (cl.actual_amount || 0), 0);
 

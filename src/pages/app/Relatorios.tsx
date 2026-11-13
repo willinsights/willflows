@@ -1,4 +1,7 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useFinancialReportSource } from '@/hooks/useFinancialReportSource';
+import { getCostCategoryTotals } from '@/lib/finance/costLineReconciliation';
+import { FinancialDataState } from '@/components/reports/FinancialDataState';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -40,13 +43,12 @@ import { ClientProfitabilityReport } from '@/components/reports/ClientProfitabil
 import { TeamPerformanceReport } from '@/components/reports/TeamPerformanceReport';
 import { RevenueForecastReport } from '@/components/reports/RevenueForecastReport';
 import { ReportSectionHeader } from '@/components/reports/ReportSectionHeader';
-import { supabase } from '@/integrations/supabase/client';
 import { PageHeader } from '@/components/layout/PageHeader';
 
 export default function Relatorios() {
   const { canViewReports } = useFinancialPermissions();
   const navigate = useNavigate();
-  const { projects } = useProjects();
+  const { projects, loading: projectsLoading } = useProjects();
   const { clients } = useClients();
   const { currentWorkspace } = useWorkspace();
   const { hasAccess: canExportPdf, requireFeature: requirePdfExport, UpgradeAlertComponent } = useFeatureGate('exportPdf');
@@ -61,7 +63,9 @@ export default function Relatorios() {
   const formatCurrency = (value: number) => formatCurrencyFull(value, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
   const dateRange = useDateRange(periodType, customDateRange);
-  const monthlyData = useMonthlyData(projects, dateRange);
+  const financialSource = useFinancialReportSource(canViewReports ? currentWorkspace?.id : undefined);
+  const { projects: financialProjects, costLines } = financialSource;
+  const monthlyData = useMonthlyData(financialProjects, dateRange, costLines);
   const topClients = useTopClients(projects);
   const summaryMetrics = useSummaryMetrics(projects, clients, monthlyData);
   const { projectsByStatus, projectsByPriority } = useProjectDistribution(projects);
@@ -72,37 +76,16 @@ export default function Relatorios() {
     deliveredProjectIds,
   });
 
-  // Cost breakdown data for Excel export
-  const [costBreakdownData, setCostBreakdownData] = useState<{ category: string; estimated: number; actual: number; variance: number }[]>([]);
-
-  useEffect(() => {
-    if (!currentWorkspace?.id) return;
-    const fetchCosts = async () => {
-      const { data } = await supabase
-        .from('project_cost_lines')
-        .select('category, estimated_amount, actual_amount')
-        .eq('workspace_id', currentWorkspace.id);
-      if (data) {
-        const grouped: Record<string, { estimated: number; actual: number }> = {};
-        data.forEach((line: any) => {
-          const cat = line.category || 'outro';
-          if (!grouped[cat]) grouped[cat] = { estimated: 0, actual: 0 };
-          grouped[cat].estimated += line.estimated_amount || 0;
-          grouped[cat].actual += line.actual_amount || 0;
-        });
-        setCostBreakdownData(Object.entries(grouped).map(([category, vals]) => ({
-          category,
-          estimated: vals.estimated,
-          actual: vals.actual,
-          variance: vals.actual - vals.estimated,
-        })));
-      }
-    };
-    fetchCosts();
-  }, [currentWorkspace?.id]);
+  const costBreakdownData = useMemo(() => getCostCategoryTotals(financialProjects, costLines, dateRange), [financialProjects, costLines, dateRange]);
 
   if (!canViewReports) {
     return <AccessDenied description="Apenas administradores podem aceder aos Relatórios financeiros." />;
+  }
+
+  if (financialSource.loading || financialSource.error || projectsLoading) {
+    return <div className="p-4 sm:p-6"><PageHeader title="Relatórios" />
+      <FinancialDataState loading={financialSource.loading || projectsLoading} error={financialSource.error} onRetry={financialSource.refresh} />
+    </div>;
   }
 
   // Export functions
@@ -376,11 +359,11 @@ export default function Relatorios() {
 
       {/* Section: Análise de Custos */}
       <ReportSectionHeader icon={Layers} title="Análise de Custos" subtitle="Breakdown por categoria e desvios orçamentais" />
-      <CostBreakdownReport />
+      <CostBreakdownReport projects={financialProjects} costLines={costLines} dateRange={dateRange} />
 
       {/* Section: Comparação de Períodos */}
       <ReportSectionHeader icon={GitCompare} title="Comparação de Períodos" subtitle="Desempenho mês atual vs anterior" />
-      <PeriodComparisonCard projects={projects} />
+      <PeriodComparisonCard projects={financialProjects} costLines={costLines} selectedMonth={dateRange.end} />
 
       {/* Section: Rentabilidade de Clientes */}
       <ReportSectionHeader icon={Award} title="Rentabilidade por Cliente" subtitle="Margem e lucro por cada cliente" badge="Pro" />

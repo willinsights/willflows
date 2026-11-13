@@ -1,7 +1,7 @@
+import { getCostCategoryTotals } from '@/lib/finance/costLineReconciliation';
+import type { FinancialProject, CostLinePayment } from '@/lib/finance/types';
 import { PrivacyBlur } from '@/components/ui/PrivacyBlur';
-import { useMemo, useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,64 +14,21 @@ const CATEGORY_COLORS: Record<string, string> = {
   deslocacao: 'hsl(var(--warning))',
   alojamento: 'hsl(var(--success))',
   alimentacao: 'hsl(var(--destructive))',
-  equipa: 'hsl(var(--info, 210 80% 55%))',
-  software: 'hsl(280 60% 55%)',
+  equipa: 'hsl(var(--info))',
+  software: 'hsl(var(--info))',
   outro: 'hsl(var(--muted-foreground))',
 };
 
-interface CostLineData {
-  category: CostCategory;
-  estimated_amount: number;
-  actual_amount: number;
-  payment_status: string;
-}
-
-export function CostBreakdownReport() {
-  const { currentWorkspace } = useWorkspace();
+export function CostBreakdownReport({ projects, costLines, dateRange }: {
+  projects: FinancialProject[]; costLines: CostLinePayment[]; dateRange: { start: Date; end: Date };
+}) {
   const { formatCurrency } = useFormatCurrency();
-  const [costLines, setCostLines] = useState<CostLineData[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!currentWorkspace?.id) return;
-
-    const fetchCostLines = async () => {
-      const { data, error } = await supabase
-        .from('project_cost_lines')
-        .select('category, estimated_amount, actual_amount, payment_status')
-        .eq('workspace_id', currentWorkspace.id);
-
-      if (!error && data) setCostLines(data as CostLineData[]);
-      setLoading(false);
-    };
-
-    fetchCostLines();
-  }, [currentWorkspace?.id]);
-
-  const breakdown = useMemo(() => {
-    const grouped: Record<string, { estimated: number; actual: number; paid: number; count: number }> = {};
-
-    for (const line of costLines) {
-      if (!grouped[line.category]) {
-        grouped[line.category] = { estimated: 0, actual: 0, paid: 0, count: 0 };
-      }
-      grouped[line.category].estimated += line.estimated_amount;
-      grouped[line.category].actual += line.actual_amount;
-      if (line.payment_status === 'pago') grouped[line.category].paid += line.actual_amount;
-      grouped[line.category].count++;
-    }
-
-    return Object.entries(grouped)
-      .map(([category, data]) => ({
-        category,
-        label: costCategoryLabels[category as CostCategory] || category,
-        ...data,
-        variance: data.actual - data.estimated,
-        variancePercent: data.estimated > 0 ? ((data.actual - data.estimated) / data.estimated * 100) : 0,
-        color: CATEGORY_COLORS[category] || 'hsl(var(--muted-foreground))',
-      }))
-      .sort((a, b) => b.actual - a.actual);
-  }, [costLines]);
+  const breakdown = useMemo(() => getCostCategoryTotals(projects, costLines, dateRange).map(data => ({
+    ...data,
+    label: costCategoryLabels[data.category as CostCategory] || data.category,
+    variancePercent: data.estimated > 0 ? (data.variance / data.estimated) * 100 : 0,
+    color: CATEGORY_COLORS[data.category] || 'hsl(var(--muted-foreground))',
+  })), [projects, costLines, dateRange]);
 
   const totalActual = breakdown.reduce((s, b) => s + b.actual, 0);
   const totalEstimated = breakdown.reduce((s, b) => s + b.estimated, 0);
@@ -79,8 +36,7 @@ export function CostBreakdownReport() {
 
   const pieData = breakdown.map(b => ({ name: b.label, value: b.actual, color: b.color }));
 
-  if (loading) return null;
-  if (costLines.length === 0) return null;
+  if (breakdown.length === 0) return <p className="py-4 text-sm text-muted-foreground">Nenhuma linha de custo neste período.</p>;
 
   return (
     <PrivacyBlur className="grid md:grid-cols-2 gap-6">
@@ -89,7 +45,7 @@ export function CostBreakdownReport() {
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <Layers className="h-4 w-4 text-primary" />
-            Custos por Categoria
+            Linhas de Custo por Categoria
           </CardTitle>
         </CardHeader>
         <CardContent>
