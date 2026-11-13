@@ -57,6 +57,13 @@
       "when": 1794583769118,
       "tag": "0007_s02_s09_phase1_additive_billing_rpc",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794584047306,
+      "tag": "0008_s02_s09_phase3_workspace_billing_and_promo_grants",
+      "breakpoints": true
     }
   ]
 }
