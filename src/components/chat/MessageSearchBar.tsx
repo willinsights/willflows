@@ -63,7 +63,8 @@ export function MessageSearchBar({ conversationId, onResultClick, onClose }: Mes
   const highlightText = (text: string) => {
     if (!debouncedQuery) return text;
     
-    const parts = text.split(new RegExp(`(${debouncedQuery})`, 'gi'));
+    const safeQuery = debouncedQuery.slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const parts = text.split(new RegExp(`(${safeQuery})`, 'gi'));
     return parts.map((part, i) =>
       part.toLowerCase() === debouncedQuery.toLowerCase()
         ? <mark key={i} className="bg-yellow-300 dark:bg-yellow-600 px-0.5 rounded">{part}</mark>
