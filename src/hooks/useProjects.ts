@@ -135,14 +135,24 @@ export function useProjects() {
       const initialPhase = itemType === 'projeto_edicao' ? 'edicao' : 'captacao';
 
       // Get first column for the correct phase
-      const { data: firstColumn } = await supabase
+      const { data: firstColumn, error: columnError } = await supabase
         .from('kanban_columns')
         .select('id')
         .eq('workspace_id', currentWorkspace.id)
         .eq('phase', initialPhase)
+        .eq('is_final', false)
         .order('position', { ascending: true })
         .limit(1)
         .single();
+
+      if (columnError || !firstColumn) {
+        toast({
+          title: 'Não foi possível iniciar o projeto',
+          description: `Configure uma coluna não final no Kanban de ${initialPhase === 'captacao' ? 'Captação' : 'Edição'} e tente novamente.`,
+          variant: 'destructive',
+        });
+        return null;
+      }
 
       // Set the correct column field based on phase
       const columnField = initialPhase === 'captacao' ? 'captacao_column_id' : 'edicao_column_id';
@@ -152,7 +162,7 @@ export function useProjects() {
         .insert({
           ...validatedData,
           workspace_id: currentWorkspace.id,
-          [columnField]: firstColumn?.id || null,
+          [columnField]: firstColumn.id,
           current_phase: initialPhase,
         } as any)
         .select('*, clients(name)')
@@ -273,14 +283,24 @@ export function useProjects() {
       };
 
       // Get first column for the correct phase
-      const { data: firstColumn } = await supabase
+      const { data: firstColumn, error: columnError } = await supabase
         .from('kanban_columns')
         .select('id')
         .eq('workspace_id', currentWorkspace.id)
         .eq('phase', initialPhase)
+        .eq('is_final', false)
         .order('position', { ascending: true })
         .limit(1)
         .single();
+
+      if (columnError || !firstColumn) {
+        toast({
+          title: 'Não foi possível iniciar o projeto',
+          description: `Configure uma coluna não final no Kanban de ${initialPhase === 'captacao' ? 'Captação' : 'Edição'} e tente novamente.`,
+          variant: 'destructive',
+        });
+        return null;
+      }
 
       // Set the correct column field based on phase
       const columnField = initialPhase === 'captacao' ? 'captacao_column_id' : 'edicao_column_id';
@@ -289,7 +309,7 @@ export function useProjects() {
         .from('projects')
         .insert({
           ...projectCopy,
-          [columnField]: firstColumn?.id || null,
+          [columnField]: firstColumn.id,
         } as any)
         .select('*, clients(name)')
         .single();

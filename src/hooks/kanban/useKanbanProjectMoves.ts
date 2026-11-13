@@ -1,3 +1,4 @@
+import { transferToEditing } from '@/lib/kanban/transferToEditing';
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -151,32 +152,35 @@ export function useKanbanProjectMoves({ phase, columns, setColumns, fetchColumns
           return;
         }
 
-        const { data: edicaoColumns } = await supabase
-          .from('kanban_columns').select('id')
-          .eq('workspace_id', currentWorkspace.id)
-          .eq('phase', 'edicao')
-          .order('position', { ascending: true })
-          .limit(1);
+        const transfer = await transferToEditing({
+          projectId,
+          workspaceId: currentWorkspace.id,
+          captureColumnId: targetColumnId,
+          beforeWrite: () => markLocalUpdate(projectId),
+        });
 
-        if (edicaoColumns && edicaoColumns.length > 0) {
-          markLocalUpdate(projectId);
-          await supabase
-            .from('projects')
-            .update({
-              current_phase: 'edicao',
-              edicao_column_id: edicaoColumns[0].id,
-              captacao_column_id: targetColumnId,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', projectId);
-
+        if (transfer.ok === false) {
           toast({
-            title: 'Projeto transferido para Edição',
-            description: 'O projeto foi movido automaticamente para o Kanban de Edição.',
+            title: transfer.reason === 'no_column' || transfer.reason === 'columns_error'
+              ? 'Não foi possível transferir para Edição'
+              : 'Não foi possível confirmar a transferência para Edição',
+            description: transfer.error
+              ? handleDatabaseError('moveProject', transfer.error)
+              : transfer.reason === 'no_column'
+                ? 'Não foi encontrada uma coluna não final no Kanban de Edição.'
+                : 'A transferência não foi confirmada. A lista de projetos será atualizada.',
+            variant: 'destructive',
           });
           fetchColumns();
           return;
         }
+
+        toast({
+          title: 'Projeto transferido para Edição',
+          description: 'O projeto foi movido automaticamente para o Kanban de Edição.',
+        });
+        fetchColumns();
+        return;
       }
 
       const { data: validationResult, error: validationError } = await supabase.rpc('can_deliver_project', {

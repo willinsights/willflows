@@ -1,3 +1,4 @@
+import { shouldTransferToEditing, transferToEditing } from '@/lib/kanban/transferToEditing';
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -454,6 +455,39 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
         return;
       }
       
+      // Projeto completo em Captação: conclui a fase sem entrega final.
+      if (shouldTransferToEditing(project.item_type, project.current_phase)) {
+        const { data: captureFinal, error: captureFinalError } = await supabase
+          .from('kanban_columns').select('id')
+          .eq('workspace_id', project.workspace_id)
+          .eq('phase', 'captacao')
+          .eq('is_final', true)
+          .limit(1)
+          .maybeSingle();
+        const result = captureFinalError || !captureFinal
+          ? { ok: false as const, reason: 'no_column' as const }
+          : await transferToEditing({
+              projectId: project.id,
+              workspaceId: project.workspace_id,
+              captureColumnId: captureFinal.id,
+            });
+        if (result.ok === false) {
+          toast({
+            title: 'Não foi possível transferir para Edição',
+            description: result.reason === 'no_column'
+              ? 'Não foi encontrada uma coluna de destino válida.'
+              : 'A transferência não foi confirmada. A lista de projetos será atualizada.',
+            variant: 'destructive',
+          });
+          onUpdate();
+          return;
+        }
+        toast({ title: 'Projeto transferido para Edição', description: 'A Captação foi concluída. A entrega final acontece na Edição.' });
+        onOpenChange(false);
+        onUpdate();
+        return;
+      }
+
       // Validation passed - open date picker dialog
       setShowDeliverConfirmDialog(true);
     } catch (error: any) {
@@ -528,7 +562,7 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
         return;
       }
       
-      toast({ title: 'Projeto reaberto com sucesso', description: 'O projeto foi movido para "Em Revisão".' });
+      toast({ title: 'Projeto reaberto com sucesso', description: 'O projeto foi movido para uma coluna não final da fase atual.' });
       setShowReopenDialog(false);
       onOpenChange(false);
       onUpdate();
@@ -898,7 +932,7 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
               Reabrir Projeto?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              O projeto será movido para a coluna "Em Revisão" e poderá ser editado novamente.
+              O projeto será movido para uma coluna não final da fase atual e poderá ser editado novamente.
               Será removido da lista de Finalizados até ser concluído.
             </AlertDialogDescription>
           </AlertDialogHeader>
