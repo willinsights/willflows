@@ -360,6 +360,10 @@ export function useVideoVersions(
       });
 
       if (processError || !processData?.versionId) {
+        if (processError?.context instanceof Response) {
+          const failure = await processError.context.clone().json().catch(() => null);
+          if (failure?.code === 'UPLOAD_EXPIRED') throw new Error('Prazo encerrado; selecione o arquivo novamente para iniciar um novo envio');
+        }
         throw new Error(processData?.error || 'Failed to process video');
       }
 
@@ -481,6 +485,10 @@ export function useVideoVersions(
       });
 
       if (processError || !processData?.versionId) {
+        if (processError?.context instanceof Response) {
+          const failure = await processError.context.clone().json().catch(() => null);
+          if (failure?.code === 'UPLOAD_EXPIRED') throw new Error('Prazo encerrado; selecione o arquivo novamente para iniciar um novo envio');
+        }
         throw new Error(processData?.error || 'Failed to process replacement');
       }
 
