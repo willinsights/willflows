@@ -211,6 +211,8 @@ serve(async (req) => {
           file_size_bytes: fileSize,
           r2_key: key,
           uploaded_by: userId,
+          project_id: context.project_id,
+          task_id: context.task_id,
           stream_status: "processing",
           // Reset stream URLs/uid until the new copy is created below
           cloudflare_stream_uid: null,
@@ -230,7 +232,7 @@ serve(async (req) => {
         })
         .eq("id", replaceVersionId)
         .eq("workspace_id", workspaceId)
-        .eq("project_id", context.project_id)
+        .or(`project_id.eq.${context.project_id},project_id.is.null`)
         .eq("r2_key", targetVersion.r2_key)
         .select("id").single();
       if (replacementError || !replaced) throw new Error("Failed to replace video version");
@@ -240,7 +242,7 @@ serve(async (req) => {
         .from("video_versions")
         .select("version_number")
         .eq("workspace_id", workspaceId)
-        .eq("project_id", context.project_id)
+        .or(`project_id.eq.${context.project_id},project_id.is.null`)
         .order("version_number", { ascending: false })
         .limit(1);
 

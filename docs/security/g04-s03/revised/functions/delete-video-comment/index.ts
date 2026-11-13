@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
     // Verify the comment belongs to this token's task/project
     const scope = await resolveVideoContext(supabase, tokenData);
     const version = await requireScopedVersion(supabase, comment.video_version_id, scope);
-    const commentMatchesToken = tokenCoversVersion(scope, comment) && comment.workspace_id === version.workspace_id && comment.project_id === version.project_id && comment.task_id === version.task_id;
+    const commentMatchesToken = comment.workspace_id === version.workspace_id && (!comment.project_id || comment.project_id === version.project_id) && (!comment.task_id || comment.task_id === version.task_id);
 
     if (!commentMatchesToken) {
       return new Response(
