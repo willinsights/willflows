@@ -15,3 +15,4 @@
 - During S01 minimal enforcement, signup must not extend trials directly from the browser; report promo unavailability until secure redemption exists. Why: never promise a trial extension the server rejected.
 - S01 verification scripts use only explicit loopback database connections and fictitious identities. Why: prevent isolated security tests from reaching a hosted database.
 - Video server handlers share context/token/key checks in `_shared`; processing requires a server-signed upload ticket, while persisted coherent legacy keys remain readable. Why: bind assets to issuance and preserve existing review links without trusting browser associations.
+- Security release candidates that must not deploy are staged under docs/security with mirrored relative imports, never edited in active function paths. Why: Cloud may automatically deploy changes in active function paths.
