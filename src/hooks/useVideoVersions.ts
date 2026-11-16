@@ -351,6 +351,7 @@ export function useVideoVersions(
           projectId,
           fileName: file.name,
           fileSize: file.size,
+          uploadTicket: urlData.uploadTicket,
         }
       });
 
@@ -445,6 +446,7 @@ export function useVideoVersions(
           fileName: file.name,
           fileSize: file.size,
           mimeType: file.type,
+          replaceVersionId: versionId,
         }
       });
 
@@ -466,6 +468,7 @@ export function useVideoVersions(
           fileName: file.name,
           fileSize: file.size,
           replaceVersionId: versionId,
+          uploadTicket: urlData.uploadTicket,
         }
       });
 
