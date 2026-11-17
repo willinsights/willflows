@@ -129,6 +129,7 @@
         --background: 220 14% 96%;
         --foreground: 240 10% 10%;
         --primary: 246 74% 59%;
+        --primary-foreground: 0 0% 100%;
         --muted-foreground: 220 9% 46%;
       }
       @media (prefers-color-scheme: dark) {
@@ -356,6 +357,95 @@
       src="https://www.facebook.com/tr?id=1708807937110927&ev=PageView&noscript=1"
     /></noscript>
     <div id="root"></div>
+    <script>
+      // Recover once when a preview/server restart interrupts module loading.
+      // A repeated failure shows a usable retry action instead of a blank screen.
+      (() => {
+        const recoveryKey = 'willflow:module-load-recovery';
+        const recoveryWindowMs = 30000;
+
+        const readLastRecovery = () => {
+          try {
+            return Number(sessionStorage.getItem(recoveryKey) || 0);
+          } catch {
+            storageAvailable = false;
+            return 0;
+          }
+        };
+
+        const markRecovery = (timestamp) => {
+          try {
+            sessionStorage.setItem(recoveryKey, String(timestamp));
+          } catch {
+            storageAvailable = false;
+          }
+        };
+
+        const clearRecovery = () => {
+          try {
+            sessionStorage.removeItem(recoveryKey);
+          } catch {
+            // Nothing to clear when storage is unavailable.
+          }
+        };
+
+        let storageAvailable = true;
+        let lastRecovery = readLastRecovery();
+
+        const showRetry = () => {
+          const root = document.getElementById('root');
+          if (!root || root.childElementCount > 0) return;
+
+          const container = document.createElement('main');
+          container.setAttribute('role', 'alert');
+          container.style.cssText = 'min-height:100vh;display:grid;place-content:center;gap:16px;padding:24px;text-align:center;background:hsl(var(--background));color:hsl(var(--foreground));';
+
+          const message = document.createElement('p');
+          message.textContent = 'Não foi possível carregar a aplicação. Verifique a sua ligação e tente novamente.';
+
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.textContent = 'Tentar novamente';
+          button.style.cssText = 'min-height:44px;padding:0 20px;border:0;border-radius:8px;background:hsl(var(--primary));color:hsl(var(--primary-foreground));font:inherit;cursor:pointer;';
+          button.addEventListener('click', () => window.location.reload());
+
+          container.append(message, button);
+          root.replaceChildren(container);
+        };
+
+        const recoverModuleLoad = (event) => {
+          const target = event.target;
+          const reason = event.reason;
+          const message = typeof event.message === 'string'
+            ? event.message
+            : String(reason?.message || reason || '');
+          const isModuleScriptFailure = target instanceof HTMLScriptElement && target.type === 'module';
+          const isModuleImportFailure = /importing a module script failed|failed to fetch dynamically imported module|error loading dynamically imported module/i.test(message);
+
+          if (!isModuleScriptFailure && !isModuleImportFailure) return;
+
+          const now = Date.now();
+          if (storageAvailable && now - lastRecovery > recoveryWindowMs) {
+            lastRecovery = now;
+            markRecovery(now);
+            if (storageAvailable) {
+              window.location.reload();
+              return;
+            }
+          }
+
+          showRetry();
+        };
+
+        window.addEventListener('error', recoverModuleLoad, true);
+        window.addEventListener('unhandledrejection', recoverModuleLoad);
+        window.addEventListener('load', () => {
+          window.setTimeout(() => {
+            if (document.getElementById('root')?.childElementCount) clearRecovery();
+          }, 0);
+        });
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
