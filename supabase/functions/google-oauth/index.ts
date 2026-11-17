@@ -227,53 +227,39 @@ serve(async (req) => {
         },
       });
       
-      // Check if user exists
-      const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-      
-      let userId: string;
+      // Create the user; an "already registered" answer means an existing account.
+      // Avoids listUsers(), which only returns the first page and is case-sensitive.
       let isNewUser = false;
-      
-      const existingUser = existingUsers?.users?.find(u => u.email === googleUser.email);
-      
-      if (existingUser) {
-        userId = existingUser.id;
-        console.log(`[google-oauth] Existing user found: ${userId}`);
-        
-        // Update user metadata
-        await supabaseAdmin.auth.admin.updateUserById(userId, {
-          user_metadata: {
-            full_name: googleUser.name,
-            avatar_url: googleUser.picture,
-            provider: 'google',
-          },
-        });
-      } else {
-        // Create new user
-        console.log(`[google-oauth] Creating new user`);
+      const userMetadata = {
+        full_name: googleUser.name,
+        avatar_url: googleUser.picture,
+        provider: 'google',
+      };
+
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email: googleUser.email,
+        email_confirm: true,
+        user_metadata: userMetadata,
+      });
+
+      if (newUser?.user && !createError) {
         isNewUser = true;
-        
-        const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-          email: googleUser.email,
-          email_confirm: true,
-          user_metadata: {
-            full_name: googleUser.name,
-            avatar_url: googleUser.picture,
-            provider: 'google',
-          },
-        });
-        
-        if (createError || !newUser.user) {
+        console.log(`[google-oauth] Created new user: ${newUser.user.id}`);
+      } else {
+        const alreadyExists = (createError as { code?: string; status?: number } | null)?.code === 'email_exists'
+          || (createError as { status?: number } | null)?.status === 422
+          || /already (been )?registered/i.test(createError?.message || '');
+        if (!alreadyExists) {
           console.error(`[google-oauth] Failed to create user: ${createError?.message}`);
           return new Response(null, {
             status: 302,
-            headers: { 
+            headers: {
               'Location': `${state.redirectUri}?error=user_creation_failed`,
-              ...corsHeaders 
+              ...corsHeaders
             },
           });
         }
-        
-        userId = newUser.user.id;
+        console.log(`[google-oauth] Existing user, signing in`);
       }
       
       // Generate a magic link / session for the user
@@ -296,6 +282,10 @@ serve(async (req) => {
         });
       }
       
+      if (!isNewUser && linkData.user?.id) {
+        await supabaseAdmin.auth.admin.updateUserById(linkData.user.id, { user_metadata: userMetadata });
+      }
+
       // Extract token from magic link
       const magicLinkUrl = new URL(linkData.properties.action_link);
       const token = magicLinkUrl.searchParams.get('token');
