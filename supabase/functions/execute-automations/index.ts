@@ -1,6 +1,7 @@
 import { EmailAPIError, sendLovableEmail } from 'npm:@lovable.dev/email-js@0.3.1'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { secretEquals } from "../_shared/timing-safe.ts";
+import { deliveryId } from "../_shared/automation-delivery.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -56,6 +57,20 @@ Deno.serve(async (req) => {
       secretEquals(cronSecret, providedSecret) ||
       secretEquals(automationSecret, providedSecret) ||
       secretEquals(supabaseServiceKey, bearerToken)
+
+    const rawJobId = (payload as AutomationPayload & { job_id?: unknown }).job_id;
+    const jobId = isInternal && typeof rawJobId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawJobId) ? rawJobId : null;
+    if (isInternal && rawJobId !== undefined && !jobId) throw new Error('Invalid queue identity');
+    if (jobId) {
+      const { data: job, error: jobError } = await supabase.from('automation_jobs')
+        .select('id, workspace_id, event_type, payload').eq('id', jobId).maybeSingle();
+      if (jobError || !job || job.workspace_id !== workspace_id || job.event_type !== event_type ||
+          job.payload?.project_id !== project_id || job.payload?.triggered_by !== triggered_by ||
+          (job.payload?.to_column_id ?? null) !== (to_column_id ?? null) ||
+          (job.payload?.from_column_id ?? null) !== (from_column_id ?? null)) {
+        throw new Error('Queue context unavailable or inconsistent');
+      }
+    }
 
     if (!isInternal) {
       if (!authHeader?.startsWith('Bearer ')) {
@@ -244,6 +259,7 @@ Deno.serve(async (req) => {
     }
 
     let executedCount = 0
+    let failedCount = 0
 
     for (const automation of matchingAutomations) {
       try {
@@ -282,7 +298,13 @@ Deno.serve(async (req) => {
           for (const recipient of recipients) {
             if (!recipient.email) continue
 
-            const messageId = crypto.randomUUID()
+            const messageId = jobId ? await deliveryId(workspace_id, jobId, automation.id, 'email', recipient.email) : crypto.randomUUID()
+            if (jobId) {
+              const { data: prior, error: priorError } = await supabase.from('email_send_log')
+                .select('id').eq('message_id', messageId).in('status', ['sent', 'suppressed']).limit(1);
+              if (priorError) throw new Error('Delivery history unavailable');
+              if (prior?.length) continue;
+            }
             const logSend = async (row: Record<string, unknown>) => {
               const { error: logErr } = await supabase.from('email_send_log').insert({
                 message_id: messageId,
@@ -316,6 +338,7 @@ Deno.serve(async (req) => {
                 const msg = sendErr instanceof Error ? sendErr.message : String(sendErr)
                 console.error('Automation email send failed', { automation_id: automation.id, error: msg })
                 await logSend({ status: 'failed', error_message: msg.slice(0, 500) })
+                throw new Error('Email delivery failed; queue retry required');
               }
             }
           }
@@ -328,7 +351,15 @@ Deno.serve(async (req) => {
           for (const recipient of recipients) {
             if (!recipient.user_id) continue
 
-            await supabase.from('notifications').insert({
+            const notificationId = jobId ? await deliveryId(workspace_id, jobId, automation.id, 'in_app', recipient.user_id) : null;
+            if (notificationId) {
+              const { data: prior, error: priorError } = await supabase.from('notifications')
+                .select('id').eq('id', notificationId).eq('workspace_id', workspace_id).eq('user_id', recipient.user_id).limit(1);
+              if (priorError) throw new Error('Notification history unavailable');
+              if (prior?.length) continue;
+            }
+            const { error: notificationError } = await supabase.from('notifications').insert({
+              ...(notificationId ? { id: notificationId } : {}),
               workspace_id,
               user_id: recipient.user_id,
               type: 'info',
@@ -337,6 +368,7 @@ Deno.serve(async (req) => {
               entity_type: 'project',
               entity_id: project_id,
             })
+            if (notificationError) throw new Error('Notification persistence failed');
           }
         }
 
@@ -352,6 +384,7 @@ Deno.serve(async (req) => {
 
         executedCount++
       } catch (err) {
+        failedCount++;
         console.error(`Automation ${automation.id} failed:`, err)
         await supabase.from('automation_execution_log').insert({
           automation_id: automation.id,
@@ -366,7 +399,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ executed: executedCount }), {
+    return new Response(JSON.stringify({ executed: executedCount, failed: failedCount, ...(failedCount && jobId ? { error: 'Automation delivery incomplete' } : {}) }), {
+      status: failedCount && jobId ? 500 : 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error) {
