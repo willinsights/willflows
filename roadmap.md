@@ -1,6 +1,8 @@
 # Roadmap — pendências da auditoria
 
 ## Retoma das pendências — novembro 2026
+- [ ] Concluir ativação real autorizada em 17/11: vídeo final ainda exige transição compatível e conferência SQL; agendamentos antigos sem conversão automática suportada; não contornar revisão nem reenviar avisos antigos
+- [x] Validar melhorias atuais: 71 testes financeiros/site e 19 de vídeo candidato; acrescentar teste do frontend ativo para comprovativo ausente
 - [x] Integrar otimização de carregamento; build OK e navegação pública/autenticada com fixtures e rede externa bloqueada
 - [x] Retries: candidato em docs/security/fase5 corrigido com identidade exata por job/destinatário e validado offline
 - [x] Implantação de retries: executor e worker implantados em ordem; 15 testes offline aprovados, fontes anteriores preservadas

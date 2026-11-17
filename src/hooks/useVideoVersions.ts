@@ -334,6 +334,8 @@ export function useVideoVersions(
         throw new Error(urlData?.error || 'Failed to get upload URL');
       }
 
+      if (!urlData.uploadTicket) throw new Error('Envio indisponível: atualiza a página e tenta novamente');
+
       // Step 2: Upload directly to R2 with progress
       await uploadToR2(urlData.uploadUrl, file, (progress) => {
         // R2 upload is 0-80% of total progress
@@ -356,6 +358,10 @@ export function useVideoVersions(
       });
 
       if (processError || !processData?.versionId) {
+        if (processError?.context instanceof Response) {
+          const failure = await processError.context.clone().json().catch(() => null);
+          if (failure?.code === 'UPLOAD_EXPIRED') throw new Error('O prazo de envio terminou; seleciona o ficheiro novamente para iniciar um novo envio');
+        }
         throw new Error(processData?.error || 'Failed to process video');
       }
 
@@ -454,6 +460,8 @@ export function useVideoVersions(
         throw new Error(urlData?.error || 'Failed to get upload URL');
       }
 
+      if (!urlData.uploadTicket) throw new Error('Envio indisponível: atualiza a página e tenta novamente');
+
       // Step 2: Upload to R2
       await uploadToR2(urlData.uploadUrl, file, (p) => setUploadProgress(Math.round(p * 0.8)));
       setUploadProgress(80);
@@ -473,6 +481,10 @@ export function useVideoVersions(
       });
 
       if (processError || !processData?.versionId) {
+        if (processError?.context instanceof Response) {
+          const failure = await processError.context.clone().json().catch(() => null);
+          if (failure?.code === 'UPLOAD_EXPIRED') throw new Error('O prazo de envio terminou; seleciona o ficheiro novamente para iniciar um novo envio');
+        }
         throw new Error(processData?.error || 'Failed to process replacement');
       }
 
