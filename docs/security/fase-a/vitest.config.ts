@@ -1,0 +1,2 @@
+import { defineConfig } from 'vitest/config';
+export default defineConfig({ test: { environment: 'node', setupFiles: [], include: ['docs/security/fase-a/tests/*.test.ts'], exclude: ['**/cleanup-auth.test.ts'] } });

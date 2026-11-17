@@ -221,40 +221,13 @@ Deno.serve(async (req) => {
                 }
               }
 
-              totalBytesFreed += video.file_size_bytes || 0;
-
-              // Mark video as deleted (preserve metadata)
-              await supabase
-                .from('video_versions')
-                .update({
-                  is_deleted: true,
-                  deleted_at: now,
-                  r2_key: null,
-                  cloudflare_stream_uid: null,
-                  stream_playback_url: null,
-                  file_path: `[deleted] ${video.file_path}`,
-                })
-                .eq('id', video.id);
-            }
-
-            // Update workspace storage
-            if (totalBytesFreed > 0) {
-              const { data: storageData } = await supabase
-                .from('workspace_storage')
-                .select('storage_used_bytes')
-                .eq('workspace_id', item.workspace_id)
-                .single();
-
-              if (storageData) {
-                const newUsed = Math.max(0, (storageData.storage_used_bytes || 0) - totalBytesFreed);
-                await supabase
-                  .from('workspace_storage')
-                  .update({
-                    storage_used_bytes: newUsed,
-                    last_calculated_at: now,
-                  })
-                  .eq('workspace_id', item.workspace_id);
-              }
+              // Persist deletion and quota decrement in one transaction, only once.
+              const { data: freed, error: quotaError } = await supabase.rpc('mark_cleanup_videos_deleted', {
+                p_workspace: item.workspace_id, p_ids: [video.id],
+              });
+              if (quotaError) throw new Error('Atomic cleanup accounting failed');
+              totalBytesFreed += Number(freed || 0);
+              // Keep asset references until the orphan pass confirms physical deletion.
             }
 
             logStep("Deleted videos for task", { 
@@ -301,22 +274,11 @@ Deno.serve(async (req) => {
         .eq('is_deleted', false)
         .limit(300 - deliveredMarked);
       if (!vids || vids.length === 0) continue;
-      const freed: Record<string, number> = {};
-      for (const v of vids as any[]) {
-        freed[v.workspace_id] = (freed[v.workspace_id] || 0) + (v.file_size_bytes || 0) + (v.replacement_file_size_bytes || 0);
-      }
-      await supabase.from('video_versions')
-        .update({ is_deleted: true, deleted_at: now })
-        .in('id', vids.map((v: any) => v.id));
-      for (const [ws, bytes] of Object.entries(freed)) {
-        const { data: st } = await supabase.from('workspace_storage')
-          .select('storage_used_bytes').eq('workspace_id', ws).maybeSingle();
-        if (st) {
-          await supabase.from('workspace_storage').update({
-            storage_used_bytes: Math.max(0, (st.storage_used_bytes || 0) - bytes),
-            last_calculated_at: now,
-          }).eq('workspace_id', ws);
-        }
+      const byWorkspace: Record<string, string[]> = {};
+      for (const v of vids as any[]) (byWorkspace[v.workspace_id] ??= []).push(v.id);
+      for (const [ws, ids] of Object.entries(byWorkspace)) {
+        const { error } = await supabase.rpc('mark_cleanup_videos_deleted', { p_workspace: ws, p_ids: ids });
+        if (error) throw new Error('Atomic delivered-video accounting failed');
       }
       deliveredMarked += vids.length;
     }

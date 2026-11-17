@@ -1,6 +1,8 @@
 # Roadmap — pendências da auditoria
 
 ## Retoma das pendências — novembro 2026
+- [x] Fase A: implementar candidatos de reservas semanais e quota atómica; 17 testes + 4 ensaios PostgreSQL fictício, tipos e build OK
+- [ ] Fase A ativação: SQL aditivo e funções dependentes ainda não aplicados; limpeza pode eliminar dados automaticamente, vedado nesta fase; cutover de cron antigo sem garantia atómica comprovada
 - [ ] Concluir ativação real autorizada em 17/11: vídeo final ainda exige transição compatível e conferência SQL; agendamentos antigos sem conversão automática suportada; não contornar revisão nem reenviar avisos antigos
 - [x] Validar melhorias atuais: 71 testes financeiros/site e 19 de vídeo candidato; acrescentar teste do frontend ativo para comprovativo ausente
 - [x] Integrar otimização de carregamento; build OK e navegação pública/autenticada com fixtures e rede externa bloqueada
