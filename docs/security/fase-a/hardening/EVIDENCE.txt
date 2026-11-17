@@ -1,0 +1,155 @@
+Base ee4c57fd — isolated only
+
+== hardening-pg.log ==
+PASS push delivery code + real SQL: 8 callers, 1 fictitious provider call, persisted sent
+PASS push timeout persisted uncertain and second provider call blocked
+PASS cron wrapper + SQL: 8 callers run work once
+PASS insert counts primary+replacement once
+PASS replacement size-only update counts delta
+PASS 8 cleanup claims and hard delete never double debit
+PASS concurrent replacement/cleanup with unified statement lock, null deletion legacy covered
+PASS unsafe legacy counter writes/negative sizes/cross-workspace moves refused
+PASS over-limit insert fully rolls back
+PASS failed writer rolls back quota and row together
+PASS 8 push claims have one token
+PASS explicit retry delayed; uncertain never reclaimed; stale token blocked
+PASS all five crons exclude concurrent owners; uncertain is not TTL-reclaimed
+PASS Stripe 8 observations insert once; new post-resolution event retains history; null refused
+PASS effective ACL/RLS and missing claims fail closed
+PASS legacy attempt count preserved; third explicit rejection terminal
+PASS multi-write failure transaction keeps baseline quota
+PASS rollback refuses populated delivery/cron ledgers without losing protections
+
+== hardening-tests.log ==
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.10 [39m[90m/dev-server[39m
+
+ [32m✓[39m docs/security/fase-a/hardening/tests/delivery.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 87[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m8 passed[39m[22m[90m (8)[39m
+[2m   Start at [22m 22:10:25
+[2m   Duration [22m 859ms[2m (transform 117ms, setup 0ms, import 150ms, tests 87ms, environment 0ms)[22m
+
+
+== hardening-regression.log ==
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.10 [39m[90m/dev-server[39m
+
+[90mstdout[2m | docs/security/fase-a/tests/push-regression.test.ts[2m > [22m[2mdocuments current push race: two real handlers can send the same pending fixture twice
+[22m[39m[process-push] Web Push initialized with VAPID
+
+[90mstdout[2m | docs/security/fase-a/tests/push-regression.test.ts[2m > [22m[2mdocuments current push race: two real handlers can send the same pending fixture twice
+[22m[39m[process-push] Processing 1 notifications
+[process-push] Processing 1 notifications
+
+[90mstdout[2m | docs/security/fase-a/tests/push-regression.test.ts[2m > [22m[2mdocuments current push race: two real handlers can send the same pending fixture twice
+[22m[39m[process-push] Sent to user fixture-user
+[process-push] Done: 1 sent, 0 failed
+
+[90mstdout[2m | docs/security/fase-a/tests/push-regression.test.ts[2m > [22m[2mdocuments current push race: two real handlers can send the same pending fixture twice
+[22m[39m[process-push] Sent to user fixture-user
+[process-push] Done: 1 sent, 0 failed
+
+ [32m✓[39m docs/security/fase-a/tests/push-regression.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 301[2mms[22m[39m
+[90mstdout[2m | docs/security/fase-a/tests/cleanup-quota.test.ts[2m > [22m[2mreal cleanup handler uses one atomic RPC, never read-modify-writes storage
+[22m[39m[CLEANUP-EXPIRED-VIDEOS] Cleanup job started
+
+[90mstdout[2m | docs/security/fase-a/tests/cleanup-quota.test.ts[2m > [22m[2mreal cleanup handler uses one atomic RPC, never read-modify-writes storage
+[22m[39m[CLEANUP-EXPIRED-VIDEOS] Delivered videos marked for deletion - {"count":1}
+
+[90mstdout[2m | docs/security/fase-a/tests/cleanup-quota.test.ts[2m > [22m[2mreal cleanup handler uses one atomic RPC, never read-modify-writes storage
+[22m[39m[CLEANUP-EXPIRED-VIDEOS] Cleanup job completed - {"expiringNotified":0,"expired":0,"deliveredMarked":1,"orphanedCleaned":0,"orphanFailures":0}
+
+[90mstdout[2m | docs/security/fase-a/tests/cleanup-quota.test.ts[2m > [22m[2mreal cleanup reports failure rather than success if atomic persistence fails
+[22m[39m[CLEANUP-EXPIRED-VIDEOS] Cleanup job started
+
+[90mstdout[2m | docs/security/fase-a/tests/cleanup-quota.test.ts[2m > [22m[2mreal cleanup reports failure rather than success if atomic persistence fails
+[22m[39m[CLEANUP-EXPIRED-VIDEOS] ERROR - {"message":"Atomic delivered-video accounting failed"}
+
+ [32m✓[39m docs/security/fase-a/tests/cleanup-quota.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 389[2mms[22m[39m
+   [33m[2m✓[22m[39m real cleanup handler uses one atomic RPC, never read-modify-writes storage [33m 336[2mms[22m[39m
+[90mstdout[2m | docs/security/fase-a/tests/safety.test.ts[2m > [22m[2mcleanup missing provider credentials retains all orphan references for recovery
+[22m[39m[CLEANUP-EXPIRED-VIDEOS] Cleanup job started
+
+[90mstdout[2m | docs/security/fase-a/tests/safety.test.ts[2m > [22m[2mcleanup missing provider credentials retains all orphan references for recovery
+[22m[39m[CLEANUP-EXPIRED-VIDEOS] Delivered videos marked for deletion - {"count":0}
+
+[90mstdout[2m | docs/security/fase-a/tests/safety.test.ts[2m > [22m[2mcleanup missing provider credentials retains all orphan references for recovery
+[22m[39m[CLEANUP-EXPIRED-VIDEOS] Cleaning up orphaned deleted videos - {"count":1}
+[CLEANUP-EXPIRED-VIDEOS] Cleanup job completed - {"expiringNotified":0,"expired":0,"deliveredMarked":0,"orphanedCleaned":0,"orphanFailures":1}
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mtwo simultaneous real handlers send one weekly email
+[22m[39mWeekly summary sent to 0 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mtwo simultaneous real handlers send one weekly email
+[22m[39mWeekly summary sent to 1 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2msequential repetition never resends
+[22m[39mWeekly summary sent to 1 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2msequential repetition never resends
+[22m[39mWeekly summary sent to 0 users
+
+ [32m✓[39m docs/security/fase-a/tests/safety.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 476[2mms[22m[39m
+   [33m[2m✓[22m[39m cleanup disabled by default performs no DB/storage access or deletion [33m 311[2mms[22m[39m
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mambiguous failure is not reported as sent and never automatically retried
+[22m[39mWeekly summary sent to 0 users
+
+[90mstderr[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mambiguous failure is not reported as sent and never automatically retried
+[22m[39mWeekly summary failed or uncertain; no automatic resend
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mambiguous failure is not reported as sent and never automatically retried
+[22m[39mWeekly summary sent to 0 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mcompletion failure keeps the reservation and prevents a second send
+[22m[39mWeekly summary sent to 0 users
+
+[90mstderr[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mcompletion failure keeps the reservation and prevents a second send
+[22m[39mWeekly summary failed or uncertain; no automatic resend
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mcompletion failure keeps the reservation and prevents a second send
+[22m[39mWeekly summary sent to 0 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2msuppressed recipient is terminal without counting a sent email
+[22m[39mWeekly summary sent to 0 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2msuppressed recipient is terminal without counting a sent email
+[22m[39mWeekly summary sent to 0 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mnext week is a distinct legitimate delivery
+[22m[39mWeekly summary sent to 1 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mnext week is a distinct legitimate delivery
+[22m[39mWeekly summary sent to 1 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mmissing preference fails closed without reserving or sending
+[22m[39mWeekly summary sent to 0 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mdisabled preference never sends
+[22m[39mWeekly summary sent to 0 users
+
+[90mstderr[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mworkspace read failure is not reported as success
+[22m[39mError in send-weekly-summary: Error: Workspace read failed
+    at eval (eval at <anonymous> [90m(/dev-server/[39mdocs/security/fase-a/tests/weekly.test.ts:35:3), <anonymous>:34:19[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+    at [90m/dev-server/[39mdocs/security/fase-a/tests/weekly.test.ts:57:90
+    at [90mfile:///dev-server/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:20
+
+ [32m✓[39m docs/security/fase-a/tests/weekly.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 482[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m4 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[32m16 passed[39m[22m[90m (16)[39m
+[2m   Start at [22m 22:09:07
+[2m   Duration [22m 2.82s[2m (transform 1.44s, setup 0ms, import 5.63s, tests 1.65s, environment 1ms)[22m
+
+
+== hardening-check.log ==
+[0m[32mDownload[0m https://esm.sh/@supabase/storage-js@2.99.1/dist/module/StorageClient
+[0m[32mCheck[0m docs/security/fase-a/hardening/supabase/functions/process-push-queue/index.ts
+[0m[32mCheck[0m docs/security/fase-a/hardening/supabase/functions/stripe-reconcile/index.ts
+[0m[32mCheck[0m docs/security/fase-a/hardening/supabase/functions/cleanup-expired-videos/index.ts
+[0m[32mCheck[0m docs/security/fase-a/hardening/supabase/functions/send-weekly-summary/index.ts
+[0m[32mCheck[0m docs/security/fase-a/hardening/supabase/functions/check-deadlines/index.ts
+[0m[32mCheck[0m docs/security/fase-a/hardening/supabase/functions/check-payment-alerts/index.ts
+[0m[32mCheck[0m docs/security/fase-a/hardening/supabase/functions/stream-process-video/index.ts

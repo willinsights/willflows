@@ -1,6 +1,8 @@
 # Roadmap — pendências da auditoria
 
 ## Retoma das pendências — novembro 2026
+- [x] Preparar candidatos base ee4c57fd de quota/escritores, push, Stripe e overlap; testes SQL/integração fictícia e matriz em docs/security/fase-a/hardening, sem produção
+- [ ] Hardening produção: baseline quota/cascatas/carga, identidade de upload e produtor push, enriquecimento/FK Stripe, versões/backup/drenagem e política de fila antiga pendentes; não activar SQL/funções/jobs
 - [x] Próxima fase segura, base a56ef2da: auditoria aprofundada, 16 Vitest/9 Deno/13 grupos PostgreSQL, estratégia por etapas e regressões Stripe/push; relatório em docs/security/fase-a, sem produção
 - [ ] Fase A produção: bloqueada por trigger de quota/hard delete, escritores concorrentes, versões activas/backup/drenagem não comprovados; exige autorização específica SQL/deploy/pausa e futura activação destrutiva
 - [ ] Notificações/Stripe concorrentes: corrida push e inserção Stripe reproduzidas com fixtures; preparar reservas/recuperação e política de histórico antes de qualquer activação real
