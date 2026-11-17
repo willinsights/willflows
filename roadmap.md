@@ -2,7 +2,8 @@
 
 ## Retoma das pendências — novembro 2026
 - [x] Integrar otimização de carregamento; build OK e navegação pública/autenticada com fixtures e rede externa bloqueada
-- [ ] Retries: pacote precisa de identidade exata por job; deduplicação por executed_at pode confundir dois eventos legítimos posteriores
+- [x] Retries: candidato em docs/security/fase5 corrigido com identidade exata por job/destinatário e validado offline
+- [ ] Implantação de retries: confirmar triggers de notifications, retenção de idempotência do provedor e reversão da versão ativa
 - [ ] Agendamentos 401: bloqueados pela ausência de conversão gerida dos jobs antigos
 - [ ] Vídeo G04/S03: 19 testes offline OK; bloqueado por transição de chaves 5→3 segmentos, versões ativas/reversão desconhecidas e SQL legado da versão conjunta
 - [x] Financeiro: testes atuais aprovados; 17 fontes já coincidem com pacote conjunto, sem reintegração necessária

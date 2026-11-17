@@ -1,0 +1,590 @@
+import { EmailAPIError, sendLovableEmail } from 'npm:@lovable.dev/email-js@0.3.1'
+import { createClient } from 'npm:@supabase/supabase-js@2'
+import { secretEquals } from "../_shared/timing-safe.ts";
+import { deliveryId } from "../_shared/automation-delivery.ts";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+}
+
+const SITE_NAME = 'WillFlow'
+const SENDER_DOMAIN = 'notify.willflow.app'
+const FROM_ADDRESS = `${SITE_NAME} <noreply@willflow.app>`
+const APP_URL = 'https://willflows.lovable.app'
+
+interface AutomationPayload {
+  event_type: string
+  project_id: string
+  workspace_id: string
+  to_column_id?: string
+  from_column_id?: string
+  triggered_by: string
+}
+
+interface Automation {
+  id: string
+  name: string
+  trigger_type: string
+  trigger_config: Record<string, unknown>
+  action_type: string
+  action_config: Record<string, unknown>
+  recipient_config: Record<string, unknown>
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders })
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+    const payload: AutomationPayload = await req.json()
+    const { event_type, project_id, workspace_id, to_column_id, from_column_id, triggered_by } = payload
+
+    // Auth: allow internal callers with x-cron-secret, callers authenticated
+    // with the service-role key (function-to-function invokes), or
+    // authenticated workspace members who belong to the given workspace_id.
+    const cronSecret = Deno.env.get('CRON_SECRET')
+    const automationSecret = Deno.env.get('AUTOMATION_CRON_SECRET')
+    const providedSecret = req.headers.get('x-cron-secret')
+    const authHeader = req.headers.get('Authorization')
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+    const isInternal =
+      secretEquals(cronSecret, providedSecret) ||
+      secretEquals(automationSecret, providedSecret) ||
+      secretEquals(supabaseServiceKey, bearerToken)
+
+    const rawJobId = (payload as AutomationPayload & { job_id?: unknown }).job_id;
+    const jobId = isInternal && typeof rawJobId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawJobId) ? rawJobId : null;
+    if (isInternal && rawJobId !== undefined && !jobId) throw new Error('Invalid queue identity');
+    if (jobId) {
+      const { data: job, error: jobError } = await supabase.from('automation_jobs')
+        .select('id, workspace_id, event_type, payload').eq('id', jobId).maybeSingle();
+      if (jobError || !job || job.workspace_id !== workspace_id || job.event_type !== event_type ||
+          job.payload?.project_id !== project_id || job.payload?.triggered_by !== triggered_by ||
+          (job.payload?.to_column_id ?? null) !== (to_column_id ?? null) ||
+          (job.payload?.from_column_id ?? null) !== (from_column_id ?? null)) {
+        throw new Error('Queue context unavailable or inconsistent');
+      }
+    }
+
+    if (!isInternal) {
+      if (!authHeader?.startsWith('Bearer ')) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      const token = authHeader.replace('Bearer ', '')
+      const { data: userData, error: userErr } = await supabase.auth.getUser(token)
+      if (userErr || !userData?.user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      if (!workspace_id) {
+        return new Response(JSON.stringify({ error: 'workspace_id required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      const { data: membership } = await supabase
+        .from('workspace_members')
+        .select('id')
+        .eq('user_id', userData.user.id)
+        .eq('workspace_id', workspace_id)
+        .eq('is_active', true)
+        .maybeSingle()
+      if (!membership) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
+    if (!event_type || !project_id || !workspace_id) {
+      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Fetch matching active automations
+    let query = supabase
+      .from('workflow_automations')
+      .select('*')
+      .eq('workspace_id', workspace_id)
+      .eq('is_active', true)
+      .eq('trigger_type', event_type)
+
+    const { data: automations, error: autoError } = await query
+
+    if (autoError) {
+      console.error('Error fetching automations:', autoError)
+      return new Response(JSON.stringify({ error: 'Failed to fetch automations' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (!automations || automations.length === 0) {
+      return new Response(JSON.stringify({ executed: 0 }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Filter automations by trigger config
+    const matchingAutomations = automations.filter((auto: Automation) => {
+      const config = auto.trigger_config || {}
+
+      if (event_type === 'card_enters_column') {
+        return !config.column_id || config.column_id === to_column_id
+      }
+      if (event_type === 'card_leaves_column') {
+        return !config.column_id || config.column_id === from_column_id
+      }
+      if (event_type === 'card_moved') {
+        const fromMatch = !config.from_column_id || config.from_column_id === from_column_id
+        const toMatch = !config.to_column_id || config.to_column_id === to_column_id
+        return fromMatch && toMatch
+      }
+      return true // project_created, delivered, etc. match without config
+    })
+
+    if (matchingAutomations.length === 0) {
+      return new Response(JSON.stringify({ executed: 0 }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Fetch project data for template variables
+    const { data: project } = await supabase
+      .from('projects')
+      .select('id, name, client_id, workspace_id')
+      .eq('id', project_id)
+      .eq('workspace_id', workspace_id)
+      .maybeSingle()
+
+    if (!project) {
+      return new Response(JSON.stringify({ error: 'Project not found in workspace' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    let clientName = ''
+    let clientEmail = ''
+    if (project?.client_id) {
+      const { data: client } = await supabase
+        .from('clients')
+        .select('name, email')
+        .eq('id', project.client_id)
+        .single()
+      clientName = client?.name || ''
+      clientEmail = client?.email || ''
+    }
+
+    // Get workspace name
+    const { data: workspace } = await supabase
+      .from('workspaces')
+      .select('name')
+      .eq('id', workspace_id)
+      .single()
+
+    // Get triggered by user name
+    const { data: triggerUser } = await supabase
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', triggered_by)
+      .single()
+
+    // Get column names
+    let toColumnName = ''
+    let fromColumnName = ''
+    if (to_column_id) {
+      const { data: col } = await supabase
+        .from('kanban_columns')
+        .select('name')
+        .eq('id', to_column_id)
+        .single()
+      toColumnName = col?.name || ''
+    }
+    if (from_column_id) {
+      const { data: col } = await supabase
+        .from('kanban_columns')
+        .select('name')
+        .eq('id', from_column_id)
+        .single()
+      fromColumnName = col?.name || ''
+    }
+
+    // Resolve active approval token for this project (most recent active token)
+    const { data: approvalTokenRow } = await supabase
+      .from('video_approval_tokens')
+      .select('token')
+      .eq('is_active', true)
+      .eq('project_id', project_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    const approvalLink = approvalTokenRow?.token
+      ? `https://willflow.app/video-approval/${approvalTokenRow.token}`
+      : ''
+
+    const templateVars: Record<string, string> = {
+      '{project_name}': project?.name || '',
+      '{client_name}': clientName,
+      '{user_name}': triggerUser?.full_name || triggerUser?.email || '',
+      '{column_name}': toColumnName,
+      '{from_column_name}': fromColumnName,
+      '{workspace_name}': workspace?.name || '',
+      '{link_project}': `${APP_URL}/app/edicao?project=${project_id}`,
+      '{link_aprovacao}': approvalLink,
+      '{link_aprovação}': approvalLink,
+    }
+
+    const replaceVars = (text: string): string => {
+      let result = text
+      for (const [key, value] of Object.entries(templateVars)) {
+        result = result.replaceAll(key, value)
+      }
+      return result
+    }
+
+    let executedCount = 0
+    let failedCount = 0
+
+    for (const automation of matchingAutomations) {
+      try {
+        // Resolve recipients
+        const recipients = await resolveRecipients(
+          supabase,
+          automation.recipient_config,
+          project_id,
+          workspace_id,
+          clientEmail
+        )
+
+        if (recipients.length === 0) {
+          await supabase.from('automation_execution_log').insert({
+            automation_id: automation.id,
+            project_id,
+            workspace_id,
+            trigger_type: event_type,
+            action_type: automation.action_type,
+            recipients: [],
+            status: 'skipped',
+            error_message: 'No recipients resolved',
+          })
+          continue
+        }
+
+        const actionConfig = automation.action_config || {}
+
+        if (automation.action_type === 'send_email') {
+          const subject = replaceVars(actionConfig.subject as string || `Atualização: ${project?.name}`)
+          const body = replaceVars(actionConfig.body as string || `O projeto ${project?.name} foi atualizado.`)
+
+          // Build HTML email
+          const html = buildEmailHtml(subject, body, workspace?.name || SITE_NAME)
+
+          for (const recipient of recipients) {
+            if (!recipient.email) continue
+
+            const messageId = jobId ? await deliveryId(workspace_id, jobId, automation.id, 'email', recipient.email) : crypto.randomUUID()
+            if (jobId) {
+              const { data: prior, error: priorError } = await supabase.from('email_send_log')
+                .select('id').eq('message_id', messageId).in('status', ['sent', 'suppressed']).limit(1);
+              if (priorError) throw new Error('Delivery history unavailable');
+              if (prior?.length) continue;
+            }
+            const logSend = async (row: Record<string, unknown>) => {
+              const { error: logErr } = await supabase.from('email_send_log').insert({
+                message_id: messageId,
+                template_name: `automation_${automation.id}`,
+                recipient_email: recipient.email,
+                ...row,
+              })
+              if (logErr) console.error('email_send_log insert failed', { code: logErr.code, message: logErr.message })
+            }
+
+            try {
+              await sendLovableEmail(
+                {
+                  to: recipient.email,
+                  from: FROM_ADDRESS,
+                  sender_domain: SENDER_DOMAIN,
+                  subject,
+                  html,
+                  text: body,
+                  purpose: 'transactional',
+                  idempotency_key: `automation-${automation.id}-${project_id}-${messageId}`,
+                  label: `automation_${automation.name}`,
+                },
+                { apiKey: Deno.env.get('LOVABLE_API_KEY')!, sendUrl: Deno.env.get('LOVABLE_SEND_URL') }
+              )
+              await logSend({ status: 'sent' })
+            } catch (sendErr) {
+              if (sendErr instanceof EmailAPIError && sendErr.code === 'recipient_suppressed') {
+                await logSend({ status: 'suppressed' })
+              } else {
+                const msg = sendErr instanceof Error ? sendErr.message : String(sendErr)
+                console.error('Automation email send failed', { automation_id: automation.id, error: msg })
+                await logSend({ status: 'failed', error_message: msg.slice(0, 500) })
+                throw new Error('Email delivery failed; queue retry required');
+              }
+            }
+          }
+        }
+
+        if (automation.action_type === 'notify_in_app') {
+          const title = replaceVars(actionConfig.title as string || 'Automação')
+          const message = replaceVars(actionConfig.message as string || `O projeto ${project?.name} foi atualizado.`)
+
+          for (const recipient of recipients) {
+            if (!recipient.user_id) continue
+
+            const notificationId = jobId ? await deliveryId(workspace_id, jobId, automation.id, 'in_app', recipient.user_id) : null;
+            if (notificationId) {
+              const { data: prior, error: priorError } = await supabase.from('notifications')
+                .select('id').eq('id', notificationId).eq('workspace_id', workspace_id).eq('user_id', recipient.user_id).limit(1);
+              if (priorError) throw new Error('Notification history unavailable');
+              if (prior?.length) continue;
+            }
+            const { error: notificationError } = await supabase.from('notifications').insert({
+              ...(notificationId ? { id: notificationId } : {}),
+              workspace_id,
+              user_id: recipient.user_id,
+              type: 'info',
+              title,
+              message,
+              entity_type: 'project',
+              entity_id: project_id,
+            })
+            if (notificationError) throw new Error('Notification persistence failed');
+          }
+        }
+
+        await supabase.from('automation_execution_log').insert({
+          automation_id: automation.id,
+          project_id,
+          workspace_id,
+          trigger_type: event_type,
+          action_type: automation.action_type,
+          recipients: recipients.map(r => ({ email: r.email, user_id: r.user_id, name: r.name })),
+          status: 'sent',
+        })
+
+        executedCount++
+      } catch (err) {
+        failedCount++;
+        console.error(`Automation ${automation.id} failed:`, err)
+        await supabase.from('automation_execution_log').insert({
+          automation_id: automation.id,
+          project_id,
+          workspace_id,
+          trigger_type: event_type,
+          action_type: automation.action_type,
+          recipients: [],
+          status: 'failed',
+          error_message: err instanceof Error ? err.message : 'Unknown error',
+        })
+      }
+    }
+
+    return new Response(JSON.stringify({ executed: executedCount, failed: failedCount, ...(failedCount && jobId ? { error: 'Automation delivery incomplete' } : {}) }), {
+      status: failedCount && jobId ? 500 : 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  } catch (error) {
+    console.error('Error in execute-automations:', error)
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+})
+
+interface Recipient {
+  email?: string
+  user_id?: string
+  name?: string
+}
+
+async function resolveRecipients(
+  supabase: any,
+  recipientConfig: Record<string, unknown>,
+  projectId: string,
+  workspaceId: string,
+  clientEmail: string
+): Promise<Recipient[]> {
+  const recipients: Recipient[] = []
+  const configs = Array.isArray(recipientConfig) ? recipientConfig : [recipientConfig]
+
+  for (const config of configs) {
+    const type = config.type as string
+    const value = config.value as string
+
+    switch (type) {
+      case 'fixed_emails': {
+        const emails = (value || '').split(',').map((e: string) => e.trim()).filter(Boolean)
+        for (const email of emails) {
+          recipients.push({ email })
+        }
+        break
+      }
+
+      case 'project_team': {
+        const { data: team } = await supabase
+          .from('project_team')
+          .select('user_id')
+          .eq('project_id', projectId)
+          .not('user_id', 'is', null)
+
+        if (team) {
+          for (const member of team) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('email, full_name')
+              .eq('id', member.user_id)
+              .single()
+            if (profile) {
+              recipients.push({ email: profile.email, user_id: member.user_id, name: profile.full_name })
+            }
+          }
+        }
+        break
+      }
+
+      case 'project_owner': {
+        const { data: project } = await supabase
+          .from('projects')
+          .select('created_by')
+          .eq('id', projectId)
+          .single()
+
+        if (project?.created_by) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('email, full_name')
+            .eq('id', project.created_by)
+            .single()
+          if (profile) {
+            recipients.push({ email: profile.email, user_id: project.created_by, name: profile.full_name })
+          }
+        }
+        break
+      }
+
+      case 'project_client': {
+        if (clientEmail) {
+          recipients.push({ email: clientEmail })
+        }
+        break
+      }
+
+      case 'role': {
+        const { data: members } = await supabase
+          .from('workspace_members')
+          .select('user_id')
+          .eq('workspace_id', workspaceId)
+          .eq('role', value)
+          .eq('is_active', true)
+
+        if (members) {
+          for (const member of members) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('email, full_name')
+              .eq('id', member.user_id)
+              .single()
+            if (profile) {
+              recipients.push({ email: profile.email, user_id: member.user_id, name: profile.full_name })
+            }
+          }
+        }
+        break
+      }
+
+      case 'group': {
+        const { data: group } = await supabase
+          .from('automation_recipient_groups')
+          .select('members')
+          .eq('id', value)
+          .single()
+
+        if (group?.members && Array.isArray(group.members)) {
+          for (const member of group.members) {
+            if (member.email) {
+              recipients.push({ email: member.email })
+            }
+            if (member.user_id) {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('email, full_name')
+                .eq('id', member.user_id)
+                .single()
+              if (profile) {
+                recipients.push({ email: profile.email, user_id: member.user_id, name: profile.full_name })
+              }
+            }
+          }
+        }
+        break
+      }
+    }
+  }
+
+  // Deduplicate by email
+  const seen = new Set<string>()
+  return recipients.filter(r => {
+    const key = r.email || r.user_id || ''
+    if (!key || seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+function escapeHtml(v: string): string {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+}
+
+function buildEmailHtml(rawSubject: string, rawBody: string, rawBrand: string): string {
+  const subject = escapeHtml(rawSubject)
+  const brandName = escapeHtml(rawBrand)
+  const bodyHtml = escapeHtml(rawBody).replace(/\n/g, '<br/>')
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 20px">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1)">
+<tr><td style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:24px 32px">
+<h1 style="margin:0;color:#fff;font-size:18px;font-weight:600">${brandName}</h1>
+</td></tr>
+<tr><td style="padding:32px">
+<h2 style="margin:0 0 16px;color:#18181b;font-size:20px;font-weight:600">${subject}</h2>
+<div style="color:#3f3f46;font-size:15px;line-height:1.6">${bodyHtml}</div>
+</td></tr>
+<tr><td style="padding:16px 32px 24px">
+<a href="${APP_URL}" style="display:inline-block;background:#7c3aed;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500">Abrir WillFlow</a>
+</td></tr>
+<tr><td style="padding:16px 32px;border-top:1px solid #e4e4e7">
+<p style="margin:0;color:#a1a1aa;font-size:12px">Enviado automaticamente por ${brandName}</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+}
