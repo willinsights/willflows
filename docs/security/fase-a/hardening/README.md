@@ -1,4 +1,6 @@
-# Bloqueios WillFlow 2.0 — candidatos isolados v1
+# Bloqueios WillFlow 2.0 — candidatos isolados v2
+
+Baseline e matriz actualizados: [BASELINE-2026-11-17.md](BASELINE-2026-11-17.md). Revisão base d5279982: cascatas/FKs, starvation push, produtor/evento e enriquecimento Stripe corrigidos/testados apenas em candidatos. A matriz abaixo descreve a v1 e deve ser lida com as condições actualizadas desse relatório; não autoriza produção.
 
 Base `ee4c57fd`, 17/11/2026 UTC. Nada aplicado/publicado. Fontes em `supabase/functions` dentro desta pasta NÃO são activas. Editar os caminhos activos pode implantar automaticamente; não copiar antes da autorização específica e drenagem comprovada.
 

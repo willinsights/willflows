@@ -142,25 +142,28 @@ Deno.serve(async (req) => {
     if (discrepancies.length > 0) {
       const userIds = [...new Set(discrepancies.map((d) => d.user_id).filter(Boolean))] as string[]
       if (userIds.length > 0) {
-        const { data: profiles } = await supabase
+        const { data: profiles, error: profileError } = await supabase
           .from('profiles')
           .select('id, email, full_name')
           .in('id', userIds)
+        if (profileError) throw new Error('Profile enrichment failed')
         const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]))
 
-        const { data: workspaces } = await supabase
+        const { data: workspaces, error: workspaceError } = await supabase
           .from('workspaces')
-          .select('id, name, owner_id')
-          .in('owner_id', userIds)
-        const wsByOwner = new Map<string, { id: string; name: string }>()
+          .select('id, name, stripe_subscription_id')
+          .in('stripe_subscription_id', discrepancies.map(d => d.stripe_subscription_id))
+        if (workspaceError) throw new Error('Workspace enrichment failed')
+        const wsBySubscription = new Map<string, { id: string; name: string }>()
         for (const w of workspaces ?? []) {
-          wsByOwner.set(w.owner_id as string, { id: w.id as string, name: w.name as string })
+          if (wsBySubscription.has(w.stripe_subscription_id as string)) throw new Error('Ambiguous subscription workspace')
+          wsBySubscription.set(w.stripe_subscription_id as string, { id: w.id as string, name: w.name as string })
         }
 
         for (const d of discrepancies) {
           if (d.user_id) {
             d.user_email = (profileMap.get(d.user_id)?.email as string) || null
-            const ws = wsByOwner.get(d.user_id)
+            const ws = wsBySubscription.get(d.stripe_subscription_id)
             if (ws) {
               d.workspace_id = ws.id
               d.workspace_name = ws.name
@@ -175,6 +178,8 @@ Deno.serve(async (req) => {
     for (const d of discrepancies) {
       const { data: created, error: insErr } = await supabase.rpc('record_stripe_discrepancy', {
         p_subscription: d.stripe_subscription_id, p_stripe_status: d.stripe_status, p_db_status: d.db_status,
+        p_user: d.user_id, p_customer: d.stripe_customer_id,
+        p_details: { detail: d.detail, user_email: d.user_email, workspace_name: d.workspace_name },
       });
       if (insErr) throw new Error('Atomic discrepancy record failed');
       if (created === true) inserted++;

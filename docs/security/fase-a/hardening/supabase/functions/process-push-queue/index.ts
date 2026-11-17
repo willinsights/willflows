@@ -16,7 +16,7 @@ Deno.serve(async req => {
     if (!url || !key || !pub || !priv) throw new Error('Missing configuration');
     const client = createClient(url, key);
     webpush.setVapidDetails(Deno.env.get('VAPID_SUBJECT') || 'mailto:geral@willflow.app', pub, priv);
-    const { data, error } = await client.from('push_notification_queue').select('*').eq('status', 'pending').lt('attempts', 3).order('created_at').limit(50);
+    const { data, error } = await client.rpc('list_ready_push', { p_limit: 50 });
     if (error) throw new Error('Queue read failed');
     const counts: Record<string, number> = {};
     for (const row of data || []) {

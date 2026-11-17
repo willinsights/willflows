@@ -38,6 +38,11 @@ BEGIN
     IF NEW.is_deleted IS NOT TRUE THEN following:=coalesce(NEW.file_size_bytes,0)+coalesce(NEW.replacement_file_size_bytes,0); END IF;
   END IF;
   delta:=following-previous;
+  -- Parent workspace DELETE may cascade storage first. Never mask missing quota
+  -- for a live workspace or an ordinary version deletion.
+  IF TG_OP='DELETE' AND NOT EXISTS(SELECT 1 FROM public.workspaces WHERE id=ws) THEN
+    RETURN OLD;
+  END IF;
   UPDATE public.workspace_storage SET storage_used_bytes=storage_used_bytes+delta,last_calculated_at=now()
     WHERE workspace_id=ws AND storage_used_bytes+delta>=0
       AND (delta<=0 OR storage_used_bytes+delta<=storage_limit_bytes+coalesce(extra_storage_bytes,0));
@@ -95,9 +100,22 @@ BEGIN
     WHERE queue_id=p_id AND token=p_token AND state='reserved';
   IF NOT FOUND THEN RAISE EXCEPTION 'Stale claim'; END IF;
   UPDATE public.push_notification_queue SET status=CASE WHEN p_state='retry' AND (SELECT attempts FROM public.push_delivery_claims WHERE queue_id=p_id)>=3 THEN 'failed' WHEN p_state IN ('retry','uncertain') THEN 'pending' ELSE p_state END,
-    attempts=(SELECT attempts FROM public.push_delivery_claims WHERE queue_id=p_id),processed_at=CASE WHEN p_state IN ('sent','failed','skipped') THEN now() END
+    attempts=(SELECT attempts FROM public.push_delivery_claims WHERE queue_id=p_id),processed_at=CASE WHEN p_state IN ('sent','failed','skipped') OR (p_state='retry' AND (SELECT attempts FROM public.push_delivery_claims WHERE queue_id=p_id)>=3) THEN now() END
     WHERE id=p_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'Queue row missing'; END IF;
+END $$;
+
+-- Exclude permanently blocked owners BEFORE batching: no starvation/reclaim.
+CREATE FUNCTION public.list_ready_push(p_limit integer DEFAULT 50)
+RETURNS SETOF public.push_notification_queue LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
+BEGIN
+  IF (current_setting('request.jwt.claims',true)::jsonb->>'role'='service_role') IS NOT TRUE THEN RAISE EXCEPTION 'Forbidden'; END IF;
+  IF p_limit IS NULL OR p_limit NOT BETWEEN 1 AND 100 THEN RAISE EXCEPTION 'Invalid batch'; END IF;
+  RETURN QUERY SELECT q.* FROM public.push_notification_queue q
+    LEFT JOIN public.push_delivery_claims d ON d.queue_id=q.id
+    WHERE q.status='pending' AND q.attempts<3 AND
+      (d.queue_id IS NULL OR (d.state='retry' AND d.retry_at<=now() AND d.attempts<3))
+    ORDER BY q.created_at,q.id LIMIT p_limit;
 END $$;
 
 -- Abort rather than silently deduplicate existing records.
@@ -108,14 +126,19 @@ DO $$ BEGIN
 END $$;
 CREATE UNIQUE INDEX subscription_discrepancies_one_open ON public.subscription_discrepancies(stripe_subscription_id) WHERE resolved_at IS NULL;
 ALTER TABLE public.subscription_discrepancies ADD CONSTRAINT open_discrepancy_identity CHECK(resolved_at IS NOT NULL OR stripe_subscription_id IS NOT NULL) NOT VALID;
-CREATE FUNCTION public.record_stripe_discrepancy(p_subscription text,p_stripe_status text,p_db_status text) RETURNS boolean
+CREATE FUNCTION public.record_stripe_discrepancy(p_subscription text,p_stripe_status text,p_db_status text,
+  p_user uuid DEFAULT NULL,p_customer text DEFAULT NULL,p_details jsonb DEFAULT '{}'::jsonb) RETURNS boolean
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
-DECLARE inserted integer;
+DECLARE inserted integer; linked_workspace uuid; matches integer;
 BEGIN
   IF (current_setting('request.jwt.claims',true)::jsonb->>'role'='service_role') IS NOT TRUE THEN RAISE EXCEPTION 'Forbidden'; END IF;
-  IF p_subscription IS NULL OR length(p_subscription) NOT BETWEEN 1 AND 255 OR p_stripe_status IS NULL OR p_db_status IS NULL THEN RAISE EXCEPTION 'Invalid observation'; END IF;
-  INSERT INTO public.subscription_discrepancies(stripe_subscription_id,stripe_status,db_status,discrepancy_type,details)
-  VALUES(p_subscription,p_stripe_status,p_db_status,CASE WHEN p_stripe_status='not_found' THEN 'missing_in_stripe' ELSE 'status_mismatch' END,'{}'::jsonb)
+  IF p_subscription IS NULL OR length(btrim(p_subscription)) NOT BETWEEN 1 AND 255 OR p_stripe_status IS NULL OR p_db_status IS NULL OR p_details IS NULL OR jsonb_typeof(p_details)<>'object' THEN RAISE EXCEPTION 'Invalid observation'; END IF;
+  IF p_user IS NOT NULL AND NOT EXISTS(SELECT 1 FROM public.user_subscriptions WHERE user_id=p_user AND stripe_subscription_id=p_subscription) THEN RAISE EXCEPTION 'Subscription user mismatch'; END IF;
+  SELECT count(*) INTO matches FROM public.workspaces WHERE stripe_subscription_id=p_subscription;
+  IF matches>1 THEN RAISE EXCEPTION 'Ambiguous subscription workspace'; END IF;
+  SELECT id INTO linked_workspace FROM public.workspaces WHERE stripe_subscription_id=p_subscription;
+  INSERT INTO public.subscription_discrepancies(workspace_id,user_id,stripe_customer_id,stripe_subscription_id,stripe_status,db_status,discrepancy_type,details)
+  VALUES(linked_workspace,p_user,p_customer,p_subscription,p_stripe_status,p_db_status,CASE WHEN p_stripe_status='not_found' THEN 'missing_in_stripe' ELSE 'status_mismatch' END,p_details)
   ON CONFLICT(stripe_subscription_id) WHERE resolved_at IS NULL DO NOTHING;
   GET DIAGNOSTICS inserted=ROW_COUNT; RETURN inserted=1;
 END $$;
@@ -144,6 +167,6 @@ BEGIN
   UPDATE public.safe_cron_runs SET state=CASE WHEN p_uncertain THEN 'uncertain' ELSE 'idle' END,updated_at=now() WHERE handler=p_handler AND token=p_token AND state='running';
   IF NOT FOUND THEN RAISE EXCEPTION 'Stale cron claim'; END IF;
 END $$;
-REVOKE ALL ON FUNCTION public.claim_push_delivery(uuid),public.finish_push_delivery(uuid,uuid,text),public.record_stripe_discrepancy(text,text,text),public.claim_safe_cron(text),public.finish_safe_cron(text,uuid,boolean) FROM PUBLIC,anon,authenticated;
-GRANT EXECUTE ON FUNCTION public.claim_push_delivery(uuid),public.finish_push_delivery(uuid,uuid,text),public.record_stripe_discrepancy(text,text,text),public.claim_safe_cron(text),public.finish_safe_cron(text,uuid,boolean) TO service_role;
+REVOKE ALL ON FUNCTION public.claim_push_delivery(uuid),public.finish_push_delivery(uuid,uuid,text),public.list_ready_push(integer),public.record_stripe_discrepancy(text,text,text,uuid,text,jsonb),public.claim_safe_cron(text),public.finish_safe_cron(text,uuid,boolean) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_push_delivery(uuid),public.finish_push_delivery(uuid,uuid,text),public.list_ready_push(integer),public.record_stripe_discrepancy(text,text,text,uuid,text,jsonb),public.claim_safe_cron(text),public.finish_safe_cron(text,uuid,boolean) TO service_role;
 COMMIT;

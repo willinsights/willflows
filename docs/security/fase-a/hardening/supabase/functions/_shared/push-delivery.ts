@@ -10,12 +10,15 @@ export async function deliverPush(client: any, notification: any, send: (subscri
   };
   const prefs = await client.from('user_push_preferences').select('push_enabled,push_subscription,messages_enabled').eq('user_id', notification.user_id).maybeSingle();
   if (prefs.error) return finish('retry'); // no provider request has started
-  if (!prefs.data?.push_enabled || !prefs.data?.push_subscription || (notification.data?.type === 'message' && prefs.data.messages_enabled === false)) return finish('skipped');
+  if (!prefs.data?.push_enabled || !prefs.data?.push_subscription || (['message', 'chat_message'].includes(notification.data?.type) && prefs.data.messages_enabled === false)) return finish('skipped');
   const sub = prefs.data.push_subscription;
   if (!sub.endpoint || !sub.keys?.p256dh || !sub.keys?.auth) return finish('failed');
   let state = 'sent';
   try {
-    await send(sub, JSON.stringify({ title: notification.title, body: notification.body, tag: notification.tag || notification.id, data: notification.data || {}, icon: '/pwa-icon.png' }));
+    const data = notification.data?.type === 'chat_message'
+      ? { ...notification.data, type: 'message', entityId: notification.data.conversation_id }
+      : notification.data || {};
+    await send(sub, JSON.stringify({ title: notification.title, body: notification.body, tag: notification.tag || notification.id, data, icon: '/pwa-icon.png' }));
   } catch (error) {
     const status = error && typeof error === 'object' && 'statusCode' in error ? error.statusCode : undefined;
     // Explicit rejection: safe to retry 429; transport/5xx are uncertain, never retry automatically.

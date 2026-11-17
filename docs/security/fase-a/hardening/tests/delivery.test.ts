@@ -20,3 +20,14 @@ it('pre-provider read failure permits retry without sending',async()=>{const f=f
 it('disabled preference skips without provider call',async()=>{const f=fixture('disabled');expect(await deliverPush(f.client,row,f.send)).toBe('skipped');expect(f.counts().sends).toBe(0);});
 it('failed completion retains ownership and prevents second provider call',async()=>{const f=fixture();f.fail();await expect(deliverPush(f.client,row,f.send)).rejects.toThrow();await deliverPush(f.client,row,f.send);expect(f.counts().sends).toBe(1);expect(f.counts().state).toBe('reserved');});
 it('cron exception persists uncertain rather than permitting overlap',async()=>{let reserved=false,finished:any;const client={rpc:async(name:string,p:any)=>{if(name==='claim_safe_cron'){if(reserved)return {data:null};reserved=true;return {data:'token'};}finished=p;return {};}};await expect(withSafeCron(client,'check-deadlines',async()=>{throw new Error('fixture');})).rejects.toThrow();expect(finished.p_uncertain).toBe(true);expect((await withSafeCron(client,'check-deadlines',async()=>new Response())).status).toBe(409);});
+it('chat_message producer respects explicit message opt-out without sending',async()=>{
+  let sends=0,state='';
+  const client={rpc:async(name:string,p:any)=>name==='claim_push_delivery'?{data:'token'}:(state=p.p_state,{}),from:()=>({select(){return this;},eq(){return this;},async maybeSingle(){return {data:{push_enabled:true,messages_enabled:false,push_subscription:{endpoint:'fixture',keys:{p256dh:'fake',auth:'fake'}}}};}})};
+  expect(await deliverPush(client,{...row,data:{type:'chat_message'}},async()=>{sends++;})).toBe('skipped');
+  expect(sends).toBe(0);expect(state).toBe('skipped');
+});
+it('chat payload opens existing service worker conversation contract',async()=>{
+  const f=fixture();let payload:any;
+  await deliverPush(f.client,{...row,data:{type:'chat_message',conversation_id:'conversation-fixture',message_id:'message-fixture'}},async(_s,p)=>{payload=JSON.parse(p);});
+  expect(payload.data).toEqual({type:'message',conversation_id:'conversation-fixture',message_id:'message-fixture',entityId:'conversation-fixture'});
+});
