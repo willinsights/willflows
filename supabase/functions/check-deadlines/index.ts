@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { authenticateCronRequest } from "../_shared/cron-auth.ts";
 import { secretEquals } from "../_shared/timing-safe.ts";
 
 const corsHeaders = {
@@ -25,7 +26,7 @@ Deno.serve(async (req) => {
   // Require shared cron secret (prevents external abuse / notification flooding)
   const cronSecret = Deno.env.get('CRON_SECRET');
   const providedSecret = req.headers.get('x-cron-secret');
-  if (!secretEquals(cronSecret, providedSecret)) {
+  if (!secretEquals(cronSecret, providedSecret) && authenticateCronRequest(req) !== null) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

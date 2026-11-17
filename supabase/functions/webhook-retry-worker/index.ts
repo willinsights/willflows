@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { authenticateCronRequest } from "../_shared/cron-auth.ts";
 import { secretEquals } from "../_shared/timing-safe.ts";
 
 const corsHeaders = {
@@ -32,7 +33,7 @@ serve(async (req) => {
   const providedSecret = req.headers.get("x-cron-secret");
   const isCron = secretEquals(cronSecret, providedSecret);
   const isServiceRole = !!serviceKey && bearer === serviceKey;
-  if (!isCron && !isServiceRole) {
+  if (!isCron && !isServiceRole && authenticateCronRequest(req) !== null) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
