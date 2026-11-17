@@ -10,7 +10,7 @@ async function signingKey(secret: string) {
   return crypto.subtle.importKey('raw', encoder.encode(`willflow:video-upload:v1:${secret}`), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
 }
 export async function issueUploadTicket(ticket: UploadTicket, secret: string): Promise<string> {
-  const body = btoa(JSON.stringify(ticket));
+  const body = utf8ToB64(JSON.stringify(ticket));
   const signature = await crypto.subtle.sign('HMAC', await signingKey(secret), encoder.encode(body));
   return `${body}.${hex(signature)}`;
 }
@@ -22,10 +22,19 @@ export async function verifyUploadTicket(value: unknown, expected: Omit<UploadTi
   const bytes = new Uint8Array(signature.match(/../g)?.map(byte => parseInt(byte, 16)) || []);
   if (!await crypto.subtle.verify('HMAC', await signingKey(secret), bytes, encoder.encode(body))) return fail();
   let ticket: UploadTicket;
-  try { ticket = JSON.parse(atob(body)); } catch { return fail(); }
+  try { ticket = JSON.parse(b64ToUtf8(body)); } catch { return fail(); }
   validateUploadFile(ticket.file_name, ticket.file_size);
   if (!sameVideoContext(ticket, expected) || ticket.user_id !== expected.user_id || !isUuid(ticket.user_id) || ticket.key !== expected.key || !safeObjectKey(ticket.key) || ticket.file_name !== expected.file_name || ticket.file_size !== expected.file_size || ticket.replace_version_id !== expected.replace_version_id || !Number.isFinite(ticket.expires_at) || ticket.expires_at <= now) return fail();
   const parts = ticket.key.split('/');
   if (parts.length !== 5 || parts[0] !== ticket.workspace_id || parts[1] !== ticket.project_id || parts[2] !== (ticket.task_id || 'project') || parts[3] !== ticket.user_id) return fail();
   return ticket;
+}
+function utf8ToB64(text: string): string {
+  let bin = '';
+  for (const b of new TextEncoder().encode(text)) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+
+function b64ToUtf8(b64: string): string {
+  return new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
 }
