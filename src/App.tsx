@@ -10,13 +10,14 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { FullPageLoader } from "@/components/layout/FullPageLoader";
 import { PageTrackingProvider } from "@/components/PageTrackingProvider";
 import { CookieConsentBanner } from "@/components/cookies/CookieConsentBanner";
 import { queryClient } from "@/lib/query-client";
 import { PWAUpdateListener } from "@/components/pwa/PWAUpdateListener";
 import { DebugLifecycle } from "@/components/debug/DebugLifecycle";
+
+const AppLayout = lazy(() => import("@/components/layout/AppLayout").then(({ AppLayout }) => ({ default: AppLayout })));
 
 // Lazy loaded public pages
 const Landing = lazy(() => import("./pages/Landing"));

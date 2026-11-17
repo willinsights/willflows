@@ -17,3 +17,4 @@
 - Video server handlers share context/token/key checks in `_shared`; processing requires a server-signed upload ticket, while persisted coherent legacy keys remain readable. Why: bind assets to issuance and preserve existing review links without trusting browser associations.
 - Security release candidates that must not deploy are staged under docs/security with mirrored relative imports, never edited in active function paths. Why: Cloud may automatically deploy changes in active function paths.
 - Financial queries, cost-line aggregation and competence-scoped categories are shared by Dashboard, monthly Reports, comparisons and category exports. Why: identical competence totals without adding paid costs twice.
+- Load the authenticated AppLayout lazily inside the top-level Suspense boundary. Why: public pages must not eagerly download workspace-only dependencies.
