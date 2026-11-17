@@ -7,7 +7,7 @@
 - [ ] Vídeo G04/S03: 19 testes offline OK; bloqueado por transição de chaves 5→3 segmentos, versões ativas/reversão desconhecidas e SQL legado da versão conjunta
 - [x] Financeiro: testes atuais aprovados; 17 fontes já coincidem com pacote conjunto, sem reintegração necessária
 - [ ] Publicação financeira continua bloqueada pela revisão automática anterior
-- [ ] Site público: regras de armazenamento/exportação/anual/blog aprovadas em testes; texto «Ilimitados» aguarda escolha do proprietário
+- [x] Site público: regras de armazenamento/exportação/anual/blog aprovadas em testes; proprietário decidiu manter «Ilimitados» por agora, sem alterar limites
 - [ ] Push/reconciliação Stripe: leitura agregada confirma 46 notificações pendentes e 1 divergência aberta; não reenviar nem alterar pagamentos sem solução validada
 
 ## Release financeira isolada no Main — sem publicação
