@@ -1,6 +1,9 @@
 # Roadmap — pendências da auditoria
 
 ## Retoma das pendências — novembro 2026
+- [x] Próxima fase segura, base a56ef2da: auditoria aprofundada, 16 Vitest/9 Deno/13 grupos PostgreSQL, estratégia por etapas e regressões Stripe/push; relatório em docs/security/fase-a, sem produção
+- [ ] Fase A produção: bloqueada por trigger de quota/hard delete, escritores concorrentes, versões activas/backup/drenagem não comprovados; exige autorização específica SQL/deploy/pausa e futura activação destrutiva
+- [ ] Notificações/Stripe concorrentes: corrida push e inserção Stripe reproduzidas com fixtures; preparar reservas/recuperação e política de histórico antes de qualquer activação real
 - [x] Fase A: implementar candidatos de reservas semanais e quota atómica; 17 testes + 4 ensaios PostgreSQL fictício, tipos e build OK
 - [ ] Fase A ativação: SQL aditivo e funções dependentes ainda não aplicados; limpeza pode eliminar dados automaticamente, vedado nesta fase; cutover de cron antigo sem garantia atómica comprovada
 - [ ] Concluir ativação real autorizada em 17/11: vídeo final ainda exige transição compatível e conferência SQL; agendamentos antigos sem conversão automática suportada; não contornar revisão nem reenviar avisos antigos
@@ -9,7 +12,7 @@
 - [x] Retries: candidato em docs/security/fase5 corrigido com identidade exata por job/destinatário e validado offline
 - [x] Implantação de retries: executor e worker implantados em ordem; 15 testes offline aprovados, fontes anteriores preservadas
 - [ ] Confirmar próximo envio real pós-implantação: fila atualmente sem jobs pendentes/em execução; nenhum evento novo observado, sem reenvios manuais
-- [ ] Agendamentos 401: bloqueados pela ausência de conversão gerida dos jobs antigos
+- [ ] Agendamentos antigos: resultado HTTP não verificável, não afirmar 401; conversão gerida/drenagem e cutover sem sobreposição não comprovados
 - [ ] Vídeo G04/S03: 19 testes offline OK; bloqueado por transição de chaves 5→3 segmentos, versões ativas/reversão desconhecidas e SQL legado da versão conjunta
 - [x] Financeiro: testes atuais aprovados; 17 fontes já coincidem com pacote conjunto, sem reintegração necessária
 - [ ] Publicação financeira continua bloqueada pela revisão automática anterior

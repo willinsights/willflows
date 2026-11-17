@@ -49,7 +49,7 @@ GRANT EXECUTE ON FUNCTION public.finish_weekly_summary_delivery(uuid,uuid,date,t
 -- video row locks serialize duplicate deletion, quota row locks serialize other writers.
 CREATE FUNCTION public.mark_cleanup_videos_deleted(p_workspace uuid,p_ids uuid[])
 RETURNS bigint LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
-DECLARE freed bigint;
+DECLARE freed bigint; used bigint;
 BEGIN
   IF (current_setting('request.jwt.claims',true)::jsonb->>'role' = 'service_role') IS NOT TRUE THEN
     RAISE EXCEPTION 'Forbidden';
@@ -57,14 +57,28 @@ BEGIN
   IF p_workspace IS NULL OR p_ids IS NULL OR cardinality(p_ids) NOT BETWEEN 1 AND 300 OR array_position(p_ids,NULL) IS NOT NULL THEN
     RAISE EXCEPTION 'Invalid cleanup batch';
   END IF;
+  -- Lock quota before video rows: same-workspace batches cannot invert lock order.
+  SELECT storage_used_bytes INTO used FROM public.workspace_storage
+  WHERE workspace_id=p_workspace FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Quota row missing'; END IF;
+  PERFORM id FROM public.video_versions WHERE workspace_id=p_workspace AND id=ANY(p_ids) ORDER BY id FOR UPDATE;
+  IF (SELECT count(*) FROM public.video_versions WHERE workspace_id=p_workspace AND id=ANY(p_ids))
+     <> (SELECT count(DISTINCT id) FROM unnest(p_ids) AS ids(id)) THEN
+    RAISE EXCEPTION 'Cleanup identity mismatch';
+  END IF;
+  IF EXISTS(SELECT 1 FROM public.video_versions WHERE workspace_id=p_workspace AND id=ANY(p_ids)
+            AND (file_size_bytes<0 OR replacement_file_size_bytes<0)) THEN
+    RAISE EXCEPTION 'Invalid stored size';
+  END IF;
   WITH changed AS (
     UPDATE public.video_versions SET is_deleted=true,deleted_at=now()
     WHERE workspace_id=p_workspace AND id=ANY(p_ids) AND is_deleted=false
     RETURNING greatest(0,coalesce(file_size_bytes,0)) + greatest(0,coalesce(replacement_file_size_bytes,0)) AS bytes
   ) SELECT coalesce(sum(bytes),0) INTO freed FROM changed;
+  IF used IS NULL OR used<freed THEN RAISE EXCEPTION 'Quota inconsistent'; END IF;
   IF freed>0 THEN
     UPDATE public.workspace_storage
-    SET storage_used_bytes=greatest(0,coalesce(storage_used_bytes,0)-freed),last_calculated_at=now()
+    SET storage_used_bytes=storage_used_bytes-freed,last_calculated_at=now()
     WHERE workspace_id=p_workspace;
     IF NOT FOUND THEN RAISE EXCEPTION 'Quota row missing'; END IF;
   END IF;

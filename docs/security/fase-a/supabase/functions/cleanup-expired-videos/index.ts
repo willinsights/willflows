@@ -30,7 +30,12 @@ Deno.serve(async (req) => {
     });
   }
 
-
+  // Safe staging default: authentication must not unlock automatic deletions.
+  if (Deno.env.get('CLEANUP_DELETIONS_ENABLED') !== 'true') {
+    return new Response(JSON.stringify({ success: false, paused: true, reason: 'cleanup_not_enabled' }), {
+      status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
   try {
     logStep("Cleanup job started");
 
@@ -299,6 +304,9 @@ Deno.serve(async (req) => {
 
       for (const video of orphanedVideos as any[]) {
         let ok = true;
+        // Missing provider configuration is NOT proof that the object was removed.
+        if ((video.r2_key || video.replacement_r2_key) && (!s3Client || !bucketName)) ok = false;
+        if ((video.cloudflare_stream_uid || video.replacement_stream_uid) && (!accountId || !streamToken)) ok = false;
         for (const key of [video.r2_key, video.replacement_r2_key]) {
           if (key && s3Client && bucketName) {
             try {
@@ -332,8 +340,7 @@ Deno.serve(async (req) => {
         // Only forget the Cloudflare ids once the files are really gone,
         // so failures are retried on the next run.
         if (!ok) { orphanFailures++; continue; }
-        orphanCleaned++;
-        await supabase
+        const { error: persistError } = await supabase
           .from('video_versions')
           .update({
             r2_key: null,
@@ -344,6 +351,8 @@ Deno.serve(async (req) => {
             replacement_playback_url: null,
           })
           .eq('id', video.id);
+        if (persistError) { orphanFailures++; continue; }
+        orphanCleaned++;
       }
     }
 

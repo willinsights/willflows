@@ -3,11 +3,11 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { format, subDays, startOfWeek, endOfWeek } from 'date-fns';
 let handler: (r: Request) => Promise<Response>;
-let calls: number, failed: boolean, completionFailed: boolean, suppressed: boolean;
+let calls: number, failed: boolean, completionFailed: boolean, suppressed: boolean, preference: boolean | undefined, readFailed: boolean;
 let ledger: Map<string,string>;
 const ws='11111111-1111-4111-8111-111111111111', user='22222222-2222-4222-8222-222222222222';
 beforeEach(() => {
-  calls=0; failed=false; completionFailed=false; suppressed=false; ledger=new Map();
+  calls=0; failed=false; completionFailed=false; suppressed=false; preference=true; readFailed=false; ledger=new Map();
   vi.useFakeTimers(); vi.setSystemTime(new Date('2026-11-17T12:00:00Z'));
   vi.stubGlobal('fetch', () => { throw new Error('External network blocked'); });
   const client = { from(table: string) {
@@ -16,8 +16,8 @@ beforeEach(() => {
       single:()=>{single=true;return q;},maybeSingle:()=>{single=true;return q;},
       then(resolve: any) {
         const row = table==='workspaces'?{id:ws,name:'Fictício'}:table==='workspace_members'?{user_id:user}:
-          table==='profiles'?{email:'person@example.invalid',full_name:'Fictício'}:{};
-        return Promise.resolve({data:single?row:[row],count:0,error:null}).then(resolve);
+          table==='profiles'?{email:'person@example.invalid',full_name:'Fictício'}:{email_weekly_summary:preference};
+        return Promise.resolve({data:single?row:[row],count:0,error:readFailed?{message:'fixture read failure'}:null}).then(resolve);
       }};return q;
   },rpc:async(name: string,p: any)=>{
     const key=JSON.stringify([p.p_workspace,p.p_user,p.p_week]);
@@ -52,3 +52,6 @@ it('suppressed recipient is terminal without counting a sent email',async()=>{
   suppressed=true;expect((await (await run()).json()).emails_sent).toBe(0);await run();expect(calls).toBe(1);expect([...ledger.values()]).toEqual(['suppressed']);
 });
 it('next week is a distinct legitimate delivery',async()=>{await run();vi.setSystemTime(new Date('2026-11-24T12:00:00Z'));await run();expect(calls).toBe(2);expect(ledger.size).toBe(2);});
+it('missing preference fails closed without reserving or sending',async()=>{preference=undefined;await run();expect(calls).toBe(0);expect(ledger.size).toBe(0);});
+it('disabled preference never sends',async()=>{preference=false;await run();expect(calls).toBe(0);expect(ledger.size).toBe(0);});
+it('workspace read failure is not reported as success',async()=>{readFailed=true;expect((await run()).status).toBe(500);expect(calls).toBe(0);});

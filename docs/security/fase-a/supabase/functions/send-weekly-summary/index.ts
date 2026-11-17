@@ -35,9 +35,10 @@ Deno.serve(async (req) => {
     const weekLabel = `${format(weekStart, 'dd/MM')} – ${format(weekEnd, 'dd/MM/yyyy')}`
 
     // Get all workspaces
-    const { data: workspaces } = await supabase
+    const { data: workspaces, error: workspaceError } = await supabase
       .from('workspaces')
       .select('id, name')
+    if (workspaceError) throw new Error('Workspace read failed')
 
     let emailsSent = 0
     let failures = 0
@@ -47,11 +48,12 @@ Deno.serve(async (req) => {
       // Get financial summary for the week
       const year = weekEnd.getFullYear()
       const month = weekEnd.getMonth() + 1
-      const { data: summary } = await supabase.rpc('get_monthly_summary', {
+      const { data: summary, error: summaryError } = await supabase.rpc('get_monthly_summary', {
         p_workspace_id: ws.id,
         p_year: year,
         p_month: month,
       })
+      if (summaryError) throw new Error('Financial summary read failed')
 
       // Projects delivered this week
       const { count: deliveredCount } = await supabase
@@ -99,7 +101,7 @@ Deno.serve(async (req) => {
           .eq('user_id', member.user_id)
           .maybeSingle()
 
-        if (prefs?.email_weekly_summary === false) continue
+        if (prefs?.email_weekly_summary !== true) continue
 
         // Get profile
         const { data: profile } = await supabase

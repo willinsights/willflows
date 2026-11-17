@@ -1,0 +1,163 @@
+17/11/2026 UTC — isolated fixtures only
+
+=== fase-a-pg-final.log ===
+Weekly summary sent to 0 users
+Weekly summary sent to 0 users
+Weekly summary sent to 1 users
+Weekly summary sent to 0 users
+Weekly summary sent to 0 users
+Weekly summary sent to 0 users
+Weekly summary sent to 0 users
+Weekly summary sent to 0 users
+PASS real weekly handler + PostgreSQL: 8 requests, 1 fictitious email, persisted sent
+Weekly summary failed or uncertain; no automatic resend
+Weekly summary sent to 0 users
+Weekly summary sent to 0 users
+PASS real handler + PostgreSQL: ambiguous acceptance retained, retry blocked
+Weekly summary failed or uncertain; no automatic resend
+Weekly summary sent to 0 users
+Weekly summary sent to 0 users
+PASS real handler + PostgreSQL: completion failure retained, retry blocked
+PASS empty-ledger rollback, fixture reinstall and atomic collision refusal
+PASS 8 concurrent weekly claims: exactly one winner
+PASS duplicate deletion plus concurrent upload: debit 250 once, final quota 850
+PASS missing quota aborts deletion transaction
+PASS effective ACL/RLS and fail-closed authorization for absent/null/invalid claims
+PASS invalid identities, cross-workspace batch and undercounted quota fail atomically
+PASS repeated IDs and sequential retry debit once
+PASS overlapping reverse-order batches: 8 callers debit 50 once
+KNOWN BLOCKER reproduced: existing hard-delete trigger debits deleted row again (20 bytes)
+KNOWN BLOCKER reproduced: Stripe check-before-insert permits 8 open fictitious duplicates
+PASS rollback refuses removal after sent history and preserves protected RPCs
+
+=== fase-a-tests-final.log ===
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.10 [39m[90m/dev-server[39m
+
+[90mstdout[2m | docs/security/fase-a/tests/cleanup-quota.test.ts[2m > [22m[2mreal cleanup handler uses one atomic RPC, never read-modify-writes storage
+[22m[39m[CLEANUP-EXPIRED-VIDEOS] Cleanup job started
+
+[90mstdout[2m | docs/security/fase-a/tests/cleanup-quota.test.ts[2m > [22m[2mreal cleanup handler uses one atomic RPC, never read-modify-writes storage
+[22m[39m[CLEANUP-EXPIRED-VIDEOS] Delivered videos marked for deletion - {"count":1}
+
+[90mstdout[2m | docs/security/fase-a/tests/cleanup-quota.test.ts[2m > [22m[2mreal cleanup handler uses one atomic RPC, never read-modify-writes storage
+[22m[39m[CLEANUP-EXPIRED-VIDEOS] Cleanup job completed - {"expiringNotified":0,"expired":0,"deliveredMarked":1,"orphanedCleaned":0,"orphanFailures":0}
+
+[90mstdout[2m | docs/security/fase-a/tests/push-regression.test.ts[2m > [22m[2mdocuments current push race: two real handlers can send the same pending fixture twice
+[22m[39m[process-push] Web Push initialized with VAPID
+
+[90mstdout[2m | docs/security/fase-a/tests/push-regression.test.ts[2m > [22m[2mdocuments current push race: two real handlers can send the same pending fixture twice
+[22m[39m[process-push] Processing 1 notifications
+[process-push] Processing 1 notifications
+
+[90mstdout[2m | docs/security/fase-a/tests/push-regression.test.ts[2m > [22m[2mdocuments current push race: two real handlers can send the same pending fixture twice
+[22m[39m[process-push] Sent to user fixture-user
+[process-push] Done: 1 sent, 0 failed
+
+[90mstdout[2m | docs/security/fase-a/tests/push-regression.test.ts[2m > [22m[2mdocuments current push race: two real handlers can send the same pending fixture twice
+[22m[39m[process-push] Sent to user fixture-user
+[process-push] Done: 1 sent, 0 failed
+
+[90mstdout[2m | docs/security/fase-a/tests/safety.test.ts[2m > [22m[2mcleanup missing provider credentials retains all orphan references for recovery
+[22m[39m[CLEANUP-EXPIRED-VIDEOS] Cleanup job started
+
+[90mstdout[2m | docs/security/fase-a/tests/safety.test.ts[2m > [22m[2mcleanup missing provider credentials retains all orphan references for recovery
+[22m[39m[CLEANUP-EXPIRED-VIDEOS] Delivered videos marked for deletion - {"count":0}
+
+[90mstdout[2m | docs/security/fase-a/tests/safety.test.ts[2m > [22m[2mcleanup missing provider credentials retains all orphan references for recovery
+[22m[39m[CLEANUP-EXPIRED-VIDEOS] Cleaning up orphaned deleted videos - {"count":1}
+[CLEANUP-EXPIRED-VIDEOS] Cleanup job completed - {"expiringNotified":0,"expired":0,"deliveredMarked":0,"orphanedCleaned":0,"orphanFailures":1}
+
+ [32m✓[39m docs/security/fase-a/tests/push-regression.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 266[2mms[22m[39m
+[90mstdout[2m | docs/security/fase-a/tests/cleanup-quota.test.ts[2m > [22m[2mreal cleanup reports failure rather than success if atomic persistence fails
+[22m[39m[CLEANUP-EXPIRED-VIDEOS] Cleanup job started
+
+[90mstdout[2m | docs/security/fase-a/tests/cleanup-quota.test.ts[2m > [22m[2mreal cleanup reports failure rather than success if atomic persistence fails
+[22m[39m[CLEANUP-EXPIRED-VIDEOS] ERROR - {"message":"Atomic delivered-video accounting failed"}
+
+ [32m✓[39m docs/security/fase-a/tests/safety.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 464[2mms[22m[39m
+ [32m✓[39m docs/security/fase-a/tests/cleanup-quota.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 460[2mms[22m[39m
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mtwo simultaneous real handlers send one weekly email
+[22m[39mWeekly summary sent to 0 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mtwo simultaneous real handlers send one weekly email
+[22m[39mWeekly summary sent to 1 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2msequential repetition never resends
+[22m[39mWeekly summary sent to 1 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2msequential repetition never resends
+[22m[39mWeekly summary sent to 0 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mambiguous failure is not reported as sent and never automatically retried
+[22m[39mWeekly summary sent to 0 users
+
+[90mstderr[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mambiguous failure is not reported as sent and never automatically retried
+[22m[39mWeekly summary failed or uncertain; no automatic resend
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mambiguous failure is not reported as sent and never automatically retried
+[22m[39mWeekly summary sent to 0 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mcompletion failure keeps the reservation and prevents a second send
+[22m[39mWeekly summary sent to 0 users
+
+[90mstderr[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mcompletion failure keeps the reservation and prevents a second send
+[22m[39mWeekly summary failed or uncertain; no automatic resend
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mcompletion failure keeps the reservation and prevents a second send
+[22m[39mWeekly summary sent to 0 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2msuppressed recipient is terminal without counting a sent email
+[22m[39mWeekly summary sent to 0 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2msuppressed recipient is terminal without counting a sent email
+[22m[39mWeekly summary sent to 0 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mnext week is a distinct legitimate delivery
+[22m[39mWeekly summary sent to 1 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mnext week is a distinct legitimate delivery
+[22m[39mWeekly summary sent to 1 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mmissing preference fails closed without reserving or sending
+[22m[39mWeekly summary sent to 0 users
+
+[90mstdout[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mdisabled preference never sends
+[22m[39mWeekly summary sent to 0 users
+
+[90mstderr[2m | docs/security/fase-a/tests/weekly.test.ts[2m > [22m[2mworkspace read failure is not reported as success
+[22m[39mError in send-weekly-summary: Error: Workspace read failed
+    at eval (eval at <anonymous> [90m(/dev-server/[39mdocs/security/fase-a/tests/weekly.test.ts:35:3), <anonymous>:34:19[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+    at [90m/dev-server/[39mdocs/security/fase-a/tests/weekly.test.ts:57:90
+    at [90mfile:///dev-server/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:20
+
+ [32m✓[39m docs/security/fase-a/tests/weekly.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 566[2mms[22m[39m
+   [33m[2m✓[22m[39m two simultaneous real handlers send one weekly email [33m 359[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m4 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[32m16 passed[39m[22m[90m (16)[39m
+[2m   Start at [22m 21:59:02
+[2m   Duration [22m 2.63s[2m (transform 1.35s, setup 0ms, import 4.36s, tests 1.76s, environment 1ms)[22m
+
+
+=== fase-a-auth.log ===
+[0m[32mCheck[0m docs/security/fase-a/tests/cleanup-auth.test.ts
+[0m[38;5;245mrunning 9 tests from ./docs/security/fase-a/tests/cleanup-auth.test.ts[0m
+managed token valid ... [0m[32mok[0m [0m[38;5;245m(17ms)[0m
+managed previous token valid (rotation) ... [0m[32mok[0m [0m[38;5;245m(0ms)[0m
+legacy x-cron-secret still valid ... [0m[32mok[0m [0m[38;5;245m(0ms)[0m
+AUTOMATION_CRON_SECRET still valid ... [0m[32mok[0m [0m[38;5;245m(0ms)[0m
+invalid managed token rejected ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
+invalid legacy secret rejected ... [0m[32mok[0m [0m[38;5;245m(0ms)[0m
+missing credentials rejected ... [0m[32mok[0m [0m[38;5;245m(0ms)[0m
+malformed bearer rejected ... [0m[32mok[0m [0m[38;5;245m(0ms)[0m
+missing managed config fails closed ... [0m[32mok[0m [0m[38;5;245m(2ms)[0m
+
+[0m[32mok[0m | 9 passed | 0 failed [0m[38;5;245m(29ms)[0m
+
+
+=== fase-a-check.log ===
+[0m[32mDownload[0m https://esm.sh/@supabase/storage-js@2.99.1/dist/module/StorageClient
+[0m[32mCheck[0m docs/security/fase-a/supabase/functions/send-weekly-summary/index.ts
+[0m[32mCheck[0m docs/security/fase-a/supabase/functions/cleanup-expired-videos/index.ts

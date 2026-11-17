@@ -1,8 +1,9 @@
 BEGIN;
--- Restore previous callback sources FIRST. Stop if a delivery is unresolved.
+-- Disable callbacks and drain in-flight work FIRST. Historical sources ignore the ledger.
+-- Never restore the previous weekly callback after any reservation has existed.
 DO $$ BEGIN
-  IF EXISTS(SELECT 1 FROM public.weekly_summary_deliveries WHERE status IN ('reserved','uncertain')) THEN
-    RAISE EXCEPTION 'Unresolved delivery: preserve ledger and reconcile before rollback';
+  IF EXISTS(SELECT 1 FROM public.weekly_summary_deliveries) THEN
+    RAISE EXCEPTION 'Delivery history exists: retain protected callback and ledger';
   END IF;
 END $$;
 DROP FUNCTION public.mark_cleanup_videos_deleted(uuid,uuid[]);

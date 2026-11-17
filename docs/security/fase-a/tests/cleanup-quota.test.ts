@@ -14,7 +14,7 @@ async function run(fail: boolean) {
   const source=readFileSync(new URL('../supabase/functions/cleanup-expired-videos/index.ts',import.meta.url),'utf8').replace(/^import .*\n/gm,'');
   const js=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.None}}).outputText;
   new Function('Deno','createClient','S3Client','DeleteObjectCommand','secretEquals','authenticateCronRequest',js)(
-    {env:{get:(k:string)=>['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY'].includes(k)?'fixture-only':undefined},serve:(h:typeof handler)=>{handler=h;}},()=>client,class {},class {},()=>false,()=>null);
+    {env:{get:(k:string)=>k==='CLEANUP_DELETIONS_ENABLED'?'true':['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY'].includes(k)?'fixture-only':undefined},serve:(h:typeof handler)=>{handler=h;}},()=>client,class {},class {},()=>false,()=>null);
   const response=await handler(new Request('http://fixture.invalid',{method:'POST'}));return {response,rpcCalls};
 }
 it('real cleanup handler uses one atomic RPC, never read-modify-writes storage',async()=>{

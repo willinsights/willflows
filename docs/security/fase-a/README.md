@@ -1,6 +1,6 @@
 # Fase A — autenticação, envio semanal e quota concorrente (NÃO implantado)
 
-Estado: candidato staged fora de `supabase/functions/` porque editar o caminho ativo pode implantar automaticamente.
+Estado: candidato staged fora de `supabase/functions/` porque editar o caminho ativo pode implantar automaticamente. Revisão aprofundada: ver `VALIDATION-2026-11-17.md` e `DEPLOYMENT.md` (substituem conclusões anteriores onde indicado).
 Produção, agendamentos, frequências e segredos inalterados.
 
 ## Alteração (diff vs ativo)
@@ -24,7 +24,7 @@ Executar: `cd docs/security/fase-a && deno test --allow-env --allow-net=deno.lan
 ## Correções preparadas em 17/11/2026, base 3a508332
 - Resumo semanal: reserva durável única por workspace/utilizador/segunda-feira, antes de invocar `app-email`; conflito salta envio. `error` da invocação e resposta de negócio são verificados. Supressão não conta como enviado. Falha ou resultado ambíguo mantém reserva e devolve falha, nunca reenvia automaticamente.
 - Limitação explícita: sem transação distribuída com o fornecedor, não existe garantia simultânea de exatamente um envio e recuperação automática. Uma interrupção após reserva pode perder um envio; estados `reserved`/`uncertain` exigem reconciliação autorizada antes de qualquer repetição. Não há expiração/reclaim automático que permita duplicação após 24 horas.
-- Limpeza: `mark_cleanup_videos_deleted` faz `is_deleted=false→true` e subtração atómica no mesmo pedido. Só conta linhas efetivamente alteradas, inclui tamanho principal e substituição; falta de quota aborta a transação. Mantém referências de ficheiros para a passagem posterior de remoção, sem esquecer remoções falhadas.
+- Limpeza: `mark_cleanup_videos_deleted` faz `is_deleted=false→true` e subtração atómica no mesmo pedido. Só conta linhas efetivamente alteradas, inclui tamanho principal e substituição; falta/inconsistência de quota aborta a transação. Bloqueia quota antes das versões e recusa identidade ausente/entre workspaces. Mantém referências de ficheiros para a passagem posterior de remoção, sem esquecer remoções falhadas. Novo interruptor `CLEANUP_DELETIONS_ENABLED` recusa qualquer trabalho com 503 até autorização explícita (`true`); não foi configurado em produção.
 - Catálogo lido: trigger atual `AFTER INSERT OR DELETE OR UPDATE OF file_size_bytes`; não observa `is_deleted`. Por isso a RPC não altera tamanhos nem substitui o trigger. Não resolve outras escritas históricas de quota fora deste handler.
 - SQL aditivo em `candidate.sql`, fora de migrações aplicáveis; não altera ACL existente, Stripe, permissões de utilizadores ou limites. Novas RPCs só para `service_role`, guarda `IS NOT TRUE`, `SET search_path=public`. Ledger privado, sem emails/payloads.
 
@@ -44,7 +44,7 @@ Executar: `cd docs/security/fase-a && deno test --allow-env --allow-net=deno.lan
 6. Não há logs HTTP atuais neste ensaio; não afirmar que os cinco devolvem 401 ou que voltaram a funcionar.
 
 ## Reversão
-Restaurar fontes antes de remover RPCs. `rollback.sql` recusa reservas incertas e mantém ledger para impedir repetição histórica; não apaga dados. Não restaura ficheiros eliminados nem repõe quota histórica, pois nenhum dado real foi alterado neste trabalho.
+Parar invocações e drenar trabalho antes de reverter. `rollback.sql` agora recusa QUALQUER histórico, inclusive `sent`/`suppressed`: fontes antigas ignoram o ledger e poderiam reenviar. Só permite remover RPCs se ledger vazio; retém tabela. Após primeiro claim, manter handler protegido e RPCs, sem restauro do emissor antigo. Não restaura ficheiros eliminados nem repõe quota histórica. Fontes em `rollback-sources` são referência do editor, não reversão operacional automaticamente segura.
 
 ## Pendências de idempotência fora do escopo
 As verificações antes de inserir de prazos/alertas/Stripe não provam segurança sob concorrência sem restrição única confirmada. Avisos de expiração da limpeza ainda têm janela de concorrência antes de `notified`; esta fase protege a quota, não afirma idempotência de todos os seus avisos. O envio semanal corrigido não reenvia resultados incertos; falta processo operacional de reconciliação e prova do próximo envio natural após eventual ativação.

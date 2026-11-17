@@ -20,3 +20,4 @@
 - Load the authenticated AppLayout lazily inside the top-level Suspense boundary. Why: public pages must not eagerly download workspace-only dependencies.
 - Automation retries use exact persisted job and recipient delivery identities, with executor deployed before worker and rollback in reverse order. Why: prevent duplicate retries while preserving distinct events and older callers.
 - Weekly summary candidates use a permanent per-workspace/user/week reservation and retain uncertain deliveries without automatic retry; cleanup candidates atomically mark video rows and decrement quota in the same RPC. Why: prevent duplicate external sends and double quota decrements under concurrency.
+- Staged cleanup is disabled unless explicitly enabled; rollback must retain protected weekly delivery code once any ledger row exists. Why: authentication rollout must not unlock destruction, and historical sources ignore deduplication.
