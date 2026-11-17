@@ -18,4 +18,4 @@
 - Security release candidates that must not deploy are staged under docs/security with mirrored relative imports, never edited in active function paths. Why: Cloud may automatically deploy changes in active function paths.
 - Financial queries, cost-line aggregation and competence-scoped categories are shared by Dashboard, monthly Reports, comparisons and category exports. Why: identical competence totals without adding paid costs twice.
 - Load the authenticated AppLayout lazily inside the top-level Suspense boundary. Why: public pages must not eagerly download workspace-only dependencies.
-- Automation retry candidates use exact persisted job and recipient delivery identities, never timestamp-based deduplication. Why: separate legitimate events for the same project must both deliver.
+- Automation retries use exact persisted job and recipient delivery identities, with executor deployed before worker and rollback in reverse order. Why: prevent duplicate retries while preserving distinct events and older callers.

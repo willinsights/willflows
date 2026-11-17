@@ -8,6 +8,8 @@ let handler: (r: Request) => Promise<Response>;
 let rows: Record<string, any[]>;
 let sends: string[];
 let failEmail: boolean;
+let failCompletion: boolean;
+let suppressEmail: boolean;
 let worker: typeof handler;
 let completion: { _success: boolean } | undefined;
 
@@ -41,15 +43,15 @@ beforeEach(async () => {
     profiles: [{ id: ids.user, email: 'a@exemplo.invalid', full_name: 'Pessoa fictícia' }],
     workspace_members: [{ workspace_id: ids.ws, user_id: ids.user, role: 'admin', is_active: true }],
   };
-  sends = []; failEmail = false;
+  sends = []; failEmail = false; failCompletion = false; suppressEmail = false;
   vi.stubGlobal('fetch', () => { throw new Error('Network disabled'); });
   const source = readFileSync(new URL('../../../supabase/functions/execute-automations/index.ts', import.meta.url), 'utf8')
     .replace(/^import .*\n/gm, '');
   const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
   const deno = { env: { get: (key: string) => ({ SUPABASE_URL: 'http://fixture.invalid', SUPABASE_SERVICE_ROLE_KEY: 'fixture-only', CRON_SECRET: 'fixture-only', LOVABLE_API_KEY: 'fixture-only' }[key]) }, serve: (fn: typeof handler) => { handler = fn; } };
-  class EmailError extends Error { code = ''; }
+  class EmailError extends Error { code = 'recipient_suppressed'; }
   new Function('Deno', 'createClient', 'sendLovableEmail', 'EmailAPIError', 'secretEquals', 'deliveryId', js)(
-    deno, client, async (p: any) => { sends.push(p.idempotency_key); if (failEmail && p.to.startsWith('b@')) throw new Error('Simulated transient failure'); },
+    deno, client, async (p: any) => { sends.push(p.idempotency_key); if (suppressEmail && p.to.startsWith('b@')) throw new EmailError('Suppressed fixture'); if (failEmail && p.to.startsWith('b@')) throw new Error('Simulated transient failure'); },
     EmailError, (a: string,b: string) => Boolean(a && b && a === b), deliveryId,
   );
   completion = undefined;
@@ -58,6 +60,7 @@ beforeEach(async () => {
   const workerClient = () => ({
     rpc: async (name: string, args: any) => {
       if (name === 'claim_automation_jobs') return { data: rows.automation_jobs, error: null };
+      if (failCompletion && args._success) return { data: null, error: { message: 'Simulated completion failure' } };
       completion = args; return { data: null, error: null };
     },
     functions: { invoke: async (_name: string, options: any) => {
@@ -75,6 +78,26 @@ async function run(job = ids.job) {
 }
 
 describe('Active handler, fictitious dependencies and no network', () => {
+  it('does not resend emails or notifications after a completion failure', async () => {
+    const request = () => new Request('http://fixture.invalid', { method: 'POST', headers: { 'x-cron-secret': 'fixture-only' } });
+    failCompletion = true;
+    expect((await (await worker(request())).json()).failed).toBe(1);
+    failCompletion = false;
+    expect((await (await worker(request())).json()).succeeded).toBe(1);
+    expect(sends).toHaveLength(2); expect(rows.notifications).toHaveLength(1);
+  });
+  it('respects suppression and does not retry a suppressed recipient', async () => {
+    suppressEmail = true;
+    expect((await run()).status).toBe(200);
+    expect(rows.email_send_log.map(r => r.status)).toEqual(['sent', 'suppressed']);
+    expect((await run()).status).toBe(200);
+    expect(sends).toHaveLength(2); expect(rows.notifications).toHaveLength(1);
+  });
+  it('preserves the previous internal caller without a queue identity', async () => {
+    const response = await handler(new Request('http://fixture.invalid', { method: 'POST', headers: { 'x-cron-secret': 'fixture-only' }, body: JSON.stringify({ workspace_id: ids.ws, project_id: ids.project, triggered_by: ids.user, event_type: 'delivered' }) }));
+    expect(response.status).toBe(200);
+    expect(sends).toHaveLength(2); expect(rows.notifications).toHaveLength(1);
+  });
   it('processes a claimed job through the real executor and records completion', async () => {
     const response = await worker(new Request('http://fixture.invalid', { method: 'POST', headers: { 'x-cron-secret': 'fixture-only' } }));
     expect((await response.json()).succeeded).toBe(1);

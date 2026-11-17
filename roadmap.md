@@ -3,7 +3,8 @@
 ## Retoma das pendências — novembro 2026
 - [x] Integrar otimização de carregamento; build OK e navegação pública/autenticada com fixtures e rede externa bloqueada
 - [x] Retries: candidato em docs/security/fase5 corrigido com identidade exata por job/destinatário e validado offline
-- [ ] Implantação de retries autorizada: conferir compatibilidade, guardar fontes anteriores, integrar e implantar executor antes do worker; verificar resultado sem reenvios manuais
+- [x] Implantação de retries: executor e worker implantados em ordem; 15 testes offline aprovados, fontes anteriores preservadas
+- [ ] Confirmar próximo envio real pós-implantação: fila atualmente sem jobs pendentes/em execução; nenhum evento novo observado, sem reenvios manuais
 - [ ] Agendamentos 401: bloqueados pela ausência de conversão gerida dos jobs antigos
 - [ ] Vídeo G04/S03: 19 testes offline OK; bloqueado por transição de chaves 5→3 segmentos, versões ativas/reversão desconhecidas e SQL legado da versão conjunta
 - [x] Financeiro: testes atuais aprovados; 17 fontes já coincidem com pacote conjunto, sem reintegração necessária

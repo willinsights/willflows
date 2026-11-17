@@ -66,8 +66,10 @@ Deno.serve(async (req) => {
         // (the service-role bearer token is not a user JWT and would 401).
         const { data, error } = await supabase.functions.invoke('execute-automations', {
           body: {
-            event_type: job.event_type,
             ...job.payload,
+            event_type: job.event_type,
+            workspace_id: job.workspace_id,
+            job_id: job.id,
           },
           headers: { 'x-cron-secret': automationSecret || cronSecret || '' },
         })
@@ -78,11 +80,12 @@ Deno.serve(async (req) => {
         const body = data as { error?: string } | null
         if (body?.error) throw new Error(body.error)
 
-        await supabase.rpc('complete_automation_job', {
+        const { error: completionError } = await supabase.rpc('complete_automation_job', {
           _job_id: job.id,
           _success: true,
           _error: null,
         })
+        if (completionError) throw new Error('Queue completion failed');
         succeeded++
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
