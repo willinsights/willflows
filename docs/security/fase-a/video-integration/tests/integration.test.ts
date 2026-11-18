@@ -168,7 +168,7 @@ it.each(['undefined','null',project])('accepts signed legacy three-part project 
 it('rejects tampered v2 receipts from old tabs instead of falling back to unsigned context',async()=>{
  const f=fixture(),issued=await f.issue();
  const {operationId,...without}=issued;
- await expect(f.handlers.process(req,{...without,uploadTicket:issued.uploadTicket.slice(0,-1)+'0'}))
+ await expect(f.handlers.process(req,{...without,uploadTicket:issued.uploadTicket.slice(0,-1)+(issued.uploadTicket.endsWith('0')?'1':'0')}))
   .rejects.toThrow();
  expect(f.copy).not.toHaveBeenCalled();
 });
