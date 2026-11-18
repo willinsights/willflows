@@ -57,6 +57,12 @@ try:
     assert sql("SELECT to_regprocedure('public.expire_video_issued_operations(integer)') IS NULL")=='t'
     assert sql("SELECT count(*) FROM pg_trigger WHERE tgname IN ('guard_storage_counter','video_accounting_serial','storage_accounting_serial')")=='0'
     assert sql("SELECT count(*) FROM pg_trigger WHERE tgname='trg_sync_storage_video_versions'")=='1'
+    drift_ws='bbbbbbbb-1111-4111-8111-111111111111'
+    sql(f"INSERT INTO workspaces VALUES('{drift_ws}',NULL); INSERT INTO workspace_storage(workspace_id,storage_used_bytes,storage_limit_bytes) VALUES('{drift_ws}',5,100);")
+    reject((root/'00-accounting.sql').read_text())
+    assert sql("SELECT count(*) FROM pg_trigger WHERE tgname='guard_storage_counter'")=='0'
+    sql(f"DELETE FROM workspaces WHERE id='{drift_ws}';")
+    print('PASS quota migration rejects an unreconciled legacy counter before creating triggers')
     sql((root/'00-accounting.sql').read_text())
     sql((root/'01-upload.sql').read_text())
     sql((root/'02-total-quota.sql').read_text())
