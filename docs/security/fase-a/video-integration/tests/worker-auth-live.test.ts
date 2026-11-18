@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { workerAuthorization } from "../../../../supabase/functions/_shared/webhook-worker-auth.ts";
+import { workerAuthorization } from "../../../../../supabase/functions/_shared/webhook-worker-auth.ts";
 
 const secrets = { service: "service-fixture", legacy: "legacy-fixture" };
 const req = (headers: Record<string, string> = {}) =>
