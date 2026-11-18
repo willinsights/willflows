@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { format, startOfMonth, endOfMonth, isWithinInterval, addMonths, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval, addMonths } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 
