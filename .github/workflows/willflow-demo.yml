@@ -1,0 +1,30 @@
+name: WillFlow 2.0 isolated demo checks
+
+on:
+  pull_request:
+    paths:
+      - 'demo/**'
+      - '.github/workflows/willflow-demo.yml'
+  push:
+    branches:
+      - willflow-2-demo-static
+    paths:
+      - 'demo/**'
+      - '.github/workflows/willflow-demo.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate standalone product demo without network
+        run: node demo/test-demo.cjs
