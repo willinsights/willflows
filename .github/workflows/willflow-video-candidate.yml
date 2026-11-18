@@ -28,3 +28,26 @@ jobs:
         run: bun x vitest run --config docs/security/fase-a/video-integration/vitest.config.ts
       - name: Verify candidate SHA256 hashes
         run: cd docs/security/fase-a/video-integration && sha256sum --check SHA256SUMS
+
+
+  candidate-overlay-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v4
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Install dependencies without lifecycle scripts
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Overlay isolated candidates only inside CI workspace
+        run: |
+          mkdir -p src/lib
+          cp docs/security/fase-a/video-integration/frontend/lib/quota.ts src/lib/quota.ts
+          cp docs/security/fase-a/video-integration/frontend/lib/durable-upload-client.ts src/lib/durable-upload-client.ts
+          cp docs/security/fase-a/video-integration/frontend/hooks/useVideoVersions.ts src/hooks/useVideoVersions.ts
+          cp docs/security/fase-a/video-integration/frontend/hooks/useWorkspaceStorage.ts src/hooks/useWorkspaceStorage.ts
+          cp docs/security/fase-a/video-integration/frontend/hooks/useAdminStorageMetrics.ts src/hooks/useAdminStorageMetrics.ts
+          cp docs/security/fase-a/video-integration/frontend/components/VideoVersionUpload.tsx src/components/video-production/VideoVersionUpload.tsx
+      - name: Build staged UI without publishing
+        run: bun run build
