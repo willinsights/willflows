@@ -5,10 +5,14 @@ from concurrent.futures import ThreadPoolExecutor
 root=Path(__file__).resolve().parents[1]
 hard=root.parent/'hardening'
 previous=root.parent/'next'
-pg=next(Path('/nix/store').glob('*-postgresql-17.*/bin'))
+pg=next(iter(Path('/nix/store').glob('*-postgresql-17.*/bin')),None)
+if pg is None:
+    system_versions=sorted(Path('/usr/lib/postgresql').glob('*/bin'),reverse=True)
+    if not system_versions: raise RuntimeError('No PostgreSQL binaries: install a local disposable PostgreSQL server')
+    pg=system_versions[0]
 tmp=Path(tempfile.mkdtemp(prefix='fase-a-hardening-'));os.chmod(tmp,0o777)
 env={k:v for k,v in os.environ.items() if not k.startswith(('PG','SUPABASE','DATABASE','LOVABLE'))}
-prefix=['setpriv','--reuid=1000','--regid=1000','--clear-groups']
+prefix=['setpriv','--reuid=1000','--regid=1000','--clear-groups'] if os.geteuid()==0 else []
 def cmd(args,**kw):return subprocess.run(prefix+[str(x) for x in args],env=kw.pop('env',env),check=True,**kw)
 def sql(s):return cmd([pg/'psql','-X','-h',tmp,'-p','55448','-U','fixture','-d','postgres','-At','-v','ON_ERROR_STOP=1'],input=s,text=True,capture_output=True).stdout.strip()
 def reject(s):
