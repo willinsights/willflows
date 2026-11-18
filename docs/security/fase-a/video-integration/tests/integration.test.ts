@@ -42,3 +42,47 @@ it('abort stops persistence, not deletes; changed user cannot access operation',
 it('replacement keeps ID, number and comments in integrated candidate',async()=>{const f=fixture(),b=await f.issue();const first=await f.handlers.process(req,b);const v=f.versions.get(first.versionId);v.comments=['fiction-comment'];f.b={...f.b,operationId:crypto.randomUUID(),replaceVersionId:first.versionId};const issued=await f.handlers.issue(req,f.b);const result=await f.handlers.process(req,{...f.b,...issued});expect(result.versionId).toBe(first.versionId);expect(result.versionNumber).toBe(1);expect(f.versions.get(first.versionId).comments).toEqual(['fiction-comment']);});
 it('total is 12000 not 14000; zero/missing/error fail closed; replacement uses delta',()=>{const q=quotaInfo({storage_used_bytes:11000,storage_limit_bytes:12000});expect(q.limitBytes).toBe(12000);expect(q.canUpload(1001)).toBe(false);expect(q.canUpload(2000,1000)).toBe(true);expect(quotaInfo(null).canUpload(1)).toBe(false);expect(quotaInfo({storage_used_bytes:0,storage_limit_bytes:0}).canUpload(1)).toBe(false);expect(quotaInfo({storage_used_bytes:0,storage_limit_bytes:12000},true).canUpload(1)).toBe(false);});
 it('frontend retries process with same ID and no duplicate PUT; expiry never silently restarts',async()=>{let attempt=0;const bodies:any[]=[];const put=vi.fn(async()=>{});const invoke=vi.fn(async(name,b)=>{bodies.push(b);if(name==='r2-upload-url')return {uploadUrl:'local',key:'key',uploadTicket:'ticket'};if(attempt++===0)throw new Error('UPLOAD_EXPIRED');return {versionId:'v',status:'processing'};});const client=new DurableUploadClient({invoke,put});const file=new File(['fiction'],'ação.mp4');await expect(client.run(file,{workspaceId:ws})).rejects.toThrow('UPLOAD_EXPIRED');await client.run(file,{workspaceId:ws});expect(new Set(bodies.map(x=>x.operationId)).size).toBe(1);expect(put).toHaveBeenCalledTimes(1);});
+
+
+it('coalesces simultaneous run calls for the same File/context into one issue, PUT and process',async()=>{
+  const invocations:string[]=[];
+  let releasePut:()=>void=()=>{};
+  const waitForPut=new Promise<void>(resolve=>{releasePut=resolve;});
+  const put=vi.fn(async()=>{await waitForPut;});
+  const invoke=vi.fn(async(name:string)=>{
+    invocations.push(name);
+    if(name==='r2-upload-url')return {uploadUrl:'http://localhost/fixture',key:'same-key',uploadTicket:'signed'};
+    return {versionId:'one-version',status:'processing'};
+  });
+  const client=new DurableUploadClient({invoke,put});
+  const file=new File(['fiction'],'sample.mp4');
+  const context={workspaceId:ws,projectId:project};
+  const first=client.run(file,context);
+  const second=client.run(file,context);
+  expect(invocations.filter(x=>x==='r2-upload-url')).toHaveLength(1);
+  releasePut();
+  const results=await Promise.all([first,second]);
+  expect(results).toEqual([{versionId:'one-version',status:'processing'},{versionId:'one-version',status:'processing'}]);
+  expect(put).toHaveBeenCalledTimes(1);
+  expect(invocations.filter(x=>x==='stream-process-video')).toHaveLength(1);
+  expect(new Set(invoke.mock.calls.map(call=>call[1]?.operationId).filter(Boolean)).size).toBe(1);
+});
+
+it('retains the same operation and signed URL after a failed PUT instead of issuing a new upload',async()=>{
+  const issued:any[]=[];
+  const invoke=vi.fn(async(name:string,body:any)=>{
+    if(name==='r2-upload-url'){issued.push(body);return {uploadUrl:'http://localhost/fixture',key:'same-key',uploadTicket:'signed'};}
+    return {versionId:'recovered-version',status:'processing'};
+  });
+  let attempts=0;
+  const put=vi.fn(async()=>{attempts++;if(attempts===1)throw new Error('NETWORK_INTERRUPTED');});
+  const client=new DurableUploadClient({invoke,put});
+  const file=new File(['fixture'],'retry.mp4');
+  const context={workspaceId:ws,projectId:project};
+  await expect(client.run(file,context)).rejects.toThrow('NETWORK_INTERRUPTED');
+  const result=await client.run(file,context);
+  expect(result.versionId).toBe('recovered-version');
+  expect(issued).toHaveLength(1);
+  expect(put).toHaveBeenCalledTimes(2);
+  expect(invoke.mock.calls.find(call=>call[0]==='stream-process-video')?.[1].operationId).toBe(issued[0].operationId);
+});
