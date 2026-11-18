@@ -53,6 +53,8 @@ jobs:
         run: bun run build
       - name: Type-check staged frontend overlay
         run: bun x tsc --noEmit -p tsconfig.app.json
+      - name: Regress staged upload hook feedback with jsdom
+        run: bun x vitest run src/hooks/__tests__/useVideoUploadFeedback.test.tsx --environment jsdom
 
   candidate-deno-check:
     runs-on: ubuntu-latest
