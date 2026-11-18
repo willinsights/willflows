@@ -168,7 +168,8 @@ serve(async (req) => {
         throw new Error("Failed to initialize workspace storage");
       }
     } else {
-      const totalLimit = (storageData.storage_limit_bytes || 0) + (storageData.extra_storage_bytes || 0);
+      // storage_limit_bytes is already the contracted total (base + addons).
+      const totalLimit = storageData.storage_limit_bytes || 0;
       const currentUsed = storageData.storage_used_bytes || 0;
       const remainingBytes = totalLimit - currentUsed;
 

@@ -1,0 +1,41 @@
+name: WillFlow quota total contract checks
+
+on:
+  pull_request:
+    paths:
+      - 'src/hooks/useAdminStorageMetrics.ts'
+      - 'supabase/functions/r2-upload-url/index.ts'
+      - 'docs/security/fase-a/quota-preflight/**'
+      - '.github/workflows/willflow-quota-total.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  quota-ui-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Compile frontend
+        run: bun run build
+      - name: Check frontend types
+        run: bun x tsc --noEmit -p tsconfig.app.json
+      - name: Ensure no double add-on quota at the R2 or metrics call sites
+        run: |
+          grep -Fq 'const totalLimit = storageData.storage_limit_bytes || 0;' supabase/functions/r2-upload-url/index.ts
+          grep -Fq 'const totalLimit = baseLimit;' src/hooks/useAdminStorageMetrics.ts
+          if grep -Fq 'const totalLimit = baseLimit + extraBytes;' src/hooks/useAdminStorageMetrics.ts; then exit 1; fi
+  quota-edge-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Check R2 upload URL function
+        run: deno check --node-modules-dir=none supabase/functions/r2-upload-url/index.ts
