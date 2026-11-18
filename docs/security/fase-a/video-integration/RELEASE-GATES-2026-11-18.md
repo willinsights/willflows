@@ -5,7 +5,7 @@
 ## Confirmado no GitHub Actions
 
 - Pull Request #2: https://github.com/willinsights/willflows/pull/2
-- 28 testes Vitest aprovados, incluindo duas chamadas concorrentes ao mesmo upload, recuperação incerta, transferência falhada e validação de quota de substituição.
+- 29 testes Vitest isolados aprovados, incluindo duas chamadas concorrentes ao mesmo upload, recuperação incerta, transferência falhada, recibo assinado obrigatório antes do PUT e validação de quota de substituição. Mais 1 teste de regressão jsdom do hook de upload aprovado no overlay.
 - Manifesto SHA-256 verificado no CI.
 - Build Vite com sobreposição temporária dos candidatos no runner: aprovado.
 - Verificação de tipos da interface temporária com `tsc --noEmit -p tsconfig.app.json`: aprovada.
