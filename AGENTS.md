@@ -24,3 +24,5 @@
 - Hardening candidates use one transaction-scoped statement lock for video/quota writers, fenced durable push/cron claims, and a partial unique open-discrepancy identity. Why: serialize accounting and prevent concurrent duplicate side effects without unsafe lease reclamation.
 - Staged push selection excludes blocked claims before batching and chat delivery normalizes the existing service-worker contract; staged Stripe association derives from the exact subscription, never workspace ownership. Why: prevent starvation and preserve schema-compatible identity without touching production.
 - Durable-upload candidates bind issuance to an operation ID, persist version/quota atomically and hold retired assets in a non-cascading outbox; provider claims never expire automatically. Why: retries and parent deletion must not duplicate copies or lose recovery evidence.
+
+- Integrated video candidates reserve only positive quota deltas per durable operation under the accounting lock; abort holds partial assets and uncertain provider claims cannot be reclaimed. Why: avoid oversubscription and duplicate external copies without destructive recovery.

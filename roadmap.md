@@ -1,6 +1,7 @@
 # Roadmap — pendências da auditoria
 
 ## Retoma das pendências — novembro 2026
+- [ ] Base 24869199: núcleo vídeo/quota isolado preparado em video-integration; 24 Vitest/13 grupos PG + 5 next/19 G04 regressivos PASS. Fecho bloqueado por créditos: compilação/cópia UI, tickets abas antigas, imutabilidade HEAD, writers SQL standalone/fencing/rollback; lista exacta em STATUS.md. Stripe primeiro lote permanece separado e NO-GO operacional
 - [x] Base 317ef62b: recursos operacionais lidos (logs alvo ausentes; backups/export activo não acessíveis), upload durável/outbox/contratos quota e Stripe mínimo isolados, SQL/reversão/testes em docs/security/fase-a/next
 - [ ] Produção continua bloqueada: proprietário confirmar contrato total/número replacement, timestamp backup, artefacto/version e drenagem; aprovação específica pacote Stripe antes de SQL/função/pausa; 46 push intocados e contador sem ajuste
 - [x] Base d5279982: baseline agregado/catálogo; cascatas, produtor push/starvation e enriquecimento Stripe ajustados isoladamente; 27 Vitest/26 grupos PG/2 Deno; plano em hardening/BASELINE-2026-11-17.md
