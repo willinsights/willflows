@@ -21,6 +21,12 @@ export class DurableUploadClient {
     const execute=async()=>{
       const body={...context,fileName:file.name,fileSize:file.size,mimeType:file.type,operationId:a.id};
       if(!a.issued)a.issued=await this.transport.invoke('r2-upload-url',body);
+      // Never PUT bytes to R2 until a signed receipt for this operation exists.
+      // Old-tab compatibility is handled server-side; new issues must be v2.
+      if(typeof a.issued?.uploadTicket!=='string'||!a.issued.uploadTicket.trim()||
+         typeof a.issued.key!=='string'||!a.issued.key||
+         (a.issued.operationId&&a.issued.operationId!==a.id))
+        throw new Error('UPLOAD_TICKET_REQUIRED');
       if(a.controller.signal.aborted)throw new Error('UPLOAD_ABORTED');
       if(a.issued.uploadUrl&&!a.uploaded){
         await this.transport.put(a.issued.uploadUrl,file,a.controller.signal,progress);
