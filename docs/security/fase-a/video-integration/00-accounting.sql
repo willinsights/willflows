@@ -1,5 +1,23 @@
 BEGIN;
 -- Separate candidate, requires prior phase-A schema. NOT a production migration.
+-- Never install the new counter ownership model over an unreconciled
+-- legacy drift. One live workspace currently differs; operator must review
+-- and approve its exact correction in a separate, audited transaction.
+DO $integrity$
+BEGIN
+ IF EXISTS (
+   SELECT 1 FROM public.workspace_storage s
+   LEFT JOIN (
+      SELECT workspace_id,COALESCE(SUM(
+        CASE WHEN is_deleted IS NOT TRUE THEN
+          COALESCE(file_size_bytes,0)+COALESCE(replacement_file_size_bytes,0)
+          ELSE 0 END
+      ),0) AS computed
+      FROM public.video_versions GROUP BY workspace_id
+   ) v ON v.workspace_id=s.workspace_id
+   WHERE s.storage_used_bytes IS DISTINCT FROM COALESCE(v.computed,0)
+ ) THEN RAISE EXCEPTION 'VIDEO_ACCOUNTING_BASELINE_MISMATCH: reconcile before migration'; END IF;
+END $integrity$;
 CREATE FUNCTION public.lock_video_accounting() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
 BEGIN PERFORM pg_advisory_xact_lock(742019,1); RETURN NULL; END $$;
