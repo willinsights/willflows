@@ -1,0 +1,47 @@
+name: WillFlow safe storage refresh
+
+on:
+  pull_request:
+    paths:
+      - 'src/hooks/useWorkspaceStorage.ts'
+      - 'src/components/storage/StorageManagerTab.tsx'
+      - 'src/components/video-production/StorageManagementCard.tsx'
+      - '.github/workflows/willflow-safe-storage-refresh.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  read-only-refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install dependencies without running package scripts
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Compile frontend
+        run: bun run build
+      - name: Type-check frontend
+        run: bun x tsc --noEmit -p tsconfig.app.json
+      - name: Prevent regression to destructive manual recount
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          code=Path('src/hooks/useWorkspaceStorage.ts').read_text()
+          start=code.index('// Refresh the displayed storage counter')
+          end=code.index('// Add bytes to storage used',start)
+          refresh=code[start:end]
+          assert 'invalidateQueries' in refresh
+          assert ".update(" not in refresh
+          assert ".from('video_versions')" not in refresh
+          assert 'storage_used_bytes: totalBytes' not in code
+          assert 'recalculate: refreshStorage' in code
+          for path in (
+              'src/components/storage/StorageManagerTab.tsx',
+              'src/components/video-production/StorageManagementCard.tsx',
+          ):
+              component=Path(path).read_text()
+              assert 'Atualizar' in component and 'Recalcular' not in component
+          print('PASS: manual counter refresh cannot overwrite database bytes')
+          PY
