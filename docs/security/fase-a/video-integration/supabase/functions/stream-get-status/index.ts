@@ -66,6 +66,7 @@ serve(async (req) => {
     }
 
     // Authorize: caller must belong to the video version's workspace (admin/edicao)
+    let authorizedWorkspaceId: string | null = null;
     {
       const { data: versionRow, error: verErr } = await supabase
         .from("video_versions")
@@ -100,6 +101,7 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      authorizedWorkspaceId = versionRow.workspace_id;
     }
 
     logStep("Checking stream status", { streamUid });
@@ -163,13 +165,28 @@ serve(async (req) => {
         updateData.stream_playback_url = `https://videodelivery.net/${streamUid}/manifest/video.m3u8`;
       }
 
-      const { error: updateError } = await supabase
+      // Another upload/replacement may have superseded this UID while Stream
+      // responded. Only update the exact version/UID observed at authorization.
+      const uidColumn = isReplacement ? "replacement_stream_uid" : "cloudflare_stream_uid";
+      const { data: committed, error: updateError } = await supabase
         .from("video_versions")
         .update(updateData)
-        .eq("id", versionId);
+        .eq("id", versionId)
+        .eq("workspace_id", authorizedWorkspaceId)
+        .eq("is_deleted", false)
+        .eq(uidColumn, streamUid)
+        .select("id")
+        .maybeSingle();
 
       if (updateError) {
         logStep("Error updating version", { error: updateError.message });
+        throw new Error("VERSION_UPDATE_UNCONFIRMED");
+      }
+      if (!committed) {
+        return new Response(JSON.stringify({ error: "Video superseded", code: "RESULT_SUPERSEDED" }), {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       // Auto-enable downloads when video is ready
