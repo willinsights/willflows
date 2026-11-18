@@ -128,3 +128,20 @@ it('keeps an uncertain upload attached until recovery confirms processing',async
   expect(new Set(issueIds).size).toBe(2);
   expect(put).toHaveBeenCalledTimes(2);
 });
+
+
+it('never PUTs R2 bytes when the signed upload receipt is missing or mismatched',async()=>{
+  for(const response of [
+    {uploadUrl:'http://localhost/r2',key:'asset'},
+    {uploadUrl:'http://localhost/r2',key:'asset',uploadTicket:''},
+    {uploadUrl:'http://localhost/r2',key:'asset',uploadTicket:'signed',operationId:other},
+  ]){
+    const invoke=vi.fn(async(name:string)=>response);
+    const put=vi.fn(async()=>{});
+    const client=new DurableUploadClient({invoke,put});
+    await expect(client.run(new File(['video'],'no-receipt.mp4'),{workspaceId:ws,projectId:project}))
+      .rejects.toThrow('UPLOAD_TICKET_REQUIRED');
+    expect(put).not.toHaveBeenCalled();
+    expect(invoke).toHaveBeenCalledTimes(1);
+  }
+});
