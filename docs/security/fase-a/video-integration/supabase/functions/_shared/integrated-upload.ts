@@ -8,7 +8,7 @@ export interface Dependencies {
   authenticate:(req:Request)=>Promise<string|null>;
   signPut:(key:string,type:string,seconds:number)=>Promise<string>;
   head:(key:string)=>Promise<{size:number;etag:string}|null>;
-  copy:(key:string,meta:Record<string,string>)=>Promise<string>;
+  copy:(key:string,meta:Record<string,string>,etag:string,size:number)=>Promise<string>;
   findAccepted:(operationId:string)=>Promise<Array<{uid:string;operation_id:string;key:string;workspace_id:string;version_id:string}>>;
 }
 export function uploadHandlers(d:Dependencies) {
@@ -85,12 +85,20 @@ export function uploadHandlers(d:Dependencies) {
     }
     if(!storedKeyMatchesVersion(op.object_key,{...c,uploaded_by:u}))throw new UploadFailure('KEY_MISMATCH',403);
     if(op.state==='aborted')throw new UploadFailure('UPLOAD_ABORTED',409);
-    if(op.state==='issued'){
-      if(Date.parse(op.expires_at)<=now())throw new UploadFailure('UPLOAD_EXPIRED',409);
-      const facts=await d.head(op.object_key);
-      if(!facts||facts.size!==Number(op.file_size)||!facts.etag)throw new UploadFailure('HEAD_MISMATCH',409);
+    let verifiedSource:{size:number;etag:string}|null=null;
+    if(op.state==='issued'||op.state==='persisted'){
+      if(op.state==='issued'&&Date.parse(op.expires_at)<=now())throw new UploadFailure('UPLOAD_EXPIRED',409);
+      verifiedSource=await d.head(op.object_key);
+      if(!verifiedSource||verifiedSource.size!==Number(op.file_size)||!verifiedSource.etag)
+        throw new UploadFailure('HEAD_MISMATCH',409);
     }
-    const result=await processDurableUpload(d.db,op.id,u,d.bucket,()=>d.copy(op.object_key,{operationId:op.id,key:op.object_key,workspaceId:c.workspace_id,projectId:c.project_id,versionId:op.version_id}));
+    const result=await processDurableUpload(d.db,op.id,u,d.bucket,()=>{
+      if(!verifiedSource)throw new Error('FROZEN_SOURCE_UNCONFIRMED');
+      return d.copy(op.object_key,{
+        operationId:op.id,key:op.object_key,workspaceId:c.workspace_id,
+        projectId:c.project_id,versionId:op.version_id,
+      },verifiedSource.etag,verifiedSource.size);
+    });
     const current=await d.db.from('video_upload_operations').select('*').eq('id',op.id).maybeSingle();
     const version=await d.db.from('video_versions').select('*').eq('id',op.version_id).maybeSingle();
     if(current.error||version.error||!version.data||version.data.is_deleted||version.data.r2_key!==op.object_key)throw new UploadFailure('RESULT_SUPERSEDED',409);
