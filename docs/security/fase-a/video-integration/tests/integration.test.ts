@@ -86,3 +86,16 @@ it('retains the same operation and signed URL after a failed PUT instead of issu
   expect(put).toHaveBeenCalledTimes(2);
   expect(invoke.mock.calls.find(call=>call[0]==='stream-process-video')?.[1].operationId).toBe(issued[0].operationId);
 });
+
+
+it('quota preflight rejects impossible replacement credit and unsafe integer arithmetic',()=>{
+  const existing=quotaInfo({storage_used_bytes:100,storage_limit_bytes:100});
+  expect(existing.canUpload(100,101)).toBe(false);
+  expect(existing.canUpload(100,100)).toBe(true);
+  expect(existing.canUpload(101,100)).toBe(false);
+  expect(existing.canUpload(1, -1)).toBe(false);
+  const large=quotaInfo({storage_used_bytes:Number.MAX_SAFE_INTEGER-1,storage_limit_bytes:Number.MAX_SAFE_INTEGER});
+  expect(large.canUpload(3)).toBe(false);
+  expect(large.canUpload(2,1)).toBe(true);
+  expect(quotaInfo({storage_used_bytes:NaN,storage_limit_bytes:100}).canUpload(1)).toBe(false);
+});
