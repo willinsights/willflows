@@ -7,6 +7,8 @@ import { Logo } from '@/components/ui/logo';
 import { useLocation } from 'react-router-dom';
 import { labelFromSegment } from '@/lib/route-labels';
 import { useCommandPalette } from '@/components/command/CommandPaletteProvider';
+import { Link } from 'react-router-dom';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 export function MobileAppHeader() {
   const location = useLocation();
