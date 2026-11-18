@@ -362,7 +362,7 @@ export function StorageManagerTab() {
               disabled={isRecalculating}
             >
               <RefreshCw className={cn("h-4 w-4 mr-1", isRecalculating && "animate-spin")} />
-              Recalcular
+              Atualizar
             </Button>
             <Button size="sm" className="gradient-primary">
               <Sparkles className="h-4 w-4 mr-1" />

@@ -38,7 +38,7 @@ export function useWorkspaceStorage() {
   const queryClient = useQueryClient();
 
   // Fetch storage data
-  const { data: storageData, isLoading, error } = useQuery({
+  const { data: storageData, isLoading, isFetching, error } = useQuery({
     queryKey: ['workspace-storage', workspace?.id],
     queryFn: async (): Promise<WorkspaceStorageData | null> => {
       if (!workspace?.id) return null;
@@ -87,38 +87,13 @@ export function useWorkspaceStorage() {
     },
   });
 
-  // Recalculate storage used (sum of all video file sizes)
-  const recalculateMutation = useMutation({
-    mutationFn: async () => {
-      if (!workspace?.id) throw new Error('No workspace');
-
-      // Sum all video file sizes for this workspace
-      const { data: videos, error: videosError } = await supabase
-        .from('video_versions')
-        .select('file_size_bytes')
-        .eq('workspace_id', workspace.id);
-
-      if (videosError) throw videosError;
-
-      const totalBytes = videos?.reduce((sum, v) => sum + (v.file_size_bytes || 0), 0) || 0;
-
-      // Update storage record
-      const { error: updateError } = await supabase
-        .from('workspace_storage')
-        .update({
-          storage_used_bytes: totalBytes,
-          last_calculated_at: new Date().toISOString(),
-        })
-        .eq('workspace_id', workspace.id);
-
-      if (updateError) throw updateError;
-
-      return totalBytes;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workspace-storage', workspace?.id] });
-    },
-  });
+  // Refresh the displayed storage counter without ever rewriting the database.
+  // Only a privileged, separately audited reconciliation may change this value.
+  // The old UI recalculate included soft-deleted versions and overwrote the counter.
+  const refreshStorage = useCallback(async () => {
+    if (!workspace?.id) return;
+    await queryClient.invalidateQueries({ queryKey: ['workspace-storage', workspace.id] });
+  }, [workspace?.id, queryClient]);
 
   // Add bytes to storage used (after upload)
   const addStorageUsed = useCallback(async (bytes: number) => {
@@ -194,7 +169,7 @@ export function useWorkspaceStorage() {
     error,
     addStorageUsed,
     removeStorageUsed,
-    recalculate: recalculateMutation.mutate,
-    isRecalculating: recalculateMutation.isPending,
+    recalculate: refreshStorage,
+    isRecalculating: isFetching,
   };
 }

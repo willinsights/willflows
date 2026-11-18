@@ -134,7 +134,7 @@ export function StorageManagementCard({ className }: StorageManagementCardProps)
               {isRecalculating ? (
                 <Loader2 className="h-3 w-3 animate-spin mr-1" />
               ) : null}
-              Recalcular
+              Atualizar
             </Button>
           </div>
         </div>
