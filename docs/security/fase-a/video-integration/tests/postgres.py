@@ -141,6 +141,8 @@ try:
     print('PASS legacy 3-part project keys undefined/null/project are reserved then aborted safely')
     assert sql("SELECT effective_video_quota(12000,10000,2000,'total')")=='12000'
     assert sql("SELECT effective_video_quota(12000,10000,2000,'base_extra')")=='12000'
+    assert sql("SELECT effective_video_quota(12000,NULL,NULL,'total')")=='12000'
+    reject("SELECT effective_video_quota(12000,NULL,2000,'base_extra')")
     reject("SELECT effective_video_quota(12000,10000,-1,'total')")
     sql(f"INSERT INTO video_versions(id,workspace_id,project_id,file_size_bytes,is_deleted) VALUES(gen_random_uuid(),'{ws}','{v}',12000,false);")
     reject(f"INSERT INTO video_versions(id,workspace_id,project_id,file_size_bytes,is_deleted) VALUES(gen_random_uuid(),'{ws}','{v}',1,false);")
