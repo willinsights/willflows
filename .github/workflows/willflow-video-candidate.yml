@@ -70,3 +70,18 @@ jobs:
         run: |
           deno check --node-modules-dir=none docs/security/fase-a/video-integration/supabase/functions/_shared/runtime.ts
           deno check --node-modules-dir=none docs/security/fase-a/video-integration/supabase/functions/_shared/integrated-upload.ts
+
+  candidate-postgres-fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v4
+      - name: Install local PostgreSQL for a disposable Unix-socket fixture
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql postgresql-client
+      - name: Run isolated multi-tenant, legacy, quota, rollback and concurrency checks
+        run: python3 docs/security/fase-a/video-integration/tests/postgres.py
