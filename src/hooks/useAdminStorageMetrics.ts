@@ -98,7 +98,8 @@ export function useAdminStorageMetrics() {
         const usedBytes = storage?.storage_used_bytes || 0;
         const baseLimit = storage?.storage_limit_bytes || 10 * 1024 * 1024 * 1024; // 10GB default
         const extraBytes = storage?.extra_storage_bytes || 0;
-        const totalLimit = baseLimit + extraBytes;
+        // Do not add extra_storage_bytes twice: storage_limit_bytes already includes it.
+        const totalLimit = baseLimit;
         const percentUsed = totalLimit > 0 ? (usedBytes / totalLimit) * 100 : 0;
 
         return {
