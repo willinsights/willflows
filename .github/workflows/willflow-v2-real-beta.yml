@@ -1,0 +1,53 @@
+name: WillFlow 2.0 real-data beta gate
+
+on:
+  pull_request:
+    paths:
+      - 'src/pages/app/WillFlow2Preview.tsx'
+      - 'src/components/layout/AppSidebar.tsx'
+      - 'src/components/layout/MobileAppHeader.tsx'
+      - 'docs/willflow-v2/**'
+      - '.github/workflows/willflow-v2-real-beta.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  real-beta:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install locked dependencies without scripts
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Type-check frontend
+        run: bun x tsc --noEmit -p tsconfig.app.json
+      - name: Build frontend
+        run: bun run build
+      - name: Read-only authorization and navigation contract
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('src/pages/app/WillFlow2Preview.tsx').read_text()
+          side=Path('src/components/layout/AppSidebar.tsx').read_text()
+          mobile=Path('src/components/layout/MobileAppHeader.tsx').read_text()
+          app=Path('src/App.tsx').read_text()
+          assert 'path="demo-v2" element={<WillFlow2Preview />}' in app
+          assert "membership.role === 'admin'" in src
+          assert "membership.workspace_id === workspace.id" in src
+          assert "membership.is_active" in src
+          tables=('projects','clients','video_versions','payments','invoices','contracts','workspace_storage')
+          for table in tables:
+            assert "from('"+table+"')" in src,table
+          assert src.count(".eq('workspace_id', workspaceId)") == len(tables)
+          for method in ('.insert(','.update(','.delete(','.upsert(','.rpc(','.invoke('):
+            assert method not in src,method
+          assert 'service_role' not in src
+          assert 'count: \'exact\'' in src
+          assert 'Carregar mais 100' in src
+          assert 'Trabalhar no módulo real' in src
+          assert 'to="/app/demo-v2"' in side and '{isAdmin && (' in side
+          assert 'to="/app/demo-v2"' in mobile and '{isAdmin && (' in mobile
+          print('PASS: protected real-data V2 workspace preview; no writes, role-gated mobile and desktop access')
+          PY
