@@ -58,7 +58,31 @@ export function uploadHandlers(d:Dependencies) {
       if(!sameVideoContext(op,c)||op.object_key!==b.key||op.file_name!==b.fileName||Number(op.file_size)!==b.fileSize||op.replace_id!==(b.replaceVersionId??null))throw new UploadFailure('CONTEXT_MISMATCH',403);
       // Expired tickets may only read/recover an ALREADY persisted result; no new mutation/PUT.
       await verifyOperation(b.uploadTicket,ticket(op),d.secret,op.state==='issued'?now():0);
-    }else op=await promoteLegacy(b,c,u);
+    }else {
+      // Old tabs can omit operationId even after receiving a v2 signed ticket.
+      // Look up only by the submitted object key, then verify the v2 signature
+      // against the exact persisted operation. Never trust decoded unsigned data.
+      const byKey=typeof b.key==='string'
+        ? await d.db.from('video_upload_operations').select('*').eq('object_key',b.key).maybeSingle()
+        : {data:null,error:null};
+      if(byKey.error)throw new UploadFailure('UPLOAD_CONFLICT',409);
+      if(byKey.data){
+        const candidate=byKey.data;
+        if(candidate.user_id===u&&sameVideoContext(candidate,c)&&
+           candidate.file_name===b.fileName&&Number(candidate.file_size)===b.fileSize&&
+           candidate.replace_id===(b.replaceVersionId??null)){
+          try {
+            await verifyOperation(b.uploadTicket,ticket(candidate),d.secret,
+              candidate.state==='issued'?now():0);
+            op=candidate;
+          } catch {
+            // A genuine old v1 receipt can still be promoted below. An invalid
+            // v2 signature cannot grant authorization through the v1 verifier.
+          }
+        }
+      }
+      if(!op)op=await promoteLegacy(b,c,u);
+    }
     if(!storedKeyMatchesVersion(op.object_key,{...c,uploaded_by:u}))throw new UploadFailure('KEY_MISMATCH',403);
     if(op.state==='aborted')throw new UploadFailure('UPLOAD_ABORTED',409);
     if(op.state==='issued'){
