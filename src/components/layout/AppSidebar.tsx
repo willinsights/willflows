@@ -6,6 +6,7 @@ import {
   ChevronRight,
   X,
   ExternalLink,
+  Sparkles,
 } from 'lucide-react';
 import { useTotalUnreadMessages } from '@/hooks/useTotalUnreadMessages';
 import { cn } from '@/lib/utils';
