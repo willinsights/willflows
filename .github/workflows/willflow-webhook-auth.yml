@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies without scripts
         run: bun install --frozen-lockfile --ignore-scripts
       - name: Run isolated authentication regression tests
-        run: bun x vitest run docs/security/fase-a/video-integration/tests/worker-auth-live.test.ts
+        run: bun x vitest run --config docs/security/fase-a/video-integration/vitest.config.ts docs/security/fase-a/video-integration/tests/worker-auth-live.test.ts
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
