@@ -166,13 +166,18 @@ serve(async (req) => {
 
     // Update database record if versionId provided - always normalize URLs
     if (versionId) {
-      const updateFields: Record<string, unknown> = {
+      const replacement = boundUidField === "replacement_stream_uid";
+      const updateFields: Record<string, unknown> = replacement ? {
+        replacement_status: result?.status?.state || "ready",
+        replacement_playback_url: canonicalPlaybackUrl,
+        replacement_thumbnail_path: canonicalThumbnail,
+      } : {
         stream_status: result?.status?.state || "ready",
         stream_playback_url: canonicalPlaybackUrl,
         thumbnail_path: canonicalThumbnail,
       };
 
-      if (duration) {
+      if (duration && !replacement) {
         updateFields.duration_seconds = Math.round(duration);
       }
 
