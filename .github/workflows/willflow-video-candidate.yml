@@ -51,3 +51,20 @@ jobs:
           cp docs/security/fase-a/video-integration/frontend/components/VideoVersionUpload.tsx src/components/video-production/VideoVersionUpload.tsx
       - name: Build staged UI without publishing
         run: bun run build
+      - name: Type-check staged frontend overlay
+        run: bun x tsc --noEmit -p tsconfig.app.json
+
+  candidate-deno-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v4
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check candidate edge function entry points
+        run: |
+          deno check docs/security/fase-a/video-integration/supabase/functions/_shared/runtime.ts
+          deno check docs/security/fase-a/video-integration/supabase/functions/_shared/integrated-upload.ts
