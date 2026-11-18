@@ -1,0 +1,43 @@
+name: WillFlow V2 private real-data preview
+
+on:
+  pull_request:
+    paths:
+      - 'src/pages/app/WillFlow2Preview.tsx'
+      - 'src/App.tsx'
+      - '.github/workflows/willflow-private-preview.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  private-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Check TypeScript
+        run: bun x tsc --noEmit -p tsconfig.app.json
+      - name: Build application
+        run: bun run build
+      - name: Verify read-only queries and protected route
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          src = Path('src/pages/app/WillFlow2Preview.tsx').read_text()
+          app = Path('src/App.tsx').read_text()
+          assert '<Route path="demo-v2" element={<WillFlow2Preview />} />' in app
+          assert 'path="/app"' in app and '<ProtectedRoute>' in app
+          assert "membership.role === 'admin'" in src
+          assert "membership.workspace_id === workspace.id" in src
+          for table in ['projects','clients','video_versions','payments','invoices','contracts','workspace_storage']:
+              assert "from('"+table+"')" in src
+          assert src.count(".eq('workspace_id', workspaceId)") == 7
+          for verb in ['.insert(', '.update(', '.delete(', '.upsert(', '.rpc(', '.invoke(']:
+              assert verb not in src, 'Write or external side effect in preview: '+verb
+          assert 'service_role' not in src
+          print('PASS private preview: all 7 sources tenant-scoped, no write calls, admin gate')
+          PY
