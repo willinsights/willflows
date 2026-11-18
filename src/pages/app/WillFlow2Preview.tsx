@@ -12,7 +12,7 @@ import { Card, CardContent } from '@/components/ui/card';
 // IMPORTANT: Never serve project/client/payment data from static public demos.
 type ViewName = 'Projetos' | 'Clientes' | 'Vídeos' | 'Pagamentos' | 'Faturação' | 'Contratos' | 'Armazenamento';
 type PreviewRecord = { id: string; title: string; subtitle: string; status: string; detail: string; value?: number | null };
-type Snapshot = { workspaceId: string; lists: Record<ViewName, PreviewRecord[]>; errors: Partial<Record<ViewName, string>> };
+type Snapshot = { workspaceId: string; lists: Record<ViewName, PreviewRecord[]>; counts: Record<ViewName, number>; errors: Partial<Record<ViewName, string>> };
 const views: ViewName[] = ['Projetos', 'Clientes', 'Vídeos', 'Pagamentos', 'Faturação', 'Contratos', 'Armazenamento'];
 const routes: Record<ViewName, string> = {
   Projetos: '/app/captacao', Clientes: '/app/clientes', Vídeos: '/app/media',
@@ -39,6 +39,10 @@ export default function WillFlow2Preview() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [loading, setLoading] = useState(false);
   const [revision, setRevision] = useState(0);
+  const [limits, setLimits] = useState<Record<ViewName, number>>(() => ({
+    Projetos: 50, Clientes: 50, Vídeos: 50, Pagamentos: 50,
+    Faturação: 50, Contratos: 50, Armazenamento: 1,
+  }));
   const [tab, setTab] = useState<ViewName>('Projetos');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<PreviewRecord | null>(null);
@@ -55,18 +59,18 @@ export default function WillFlow2Preview() {
       // Only explicitly needed fields; never SELECT *, raw content, private tokens, IPs or emails.
       // All queries are filtered by active workspace and executed with the signed-in user's RLS.
       const [projects, clients, videos, payments, invoices, contracts, storage] = await Promise.all([
-        supabase.from('projects').select('id,name,current_phase,agreed_value,delivery_date,is_delivered,created_at')
-          .eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(50),
-        supabase.from('clients').select('id,name,company,is_active,created_at')
-          .eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(50),
-        supabase.from('video_versions').select('id,file_name,version_number,stream_status,is_deleted,created_at')
-          .eq('workspace_id', workspaceId).eq('is_deleted', false).order('created_at', { ascending: false }).limit(50),
-        supabase.from('payments').select('id,description,amount,status,is_receivable,due_date,created_at')
-          .eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(50),
-        supabase.from('invoices').select('id,invoice_number,total,status,issue_date')
-          .eq('workspace_id', workspaceId).order('issue_date', { ascending: false }).limit(50),
-        supabase.from('contracts').select('id,title,status,total_value,created_at')
-          .eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(50),
+        supabase.from('projects').select('id,name,current_phase,agreed_value,delivery_date,is_delivered,created_at', { count: 'exact' })
+          .eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(limits.Projetos),
+        supabase.from('clients').select('id,name,company,is_active,created_at', { count: 'exact' })
+          .eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(limits.Clientes),
+        supabase.from('video_versions').select('id,file_name,version_number,stream_status,is_deleted,created_at', { count: 'exact' })
+          .eq('workspace_id', workspaceId).eq('is_deleted', false).order('created_at', { ascending: false }).limit(limits.Vídeos),
+        supabase.from('payments').select('id,description,amount,status,is_receivable,due_date,created_at', { count: 'exact' })
+          .eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(limits.Pagamentos),
+        supabase.from('invoices').select('id,invoice_number,total,status,issue_date', { count: 'exact' })
+          .eq('workspace_id', workspaceId).order('issue_date', { ascending: false }).limit(limits.Faturação),
+        supabase.from('contracts').select('id,title,status,total_value,created_at', { count: 'exact' })
+          .eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(limits.Contratos),
         supabase.from('workspace_storage').select('id,storage_used_bytes,storage_limit_bytes,extra_storage_bytes')
           .eq('workspace_id', workspaceId).maybeSingle(),
       ]);
@@ -110,15 +114,24 @@ export default function WillFlow2Preview() {
             ' · Extra já incluído: ' + formatBytes(storage.data.extra_storage_bytes),
         }] : [],
       };
-      if (!cancelled) setSnapshot({ workspaceId, lists, errors });
+      const counts: Record<ViewName, number> = {
+        Projetos: projects.count ?? lists.Projetos.length,
+        Clientes: clients.count ?? lists.Clientes.length,
+        Vídeos: videos.count ?? lists.Vídeos.length,
+        Pagamentos: payments.count ?? lists.Pagamentos.length,
+        Faturação: invoices.count ?? lists.Faturação.length,
+        Contratos: contracts.count ?? lists.Contratos.length,
+        Armazenamento: lists.Armazenamento.length,
+      };
+      if (!cancelled) setSnapshot({ workspaceId, lists, counts, errors });
     };
     void collect().catch(() => {
       if (!cancelled) setSnapshot({
-        workspaceId, lists: blank(), errors: Object.fromEntries(views.map(v => [v, 'Falha de ligação. Tenta atualizar.'])) as Partial<Record<ViewName, string>>,
+        workspaceId, lists: blank(), counts: { Projetos: 0, Clientes: 0, Vídeos: 0, Pagamentos: 0, Faturação: 0, Contratos: 0, Armazenamento: 0 }, errors: Object.fromEntries(views.map(v => [v, 'Falha de ligação. Tenta atualizar.'])) as Partial<Record<ViewName, string>>,
       });
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [allowed, workspace?.id, revision]);
+  }, [allowed, workspace?.id, revision, limits]);
 
   const rows = snapshot?.workspaceId === workspace?.id ? snapshot.lists[tab] : [];
   const filtered = useMemo(() => (rows ?? []).filter(x =>
@@ -152,15 +165,29 @@ export default function WillFlow2Preview() {
       </Button><Button asChild variant="outline"><Link to="/app"><ArrowLeft className="mr-2 h-4 w-4" />App atual</Link></Button></div>
     </div>
     <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-950 dark:bg-violet-950/20 dark:text-violet-200 dark:border-violet-900">
-      <strong>Modo de leitura:</strong> só consulta de dados autorizados pela tua sessão e pelas regras do workspace. Nenhum upload, pagamento, convite, envio ou alteração de quotas é executado. Mostra os 50 registos mais recentes por área.
+      <strong>WillFlow 2.0 em ambiente real:</strong> explora dados verdadeiros e abre cards sem alterar registos nesta vista. Os atalhos levam aos módulos produtivos, onde as funções existentes continuam disponíveis. Uploads e migrações novos de vídeo permanecem desativados nesta experiência.
+    </div>
+    <div className="grid gap-3 rounded-2xl border bg-card p-4 shadow-sm sm:grid-cols-3 lg:grid-cols-6">
+      {([
+        ['Captação', '/app/captacao'],
+        ['Edição', '/app/edicao'],
+        ['Financeiro', '/app/financeiro'],
+        ['Calendário', '/app/calendario'],
+        ['Chat', '/app/chat'],
+        ['Equipa', '/app/equipa'],
+      ] as const).map(([label, destination]) => (
+        <Button key={destination} variant="outline" asChild className="justify-between">
+          <Link to={destination}>{label}<ArrowRight className="ml-1 h-3.5 w-3.5" /></Link>
+        </Button>
+      ))}
     </div>
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
       {(['Projetos', 'Clientes', 'Vídeos', 'Pagamentos'] as ViewName[]).map(name =>
         <button key={name} onClick={() => { setTab(name); setSearch(''); setSelected(null); }}
           className="rounded-xl border bg-card p-4 text-left shadow-sm transition hover:border-violet-400 hover:shadow-md">
           <p className="text-sm text-muted-foreground">{name}</p>
-          <p className="mt-2 text-3xl font-bold">{snapshot?.workspaceId === workspace?.id ? snapshot.lists[name].length : '…'}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Registos recentes · abrir →</p>
+          <p className="mt-2 text-3xl font-bold">{snapshot?.workspaceId === workspace?.id ? snapshot.counts[name] : '…'}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Registos do workspace · explorar →</p>
         </button>)}
     </div>
     <div className="flex flex-wrap gap-2">{views.map(name =>
@@ -185,8 +212,23 @@ export default function WillFlow2Preview() {
             {item.value !== undefined && <span className="text-sm font-semibold">{currency(item.value)}</span>}</div>
         </button>)}
       </div>
-      <p className="text-xs text-muted-foreground">Para edição e funcionalidades completas, utiliza o módulo atual do WillFlow, acessível apenas com a tua sessão.</p>
-      <Button asChild variant="outline" size="sm"><Link to={routes[tab]}>Abrir módulo atual <ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+        <p className="text-xs text-muted-foreground">
+          {snapshot?.workspaceId === workspace?.id ? snapshot.lists[tab].length : 0} de {snapshot?.counts[tab] ?? 0} registos carregados.
+          {search ? ' A pesquisa filtra os registos já carregados.' : ''}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {tab !== 'Armazenamento' && snapshot && snapshot.lists[tab].length < snapshot.counts[tab] && (
+            <Button type="button" variant="outline" disabled={loading || limits[tab] >= 2000}
+              onClick={() => setLimits(previous => ({ ...previous, [tab]: Math.min(2000, previous[tab] + 100) }))}>
+              Carregar mais 100
+            </Button>
+          )}
+          <Button asChild variant="default" size="sm"><Link to={routes[tab]}>
+            Trabalhar no módulo real <ArrowRight className="ml-2 h-4 w-4" /></Link>
+          </Button>
+        </div>
+      </div>
     </CardContent></Card>
     {selected && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setSelected(null)}>
       <div role="dialog" aria-modal="true" aria-label="Detalhes do registo" onClick={event => event.stopPropagation()}

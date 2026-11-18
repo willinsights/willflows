@@ -6,6 +6,7 @@ import {
   ChevronRight,
   X,
   ExternalLink,
+  Sparkles,
 } from 'lucide-react';
 import { useTotalUnreadMessages } from '@/hooks/useTotalUnreadMessages';
 import { cn } from '@/lib/utils';
@@ -229,6 +230,27 @@ export function AppSidebar({ collapsed, onToggle, isMobile, autoCollapseOnNav = 
           <TrialBadge variant="full" className="w-full justify-center" />
         )}
       </div>
+
+      {/* Opt-in V2 experience for authenticated workspace administrators only. */}
+      {isAdmin && (
+        <div className={cn('px-3 pb-2', collapsed && !isMobile && 'px-2')}>
+          <NavLink
+            to="/app/demo-v2"
+            aria-label="Experimentar WillFlow 2.0 com dados reais"
+            title={collapsed && !isMobile ? 'WillFlow 2.0' : undefined}
+            onClick={() => !isMobile && !collapsed && autoCollapseOnNav && onToggle()}
+            className={cn(
+              'flex items-center gap-2 rounded-lg border border-violet-400/30 bg-violet-500/10 px-3 py-2 text-sm font-semibold text-violet-700 dark:text-violet-300',
+              'hover:bg-violet-500/20 transition-colors',
+              collapsed && !isMobile && 'justify-center px-2',
+              isActive('/app/demo-v2') && 'ring-2 ring-violet-500/40',
+            )}
+          >
+            <Sparkles className="h-4 w-4 shrink-0" />
+            {(!collapsed || isMobile) && <span>Experimentar WillFlow 2.0</span>}
+          </NavLink>
+        </div>
+      )}
 
       {/* Ver Site Link */}
       <div className={cn('px-3 pb-2', collapsed && !isMobile && 'px-2')}>
