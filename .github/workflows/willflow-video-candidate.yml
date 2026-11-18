@@ -1,0 +1,31 @@
+name: WillFlow video upload candidate tests
+
+on:
+  pull_request:
+    paths:
+      - 'docs/security/fase-a/video-integration/**'
+      - '.github/workflows/willflow-video-candidate.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: willflow-video-candidate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  candidate-vitest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install repository dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run isolated video upload integration tests
+        run: npx vitest run --config docs/security/fase-a/video-integration/vitest.config.ts
