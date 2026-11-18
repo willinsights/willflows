@@ -99,3 +99,32 @@ it('quota preflight rejects impossible replacement credit and unsafe integer ari
   expect(large.canUpload(2,1)).toBe(true);
   expect(quotaInfo({storage_used_bytes:NaN,storage_limit_bytes:100}).canUpload(1)).toBe(false);
 });
+
+
+it('keeps an uncertain upload attached until recovery confirms processing',async()=>{
+  let recoveries=0;
+  const issueIds:string[]=[];
+  const invoke=vi.fn(async(name:string,body:any)=>{
+    if(name==='r2-upload-url'){
+      issueIds.push(body.operationId);
+      return {uploadUrl:'http://localhost/fixture',key:'fixture-key',uploadTicket:'signed'};
+    }
+    if(name==='stream-process-video')return {versionId:'fixture-version',status:'uncertain'};
+    if(name==='video-upload-recover')return {state:++recoveries===1?'submitting':'processing'};
+  });
+  const put=vi.fn(async()=>{});
+  const client=new DurableUploadClient({invoke,put});
+  const file=new File(['video'],'first.mp4');
+  const replacement=new File(['other'],'next.mp4');
+  const context={workspaceId:ws,projectId:project};
+  await expect(client.run(file,context)).rejects.toThrow('PROVIDER_UNCERTAIN');
+  await expect(client.run(replacement,context)).rejects.toThrow('UPLOAD_ALREADY_ACTIVE');
+  await expect(client.recover()).rejects.toThrow('PROVIDER_UNCERTAIN');
+  expect(issueIds).toHaveLength(1);
+  const result=await client.recover();
+  expect(result.state).toBe('processing');
+  await expect(client.run(replacement,context)).rejects.toThrow('PROVIDER_UNCERTAIN');
+  expect(issueIds).toHaveLength(2);
+  expect(new Set(issueIds).size).toBe(2);
+  expect(put).toHaveBeenCalledTimes(2);
+});
