@@ -183,7 +183,7 @@ END $$;
 -- Opt-in service-only reconciliation. Never schedule or delete physical objects automatically.
 -- Expired issued operations may have an already uploaded object; keep the reference held.
 CREATE FUNCTION public.expire_video_issued_operations(p_limit integer DEFAULT 100)
-RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $
+RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
 DECLARE affected integer;
 BEGIN
   IF (current_setting('request.jwt.claims',true)::jsonb->>'role'='service_role') IS NOT TRUE
@@ -204,7 +204,7 @@ BEGIN
   )
   SELECT count(*)::integer INTO affected FROM changed;
   RETURN affected;
-END $;
+END $$;
 REVOKE ALL ON FUNCTION public.expire_video_issued_operations(integer) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.expire_video_issued_operations(integer) TO service_role;
 
