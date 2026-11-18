@@ -3,8 +3,15 @@ BEGIN;
 CREATE FUNCTION public.effective_video_quota(p_total bigint,p_base bigint,p_extra bigint,p_contract text DEFAULT 'total')
 RETURNS bigint LANGUAGE plpgsql IMMUTABLE SET search_path=public AS $$
 BEGIN
-  IF p_contract IS NULL OR p_contract NOT IN ('total','base_extra') OR p_total IS NULL OR p_base IS NULL OR p_extra IS NULL OR least(p_total,p_base,p_extra)<0 THEN RAISE EXCEPTION 'Invalid quota contract'; END IF;
-  IF p_contract='total' THEN RETURN p_total; END IF;
+  IF p_contract IS NULL OR p_contract NOT IN ('total','base_extra') THEN RAISE EXCEPTION 'Invalid quota contract'; END IF;
+  -- Existing workspaces may not have populated base/extra columns. The
+  -- contractual total is authoritative and must not be increased twice.
+  IF p_contract='total' THEN
+    IF p_total IS NULL OR p_total<0 THEN RAISE EXCEPTION 'Invalid quota total'; END IF;
+    RETURN p_total;
+  END IF;
+  IF p_base IS NULL OR p_extra IS NULL OR least(p_base,p_extra)<0 OR p_base>9223372036854775807-p_extra
+    THEN RAISE EXCEPTION 'Invalid additive quota'; END IF;
   RETURN p_base+p_extra;
 END $$;
 REVOKE ALL ON FUNCTION public.effective_video_quota(bigint,bigint,bigint,text) FROM PUBLIC,anon,authenticated;
