@@ -1,0 +1,40 @@
+name: WillFlow V2 finance stability
+
+on:
+  pull_request:
+    paths:
+      - 'src/pages/app/financeiro/FinanceVisao.tsx'
+      - '.github/workflows/willflow-finance-v2.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  finance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install dependencies without lifecycle scripts
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Type-check frontend
+        run: bun x tsc --noEmit -p tsconfig.app.json
+      - name: Build frontend
+        run: bun run build
+      - name: Check React hook order and month semantics
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          source=Path('src/pages/app/financeiro/FinanceVisao.tsx').read_text()
+          first_return=source.index('if (!canViewAllFinancials)')
+          for hook in ('const revSpark = useMemo(', 'const costSpark = useMemo(', 'const profitSpark = useMemo(', 'const topClients = useMemo(', 'const funnel = useMemo(', 'const alerts: FinanceAlert[] = useMemo('):
+            assert source.index(hook) < first_return, f'Hook below conditional return: {hook}'
+          assert 'useFinancialEngine(\'REALIZADO\', currentMonth)' in source
+          assert "startOfMonth(addMonths(previous, delta))" in source
+          assert 'Resultado por competência' in source
+          assert 'Não representa o dinheiro recebido' in source
+          assert 'Mês anterior' in source and 'Mês seguinte' in source
+          assert 'FreelancerPaymentsControl' in source
+          print('PASS: React hooks unconditional; competence/cash distinction; historical navigation')
+          PY
