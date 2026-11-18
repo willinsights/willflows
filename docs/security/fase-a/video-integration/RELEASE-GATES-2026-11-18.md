@@ -39,3 +39,30 @@
 4. Validar um canário não destrutivo autorizado e monitorizar sem duplicar jobs. Ativar limpeza de ficheiros apenas mediante autorização destrutiva separada.
 
 **Não confundir o código pronto para revisão com a versão WillFlow 2.0 operacionalmente concluída.** O lote Stripe separado permanece fora deste Pull Request.
+
+
+## Progresso adicional: compatibilidade, fornecedor, migração e restauro
+
+- **Legado:** pedidos sem `operationId` podem encontrar a operação v2 pela chave persistida e só avançar se o HMAC v2 corresponder integralmente. A ponte v1 continua a exigir comprovativo v1 válido. O SQL de emissão aceita chaves antigas de três segmentos com `undefined`, `null` ou ID do projeto, além das chaves de tarefa. Tickets adulterados são recusados.
+- **Cloudflare R2:** antes de enviar ao Stream, o runtime candidato prepara uma cópia no prefixo privado `__willflow_frozen/`, usando o ETag observado no HEAD como condição na origem e condição de destino sem substituição. A referência fica na outbox `held` antes de qualquer escrita externa. Se a API não satisfizer as condições, não ocorre envio ao Stream; a operação mantém-se incerta. Esta estratégia evita que o PUT assinado do utilizador substitua a entrada de transcodificação, mas o suporte operacional da extensão de destino de R2 (beta) **não foi testado com a conta real**. Sem consumidor destrutivo nem limpeza automática.
+- **Cloudflare Stream:** novas cópias guardam `meta.name=operationId` e a recuperação procura pelo `video_name` exato. Se houver ambiguidade ou resultado limitado, bloqueia novos envios até conciliação humana. Versões antigas sem esse nome exigem reconciliação operacional. Atualizadores candidatos de estado/configurações verificam novamente o UID atual antes de modificar a linha, impedindo writes de respostas obsoletas.
+- **Quota:** contrato total continua a utilizar exclusivamente `storage_limit_bytes`, sem somar extras duas vezes. A migração `00-accounting.sql` passou a rejeitar, de forma transacional, qualquer baseline divergente antes de instalar o novo trigger. A função total aceita campos opcionais base/extra não preenchidos, mas rejeita valores negativos; não há novas concessões comerciais.
+- **Expiração:** operações apenas emitidas, já expiradas, podem ser arquivadas manualmente por função privilegiada sem apagar objetos; o histórico e a referência ficam preservados em `held`. Não existe cron associado.
+- **Reversão:** `rollback-all-empty.sql` desfaz operações/contabilidade numa transação e restaura a versão anterior do trigger, mas **só enquanto não existir histórico/outbox e sem bytes de replacement**. Depois de uso, qualquer rollback destrutivo é rejeitado; requer recuperação progressiva.
+- **Backups:** o ensaio `pg_dump`/`pg_restore` em PostgreSQL descartável é evidência do procedimento, não de backup real. Sem acesso a snapshot/restauro da plataforma não há prova de que um backup verdadeiro seja recuperável.
+
+### Verificações de produção, exclusivamente SELECT (18/11/2026)
+
+- Base de dados Supabase ativada.
+- `workspace_storage`: **19** workspaces, **1 contador divergente**, **0 limites totais ausentes**, **0 contadores negativos**.
+- Colunas base+extra: **0 divisões em falta** e **0 diferenças** relativamente ao total contratual.
+- Gatilho produtivo `trg_sync_storage_video_versions` atualiza só `file_size_bytes`, INSERT e DELETE; não contempla todas as alterações de `is_deleted` ou da substituição. Os novos triggers não estão instalados.
+
+**Resultado: a migração de quotas está deliberadamente em NO-GO enquanto o único contador divergente não for conferido e reconciliado.** Nada foi alterado nesta leitura; nenhuma identificação de cliente foi exposta.
+
+### Evidência e pré-condições de fornecedor
+
+- R2 conditional CopyObject: https://developers.cloudflare.com/r2/api/s3/conditional-operations/
+- R2 destination conditional CopyObject (beta): https://developers.cloudflare.com/r2/api/s3/extensions/
+- Cloudflare Stream exact `video_name`: https://developers.cloudflare.com/api/resources/stream/methods/list/
+- Código e testes estão exclusivamente no PR de revisão; antes de produção é necessário validar R2/Stream contra um ambiente de teste controlado e autorizar a eventual retenção/custo temporário das cópias congeladas.
