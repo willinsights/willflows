@@ -1,0 +1,31 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const html = fs.readFileSync('demo/willflow20.html', 'utf8');
+assert.match(html, /connect-src 'none'/);
+assert.doesNotMatch(html, /<script[^>]+src=|<link[^>]+stylesheet/i);
+assert.doesNotMatch(html, /(?:supabase\.co|cloudflare\.com|stripe\.com|lovable\.app|fetch\s*\()/i);
+const match=html.match(/<script>([\s\S]*?)<\/script>/);
+assert.ok(match, 'Missing application script');
+const script=match[1];
+const elements=new Map();
+function el(k){if(!elements.has(k))elements.set(k,{innerHTML:'',textContent:'',value:'',checked:false,selectionStart:0,scrollHeight:0,scrollTop:0,classList:{toggle(){}},focus(){},setSelectionRange(){}});return elements.get(k)}
+const doc={getElementById:el,querySelector:()=>null,activeElement:{selectionStart:0}};
+const store=new Map();
+const localStorage={getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v)};
+const win={addEventListener(){},scrollTo(){}}, location={hash:''};
+const create=new Function('document','window','location','localStorage','confirm','setTimeout',script+'\nreturn {go,moveProject,toggleTask,markPayment,approveReview,signContract,resetDemo,db,titles};');
+const demo=create(doc,win,location,localStorage,()=>true,()=>0);
+for(const route of Object.keys(demo.titles)){
+ demo.go(route);
+ assert.ok(el('content').innerHTML.length>900, 'Blank screen: '+route);
+ assert.equal(el('crumb').textContent,demo.titles[route]);
+}
+assert.equal(Object.keys(demo.titles).length,19,'Expected 19 navigable modules');
+const project=demo.db.projects[0];
+const before=project.stage;demo.moveProject(project.id,1);assert.equal(project.stage,before+1);
+const task=demo.db.tasks[0];const priorTask=task.done;demo.toggleTask(task.id);assert.equal(task.done,!priorTask);
+const payment=demo.db.payments[0];demo.markPayment(payment.id);assert.equal(payment.status,'Pago');
+const review=demo.db.reviews[0];demo.approveReview(review.id);assert.equal(review.state,'Aprovado');
+const contract=demo.db.contracts[1];demo.signContract(contract.id);assert.equal(contract.status,'Assinado');
+assert.ok(store.get('willflow20-public-demo-v1'),'Demo state not persisted locally');
+console.log('PASS: self-contained HTML, no third-party APIs, 19 pages, sample actions, local-only state');
