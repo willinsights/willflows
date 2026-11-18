@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval, addMonths } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 
@@ -28,7 +28,10 @@ import {
  * Uses the shared financial engine (REALIZADO mode) as single source of truth.
  */
 export default function FinanceVisao() {
-  const [currentMonth] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
+  const navigateMonth = (delta: number) => {
+    setCurrentMonth(previous => startOfMonth(addMonths(previous, delta)));
+  };
   const navigate = useNavigate();
   const { formatCurrency } = useFormatCurrency();
 
@@ -52,28 +55,6 @@ export default function FinanceVisao() {
   const { rows: unbilled } = useUnbilledPool();
   const { teamPayments } = useTeamPayments();
   const { members } = useWorkspaceMembers();
-
-  // ---- Freelancer-only view (single-member workspace or restricted permissions)
-  if (!canViewAllFinancials) {
-    return (
-      <FreelancerPaymentsControl
-        teamPayments={teamPayments as ProjectTeamPayment[]}
-        onStatusChange={handleFreelancerStatusChange}
-        formatCurrency={formatCurrency}
-        members={members.map((m) => ({ user_id: m.user_id, full_name: m.full_name }))}
-        projects={projects.map((p) => ({
-          id: p.id,
-          name: p.name,
-          project_code: p.project_code,
-          client_id: p.client_id,
-          delivery_date: p.delivery_date,
-          delivered_at: p.delivered_at,
-          is_delivered: p.is_delivered,
-        }))}
-        filterByUserId={userId}
-      />
-    );
-  }
 
   const margin =
     metrics.revenue > 0 ? Math.round((metrics.profit / metrics.revenue) * 100) : 0;
@@ -154,8 +135,55 @@ export default function FinanceVisao() {
   const unbilledTotal = unbilled.reduce((s, r) => s + r.agreedValue, 0);
   const monthLabel = format(currentMonth, "MMMM 'de' yyyy", { locale: pt });
 
+  // All hooks above must run on every render, even while role permissions load.
+  // React throws when role changes cause new hooks to appear after an early return.
+  // ---- Freelancer-only view (single-member workspace or restricted permissions)
+  if (!canViewAllFinancials) {
+    return (
+      <FreelancerPaymentsControl
+        teamPayments={teamPayments as ProjectTeamPayment[]}
+        onStatusChange={handleFreelancerStatusChange}
+        formatCurrency={formatCurrency}
+        members={members.map((m) => ({ user_id: m.user_id, full_name: m.full_name }))}
+        projects={projects.map((p) => ({
+          id: p.id,
+          name: p.name,
+          project_code: p.project_code,
+          client_id: p.client_id,
+          delivery_date: p.delivery_date,
+          delivered_at: p.delivered_at,
+          is_delivered: p.is_delivered,
+        }))}
+        filterByUserId={userId}
+      />
+    );
+  }
+
+
   return (
     <div className="space-y-4">
+      <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <p className="text-sm font-semibold">Resultado por competência</p>
+          <p className="text-xs text-muted-foreground">
+            Mostra projetos entregues neste mês. Não representa o dinheiro recebido.
+            Os recebimentos e pagamentos efetivos estão em Movimentos.
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <button type="button" onClick={() => navigateMonth(-1)}
+            className="rounded-md border px-3 py-2 text-sm hover:bg-muted"
+            aria-label="Mês anterior">‹</button>
+          <span className="min-w-[130px] text-center text-sm font-semibold capitalize">{monthLabel}</span>
+          <button type="button" onClick={() => navigateMonth(1)}
+            className="rounded-md border px-3 py-2 text-sm hover:bg-muted"
+            aria-label="Mês seguinte">›</button>
+          <button type="button" onClick={() => setCurrentMonth(startOfMonth(new Date()))}
+            className="rounded-md border px-3 py-2 text-xs hover:bg-muted">
+            Mês atual
+          </button>
+        </div>
+      </div>
       {/* Row 1: Hero (Lucro) + Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
