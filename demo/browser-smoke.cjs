@@ -11,7 +11,6 @@ const server = spawn('python3', ['-m', 'http.server', '8765', '--bind', '127.0.0
       try { await page.goto(base); break; }
       catch (error) { if (retry===14) throw error; await new Promise(resolve=>setTimeout(resolve,300)); }
     }
-    await expect(page.getByText('WillFlow 2.0 · Demo')).toHaveCount(0).catch(()=>{}); // Static demo uses sidebar brand.
     await page.locator('.kpi-card').first().click();
     await expect(page).toHaveURL(/#financeiro$/);
     for (const section of ['captacao', 'crm', 'media', 'pagamentos', 'faturacao', 'contratos', 'equipa', 'planos']) {
