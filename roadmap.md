@@ -1,6 +1,8 @@
 # Roadmap — pendências da auditoria
 
 ## Retoma das pendências — novembro 2026
+- [x] Base 317ef62b: recursos operacionais lidos (logs alvo ausentes; backups/export activo não acessíveis), upload durável/outbox/contratos quota e Stripe mínimo isolados, SQL/reversão/testes em docs/security/fase-a/next
+- [ ] Produção continua bloqueada: proprietário confirmar contrato total/número replacement, timestamp backup, artefacto/version e drenagem; aprovação específica pacote Stripe antes de SQL/função/pausa; 46 push intocados e contador sem ajuste
 - [x] Base d5279982: baseline agregado/catálogo; cascatas, produtor push/starvation e enriquecimento Stripe ajustados isoladamente; 27 Vitest/26 grupos PG/2 Deno; plano em hardening/BASELINE-2026-11-17.md
 - [ ] Gates operacionais finitos: versões/exportação activa, backup e logs de drenagem/HTTP, política dos 46 push antigos; quota exige contrato add-on, operação upload durável/outbox e reconciliação autorizada de 1 contador; não repetir auditoria sem novas evidências
 - [x] Preparar candidatos base ee4c57fd de quota/escritores, push, Stripe e overlap; testes SQL/integração fictícia e matriz em docs/security/fase-a/hardening, sem produção

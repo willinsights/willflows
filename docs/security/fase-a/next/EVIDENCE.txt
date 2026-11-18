@@ -1,0 +1,114 @@
+Base 317ef62b — isolated only, no active paths or production writes
+
+== next-pg.log ==
+PASS independent Stripe SQL race and empty-ledger rollback retain discrepancies without phase-A dependencies
+PASS eight Unicode issuance/persistence retries have one version and one quota credit
+PASS distinct simultaneous uploads allocate nine distinct sequences; delete accounting atomic
+PASS mismatched operation refused; eight submission claims one owner; uncertain never replayed
+PASS replacement preserves version/comment identity; old reference held; superseded retry blocked
+PASS hard delete/rollback retains assets and durable history; late provider result held not lost
+PASS expiry refuses mutation and retains quota
+PASS total/base-extra agree at approved fixture entitlement; 12000 limit not double-counted to 14000
+PASS reconciliation template refuses unspecified baseline; no trigger bypass
+PASS ACL/RLS fail closed, populated rollback refused, parent cascade preserves outbox and operations
+
+
+== next-unit.log ==
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.10 [39m[90m/dev-server[39m
+
+ [32m✓[39m docs/security/fase-a/next/tests/operation.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m docs/security/fase-a/next/tests/stripe-handler.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 145[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m5 passed[39m[22m[90m (5)[39m
+[2m   Start at [22m 06:46:14
+[2m   Duration [22m 1.46s[2m (transform 508ms, setup 0ms, import 1.07s, tests 177ms, environment 0ms)[22m
+
+
+
+== next-deno.log ==
+[0m[32mDownload[0m https://registry.npmjs.org/@supabase%2fsupabase-js
+[0m[32mDownload[0m https://registry.npmjs.org/@opentelemetry%2fapi
+[0m[32mDownload[0m https://registry.npmjs.org/@supabase%2fauth-js
+[0m[32mDownload[0m https://registry.npmjs.org/@supabase%2ffunctions-js
+[0m[32mDownload[0m https://registry.npmjs.org/@supabase%2fpostgrest-js
+[0m[32mDownload[0m https://registry.npmjs.org/@supabase%2frealtime-js
+[0m[32mDownload[0m https://registry.npmjs.org/@supabase%2fstorage-js
+[0m[32mDownload[0m https://registry.npmjs.org/@supabase%2fnode-fetch
+[0m[32mDownload[0m https://registry.npmjs.org/tslib
+[0m[32mDownload[0m https://registry.npmjs.org/@supabase%2fphoenix
+[0m[32mDownload[0m https://registry.npmjs.org/iceberg-js
+[0m[32mDownload[0m https://registry.npmjs.org/whatwg-url
+[0m[32mDownload[0m https://registry.npmjs.org/@types%2fphoenix
+[0m[32mDownload[0m https://registry.npmjs.org/@types%2fws
+[0m[32mDownload[0m https://registry.npmjs.org/ws
+[0m[32mDownload[0m https://registry.npmjs.org/tr46
+[0m[32mDownload[0m https://registry.npmjs.org/webidl-conversions
+[0m[32mDownload[0m https://registry.npmjs.org/@types%2fnode
+[0m[32mDownload[0m https://registry.npmjs.org/bufferutil
+[0m[32mDownload[0m https://registry.npmjs.org/utf-8-validate
+[0m[32mDownload[0m https://registry.npmjs.org/undici-types
+[0m[32mDownload[0m https://registry.npmjs.org/@supabase/supabase-js/-/supabase-js-2.57.2.tgz
+[0m[32mDownload[0m https://registry.npmjs.org/@supabase/node-fetch/-/node-fetch-2.6.15.tgz
+[0m[32mDownload[0m https://registry.npmjs.org/@supabase/realtime-js/-/realtime-js-2.15.5.tgz
+[0m[32mDownload[0m https://registry.npmjs.org/@supabase/storage-js/-/storage-js-2.119.0.tgz
+[0m[32mDownload[0m https://registry.npmjs.org/@supabase/auth-js/-/auth-js-2.71.1.tgz
+[0m[32mDownload[0m https://registry.npmjs.org/@supabase/functions-js/-/functions-js-2.4.5.tgz
+[0m[32mDownload[0m https://registry.npmjs.org/@supabase/postgrest-js/-/postgrest-js-1.21.3.tgz
+[0m[32mDownload[0m https://registry.npmjs.org/whatwg-url/-/whatwg-url-5.0.0.tgz
+[0m[32mDownload[0m https://registry.npmjs.org/ws/-/ws-8.23.0.tgz
+[0m[32mDownload[0m https://registry.npmjs.org/@types/phoenix/-/phoenix-1.6.8.tgz
+[0m[32mDownload[0m https://registry.npmjs.org/@types/ws/-/ws-8.18.2.tgz
+[0m[32mDownload[0m https://registry.npmjs.org/tslib/-/tslib-2.8.1.tgz
+[0m[32mDownload[0m https://registry.npmjs.org/iceberg-js/-/iceberg-js-0.8.1.tgz
+[0m[32mDownload[0m https://registry.npmjs.org/webidl-conversions/-/webidl-conversions-3.0.1.tgz
+[0m[32mDownload[0m https://registry.npmjs.org/tr46/-/tr46-0.0.3.tgz
+[0m[32mDownload[0m https://registry.npmjs.org/@types/node/-/node-26.6.6.tgz
+[0m[32mDownload[0m https://registry.npmjs.org/undici-types/-/undici-types-8.9.0.tgz
+[0m[32mCheck[0m docs/security/fase-a/next/stripe-minimal/supabase/functions/stripe-reconcile/index.ts
+[0m[32mCheck[0m docs/security/fase-a/next/video-operation.ts
+[0m[32mCheck[0m docs/security/fase-a/next/operation-ticket.ts
+
+
+== next-regression.log ==
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.10 [39m[90m/dev-server[39m
+
+ [32m✓[39m docs/security/fase-a/hardening/tests/delivery.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 82[2mms[22m[39m
+ [32m✓[39m docs/security/fase-a/hardening/tests/stripe-handler.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 150[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m11 passed[39m[22m[90m (11)[39m
+[2m   Start at [22m 06:47:46
+[2m   Duration [22m 1.40s[2m (transform 437ms, setup 0ms, import 991ms, tests 232ms, environment 0ms)[22m
+
+
+
+== next-regression-pg.log ==
+PASS push delivery code + real SQL: 8 callers, 1 fictitious provider call, persisted sent
+PASS push timeout persisted uncertain and second provider call blocked
+PASS cron wrapper + SQL: 8 callers run work once
+PASS insert counts primary+replacement once
+PASS replacement size-only update counts delta
+PASS 8 cleanup claims and hard delete never double debit
+PASS concurrent replacement/cleanup with unified statement lock, null deletion legacy covered
+PASS unsafe legacy counter writes/negative sizes/cross-workspace moves refused
+PASS over-limit insert fully rolls back
+PASS failed writer rolls back quota and row together
+PASS 8 push claims have one token
+PASS explicit retry delayed; uncertain never reclaimed; stale token blocked
+PASS all five crons exclude concurrent owners; uncertain is not TTL-reclaimed
+PASS Stripe 8 observations insert once; new post-resolution event retains history; null refused
+PASS effective ACL/RLS and missing claims fail closed
+PASS legacy attempt count preserved; third explicit rejection terminal
+PASS multi-write failure transaction keeps baseline quota
+PASS retry exhaustion has terminal timestamp
+PASS 50 oldest uncertain claims cannot starve eligible row; read RPC fails closed
+PASS 8 Stripe enriched observations preserve FK/user/customer/details; wrong association refused
+PASS task cascade debits once and keeps live workspace quota
+PASS project cascade and rollback preserve row/counter atomicity
+PASS missing quota during live workspace hard delete is refused
+PASS workspace cascade tolerates quota cascade order; Stripe FK SET NULL retained
+PASS real producer SQL filters sender/muted/inactive/system/deleted; 8 repeated events deduplicate; distinct messages remain distinct
+PASS rollback refuses populated delivery/cron ledgers without losing protections
