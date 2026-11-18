@@ -47,6 +47,13 @@ SELECT count(*) AS workspaces_checked,
        count(*) FILTER(WHERE storage_limit_bytes IS NULL) AS missing_limit
 FROM totals;
 
+-- The counter-led aggregate above cannot see versions without a storage row.
+SELECT count(*) AS versions_without_storage
+FROM public.video_versions v
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.workspace_storage s WHERE s.workspace_id = v.workspace_id
+);
+
 -- Backup/restore and HTTP job drain are external operational requirements
 -- and cannot be inferred from catalog SELECTs.
 ROLLBACK;

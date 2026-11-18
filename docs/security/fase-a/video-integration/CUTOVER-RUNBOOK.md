@@ -48,3 +48,7 @@ Consulta de agregados em produção: 19 workspaces; 1 contador divergente; no wo
 - **Orquestração**: reunir as três provas no PR #2 e rever o resultado do GitHub Actions; nenhum agente tem autorização automática para executar operações destrutivas ou implantar o pacote total.
 
 Não há ligação a Cloudflare neste ChatGPT; o projeto Lovable possui zero conectores personalizados. Sem acesso físico do fornecedor e confirmação de restore isolado, o estado continua **NO-GO**.
+
+## Pacote SQL da candidata
+
+O comando `python3 assemble_candidate.py`, executado nesta pasta, escreve o SQL na saída padrão. Verifica os hashes dos três ficheiros e agrupa a contabilidade, as operações de upload e a quota final numa transação. O ensaio em PostgreSQL descartável inclui uma falha no final da terceira etapa e verifica que as tabelas e os triggers das etapas anteriores são revertidos. A validação dos inventários e do restauro continua a preceder qualquer aplicação no ambiente real.

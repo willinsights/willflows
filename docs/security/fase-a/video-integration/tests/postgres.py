@@ -14,9 +14,9 @@ tmp=Path(tempfile.mkdtemp(prefix='fase-a-hardening-'));os.chmod(tmp,0o777)
 env={k:v for k,v in os.environ.items() if not k.startswith(('PG','SUPABASE','DATABASE','LOVABLE'))}
 prefix=['setpriv','--reuid=1000','--regid=1000','--clear-groups'] if os.geteuid()==0 else []
 def cmd(args,**kw):return subprocess.run(prefix+[str(x) for x in args],env=kw.pop('env',env),check=True,**kw)
-def sql(s):
+def sql(s, database="postgres"):
     try:
-        result=cmd([pg/'psql','-X','-h',tmp,'-p','55448','-U','fixture','-d','postgres','-At','-v','ON_ERROR_STOP=1'],input=s,text=True,capture_output=True)
+        result=cmd([pg/'psql','-X','-h',tmp,'-p','55448','-U','fixture','-d',database,'-At','-v','ON_ERROR_STOP=1'],input=s,text=True,capture_output=True)
         return result.stdout.strip()
     except subprocess.CalledProcessError as exc:
         print('DISPOSABLE_FIXTURE_SQL_ERROR:',exc.stderr[-2200:] if exc.stderr else type(exc).__name__,flush=True)
@@ -86,9 +86,18 @@ try:
     assert sql("SELECT count(*) FROM pg_trigger WHERE tgname='guard_storage_counter'")=='0'
     sql(f"DELETE FROM workspaces WHERE id='{drift_ws}';")
     print('PASS quota migration rejects an unreconciled legacy counter before creating triggers')
-    sql((root/'00-accounting.sql').read_text())
-    sql((root/'01-upload.sql').read_text())
-    sql((root/'02-total-quota.sql').read_text())
+    # A version without a counter is invisible to an aggregate led by storage.
+    sql(f"INSERT INTO video_versions(id,workspace_id,file_size_bytes,is_deleted) VALUES(gen_random_uuid(),'{ws}',0,true);")
+    reject((root/'00-accounting.sql').read_text())
+    sql(f"DELETE FROM video_versions WHERE workspace_id='{ws}';")
+    bundle = subprocess.check_output([os.sys.executable, root/'assemble_candidate.py'], text=True)
+    # A failure at the end of the third stage must undo both preceding stages.
+    before_commit, final_commit = bundle.rsplit('COMMIT;', 1)
+    reject(before_commit + 'SELECT 1/0; COMMIT;' + final_commit)
+    assert sql("SELECT to_regclass('video_upload_operations') IS NULL") == 't'
+    assert sql("SELECT count(*) FROM pg_trigger WHERE tgname='guard_storage_counter'") == '0'
+    sql(bundle)
+    print('PASS atomic three-stage candidate, late failure rolls back schema and triggers')
     # Prove the backup/restore procedure only against a disposable synthetic DB.
     # This is NOT evidence of a live Lovable/PostgreSQL backup being restorable.
     dump=tmp/'synthetic-schema.dump'
@@ -212,6 +221,24 @@ try:
     sql(c+f"SELECT persist_video_operation('{owned}','{qid}','fixture');")
     tk=sql(c+f"SELECT claim_video_submission('{owned}');").splitlines()[-1]
     sql(c+f"SELECT finish_video_submission('{owned}','{tk}',NULL);")
+    # Restore a used ledger with an uncertain submission, then recover only the
+    # restored operation. No provider calls and no rewriting the original ledger.
+    connection = ['-h',tmp,'-p','55448','-U','fixture']
+    used_dump = tmp/'used-ledger.dump'
+    cmd([pg/'pg_dump',*connection,'-Fc','-d','postgres','-f',used_dump])
+    cmd([pg/'createdb',*connection,'recovery_fixture'])
+    cmd([pg/'pg_restore',*connection,'-d','recovery_fixture','--exit-on-error',used_dump])
+    for table, order in [('video_upload_operations','id'), ('video_versions','id'),
+                         ('workspace_storage','workspace_id'),
+                         ('video_asset_outbox','workspace_id,provider,asset_key')]:
+        rows = f"SELECT row_to_json(t)::text FROM public.{table} t ORDER BY {order}"
+        original = sql(rows)
+        assert original and sql(rows,'recovery_fixture') == original, table
+    sql(c+f"SELECT recover_video_submission('{owned}','{qid}','recovered-fixture');", 'recovery_fixture')
+    assert sql(f"SELECT state FROM video_upload_operations WHERE id='{owned}'",'recovery_fixture') == 'processing'
+    assert sql(f"SELECT state FROM video_upload_operations WHERE id='{owned}'") == 'uncertain'
+    assert sql(c+f"SELECT claim_video_submission('{owned}');",'recovery_fixture').splitlines()[-1]=='SET'
+    print('PASS populated isolated restore preserves ledger, held assets, quota and recovers without resubmission')
     sql(c+f"SELECT recover_video_submission('{owned}','{qid}','recovered-fixture');")
     assert sql(c+f"SELECT claim_video_submission('{owned}');").splitlines()[-1]=='SET'
     reject(c+f"SELECT abort_video_operation('{owned}','{qid}');")

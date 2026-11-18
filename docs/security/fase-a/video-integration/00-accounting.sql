@@ -8,6 +8,12 @@ LOCK TABLE public.video_versions, public.workspace_storage IN SHARE ROW EXCLUSIV
 DO $integrity$
 BEGIN
  IF EXISTS (
+   SELECT 1 FROM public.video_versions v
+   WHERE NOT EXISTS (
+     SELECT 1 FROM public.workspace_storage s WHERE s.workspace_id = v.workspace_id
+   )
+ ) THEN RAISE EXCEPTION 'VIDEO_ACCOUNTING_MISSING_WORKSPACE_STORAGE'; END IF;
+ IF EXISTS (
    SELECT 1 FROM public.workspace_storage s
    LEFT JOIN (
       SELECT workspace_id,COALESCE(SUM(
