@@ -56,7 +56,7 @@ RETURNS public.video_upload_operations LANGUAGE plpgsql SECURITY DEFINER SET sea
 DECLARE op public.video_upload_operations; old_key text; old_bytes bigint:=0; available bigint; reserve bigint; existing public.video_versions;
 BEGIN
   IF (current_setting('request.jwt.claims',true)::jsonb->>'role'='service_role') IS NOT TRUE THEN RAISE EXCEPTION 'Forbidden'; END IF;
-  IF p_id IS NULL OR p_user IS NULL OR p_ws IS NULL OR p_project IS NULL OR p_size IS NULL OR p_size<=0 OR p_name IS NULL OR length(p_name) NOT BETWEEN 1 AND 255 OR p_key IS NULL OR NOT (p_key LIKE p_ws::text||'/'||p_project::text||'/'||coalesce(p_task::text,'project')||'/'||p_user::text||'/%' OR (array_length(string_to_array(p_key,'/'),1)=3 AND split_part(p_key,'/',1)=p_ws::text AND split_part(p_key,'/',2)=coalesce(p_task::text,p_project::text))) OR p_key LIKE '%..%' OR p_key LIKE '%//%' THEN RAISE EXCEPTION 'Invalid issuance'; END IF;
+  IF p_id IS NULL OR p_user IS NULL OR p_ws IS NULL OR p_project IS NULL OR p_size IS NULL OR p_size<=0 OR p_name IS NULL OR length(p_name) NOT BETWEEN 1 AND 255 OR p_key IS NULL OR NOT (p_key LIKE p_ws::text||'/'||p_project::text||'/'||coalesce(p_task::text,'project')||'/'||p_user::text||'/%' OR (array_length(string_to_array(p_key,'/'),1)=3 AND split_part(p_key,'/',1)=p_ws::text AND ((p_task IS NOT NULL AND split_part(p_key,'/',2)=p_task::text) OR (p_task IS NULL AND split_part(p_key,'/',2) IN (p_project::text,'undefined','null'))))) OR p_key LIKE '%..%' OR p_key LIKE '%//%' THEN RAISE EXCEPTION 'Invalid issuance'; END IF;
   PERFORM pg_advisory_xact_lock(742019,1);
   IF NOT EXISTS(SELECT 1 FROM public.projects WHERE id=p_project AND workspace_id=p_ws) OR
     (p_task IS NOT NULL AND NOT EXISTS(SELECT 1 FROM public.tasks WHERE id=p_task AND project_id=p_project)) OR
@@ -180,6 +180,34 @@ BEGIN
   END IF;
   UPDATE public.video_upload_operations SET state='processing' WHERE id=p_id RETURNING * INTO op;RETURN op;
 END $$;
+-- Opt-in service-only reconciliation. Never schedule or delete physical objects automatically.
+-- Expired issued operations may have an already uploaded object; keep the reference held.
+CREATE FUNCTION public.expire_video_issued_operations(p_limit integer DEFAULT 100)
+RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $
+DECLARE affected integer;
+BEGIN
+  IF (current_setting('request.jwt.claims',true)::jsonb->>'role'='service_role') IS NOT TRUE
+     OR p_limit IS NULL OR p_limit NOT BETWEEN 1 AND 1000 THEN RAISE EXCEPTION 'Forbidden or invalid limit'; END IF;
+  PERFORM pg_advisory_xact_lock(742019,1);
+  WITH selected AS (
+    SELECT id FROM public.video_upload_operations
+    WHERE state='issued' AND expires_at<=now()
+    ORDER BY expires_at,id LIMIT p_limit FOR UPDATE SKIP LOCKED
+  ), changed AS (
+    UPDATE public.video_upload_operations op SET state='aborted'
+    WHERE op.id IN (SELECT id FROM selected) AND op.state='issued'
+    RETURNING op.workspace_id,op.version_id,op.object_key
+  ), saved AS (
+    INSERT INTO public.video_asset_outbox(version_id,workspace_id,provider,asset_key,reason)
+      SELECT version_id,workspace_id,'r2',object_key,'expired_unconfirmed_upload' FROM changed
+    ON CONFLICT DO NOTHING RETURNING 1
+  )
+  SELECT count(*)::integer INTO affected FROM changed;
+  RETURN affected;
+END $;
+REVOKE ALL ON FUNCTION public.expire_video_issued_operations(integer) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.expire_video_issued_operations(integer) TO service_role;
+
 REVOKE ALL ON FUNCTION public.abort_video_operation(uuid,uuid),public.recover_video_submission(uuid,uuid,text) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.abort_video_operation(uuid,uuid),public.recover_video_submission(uuid,uuid,text) TO service_role;
 CREATE FUNCTION public.preserve_issued_assets_on_parent_delete() RETURNS trigger
