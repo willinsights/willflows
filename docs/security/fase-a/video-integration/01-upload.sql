@@ -7,7 +7,7 @@ BEGIN
   -- Existing workspaces may not have populated base/extra columns. The
   -- contractual total is authoritative and must not be increased twice.
   IF p_contract='total' THEN
-    IF p_total IS NULL OR p_total<0 THEN RAISE EXCEPTION 'Invalid quota total'; END IF;
+    IF p_total IS NULL OR p_total<0 OR (p_base IS NOT NULL AND p_base<0) OR (p_extra IS NOT NULL AND p_extra<0) THEN RAISE EXCEPTION 'Invalid quota total'; END IF;
     RETURN p_total;
   END IF;
   IF p_base IS NULL OR p_extra IS NULL OR least(p_base,p_extra)<0 OR p_base>9223372036854775807-p_extra
