@@ -14,7 +14,13 @@ tmp=Path(tempfile.mkdtemp(prefix='fase-a-hardening-'));os.chmod(tmp,0o777)
 env={k:v for k,v in os.environ.items() if not k.startswith(('PG','SUPABASE','DATABASE','LOVABLE'))}
 prefix=['setpriv','--reuid=1000','--regid=1000','--clear-groups'] if os.geteuid()==0 else []
 def cmd(args,**kw):return subprocess.run(prefix+[str(x) for x in args],env=kw.pop('env',env),check=True,**kw)
-def sql(s):return cmd([pg/'psql','-X','-h',tmp,'-p','55448','-U','fixture','-d','postgres','-At','-v','ON_ERROR_STOP=1'],input=s,text=True,capture_output=True).stdout.strip()
+def sql(s):
+    try:
+        result=cmd([pg/'psql','-X','-h',tmp,'-p','55448','-U','fixture','-d','postgres','-At','-v','ON_ERROR_STOP=1'],input=s,text=True,capture_output=True)
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as exc:
+        print('DISPOSABLE_FIXTURE_SQL_ERROR:',exc.stderr[-2200:] if exc.stderr else type(exc).__name__,flush=True)
+        raise
 def reject(s):
     try:sql(s)
     except subprocess.CalledProcessError:return
