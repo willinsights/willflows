@@ -8,7 +8,7 @@ const secret='fiction-only';const req=new Request('http://localhost/test');
 function fixture(){
  const operations=new Map<string,any>(),versions=new Map<string,any>();let now=1000,authenticated:string|null=user;
  const copy=vi.fn(async()=> 'uid-fixture');let head:{size:number;etag:string}|null={size:100,etag:'fiction'};
- const db={from:(table:string)=>{const filters:any={};const q:any={select:()=>q,eq:(k:string,v:any)=>(filters[k]=v,q),maybeSingle:async()=>({data:table==='workspace_members'?(filters.workspace_id===ws&&filters.user_id===user?{role:'edicao',is_active:true}:null):table==='projects'?(filters.id===project?{id:project,workspace_id:ws}:null):table==='tasks'?{id:other,workspace_id:ws,project_id:project}:table==='video_upload_operations'?operations.get(filters.id):versions.get(filters.id)})};return q;},rpc:async(name:string,p:any)=>{
+ const db={from:(table:string)=>{const filters:any={};const q:any={select:()=>q,eq:(k:string,v:any)=>(filters[k]=v,q),maybeSingle:async()=>({data:table==='workspace_members'?(filters.workspace_id===ws&&filters.user_id===user?{role:'edicao',is_active:true}:null):table==='projects'?(filters.id===project?{id:project,workspace_id:ws}:null):table==='tasks'?{id:other,workspace_id:ws,project_id:project}:table==='video_upload_operations'?(filters.id?operations.get(filters.id):[...operations.values()].find(o=>o.object_key===filters.object_key)):versions.get(filters.id)})};return q;},rpc:async(name:string,p:any)=>{
   if(name==='issue_video_operation'){
    const old=operations.get(p.p_id);if(old)return {data:old};
    const v=versions.get(p.p_replace);const op={id:p.p_id,workspace_id:p.p_ws,project_id:p.p_project,task_id:p.p_task,user_id:p.p_user,object_key:p.p_key,file_name:p.p_name,file_size:p.p_size,replace_id:p.p_replace,version_id:v?.id??crypto.randomUUID(),expires_at:new Date(now+14400000).toISOString(),state:'issued'};operations.set(op.id,op);return {data:op};
@@ -144,4 +144,31 @@ it('never PUTs R2 bytes when the signed upload receipt is missing or mismatched'
     expect(put).not.toHaveBeenCalled();
     expect(invoke).toHaveBeenCalledTimes(1);
   }
+});
+
+
+it('accepts a signed v2 ticket from a still-open tab that omitted operationId, without a second provider copy',async()=>{
+ const f=fixture(),issued=await f.issue();
+ const {operationId:omitted,...oldTabBody}=issued;
+ const a=await f.handlers.process(req,oldTabBody);
+ const b=await f.handlers.process(req,oldTabBody);
+ expect(a.versionId).toBe(b.versionId);
+ expect(f.copy).toHaveBeenCalledTimes(1);
+ expect(f.operations.size).toBe(1);
+});
+it.each(['undefined','null',project])('accepts signed legacy three-part project keys (%s) without new provider copy',async segment=>{
+ const f=fixture(),key=`${ws}/${segment}/historical.mp4`;
+ const ticket=await issueUploadTicket({workspace_id:ws,project_id:project,task_id:null,user_id:user,key,file_name:f.b.fileName,file_size:100,replace_version_id:null,expires_at:2000},secret);
+ const b={...f.b,operationId:undefined,key,uploadTicket:ticket};
+ await f.handlers.process(req,b);
+ await f.handlers.process(req,b);
+ expect(f.copy).toHaveBeenCalledTimes(1);
+ expect(f.operations.size).toBe(1);
+});
+it('rejects tampered v2 receipts from old tabs instead of falling back to unsigned context',async()=>{
+ const f=fixture(),issued=await f.issue();
+ const {operationId,...without}=issued;
+ await expect(f.handlers.process(req,{...without,uploadTicket:issued.uploadTicket.slice(0,-1)+'0'}))
+  .rejects.toThrow();
+ expect(f.copy).not.toHaveBeenCalled();
 });
