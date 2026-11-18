@@ -11,10 +11,16 @@ export class DurableUploadClient {
   constructor(private transport:Transport){}
   async run(file:File,context:any,progress:(n:number)=>void=()=>{}) {
     if(!this.active||this.active.file!==file||JSON.stringify(this.active.context)!==JSON.stringify(context)) {
-      if(this.active && !this.active.controller.signal.aborted) throw new Error('UPLOAD_ALREADY_ACTIVE');
+      // A refused issuance has no provider work to recover. After an explicit
+      // cancel, allow a different selection once that request has settled.
+      const previous = this.active;
+      if (previous && (previous.running || previous.issued || !previous.controller.signal.aborted)) {
+        throw new Error('UPLOAD_ALREADY_ACTIVE');
+      }
       this.active={file,context,id:crypto.randomUUID(),uploaded:false,controller:new AbortController()};
     }
     const a=this.active;
+    if(a.controller.signal.aborted)throw new Error('UPLOAD_ABORTED');
     // Coalesce simultaneous retries of this operation. Without this guard two callers
     // could PUT to the same signed object key while the provider copies it.
     if(a.running)return a.running;
@@ -32,6 +38,7 @@ export class DurableUploadClient {
         await this.transport.put(a.issued.uploadUrl,file,a.controller.signal,progress);
         a.uploaded=true;
       }
+      if(a.controller.signal.aborted)throw new Error('UPLOAD_ABORTED');
       const result=await this.transport.invoke('stream-process-video',{...body,key:a.issued.key,uploadTicket:a.issued.uploadTicket});
       if(!result?.versionId || result.status==='uncertain')throw new Error('PROVIDER_UNCERTAIN');
       if(this.active===a)this.active=null;
@@ -42,7 +49,18 @@ export class DurableUploadClient {
     try { return await running; }
     finally { if(this.active===a)a.running=undefined; }
   }
-  async abort(){const a=this.active;if(!a)return; a.controller.abort();await this.transport.invoke('video-upload-abort',{operationId:a.id});}
+  async abort() {
+    const operation = this.active;
+    if (!operation) return;
+    operation.controller.abort();
+    // Wait for issuance or PUT to settle so abort targets the reserved operation.
+    await operation.running?.catch(() => {});
+    const result = await this.transport.invoke('video-upload-abort', {operationId: operation.id});
+    if (result?.id !== operation.id || result?.state !== 'aborted') {
+      throw new Error('CANCELLATION_UNCONFIRMED');
+    }
+    if (this.active === operation) this.active = null;
+  }
   async recover(){
     const a=this.active;
     if(!a)throw new Error('RECOVERY_NOT_REQUIRED');

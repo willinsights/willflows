@@ -172,3 +172,49 @@ it('rejects tampered v2 receipts from old tabs instead of falling back to unsign
   .rejects.toThrow();
  expect(f.copy).not.toHaveBeenCalled();
 });
+
+it('waits for issuance before cancelling and permits reuse of the same File after acknowledgement', async () => {
+  const started: string[] = [];
+  let releaseIssue!: () => void;
+  const pendingIssue = new Promise<void>(resolve => { releaseIssue = resolve; });
+  const put = vi.fn(async () => {});
+  const client = new DurableUploadClient({put, invoke: async (name, body) => {
+    if (name === 'r2-upload-url') {
+      started.push(body.operationId);
+      await pendingIssue;
+      return {uploadUrl: 'local', key: 'test', uploadTicket: 'signed'};
+    }
+    if (name === 'video-upload-abort') return {id: body.operationId, state: 'aborted'};
+    return {versionId: 'test', status: 'processing'};
+  }});
+  const file = new File(['fixture'], 'cancel.mp4');
+  const run = client.run(file, {});
+  const cancellation = client.abort();
+  await expect(client.run(new File(['other'], 'other.mp4'), {})).rejects.toThrow('UPLOAD_ALREADY_ACTIVE');
+  releaseIssue();
+  await expect(run).rejects.toThrow('UPLOAD_ABORTED');
+  await cancellation;
+  expect(put).not.toHaveBeenCalled();
+  await client.run(file, {});
+  expect(new Set(started).size).toBe(2);
+});
+
+it('does not submit after cancellation during PUT and retains an unconfirmed operation', async () => {
+  let startedPut!: () => void;
+  let finishPut!: () => void;
+  const started = new Promise<void>(resolve => { startedPut = resolve; });
+  const finished = new Promise<void>(resolve => { finishPut = resolve; });
+  const invoke = vi.fn(async (name: string) => name === 'r2-upload-url'
+    ? {uploadUrl: 'local', key: 'test', uploadTicket: 'signed'}
+    : {state: 'uncertain'});
+  const client = new DurableUploadClient({invoke, put: async () => { startedPut(); await finished; }});
+  const file = new File(['fixture'], 'cancel.mp4');
+  const run = client.run(file, {});
+  await started;
+  const cancellation = client.abort();
+  finishPut();
+  await expect(run).rejects.toThrow('UPLOAD_ABORTED');
+  await expect(cancellation).rejects.toThrow('CANCELLATION_UNCONFIRMED');
+  await expect(client.run(new File(['other'], 'other.mp4'), {})).rejects.toThrow('UPLOAD_ALREADY_ACTIVE');
+  expect(invoke.mock.calls.map(([name]) => name)).toEqual(['r2-upload-url', 'video-upload-abort']);
+});
