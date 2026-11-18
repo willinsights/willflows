@@ -13,7 +13,7 @@ const doc={getElementById:el,querySelector:()=>null,activeElement:{selectionStar
 const store=new Map();
 const localStorage={getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v)};
 const win={addEventListener(){},scrollTo(){}}, location={hash:''};
-const create=new Function('document','window','location','localStorage','confirm','setTimeout',script+'\nreturn {go,moveProject,toggleTask,markPayment,approveReview,signContract,resetDemo,db,titles};');
+const create=new Function('document','window','location','localStorage','confirm','setTimeout',script+'\nreturn {go,showDetail,moveProject,toggleTask,markPayment,approveReview,signContract,resetDemo,db,titles};');
 const demo=create(doc,win,location,localStorage,()=>true,()=>0);
 for(const route of Object.keys(demo.titles)){
  demo.go(route);
@@ -21,6 +21,29 @@ for(const route of Object.keys(demo.titles)){
  assert.equal(el('crumb').textContent,demo.titles[route]);
 }
 assert.equal(Object.keys(demo.titles).length,19,'Expected 19 navigable modules');
+// All cards must be operable: accessible project/media cards, KPI buttons and table rows.
+demo.go('captacao');
+assert.match(el('content').innerHTML, /onclick="showDetail\('project',1\)"/);
+demo.showDetail('project',1);
+assert.match(el('modal-root').innerHTML,/Campanha Hotel Solare/);
+demo.go('crm');
+assert.match(el('content').innerHTML,/showDetail\('client',1\)/);
+demo.showDetail('client',1);
+assert.match(el('modal-root').innerHTML,/Hotel Solare/);
+demo.go('media');
+assert.match(el('content').innerHTML,/showDetail\('asset',0\)/);
+demo.showDetail('asset',0);
+assert.match(el('modal-root').innerHTML,/Vídeo institucional/);
+demo.go('pagamentos');
+demo.showDetail('payment',1);
+assert.match(el('modal-root').innerHTML,/3600|3\\s*600|3.*600|Campanha Hotel Solare/);
+demo.go('faturacao');
+demo.showDetail('invoice',1);
+assert.match(el('modal-root').innerHTML,/FAT-DEMO-021/);
+demo.go('dashboard');
+assert.match(el('content').innerHTML,/kpi-card/);
+assert.match(el('content').innerHTML,/onclick="go\('financeiro'\)"/);
+assert.doesNotMatch(html,/v\-prod\.lovable\.app/);
 const project=demo.db.projects[0];
 const before=project.stage;demo.moveProject(project.id,1);assert.equal(project.stage,before+1);
 const task=demo.db.tasks[0];const priorTask=task.done;demo.toggleTask(task.id);assert.equal(task.done,!priorTask);
