@@ -20,12 +20,9 @@ jobs:
     steps:
       - name: Checkout pull request
         uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - name: Install repository dependencies without lifecycle scripts
-        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Install dependencies without lifecycle scripts
+        run: bun install --frozen-lockfile --ignore-scripts
       - name: Run isolated video upload integration tests
-        run: npx vitest run --config docs/security/fase-a/video-integration/vitest.config.ts
+        run: bun x vitest run --config docs/security/fase-a/video-integration/vitest.config.ts
