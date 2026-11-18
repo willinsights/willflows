@@ -37,5 +37,15 @@ export class DurableUploadClient {
     finally { if(this.active===a)a.running=undefined; }
   }
   async abort(){const a=this.active;if(!a)return; a.controller.abort();await this.transport.invoke('video-upload-abort',{operationId:a.id});}
-  async recover(){const a=this.active;if(!a)throw new Error('RECOVERY_NOT_REQUIRED');return this.transport.invoke('video-upload-recover',{operationId:a.id});}
+  async recover(){
+    const a=this.active;
+    if(!a)throw new Error('RECOVERY_NOT_REQUIRED');
+    if(a.running)throw new Error('RECOVERY_DURING_UPLOAD');
+    const result=await this.transport.invoke('video-upload-recover',{operationId:a.id});
+    // Recovery may report a late, superseded upload. Keep the operation attached
+    // unless the server confirms that the original version is processing.
+    if(result?.state!=='processing')throw new Error('PROVIDER_UNCERTAIN');
+    if(this.active===a)this.active=null;
+    return result;
+  }
 }
