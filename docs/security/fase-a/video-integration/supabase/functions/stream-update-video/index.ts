@@ -67,6 +67,9 @@ serve(async (req) => {
       });
     }
 
+    // Revalidate the same Stream UID at commit time to fence stale responses.
+    let boundWorkspaceId: string | null = null;
+    let boundUidField = 'cloudflare_stream_uid';
     // Authorize: caller must belong to the video version's workspace (admin/edicao)
     {
       const { data: versionRow, error: verErr } = await supabase
@@ -101,6 +104,8 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      boundWorkspaceId = versionRow.workspace_id;
+      boundUidField = streamUid === versionRow.replacement_stream_uid ? 'replacement_stream_uid' : 'cloudflare_stream_uid';
     }
 
     logStep("Updating video settings", { streamUid, allowedOrigins });
@@ -171,16 +176,27 @@ serve(async (req) => {
         updateFields.duration_seconds = Math.round(duration);
       }
 
-      const { error: dbError } = await supabase
+      const { data: committed, error: dbError } = await supabase
         .from("video_versions")
         .update(updateFields)
-        .eq("id", versionId);
+        .eq("id", versionId)
+        .eq("workspace_id", boundWorkspaceId)
+        .eq("is_deleted", false)
+        .eq(boundUidField, streamUid)
+        .select("id")
+        .maybeSingle();
 
       if (dbError) {
         logStep("Database update error", { error: dbError.message });
-      } else {
-        logStep("Database updated", { versionId, fields: Object.keys(updateFields) });
+        throw new Error("VERSION_UPDATE_UNCONFIRMED");
       }
+      if (!committed) {
+        return new Response(JSON.stringify({ error: "Video superseded", code: "RESULT_SUPERSEDED" }), {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      logStep("Database updated", { versionId, fields: Object.keys(updateFields) });
     }
 
     return new Response(JSON.stringify({
