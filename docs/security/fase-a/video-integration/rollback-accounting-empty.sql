@@ -1,4 +1,6 @@
 BEGIN;
+-- Keep the checked baseline stable until the transaction commits.
+LOCK TABLE public.video_versions, public.workspace_storage IN SHARE ROW EXCLUSIVE MODE NOWAIT;
 -- Only immediately after a migration with no durable operation/outbox history.
 DO $$
 BEGIN

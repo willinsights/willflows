@@ -1,4 +1,6 @@
 BEGIN;
+-- Keep the checked baseline stable until the transaction commits.
+LOCK TABLE public.video_versions, public.workspace_storage, public.video_upload_operations, public.video_asset_outbox IN SHARE ROW EXCLUSIVE MODE NOWAIT;
 -- Atomic rollback only before any durable operation or asset outbox is used.
 DO $$ BEGIN
   IF EXISTS(SELECT 1 FROM public.video_upload_operations) OR EXISTS(SELECT 1 FROM public.video_asset_outbox) THEN

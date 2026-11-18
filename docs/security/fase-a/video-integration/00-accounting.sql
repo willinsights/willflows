@@ -1,4 +1,6 @@
 BEGIN;
+-- Keep the checked baseline stable until the transaction commits.
+LOCK TABLE public.video_versions, public.workspace_storage IN SHARE ROW EXCLUSIVE MODE NOWAIT;
 -- Separate candidate, requires prior phase-A schema. NOT a production migration.
 -- Never install the new counter ownership model over an unreconciled
 -- legacy drift. One live workspace currently differs; operator must review

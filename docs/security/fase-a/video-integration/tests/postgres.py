@@ -25,6 +25,25 @@ def reject(s):
     try:sql(s)
     except subprocess.CalledProcessError:return
     raise AssertionError('Unexpected acceptance')
+def assert_writer_blocks(script, table):
+    # Hold the same table lock acquired by an ordinary INSERT/UPDATE.
+    args = [pg/'psql', '-XqAt', '-h', tmp, '-p', '55448', '-U', 'fixture', '-d', 'postgres']
+    with subprocess.Popen(prefix + list(map(str, args)), env=env, stdin=subprocess.PIPE,
+                          stdout=subprocess.PIPE, text=True) as writer:
+        try:
+            writer.stdin.write(f"BEGIN; LOCK TABLE {table} IN ROW EXCLUSIVE MODE; SELECT 'ready';\n")
+            writer.stdin.flush()
+            assert writer.stdout.readline().strip() == 'ready'
+            try:
+                sql("SET statement_timeout='3s';" + (root/script).read_text())
+            except subprocess.CalledProcessError as error:
+                assert 'could not obtain lock' in error.stderr, error.stderr
+            else:
+                raise AssertionError(f'{script} ran during an active writer on {table}')
+        finally:
+            writer.stdin.close()
+            writer.wait(timeout=5)
+
 def parallel(fn,n=8):
     with ThreadPoolExecutor(max_workers=n) as pool:return list(pool.map(fn,range(n)))
 c="SET request.jwt.claims='{\"role\":\"service_role\"}';"
@@ -50,6 +69,9 @@ try:
     sql((hard/'rollback-sources/quota-trigger.sql').read_text())
     sql((root/'00-accounting.sql').read_text())
     sql((root/'01-upload.sql').read_text())
+    assert_writer_blocks('rollback-all-empty.sql', 'video_asset_outbox')
+    assert_writer_blocks('rollback-upload.sql', 'video_upload_operations')
+    assert_writer_blocks('rollback-accounting-empty.sql', 'video_versions')
     # Atomic rollback before first use restores the legacy trigger, not just tables.
     sql((root/'rollback-all-empty.sql').read_text())
     assert sql("SELECT to_regclass('video_upload_operations') IS NULL")=='t'
@@ -57,6 +79,7 @@ try:
     assert sql("SELECT to_regprocedure('public.expire_video_issued_operations(integer)') IS NULL")=='t'
     assert sql("SELECT count(*) FROM pg_trigger WHERE tgname IN ('guard_storage_counter','video_accounting_serial','storage_accounting_serial')")=='0'
     assert sql("SELECT count(*) FROM pg_trigger WHERE tgname='trg_sync_storage_video_versions'")=='1'
+    assert_writer_blocks('00-accounting.sql', 'workspace_storage')
     drift_ws='bbbbbbbb-1111-4111-8111-111111111111'
     sql(f"INSERT INTO workspaces VALUES('{drift_ws}',NULL); INSERT INTO workspace_storage(workspace_id,storage_used_bytes,storage_limit_bytes) VALUES('{drift_ws}',5,100);")
     reject((root/'00-accounting.sql').read_text())

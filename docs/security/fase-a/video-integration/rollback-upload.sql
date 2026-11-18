@@ -1,4 +1,6 @@
 BEGIN;
+-- Keep the checked baseline stable until the transaction commits.
+LOCK TABLE public.video_upload_operations, public.video_asset_outbox IN SHARE ROW EXCLUSIVE MODE NOWAIT;
 DO $$ BEGIN
   IF EXISTS(SELECT 1 FROM public.video_upload_operations) OR EXISTS(SELECT 1 FROM public.video_asset_outbox) THEN
     RAISE EXCEPTION 'Durable operation/asset history requires forward recovery';
