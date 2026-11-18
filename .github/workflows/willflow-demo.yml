@@ -26,6 +26,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+      - name: Install locked app/test dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
       - name: Validate standalone product demo without network
         run: node demo/test-demo.cjs
       - name: Install Chromium browser for real click tests
