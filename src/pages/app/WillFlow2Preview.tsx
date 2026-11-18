@@ -165,7 +165,21 @@ export default function WillFlow2Preview() {
       </Button><Button asChild variant="outline"><Link to="/app"><ArrowLeft className="mr-2 h-4 w-4" />App atual</Link></Button></div>
     </div>
     <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-950 dark:bg-violet-950/20 dark:text-violet-200 dark:border-violet-900">
-      <strong>Modo de leitura:</strong> só consulta de dados autorizados pela tua sessão e pelas regras do workspace. Nenhum upload, pagamento, convite, envio ou alteração de quotas é executado. Apresenta dados reais da tua conta, com paginação de leitura. Para efetuar alterações usa os módulos atuais, com as permissões habituais.
+      <strong>WillFlow 2.0 em ambiente real:</strong> explora dados verdadeiros e abre cards sem alterar registos nesta vista. Os atalhos levam aos módulos produtivos, onde as funções existentes continuam disponíveis. Uploads e migrações novos de vídeo permanecem desativados nesta experiência.
+    </div>
+    <div className="grid gap-3 rounded-2xl border bg-card p-4 shadow-sm sm:grid-cols-3 lg:grid-cols-6">
+      {([
+        ['Captação', '/app/captacao'],
+        ['Edição', '/app/edicao'],
+        ['Financeiro', '/app/financeiro'],
+        ['Calendário', '/app/calendario'],
+        ['Chat', '/app/chat'],
+        ['Equipa', '/app/equipa'],
+      ] as const).map(([label, destination]) => (
+        <Button key={destination} variant="outline" asChild className="justify-between">
+          <Link to={destination}>{label}<ArrowRight className="ml-1 h-3.5 w-3.5" /></Link>
+        </Button>
+      ))}
     </div>
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
       {(['Projetos', 'Clientes', 'Vídeos', 'Pagamentos'] as ViewName[]).map(name =>
@@ -198,8 +212,23 @@ export default function WillFlow2Preview() {
             {item.value !== undefined && <span className="text-sm font-semibold">{currency(item.value)}</span>}</div>
         </button>)}
       </div>
-      <p className="text-xs text-muted-foreground">Para edição e funcionalidades completas, utiliza o módulo atual do WillFlow, acessível apenas com a tua sessão.</p>
-      <Button asChild variant="outline" size="sm"><Link to={routes[tab]}>Abrir módulo atual <ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+        <p className="text-xs text-muted-foreground">
+          {snapshot?.workspaceId === workspace?.id ? snapshot.lists[tab].length : 0} de {snapshot?.counts[tab] ?? 0} registos carregados.
+          {search ? ' A pesquisa filtra os registos já carregados.' : ''}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {tab !== 'Armazenamento' && snapshot && snapshot.lists[tab].length < snapshot.counts[tab] && (
+            <Button type="button" variant="outline" disabled={loading || limits[tab] >= 2000}
+              onClick={() => setLimits(previous => ({ ...previous, [tab]: Math.min(2000, previous[tab] + 100) }))}>
+              Carregar mais 100
+            </Button>
+          )}
+          <Button asChild variant="default" size="sm"><Link to={routes[tab]}>
+            Trabalhar no módulo real <ArrowRight className="ml-2 h-4 w-4" /></Link>
+          </Button>
+        </div>
+      </div>
     </CardContent></Card>
     {selected && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setSelected(null)}>
       <div role="dialog" aria-modal="true" aria-label="Detalhes do registo" onClick={event => event.stopPropagation()}
