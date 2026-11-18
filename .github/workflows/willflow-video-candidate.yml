@@ -66,5 +66,5 @@ jobs:
           deno-version: v2.x
       - name: Type-check candidate edge function entry points
         run: |
-          deno check docs/security/fase-a/video-integration/supabase/functions/_shared/runtime.ts
-          deno check docs/security/fase-a/video-integration/supabase/functions/_shared/integrated-upload.ts
+          deno check --node-modules-dir=none docs/security/fase-a/video-integration/supabase/functions/_shared/runtime.ts
+          deno check --node-modules-dir=none docs/security/fase-a/video-integration/supabase/functions/_shared/integrated-upload.ts
