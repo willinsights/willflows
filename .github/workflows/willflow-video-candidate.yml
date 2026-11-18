@@ -26,3 +26,5 @@ jobs:
         run: bun install --frozen-lockfile --ignore-scripts
       - name: Run isolated video upload integration tests
         run: bun x vitest run --config docs/security/fase-a/video-integration/vitest.config.ts
+      - name: Verify candidate SHA256 hashes
+        run: cd docs/security/fase-a/video-integration && sha256sum --check SHA256SUMS
