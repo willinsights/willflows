@@ -44,10 +44,17 @@ try:
     sql((hard/'rollback-sources/quota-trigger.sql').read_text())
     sql((root/'00-accounting.sql').read_text())
     sql((root/'01-upload.sql').read_text())
-    sql((root/'rollback-upload.sql').read_text())
+    # Atomic rollback before first use restores the legacy trigger, not just tables.
+    sql((root/'rollback-all-empty.sql').read_text())
     assert sql("SELECT to_regclass('video_upload_operations') IS NULL")=='t'
+    assert sql("SELECT to_regclass('video_asset_outbox') IS NULL")=='t'
+    assert sql("SELECT to_regprocedure('public.expire_video_issued_operations(integer)') IS NULL")=='t'
+    assert sql("SELECT count(*) FROM pg_trigger WHERE tgname IN ('guard_storage_counter','video_accounting_serial','storage_accounting_serial')")=='0'
+    assert sql("SELECT count(*) FROM pg_trigger WHERE tgname='trg_sync_storage_video_versions'")=='1'
+    sql((root/'00-accounting.sql').read_text())
     sql((root/'01-upload.sql').read_text())
     sql((root/'02-total-quota.sql').read_text())
+    print('PASS atomic empty-history rollback restores trigger and permits fresh candidate application')
     sql(f"INSERT INTO workspace_storage(workspace_id,storage_used_bytes,storage_limit_bytes,base_storage_bytes,extra_storage_bytes) VALUES('{ws}',0,12000,10000,2000); INSERT INTO projects VALUES('{v}','{ws}'); INSERT INTO workspace_members VALUES('{ws}','{qid}','edicao',true);")
     op='77777777-7777-4777-8777-777777777777'
     key=f"{ws}/{v}/project/{qid}/fiction.mp4"
@@ -98,6 +105,21 @@ try:
     reject(c+f"SELECT persist_video_operation('{expired}','{qid}','fixture');")
     assert sql('SELECT storage_used_bytes FROM workspace_storage')=='0'
     print('PASS expiry refuses mutation and retains quota')
+    assert sql(c+"SELECT expire_video_issued_operations(100);").splitlines()[-1]=='1'
+    assert sql(c+"SELECT expire_video_issued_operations(100);").splitlines()[-1]=='0'
+    assert sql(f"SELECT state FROM video_upload_operations WHERE id='{expired}'")=='aborted'
+    assert sql(f"SELECT count(*) FROM video_asset_outbox WHERE asset_key='{key}_expired' AND state='held'")=='1'
+    print('PASS expired issued reference is preserved exactly once, without physical deletion')
+    # Historical project-only three-part object keys can legitimately contain
+    # "undefined" or "null" from older JavaScript tabs.
+    for ix,part in enumerate(['undefined','null',v]):
+        ident=f'eeeeeeee-eeee-4eee-8eee-{ix:012d}'
+        oldkey=f'{ws}/{part}/historical_{ix}.mp4'
+        sql(c+f"SELECT issue_video_operation('{ident}','{ws}','{v}',NULL,'{qid}','{oldkey}','old.mp4',1);")
+        assert sql(c+f"SELECT state FROM video_upload_operations WHERE id='{ident}';").splitlines()[-1]=='issued'
+        sql(c+f"SELECT abort_video_operation('{ident}','{qid}');")
+        assert sql(f"SELECT count(*) FROM video_asset_outbox WHERE asset_key='{oldkey}' AND state='held'")=='1'
+    print('PASS legacy 3-part project keys undefined/null/project are reserved then aborted safely')
     assert sql("SELECT effective_video_quota(12000,10000,2000,'total')")=='12000'
     assert sql("SELECT effective_video_quota(12000,10000,2000,'base_extra')")=='12000'
     reject("SELECT effective_video_quota(12000,10000,-1,'total')")
