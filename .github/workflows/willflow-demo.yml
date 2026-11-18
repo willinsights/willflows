@@ -28,3 +28,8 @@ jobs:
           node-version: '22'
       - name: Validate standalone product demo without network
         run: node demo/test-demo.cjs
+      - name: Check the external demo link serves the HTML file
+        run: |
+          curl --fail --location --retry 4 --retry-delay 4 --max-time 30 --silent --show-error https://raw.githack.com/willinsights/willflows/willflow-2-demo-static/demo/willflow20.html --output /tmp/willflow-demo.html
+          grep -Fq 'WillFlow 2.0' /tmp/willflow-demo.html
+          test "$(wc -c < /tmp/willflow-demo.html)" -gt 40000
