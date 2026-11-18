@@ -60,6 +60,19 @@ try:
     sql((root/'00-accounting.sql').read_text())
     sql((root/'01-upload.sql').read_text())
     sql((root/'02-total-quota.sql').read_text())
+    # Prove the backup/restore procedure only against a disposable synthetic DB.
+    # This is NOT evidence of a live Lovable/PostgreSQL backup being restorable.
+    dump=tmp/'synthetic-schema.dump'
+    cmd([pg/'pg_dump','-h',tmp,'-p','55448','-U','fixture','-d','postgres','-Fc','-f',dump],stdout=subprocess.DEVNULL)
+    assert dump.stat().st_size>0
+    cmd([pg/'createdb','-h',tmp,'-p','55448','-U','fixture','restored_fixture'],stdout=subprocess.DEVNULL)
+    cmd([pg/'pg_restore','-h',tmp,'-p','55448','-U','fixture','-d','restored_fixture','--exit-on-error',dump],stdout=subprocess.DEVNULL)
+    restored=cmd([pg/'psql','-X','-h',tmp,'-p','55448','-U','fixture','-d','restored_fixture','-At','-c',
+      "SELECT to_regclass('public.video_upload_operations') IS NOT NULL AND to_regclass('public.video_asset_outbox') IS NOT NULL;"],
+      text=True,capture_output=True).stdout.strip()
+    assert restored=='t'
+    print('PASS synthetic pg_dump/pg_restore to separate fixture database; does not validate real backup')
+
     print('PASS atomic empty-history rollback restores trigger and permits fresh candidate application')
     sql(f"INSERT INTO workspace_storage(workspace_id,storage_used_bytes,storage_limit_bytes,base_storage_bytes,extra_storage_bytes) VALUES('{ws}',0,12000,10000,2000); INSERT INTO projects VALUES('{v}','{ws}'); INSERT INTO workspace_members VALUES('{ws}','{qid}','edicao',true);")
     op='77777777-7777-4777-8777-777777777777'
