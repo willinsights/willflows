@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'supabase/functions/webhook-retry-worker/**'
+      - 'supabase/config.toml'
+      - 'docs/security/fase-a/webhook-auth/**'
       - 'supabase/functions/_shared/webhook-worker-auth.ts'
       - 'supabase/functions/_shared/timing-safe.ts'
       - 'docs/security/fase-a/video-integration/tests/worker-auth-live.test.ts'
@@ -23,6 +25,20 @@ jobs:
         run: bun install --frozen-lockfile --ignore-scripts
       - name: Run isolated authentication regression tests
         run: bun x vitest run --config docs/security/fase-a/video-integration/vitest.config.ts docs/security/fase-a/video-integration/tests/worker-auth-live.test.ts
+      - name: Enforce secured cron gateway configuration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          config=Path('supabase/config.toml').read_text()
+          worker=Path('supabase/functions/webhook-retry-worker/index.ts').read_text()
+          match=re.search(r'\[functions\.webhook-retry-worker\]\s+verify_jwt\s*=\s*(true|false)',config)
+          assert match and match.group(1)=='false'
+          assert 'workerAuthorization(' in worker
+          assert 'if (authError)' in worker
+          assert 'status: authError.status' in worker
+          print('PASS: managed cron gateway mode paired with strict worker handler checks')
+          PY
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
