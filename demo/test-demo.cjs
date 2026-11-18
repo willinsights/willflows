@@ -40,6 +40,17 @@ assert.match(el('modal-root').innerHTML,/3600|3\\s*600|3.*600|Campanha Hotel Sol
 demo.go('faturacao');
 demo.showDetail('invoice',1);
 assert.match(el('modal-root').innerHTML,/FAT-DEMO-021/);
+demo.go('contratos');
+demo.showDetail('contract',1);
+assert.match(el('modal-root').innerHTML,/Contrato Hotel Solare/);
+demo.go('equipa');
+assert.match(el('content').innerHTML,/showDetail\\('team',0\\)/);
+demo.showDetail('team',0);
+assert.match(el('modal-root').innerHTML,/Marta/);
+demo.go('planos');
+assert.match(el('content').innerHTML,/showDetail\\('plan',0\\)/);
+demo.showDetail('plan',0);
+assert.match(el('modal-root').innerHTML,/Starter/);
 demo.go('dashboard');
 assert.match(el('content').innerHTML,/kpi-card/);
 assert.match(el('content').innerHTML,/onclick="go\('financeiro'\)"/);
