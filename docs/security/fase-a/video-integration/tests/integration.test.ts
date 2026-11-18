@@ -49,7 +49,7 @@ it('coalesces simultaneous run calls for the same File/context into one issue, P
   let releasePut:()=>void=()=>{};
   const waitForPut=new Promise<void>(resolve=>{releasePut=resolve;});
   const put=vi.fn(async()=>{await waitForPut;});
-  const invoke=vi.fn(async(name:string)=>{
+  const invoke=vi.fn(async(name:string,body?:any)=>{
     invocations.push(name);
     if(name==='r2-upload-url')return {uploadUrl:'http://localhost/fixture',key:'same-key',uploadTicket:'signed'};
     return {versionId:'one-version',status:'processing'};
