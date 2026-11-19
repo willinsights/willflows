@@ -86,3 +86,19 @@ describe('authenticated worker health and method routing', () => {
     expect(process).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("database-managed worker credential", () => {
+  it("sends only the digest to the verifier and fails closed", async () => {
+    const { vaultWorkerAuthorization } = await import("../../../../../supabase/functions/_shared/webhook-worker-vault.ts");
+    const token = "wfworker_" + "f".repeat(64);
+    const request = req({ authorization: "Bearer " + token });
+    const verify = vi.fn(async () => true);
+    expect(await vaultWorkerAuthorization(request, verify)).toBeNull();
+    expect(verify.mock.calls).toHaveLength(1);
+    expect(verify.mock.calls[0]).toEqual([expect.stringMatching(/^[a-f0-9]{64}$/)]);
+    expect((await vaultWorkerAuthorization(request, async () => false))?.status).toBe(401);
+    expect((await vaultWorkerAuthorization(request, async () => { throw new Error(); }))?.status).toBe(503);
+    expect((await vaultWorkerAuthorization(req({ authorization: "Bearer wfworker_short" }), verify))?.status).toBe(401);
+    expect(verify).toHaveBeenCalledTimes(1);
+  });
+});

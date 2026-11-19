@@ -3,15 +3,15 @@ type WorkerAction = (request: Request) => Promise<Response>;
 export async function handleWorkerRequest(
   request: Request,
   headers: Record<string, string>,
-  authorize: (request: Request) => Response | null,
+  authorize: (request: Request) => Response | null | Promise<Response | null>,
   run: WorkerAction,
 ): Promise<Response> {
   const allow = "POST, HEAD, OPTIONS";
   if (request.method === "OPTIONS") {
-    return new Response(null, { headers: { ...headers, "Access-Control-Allow-Methods": allow } });
+    return new Response(null, { headers: { ...headers, "Access-Control-Allow-Methods": allow, "X-WillFlow-Worker-Version": "vault-1" } });
   }
 
-  const authError = authorize(request);
+  const authError = await authorize(request);
   if (authError) {
     const message = authError.status >= 500 ? "Server configuration error" : "Unauthorized";
     return new Response(request.method === "HEAD" ? null : JSON.stringify({ error: message }), {
