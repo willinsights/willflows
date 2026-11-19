@@ -1,0 +1,39 @@
+# PR2 coordinated activation — 2026-11-19
+
+## Executed independently
+
+- Reviewed main `90c456a418c135c9e3ec7ea4f4ff006487d3e336`, including PR2 integration `9e151289` and public approval PR11 `72d39bac`.
+- Accepted the owner's supplied evidence of the real private PostgreSQL 17.12 restore: 138 TABLE DATA entries, 735 indexes/constraints/FKs, 775 projects, 107 clients, 1674 versions, 934 comments, 385 tokens, 312 approvals and 88 payments. No repeat of that real restore; managed extensions were not covered.
+- Preserved the earlier 18 real R2/Stream adapter checks. No new provider calls, uploads, subscription purchases or synthetic production rows this turn.
+- Verified all 47 candidate manifest entries without changing their hashes. Generated SQL only through `assemble_candidate.py`, without a reconciliation argument or a database connection. SHA256: `71856b8329f99e8dfce80a86e297186c31e9253a2041a759acc15b604c95e560`. The NOWAIT lock and all candidate guards remain intact. Not submitted as a migration.
+- 63 candidate Vitest tests plus 1 staged upload hook test passed in a disposable overlay using Vitest 4.1.10. The active checkout's Vitest launcher fails because its Vite 5 installation lacks `vite/module-runner`; no project dependencies changed to bypass this.
+- 22 PostgreSQL fixture PASS groups, including concurrency, NOWAIT rejection, multi-tenant ACL/RLS, replacement identity/comments/approval/timestamps, quota reservations, uncertainty, outbox, atomic late-failure rollback and populated rollback rejection. These include an existing *synthetic* dump/restore regression, not a repeat of the supplied real restore.
+- Five Deno entrypoint checks passed: upload runtime, integrated upload, status, approval reader, Stream update.
+- Disposable frontend overlay compiled with fictitious loopback configuration; TypeScript native preview check passed with the project's Vitest version. No active application build invoked manually.
+- Chromium at 1280×1800, external traffic blocked: PR11 public link remained identical, four fixture reads, exactly one comment and one approval write; final approved UI confirmed. This is not real Stream playback or an authenticated upload test.
+
+## Current production baseline, read-only
+
+- Upload operations, asset outbox and migration rollback namespace are absent.
+- Existing storage trigger handles INSERT/DELETE and UPDATE OF file_size_bytes only. Existing `add_workspace_storage` still performs increments. `check_storage_quota` uses the contracted total already, not total plus extras.
+- One individually fingerprinted divergent counter: stored **92,411,716,177 bytes**, active-row accounting **17,130,227,552 bytes**, **55 active versions**, **0 unverified sizes**; SHA256 `375906fa111e8c8b9042890d6a8f252042706029971676e8448f121d6f05b2d6`. There are 1637 retained soft-deleted versions in this scope. This is an accounting fingerprint, **not provider reconciliation**, and is not permission to replace the stored value with a generic sum. No workspace/client identifiers retained in this report.
+- No versions lack a storage row; no nonzero replacement byte values block the pre-use rollback check at the sampled instant.
+- One sampled lock query returned zero writer transactions. Recent HTTP analytics returned no rows; function logs for the process/cleanup handlers were unavailable. These observations **do not prove external HTTP/R2 requests are drained**.
+- Cleanup job 6 remains active at `0 * * * *`. Job 12 remains active at `*/5 * * * *`; neither was modified or invoked.
+
+## Concrete dependencies and blockers
+
+1. **Individually reviewed quota reconciliation.** The assembler without arguments intentionally rejects the current drift. The snapshot's sizes being populated does not establish why the legacy counter differs, nor authorize a blind adjustment. Need specific evidence approving this scope's corrected accounting and the snapshot values. Re-read under the assembler's exact NOWAIT guard before any application.
+2. **Maintenance and drain enforcement.** There is no current global upload issuance barrier in this candidate. The available managed schedule tools cannot deactivate the legacy job 6 in place: they only update canonical target/body/schedule or delete managed schedules. Deletion/recreation would not preserve the runbook's same-job cutover. No maintenance window was announced to app users or purported to have begun. Require operator-confirmed upload barrier, job6 pause, in-flight completion and restoration plan; do not stop unrelated jobs.
+3. **Cleanup is a conflicting writer and external deleter.** Active cleanup still decrements storage directly after marking videos deleted and deletes provider objects before/around those writes. Installing the new trigger while it can run risks external deletion followed by a rejected counter write/double accounting. PR2 must not silently deploy cleanup or activate destructive outbox consumption.
+4. **Signed playback is not integrated.** Candidate upload runtime sets `requireSignedURLs:false`; `stream-update-video` can set it false again. Approval reader and status handler construct raw UID HLS/thumbnail URLs; authenticated hook also builds UID playback URLs. Setting the ingest flag alone to true would break clients. A coordinated private playback signer/reader contract and synthetic transcoding/decoded playback test are required before activating these candidates. Earlier adapter token issuance is not that test.
+5. **Later frontend compatibility.** PR11's public request headers, stable selected-version handling and pending feedback page are preserved in the overlay. Replacing the storage hook wholesale would discard the newer `isFetching`-based refresh indicator (candidate returns `isRecalculating:false`), although its read-only refresh remains safe. Merge that behaviour rather than overwrite it during release. Legacy byte-writing callbacks must become cache refreshes together with the trigger; currently the delete callback still writes bytes.
+6. **Independent billing scope.** The staged tree includes `stripe-webhook`, but it must be excluded from this authorized release. Existing billing writes update entitlement fields, not upload-operation state. Do not deploy its candidate to obtain video/quota dependencies or change prices, GB or «Ilimitados».
+7. **Approval can trigger retention.** A production fixture approval can enqueue retention via existing triggers; an isolated authorized workspace is necessary but insufficient without safe cleanup drain/containment. Do not create fixture approvals that the existing cleanup may consume while this rollout is blocked.
+8. **Deployment/reversal proof.** Deployment by function name is supported, but no active source export/hash baseline was obtained for video handlers. Editing active paths may deploy automatically. Therefore no files were copied to active handler/frontend paths. SQL rollback is pre-use only; after ledger/outbox use, retain history and recover forward.
+
+## Release disposition
+
+**STOP before SQL or active code edits.** No new function revision deployed; no frontend published. Worker PR14, job12, billing, cleanup, production videos and quota values untouched.
+
+Remaining sequence once the blockers are resolved: enforce/upload-only maintenance and confirm job6 drain → individually approved fresh baseline → assembler-only atomic SQL with NOWAIT → verify ACL/catalog → coordinated private-playback readers/status/update/upload issue/process/abort/recover → frontend preserving PR11 and later refresh behaviour → two synthetic clips in authorized isolated scope through actual transcoding/playback, replacement/link/comments/approval/quota → controlled observation → restore only job6 under the approved runbook. No generic authorization supersedes a failing gate.

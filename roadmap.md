@@ -1,5 +1,11 @@
 # Roadmap — pendências da auditoria
 
+## PR #2 — activação coordenada autorizada em 19/11/2026
+- [x] Rever baseline individual actual, dependências e compatibilidade pós-PR11; 47 hashes intactos, 64 testes, 22 grupos PG, 5 Deno checks e overlay/browser aprovados; relatório ACTIVATION-2026-11-19.md.
+- [ ] Aplicar apenas SQL montado pelo assembler: bloqueado por reconciliação individual não comprovada, ausência de barreira/janela e drenagem HTTP/job6; não alterar job12, faturação ou limpeza.
+- [ ] Implantar handlers/frontend coordenados e ensaiar substituição fictícia integral: bloqueado por playback privado não integrado, cleanup escritor/deleter ainda activo e reversão das versões activas não exportada; conservar PR11 e indicador de refresh posterior.
+- [x] Restauro real PG17.12 confirmado pelo proprietário: 138 TABLE DATA e 735 índices/restrições/FKs; não repetir, sem restauro sobre produção.
+
 ## PR #2 — canário real autorizado, sem vídeos/quota de clientes
 - [x] Criar despacho privado único e função pr2-video-canary, testar ACL/replay e implantar apenas o canário.
 - [x] Executar duas fixtures R2/Stream privadas: 18 verificações PASS; autorização consumida permanentemente e função removida (HTTP 404). Provas no registo privado, resumo em docs/security/pr2-canary/RESULT.md.
