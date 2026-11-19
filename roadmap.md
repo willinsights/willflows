@@ -4,7 +4,7 @@
 - [x] Implementar reprodução privada candidata: ingestão/settings signed-only, signer autorizado e página/hook/approval; 72 testes, tipos/build e GET real playlists/segmentos 200 dos dois UIDs sintéticos, 1064 bytes cada; sem deploy/quota. Provas PRIVATE-PLAYBACK-2026-11-19.md.
 - [x] Rever baseline individual actual, dependências e compatibilidade pós-PR11; 47 hashes intactos, 64 testes, 22 grupos PG, 5 Deno checks e overlay/browser aprovados; relatório ACTIVATION-2026-11-19.md.
 - [ ] Aplicar apenas SQL montado pelo assembler: bloqueado por reconciliação individual não comprovada, ausência de barreira/janela e drenagem HTTP/job6; não alterar job12, faturação ou limpeza.
-- [ ] Implantar handlers/frontend coordenados e ensaiar substituição fictícia integral: bloqueado por playback privado não integrado, cleanup escritor/deleter ainda activo e reversão das versões activas não exportada; conservar PR11 e indicador de refresh posterior.
+- [ ] Implantar handlers/frontend coordenados e ensaiar substituição fictícia integral: playback privado agora integrado e testado como candidato; continuam bloqueios de cleanup escritor/deleter activo, quota/drenagem e reversão das versões activas não exportada; conservar PR11 e indicador de refresh posterior.
 - [x] Restauro real PG17.12 confirmado pelo proprietário: 138 TABLE DATA e 735 índices/restrições/FKs; não repetir, sem restauro sobre produção.
 
 ## PR #2 — canário real autorizado, sem vídeos/quota de clientes
