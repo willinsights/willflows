@@ -4,7 +4,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { handleDatabaseError } from '@/lib/error-handler';
 import { logger } from '@/lib/logger';
-import type { Tables } from '@/integrations/supabase/types';
+import type { Tables, TablesUpdate } from '@/integrations/supabase/types';
 
 export type LeadStatus = 'novo' | 'contactado' | 'qualificado' | 'proposta' | 'negociacao' | 'ganho' | 'perdido';
 
@@ -85,7 +85,7 @@ export function useLeads() {
 
   const updateLeadStatus = async (leadId: string, newStatus: LeadStatus, extraData?: Partial<Lead>) => {
     try {
-      const updates: Record<string, unknown> = {
+      const updates: TablesUpdate<'clients'> = {
         lead_status: newStatus,
         ...extraData,
       };

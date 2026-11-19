@@ -1,6 +1,7 @@
 import { transferToEditing } from '@/lib/kanban/transferToEditing';
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesUpdate } from '@/integrations/supabase/types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -60,6 +61,9 @@ export function useKanbanProjectMoves({ phase, columns, setColumns, fetchColumns
     if (!currentWorkspace) return;
 
     const columnField = phase === 'captacao' ? 'captacao_column_id' : 'edicao_column_id';
+    const columnUpdate: TablesUpdate<'projects'> = phase === 'captacao'
+      ? { captacao_column_id: targetColumnId, updated_at: new Date().toISOString() }
+      : { edicao_column_id: targetColumnId, updated_at: new Date().toISOString() };
     const targetColumn = columns.find(c => c.id === targetColumnId);
     const sourceColumn = columns.find(c => c.projects.some(p => p.id === projectId));
     const project = columns.flatMap(c => c.projects).find(p => p.id === projectId);
@@ -101,7 +105,7 @@ export function useKanbanProjectMoves({ phase, columns, setColumns, fetchColumns
 
       const { error: moveError } = await supabase
         .from('projects')
-        .update({ [columnField]: targetColumnId, updated_at: new Date().toISOString() })
+        .update(columnUpdate)
         .eq('id', projectId);
 
       if (moveError) {
@@ -234,7 +238,7 @@ export function useKanbanProjectMoves({ phase, columns, setColumns, fetchColumns
       markLocalUpdate(projectId);
       const { error } = await supabase
         .from('projects')
-        .update({ [columnField]: targetColumnId, updated_at: new Date().toISOString() })
+        .update(columnUpdate)
         .eq('id', projectId);
 
       if (error) throw error;

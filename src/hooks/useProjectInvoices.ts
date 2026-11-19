@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesUpdate } from '@/integrations/supabase/types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { toast } from 'sonner';
 
@@ -145,7 +146,7 @@ export function useProjectInvoices(projectId?: string) {
   };
 
   const updateInvoice = async (id: string, updates: Partial<Pick<ProjectInvoice, 'status' | 'subtotal' | 'tax_rate' | 'due_date' | 'notes' | 'paid_at'>>) => {
-    const updateData: Record<string, unknown> = { ...updates };
+    const updateData: TablesUpdate<'invoices'> = { ...updates };
 
     // Recalculate totals if subtotal or tax_rate changed
     if (updates.subtotal !== undefined || updates.tax_rate !== undefined) {

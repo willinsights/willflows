@@ -218,7 +218,6 @@ export function useAdminBilling() {
         .from('user_subscriptions')
         .update({ 
           subscription_status: 'canceled',
-          cancel_at_period_end: true,
         })
         .eq('id', subscriptionId);
 

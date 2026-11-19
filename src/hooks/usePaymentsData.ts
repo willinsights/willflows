@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesUpdate } from '@/integrations/supabase/types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import type { ProjectCustoExtra } from '@/components/payments/ExtraCostsPaymentsControl';
@@ -25,10 +26,11 @@ export function usePaymentsData() {
     enabled: !!workspaceId,
     staleTime: STALE,
     queryFn: async (): Promise<ProjectCustoExtra[]> => {
+      if (!workspaceId) return [];
       const { data, error } = await supabase
         .from('projects')
         .select(COSTS_COLS)
-        .eq('workspace_id', workspaceId!)
+        .eq('workspace_id', workspaceId)
         .eq('is_delivered', true);
       if (error) throw error;
       return (data || []) as ProjectCustoExtra[];
@@ -40,10 +42,11 @@ export function usePaymentsData() {
     enabled: !!workspaceId,
     staleTime: STALE,
     queryFn: async (): Promise<ProjectRevenue[]> => {
+      if (!workspaceId) return [];
       const { data, error } = await supabase
         .from('projects')
         .select(REVENUE_COLS)
-        .eq('workspace_id', workspaceId!)
+        .eq('workspace_id', workspaceId)
         .eq('is_delivered', true);
       if (error) throw error;
       return (data || []) as ProjectRevenue[];
@@ -71,7 +74,9 @@ export function usePaymentsData() {
   // Optimistic mutations
   const freelancerMutation = useMutation({
     mutationFn: async ({ teamId, newStatus }: { teamId: string; newStatus: string }) => {
-      const updates: Record<string, unknown> = { payment_status: newStatus };
+      const updates: TablesUpdate<'project_team'> = {
+        payment_status: newStatus as TablesUpdate<'project_team'>['payment_status'],
+      };
       updates.paid_at = newStatus === 'pago' ? new Date().toISOString() : null;
       const { error } = await supabase.from('project_team').update(updates).eq('id', teamId);
       if (error) throw error;
@@ -83,7 +88,7 @@ export function usePaymentsData() {
 
   const costMutation = useMutation({
     mutationFn: async ({ projectId, newStatus }: { projectId: string; newStatus: string }) => {
-      const updates: Record<string, unknown> = { custos_extras_payment_status: newStatus };
+      const updates: TablesUpdate<'projects'> = { custos_extras_payment_status: newStatus };
       updates.custos_extras_paid_at = newStatus === 'pago' ? new Date().toISOString() : null;
       const { error } = await supabase.from('projects').update(updates).eq('id', projectId);
       if (error) throw error;
@@ -111,7 +116,7 @@ export function usePaymentsData() {
 
   const revenueMutation = useMutation({
     mutationFn: async ({ projectId, newStatus }: { projectId: string; newStatus: string }) => {
-      const updates: Record<string, unknown> = { client_payment_status: newStatus };
+      const updates: TablesUpdate<'projects'> = { client_payment_status: newStatus };
       updates.client_paid_at = newStatus === 'pago' ? new Date().toISOString() : null;
       const { error } = await supabase.from('projects').update(updates).eq('id', projectId);
       if (error) throw error;

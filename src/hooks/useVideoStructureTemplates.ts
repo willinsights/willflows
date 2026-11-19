@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import type { VideoStructure } from './useVideoStructure';
-import type { Json } from '@/integrations/supabase/types';
+import type { Json, TablesUpdate } from '@/integrations/supabase/types';
 
 import { logger } from '@/lib/logger';
 export interface TemplateSegment {
@@ -133,7 +133,7 @@ export function useVideoStructureTemplates(workspaceId: string | null) {
     data: { name?: string; description?: string; segments?: TemplateSegment[] }
   ) => {
     try {
-      const updateData: Record<string, unknown> = {
+      const updateData: TablesUpdate<'video_structure_templates'> = {
         updated_at: new Date().toISOString(),
       };
       
