@@ -1,6 +1,7 @@
 name: WillFlow webhook worker authentication checks
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - 'supabase/functions/webhook-retry-worker/**'
