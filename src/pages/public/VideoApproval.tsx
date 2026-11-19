@@ -59,12 +59,19 @@ import { useVideoDownload } from '@/hooks/useVideoDownload';
 import { ApprovedState } from '@/pages/public/ApprovedState';
 
 import { logger } from '@/lib/logger';
+
+const publicApiHeaders = {
+  'Content-Type': 'application/json',
+  apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY,
+};
+
 interface VideoVersion {
   id: string;
   version_number: number;
   file_path: string;
   file_name: string;
   file_size_bytes: number;
+  stream_status?: string | null;
   duration_seconds: number | null;
   created_at: string;
   workspace_id: string;
@@ -159,16 +166,14 @@ export default function VideoApproval() {
     }
 
     try {
+      setError(null);
       setLoading(true);
       
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-video-approval-data?token=${encodeURIComponent(token)}`,
         {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
+          headers: publicApiHeaders,
         }
       );
 
@@ -184,13 +189,9 @@ export default function VideoApproval() {
         setClientName(approvalData.client_name);
       }
 
-      // Set initial version
-      if (approvalData.versions.length > 0) {
-        setSelectedVersionId(approvalData.versions[0].id);
-        if (approvalData.versions.length > 1) {
-          setCompareVersionId(approvalData.versions[1].id);
-        }
-      }
+      const versions = approvalData.versions;
+      setSelectedVersionId(current => versions.some(v => v.id === current) ? current : (versions[0]?.id ?? ''));
+      setCompareVersionId(current => versions.some(v => v.id === current) ? current : (versions[1]?.id ?? ''));
 
       setLoading(false);
     } catch (err: any) {
@@ -209,10 +210,7 @@ export default function VideoApproval() {
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-video-approval-data?token=${encodeURIComponent(token)}`,
         {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
+          headers: publicApiHeaders,
         }
       );
 
@@ -398,10 +396,7 @@ export default function VideoApproval() {
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-video-feedback`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
+          headers: publicApiHeaders,
           body: JSON.stringify({
             type: 'comment',
             token,
@@ -443,10 +438,7 @@ export default function VideoApproval() {
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-video-feedback`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
+          headers: publicApiHeaders,
           body: JSON.stringify({
             type: 'approval',
             token,
@@ -490,10 +482,7 @@ export default function VideoApproval() {
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-video-comment`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
+          headers: publicApiHeaders,
           body: JSON.stringify({
             token,
             comment_id: commentId,
@@ -605,6 +594,8 @@ export default function VideoApproval() {
   }
 
   const selectedVersion = data.versions.find(v => v.id === selectedVersionId);
+  const processing = ['pending', 'queued', 'uploading', 'downloading', 'inprogress', 'processing']
+    .includes(selectedVersion?.stream_status || '');
 
   return (
     <>
@@ -812,8 +803,9 @@ export default function VideoApproval() {
                           onClick={togglePlay}
                         />
                       ) : (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <Loader2 className="h-8 w-8 animate-spin text-white/50" />
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-4 text-center text-white">
+                          <p role="status">{processing ? 'O vídeo está a ser preparado.' : 'O vídeo está indisponível de momento.'}</p>
+                          <Button variant="secondary" size="sm" onClick={fetchApprovalData}>Verificar disponibilidade</Button>
                         </div>
                       )}
 
