@@ -26,7 +26,7 @@ vi.mock("@/contexts/AuthContext", () => ({
 
 vi.mock("@/contexts/WorkspaceContext", () => ({
   useWorkspace: vi.fn(() => ({
-    currentWorkspace: {
+    workspace: {
       id: "test-workspace-id",
       name: "Test Workspace",
       slug: "test-workspace",
@@ -38,6 +38,11 @@ vi.mock("@/contexts/WorkspaceContext", () => ({
       subscription_status: "active",
       trial_ends_at: null,
     },
+    membership: { role: "admin" },
+    isAdmin: true,
+    canEdit: true,
+    fetchError: false,
+    refreshWorkspace: vi.fn(),
     setCurrentWorkspace: vi.fn(),
     loading: false,
   })),
@@ -117,9 +122,9 @@ describe("useCurrentWorkspace", () => {
       wrapper: createWrapper(),
     });
 
-    expect(typeof result.current.isAdmin).toBe("boolean");
-    expect(typeof result.current.canEdit).toBe("boolean");
-    expect(typeof result.current.canManageTeam).toBe("boolean");
+    expect(result.current.isAdmin).toBe(true);
+    expect(result.current.canEdit).toBe(true);
+    expect(result.current.canManageTeam).toBe(true);
   });
 
   it("should provide state flags", () => {

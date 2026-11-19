@@ -32,33 +32,33 @@ vi.mock("@/lib/validation-schemas", () => ({
   validateWithSchema: vi.fn(() => ({ success: true, data: {} })),
 }));
 
-const mockSupabaseClient = {
-  from: vi.fn(() => ({
-    select: vi.fn(() => ({
-      eq: vi.fn(() => ({
-        order: vi.fn(() => Promise.resolve({ data: [], error: null })),
-      })),
-      in: vi.fn(() => Promise.resolve({ data: [], error: null })),
-    })),
-    insert: vi.fn(() => ({
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: {
+    from: vi.fn((table: string) => ({
       select: vi.fn(() => ({
-        single: vi.fn(() => Promise.resolve({ 
-          data: { id: "new-payment", amount: 100 }, 
-          error: null 
+        eq: vi.fn(() => ({
+          order: vi.fn(() => table === "project_team"
+            ? { range: vi.fn(async () => ({ data: [], error: null })) }
+            : Promise.resolve({ data: [], error: null })),
+        })),
+        in: vi.fn(() => Promise.resolve({ data: [], error: null })),
+      })),
+      insert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn(() => Promise.resolve({
+            data: { id: "new-payment", amount: 100 },
+            error: null
+          })),
         })),
       })),
+      update: vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ error: null })),
+      })),
+      delete: vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ error: null })),
+      })),
     })),
-    update: vi.fn(() => ({
-      eq: vi.fn(() => Promise.resolve({ error: null })),
-    })),
-    delete: vi.fn(() => ({
-      eq: vi.fn(() => Promise.resolve({ error: null })),
-    })),
-  })),
-};
-
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: mockSupabaseClient,
+  },
 }));
 
 import { usePayments, useTeamPayments } from "../usePayments";

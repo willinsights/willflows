@@ -65,12 +65,10 @@ export function hasPaidSubscription(subscription: UserSubscription | null): bool
 /**
  * Get days remaining in trial
  */
-export function getTrialDaysRemaining(subscription: UserSubscription | null): number {
+export function getTrialDaysRemaining(subscription: Pick<UserSubscription, 'trialEndsAt'> | null, now = Date.now()): number {
   if (!subscription?.trialEndsAt) return 0;
   
-  const now = new Date();
-  const trialEnd = new Date(subscription.trialEndsAt);
-  const diffMs = trialEnd.getTime() - now.getTime();
+  const diffMs = Date.parse(subscription.trialEndsAt) - now;
   
   if (diffMs <= 0) return 0;
   
