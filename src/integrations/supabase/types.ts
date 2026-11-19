@@ -5584,6 +5584,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_webhook_worker_dispatch: {
+        Args: { p_id: string; p_intent: string; p_signature: string }
+        Returns: boolean
+      }
       complete_automation_job: {
         Args: { _error?: string; _job_id: string; _success: boolean }
         Returns: undefined
@@ -5638,6 +5642,10 @@ export type Database = {
       enqueue_automation_job: {
         Args: { _event_type: string; _payload: Json; _workspace_id: string }
         Returns: string
+      }
+      finish_webhook_worker_dispatch: {
+        Args: { p_id: string; p_status: number }
+        Returns: boolean
       }
       get_blog_analytics: {
         Args: { days_back?: number }
