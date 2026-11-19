@@ -178,17 +178,6 @@ function VideoProductionTabContent({
     const v = versions.find(x => x.id === versionId);
     if (v) setSelectedVersion(v);
   }, [versions]);
-  // Replace version flow: invoked with the chosen file directly from the list dialog
-  const handleReplaceVersion = useCallback(async (version: VideoVersion, file: File) => {
-    try {
-      await replaceVersion(version.id, file);
-    } catch {
-      // toast handled in hook
-    }
-  }, [replaceVersion]);
-
-
-
   const handleAddComment = useCallback((timestampSeconds: number) => {
     setCommentTimestamp(timestampSeconds);
     setShowCommentModal(true);
@@ -384,7 +373,7 @@ function VideoProductionTabContent({
                 selectedVersionId={selectedVersion?.id || null}
                 onSelectVersion={handleSelectVersion}
                 onDeleteVersion={deleteVersion}
-                onReplaceVersion={handleReplaceVersion}
+                onReplaceVersion={replaceVersion}
                 onFixVideo={handleFixVideo}
                 isFixingVideo={isFixingVideo}
                 onCheckStatus={checkVersionStatus}

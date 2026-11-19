@@ -1,0 +1,21 @@
+name: Video approval interface
+on:
+  pull_request:
+    paths:
+      - 'src/components/video-production/VideoProductionTab.tsx'
+      - 'src/components/video-production/VideoVersionsList.tsx'
+      - 'src/components/video-production/__tests__/VideoVersionsList.test.tsx'
+      - '.github/workflows/willflow-review-ui.yml'
+permissions:
+  contents: read
+jobs:
+  review-ui:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - run: bun x vitest run src/components/video-production/__tests__/VideoVersionsList.test.tsx src/hooks/__tests__/useVideoUploadFeedback.test.tsx
+      - run: bun x tsc --noEmit -p tsconfig.app.json
+      - run: bun run build
