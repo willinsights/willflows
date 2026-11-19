@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { authenticateCronRequest } from "../_shared/cron-auth.ts";
+import { vaultWorkerAuthorization } from "../_shared/webhook-worker-vault.ts";
 import { workerAuthorization } from "../_shared/webhook-worker-auth.ts";
 import { handleWorkerRequest } from "../_shared/webhook-worker-request.ts";
 
@@ -19,9 +20,18 @@ const PROCESSOR_BY_PROVIDER: Record<string, string> = {
   // google: "google-webhook", // future
 };
 
-function authorize(req: Request): Response | null {
+async function authorize(req: Request): Promise<Response | null> {
+  if (req.headers.get("authorization")?.startsWith("Bearer wfworker_")) {
+    return vaultWorkerAuthorization(req, async (digest) => {
+      const database = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
+        auth: { persistSession: false },
+      });
+      const { data, error } = await database.rpc("verify_webhook_worker_digest", { p_digest: digest });
+      if (error) throw new Error("worker verifier unavailable");
+      return data === true;
+    });
+  }
   return workerAuthorization(req, {
-    worker: Deno.env.get("WEBHOOK_RETRY_WORKER_SECRET"),
     service: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
     legacy: Deno.env.get("CRON_SECRET"),
   }, authenticateCronRequest);
