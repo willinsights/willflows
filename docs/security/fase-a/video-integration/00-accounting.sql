@@ -3,8 +3,8 @@ BEGIN;
 LOCK TABLE public.video_versions, public.workspace_storage IN SHARE ROW EXCLUSIVE MODE NOWAIT;
 -- Separate candidate, requires prior phase-A schema. NOT a production migration.
 -- Never install the new counter ownership model over an unreconciled
--- legacy drift. One live workspace currently differs; operator must review
--- and approve its exact correction in a separate, audited transaction.
+-- legacy drift. An optional, snapshot-checked correction can run under the
+-- same locks in the assembled transaction, immediately before this check.
 DO $integrity$
 BEGIN
  IF EXISTS (

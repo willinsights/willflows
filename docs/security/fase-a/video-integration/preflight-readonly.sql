@@ -1,5 +1,5 @@
 -- WillFlow 2.0 video/quota: READ-ONLY operational preflight.
--- Execute only with a human operator on the target environment.
+-- Run with read-only access to the target environment.
 -- Does not apply migrations, pause jobs, or prove a recoverable backup.
 BEGIN READ ONLY;
 

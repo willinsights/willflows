@@ -94,6 +94,39 @@ try:
     sql(f"INSERT INTO workspaces VALUES('{drift_ws}',NULL); INSERT INTO workspace_storage(workspace_id,storage_used_bytes,storage_limit_bytes) VALUES('{drift_ws}',5,100);")
     reject((root/'00-accounting.sql').read_text())
     assert sql("SELECT count(*) FROM pg_trigger WHERE tgname='guard_storage_counter'")=='0'
+    baseline = (root/'quota-baseline.sql').read_text()
+    preview = sql(baseline).split('|')
+    assert preview[:5] == [drift_ws, '5', '0', '0', '0']
+    def reviewed_bundle(snapshot):
+        return subprocess.check_output([os.sys.executable, root/'assemble_candidate.py',
+            '--reconcile-counter', *snapshot[:4], snapshot[5]], text=True)
+    reviewed = reviewed_bundle(preview)
+    sql(f"UPDATE workspace_storage SET storage_used_bytes=6 WHERE workspace_id='{drift_ws}';")
+    reject(reviewed)
+    sql(f"UPDATE workspace_storage SET storage_used_bytes=5 WHERE workspace_id='{drift_ws}';")
+    # A changed set of files must be re-reviewed, including equal byte totals.
+    sql(f"INSERT INTO video_versions(id,workspace_id,file_size_bytes,is_deleted) VALUES(gen_random_uuid(),'{drift_ws}',3,false);")
+    moved = sql(baseline).split('|')
+    sql(f"UPDATE video_versions SET file_path='updated-file' WHERE workspace_id='{drift_ws}';")
+    reject(reviewed_bundle(moved))
+    sql(f"DELETE FROM video_versions WHERE workspace_id='{drift_ws}'; UPDATE workspace_storage SET storage_used_bytes=5 WHERE workspace_id='{drift_ws}';")
+    # An unknown size cannot be certified, even with a matching fresh snapshot.
+    sql(f"INSERT INTO video_versions(id,workspace_id,file_size_bytes,is_deleted) VALUES(gen_random_uuid(),'{drift_ws}',NULL,false);")
+    reject(reviewed_bundle(sql(baseline).split('|')))
+    sql(f"DELETE FROM video_versions WHERE workspace_id='{drift_ws}'; UPDATE workspace_storage SET storage_used_bytes=5 WHERE workspace_id='{drift_ws}';")
+    reviewed = reviewed_bundle(sql(baseline).split('|'))
+    reject(reviewed.rsplit('COMMIT;',1)[0] + 'SELECT 1/0; COMMIT;')
+    assert sql(f"SELECT storage_used_bytes FROM workspace_storage WHERE workspace_id='{drift_ws}';") == '5'
+    assert sql("SELECT to_regclass('public.video_counter_reconciliations') IS NULL") == 't'
+    # Exercise the successful correction in a transaction that the fixture then rolls back.
+    verify = f"""
+        SELECT previous_bytes=5 AND corrected_bytes=0 AND active_versions=0
+          AND (SELECT storage_used_bytes=0 AND storage_limit_bytes=100 FROM workspace_storage WHERE workspace_id='{drift_ws}')
+          AND NOT has_table_privilege('authenticated','public.video_counter_reconciliations','SELECT')
+          FROM public.video_counter_reconciliations WHERE workspace_id='{drift_ws}';
+    """
+    assert sql(reviewed.rsplit('COMMIT;',1)[0] + verify + 'ROLLBACK;').splitlines()[-2:] == ['t', 'ROLLBACK']
+    print('PASS reviewed counter repair rejects stale sums, changed objects, unknown sizes; audit and quota roll back with the migration')
     sql(f"DELETE FROM workspaces WHERE id='{drift_ws}';")
     print('PASS quota migration rejects an unreconciled legacy counter before creating triggers')
     # A version without a counter is invisible to an aggregate led by storage.

@@ -73,3 +73,10 @@
 O mesmo link continua a apresentar o comentário e a aprovação quando a nova cópia está pendente, em processamento ou em erro. Uma versão com um ficheiro legado continua a usar a assinatura do seu próprio espaço. Uma falha de leitura do histórico é comunicada ao cliente. O ensaio em PostgreSQL compara o token, a identidade e o número de versão, o comentário, a resposta, a aprovação e as datas antes e depois da substituição.
 
 Se a confirmação da recuperação se perder, o cliente pode consultar de novo a operação. A base de dados confirma a associação atual entre versão, objeto e UID antes de aceitar o resultado guardado. O ensaio usa dados e serviços simulados.
+
+
+### Reconciliação de um contador divergente
+
+`quota-baseline.sql` devolve a contagem e a soma de versões ativas, o valor guardado, o número de tamanhos por confirmar e uma assinatura dos registos. A leitura devolve apenas contadores divergentes. Para gerar o SQL da migração com a correção precisa, passar os cinco campos revistos a `assemble_candidate.py --reconcile-counter WORKSPACE STORED ACTIVE COUNT SHA256`. O comando imprime SQL e pode ser ensaiado numa cópia isolada.
+
+A aplicação compara novamente os valores e a assinatura depois de bloquear os escritores. Alterações entretanto ocorridas, tamanhos sem confirmação ou uma falha posterior na migração cancelam a transação inteira. Uma aplicação bem-sucedida conserva o limite contratado, regista os valores anterior e corrigido e mantém os registos dos vídeos. A execução sem argumentos continua a recusar qualquer divergência.
