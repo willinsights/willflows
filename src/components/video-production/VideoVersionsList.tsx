@@ -56,7 +56,7 @@ interface VideoVersionsListProps {
   selectedVersionId: string | null;
   onSelectVersion: (version: VideoVersion) => void;
   onDeleteVersion: (versionId: string) => void;
-  onReplaceVersion?: (version: VideoVersion, file: File) => void | Promise<void>;
+  onReplaceVersion?: (versionId: string, file: File) => Promise<unknown>;
   onFixVideo?: (version: VideoVersion) => void;
   isFixingVideo?: boolean;
   onCheckStatus?: (version: VideoVersion) => void | Promise<void>;
@@ -129,6 +129,7 @@ export function VideoVersionsList({
   const [replaceTarget, setReplaceTarget] = useState<VideoVersion | null>(null);
   const [replaceFile, setReplaceFile] = useState<File | null>(null);
   const [submittingReplace, setSubmittingReplace] = useState(false);
+  const [replaceFailed, setReplaceFailed] = useState(false);
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const { downloadVideo, isDownloading } = useVideoDownload();
 
@@ -149,12 +150,15 @@ export function VideoVersionsList({
   };
 
   const handleConfirmReplace = async () => {
-    if (!replaceTarget || !replaceFile || !onReplaceVersion) return;
+    if (!replaceTarget || !replaceFile || !onReplaceVersion || submittingReplace) return;
+    setReplaceFailed(false);
     setSubmittingReplace(true);
     try {
-      await onReplaceVersion(replaceTarget, replaceFile);
+      await onReplaceVersion(replaceTarget.id, replaceFile);
       setReplaceTarget(null);
       setReplaceFile(null);
+    } catch {
+      setReplaceFailed(true);
     } finally {
       setSubmittingReplace(false);
     }
@@ -342,6 +346,7 @@ export function VideoVersionsList({
                       <DropdownMenuItem
                         onClick={(e) => {
                           e.stopPropagation();
+                          setReplaceFailed(false);
                           setReplaceTarget(version);
                           setReplaceFile(null);
                         }}
@@ -392,11 +397,20 @@ export function VideoVersionsList({
           <div className="space-y-3">
             <Input
               ref={replaceInputRef}
+              aria-label="Ficheiro de substituição"
               type="file"
               accept="video/mp4,video/quicktime,video/webm,video/x-msvideo,video/x-matroska"
-              onChange={(e) => setReplaceFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => {
+                setReplaceFailed(false);
+                setReplaceFile(e.target.files?.[0] ?? null);
+              }}
               disabled={submittingReplace}
             />
+            {replaceFailed && (
+              <p role="alert" className="text-sm text-destructive">
+                Não foi possível confirmar a substituição. Verifica o estado da versão antes de repetir o envio.
+              </p>
+            )}
             {replaceFile && (
               <p className="text-xs text-muted-foreground break-all">
                 {replaceFile.name} ({formatFileSize(replaceFile.size)})
