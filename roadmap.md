@@ -1,6 +1,7 @@
 # Roadmap — pendências da auditoria
 
 ## PR #2 — activação coordenada autorizada em 19/11/2026
+- [x] Implementar reprodução privada candidata: ingestão/settings signed-only, signer autorizado e página/hook/approval; 72 testes, tipos/build e GET real playlists/segmentos 200 dos dois UIDs sintéticos, 1064 bytes cada; sem deploy/quota. Provas PRIVATE-PLAYBACK-2026-11-19.md.
 - [x] Rever baseline individual actual, dependências e compatibilidade pós-PR11; 47 hashes intactos, 64 testes, 22 grupos PG, 5 Deno checks e overlay/browser aprovados; relatório ACTIVATION-2026-11-19.md.
 - [ ] Aplicar apenas SQL montado pelo assembler: bloqueado por reconciliação individual não comprovada, ausência de barreira/janela e drenagem HTTP/job6; não alterar job12, faturação ou limpeza.
 - [ ] Implantar handlers/frontend coordenados e ensaiar substituição fictícia integral: bloqueado por playback privado não integrado, cleanup escritor/deleter ainda activo e reversão das versões activas não exportada; conservar PR11 e indicador de refresh posterior.

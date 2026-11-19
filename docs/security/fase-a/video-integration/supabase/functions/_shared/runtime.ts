@@ -63,7 +63,7 @@ export function serveUpload(action:'issue'|'process'|'abort'|'recover') {
             input:signed.url,
             name:meta.operationId,
             meta:{...meta,name:meta.operationId,snapshotKey:snapshot},
-            requireSignedURLs:false,allowedOrigins:[],
+            requireSignedURLs:true,allowedOrigins:[],
           })});
           if(typeof b.result?.uid!=='string')throw new Error('PROVIDER_UNCONFIRMED');
           return b.result.uid;

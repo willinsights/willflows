@@ -27,3 +27,4 @@
 
 - Integrated video candidates reserve only positive quota deltas per durable operation under the accounting lock; abort holds partial assets and uncertain provider claims cannot be reclaimed. Why: avoid oversubscription and duplicate external copies without destructive recovery.
 - Provider canaries use a separate permanent singleton dispatch, service-only atomic digest claim, fixed fixtures and empty responses; archive code outside active functions after removal. Why: prevent replay, cross-worker authorization and accidental client effects.
+- Staged private Stream playback uses one provider signer with pre/post version and access validation, no-store responses and transient client URLs. Why: signed-only ingestion must not leave UID-based readers or release tokens after revocation.

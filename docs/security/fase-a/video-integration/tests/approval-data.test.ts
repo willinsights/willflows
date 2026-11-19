@@ -39,7 +39,7 @@ function fixture(versions: Row[], failedTable?: string) {
   }
   const db = { from, rpc: async () => ({ data: true }), storage: { from: () => ({ createSignedUrl: sign }) } };
   const get = () => approvalData(new Request('https://example.test/approval?token=fixture-link'),
-    () => db as unknown as ReturnType<Parameters<typeof approvalData>[1]>, {});
+    () => db as unknown as ReturnType<Parameters<typeof approvalData>[1]>, {}, async () => ({ url: 'https://videodelivery.net/synthetic-token/manifest/video.m3u8', thumbnail: 'synthetic', expiresAt: 9999999999 }));
   return { get, sign };
 }
 
@@ -57,7 +57,7 @@ describe('public approval link', () => {
     const res = await fixture([{ ...version, replacement_status: 'ready', replacement_stream_uid: 'fixture-stream' }]).get();
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ comments: [comment], approval: { notes: 'Aprovado' },
-      signed_urls: { [id]: 'https://videodelivery.net/fixture-stream/manifest/video.m3u8' } });
+       signed_urls: { [id]: 'https://videodelivery.net/synthetic-token/manifest/video.m3u8' } });
   });
   it('signs a scoped legacy file and keeps rows with an older null deletion flag', async () => {
     const file_path = ws + '/archived/video.mp4';

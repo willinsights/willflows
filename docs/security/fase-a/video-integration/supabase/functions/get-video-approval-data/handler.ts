@@ -2,6 +2,7 @@ import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { clientIdentifier, isRateLimited, logAttempt, rateLimitResponse } from '../_shared/rate-limit.ts';
 
 import { resolveVideoContext, tokenCoversVersion, activeVideoToken, storedKeyMatchesVersion, safeObjectKey, VideoContextError } from '../_shared/video-context.ts';
+import { authorizedPlayback, privateHeaders, type PlaybackSigner } from '../_shared/private-playback.ts';
 
 interface VideoComment {
   id: string;
@@ -14,7 +15,8 @@ interface VideoComment {
   created_at: string;
 }
 
-export async function approvalData(req: Request, connect: () => SupabaseClient, corsHeaders: Record<string, string>): Promise<Response> {
+export async function approvalData(req: Request, connect: () => SupabaseClient, cors: Record<string, string>, sign?: PlaybackSigner): Promise<Response> {
+  const corsHeaders = { ...cors, ...privateHeaders };
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -163,6 +165,16 @@ export async function approvalData(req: Request, connect: () => SupabaseClient, 
       if (version.r2_key && !storedKeyMatchesVersion(version.r2_key, version)) throw new VideoContextError('Arquivo de vídeo incoerente');
       if (version.replacement_r2_key && !storedKeyMatchesVersion(version.replacement_r2_key, version)) throw new VideoContextError('Arquivo corrigido incoerente');
       // Prefer replacement (corrected) video when ready
+      if (version.cloudflare_stream_uid || version.replacement_stream_uid) {
+        if (!sign) throw new Error('Playback signer unavailable');
+        const replacement = !!(version.replacement_stream_uid && version.replacement_status === 'ready');
+        const uidReady = replacement || version.stream_status === 'ready';
+        if (uidReady) {
+          const playback = await authorizedPlayback(supabase, { versionId: version.id, replacement, approvalToken: token }, null, sign);
+          if (playback.url) videoUrls[version.id] = playback.url;
+        }
+        continue;
+      }
       if (version.replacement_stream_uid && version.replacement_status === 'ready') {
         videoUrls[version.id] = `https://videodelivery.net/${version.replacement_stream_uid}/manifest/video.m3u8`;
       } else if (version.replacement_playback_url && version.replacement_status === 'ready') {

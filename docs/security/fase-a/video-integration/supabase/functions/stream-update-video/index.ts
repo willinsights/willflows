@@ -121,7 +121,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           allowedOrigins: allowedOrigins,
-          requireSignedURLs: false,
+          requireSignedURLs: true,
         }),
       }
     );

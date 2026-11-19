@@ -78,6 +78,24 @@ export function useVideoVersions(
   const { toast } = useToast();
   const { user } = useAuth();
   const { storage, addStorageUsed, removeStorageUsed } = useWorkspaceStorage();
+  const [privateUrls, setPrivateUrls] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let stopped = false;
+    const refresh = async () => {
+      const entries = await Promise.all(versions.map(async version => {
+        const pairs = await Promise.all([false, true].map(async replacement => {
+          if (!(replacement ? version.replacement_stream_uid : version.cloudflare_stream_uid)) return null;
+          const { data, error } = await supabase.functions.invoke('video-playback-url', { body: { versionId: version.id, replacement } });
+          return !error && typeof data?.url === 'string' ? [`${version.id}:${replacement}` as string, data.url] as const : null;
+        }));
+        return pairs;
+      }));
+      if (!stopped) setPrivateUrls(Object.fromEntries(entries.flat().filter((entry): entry is readonly [string, string] => entry !== null)));
+    };
+    void refresh();
+    const timer = setInterval(() => { void refresh(); }, 600000);
+    return () => { stopped = true; clearInterval(timer); };
+  }, [versions]);
 
   const fetchVersions = useCallback(async () => {
     if (!taskId && !projectId) return;
@@ -378,7 +396,8 @@ export function useVideoVersions(
   const cancelUpload = () => durableClient.current.abort();
   const recoverUpload = () => durableClient.current.recover();
   // Get playback URL - now uses Cloudflare Stream with canonical videodelivery.net domain
-  const getPlaybackUrl = useCallback((version: VideoVersion): string | null => {
+  const getPlaybackUrl = useCallback((version: VideoVersion, replacement = false): string | null => {
+    if (version.cloudflare_stream_uid || version.replacement_stream_uid) return privateUrls[`${version.id}:${replacement}`] ?? null;
     // If we have a Cloudflare Stream playback URL, normalize to canonical domain
     if (version.stream_playback_url) {
       // Ensure we always use videodelivery.net domain for CORS compatibility
@@ -399,7 +418,7 @@ export function useVideoVersions(
     }
 
     return null;
-  }, []);
+  }, [privateUrls]);
 
   // Legacy: Get signed URL for Supabase Storage videos - memoized to prevent infinite loops
   const getSignedUrl = useCallback(async (filePath: string): Promise<string | null> => {
