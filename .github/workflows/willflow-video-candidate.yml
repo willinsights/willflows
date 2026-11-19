@@ -1,6 +1,7 @@
 name: WillFlow video upload candidate tests
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - 'docs/security/fase-a/video-integration/**'
