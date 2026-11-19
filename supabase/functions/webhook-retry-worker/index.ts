@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { authenticateCronRequest } from "../_shared/cron-auth.ts";
-import { secretEquals } from "../_shared/timing-safe.ts";
+import { workerAuthorization } from "../_shared/webhook-worker-auth.ts";
+import { handleWorkerRequest } from "../_shared/webhook-worker-request.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,28 +19,17 @@ const PROCESSOR_BY_PROVIDER: Record<string, string> = {
   // google: "google-webhook", // future
 };
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+function authorize(req: Request): Response | null {
+  return workerAuthorization(req, {
+    worker: Deno.env.get("WEBHOOK_RETRY_WORKER_SECRET"),
+    service: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+    legacy: Deno.env.get("CRON_SECRET"),
+  }, authenticateCronRequest);
+}
 
+async function processBatch(): Promise<Response> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-
-  // Require either service-role auth or shared CRON_SECRET
-  const authHeader = req.headers.get("Authorization") || "";
-  const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
-  const cronSecret = Deno.env.get("CRON_SECRET");
-  const providedSecret = req.headers.get("x-cron-secret");
-  const isCron = secretEquals(cronSecret, providedSecret);
-  const isServiceRole = !!serviceKey && bearer === serviceKey;
-  if (!isCron && !isServiceRole && authenticateCronRequest(req) !== null) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
   const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
 
   try {
@@ -116,4 +106,6 @@ serve(async (req) => {
       status: 500,
     });
   }
-});
+}
+
+serve(req => handleWorkerRequest(req, corsHeaders, authorize, processBatch));
