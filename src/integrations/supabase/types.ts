@@ -5584,6 +5584,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_pr2_video_canary: {
+        Args: { p_digest: string; p_id: string }
+        Returns: boolean
+      }
       claim_webhook_worker_dispatch: {
         Args: { p_id: string; p_intent: string; p_signature: string }
         Returns: boolean
@@ -5642,6 +5646,10 @@ export type Database = {
       enqueue_automation_job: {
         Args: { _event_type: string; _payload: Json; _workspace_id: string }
         Returns: string
+      }
+      finish_pr2_video_canary: {
+        Args: { p_id: string; p_proof: Json }
+        Returns: boolean
       }
       finish_webhook_worker_dispatch: {
         Args: { p_id: string; p_status: number }

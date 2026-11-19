@@ -1,5 +1,9 @@
 # Roadmap — pendências da auditoria
 
+## PR #2 — canário real autorizado, sem vídeos/quota de clientes
+- [x] Criar despacho privado único e função pr2-video-canary, testar ACL/replay e implantar apenas o canário.
+- [x] Executar duas fixtures R2/Stream privadas: 18 verificações PASS; autorização consumida permanentemente e função removida (HTTP 404). Provas no registo privado, resumo em docs/security/pr2-canary/RESULT.md.
+
 ## Retoma das pendências — novembro 2026
 - [ ] Base 24869199: núcleo vídeo/quota isolado preparado em video-integration; 24 Vitest/13 grupos PG + 5 next/19 G04 regressivos PASS. Fecho bloqueado por créditos: compilação/cópia UI, tickets abas antigas, imutabilidade HEAD, writers SQL standalone/fencing/rollback; lista exacta em STATUS.md. Stripe primeiro lote permanece separado e NO-GO operacional
 - [x] Base 317ef62b: recursos operacionais lidos (logs alvo ausentes; backups/export activo não acessíveis), upload durável/outbox/contratos quota e Stripe mínimo isolados, SQL/reversão/testes em docs/security/fase-a/next

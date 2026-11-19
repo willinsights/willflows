@@ -26,3 +26,4 @@
 - Durable-upload candidates bind issuance to an operation ID, persist version/quota atomically and hold retired assets in a non-cascading outbox; provider claims never expire automatically. Why: retries and parent deletion must not duplicate copies or lose recovery evidence.
 
 - Integrated video candidates reserve only positive quota deltas per durable operation under the accounting lock; abort holds partial assets and uncertain provider claims cannot be reclaimed. Why: avoid oversubscription and duplicate external copies without destructive recovery.
+- Provider canaries use a separate permanent singleton dispatch, service-only atomic digest claim, fixed fixtures and empty responses; archive code outside active functions after removal. Why: prevent replay, cross-worker authorization and accidental client effects.
