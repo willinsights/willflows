@@ -111,6 +111,10 @@ export function uploadHandlers(d:Dependencies) {
     const r=await d.db.from('video_upload_operations').select('*').eq('id',b.operationId).maybeSingle();const op=r.data;
     if(r.error||!op||op.user_id!==u)throw new UploadFailure('FORBIDDEN',403);
     await context({workspaceId:op.workspace_id,projectId:op.project_id,taskId:op.task_id,fileName:op.file_name,fileSize:Number(op.file_size)},u);
+    if (op.state === 'processing') {
+      // A lost confirmation can be read back without asking Stream to do any more work.
+      return rpc('recover_video_submission', { p_id: op.id, p_user: u, p_uid: null });
+    }
     if(!['submitting','uncertain'].includes(op.state))throw new UploadFailure('RECOVERY_NOT_REQUIRED',409);
     const hits=await d.findAccepted(op.id);
     const matches=hits.filter(x=>x.operation_id===op.id&&x.key===op.object_key&&x.workspace_id===op.workspace_id&&x.version_id===op.version_id);

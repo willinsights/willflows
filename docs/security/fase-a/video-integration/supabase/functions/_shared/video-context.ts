@@ -52,8 +52,8 @@ export function validateUploadFile(fileName: unknown, fileSize: unknown): void {
 
 export async function requireScopedVersion(db: VideoDatabase, id: string, scope: VideoContext): Promise<VideoVersionContext> {
   if (!isUuid(id)) deny();
-  const { data: version, error }: QueryResult = await db.from('video_versions').select('id,workspace_id,project_id,task_id,r2_key,uploaded_by').eq('id', id).maybeSingle();
-  if (error || !version) deny();
+  const { data: version, error }: QueryResult = await db.from('video_versions').select('id,workspace_id,project_id,task_id,r2_key,uploaded_by,is_deleted').eq('id', id).maybeSingle();
+  if (error || !version || version.is_deleted === true) deny();
   const context = await resolveVideoContext(db, version);
   if (!tokenCoversVersion(scope, context)) deny();
   return { ...version, ...context };

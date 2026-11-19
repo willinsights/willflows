@@ -177,9 +177,17 @@ DECLARE op public.video_upload_operations;
 BEGIN
   IF (current_setting('request.jwt.claims',true)::jsonb->>'role'='service_role') IS NOT TRUE THEN RAISE EXCEPTION 'Forbidden'; END IF;
   PERFORM pg_advisory_xact_lock(742019,1);
-  SELECT * INTO op FROM public.video_upload_operations WHERE id=p_id AND user_id=p_user AND state IN ('submitting','uncertain') FOR UPDATE;
-  IF NOT FOUND OR p_uid IS NULL OR length(p_uid) NOT BETWEEN 1 AND 255 THEN RAISE EXCEPTION 'Recovery mismatch'; END IF;
+  SELECT * INTO op FROM public.video_upload_operations WHERE id=p_id AND user_id=p_user FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Recovery mismatch'; END IF;
   IF NOT EXISTS(SELECT 1 FROM public.workspace_members WHERE workspace_id=op.workspace_id AND user_id=p_user AND is_active AND role::text IN ('admin','edicao')) THEN RAISE EXCEPTION 'Membership changed'; END IF;
+  IF op.state='processing' THEN
+    PERFORM 1 FROM public.video_versions
+      WHERE id=op.version_id AND workspace_id=op.workspace_id AND r2_key=op.object_key AND is_deleted IS NOT TRUE
+        AND nullif(cloudflare_stream_uid,'') IS NOT NULL AND (p_uid IS NULL OR cloudflare_stream_uid=p_uid) FOR SHARE;
+    IF NOT FOUND THEN RAISE EXCEPTION 'Recovery mismatch'; END IF;
+    RETURN op;
+  END IF;
+  IF op.state NOT IN ('submitting','uncertain') OR p_uid IS NULL OR length(p_uid) NOT BETWEEN 1 AND 255 THEN RAISE EXCEPTION 'Recovery mismatch'; END IF;
   UPDATE public.video_versions SET cloudflare_stream_uid=p_uid,stream_status='processing' WHERE id=op.version_id AND workspace_id=op.workspace_id AND r2_key=op.object_key AND is_deleted IS NOT TRUE;
   IF NOT FOUND THEN
     INSERT INTO public.video_asset_outbox(version_id,workspace_id,provider,asset_key,reason) VALUES(op.version_id,op.workspace_id,'stream',p_uid,'late_recovery') ON CONFLICT DO NOTHING;

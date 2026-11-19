@@ -56,6 +56,16 @@ try:
     sql('CREATE TABLE workspaces(id uuid PRIMARY KEY,stripe_subscription_id text); CREATE TABLE user_subscriptions(user_id uuid,stripe_subscription_id text); CREATE TABLE projects(id uuid PRIMARY KEY,workspace_id uuid REFERENCES workspaces ON DELETE CASCADE); CREATE TABLE tasks(id uuid PRIMARY KEY,project_id uuid REFERENCES projects ON DELETE CASCADE); ALTER TABLE workspace_storage ADD FOREIGN KEY(workspace_id) REFERENCES workspaces ON DELETE CASCADE; ALTER TABLE video_versions ADD FOREIGN KEY(workspace_id) REFERENCES workspaces ON DELETE CASCADE, ADD project_id uuid REFERENCES projects ON DELETE CASCADE, ADD task_id uuid REFERENCES tasks ON DELETE CASCADE; ALTER TABLE push_notification_queue ADD created_at timestamptz DEFAULT now(); ALTER TABLE subscription_discrepancies ADD workspace_id uuid REFERENCES workspaces ON DELETE SET NULL, ADD user_id uuid, ADD stripe_customer_id text;')
     sql(f"INSERT INTO workspaces VALUES('{ws}',NULL);")
     sql('ALTER TABLE workspace_storage ADD base_storage_bytes bigint DEFAULT 10000; ALTER TABLE video_versions ADD r2_key text,ADD replacement_r2_key text,ADD cloudflare_stream_uid text,ADD replacement_stream_uid text,ADD version_number int,ADD file_path text,ADD file_name text,ADD uploaded_by uuid,ADD stream_status text,ADD stream_playback_url text; ALTER TABLE video_versions ADD thumbnail_path text,ADD duration_seconds numeric,ADD replacement_playback_url text,ADD replacement_status text,ADD replacement_file_name text,ADD replacement_thumbnail_path text,ADD replaced_at timestamptz; CREATE TABLE workspace_members(workspace_id uuid,user_id uuid,role text,is_active boolean);')
+    sql("""
+        CREATE TABLE video_approval_tokens(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), token text UNIQUE NOT NULL,
+            workspace_id uuid REFERENCES workspaces ON DELETE CASCADE, project_id uuid REFERENCES projects ON DELETE CASCADE,
+            task_id uuid REFERENCES tasks ON DELETE CASCADE, is_active boolean NOT NULL DEFAULT true);
+        CREATE TABLE video_comments(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), video_version_id uuid NOT NULL REFERENCES video_versions ON DELETE CASCADE,
+            workspace_id uuid REFERENCES workspaces ON DELETE CASCADE, parent_id uuid REFERENCES video_comments ON DELETE CASCADE,
+            timestamp_seconds numeric NOT NULL DEFAULT 0, body text NOT NULL, created_at timestamptz DEFAULT now());
+        CREATE TABLE video_approvals(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), video_version_id uuid NOT NULL REFERENCES video_versions ON DELETE CASCADE,
+            workspace_id uuid REFERENCES workspaces ON DELETE CASCADE, approved_at timestamptz NOT NULL DEFAULT now(), notes text);
+    """)
     # Independent Stripe package FIRST: no phase-A schema exists.
     sql((previous/'stripe-minimal/candidate.sql').read_text())
     assert sql("SELECT to_regclass('push_delivery_claims') IS NULL AND to_regclass('weekly_summary_deliveries') IS NULL")=='t'
@@ -138,6 +148,22 @@ try:
     sql(c+f"SELECT finish_video_submission('{op}','{winner[0]}',NULL);")
     assert sql(c+f"SELECT claim_video_submission('{op}');").splitlines()[-1]=='SET'
     print('PASS mismatched operation refused; eight submission claims one owner; uncertain never replayed')
+    sql(f"""
+        INSERT INTO video_approval_tokens(token,workspace_id,project_id) VALUES('fixture-link','{ws}','{v}');
+        INSERT INTO video_comments(video_version_id,workspace_id,timestamp_seconds,body) VALUES('{vid}','{ws}',2.5,'Rever o corte');
+        INSERT INTO video_comments(video_version_id,workspace_id,parent_id,timestamp_seconds,body)
+            SELECT video_version_id,workspace_id,id,2.5,'Feito' FROM video_comments WHERE video_version_id='{vid}';
+        INSERT INTO video_approvals(video_version_id,workspace_id,notes) VALUES('{vid}','{ws}','Aprovado');
+    """)
+    review_snapshot = """
+        SELECT jsonb_build_object('token', to_jsonb(t), 'id', v.id, 'number', v.version_number,
+          'comments', (SELECT jsonb_agg(to_jsonb(c) ORDER BY c.id) FROM video_comments c WHERE c.video_version_id=v.id),
+          'approval', (SELECT to_jsonb(a) FROM video_approvals a WHERE a.video_version_id=v.id))
+        FROM video_approval_tokens t JOIN video_versions v ON v.project_id=t.project_id AND v.workspace_id=t.workspace_id
+        WHERE t.token='fixture-link' AND t.is_active;
+    """
+    prior_review = sql(review_snapshot)
+    assert all(value in prior_review for value in ('Rever o corte','Feito','Aprovado','fixture-link'))
     new='88888888-8888-4888-8888-888888888888'
     newkey=f"{ws}/{v}/project/{qid}/replacement.mp4"
     sql(c+f"SELECT issue_video_operation('{new}','{ws}','{v}',NULL,'{qid}','{newkey}','replacement.mp4',200,'{vid}');")
@@ -146,7 +172,8 @@ try:
     assert sql(f"SELECT id='{vid}' AND version_number=1 FROM video_versions")=='t'
     assert sql(f"SELECT count(*) FROM video_asset_outbox WHERE asset_key='{key}' AND state='held'")=='1'
     reject(c+f"SELECT persist_video_operation('{op}','{qid}','fixture');")
-    print('PASS replacement preserves version/comment identity; old reference held; superseded retry blocked')
+    assert sql(review_snapshot) == prior_review
+    print('PASS same link preserves version, comment, reply, approval and their exact timestamps; old reference held; superseded retry blocked')
     token=sql(c+f"SELECT claim_video_submission('{new}');").splitlines()[-1]
     reject(f"BEGIN; DELETE FROM video_versions; SELECT 1/0; COMMIT;")
     assert sql('SELECT count(*) FROM video_versions')=='1'
@@ -242,6 +269,10 @@ try:
     sql(c+f"SELECT recover_video_submission('{owned}','{qid}','recovered-fixture');")
     assert sql(c+f"SELECT claim_video_submission('{owned}');").splitlines()[-1]=='SET'
     reject(c+f"SELECT abort_video_operation('{owned}','{qid}');")
+    assert sql(c+f"SELECT state FROM recover_video_submission('{owned}','{qid}',NULL);").splitlines()[-1]=='processing'
+    reject(c+f"SELECT recover_video_submission('{owned}','{qid}','different-fixture-uid');")
+    sql(f"UPDATE video_versions SET is_deleted=true WHERE id=(SELECT version_id FROM video_upload_operations WHERE id='{owned}');")
+    reject(c+f"SELECT recover_video_submission('{owned}','{qid}',NULL);")
     print('PASS uncertain recovery attaches existing provider identity without reclaim; persisted abort rejected')
     sql(f"DELETE FROM workspaces WHERE id='{ws}';")
     assert int(sql('SELECT count(*) FROM video_upload_operations'))>=11

@@ -21,7 +21,12 @@ function fixture(){
   if(name==='claim_video_submission'){if(op.state!=='persisted')return {data:null};op.state='submitting';return {data:'claim'};}
   if(name==='finish_video_submission'){if(p.p_uid){op.state='processing';versions.get(op.version_id).cloudflare_stream_uid=p.p_uid;}else op.state='uncertain';return {};}
   if(name==='abort_video_operation'){if(!['issued','aborted'].includes(op.state))return {error:{}};op.state='aborted';return {data:op};}
-  if(name==='recover_video_submission'){op.state='processing';versions.get(op.version_id).cloudflare_stream_uid=p.p_uid;return {data:op};}
+  if(name==='recover_video_submission'){
+    const version=versions.get(op.version_id);
+    if(!version || version.is_deleted || version.r2_key!==op.object_key)return {error:{}};
+    if(op.state!=='processing'){op.state='processing';version.cloudflare_stream_uid=p.p_uid;}
+    return {data:op};
+  }
   return {error:{}};
  }};
  const find=vi.fn(async()=>[] as any[]);
@@ -37,6 +42,21 @@ it.each(['workspaceId','projectId','fileName','fileSize','replaceVersionId'])('s
 it('signed v1 old tab is promoted deterministically and retried without duplicate',async()=>{const f=fixture();const key=`${ws}/${project}/project/${user}/old-tab.mp4`;const ticket=await issueUploadTicket({workspace_id:ws,project_id:project,task_id:null,user_id:user,key,file_name:f.b.fileName,file_size:100,replace_version_id:null,expires_at:2000},secret);const b={...f.b,operationId:undefined,key,uploadTicket:ticket};await f.handlers.process(req,b);await f.handlers.process(req,b);expect(f.copy).toHaveBeenCalledTimes(1);expect(f.operations.size).toBe(1);});
 it('expired issued ticket cannot persist, persisted result can read after expiry',async()=>{const f=fixture(),b=await f.issue();f.setNow(20_000_000);await expect(f.handlers.process(req,b)).rejects.toThrow('expired');expect(f.copy).not.toHaveBeenCalled();const g=fixture(),c=await g.issue();await g.handlers.process(req,c);g.setNow(20_000_000);expect((await g.handlers.process(req,c)).versionId).toBeTruthy();expect(g.copy).toHaveBeenCalledTimes(1);});
 it('provider accepted timeout never resubmits; exact recovery links existing UID',async()=>{const f=fixture(),b=await f.issue();f.copy.mockRejectedValueOnce(new Error('timeout'));await expect(f.handlers.process(req,b)).rejects.toThrow('uncertain');await expect(f.handlers.process(req,b)).rejects.toThrow('PROVIDER_UNCERTAIN');expect(f.copy).toHaveBeenCalledTimes(1);const op=f.operations.get(b.operationId);f.find.mockResolvedValueOnce([{uid:'recovered',operation_id:op.id,key:op.object_key,workspace_id:ws,version_id:op.version_id}]);await f.handlers.recover(req,b);expect(f.versions.get(op.version_id).cloudflare_stream_uid).toBe('recovered');});
+it('reads back a lost recovery acknowledgment without another provider lookup or copy', async () => {
+ const f=fixture();
+ const b=await f.issue();
+ f.copy.mockRejectedValueOnce(new Error('timeout'));
+ await expect(f.handlers.process(req,b)).rejects.toThrow('uncertain');
+ const op=f.operations.get(b.operationId);
+ f.find.mockResolvedValueOnce([{uid:'fixture-accepted',operation_id:op.id,key:op.object_key,workspace_id:ws,version_id:op.version_id}]);
+ await f.handlers.recover(req,b);
+ expect((await f.handlers.recover(req,b)).state).toBe('processing');
+ expect(f.find).toHaveBeenCalledTimes(1);
+ expect(f.copy).toHaveBeenCalledTimes(1);
+ f.versions.get(op.version_id).r2_key='superseded';
+ await expect(f.handlers.recover(req,b)).rejects.toThrow();
+ expect(f.find).toHaveBeenCalledTimes(1);
+});
 it('zero or ambiguous provider matches never unlock another submission',async()=>{const f=fixture(),b=await f.issue();f.copy.mockRejectedValueOnce(new Error('timeout'));await expect(f.handlers.process(req,b)).rejects.toThrow();await expect(f.handlers.recover(req,b)).rejects.toThrow('PROVIDER_UNCERTAIN');f.find.mockResolvedValueOnce([{},{}]);await expect(f.handlers.recover(req,b)).rejects.toThrow('PROVIDER_UNCERTAIN');expect(f.copy).toHaveBeenCalledTimes(1);});
 it('abort stops persistence, not deletes; changed user cannot access operation',async()=>{const f=fixture(),b=await f.issue();await f.handlers.abort(req,b);await expect(f.handlers.process(req,b)).rejects.toThrow('UPLOAD_ABORTED');f.setUser(other);await expect(f.handlers.process(req,b)).rejects.toThrow();f.setUser(null);await expect(f.handlers.issue(req,f.b)).rejects.toThrow('UNAUTHORIZED');expect(f.copy).not.toHaveBeenCalled();});
 it('replacement keeps ID, number and comments in integrated candidate',async()=>{const f=fixture(),b=await f.issue();const first=await f.handlers.process(req,b);const v=f.versions.get(first.versionId);v.comments=['fiction-comment'];f.b={...f.b,operationId:crypto.randomUUID(),replaceVersionId:first.versionId};const issued=await f.handlers.issue(req,f.b);const result=await f.handlers.process(req,{...f.b,...issued});expect(result.versionId).toBe(first.versionId);expect(result.versionNumber).toBe(1);expect(f.versions.get(first.versionId).comments).toEqual(['fiction-comment']);});

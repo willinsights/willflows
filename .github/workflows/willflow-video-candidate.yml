@@ -71,6 +71,7 @@ jobs:
           deno check --node-modules-dir=none docs/security/fase-a/video-integration/supabase/functions/_shared/runtime.ts
           deno check --node-modules-dir=none docs/security/fase-a/video-integration/supabase/functions/_shared/integrated-upload.ts
           deno check --node-modules-dir=none docs/security/fase-a/video-integration/supabase/functions/stream-get-status/index.ts
+          deno check --node-modules-dir=none docs/security/fase-a/video-integration/supabase/functions/get-video-approval-data/index.ts
           deno check --node-modules-dir=none docs/security/fase-a/video-integration/supabase/functions/stream-update-video/index.ts
 
   candidate-postgres-fixture:

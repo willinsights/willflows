@@ -66,3 +66,10 @@
 - R2 destination conditional CopyObject (beta): https://developers.cloudflare.com/r2/api/s3/extensions/
 - Cloudflare Stream exact `video_name`: https://developers.cloudflare.com/api/resources/stream/methods/list/
 - Código e testes estão exclusivamente no PR de revisão; antes de produção é necessário validar R2/Stream contra um ambiente de teste controlado e autorizar a eventual retenção/custo temporário das cópias congeladas.
+
+
+### Verificações de continuidade da aprovação
+
+O mesmo link continua a apresentar o comentário e a aprovação quando a nova cópia está pendente, em processamento ou em erro. Uma versão com um ficheiro legado continua a usar a assinatura do seu próprio espaço. Uma falha de leitura do histórico é comunicada ao cliente. O ensaio em PostgreSQL compara o token, a identidade e o número de versão, o comentário, a resposta, a aprovação e as datas antes e depois da substituição.
+
+Se a confirmação da recuperação se perder, o cliente pode consultar de novo a operação. A base de dados confirma a associação atual entre versão, objeto e UID antes de aceitar o resultado guardado. O ensaio usa dados e serviços simulados.
