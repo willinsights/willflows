@@ -102,3 +102,25 @@ describe("database-managed worker credential", () => {
     expect(verify).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("signed scheduled dispatch", () => {
+  it("rejects unclaimed requests, binds the intent and never runs a probe as a batch", async () => {
+    const { handleSignedDispatch } = await import("../../../../../supabase/functions/_shared/webhook-worker-dispatch.ts");
+    const id = "11111111-1111-4111-8111-111111111111";
+    const signature = "a".repeat(64);
+    const request = (intent: string) => new Request("https://example.test", { method: "POST", headers: {
+      "x-willflow-dispatch": id, "x-willflow-intent": intent, "x-willflow-signature": signature,
+    } });
+    const claim = vi.fn(async (_id: string, intent: string) => intent === "probe");
+    const finish = vi.fn(async () => true);
+    const run = vi.fn(async () => new Response("private output"));
+    expect((await handleSignedDispatch(request("run"), claim, finish, run)).status).toBe(401);
+    expect((await handleSignedDispatch(request("probe"), claim, finish, run)).status).toBe(204);
+    expect(run).not.toHaveBeenCalled();
+    expect(finish).toHaveBeenCalledWith(id, 204);
+    const response = await handleSignedDispatch(request("run"), async () => true, finish, run);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("");
+    expect(run).toHaveBeenCalledOnce();
+  });
+});

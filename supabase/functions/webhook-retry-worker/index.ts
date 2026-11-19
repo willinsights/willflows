@@ -5,6 +5,8 @@ import { vaultWorkerAuthorization } from "../_shared/webhook-worker-vault.ts";
 import { workerAuthorization } from "../_shared/webhook-worker-auth.ts";
 import { handleWorkerRequest } from "../_shared/webhook-worker-request.ts";
 
+import { handleSignedDispatch } from "../_shared/webhook-worker-dispatch.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -118,4 +120,20 @@ async function processBatch(): Promise<Response> {
   }
 }
 
-serve(req => handleWorkerRequest(req, corsHeaders, authorize, processBatch));
+serve(req => {
+  if (!req.headers.has("x-willflow-dispatch")) {
+    return handleWorkerRequest(req, corsHeaders, authorize, processBatch);
+  }
+  const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
+    auth: { persistSession: false },
+  });
+  const call = async (name: string, args: Record<string, unknown>) => {
+    const { data, error } = await db.rpc(name, args);
+    if (error) throw new Error("Worker dispatch database unavailable");
+    return data === true;
+  };
+  return handleSignedDispatch(req,
+    (id, intent, signature) => call("claim_webhook_worker_dispatch", { p_id: id, p_intent: intent, p_signature: signature }),
+    (id, status) => call("finish_webhook_worker_dispatch", { p_id: id, p_status: status }),
+    processBatch);
+});

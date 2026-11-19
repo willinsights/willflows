@@ -8,7 +8,7 @@ export async function handleWorkerRequest(
 ): Promise<Response> {
   const allow = "POST, HEAD, OPTIONS";
   if (request.method === "OPTIONS") {
-    return new Response(null, { headers: { ...headers, "Access-Control-Allow-Methods": allow, "X-WillFlow-Worker-Version": "vault-1" } });
+    return new Response(null, { headers: { ...headers, "Access-Control-Allow-Methods": allow, "X-WillFlow-Worker-Version": "vault-1", "X-WillFlow-Dispatch-Version": "1" } });
   }
 
   const authError = await authorize(request);
