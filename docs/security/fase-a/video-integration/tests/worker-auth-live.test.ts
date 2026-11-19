@@ -13,6 +13,28 @@ describe("webhook-retry-worker authorization (no network / no job execution)", (
   it("accepts configured service bearer", () => {
     expect(workerAuthorization(req({ authorization: "Bearer service-fixture" }), secrets, unauthorized)).toBeNull();
   });
+  it("allows a worker-only bearer to probe without processing a batch", async () => {
+    const request = new Request("http://localhost/webhook-retry-worker", {
+      method: "HEAD", headers: { authorization: "Bearer worker-fixture" },
+    });
+    const process = vi.fn();
+    const authorize = (input: Request) =>
+      workerAuthorization(input, { worker: "worker-fixture" }, unauthorized);
+    const response = await handleWorkerRequest(request, {}, authorize, process);
+    expect(response.status).toBe(204);
+    expect(response.headers.get("X-WillFlow-Worker-Probe")).toBe("1");
+    expect(process).not.toHaveBeenCalled();
+  });
+  it("rejects the scheduled public bearer before processing any work", async () => {
+    const request = new Request("http://localhost/webhook-retry-worker", {
+      method: "POST", headers: { authorization: "Bearer public-anon-fixture" },
+    });
+    const process = vi.fn();
+    const authorize = (input: Request) =>
+      workerAuthorization(input, { ...secrets, worker: "worker-fixture" }, unauthorized);
+    expect((await handleWorkerRequest(request, {}, authorize, process)).status).toBe(401);
+    expect(process).not.toHaveBeenCalled();
+  });
   it("accepts configured legacy cron secret", () => {
     expect(workerAuthorization(req({ "x-cron-secret": "legacy-fixture" }), secrets, unauthorized)).toBeNull();
   });

@@ -44,3 +44,11 @@ GROUP BY 1,2 ORDER BY 1 DESC,2;
 ## Sonda de autenticação da revisão
 
 A revisão do worker responde com HTTP 204 e o cabeçalho `X-WillFlow-Worker-Probe: 1` a um HEAD autenticado. O caminho termina antes da criação do cliente de base de dados. Um POST autenticado mantém o processamento normal. Para testar no ambiente isolado, confirmar primeiro que a versão instalada inclui esta sonda. Versões anteriores podem processar a fila ao receber HEAD. Usar a credencial que o ambiente já gere e registar apenas o estado e o cabeçalho de versão.
+
+## Confirmação no Lovable Cloud em 19 de novembro
+
+Os logs da função identificam diretamente o POST para webhook-retry-worker com 401 às 14:05, 14:10 e 14:15 UTC. O registo das 14:15 identifica a versão 61. O job 12 apresenta um bearer literal cujo JWT declara o perfil anon e ainda não expirou. A inspeção devolveu somente o perfil e o estado de expiração. O Vault estava vazio. Mesmo quando o gateway aceita esse tipo de JWT, o handler exige uma credencial privada.
+
+A revisão aceita também WEBHOOK_RETRY_WORKER_SECRET, um bearer exclusivo deste worker. Para ativar o job, provisionar o mesmo valor aleatório nos segredos privados da função e numa entrada privada de Vault destinada ao agendamento. O SQL do job deve resolver o valor a partir de Vault no momento da chamada. Não usar a chave de serviço para este efeito nem reutilizar o segredo de limpeza.
+
+Confirmar que a versão com a sonda está implantada antes de enviar HEAD autenticado. Validar 204 e o cabeçalho da sonda. Só depois alterar o comando do job 12 existente, preservando a frequência, e confirmar pelo menos dois POST sucessivos com 200 nos logs deste worker. O job 6 mantém a configuração existente.

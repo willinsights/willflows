@@ -21,6 +21,7 @@ const PROCESSOR_BY_PROVIDER: Record<string, string> = {
 
 function authorize(req: Request): Response | null {
   return workerAuthorization(req, {
+    worker: Deno.env.get("WEBHOOK_RETRY_WORKER_SECRET"),
     service: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
     legacy: Deno.env.get("CRON_SECRET"),
   }, authenticateCronRequest);

@@ -5,11 +5,12 @@ import { secretEquals } from './timing-safe.ts';
  */
 export function workerAuthorization(
   request: Request,
-  secrets: { service?: string | null; legacy?: string | null },
+  secrets: { service?: string | null; legacy?: string | null; worker?: string | null },
   managed: (request: Request) => Response | null,
 ): Response | null {
   const token = /^Bearer ([^\s,]+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
   if (
+    secretEquals(secrets.worker, token) ||
     secretEquals(secrets.service, token) ||
     secretEquals(secrets.legacy, request.headers.get('x-cron-secret'))
   ) return null;
