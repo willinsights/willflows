@@ -80,3 +80,8 @@ Se a confirmação da recuperação se perder, o cliente pode consultar de novo 
 `quota-baseline.sql` devolve a contagem e a soma de versões ativas, o valor guardado, o número de tamanhos por confirmar e uma assinatura dos registos. A leitura devolve apenas contadores divergentes. Para gerar o SQL da migração com a correção precisa, passar os cinco campos revistos a `assemble_candidate.py --reconcile-counter WORKSPACE STORED ACTIVE COUNT SHA256`. O comando imprime SQL e pode ser ensaiado numa cópia isolada.
 
 A aplicação compara novamente os valores e a assinatura depois de bloquear os escritores. Alterações entretanto ocorridas, tamanhos sem confirmação ou uma falha posterior na migração cancelam a transação inteira. Uma aplicação bem-sucedida conserva o limite contratado, regista os valores anterior e corrigido e mantém os registos dos vídeos. A execução sem argumentos continua a recusar qualquer divergência.
+
+
+### Compatibilidade com escritores anteriores
+
+Depois da migração, a alteração de uma versão atualiza o contador dentro da mesma transação. Chamadas existentes de serviços a `add_workspace_storage` continuam a receber a resposta habitual e uma repetição não volta a somar nem subtrair bytes. Tentativas de escrever diretamente um total obsoleto são recusadas. O rollback antes da primeira operação repõe a função original e os seus privilégios.

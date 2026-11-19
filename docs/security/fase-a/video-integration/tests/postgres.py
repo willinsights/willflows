@@ -66,6 +66,11 @@ try:
         CREATE TABLE video_approvals(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), video_version_id uuid NOT NULL REFERENCES video_versions ON DELETE CASCADE,
             workspace_id uuid REFERENCES workspaces ON DELETE CASCADE, approved_at timestamptz NOT NULL DEFAULT now(), notes text);
     """)
+    legacy_rpc_file = root.parents[3]/'supabase/migrations/20260129220300_f0717eaa-971c-460c-97f9-19b6a51efaaf.sql'
+    legacy_rpc = legacy_rpc_file.read_text().split('CREATE OR REPLACE FUNCTION public.add_workspace_storage',1)[1].split('$$;',1)[0]
+    sql('CREATE OR REPLACE FUNCTION public.add_workspace_storage'+legacy_rpc+'$$;')
+    sql('REVOKE ALL ON FUNCTION public.add_workspace_storage(uuid,bigint) FROM PUBLIC,anon,authenticated; GRANT EXECUTE ON FUNCTION public.add_workspace_storage(uuid,bigint) TO service_role;')
+    legacy_identity = sql("SELECT oid,md5(pg_get_functiondef(oid)),proacl FROM pg_proc WHERE oid='public.add_workspace_storage(uuid,bigint)'::regprocedure;")
     # Independent Stripe package FIRST: no phase-A schema exists.
     sql((previous/'stripe-minimal/candidate.sql').read_text())
     assert sql("SELECT to_regclass('push_delivery_claims') IS NULL AND to_regclass('weekly_summary_deliveries') IS NULL")=='t'
@@ -89,6 +94,8 @@ try:
     assert sql("SELECT to_regprocedure('public.expire_video_issued_operations(integer)') IS NULL")=='t'
     assert sql("SELECT count(*) FROM pg_trigger WHERE tgname IN ('guard_storage_counter','video_accounting_serial','storage_accounting_serial')")=='0'
     assert sql("SELECT count(*) FROM pg_trigger WHERE tgname='trg_sync_storage_video_versions'")=='1'
+    assert legacy_identity == sql("SELECT oid,md5(pg_get_functiondef(oid)),proacl FROM pg_proc WHERE oid='public.add_workspace_storage(uuid,bigint)'::regprocedure;")
+    assert sql("SELECT to_regnamespace('willflow_video_migration') IS NULL") == 't'
     assert_writer_blocks('00-accounting.sql', 'workspace_storage')
     drift_ws='bbbbbbbb-1111-4111-8111-111111111111'
     sql(f"INSERT INTO workspaces VALUES('{drift_ws}',NULL); INSERT INTO workspace_storage(workspace_id,storage_used_bytes,storage_limit_bytes) VALUES('{drift_ws}',5,100);")
@@ -165,6 +172,13 @@ try:
     vid=ids[0]
     assert sql('SELECT count(*) FROM video_versions')=='1'
     assert sql('SELECT storage_used_bytes FROM workspace_storage')=='100'
+    for delta in (100,100,-100):
+        sql(c+f"SET ROLE service_role; SELECT public.add_workspace_storage('{ws}',{delta});")
+    assert sql('SELECT storage_used_bytes FROM workspace_storage')=='100'
+    assert sql("SELECT NOT has_function_privilege('authenticated','public.add_workspace_storage(uuid,bigint)','EXECUTE') AND NOT has_schema_privilege('service_role','willflow_video_migration','USAGE');")=='t'
+    reject(f"SET ROLE anon; SELECT public.add_workspace_storage('{ws}',100);")
+    reject(f"UPDATE workspace_storage SET storage_used_bytes=999 WHERE workspace_id='{ws}';")
+    print('PASS previous service writer confirms retries without double counting; stale direct updates rejected; original routine and ACL restored before first use')
     print('PASS eight Unicode issuance/persistence retries have one version and one quota credit')
     # Different operation IDs still allocate a unique project sequence atomically.
     def independent(i):

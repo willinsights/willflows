@@ -26,6 +26,24 @@ BEGIN
    WHERE s.storage_used_bytes IS DISTINCT FROM COALESCE(v.computed,0)
  ) THEN RAISE EXCEPTION 'VIDEO_ACCOUNTING_BASELINE_MISMATCH: reconcile before migration'; END IF;
 END $integrity$;
+-- Stored RPC callers have already persisted the version. The new trigger owns its bytes.
+-- Keep the original function and its ACLs together for pre-use rollback.
+CREATE SCHEMA willflow_video_migration;
+REVOKE ALL ON SCHEMA willflow_video_migration FROM PUBLIC, anon, authenticated, service_role;
+ALTER FUNCTION public.add_workspace_storage(uuid,bigint) SET SCHEMA willflow_video_migration;
+CREATE FUNCTION public.add_workspace_storage(p_workspace_id uuid, p_bytes bigint) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
+BEGIN
+  IF (current_setting('request.jwt.claims',true)::jsonb->>'role'='service_role') IS NOT TRUE THEN
+    RAISE EXCEPTION 'Forbidden';
+  END IF;
+  IF p_bytes IS NULL OR NOT EXISTS (SELECT 1 FROM public.workspace_storage WHERE workspace_id=p_workspace_id) THEN
+    RAISE EXCEPTION 'Invalid legacy accounting request';
+  END IF;
+END $$;
+REVOKE ALL ON FUNCTION public.add_workspace_storage(uuid,bigint) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.add_workspace_storage(uuid,bigint) TO service_role;
+
 CREATE FUNCTION public.lock_video_accounting() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
 BEGIN PERFORM pg_advisory_xact_lock(742019,1); RETURN NULL; END $$;

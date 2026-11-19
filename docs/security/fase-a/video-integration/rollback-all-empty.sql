@@ -80,6 +80,9 @@ DROP TRIGGER IF EXISTS trg_sync_storage_video_versions ON public.video_versions;
 CREATE TRIGGER trg_sync_storage_video_versions
 AFTER INSERT OR UPDATE OF file_size_bytes OR DELETE ON public.video_versions
 FOR EACH ROW EXECUTE FUNCTION public.sync_workspace_storage_from_video_versions();
+DROP FUNCTION public.add_workspace_storage(uuid,bigint);
+ALTER FUNCTION willflow_video_migration.add_workspace_storage(uuid,bigint) SET SCHEMA public;
+DROP SCHEMA willflow_video_migration;
 DROP FUNCTION public.guard_storage_counter();
 DROP FUNCTION public.lock_video_accounting();
 COMMIT;

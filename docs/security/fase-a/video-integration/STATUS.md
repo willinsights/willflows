@@ -1,5 +1,11 @@
 # Integração vídeo/quota — 18/11/2026
 
+## Estado de 19 de novembro
+
+O [runbook](CUTOVER-RUNBOOK.md) e o [registo dos ensaios](RELEASE-GATES-2026-11-18.md) acompanham a revisão atual. O percurso de aprovação pública, a recuperação de resposta perdida, a reconciliação protegida do contador e a compatibilidade com o antigo RPC têm cobertura de regressão. A aplicação real dos SQL e a validação do fornecedor continuam pendentes.
+
+## Registo histórico de 18 de novembro
+
 Base 24869199. Candidato isolado; produção intacta. Interrompido por créditos indisponíveis antes de compilação isolada, ensaio de navegador e fecho integral. **Não pronto para implantação.**
 
 ## Implementado
