@@ -2,6 +2,10 @@
 
 > **Estado: BLOQUEADO PARA PRODUÇÃO.** Este documento é um plano operacional, não uma autorização nem um script de implantação. Nunca colar comandos de pausa/alteração de contas na base real sem validação de pré-condições.
 
+## Vídeos de aprovação
+
+Em 19/11/2026, o proprietário confirmou que os originais estão arquivados fora do WillFlow e da Cloudflare. O vídeo carregado serve para aprovação e pode ser reenviado a partir do original. Em caso de perda de uma cópia, a recuperação prevista é a substituição do ficheiro, preservando a identidade da versão, o link de revisão, os comentários e o estado de aprovação. Esta decisão não autoriza apagar conteúdos nem reiniciar quotas.
+
 ## Infraestrutura que se mantém
 
 - Aplicação e base de dados: **Lovable Cloud**, sem criar outro projeto Supabase.
@@ -31,8 +35,8 @@ Consulta de agregados em produção: 19 workspaces; 1 contador divergente; no wo
 
 ## Portões de liberação
 
-1. **Inventário físico**: comparar o conjunto de R2 object keys, versões apagadas, referências partilhadas, video UIDs e objetos órfãos com a BD, por execução do operador com acesso Cloudflare. Sem manipular objetos. Confirmar a divergência com os tamanhos/estados reais, incluindo objetos parciais.
-2. **Backup e recuperação**: proprietário declarou backup criado, mas é necessário ensaio de *restore* em base isolada, timestamp e hash/versão da app/Edge Functions. Backup da BD não é cópia dos objetos físicos Cloudflare; manter plano separado para estes.
+1. **Reconciliação de quota.** Investigar o contador divergente e confrontar as referências relevantes com o fornecedor quando necessário. A recuperação dos originais não exige um catálogo integral da conta Cloudflare. A publicação do fluxo de vídeo exige verificar o funcionamento de R2 e Stream com um ficheiro de teste.
+2. **Backup e recuperação.** O GitHub conserva o código e as migrações. Verificar separadamente o ponto de recuperação dos dados de produção no Lovable Cloud e ensaiar o restauro em destino isolado. Incluir os registos de projetos, clientes, faturação e aprovações.
 3. **Provider smoke test isolado**: criar um objeto fictício na conta/bucket de teste (não clientes), experimentar `CopyObject` com `x-amz-copy-source-if-match`, `cf-copy-destination-if-none-match: *`, testar 412 por origem alterada e destino existente, e garantir HEAD do snapshot antes de chamar Stream. R2 destination condition está em beta; sem prova de suporte efetivo, STOP.
 4. **Stream**: usar `POST /stream/copy` com `input`, `meta.name=operationId` e procurar `GET /stream?video_name=<ID>`; testar zero, um, dois, resposta incerta e substituição obsoleta. Proibir resend após incerteza.
 5. **Coerência**: validar o conjunto final de scripts SQL, ACL/RLS, fonte de quota, migração de todos os escritores, hook e handlers, teste real com sessão fictícia e preservação de números/comentários no replacement.
@@ -51,4 +55,4 @@ Não há ligação a Cloudflare neste ChatGPT; o projeto Lovable possui zero con
 
 ## Pacote SQL da candidata
 
-O comando `python3 assemble_candidate.py`, executado nesta pasta, escreve o SQL na saída padrão. Verifica os hashes dos três ficheiros e agrupa a contabilidade, as operações de upload e a quota final numa transação. O ensaio em PostgreSQL descartável inclui uma falha no final da terceira etapa e verifica que as tabelas e os triggers das etapas anteriores são revertidos. A validação dos inventários e do restauro continua a preceder qualquer aplicação no ambiente real.
+O comando `python3 assemble_candidate.py`, executado nesta pasta, escreve o SQL na saída padrão. Verifica os hashes dos três ficheiros e agrupa a contabilidade, as operações de upload e a quota final numa transação. O ensaio em PostgreSQL descartável inclui uma falha no final da terceira etapa e verifica que as tabelas e os triggers das etapas anteriores são revertidos. A reconciliação do contador divergente e a validação do restauro continua a preceder qualquer aplicação no ambiente real.
