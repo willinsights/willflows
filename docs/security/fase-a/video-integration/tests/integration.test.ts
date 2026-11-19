@@ -8,7 +8,7 @@ const secret='fiction-only';const req=new Request('http://localhost/test');
 function fixture(){
  const operations=new Map<string,any>(),versions=new Map<string,any>();let now=1000,authenticated:string|null=user;
  const copy=vi.fn(async()=> 'uid-fixture');let head:{size:number;etag:string}|null={size:100,etag:'fiction'};
- const db={from:(table:string)=>{const filters:any={};const q:any={select:()=>q,eq:(k:string,v:any)=>(filters[k]=v,q),maybeSingle:async()=>({data:table==='workspace_members'?(filters.workspace_id===ws&&filters.user_id===user?{role:'edicao',is_active:true}:null):table==='projects'?(filters.id===project?{id:project,workspace_id:ws}:null):table==='tasks'?{id:other,workspace_id:ws,project_id:project}:table==='video_upload_operations'?operations.get(filters.id):versions.get(filters.id)})};return q;},rpc:async(name:string,p:any)=>{
+ const db={from:(table:string)=>{const filters:any={};const q:any={select:()=>q,eq:(k:string,v:any)=>(filters[k]=v,q),maybeSingle:async()=>({data:table==='workspace_members'?(filters.workspace_id===ws&&filters.user_id===user?{role:'edicao',is_active:true}:null):table==='projects'?(filters.id===project?{id:project,workspace_id:ws}:null):table==='tasks'?{id:other,workspace_id:ws,project_id:project}:table==='video_upload_operations'?(filters.id?operations.get(filters.id):[...operations.values()].find(o=>o.object_key===filters.object_key)):versions.get(filters.id)})};return q;},rpc:async(name:string,p:any)=>{
   if(name==='issue_video_operation'){
    const old=operations.get(p.p_id);if(old)return {data:old};
    const v=versions.get(p.p_replace);const op={id:p.p_id,workspace_id:p.p_ws,project_id:p.p_project,task_id:p.p_task,user_id:p.p_user,object_key:p.p_key,file_name:p.p_name,file_size:p.p_size,replace_id:p.p_replace,version_id:v?.id??crypto.randomUUID(),expires_at:new Date(now+14400000).toISOString(),state:'issued'};operations.set(op.id,op);return {data:op};
@@ -21,7 +21,12 @@ function fixture(){
   if(name==='claim_video_submission'){if(op.state!=='persisted')return {data:null};op.state='submitting';return {data:'claim'};}
   if(name==='finish_video_submission'){if(p.p_uid){op.state='processing';versions.get(op.version_id).cloudflare_stream_uid=p.p_uid;}else op.state='uncertain';return {};}
   if(name==='abort_video_operation'){if(!['issued','aborted'].includes(op.state))return {error:{}};op.state='aborted';return {data:op};}
-  if(name==='recover_video_submission'){op.state='processing';versions.get(op.version_id).cloudflare_stream_uid=p.p_uid;return {data:op};}
+  if(name==='recover_video_submission'){
+    const version=versions.get(op.version_id);
+    if(!version || version.is_deleted || version.r2_key!==op.object_key)return {error:{}};
+    if(op.state!=='processing'){op.state='processing';version.cloudflare_stream_uid=p.p_uid;}
+    return {data:op};
+  }
   return {error:{}};
  }};
  const find=vi.fn(async()=>[] as any[]);
@@ -37,8 +42,199 @@ it.each(['workspaceId','projectId','fileName','fileSize','replaceVersionId'])('s
 it('signed v1 old tab is promoted deterministically and retried without duplicate',async()=>{const f=fixture();const key=`${ws}/${project}/project/${user}/old-tab.mp4`;const ticket=await issueUploadTicket({workspace_id:ws,project_id:project,task_id:null,user_id:user,key,file_name:f.b.fileName,file_size:100,replace_version_id:null,expires_at:2000},secret);const b={...f.b,operationId:undefined,key,uploadTicket:ticket};await f.handlers.process(req,b);await f.handlers.process(req,b);expect(f.copy).toHaveBeenCalledTimes(1);expect(f.operations.size).toBe(1);});
 it('expired issued ticket cannot persist, persisted result can read after expiry',async()=>{const f=fixture(),b=await f.issue();f.setNow(20_000_000);await expect(f.handlers.process(req,b)).rejects.toThrow('expired');expect(f.copy).not.toHaveBeenCalled();const g=fixture(),c=await g.issue();await g.handlers.process(req,c);g.setNow(20_000_000);expect((await g.handlers.process(req,c)).versionId).toBeTruthy();expect(g.copy).toHaveBeenCalledTimes(1);});
 it('provider accepted timeout never resubmits; exact recovery links existing UID',async()=>{const f=fixture(),b=await f.issue();f.copy.mockRejectedValueOnce(new Error('timeout'));await expect(f.handlers.process(req,b)).rejects.toThrow('uncertain');await expect(f.handlers.process(req,b)).rejects.toThrow('PROVIDER_UNCERTAIN');expect(f.copy).toHaveBeenCalledTimes(1);const op=f.operations.get(b.operationId);f.find.mockResolvedValueOnce([{uid:'recovered',operation_id:op.id,key:op.object_key,workspace_id:ws,version_id:op.version_id}]);await f.handlers.recover(req,b);expect(f.versions.get(op.version_id).cloudflare_stream_uid).toBe('recovered');});
+it('reads back a lost recovery acknowledgment without another provider lookup or copy', async () => {
+ const f=fixture();
+ const b=await f.issue();
+ f.copy.mockRejectedValueOnce(new Error('timeout'));
+ await expect(f.handlers.process(req,b)).rejects.toThrow('uncertain');
+ const op=f.operations.get(b.operationId);
+ f.find.mockResolvedValueOnce([{uid:'fixture-accepted',operation_id:op.id,key:op.object_key,workspace_id:ws,version_id:op.version_id}]);
+ await f.handlers.recover(req,b);
+ expect((await f.handlers.recover(req,b)).state).toBe('processing');
+ expect(f.find).toHaveBeenCalledTimes(1);
+ expect(f.copy).toHaveBeenCalledTimes(1);
+ f.versions.get(op.version_id).r2_key='superseded';
+ await expect(f.handlers.recover(req,b)).rejects.toThrow();
+ expect(f.find).toHaveBeenCalledTimes(1);
+});
 it('zero or ambiguous provider matches never unlock another submission',async()=>{const f=fixture(),b=await f.issue();f.copy.mockRejectedValueOnce(new Error('timeout'));await expect(f.handlers.process(req,b)).rejects.toThrow();await expect(f.handlers.recover(req,b)).rejects.toThrow('PROVIDER_UNCERTAIN');f.find.mockResolvedValueOnce([{},{}]);await expect(f.handlers.recover(req,b)).rejects.toThrow('PROVIDER_UNCERTAIN');expect(f.copy).toHaveBeenCalledTimes(1);});
 it('abort stops persistence, not deletes; changed user cannot access operation',async()=>{const f=fixture(),b=await f.issue();await f.handlers.abort(req,b);await expect(f.handlers.process(req,b)).rejects.toThrow('UPLOAD_ABORTED');f.setUser(other);await expect(f.handlers.process(req,b)).rejects.toThrow();f.setUser(null);await expect(f.handlers.issue(req,f.b)).rejects.toThrow('UNAUTHORIZED');expect(f.copy).not.toHaveBeenCalled();});
 it('replacement keeps ID, number and comments in integrated candidate',async()=>{const f=fixture(),b=await f.issue();const first=await f.handlers.process(req,b);const v=f.versions.get(first.versionId);v.comments=['fiction-comment'];f.b={...f.b,operationId:crypto.randomUUID(),replaceVersionId:first.versionId};const issued=await f.handlers.issue(req,f.b);const result=await f.handlers.process(req,{...f.b,...issued});expect(result.versionId).toBe(first.versionId);expect(result.versionNumber).toBe(1);expect(f.versions.get(first.versionId).comments).toEqual(['fiction-comment']);});
 it('total is 12000 not 14000; zero/missing/error fail closed; replacement uses delta',()=>{const q=quotaInfo({storage_used_bytes:11000,storage_limit_bytes:12000});expect(q.limitBytes).toBe(12000);expect(q.canUpload(1001)).toBe(false);expect(q.canUpload(2000,1000)).toBe(true);expect(quotaInfo(null).canUpload(1)).toBe(false);expect(quotaInfo({storage_used_bytes:0,storage_limit_bytes:0}).canUpload(1)).toBe(false);expect(quotaInfo({storage_used_bytes:0,storage_limit_bytes:12000},true).canUpload(1)).toBe(false);});
 it('frontend retries process with same ID and no duplicate PUT; expiry never silently restarts',async()=>{let attempt=0;const bodies:any[]=[];const put=vi.fn(async()=>{});const invoke=vi.fn(async(name,b)=>{bodies.push(b);if(name==='r2-upload-url')return {uploadUrl:'local',key:'key',uploadTicket:'ticket'};if(attempt++===0)throw new Error('UPLOAD_EXPIRED');return {versionId:'v',status:'processing'};});const client=new DurableUploadClient({invoke,put});const file=new File(['fiction'],'ação.mp4');await expect(client.run(file,{workspaceId:ws})).rejects.toThrow('UPLOAD_EXPIRED');await client.run(file,{workspaceId:ws});expect(new Set(bodies.map(x=>x.operationId)).size).toBe(1);expect(put).toHaveBeenCalledTimes(1);});
+
+
+it('coalesces simultaneous run calls for the same File/context into one issue, PUT and process',async()=>{
+  const invocations:string[]=[];
+  let releasePut:()=>void=()=>{};
+  const waitForPut=new Promise<void>(resolve=>{releasePut=resolve;});
+  const put=vi.fn(async()=>{await waitForPut;});
+  const invoke=vi.fn(async(name:string,body?:any)=>{
+    invocations.push(name);
+    if(name==='r2-upload-url')return {uploadUrl:'http://localhost/fixture',key:'same-key',uploadTicket:'signed'};
+    return {versionId:'one-version',status:'processing'};
+  });
+  const client=new DurableUploadClient({invoke,put});
+  const file=new File(['fiction'],'sample.mp4');
+  const context={workspaceId:ws,projectId:project};
+  const first=client.run(file,context);
+  const second=client.run(file,context);
+  expect(invocations.filter(x=>x==='r2-upload-url')).toHaveLength(1);
+  releasePut();
+  const results=await Promise.all([first,second]);
+  expect(results).toEqual([{versionId:'one-version',status:'processing'},{versionId:'one-version',status:'processing'}]);
+  expect(put).toHaveBeenCalledTimes(1);
+  expect(invocations.filter(x=>x==='stream-process-video')).toHaveLength(1);
+  expect(new Set(invoke.mock.calls.map(call=>call[1]?.operationId).filter(Boolean)).size).toBe(1);
+});
+
+it('retains the same operation and signed URL after a failed PUT instead of issuing a new upload',async()=>{
+  const issued:any[]=[];
+  const invoke=vi.fn(async(name:string,body:any)=>{
+    if(name==='r2-upload-url'){issued.push(body);return {uploadUrl:'http://localhost/fixture',key:'same-key',uploadTicket:'signed'};}
+    return {versionId:'recovered-version',status:'processing'};
+  });
+  let attempts=0;
+  const put=vi.fn(async()=>{attempts++;if(attempts===1)throw new Error('NETWORK_INTERRUPTED');});
+  const client=new DurableUploadClient({invoke,put});
+  const file=new File(['fixture'],'retry.mp4');
+  const context={workspaceId:ws,projectId:project};
+  await expect(client.run(file,context)).rejects.toThrow('NETWORK_INTERRUPTED');
+  const result=await client.run(file,context);
+  expect(result.versionId).toBe('recovered-version');
+  expect(issued).toHaveLength(1);
+  expect(put).toHaveBeenCalledTimes(2);
+  expect(invoke.mock.calls.find(call=>call[0]==='stream-process-video')?.[1].operationId).toBe(issued[0].operationId);
+});
+
+
+it('quota preflight rejects impossible replacement credit and unsafe integer arithmetic',()=>{
+  const existing=quotaInfo({storage_used_bytes:100,storage_limit_bytes:100});
+  expect(existing.canUpload(100,101)).toBe(false);
+  expect(existing.canUpload(100,100)).toBe(true);
+  expect(existing.canUpload(101,100)).toBe(false);
+  expect(existing.canUpload(1, -1)).toBe(false);
+  const large=quotaInfo({storage_used_bytes:Number.MAX_SAFE_INTEGER-1,storage_limit_bytes:Number.MAX_SAFE_INTEGER});
+  expect(large.canUpload(3)).toBe(false);
+  expect(large.canUpload(2,1)).toBe(true);
+  expect(quotaInfo({storage_used_bytes:NaN,storage_limit_bytes:100}).canUpload(1)).toBe(false);
+});
+
+
+it('keeps an uncertain upload attached until recovery confirms processing',async()=>{
+  let recoveries=0;
+  const issueIds:string[]=[];
+  const invoke=vi.fn(async(name:string,body:any)=>{
+    if(name==='r2-upload-url'){
+      issueIds.push(body.operationId);
+      return {uploadUrl:'http://localhost/fixture',key:'fixture-key',uploadTicket:'signed'};
+    }
+    if(name==='stream-process-video')return {versionId:'fixture-version',status:'uncertain'};
+    if(name==='video-upload-recover')return {state:++recoveries===1?'submitting':'processing'};
+  });
+  const put=vi.fn(async()=>{});
+  const client=new DurableUploadClient({invoke,put});
+  const file=new File(['video'],'first.mp4');
+  const replacement=new File(['other'],'next.mp4');
+  const context={workspaceId:ws,projectId:project};
+  await expect(client.run(file,context)).rejects.toThrow('PROVIDER_UNCERTAIN');
+  await expect(client.run(replacement,context)).rejects.toThrow('UPLOAD_ALREADY_ACTIVE');
+  await expect(client.recover()).rejects.toThrow('PROVIDER_UNCERTAIN');
+  expect(issueIds).toHaveLength(1);
+  const result=await client.recover();
+  expect(result.state).toBe('processing');
+  await expect(client.run(replacement,context)).rejects.toThrow('PROVIDER_UNCERTAIN');
+  expect(issueIds).toHaveLength(2);
+  expect(new Set(issueIds).size).toBe(2);
+  expect(put).toHaveBeenCalledTimes(2);
+});
+
+
+it('never PUTs R2 bytes when the signed upload receipt is missing or mismatched',async()=>{
+  for(const response of [
+    {uploadUrl:'http://localhost/r2',key:'asset'},
+    {uploadUrl:'http://localhost/r2',key:'asset',uploadTicket:''},
+    {uploadUrl:'http://localhost/r2',key:'asset',uploadTicket:'signed',operationId:other},
+  ]){
+    const invoke=vi.fn(async(name:string)=>response);
+    const put=vi.fn(async()=>{});
+    const client=new DurableUploadClient({invoke,put});
+    await expect(client.run(new File(['video'],'no-receipt.mp4'),{workspaceId:ws,projectId:project}))
+      .rejects.toThrow('UPLOAD_TICKET_REQUIRED');
+    expect(put).not.toHaveBeenCalled();
+    expect(invoke).toHaveBeenCalledTimes(1);
+  }
+});
+
+
+it('accepts a signed v2 ticket from a still-open tab that omitted operationId, without a second provider copy',async()=>{
+ const f=fixture(),issued=await f.issue();
+ const {operationId:omitted,...oldTabBody}=issued;
+ const a=await f.handlers.process(req,oldTabBody);
+ const b=await f.handlers.process(req,oldTabBody);
+ expect(a.versionId).toBe(b.versionId);
+ expect(f.copy).toHaveBeenCalledTimes(1);
+ expect(f.operations.size).toBe(1);
+});
+it.each(['undefined','null',project])('accepts signed legacy three-part project keys (%s) without new provider copy',async segment=>{
+ const f=fixture(),key=`${ws}/${segment}/historical.mp4`;
+ const ticket=await issueUploadTicket({workspace_id:ws,project_id:project,task_id:null,user_id:user,key,file_name:f.b.fileName,file_size:100,replace_version_id:null,expires_at:2000},secret);
+ const b={...f.b,operationId:undefined,key,uploadTicket:ticket};
+ await f.handlers.process(req,b);
+ await f.handlers.process(req,b);
+ expect(f.copy).toHaveBeenCalledTimes(1);
+ expect(f.operations.size).toBe(1);
+});
+it('rejects tampered v2 receipts from old tabs instead of falling back to unsigned context',async()=>{
+ const f=fixture(),issued=await f.issue();
+ const {operationId,...without}=issued;
+ await expect(f.handlers.process(req,{...without,uploadTicket:issued.uploadTicket.slice(0,-1)+(issued.uploadTicket.endsWith('0')?'1':'0')}))
+  .rejects.toThrow();
+ expect(f.copy).not.toHaveBeenCalled();
+});
+
+it('waits for issuance before cancelling and permits reuse of the same File after acknowledgement', async () => {
+  const started: string[] = [];
+  let releaseIssue!: () => void;
+  const pendingIssue = new Promise<void>(resolve => { releaseIssue = resolve; });
+  const put = vi.fn(async () => {});
+  const client = new DurableUploadClient({put, invoke: async (name, body) => {
+    if (name === 'r2-upload-url') {
+      started.push(body.operationId);
+      await pendingIssue;
+      return {uploadUrl: 'local', key: 'test', uploadTicket: 'signed'};
+    }
+    if (name === 'video-upload-abort') return {id: body.operationId, state: 'aborted'};
+    return {versionId: 'test', status: 'processing'};
+  }});
+  const file = new File(['fixture'], 'cancel.mp4');
+  const run = client.run(file, {});
+  const cancellation = client.abort();
+  await expect(client.run(new File(['other'], 'other.mp4'), {})).rejects.toThrow('UPLOAD_ALREADY_ACTIVE');
+  releaseIssue();
+  await expect(run).rejects.toThrow('UPLOAD_ABORTED');
+  await cancellation;
+  expect(put).not.toHaveBeenCalled();
+  await client.run(file, {});
+  expect(new Set(started).size).toBe(2);
+});
+
+it('does not submit after cancellation during PUT and retains an unconfirmed operation', async () => {
+  let startedPut!: () => void;
+  let finishPut!: () => void;
+  const started = new Promise<void>(resolve => { startedPut = resolve; });
+  const finished = new Promise<void>(resolve => { finishPut = resolve; });
+  const invoke = vi.fn(async (name: string) => name === 'r2-upload-url'
+    ? {uploadUrl: 'local', key: 'test', uploadTicket: 'signed'}
+    : {state: 'uncertain'});
+  const client = new DurableUploadClient({invoke, put: async () => { startedPut(); await finished; }});
+  const file = new File(['fixture'], 'cancel.mp4');
+  const run = client.run(file, {});
+  await started;
+  const cancellation = client.abort();
+  finishPut();
+  await expect(run).rejects.toThrow('UPLOAD_ABORTED');
+  await expect(cancellation).rejects.toThrow('CANCELLATION_UNCONFIRMED');
+  await expect(client.run(new File(['other'], 'other.mp4'), {})).rejects.toThrow('UPLOAD_ALREADY_ACTIVE');
+  expect(invoke.mock.calls.map(([name]) => name)).toEqual(['r2-upload-url', 'video-upload-abort']);
+});

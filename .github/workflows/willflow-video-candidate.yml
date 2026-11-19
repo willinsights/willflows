@@ -1,0 +1,90 @@
+name: WillFlow video upload candidate tests
+
+on:
+  pull_request:
+    paths:
+      - 'docs/security/fase-a/video-integration/**'
+      - '.github/workflows/willflow-video-candidate.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: willflow-video-candidate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  candidate-vitest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v4
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Install dependencies without lifecycle scripts
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Run isolated video upload integration tests
+        run: bun x vitest run --config docs/security/fase-a/video-integration/vitest.config.ts
+      - name: Verify candidate SHA256 hashes
+        run: cd docs/security/fase-a/video-integration && sha256sum --check SHA256SUMS
+
+
+  candidate-overlay-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v4
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Install dependencies without lifecycle scripts
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Overlay isolated candidates only inside CI workspace
+        run: |
+          mkdir -p src/lib
+          cp docs/security/fase-a/video-integration/frontend/lib/quota.ts src/lib/quota.ts
+          cp docs/security/fase-a/video-integration/frontend/lib/durable-upload-client.ts src/lib/durable-upload-client.ts
+          cp docs/security/fase-a/video-integration/frontend/hooks/useVideoVersions.ts src/hooks/useVideoVersions.ts
+          cp docs/security/fase-a/video-integration/frontend/hooks/useWorkspaceStorage.ts src/hooks/useWorkspaceStorage.ts
+          cp docs/security/fase-a/video-integration/frontend/hooks/useAdminStorageMetrics.ts src/hooks/useAdminStorageMetrics.ts
+          cp docs/security/fase-a/video-integration/frontend/components/VideoVersionUpload.tsx src/components/video-production/VideoVersionUpload.tsx
+      - name: Build staged UI without publishing
+        run: bun run build
+      - name: Type-check staged frontend overlay
+        run: bun x tsc --noEmit -p tsconfig.app.json
+      - name: Regress staged upload hook feedback with jsdom
+        run: bun x vitest run src/hooks/__tests__/useVideoUploadFeedback.test.tsx --environment jsdom
+
+  candidate-deno-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v4
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check candidate edge function entry points
+        run: |
+          deno check --node-modules-dir=none docs/security/fase-a/video-integration/supabase/functions/_shared/runtime.ts
+          deno check --node-modules-dir=none docs/security/fase-a/video-integration/supabase/functions/_shared/integrated-upload.ts
+          deno check --node-modules-dir=none docs/security/fase-a/video-integration/supabase/functions/stream-get-status/index.ts
+          deno check --node-modules-dir=none docs/security/fase-a/video-integration/supabase/functions/get-video-approval-data/index.ts
+          deno check --node-modules-dir=none docs/security/fase-a/video-integration/supabase/functions/stream-update-video/index.ts
+
+  candidate-postgres-fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v4
+      - name: Install local PostgreSQL for a disposable Unix-socket fixture
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql postgresql-client
+      - name: Run isolated multi-tenant, legacy, quota, rollback and concurrency checks
+        run: python3 docs/security/fase-a/video-integration/tests/postgres.py

@@ -8,7 +8,7 @@ export interface Dependencies {
   authenticate:(req:Request)=>Promise<string|null>;
   signPut:(key:string,type:string,seconds:number)=>Promise<string>;
   head:(key:string)=>Promise<{size:number;etag:string}|null>;
-  copy:(key:string,meta:Record<string,string>)=>Promise<string>;
+  copy:(key:string,meta:Record<string,string>,etag:string,size:number)=>Promise<string>;
   findAccepted:(operationId:string)=>Promise<Array<{uid:string;operation_id:string;key:string;workspace_id:string;version_id:string}>>;
 }
 export function uploadHandlers(d:Dependencies) {
@@ -58,15 +58,47 @@ export function uploadHandlers(d:Dependencies) {
       if(!sameVideoContext(op,c)||op.object_key!==b.key||op.file_name!==b.fileName||Number(op.file_size)!==b.fileSize||op.replace_id!==(b.replaceVersionId??null))throw new UploadFailure('CONTEXT_MISMATCH',403);
       // Expired tickets may only read/recover an ALREADY persisted result; no new mutation/PUT.
       await verifyOperation(b.uploadTicket,ticket(op),d.secret,op.state==='issued'?now():0);
-    }else op=await promoteLegacy(b,c,u);
+    }else {
+      // Old tabs can omit operationId even after receiving a v2 signed ticket.
+      // Look up only by the submitted object key, then verify the v2 signature
+      // against the exact persisted operation. Never trust decoded unsigned data.
+      const byKey=typeof b.key==='string'
+        ? await d.db.from('video_upload_operations').select('*').eq('object_key',b.key).maybeSingle()
+        : {data:null,error:null};
+      if(byKey.error)throw new UploadFailure('UPLOAD_CONFLICT',409);
+      if(byKey.data){
+        const candidate=byKey.data;
+        if(candidate.user_id===u&&sameVideoContext(candidate,c)&&
+           candidate.file_name===b.fileName&&Number(candidate.file_size)===b.fileSize&&
+           candidate.replace_id===(b.replaceVersionId??null)){
+          try {
+            await verifyOperation(b.uploadTicket,ticket(candidate),d.secret,
+              candidate.state==='issued'?now():0);
+            op=candidate;
+          } catch {
+            // A genuine old v1 receipt can still be promoted below. An invalid
+            // v2 signature cannot grant authorization through the v1 verifier.
+          }
+        }
+      }
+      if(!op)op=await promoteLegacy(b,c,u);
+    }
     if(!storedKeyMatchesVersion(op.object_key,{...c,uploaded_by:u}))throw new UploadFailure('KEY_MISMATCH',403);
     if(op.state==='aborted')throw new UploadFailure('UPLOAD_ABORTED',409);
-    if(op.state==='issued'){
-      if(Date.parse(op.expires_at)<=now())throw new UploadFailure('UPLOAD_EXPIRED',409);
-      const facts=await d.head(op.object_key);
-      if(!facts||facts.size!==Number(op.file_size)||!facts.etag)throw new UploadFailure('HEAD_MISMATCH',409);
+    let verifiedSource:{size:number;etag:string}|null=null;
+    if(op.state==='issued'||op.state==='persisted'){
+      if(op.state==='issued'&&Date.parse(op.expires_at)<=now())throw new UploadFailure('UPLOAD_EXPIRED',409);
+      verifiedSource=await d.head(op.object_key);
+      if(!verifiedSource||verifiedSource.size!==Number(op.file_size)||!verifiedSource.etag)
+        throw new UploadFailure('HEAD_MISMATCH',409);
     }
-    const result=await processDurableUpload(d.db,op.id,u,d.bucket,()=>d.copy(op.object_key,{operationId:op.id,key:op.object_key,workspaceId:c.workspace_id,projectId:c.project_id,versionId:op.version_id}));
+    const result=await processDurableUpload(d.db,op.id,u,d.bucket,()=>{
+      if(!verifiedSource)throw new Error('FROZEN_SOURCE_UNCONFIRMED');
+      return d.copy(op.object_key,{
+        operationId:op.id,key:op.object_key,workspaceId:c.workspace_id,
+        projectId:c.project_id,versionId:op.version_id,
+      },verifiedSource.etag,verifiedSource.size);
+    });
     const current=await d.db.from('video_upload_operations').select('*').eq('id',op.id).maybeSingle();
     const version=await d.db.from('video_versions').select('*').eq('id',op.version_id).maybeSingle();
     if(current.error||version.error||!version.data||version.data.is_deleted||version.data.r2_key!==op.object_key)throw new UploadFailure('RESULT_SUPERSEDED',409);
@@ -79,6 +111,10 @@ export function uploadHandlers(d:Dependencies) {
     const r=await d.db.from('video_upload_operations').select('*').eq('id',b.operationId).maybeSingle();const op=r.data;
     if(r.error||!op||op.user_id!==u)throw new UploadFailure('FORBIDDEN',403);
     await context({workspaceId:op.workspace_id,projectId:op.project_id,taskId:op.task_id,fileName:op.file_name,fileSize:Number(op.file_size)},u);
+    if (op.state === 'processing') {
+      // A lost confirmation can be read back without asking Stream to do any more work.
+      return rpc('recover_video_submission', { p_id: op.id, p_user: u, p_uid: null });
+    }
     if(!['submitting','uncertain'].includes(op.state))throw new UploadFailure('RECOVERY_NOT_REQUIRED',409);
     const hits=await d.findAccepted(op.id);
     const matches=hits.filter(x=>x.operation_id===op.id&&x.key===op.object_key&&x.workspace_id===op.workspace_id&&x.version_id===op.version_id);

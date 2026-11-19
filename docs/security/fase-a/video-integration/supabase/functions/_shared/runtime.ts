@@ -3,6 +3,7 @@ import { AwsClient } from 'npm:aws4fetch@1';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { uploadHandlers, UploadFailure } from './integrated-upload.ts';
 import { VideoContextError } from './video-context.ts';
+import { freezeVideoSource } from './r2-frozen-source.ts';
 export function serveUpload(action:'issue'|'process'|'abort'|'recover') {
   Deno.serve(async req=>{
     if(req.method==='OPTIONS')return new Response('ok',{headers:corsHeaders});
@@ -20,10 +21,63 @@ export function serveUpload(action:'issue'|'process'|'abort'|'recover') {
         authenticate:async r=>{const token=/^Bearer ([^\s,]+)$/.exec(r.headers.get('authorization')??'')?.[1];if(!token)return null;const result=await db.auth.getUser(token);return result.error?null:result.data.user?.id??null;},
         signPut:async(key,type,seconds)=>{const url=new URL(objectUrl(key));url.searchParams.set('X-Amz-Expires',String(seconds));return (await aws.sign(new Request(url,{method:'PUT',headers:{'Content-Type':type}}),{aws:{signQuery:true}})).url;},
         head:async key=>{const r=await aws.fetch(objectUrl(key),{method:'HEAD'});const size=r.headers.get('content-length');return r.ok&&size!==null?{size:Number(size),etag:r.headers.get('etag')??''}:null;},
-        copy:async(key,meta)=>{const url=new URL(objectUrl(key));url.searchParams.set('X-Amz-Expires','7200');const signed=await aws.sign(new Request(url),{aws:{signQuery:true}});const b=await stream('/copy',{method:'POST',body:JSON.stringify({url:signed.url,meta,requireSignedURLs:false,allowedOrigins:[]})});if(typeof b.result?.uid!=='string')throw new Error('PROVIDER_UNCONFIRMED');return b.result.uid;},
-        // No match is NEVER evidence of non-acceptance; never resubmit a claim.
-        // Search must complete pagination. Bounded exhaustion stays uncertain.
-        findAccepted:async id=>{const hits:any[]=[];for(let page=1;page<=100;page++){const b=await stream(`?search=${encodeURIComponent(id)}&page=${page}&per_page=100`);if(!Array.isArray(b.result))throw new Error('PROVIDER_UNCONFIRMED');for(const x of b.result){if(x.meta?.operationId===id)hits.push({uid:x.uid,operation_id:id,key:x.meta.key,workspace_id:x.meta.workspaceId,version_id:x.meta.versionId});}if(b.result.length<100)return hits;}throw new Error('PROVIDER_SEARCH_INCOMPLETE');},
+        copy:async(key,meta,etag,size)=>{
+          const snapshot=await freezeVideoSource({
+            workspaceId:meta.workspaceId,operationId:meta.operationId,key,size,etag,
+          },{
+            hold:async target=>{
+              const {error}=await db.from('video_asset_outbox').insert({
+                workspace_id:meta.workspaceId,version_id:meta.versionId,
+                provider:'r2',asset_key:target,reason:'frozen_input_held',
+              });
+              // Duplicate reference is already held; no destructive cleanup allowed.
+              if(error && error.code!=='23505')throw new Error('FROZEN_LEDGER_UNCONFIRMED');
+            },
+            copyConditional:async(source,target,match)=>{
+              const sourcePath=`/${bucket}/${source.split('/').map(encodeURIComponent).join('/')}`;
+              const response=await aws.fetch(objectUrl(target),{
+                method:'PUT',
+                headers:{
+                  'x-amz-copy-source':sourcePath,
+                  'x-amz-copy-source-if-match':match,
+                  // Cloudflare R2 destination create-only extension. Fail closed
+                  // if unavailable rather than overwriting an earlier snapshot.
+                  'cf-copy-destination-if-none-match':'*',
+                },
+              });
+              if(!response.ok)throw new Error('FROZEN_COPY_UNCONFIRMED');
+            },
+            head:async target=>{
+              const response=await aws.fetch(objectUrl(target),{method:'HEAD'});
+              const value=response.headers.get('content-length');
+              return response.ok&&value!==null
+                ?{size:Number(value),etag:response.headers.get('etag')??''}:null;
+            },
+          });
+          // Only the backend can address the snapshot key; old signed PUT URLs
+          // target the original key, not this immutable snapshot.
+          const url=new URL(objectUrl(snapshot));
+          url.searchParams.set('X-Amz-Expires','7200');
+          const signed=await aws.sign(new Request(url),{aws:{signQuery:true}});
+          const b=await stream('/copy',{method:'POST',body:JSON.stringify({
+            input:signed.url,
+            name:meta.operationId,
+            meta:{...meta,name:meta.operationId,snapshotKey:snapshot},
+            requireSignedURLs:false,allowedOrigins:[],
+          })});
+          if(typeof b.result?.uid!=='string')throw new Error('PROVIDER_UNCONFIRMED');
+          return b.result.uid;
+        },
+        // The Cloudflare API filters exact meta.name with video_name, not with
+        // page/per_page. A capped/ambiguous result is always left uncertain.
+        // Older provider copies without meta.name need operator reconciliation.
+        findAccepted:async id=>{
+          const b=await stream(`?video_name=${encodeURIComponent(id)}&limit=1000`);
+          if(!Array.isArray(b.result)||b.result.length>=1000||Number(b.range)>0)
+            throw new Error('PROVIDER_SEARCH_INCOMPLETE');
+          return b.result.filter((x:any)=>x.meta?.operationId===id&&x.meta?.name===id&&typeof x.uid==='string')
+            .map((x:any)=>({uid:x.uid,operation_id:id,key:x.meta.key,workspace_id:x.meta.workspaceId,version_id:x.meta.versionId}));
+        },
       });
       const body=await req.json();if(!body||Array.isArray(body)||typeof body!=='object')return json({code:'INVALID_INPUT'},400);
       return json(await handlers[action](req,body));

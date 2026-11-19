@@ -5,16 +5,45 @@ from concurrent.futures import ThreadPoolExecutor
 root=Path(__file__).resolve().parents[1]
 hard=root.parent/'hardening'
 previous=root.parent/'next'
-pg=next(Path('/nix/store').glob('*-postgresql-17.*/bin'))
+pg=next(iter(Path('/nix/store').glob('*-postgresql-17.*/bin')),None)
+if pg is None:
+    system_versions=sorted(Path('/usr/lib/postgresql').glob('*/bin'),reverse=True)
+    if not system_versions: raise RuntimeError('No PostgreSQL binaries: install a local disposable PostgreSQL server')
+    pg=system_versions[0]
 tmp=Path(tempfile.mkdtemp(prefix='fase-a-hardening-'));os.chmod(tmp,0o777)
 env={k:v for k,v in os.environ.items() if not k.startswith(('PG','SUPABASE','DATABASE','LOVABLE'))}
-prefix=['setpriv','--reuid=1000','--regid=1000','--clear-groups']
+prefix=['setpriv','--reuid=1000','--regid=1000','--clear-groups'] if os.geteuid()==0 else []
 def cmd(args,**kw):return subprocess.run(prefix+[str(x) for x in args],env=kw.pop('env',env),check=True,**kw)
-def sql(s):return cmd([pg/'psql','-X','-h',tmp,'-p','55448','-U','fixture','-d','postgres','-At','-v','ON_ERROR_STOP=1'],input=s,text=True,capture_output=True).stdout.strip()
+def sql(s, database="postgres"):
+    try:
+        result=cmd([pg/'psql','-X','-h',tmp,'-p','55448','-U','fixture','-d',database,'-At','-v','ON_ERROR_STOP=1'],input=s,text=True,capture_output=True)
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as exc:
+        print('DISPOSABLE_FIXTURE_SQL_ERROR:',exc.stderr[-2200:] if exc.stderr else type(exc).__name__,flush=True)
+        raise
 def reject(s):
     try:sql(s)
     except subprocess.CalledProcessError:return
     raise AssertionError('Unexpected acceptance')
+def assert_writer_blocks(script, table):
+    # Hold the same table lock acquired by an ordinary INSERT/UPDATE.
+    args = [pg/'psql', '-XqAt', '-h', tmp, '-p', '55448', '-U', 'fixture', '-d', 'postgres']
+    with subprocess.Popen(prefix + list(map(str, args)), env=env, stdin=subprocess.PIPE,
+                          stdout=subprocess.PIPE, text=True) as writer:
+        try:
+            writer.stdin.write(f"BEGIN; LOCK TABLE {table} IN ROW EXCLUSIVE MODE; SELECT 'ready';\n")
+            writer.stdin.flush()
+            assert writer.stdout.readline().strip() == 'ready'
+            try:
+                sql("SET statement_timeout='3s';" + (root/script).read_text())
+            except subprocess.CalledProcessError as error:
+                assert 'could not obtain lock' in error.stderr, error.stderr
+            else:
+                raise AssertionError(f'{script} ran during an active writer on {table}')
+        finally:
+            writer.stdin.close()
+            writer.wait(timeout=5)
+
 def parallel(fn,n=8):
     with ThreadPoolExecutor(max_workers=n) as pool:return list(pool.map(fn,range(n)))
 c="SET request.jwt.claims='{\"role\":\"service_role\"}';"
@@ -27,6 +56,21 @@ try:
     sql('CREATE TABLE workspaces(id uuid PRIMARY KEY,stripe_subscription_id text); CREATE TABLE user_subscriptions(user_id uuid,stripe_subscription_id text); CREATE TABLE projects(id uuid PRIMARY KEY,workspace_id uuid REFERENCES workspaces ON DELETE CASCADE); CREATE TABLE tasks(id uuid PRIMARY KEY,project_id uuid REFERENCES projects ON DELETE CASCADE); ALTER TABLE workspace_storage ADD FOREIGN KEY(workspace_id) REFERENCES workspaces ON DELETE CASCADE; ALTER TABLE video_versions ADD FOREIGN KEY(workspace_id) REFERENCES workspaces ON DELETE CASCADE, ADD project_id uuid REFERENCES projects ON DELETE CASCADE, ADD task_id uuid REFERENCES tasks ON DELETE CASCADE; ALTER TABLE push_notification_queue ADD created_at timestamptz DEFAULT now(); ALTER TABLE subscription_discrepancies ADD workspace_id uuid REFERENCES workspaces ON DELETE SET NULL, ADD user_id uuid, ADD stripe_customer_id text;')
     sql(f"INSERT INTO workspaces VALUES('{ws}',NULL);")
     sql('ALTER TABLE workspace_storage ADD base_storage_bytes bigint DEFAULT 10000; ALTER TABLE video_versions ADD r2_key text,ADD replacement_r2_key text,ADD cloudflare_stream_uid text,ADD replacement_stream_uid text,ADD version_number int,ADD file_path text,ADD file_name text,ADD uploaded_by uuid,ADD stream_status text,ADD stream_playback_url text; ALTER TABLE video_versions ADD thumbnail_path text,ADD duration_seconds numeric,ADD replacement_playback_url text,ADD replacement_status text,ADD replacement_file_name text,ADD replacement_thumbnail_path text,ADD replaced_at timestamptz; CREATE TABLE workspace_members(workspace_id uuid,user_id uuid,role text,is_active boolean);')
+    sql("""
+        CREATE TABLE video_approval_tokens(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), token text UNIQUE NOT NULL,
+            workspace_id uuid REFERENCES workspaces ON DELETE CASCADE, project_id uuid REFERENCES projects ON DELETE CASCADE,
+            task_id uuid REFERENCES tasks ON DELETE CASCADE, is_active boolean NOT NULL DEFAULT true);
+        CREATE TABLE video_comments(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), video_version_id uuid NOT NULL REFERENCES video_versions ON DELETE CASCADE,
+            workspace_id uuid REFERENCES workspaces ON DELETE CASCADE, parent_id uuid REFERENCES video_comments ON DELETE CASCADE,
+            timestamp_seconds numeric NOT NULL DEFAULT 0, body text NOT NULL, created_at timestamptz DEFAULT now());
+        CREATE TABLE video_approvals(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), video_version_id uuid NOT NULL REFERENCES video_versions ON DELETE CASCADE,
+            workspace_id uuid REFERENCES workspaces ON DELETE CASCADE, approved_at timestamptz NOT NULL DEFAULT now(), notes text);
+    """)
+    legacy_rpc_file = root.parents[3]/'supabase/migrations/20260129220300_f0717eaa-971c-460c-97f9-19b6a51efaaf.sql'
+    legacy_rpc = legacy_rpc_file.read_text().split('CREATE OR REPLACE FUNCTION public.add_workspace_storage',1)[1].split('$$;',1)[0]
+    sql('CREATE OR REPLACE FUNCTION public.add_workspace_storage'+legacy_rpc+'$$;')
+    sql('REVOKE ALL ON FUNCTION public.add_workspace_storage(uuid,bigint) FROM PUBLIC,anon,authenticated; GRANT EXECUTE ON FUNCTION public.add_workspace_storage(uuid,bigint) TO service_role;')
+    legacy_identity = sql("SELECT oid,md5(pg_get_functiondef(oid)),proacl FROM pg_proc WHERE oid='public.add_workspace_storage(uuid,bigint)'::regprocedure;")
     # Independent Stripe package FIRST: no phase-A schema exists.
     sql((previous/'stripe-minimal/candidate.sql').read_text())
     assert sql("SELECT to_regclass('push_delivery_claims') IS NULL AND to_regclass('weekly_summary_deliveries') IS NULL")=='t'
@@ -40,10 +84,84 @@ try:
     sql((hard/'rollback-sources/quota-trigger.sql').read_text())
     sql((root/'00-accounting.sql').read_text())
     sql((root/'01-upload.sql').read_text())
-    sql((root/'rollback-upload.sql').read_text())
+    assert_writer_blocks('rollback-all-empty.sql', 'video_asset_outbox')
+    assert_writer_blocks('rollback-upload.sql', 'video_upload_operations')
+    assert_writer_blocks('rollback-accounting-empty.sql', 'video_versions')
+    # Atomic rollback before first use restores the legacy trigger, not just tables.
+    sql((root/'rollback-all-empty.sql').read_text())
     assert sql("SELECT to_regclass('video_upload_operations') IS NULL")=='t'
-    sql((root/'01-upload.sql').read_text())
-    sql((root/'02-total-quota.sql').read_text())
+    assert sql("SELECT to_regclass('video_asset_outbox') IS NULL")=='t'
+    assert sql("SELECT to_regprocedure('public.expire_video_issued_operations(integer)') IS NULL")=='t'
+    assert sql("SELECT count(*) FROM pg_trigger WHERE tgname IN ('guard_storage_counter','video_accounting_serial','storage_accounting_serial')")=='0'
+    assert sql("SELECT count(*) FROM pg_trigger WHERE tgname='trg_sync_storage_video_versions'")=='1'
+    assert legacy_identity == sql("SELECT oid,md5(pg_get_functiondef(oid)),proacl FROM pg_proc WHERE oid='public.add_workspace_storage(uuid,bigint)'::regprocedure;")
+    assert sql("SELECT to_regnamespace('willflow_video_migration') IS NULL") == 't'
+    assert_writer_blocks('00-accounting.sql', 'workspace_storage')
+    drift_ws='bbbbbbbb-1111-4111-8111-111111111111'
+    sql(f"INSERT INTO workspaces VALUES('{drift_ws}',NULL); INSERT INTO workspace_storage(workspace_id,storage_used_bytes,storage_limit_bytes) VALUES('{drift_ws}',5,100);")
+    reject((root/'00-accounting.sql').read_text())
+    assert sql("SELECT count(*) FROM pg_trigger WHERE tgname='guard_storage_counter'")=='0'
+    baseline = (root/'quota-baseline.sql').read_text()
+    preview = sql(baseline).split('|')
+    assert preview[:5] == [drift_ws, '5', '0', '0', '0']
+    def reviewed_bundle(snapshot):
+        return subprocess.check_output([os.sys.executable, root/'assemble_candidate.py',
+            '--reconcile-counter', *snapshot[:4], snapshot[5]], text=True)
+    reviewed = reviewed_bundle(preview)
+    sql(f"UPDATE workspace_storage SET storage_used_bytes=6 WHERE workspace_id='{drift_ws}';")
+    reject(reviewed)
+    sql(f"UPDATE workspace_storage SET storage_used_bytes=5 WHERE workspace_id='{drift_ws}';")
+    # A changed set of files must be re-reviewed, including equal byte totals.
+    sql(f"INSERT INTO video_versions(id,workspace_id,file_size_bytes,is_deleted) VALUES(gen_random_uuid(),'{drift_ws}',3,false);")
+    moved = sql(baseline).split('|')
+    sql(f"UPDATE video_versions SET file_path='updated-file' WHERE workspace_id='{drift_ws}';")
+    reject(reviewed_bundle(moved))
+    sql(f"DELETE FROM video_versions WHERE workspace_id='{drift_ws}'; UPDATE workspace_storage SET storage_used_bytes=5 WHERE workspace_id='{drift_ws}';")
+    # An unknown size cannot be certified, even with a matching fresh snapshot.
+    sql(f"INSERT INTO video_versions(id,workspace_id,file_size_bytes,is_deleted) VALUES(gen_random_uuid(),'{drift_ws}',NULL,false);")
+    reject(reviewed_bundle(sql(baseline).split('|')))
+    sql(f"DELETE FROM video_versions WHERE workspace_id='{drift_ws}'; UPDATE workspace_storage SET storage_used_bytes=5 WHERE workspace_id='{drift_ws}';")
+    reviewed = reviewed_bundle(sql(baseline).split('|'))
+    reject(reviewed.rsplit('COMMIT;',1)[0] + 'SELECT 1/0; COMMIT;')
+    assert sql(f"SELECT storage_used_bytes FROM workspace_storage WHERE workspace_id='{drift_ws}';") == '5'
+    assert sql("SELECT to_regclass('public.video_counter_reconciliations') IS NULL") == 't'
+    # Exercise the successful correction in a transaction that the fixture then rolls back.
+    verify = f"""
+        SELECT previous_bytes=5 AND corrected_bytes=0 AND active_versions=0
+          AND (SELECT storage_used_bytes=0 AND storage_limit_bytes=100 FROM workspace_storage WHERE workspace_id='{drift_ws}')
+          AND NOT has_table_privilege('authenticated','public.video_counter_reconciliations','SELECT')
+          FROM public.video_counter_reconciliations WHERE workspace_id='{drift_ws}';
+    """
+    assert sql(reviewed.rsplit('COMMIT;',1)[0] + verify + 'ROLLBACK;').splitlines()[-2:] == ['t', 'ROLLBACK']
+    print('PASS reviewed counter repair rejects stale sums, changed objects, unknown sizes; audit and quota roll back with the migration')
+    sql(f"DELETE FROM workspaces WHERE id='{drift_ws}';")
+    print('PASS quota migration rejects an unreconciled legacy counter before creating triggers')
+    # A version without a counter is invisible to an aggregate led by storage.
+    sql(f"INSERT INTO video_versions(id,workspace_id,file_size_bytes,is_deleted) VALUES(gen_random_uuid(),'{ws}',0,true);")
+    reject((root/'00-accounting.sql').read_text())
+    sql(f"DELETE FROM video_versions WHERE workspace_id='{ws}';")
+    bundle = subprocess.check_output([os.sys.executable, root/'assemble_candidate.py'], text=True)
+    # A failure at the end of the third stage must undo both preceding stages.
+    before_commit, final_commit = bundle.rsplit('COMMIT;', 1)
+    reject(before_commit + 'SELECT 1/0; COMMIT;' + final_commit)
+    assert sql("SELECT to_regclass('video_upload_operations') IS NULL") == 't'
+    assert sql("SELECT count(*) FROM pg_trigger WHERE tgname='guard_storage_counter'") == '0'
+    sql(bundle)
+    print('PASS atomic three-stage candidate, late failure rolls back schema and triggers')
+    # Prove the backup/restore procedure only against a disposable synthetic DB.
+    # This is NOT evidence of a live Lovable/PostgreSQL backup being restorable.
+    dump=tmp/'synthetic-schema.dump'
+    cmd([pg/'pg_dump','-h',tmp,'-p','55448','-U','fixture','-d','postgres','-Fc','-f',dump],stdout=subprocess.DEVNULL)
+    assert dump.stat().st_size>0
+    cmd([pg/'createdb','-h',tmp,'-p','55448','-U','fixture','restored_fixture'],stdout=subprocess.DEVNULL)
+    cmd([pg/'pg_restore','-h',tmp,'-p','55448','-U','fixture','-d','restored_fixture','--exit-on-error',dump],stdout=subprocess.DEVNULL)
+    restored=cmd([pg/'psql','-X','-h',tmp,'-p','55448','-U','fixture','-d','restored_fixture','-At','-c',
+      "SELECT to_regclass('public.video_upload_operations') IS NOT NULL AND to_regclass('public.video_asset_outbox') IS NOT NULL;"],
+      text=True,capture_output=True).stdout.strip()
+    assert restored=='t'
+    print('PASS synthetic pg_dump/pg_restore to separate fixture database; does not validate real backup')
+
+    print('PASS atomic empty-history rollback restores trigger and permits fresh candidate application')
     sql(f"INSERT INTO workspace_storage(workspace_id,storage_used_bytes,storage_limit_bytes,base_storage_bytes,extra_storage_bytes) VALUES('{ws}',0,12000,10000,2000); INSERT INTO projects VALUES('{v}','{ws}'); INSERT INTO workspace_members VALUES('{ws}','{qid}','edicao',true);")
     op='77777777-7777-4777-8777-777777777777'
     key=f"{ws}/{v}/project/{qid}/fiction.mp4"
@@ -54,6 +172,13 @@ try:
     vid=ids[0]
     assert sql('SELECT count(*) FROM video_versions')=='1'
     assert sql('SELECT storage_used_bytes FROM workspace_storage')=='100'
+    for delta in (100,100,-100):
+        sql(c+f"SET ROLE service_role; SELECT public.add_workspace_storage('{ws}',{delta});")
+    assert sql('SELECT storage_used_bytes FROM workspace_storage')=='100'
+    assert sql("SELECT NOT has_function_privilege('authenticated','public.add_workspace_storage(uuid,bigint)','EXECUTE') AND NOT has_schema_privilege('service_role','willflow_video_migration','USAGE');")=='t'
+    reject(f"SET ROLE anon; SELECT public.add_workspace_storage('{ws}',100);")
+    reject(f"UPDATE workspace_storage SET storage_used_bytes=999 WHERE workspace_id='{ws}';")
+    print('PASS previous service writer confirms retries without double counting; stale direct updates rejected; original routine and ACL restored before first use')
     print('PASS eight Unicode issuance/persistence retries have one version and one quota credit')
     # Different operation IDs still allocate a unique project sequence atomically.
     def independent(i):
@@ -70,6 +195,22 @@ try:
     sql(c+f"SELECT finish_video_submission('{op}','{winner[0]}',NULL);")
     assert sql(c+f"SELECT claim_video_submission('{op}');").splitlines()[-1]=='SET'
     print('PASS mismatched operation refused; eight submission claims one owner; uncertain never replayed')
+    sql(f"""
+        INSERT INTO video_approval_tokens(token,workspace_id,project_id) VALUES('fixture-link','{ws}','{v}');
+        INSERT INTO video_comments(video_version_id,workspace_id,timestamp_seconds,body) VALUES('{vid}','{ws}',2.5,'Rever o corte');
+        INSERT INTO video_comments(video_version_id,workspace_id,parent_id,timestamp_seconds,body)
+            SELECT video_version_id,workspace_id,id,2.5,'Feito' FROM video_comments WHERE video_version_id='{vid}';
+        INSERT INTO video_approvals(video_version_id,workspace_id,notes) VALUES('{vid}','{ws}','Aprovado');
+    """)
+    review_snapshot = """
+        SELECT jsonb_build_object('token', to_jsonb(t), 'id', v.id, 'number', v.version_number,
+          'comments', (SELECT jsonb_agg(to_jsonb(c) ORDER BY c.id) FROM video_comments c WHERE c.video_version_id=v.id),
+          'approval', (SELECT to_jsonb(a) FROM video_approvals a WHERE a.video_version_id=v.id))
+        FROM video_approval_tokens t JOIN video_versions v ON v.project_id=t.project_id AND v.workspace_id=t.workspace_id
+        WHERE t.token='fixture-link' AND t.is_active;
+    """
+    prior_review = sql(review_snapshot)
+    assert all(value in prior_review for value in ('Rever o corte','Feito','Aprovado','fixture-link'))
     new='88888888-8888-4888-8888-888888888888'
     newkey=f"{ws}/{v}/project/{qid}/replacement.mp4"
     sql(c+f"SELECT issue_video_operation('{new}','{ws}','{v}',NULL,'{qid}','{newkey}','replacement.mp4',200,'{vid}');")
@@ -78,7 +219,8 @@ try:
     assert sql(f"SELECT id='{vid}' AND version_number=1 FROM video_versions")=='t'
     assert sql(f"SELECT count(*) FROM video_asset_outbox WHERE asset_key='{key}' AND state='held'")=='1'
     reject(c+f"SELECT persist_video_operation('{op}','{qid}','fixture');")
-    print('PASS replacement preserves version/comment identity; old reference held; superseded retry blocked')
+    assert sql(review_snapshot) == prior_review
+    print('PASS same link preserves version, comment, reply, approval and their exact timestamps; old reference held; superseded retry blocked')
     token=sql(c+f"SELECT claim_video_submission('{new}');").splitlines()[-1]
     reject(f"BEGIN; DELETE FROM video_versions; SELECT 1/0; COMMIT;")
     assert sql('SELECT count(*) FROM video_versions')=='1'
@@ -94,8 +236,25 @@ try:
     reject(c+f"SELECT persist_video_operation('{expired}','{qid}','fixture');")
     assert sql('SELECT storage_used_bytes FROM workspace_storage')=='0'
     print('PASS expiry refuses mutation and retains quota')
+    assert sql(c+"SELECT expire_video_issued_operations(100);").splitlines()[-1]=='1'
+    assert sql(c+"SELECT expire_video_issued_operations(100);").splitlines()[-1]=='0'
+    assert sql(f"SELECT state FROM video_upload_operations WHERE id='{expired}'")=='aborted'
+    assert sql(f"SELECT count(*) FROM video_asset_outbox WHERE asset_key='{key}_expired' AND state='held'")=='1'
+    print('PASS expired issued reference is preserved exactly once, without physical deletion')
+    # Historical project-only three-part object keys can legitimately contain
+    # "undefined" or "null" from older JavaScript tabs.
+    for ix,part in enumerate(['undefined','null',v]):
+        ident=f'eeeeeeee-eeee-4eee-8eee-{ix:012d}'
+        oldkey=f'{ws}/{part}/historical_{ix}.mp4'
+        sql(c+f"SELECT issue_video_operation('{ident}','{ws}','{v}',NULL,'{qid}','{oldkey}','old.mp4',1);")
+        assert sql(c+f"SELECT state FROM video_upload_operations WHERE id='{ident}';").splitlines()[-1]=='issued'
+        sql(c+f"SELECT abort_video_operation('{ident}','{qid}');")
+        assert sql(f"SELECT count(*) FROM video_asset_outbox WHERE asset_key='{oldkey}' AND state='held'")=='1'
+    print('PASS legacy 3-part project keys undefined/null/project are reserved then aborted safely')
     assert sql("SELECT effective_video_quota(12000,10000,2000,'total')")=='12000'
     assert sql("SELECT effective_video_quota(12000,10000,2000,'base_extra')")=='12000'
+    assert sql("SELECT effective_video_quota(12000,NULL,NULL,'total')")=='12000'
+    reject("SELECT effective_video_quota(12000,NULL,2000,'base_extra')")
     reject("SELECT effective_video_quota(12000,10000,-1,'total')")
     sql(f"INSERT INTO video_versions(id,workspace_id,project_id,file_size_bytes,is_deleted) VALUES(gen_random_uuid(),'{ws}','{v}',12000,false);")
     reject(f"INSERT INTO video_versions(id,workspace_id,project_id,file_size_bytes,is_deleted) VALUES(gen_random_uuid(),'{ws}','{v}',1,false);")
@@ -136,9 +295,31 @@ try:
     sql(c+f"SELECT persist_video_operation('{owned}','{qid}','fixture');")
     tk=sql(c+f"SELECT claim_video_submission('{owned}');").splitlines()[-1]
     sql(c+f"SELECT finish_video_submission('{owned}','{tk}',NULL);")
+    # Restore a used ledger with an uncertain submission, then recover only the
+    # restored operation. No provider calls and no rewriting the original ledger.
+    connection = ['-h',tmp,'-p','55448','-U','fixture']
+    used_dump = tmp/'used-ledger.dump'
+    cmd([pg/'pg_dump',*connection,'-Fc','-d','postgres','-f',used_dump])
+    cmd([pg/'createdb',*connection,'recovery_fixture'])
+    cmd([pg/'pg_restore',*connection,'-d','recovery_fixture','--exit-on-error',used_dump])
+    for table, order in [('video_upload_operations','id'), ('video_versions','id'),
+                         ('workspace_storage','workspace_id'),
+                         ('video_asset_outbox','workspace_id,provider,asset_key')]:
+        rows = f"SELECT row_to_json(t)::text FROM public.{table} t ORDER BY {order}"
+        original = sql(rows)
+        assert original and sql(rows,'recovery_fixture') == original, table
+    sql(c+f"SELECT recover_video_submission('{owned}','{qid}','recovered-fixture');", 'recovery_fixture')
+    assert sql(f"SELECT state FROM video_upload_operations WHERE id='{owned}'",'recovery_fixture') == 'processing'
+    assert sql(f"SELECT state FROM video_upload_operations WHERE id='{owned}'") == 'uncertain'
+    assert sql(c+f"SELECT claim_video_submission('{owned}');",'recovery_fixture').splitlines()[-1]=='SET'
+    print('PASS populated isolated restore preserves ledger, held assets, quota and recovers without resubmission')
     sql(c+f"SELECT recover_video_submission('{owned}','{qid}','recovered-fixture');")
     assert sql(c+f"SELECT claim_video_submission('{owned}');").splitlines()[-1]=='SET'
     reject(c+f"SELECT abort_video_operation('{owned}','{qid}');")
+    assert sql(c+f"SELECT state FROM recover_video_submission('{owned}','{qid}',NULL);").splitlines()[-1]=='processing'
+    reject(c+f"SELECT recover_video_submission('{owned}','{qid}','different-fixture-uid');")
+    sql(f"UPDATE video_versions SET is_deleted=true WHERE id=(SELECT version_id FROM video_upload_operations WHERE id='{owned}');")
+    reject(c+f"SELECT recover_video_submission('{owned}','{qid}',NULL);")
     print('PASS uncertain recovery attaches existing provider identity without reclaim; persisted abort rejected')
     sql(f"DELETE FROM workspaces WHERE id='{ws}';")
     assert int(sql('SELECT count(*) FROM video_upload_operations'))>=11
