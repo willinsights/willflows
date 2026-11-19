@@ -5922,6 +5922,10 @@ export type Database = {
           workspace_name: string
         }[]
       }
+      verify_webhook_worker_digest: {
+        Args: { p_digest: string }
+        Returns: boolean
+      }
       webhook_inbox_claim_batch: {
         Args: { p_limit?: number }
         Returns: {
