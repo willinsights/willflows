@@ -1,0 +1,24 @@
+name: Public video approval in Chromium
+on:
+  pull_request:
+    paths:
+      - 'src/pages/public/VideoApproval.tsx'
+      - 'src/pages/public/ApprovedState.tsx'
+      - 'tests/approval/**'
+      - '.github/workflows/willflow-approval-browser.yml'
+permissions:
+  contents: read
+jobs:
+  approval-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      VITE_SUPABASE_URL: http://127.0.0.1:55431
+      VITE_SUPABASE_PUBLISHABLE_KEY: local-tests-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - run: bun x playwright install --with-deps chromium
+      - run: bun run build
+      - run: bun x playwright test --config tests/approval/playwright.config.ts
