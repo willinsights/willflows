@@ -1,6 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
+
+function renderInvoices() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  return renderHook(() => useProjectInvoices("proj-1"), { wrapper });
+}
+
 const mockWorkspace = { id: "ws-1", name: "WS" };
 
 vi.mock("@/contexts/WorkspaceContext", () => ({
@@ -63,7 +74,7 @@ describe("useProjectInvoices — persistência de vat_amount e vat_source", () =
   });
 
   it("persiste vat_amount calculado e vat_source='workspace' por defeito", async () => {
-    const { result } = renderHook(() => useProjectInvoices("proj-1"));
+    const { result } = renderInvoices();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
@@ -89,7 +100,7 @@ describe("useProjectInvoices — persistência de vat_amount e vat_source", () =
   });
 
   it("persiste vat_source='client' quando taxa vem do override do cliente", async () => {
-    const { result } = renderHook(() => useProjectInvoices("proj-1"));
+    const { result } = renderInvoices();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
@@ -109,7 +120,7 @@ describe("useProjectInvoices — persistência de vat_amount e vat_source", () =
   });
 
   it("persiste vat_source='manual' + razão quando IVA é personalizado na invoice", async () => {
-    const { result } = renderHook(() => useProjectInvoices("proj-1"));
+    const { result } = renderInvoices();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
@@ -132,7 +143,7 @@ describe("useProjectInvoices — persistência de vat_amount e vat_source", () =
   });
 
   it("cliente isento → vat_amount=0 e total=subtotal", async () => {
-    const { result } = renderHook(() => useProjectInvoices("proj-1"));
+    const { result } = renderInvoices();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {

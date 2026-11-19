@@ -28,4 +28,17 @@ describe('Workspace trial duration', () => {
       expect(result.current.trialEndsAt).toBe('2026-11-07T14:45:00Z');
     } finally { vi.useRealTimers(); }
   });
+  it('expires at the saved UTC instant, including fractions of a day', () => {
+    vi.useFakeTimers();
+    try {
+      state.workspace.trial_ends_at = '2026-11-07T14:45:00Z';
+      vi.setSystemTime(new Date('2026-11-07T14:44:59Z'));
+      expect(renderHook(() => useWorkspaceSubscription()).result.current.trialDaysRemaining).toBe(1);
+      vi.setSystemTime(new Date(state.workspace.trial_ends_at));
+      const { result } = renderHook(() => useWorkspaceSubscription());
+      expect(result.current.trialDaysRemaining).toBe(0);
+      expect(result.current.trialExpired).toBe(true);
+    } finally { vi.useRealTimers(); }
+  });
+
 });

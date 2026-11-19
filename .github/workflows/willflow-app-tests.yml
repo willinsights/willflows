@@ -1,0 +1,27 @@
+name: WillFlow application tests
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'vite.config.ts'
+      - 'tsconfig*.json'
+      - 'package.json'
+      - 'bun.lock*'
+      - '.github/workflows/willflow-app-tests.yml'
+permissions:
+  contents: read
+jobs:
+  application:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      VITE_SUPABASE_URL: http://127.0.0.1:55431
+      VITE_SUPABASE_PUBLISHABLE_KEY: local-tests-only
+      TZ: Europe/Lisbon
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - run: bun x vitest run --maxWorkers=4
+      - run: bun x tsc --noEmit -p tsconfig.app.json
+      - run: bun run build

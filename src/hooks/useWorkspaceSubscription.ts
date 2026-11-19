@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { differenceInDays, parseISO } from 'date-fns';
+import { getTrialDaysRemaining } from '@/lib/subscription-utils';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { getPlanLimits, type PlanLimits } from '@/lib/plans';
 import { useSuperAdmin } from './useSuperAdmin';
@@ -104,22 +104,14 @@ export function useWorkspaceSubscription(): WorkspaceSubscriptionState {
     let trialExpired = false;
     
     if (isTrial) {
-      if (trialEndsAt) {
-        try {
-          const endDate = parseISO(trialEndsAt);
-          trialDaysRemaining = differenceInDays(endDate, new Date());
-          trialExpired = trialDaysRemaining < 0;
-        } catch {
-          // Fallback: assume trial is valid with default days (7 days)
-          trialDaysRemaining = 7;
-          trialExpired = false;
-        }
+      const deadline = trialEndsAt ? Date.parse(trialEndsAt) : NaN;
+      if (Number.isFinite(deadline)) {
+        const now = Date.now();
+        trialDaysRemaining = getTrialDaysRemaining({ trialEndsAt }, now);
+        trialExpired = deadline <= now;
       } else {
-        // Trial without end date: assume valid trial with default days
-        // This handles legacy workspaces or workspaces created without trial_ends_at
-        // Existing dated trials always use their stored expiration above
+        // Older workspaces may have no recorded expiry.
         trialDaysRemaining = 7;
-        trialExpired = false;
       }
     }
     const isUserOwner = isAdmin; // In our system, 'admin' role = owner

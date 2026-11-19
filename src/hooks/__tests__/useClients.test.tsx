@@ -35,32 +35,30 @@ vi.mock("@/lib/validation-schemas", () => ({
   validateWithSchema: vi.fn(() => ({ success: true, data: {} })),
 }));
 
-const mockSupabaseClient = {
-  from: vi.fn(() => ({
-    select: vi.fn(() => ({
-      eq: vi.fn(() => ({
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: {
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
         eq: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            order: vi.fn(() => Promise.resolve({ data: [], error: null })),
+          })),
           order: vi.fn(() => Promise.resolve({ data: [], error: null })),
         })),
-        order: vi.fn(() => Promise.resolve({ data: [], error: null })),
       })),
-    })),
-    insert: vi.fn(() => ({
-      select: vi.fn(() => ({
-        single: vi.fn(() => Promise.resolve({ 
-          data: { id: "new-client", name: "Test Client" }, 
-          error: null 
+      insert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn(() => Promise.resolve({
+            data: { id: "new-client", name: "Test Client" },
+            error: null
+          })),
         })),
       })),
+      update: vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ error: null })),
+      })),
     })),
-    update: vi.fn(() => ({
-      eq: vi.fn(() => Promise.resolve({ error: null })),
-    })),
-  })),
-};
-
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: mockSupabaseClient,
+  },
 }));
 
 import { useClients } from "../useClients";
