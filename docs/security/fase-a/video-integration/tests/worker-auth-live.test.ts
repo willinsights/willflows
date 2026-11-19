@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+import { handleWorkerRequest } from "../../../../../supabase/functions/_shared/webhook-worker-request.ts";
 import { workerAuthorization } from "../../../../../supabase/functions/_shared/webhook-worker-auth.ts";
 
 const secrets = { service: "service-fixture", legacy: "legacy-fixture" };
@@ -31,5 +32,35 @@ describe("webhook-retry-worker authorization (no network / no job execution)", (
   });
   it("never treats blank environment secrets as valid", () => {
     expect(workerAuthorization(req({ authorization: "Bearer " }), { service: "", legacy: "" }, unauthorized)?.status).toBe(401);
+  });
+});
+
+describe('authenticated worker health and method routing', () => {
+  const probe = (method: string) => new Request('https://example.test/worker', { method });
+  it('answers an authenticated HEAD without touching the queue', async () => {
+    const process = vi.fn();
+    const response = await handleWorkerRequest(probe('HEAD'), {}, () => null, process);
+    expect(response.status).toBe(204);
+    expect(response.headers.get('X-WillFlow-Worker-Probe')).toBe('1');
+    expect(await response.text()).toBe('');
+    expect(process).not.toHaveBeenCalled();
+  });
+  it.each([401, 500])('preserves an authentication failure %i on HEAD', async status => {
+    const process = vi.fn();
+    const response = await handleWorkerRequest(probe('HEAD'), {}, () => new Response(null, { status }), process);
+    expect(response.status).toBe(status);
+    expect(response.headers.get('X-WillFlow-Worker-Probe')).toBeNull();
+    expect(process).not.toHaveBeenCalled();
+  });
+  it('only lets an authenticated POST execute a batch', async () => {
+    const process = vi.fn(async () => new Response('processed'));
+    expect((await handleWorkerRequest(probe('GET'), {}, () => null, process)).status).toBe(405);
+    expect((await handleWorkerRequest(probe('POST'), {}, () => new Response(null, { status: 401 }), process)).status).toBe(401);
+    const authorize = vi.fn();
+    expect((await handleWorkerRequest(probe('OPTIONS'), {}, authorize, process)).status).toBe(200);
+    expect(authorize).not.toHaveBeenCalled();
+    expect(process).not.toHaveBeenCalled();
+    expect(await (await handleWorkerRequest(probe('POST'), {}, () => null, process)).text()).toBe('processed');
+    expect(process).toHaveBeenCalledTimes(1);
   });
 });

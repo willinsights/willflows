@@ -39,3 +39,8 @@ GROUP BY 1,2 ORDER BY 1 DESC,2;
 ```
 
 **Não fazer:** eliminar a condição de autenticação do worker, ativar `verify_jwt=false` sem verificar o handler, copiar `cron.job.command` com segredos, substituir CRON_SECRET por uma string fixa, despausar limpeza ou executar cron manualmente em produção. Sem o segredo e a configuração de gateway efetiva, não há autorização técnica para considerar os 401 resolvidos.
+
+
+## Sonda de autenticação da revisão
+
+A revisão do worker responde com HTTP 204 e o cabeçalho `X-WillFlow-Worker-Probe: 1` a um HEAD autenticado. O caminho termina antes da criação do cliente de base de dados. Um POST autenticado mantém o processamento normal. Para testar no ambiente isolado, confirmar primeiro que a versão instalada inclui esta sonda. Versões anteriores podem processar a fila ao receber HEAD. Usar a credencial que o ambiente já gere e registar apenas o estado e o cabeçalho de versão.

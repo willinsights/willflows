@@ -7,6 +7,7 @@ on:
       - 'supabase/config.toml'
       - 'docs/security/fase-a/webhook-auth/**'
       - 'supabase/functions/_shared/webhook-worker-auth.ts'
+      - 'supabase/functions/_shared/webhook-worker-request.ts'
       - 'supabase/functions/_shared/timing-safe.ts'
       - 'docs/security/fase-a/video-integration/tests/worker-auth-live.test.ts'
       - '.github/workflows/willflow-webhook-auth.yml'
@@ -35,8 +36,7 @@ jobs:
           match=re.search(r'\[functions\.webhook-retry-worker\]\s+verify_jwt\s*=\s*(true|false)',config)
           assert match and match.group(1)=='false'
           assert 'workerAuthorization(' in worker
-          assert 'if (authError)' in worker
-          assert 'status: authError.status' in worker
+          assert 'handleWorkerRequest(req, corsHeaders, authorize, processBatch)' in worker
           print('PASS: managed cron gateway mode paired with strict worker handler checks')
           PY
       - uses: denoland/setup-deno@v2

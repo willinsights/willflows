@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { authenticateCronRequest } from "../_shared/cron-auth.ts";
 import { workerAuthorization } from "../_shared/webhook-worker-auth.ts";
+import { handleWorkerRequest } from "../_shared/webhook-worker-request.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,31 +19,16 @@ const PROCESSOR_BY_PROVIDER: Record<string, string> = {
   // google: "google-webhook", // future
 };
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+function authorize(req: Request): Response | null {
+  return workerAuthorization(req, {
+    service: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+    legacy: Deno.env.get("CRON_SECRET"),
+  }, authenticateCronRequest);
+}
 
+async function processBatch(): Promise<Response> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-
-  // Preserve managed auth configuration errors (500) instead of reporting a false 401.
-  // Legacy and service credentials remain supported during cron migration.
-  const authError = workerAuthorization(
-    req,
-    { service: serviceKey, legacy: Deno.env.get("CRON_SECRET") },
-    authenticateCronRequest,
-  );
-  if (authError) {
-    return new Response(
-      JSON.stringify({ error: authError.status >= 500 ? "Server configuration error" : "Unauthorized" }),
-      {
-        status: authError.status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
-  }
-
   const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
 
   try {
@@ -119,4 +105,6 @@ serve(async (req) => {
       status: 500,
     });
   }
-});
+}
+
+serve(req => handleWorkerRequest(req, corsHeaders, authorize, processBatch));
