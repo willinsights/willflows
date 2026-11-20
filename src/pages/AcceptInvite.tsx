@@ -74,7 +74,7 @@ export default function AcceptInvite() {
 
       setInvitation({
         id: invitationData.id,
-        email: invitationData.email,
+        email: invitationData.email ?? '',
         email_masked: invitationData.email_masked || null,
         role: invitationData.role,
         workspace_id: invitationData.workspace_id,
@@ -82,7 +82,7 @@ export default function AcceptInvite() {
         inviter_name: null,
         expires_at: invitationData.expires_at,
       });
-      setEmail(invitationData.email);
+      setEmail(invitationData.email ?? '');
     };
 
     fetchInvitation();
@@ -101,7 +101,7 @@ export default function AcceptInvite() {
       }
 
       // Check if user email matches invitation email
-      if (user.email?.toLowerCase() !== invitation.email.toLowerCase()) {
+      if (!invitation.email || user.email?.toLowerCase() !== invitation.email.toLowerCase()) {
         setViewState('needs_auth');
         toast({
           title: "Email diferente",

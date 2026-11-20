@@ -127,6 +127,13 @@
       "when": 1795211288302,
       "tag": "0017_kanban_board_caller_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1795211497198,
+      "tag": "0018_definer_functions_scope_tighten",
+      "breakpoints": true
     }
   ]
 }
