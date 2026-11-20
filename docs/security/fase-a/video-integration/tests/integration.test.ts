@@ -6,10 +6,11 @@ import {quotaInfo} from '../frontend/lib/quota';
 const ws='11111111-1111-4111-8111-111111111111',project='22222222-2222-4222-8222-222222222222',user='33333333-3333-4333-8333-333333333333',other='44444444-4444-4444-8444-444444444444';
 const secret='fiction-only';const req=new Request('http://localhost/test');
 function fixture(){
- const operations=new Map<string,any>(),versions=new Map<string,any>();let now=1000,authenticated:string|null=user;
+ const operations=new Map<string,any>(),versions=new Map<string,any>();let now=1000,authenticated:string|null=user,paused=false,frozen=false;
  const copy=vi.fn(async()=> 'uid-fixture');let head:{size:number;etag:string}|null={size:100,etag:'fiction'};
  const db={from:(table:string)=>{const filters:any={};const q:any={select:()=>q,eq:(k:string,v:any)=>(filters[k]=v,q),maybeSingle:async()=>({data:table==='workspace_members'?(filters.workspace_id===ws&&filters.user_id===user?{role:'edicao',is_active:true}:null):table==='projects'?(filters.id===project?{id:project,workspace_id:ws}:null):table==='tasks'?{id:other,workspace_id:ws,project_id:project}:table==='video_upload_operations'?(filters.id?operations.get(filters.id):[...operations.values()].find(o=>o.object_key===filters.object_key)):versions.get(filters.id)})};return q;},rpc:async(name:string,p:any)=>{
-  if(['begin_video_execution','check_video_execution','record_video_grant','finish_video_execution'].includes(name))return {data:true,error:null};
+  if(name==='begin_video_execution')return {data:!frozen&&!(paused&&p.p_kind==='issue'),error:null};
+  if(['check_video_execution','record_video_grant','finish_video_execution'].includes(name))return {data:true,error:null};
   if(name==='issue_video_operation'){
    const old=operations.get(p.p_id);if(old)return {data:old};
    const v=versions.get(p.p_replace);const op={id:p.p_id,workspace_id:p.p_ws,project_id:p.p_project,task_id:p.p_task,user_id:p.p_user,object_key:p.p_key,file_name:p.p_name,file_size:p.p_size,replace_id:p.p_replace,version_id:v?.id??crypto.randomUUID(),expires_at:new Date(now+14400000).toISOString(),state:'issued'};operations.set(op.id,op);return {data:op};
@@ -33,10 +34,23 @@ function fixture(){
  const find=vi.fn(async()=>[] as any[]);
  const handlers=uploadHandlers({db,coordinated:true,secret,bucket:'fiction',now:()=>now,authenticate:async()=>authenticated,signPut:async key=>'http://localhost/object/'+key,head:async()=>head,copy,findAccepted:find});
  const b:any={operationId:crypto.randomUUID(),workspaceId:ws,projectId:project,taskId:null,fileName:'Corte – ação 🎬.mp4',fileSize:100};
- return {handlers,b,copy,find,operations,versions,issue:async()=>{const issued=await handlers.issue(req,b);return {...b,...issued};},setNow:(v:number)=>now=v,setUser:(u:string|null)=>authenticated=u,setHead:(v:any)=>head=v};
+ return {handlers,b,copy,find,operations,versions,issue:async()=>{const issued=await handlers.issue(req,b);return {...b,...issued};},setNow:(v:number)=>now=v,setUser:(u:string|null)=>authenticated=u,setHead:(v:any)=>head=v,pause:()=>{paused=true;},freeze:()=>{frozen=true;},resume:()=>{paused=false;frozen=false;}};
 }
 beforeEach(()=>vi.stubGlobal('fetch',vi.fn(()=>{throw new Error('External network forbidden');})));
 afterEach(()=>vi.unstubAllGlobals());
+it('real candidate process and recovery drain during pause, freeze blocks and resume restores issuance',async()=>{
+ const f=fixture(),b=await f.issue();f.pause();
+ await expect(f.handlers.issue(req,{...f.b,operationId:crypto.randomUUID()})).rejects.toThrow('VIDEO_MAINTENANCE');
+ f.copy.mockRejectedValueOnce(new Error('provider timeout'));
+ await expect(f.handlers.process(req,b)).rejects.toThrow('uncertain');
+ const op=f.operations.get(b.operationId);
+ f.find.mockResolvedValueOnce([{uid:'recovered',operation_id:op.id,key:op.object_key,workspace_id:ws,version_id:op.version_id}]);
+ f.freeze();await expect(f.handlers.recover(req,b)).rejects.toThrow('VIDEO_MAINTENANCE');expect(f.find).not.toHaveBeenCalled();
+ f.resume();f.pause();await f.handlers.recover(req,b);
+ expect(f.versions.get(op.version_id).cloudflare_stream_uid).toBe('recovered');
+ expect(f.copy).toHaveBeenCalledTimes(1);expect(f.find).toHaveBeenCalledTimes(1);
+ f.resume();await f.handlers.issue(req,{...f.b,operationId:crypto.randomUUID()});expect(f.operations.size).toBe(2);
+});
 it('Unicode emitter→HEAD→processor and 32 concurrent retries invoke provider once',async()=>{const f=fixture(),b=await f.issue();const results=await Promise.allSettled(Array.from({length:32},()=>f.handlers.process(req,b)));expect(results.some(x=>x.status==='fulfilled')).toBe(true);expect(f.copy).toHaveBeenCalledTimes(1);expect(f.versions.size).toBe(1);});
 it.each([null,{size:99,etag:'x'},{size:100,etag:''}])('HEAD refuses unconfirmed object %j before persistence',async head=>{const f=fixture(),b=await f.issue();f.setHead(head);await expect(f.handlers.process(req,b)).rejects.toThrow('HEAD_MISMATCH');expect(f.copy).not.toHaveBeenCalled();expect(f.versions.size).toBe(0);});
 it.each(['workspaceId','projectId','fileName','fileSize','replaceVersionId'])('signed context cannot change %s',async key=>{const f=fixture(),b=await f.issue();await expect(f.handlers.process(req,{...b,[key]:key==='fileSize'?101:other})).rejects.toThrow();expect(f.copy).not.toHaveBeenCalled();});
