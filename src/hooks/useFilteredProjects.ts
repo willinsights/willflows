@@ -46,6 +46,7 @@ export function useFilteredProjects() {
           .select('*, clients(name)')
           .eq('workspace_id', currentWorkspace.id)
           .order('created_at', { ascending: false })
+          .order('id', { ascending: true })
       );
       setAllProjects(projectsData);
 

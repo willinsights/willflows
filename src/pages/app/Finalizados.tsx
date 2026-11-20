@@ -91,6 +91,7 @@ export default function Finalizados() {
         .select('project_id, actual_amount, payment_status')
         .eq('workspace_id', currentWorkspace.id)
         .neq('payment_status', 'cancelado')
+        .order('id', { ascending: true })
     ).then((rows) => {
       const map: Record<string, number> = {};
       rows.forEach((r) => {

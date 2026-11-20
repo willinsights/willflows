@@ -22,6 +22,7 @@ import { PaymentExportButtons, type ExportData } from './PaymentExportButtons';
 import { cn } from '@/lib/utils';
 import { useHideValues } from '@/hooks/useHideValues';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetch-all';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { paymentStatusLabels as statusLabels, paymentStatusColors as statusColors } from '@/lib/finance/constants';
 import { getProjectCost, getProjectRevenue, getProjectProfit, getProjectMargin } from '@/lib/finance/financialEngine';
@@ -80,11 +81,17 @@ export function ProfitControl({
       if (!currentWorkspace?.id) return;
       setLoading(true);
       // Fórmula única de lucro: vista do servidor (equipa + extras + linhas de custo)
-      const { data } = await supabase
-        .from('v_project_profit' as any)
-        .select('id, name, project_code, agreed_value, custo_captacao, custo_edicao, custos_extras, cost_lines_total, client_payment_status, client_id, client_name, delivery_date, delivered_at, is_delivered, competence_month')
-        .eq('workspace_id', currentWorkspace.id)
-        .eq('is_delivered', true);
+      // Paginado (nunca cortado nas 1.000 linhas). Em caso de erro mantém-se o
+      // comportamento anterior: a lista não é atualizada.
+      const workspaceId = currentWorkspace.id;
+      const data = await fetchAllRows<any>(() =>
+        supabase
+          .from('v_project_profit' as any)
+          .select('id, name, project_code, agreed_value, custo_captacao, custo_edicao, custos_extras, cost_lines_total, client_payment_status, client_id, client_name, delivery_date, delivered_at, is_delivered, competence_month')
+          .eq('workspace_id', workspaceId)
+          .eq('is_delivered', true)
+          .order('id', { ascending: true }) as any
+      ).catch(() => null);
 
       if (data) {
         setProjects((data as any[]).map(p => ({ ...p, clients: p.client_name ? { name: p.client_name } : null })) as ProjectProfit[]);
