@@ -1,5 +1,7 @@
 # Coexistência de revisões — 20/11/2026
 
+> Continuação de 13:37: o ponto 3 agora tem registo privado, handlers e piloto isolado implementados em `SIDECAR-RESULT-2026-11-20.md`. As afirmações abaixo descrevem a sessão anterior; não são prova de piloto produtivo/publicação da fase canónica.
+
 ## Resultado e produção
 
 **Não é segura a viragem integral in-place do pacote atual.** A falha é reproduzível com o código real antigo, não depende de logs silenciosos nem de timestamps do gateway. Não aplicar isoladamente estes candidatos.
