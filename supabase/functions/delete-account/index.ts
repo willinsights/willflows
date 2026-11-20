@@ -85,9 +85,7 @@ Deno.serve(async (req) => {
           await supabaseAdmin.from('notifications').delete().eq('workspace_id', workspace_id);
           await supabaseAdmin.from('calendar_events').delete().eq('workspace_id', workspace_id);
           await supabaseAdmin.from('payments').delete().eq('workspace_id', workspace_id);
-          await supabaseAdmin.from('project_comments').delete().match({ project_id: null }); // cleanup orphans
           await supabaseAdmin.from('tasks').delete().eq('workspace_id', workspace_id);
-          await supabaseAdmin.from('project_team').delete().match({ project_id: null }); // cleanup orphans
           
           // Delete projects (this should cascade to project_comments, tasks, etc.)
           const { data: projects } = await supabaseAdmin

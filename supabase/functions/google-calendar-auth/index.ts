@@ -28,7 +28,7 @@ function isAllowedRedirect(uri: string): boolean {
     const u = new URL(uri);
     const origin = `${u.protocol}//${u.host}`;
     if (ALLOWED_REDIRECT_ORIGINS.includes(origin)) return true;
-    if (u.protocol === 'https:' && u.host.endsWith('.lovable.app')) return true;
+    if (u.protocol === 'https:' && /^(id-preview--|preview--)?696c53cd-559b-4b45-8080-33486b1838d2\.lovable\.app$/.test(u.host)) return true;
     return false;
   } catch {
     return false;

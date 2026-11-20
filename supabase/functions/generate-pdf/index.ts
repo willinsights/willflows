@@ -91,7 +91,11 @@ function sanitize(s: string | null | undefined): string {
 async function tryFetchLogo(url: string | null): Promise<{ bytes: Uint8Array; type: "png" | "jpg" } | null> {
   if (!url) return null;
   try {
-    const res = await fetch(url);
+    // Only fetch logos stored in this project's own file storage
+    const parsed = new URL(url);
+    const storageHost = new URL(Deno.env.get("SUPABASE_URL") ?? "").host;
+    if (parsed.protocol !== "https:" || parsed.host !== storageHost || !parsed.pathname.startsWith("/storage/v1/object/")) return null;
+    const res = await fetch(parsed.toString(), { redirect: "error" });
     if (!res.ok) return null;
     const ct = res.headers.get("content-type") || "";
     const buf = new Uint8Array(await res.arrayBuffer());

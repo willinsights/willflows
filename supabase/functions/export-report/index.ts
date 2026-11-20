@@ -92,6 +92,21 @@ Deno.serve(async (req) => {
         );
       }
 
+      // Re-check current workspace membership before returning the stored download link
+      const { data: stillMember } = await supabase
+        .from('workspace_members')
+        .select('id')
+        .eq('workspace_id', (job as { workspace_id: string }).workspace_id)
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .maybeSingle();
+      if (!stillMember) {
+        return new Response(
+          JSON.stringify({ error: 'Job not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       return new Response(
         JSON.stringify(job),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
