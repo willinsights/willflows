@@ -1,15 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import webpush from "https://esm.sh/web-push@3.6.7";
-
-// Only deliver to well-known browser push services; never to arbitrary hosts.
-const TRUSTED_PUSH_HOSTS = [/^fcm\.googleapis\.com$/, /^android\.googleapis\.com$/, /(^|\.)push\.services\.mozilla\.com$/, /(^|\.)notify\.windows\.com$/, /^web\.push\.apple\.com$/, /(^|\.)push\.apple\.com$/];
-function isTrustedPushEndpoint(endpoint: string): boolean {
-  try {
-    const u = new URL(endpoint);
-    return u.protocol === 'https:' && !u.port && TRUSTED_PUSH_HOSTS.some((re) => re.test(u.hostname));
-  } catch { return false; }
-}
 import { secretEquals } from "../_shared/timing-safe.ts";
+import { isTrustedPushEndpoint } from "../_shared/push-endpoint.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -134,12 +126,26 @@ Deno.serve(async (req) => {
           keys: { p256dh: string; auth: string };
         };
 
-        if (!subscription.endpoint || !subscription.keys?.p256dh || !subscription.keys?.auth || !isTrustedPushEndpoint(subscription.endpoint)) {
+        if (!subscription.endpoint || !subscription.keys?.p256dh || !subscription.keys?.auth) {
           await supabase
             .from('push_notification_queue')
             .update({
               status: 'failed',
               error: 'Invalid subscription format',
+              processed_at: new Date().toISOString(),
+            })
+            .eq('id', notification.id);
+          failCount++;
+          continue;
+        }
+
+        // Only deliver to well-known browser push services.
+        if (!isTrustedPushEndpoint(subscription.endpoint)) {
+          await supabase
+            .from('push_notification_queue')
+            .update({
+              status: 'failed',
+              error: 'Untrusted push endpoint',
               processed_at: new Date().toISOString(),
             })
             .eq('id', notification.id);

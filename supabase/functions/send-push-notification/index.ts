@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import webpush from "https://esm.sh/web-push@3.6.7";
+import { isTrustedPushEndpoint, pushEndpointHostForLog } from "../_shared/push-endpoint.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -138,6 +139,18 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Only deliver to well-known browser push services. Checked before any
+    // network request; treated as an invalid subscription.
+    if (!isTrustedPushEndpoint(subscription.endpoint)) {
+      console.error(
+        `[send-push] Untrusted push endpoint for user ${userId} (host: ${pushEndpointHostForLog(subscription.endpoint)})`
+      );
+      return new Response(
+        JSON.stringify({ success: false, error: 'Untrusted push endpoint' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Prepare notification payload
     const notificationPayload = JSON.stringify({
       title,
@@ -149,7 +162,7 @@ Deno.serve(async (req) => {
       timestamp: Date.now(),
     });
 
-    console.log(`[send-push] Sending to endpoint: ${subscription.endpoint.substring(0, 60)}...`);
+    console.log(`[send-push] Sending to push service: ${pushEndpointHostForLog(subscription.endpoint)}`);
 
     try {
       // Use web-push library for proper VAPID/ECDH encryption
