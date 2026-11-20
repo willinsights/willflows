@@ -117,7 +117,7 @@ export function validateWithSchema<T>(schema: z.ZodSchema<T>, data: unknown): Va
     return { success: true, data: validated };
   } catch (e) {
     if (e instanceof z.ZodError) {
-      return { success: false, error: e.errors[0]?.message || 'Dados inválidos' };
+      return { success: false, error: e.issues[0]?.message || 'Dados inválidos' };
     }
     return { success: false, error: 'Erro de validação' };
   }
