@@ -9,7 +9,7 @@ import { handleDatabaseError } from '@/lib/error-handler';
 import { projectSchema, projectUpdateSchema, validateWithSchema } from '@/lib/validation-schemas';
 import { logger } from '@/lib/logger';
 import { fetchAllRows } from '@/lib/fetch-all';
-import { PROJECTS_CHANGED_EVENT } from '@/lib/query-client';
+import { PROJECTS_CHANGED_EVENT, isQueryCacheProjectsEvent } from '@/lib/query-client';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 export type Project = Tables<'projects'>;
@@ -29,7 +29,8 @@ export function useProjects() {
   const workspaceId = currentWorkspace?.id;
   const userId = user?.id;
   const enabled = Boolean(workspaceId && userId && !fetchError && !permissionsLoading);
-  const queryKey = ['scoped-project-list', workspaceId, userId, canViewAllProjects] as const;
+  // Prefixo 'projects' para que invalidateQueries({ queryKey: ['projects'] }) atinja esta query.
+  const queryKey = ['projects', 'scoped-list', workspaceId, userId, canViewAllProjects] as const;
   const query = useQuery({
     queryKey,
     enabled,
@@ -79,7 +80,9 @@ export function useProjects() {
   useEffect(() => {
     if (!enabled) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const onChange = () => {
+    const onChange = (event: Event) => {
+      // Invalidations of ['projects', ...] already refetch this active query; skip the echo.
+      if (isQueryCacheProjectsEvent(event)) return;
       clearTimeout(timer);
       timer = setTimeout(() => void refetch({ cancelRefetch: false }), 300);
     };

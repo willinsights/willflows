@@ -45,9 +45,11 @@ vi.mock('@/integrations/supabase/client', () => ({
 }));
 
 import { useProjects } from '../useProjects';
+import { PROJECTS_CHANGED_EVENT, queryClient as sharedQueryClient } from '@/lib/query-client';
 
-function renderProjects() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+const wait = (ms: number) => act(async () => { await new Promise(resolve => setTimeout(resolve, ms)); });
+
+function renderProjects(client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   return renderHook(() => useProjects(), {
     wrapper: ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
@@ -107,5 +109,40 @@ describe('project list visibility scope', () => {
     await act(async () => result.current.refresh());
     await waitFor(() => expect(result.current.error).toBeNull());
     expect(result.current.projects).toEqual([]);
+  });
+
+  it("refetches exactly once when ['projects'] is invalidated and still notifies other listeners", async () => {
+    mock.projects.mockResolvedValue({ data: [{ id: 'project-a' }], error: null });
+    const onChanged = vi.fn();
+    window.addEventListener(PROJECTS_CHANGED_EVENT, onChanged);
+    const { result, unmount } = renderProjects(sharedQueryClient);
+    try {
+      await waitFor(() => expect(result.current.projects).toEqual([{ id: 'project-a' }]));
+      expect(mock.projects).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        await sharedQueryClient.invalidateQueries({ queryKey: ['projects'] });
+      });
+      expect(mock.projects).toHaveBeenCalledTimes(2);
+
+      // Bridge (150 ms) + listener debounce (300 ms): the echo must not trigger a third fetch.
+      await wait(700);
+      expect(onChanged).toHaveBeenCalledTimes(1);
+      expect(mock.projects).toHaveBeenCalledTimes(2);
+    } finally {
+      window.removeEventListener(PROJECTS_CHANGED_EVENT, onChanged);
+      unmount();
+    }
+  });
+
+  it('still refetches on a projects-changed event dispatched outside react-query', async () => {
+    mock.projects.mockResolvedValue({ data: [{ id: 'project-a' }], error: null });
+    const { result } = renderProjects();
+    await waitFor(() => expect(result.current.projects).toEqual([{ id: 'project-a' }]));
+
+    act(() => {
+      window.dispatchEvent(new Event(PROJECTS_CHANGED_EVENT));
+    });
+    await waitFor(() => expect(mock.projects).toHaveBeenCalledTimes(2));
   });
 });
