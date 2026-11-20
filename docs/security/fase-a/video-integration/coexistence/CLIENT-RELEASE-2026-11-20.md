@@ -15,4 +15,9 @@
 - Scan básico atualizado sem findings; não substitui análise profunda. Duas advertências profundas existentes de destinatários de email continuam abertas, não foram ignoradas/corrigidas nesta tarefa.
 
 ## Publicação/ativação
-Frontend exige publish separado. Código tem marcador verificável canonical-client-20261120-1 no Review Studio e bundle. Resultado no domínio e enrollment serão adicionados após verificação. Nenhuma pausa, cron ou secret alterado.
+- Publish explícito realizado para commit **9afe0cf76b6e8d14bafb62f2a9361da93ead74d4**. https://willflow.app HTTP 200, HTML anuncia exatamente esse commit, bundle `/assets/index-BYnmyAa8.js`; Review Studio servido confirma `canonical-client-20261120-1` (não inferido do editor).
+- Percurso normal produtivo SEM interceptação: sessão autorizada na fixture→Captação→projeto→Review Studio→upload MP4→nova versão selecionada→HLS avança→comentário da equipe→link novo→cliente anónimo aprova→reload público e autenticado relê aprovação/comentário. Sem erros de runtime. Seleção inicial pública corrigida para a versão mais recente. Apenas fixture escreveu media/feedback; não houve efeitos em clientes.
+- Após PASS no domínio, ativação idempotente em **6 workspaces Studio elegíveis**, incluindo a fixture, com guards de accounting/projeção/quota habilitados. Workspaces futuros ou que mudem de plano NÃO são automaticamente inscritos nesta etapa; exigem inscrição controlada após os mesmos guards. Acesso de leitura persiste após desabilitar enrollment; novos uploads falham fora de Studio ativo.
+- Pós-ativação: 6 inscritos, 3 versões privadas prontas (todas sintéticas), zero projeções privadas no legado, zero divergências de counters legados; históricos mantêm 1.694 versões/948 comentários/320 aprovações.
+- Nenhuma pausa, cron, secret ou limpeza externa alterado. Retirada privada preserva dados consolidados; rollback deve desabilitar enrollment e conservar reader/histórico, nunca apagar registry populado.
+- Limitações funcionais acima permanecem declaradas; isto conclui a integração cliente demonstrada, NÃO o release integral.
