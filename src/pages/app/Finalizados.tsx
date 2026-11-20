@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/ui/error-state';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -45,6 +47,8 @@ import { getProjectCost } from '@/lib/finance/financialEngine';
 export default function Finalizados() {
   const {
     projects,
+    loading: projectsLoading,
+    error: projectsError,
     refresh: refreshProjects
   } = useFilteredProjects();
   const {
@@ -226,6 +230,11 @@ export default function Finalizados() {
       return dateB - dateA; // Mais recentes primeiro
     });
   }, [projects, searchQuery, filterClient, filterType, filterResponsavel, filterPhase, projectTeams, startDate, endDate]);
+
+  // Só substitui a lista enquanto ainda não há projetos carregados: as atualizações
+  // silenciosas (refresh) com dados já no ecrã não devem esconder a tabela.
+  const showInitialLoading = projectsLoading && projects.length === 0;
+  const showLoadError = !projectsLoading && projectsError && projects.length === 0;
 
   // Pagination
   const pagination = usePagination({
@@ -593,7 +602,9 @@ export default function Finalizados() {
       </div>
 
       {/* Projects Table */}
-      {pagination.totalItems === 0 ? <motion.div initial={{
+      {showInitialLoading ? <div className="space-y-2" role="status" aria-busy="true" aria-label="A carregar projetos finalizados">
+          {[0, 1, 2, 3, 4].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+        </div> : showLoadError ? <ErrorState title="Não foi possível carregar os projetos" onRetry={refreshProjects} /> : pagination.totalItems === 0 ? <motion.div initial={{
       opacity: 0,
       y: 20
     }} animate={{
