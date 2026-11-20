@@ -16,6 +16,8 @@ vi.mock('@/integrations/supabase/client', () => ({ supabase: { from: (table: str
   select: () => builder,
   eq: (col: string, value: unknown) => { filters.push(['eq', col, value]); return builder; },
   neq: (col: string, value: unknown) => { filters.push(['neq', col, value]); return builder; },
+  // Ordenação/desempate (.order) não altera os dados simulados; aceita-se em qualquer ponto da cadeia.
+  order: () => builder,
   range: async (from: number, to: number) => {
    fixture.calls.push({ table, filters: [...filters], from, to });
    if (fixture.gate) await fixture.gate;
