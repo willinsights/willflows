@@ -57,6 +57,23 @@ try:
  sql(f"UPDATE willflow_video_control.executions SET lease_until=clock_timestamp()-interval '1 second' WHERE id='{race_id}';")
  assert sql(c+f"SELECT finish_video_execution('{race_id}',true);").splitlines()[-1]=='f'
  print('PASS concurrent duplicate admission once and expired lease cannot certify completion')
+ sql('SELECT willflow_video_control.initialize();SELECT willflow_video_control.initialize();')
+ assert sql('SELECT count(*) FROM willflow_video_control.state;')=='1'
+ fail('SET ROLE service_role;SELECT willflow_video_control.initialize();')
+ fail('SELECT willflow_video_control.activate_coordinated();')
+ print('PASS owner initialization idempotent and service role cannot control pause')
+ sql("UPDATE willflow_video_control.executions SET finished_at=clock_timestamp(),outcome='done';SELECT willflow_video_control.pause(clock_timestamp()-interval '3 hours',7200,120);SELECT willflow_video_control.freeze();")
+ fail('BEGIN;SELECT willflow_video_control.activate_coordinated();SELECT 1/0;COMMIT;')
+ assert sql('SELECT coordinated,frozen FROM willflow_video_control.state;')=='f|t'
+ sql('BEGIN;SELECT willflow_video_control.activate_coordinated();INSERT INTO video_versions VALUES(2);COMMIT;')
+ assert sql(c+"SELECT begin_video_execution(gen_random_uuid(),'issue');").splitlines()[-1]=='f'
+ for kind in ['abort','recover','process']:
+  identity=sql('SELECT gen_random_uuid();')
+  assert sql(c+f"SELECT begin_video_execution('{identity}','{kind}');SELECT finish_video_execution('{identity}',true);").splitlines()[-1]=='t'
+ sql("UPDATE willflow_video_control.state SET pause_until=clock_timestamp()-interval '1 second';")
+ assert sql(c+"SELECT begin_video_execution(gen_random_uuid(),'issue');").splitlines()[-1]=='t'
+ assert sql(c+"SELECT begin_video_execution(gen_random_uuid(),'cleanup');").splitlines()[-1]=='f'
+ print('PASS atomic activation rollback and safe coordinated timeout; cleanup stays blocked')
 finally:
  if started:cmd(['/bin/pg_ctl','-D',str(root/'data'),'-m','immediate','stop'],stdout=subprocess.DEVNULL)
  shutil.rmtree(root)

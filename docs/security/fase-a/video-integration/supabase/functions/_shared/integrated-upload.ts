@@ -2,18 +2,25 @@ import { isUuid, resolveVideoContext, sameVideoContext, storedKeyMatchesVersion,
 import { signOperation, verifyOperation, type OperationTicket } from './operation-ticket.ts';
 import { verifyUploadTicket } from './video-upload-ticket.ts';
 import { processDurableUpload } from './video-operation.ts';
+import { controlled, type Execution } from './execution-control.ts';
 export class UploadFailure extends Error { constructor(public code:string,public status:number){super(code);} }
 export interface Dependencies {
   db:any; secret:string; bucket:string; now?:()=>number;
   authenticate:(req:Request)=>Promise<string|null>;
   signPut:(key:string,type:string,seconds:number)=>Promise<string>;
   head:(key:string)=>Promise<{size:number;etag:string}|null>;
-  copy:(key:string,meta:Record<string,string>,etag:string,size:number)=>Promise<string>;
+  copy:(key:string,meta:Record<string,string>,etag:string,size:number,check:()=>Promise<void>)=>Promise<string>;
+  execution?:Execution;
+  coordinated?:boolean;
   findAccepted:(operationId:string)=>Promise<Array<{uid:string;operation_id:string;key:string;workspace_id:string;version_id:string}>>;
 }
-export function uploadHandlers(d:Dependencies) {
+type Handler = (req:Request, body:any)=>Promise<any>;
+type Handlers = Record<'issue'|'process'|'abort'|'recover',Handler>;
+export function uploadHandlers(d:Dependencies):Handlers {
   const now=()=>d.now?.()??Date.now();
-  async function rpc(name:string,args:any){const r=await d.db.rpc(name,args);if(r.error||!r.data)throw new UploadFailure('UPLOAD_CONFLICT',409);return r.data;}
+  const check=async()=>{await d.execution?.check();};
+  const writeDb={rpc:async(name:string,args:any)=>{await check();return d.db.rpc(name,args);}};
+  async function rpc(name:string,args:any){const r=await writeDb.rpc(name,args);if(r.error||!r.data)throw new UploadFailure('UPLOAD_CONFLICT',409);return r.data;}
   async function user(req:Request){const id=await d.authenticate(req);if(!id)throw new UploadFailure('UNAUTHORIZED',401);return id;}
   async function context(body:any,id:string){
     validateUploadFile(body.fileName,body.fileSize);
@@ -37,6 +44,8 @@ export function uploadHandlers(d:Dependencies) {
     const op=await rpc('issue_video_operation',args(id,c,u,key,b));
     if(op.state==='aborted'||Date.parse(op.expires_at)<=now())throw new UploadFailure('UPLOAD_EXPIRED',409);
     // Once persisted never mint another PUT: signed URL remains time-bounded, not revocable.
+    await check();
+    if(op.state==='issued')await d.execution?.grant(new Date(Math.min(Date.parse(op.expires_at),now()+7200000)+60000).toISOString());
     const uploadUrl=op.state==='issued'?await d.signPut(key,b.mimeType||'video/mp4',Math.min(7200,Math.floor((Date.parse(op.expires_at)-now())/1000))):null;
     return {operationId:op.id,key,uploadUrl,uploadTicket:await signOperation(ticket(op),d.secret),ticketVersion:2,expiresAt:op.expires_at,state:op.state};
   }
@@ -88,16 +97,18 @@ export function uploadHandlers(d:Dependencies) {
     let verifiedSource:{size:number;etag:string}|null=null;
     if(op.state==='issued'||op.state==='persisted'){
       if(op.state==='issued'&&Date.parse(op.expires_at)<=now())throw new UploadFailure('UPLOAD_EXPIRED',409);
+      await check();
       verifiedSource=await d.head(op.object_key);
       if(!verifiedSource||verifiedSource.size!==Number(op.file_size)||!verifiedSource.etag)
         throw new UploadFailure('HEAD_MISMATCH',409);
     }
-    const result=await processDurableUpload(d.db,op.id,u,d.bucket,()=>{
+    const result=await processDurableUpload(writeDb,op.id,u,d.bucket,async()=>{
+      await check();
       if(!verifiedSource)throw new Error('FROZEN_SOURCE_UNCONFIRMED');
       return d.copy(op.object_key,{
         operationId:op.id,key:op.object_key,workspaceId:c.workspace_id,
         projectId:c.project_id,versionId:op.version_id,
-      },verifiedSource.etag,verifiedSource.size);
+      },verifiedSource.etag,verifiedSource.size,check);
     });
     const current=await d.db.from('video_upload_operations').select('*').eq('id',op.id).maybeSingle();
     const version=await d.db.from('video_versions').select('*').eq('id',op.version_id).maybeSingle();
@@ -116,10 +127,22 @@ export function uploadHandlers(d:Dependencies) {
       return rpc('recover_video_submission', { p_id: op.id, p_user: u, p_uid: null });
     }
     if(!['submitting','uncertain'].includes(op.state))throw new UploadFailure('RECOVERY_NOT_REQUIRED',409);
+    await check();
     const hits=await d.findAccepted(op.id);
     const matches=hits.filter(x=>x.operation_id===op.id&&x.key===op.object_key&&x.workspace_id===op.workspace_id&&x.version_id===op.version_id);
     if(hits.length!==1||matches.length!==1)throw new UploadFailure('PROVIDER_UNCERTAIN',409);
     return rpc('recover_video_submission',{p_id:op.id,p_user:u,p_uid:matches[0].uid});
   }
-  return {issue,process,abort,recover};
+  const handlers={issue,process,abort,recover};
+  if(!d.coordinated)return handlers; // Pure fixture seam; the deployed runtime always opts in.
+  const guarded=(action:keyof typeof handlers)=>async(req:Request,b:any)=>{
+    const u=await user(req);
+    if(action==='issue'||action==='process')await context(b,u);
+    return controlled(d.db,action,async execution=>{
+      await execution.check();
+      const inner=uploadHandlers({...d,coordinated:false,execution,authenticate:async()=>u});
+      return inner[action](req,b);
+    });
+  };
+  return {issue:guarded('issue'),process:guarded('process'),abort:guarded('abort'),recover:guarded('recover')};
 }

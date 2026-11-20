@@ -1,8 +1,9 @@
 # Roadmap — pendências da auditoria
 
 ## PR #2 — activação coordenada autorizada em 19/11/2026
+- [x] 20/11 runtime candidato ligado aos controlos privados de emissão/processamento/aborto/recuperação; grants 7200s+60s, retoma segura e ativação atómica preparada; 36 Vitest/12 PG/4 Deno. Catálogo confirma precedente owner postgres; identidade do executor futuro/gateway drain não documentados. Sequência em operational/RUNTIME-READINESS-2026-11-20.md, sem pausa/produção.
 - [x] Pausa funcional job6 preparada: SQL privado, 5 bridges actuais (inclui status/settings), leases permanentes/incerteza, grants 3600s+skew, fence de escritores e timeout reversível pré-cutover; 4 Deno, 10 PG (inclui concorrência), entrypoint cleanup pausado sem efeitos e 5 checks aprovados.
-- [ ] Activação operacional: exige timestamp fim-admissão das revisões antigas, limite de execução/drenagem HTTP/provider e executor de controlo SQL privado; adaptar runtime coordenado antes de deploy; não bloquear clientes prematuramente, sem invocar limpeza.
+- [ ] Activação operacional: runtime adaptado; falta timestamp fim-admissão das revisões antigas, limite de execução/drenagem HTTP/provider e confirmação do executor owner para controlo SQL privado; não bloquear clientes prematuramente, sem invocar limpeza.
 - [x] Verificação complementar: corrigir cabeçalho móvel apenas na página candidata; ambos os vídeos, comentário e aprovação verificados a 390/1280 px nos temas claro/escuro, sem transbordo; sem publicação.
 - [x] 20/11: navegador anónimo com página real e handlers candidatos locais, HLS real dos dois clipes privados; frames, mesmo link, comentário e aprovação persistidos em SQLite fictício; inventário individual 54 HEAD R2 coincidentes e 54 referências Stream existentes.
 - [ ] 20/11: barreira de emissão candidata preparada; aplicar/pausar job6 só após prova operacional de drenagem e reversão. Ferramentas geridas não disponibilizam pausa do job legado; logs cleanup ausentes. Contador não alterado antes da janela estável.

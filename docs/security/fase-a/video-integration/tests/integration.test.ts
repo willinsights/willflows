@@ -9,6 +9,7 @@ function fixture(){
  const operations=new Map<string,any>(),versions=new Map<string,any>();let now=1000,authenticated:string|null=user;
  const copy=vi.fn(async()=> 'uid-fixture');let head:{size:number;etag:string}|null={size:100,etag:'fiction'};
  const db={from:(table:string)=>{const filters:any={};const q:any={select:()=>q,eq:(k:string,v:any)=>(filters[k]=v,q),maybeSingle:async()=>({data:table==='workspace_members'?(filters.workspace_id===ws&&filters.user_id===user?{role:'edicao',is_active:true}:null):table==='projects'?(filters.id===project?{id:project,workspace_id:ws}:null):table==='tasks'?{id:other,workspace_id:ws,project_id:project}:table==='video_upload_operations'?(filters.id?operations.get(filters.id):[...operations.values()].find(o=>o.object_key===filters.object_key)):versions.get(filters.id)})};return q;},rpc:async(name:string,p:any)=>{
+  if(['begin_video_execution','check_video_execution','record_video_grant','finish_video_execution'].includes(name))return {data:true,error:null};
   if(name==='issue_video_operation'){
    const old=operations.get(p.p_id);if(old)return {data:old};
    const v=versions.get(p.p_replace);const op={id:p.p_id,workspace_id:p.p_ws,project_id:p.p_project,task_id:p.p_task,user_id:p.p_user,object_key:p.p_key,file_name:p.p_name,file_size:p.p_size,replace_id:p.p_replace,version_id:v?.id??crypto.randomUUID(),expires_at:new Date(now+14400000).toISOString(),state:'issued'};operations.set(op.id,op);return {data:op};
@@ -30,7 +31,7 @@ function fixture(){
   return {error:{}};
  }};
  const find=vi.fn(async()=>[] as any[]);
- const handlers=uploadHandlers({db,secret,bucket:'fiction',now:()=>now,authenticate:async()=>authenticated,signPut:async key=>'http://localhost/object/'+key,head:async()=>head,copy,findAccepted:find});
+ const handlers=uploadHandlers({db,coordinated:true,secret,bucket:'fiction',now:()=>now,authenticate:async()=>authenticated,signPut:async key=>'http://localhost/object/'+key,head:async()=>head,copy,findAccepted:find});
  const b:any={operationId:crypto.randomUUID(),workspaceId:ws,projectId:project,taskId:null,fileName:'Corte – ação 🎬.mp4',fileSize:100};
  return {handlers,b,copy,find,operations,versions,issue:async()=>{const issued=await handlers.issue(req,b);return {...b,...issued};},setNow:(v:number)=>now=v,setUser:(u:string|null)=>authenticated=u,setHead:(v:any)=>head=v};
 }

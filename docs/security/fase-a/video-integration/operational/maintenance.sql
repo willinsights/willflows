@@ -11,7 +11,7 @@ CREATE TABLE willflow_video_control.state (
  coordinated boolean NOT NULL DEFAULT false
 );
 CREATE TABLE willflow_video_control.executions (
- id uuid PRIMARY KEY, kind text NOT NULL CHECK(kind IN ('issue','process','cleanup')),
+ id uuid PRIMARY KEY, kind text NOT NULL CHECK(kind IN ('issue','process','abort','recover','cleanup')),
  started_at timestamptz NOT NULL DEFAULT clock_timestamp(),
  heartbeat_at timestamptz NOT NULL DEFAULT clock_timestamp(),
  lease_until timestamptz NOT NULL DEFAULT clock_timestamp()+interval '90 seconds',
@@ -32,7 +32,7 @@ DECLARE s willflow_video_control.state%ROWTYPE;
 BEGIN
  IF (current_setting('request.jwt.claims',true)::jsonb->>'role'='service_role') IS NOT TRUE THEN RAISE EXCEPTION 'Forbidden'; END IF;
  PERFORM pg_advisory_xact_lock(742019,1);
- IF p_id IS NULL OR p_kind IS NULL OR p_kind NOT IN ('issue','process','cleanup') THEN RAISE EXCEPTION 'Invalid execution'; END IF;
+ IF p_id IS NULL OR p_kind IS NULL OR p_kind NOT IN ('issue','process','abort','recover','cleanup') THEN RAISE EXCEPTION 'Invalid execution'; END IF;
  SELECT * INTO s FROM willflow_video_control.state WHERE singleton;
  IF (s.frozen AND s.pause_until>clock_timestamp()) OR (p_kind='cleanup' AND s.coordinated) OR
    (p_kind IN ('issue','cleanup') AND s.pause_until>clock_timestamp()) THEN RETURN false; END IF;
@@ -66,7 +66,7 @@ BEGIN
  SELECT kind INTO k FROM willflow_video_control.executions WHERE id=p_execution AND finished_at IS NULL
   AND outcome IS NULL AND lease_until>clock_timestamp();
  IF k IS DISTINCT FROM 'issue' OR p_expires IS NULL OR p_expires<=clock_timestamp()
- OR p_expires>clock_timestamp()+interval '2 hours' THEN RAISE EXCEPTION 'Invalid grant'; END IF;
+ OR p_expires>clock_timestamp()+interval '2 hours 60 seconds' THEN RAISE EXCEPTION 'Invalid grant'; END IF;
  INSERT INTO willflow_video_control.grants(execution_id,expires_at) VALUES(p_execution,p_expires);
  RETURN true; -- Written BEFORE returning any presigned PUT/ticket to the caller.
 END $$;
@@ -86,6 +86,29 @@ REVOKE ALL ON FUNCTION public.begin_video_execution(uuid,text),public.check_vide
 GRANT EXECUTE ON FUNCTION public.begin_video_execution(uuid,text),public.check_video_execution(uuid),public.finish_video_execution(uuid,boolean),public.record_video_grant(uuid,timestamptz),public.video_control_status() TO service_role;
 
 -- Owner-only control, no public RPC/operator endpoint or new privileges.
+CREATE FUNCTION willflow_video_control.initialize() RETURNS void
+LANGUAGE plpgsql SECURITY INVOKER SET search_path=public AS $$
+BEGIN
+ IF current_user<>'postgres' THEN RAISE EXCEPTION 'Owner required'; END IF;
+ PERFORM pg_advisory_xact_lock(742019,1);
+ INSERT INTO willflow_video_control.state(singleton) VALUES(true) ON CONFLICT DO NOTHING;
+END $$;
+CREATE FUNCTION willflow_video_control.activate_coordinated() RETURNS void
+LANGUAGE plpgsql SECURITY INVOKER SET search_path=public AS $$
+DECLARE s willflow_video_control.state%ROWTYPE;
+BEGIN
+ IF current_user<>'postgres' THEN RAISE EXCEPTION 'Owner required'; END IF;
+ PERFORM pg_advisory_xact_lock(742019,1);
+ SELECT * INTO s FROM willflow_video_control.state WHERE singleton;
+ IF s.frozen IS NOT TRUE OR s.pause_until IS NULL OR s.pause_until<=clock_timestamp()
+ OR s.legacy_not_before IS NULL OR s.legacy_not_before>clock_timestamp()
+ OR EXISTS(SELECT 1 FROM willflow_video_control.executions WHERE finished_at IS NULL)
+ OR EXISTS(SELECT 1 FROM willflow_video_control.grants WHERE expires_at>clock_timestamp())
+ THEN RAISE EXCEPTION 'Drain not proven'; END IF;
+ -- Must be in the SAME transaction as the accounting migration: rollback restores fence.
+ UPDATE willflow_video_control.state SET coordinated=true,frozen=false WHERE singleton;
+END $$;
+REVOKE ALL ON FUNCTION willflow_video_control.initialize(),willflow_video_control.activate_coordinated() FROM PUBLIC,anon,authenticated,service_role;
 CREATE FUNCTION willflow_video_control.pause(p_instrumented timestamptz,p_legacy_seconds integer,p_minutes integer) RETURNS void
 LANGUAGE plpgsql SECURITY INVOKER SET search_path=public AS $$
 BEGIN
