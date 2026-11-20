@@ -1,6 +1,7 @@
 # Roadmap — pendências da auditoria
 
 ## PR #2 — activação coordenada autorizada em 19/11/2026
+- [x] Verificação complementar: corrigir cabeçalho móvel apenas na página candidata; ambos os vídeos, comentário e aprovação verificados a 390/1280 px nos temas claro/escuro, sem transbordo; sem publicação.
 - [x] 20/11: navegador anónimo com página real e handlers candidatos locais, HLS real dos dois clipes privados; frames, mesmo link, comentário e aprovação persistidos em SQLite fictício; inventário individual 54 HEAD R2 coincidentes e 54 referências Stream existentes.
 - [ ] 20/11: barreira de emissão candidata preparada; aplicar/pausar job6 só após prova operacional de drenagem e reversão. Ferramentas geridas não disponibilizam pausa do job legado; logs cleanup ausentes. Contador não alterado antes da janela estável.
 - [x] Implementar reprodução privada candidata: ingestão/settings signed-only, signer autorizado e página/hook/approval; 72 testes, tipos/build e GET real playlists/segmentos 200 dos dois UIDs sintéticos, 1064 bytes cada; sem deploy/quota. Provas PRIVATE-PLAYBACK-2026-11-19.md.

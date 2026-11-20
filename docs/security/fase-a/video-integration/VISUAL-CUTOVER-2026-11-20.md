@@ -19,6 +19,10 @@ This is real provider/browser playback with candidate server logic and durable f
 
 ## Individual counter inventory — read-only
 
+### Responsive follow-up
+
+Checked both real signed sources at 390 × 844 and 1280 × 1800 in light and dark themes, including comment submission and the approved page in all four contexts. Initial mobile header overflow clipped the approval action. Corrected only the staged `frontend/pages/VideoApproval.tsx`: stacked mobile header, wrapping actions/name form, bounded comment column and wrapping file metadata. Replayed all four contexts through the candidate page using the preview compiler; both versions decoded, all four comment/approval flows completed, and horizontal overflow was false in every context. Inspected all twelve screenshots (eight video states and four approved states). Active frontend remains unchanged. This full staged page preserves the current PR11 behavior and must be explicitly mapped to `src/pages/public/VideoApproval.tsx` by the later release overlay, not silently copied during this blocked cutover.
+
 One divergent scope, 54 active version rows. Stored counter: **92,143,699,665 bytes**; active version accounting: **16,862,211,040 bytes**; unexplained legacy difference: **75,281,488,625 bytes**. Zero unverified row sizes.
 
 Each active R2 reference was checked individually with HEAD: **54 exact byte-size matches**, zero missing, mismatched, unreferenced or unavailable objects. Exact Stream UID metadata checks: **54 existing references**, all still public (`requireSignedURLs=false`); no provider settings changed. These legacy references are distinct from the two private synthetic canary UIDs. Active files were not downloaded. Per-version evidence was hashed and retained only under temporary private sandbox staging; no names, workspace identifiers or customer IDs appear here.
