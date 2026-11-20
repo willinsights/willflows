@@ -32,6 +32,10 @@ export default function AcceptInvite() {
   
   const [viewState, setViewState] = useState<ViewState>('loading');
   const [invitation, setInvitation] = useState<InvitationData | null>(null);
+  // Identity (user id, or null without session) the invitation was loaded for.
+  // undefined = not loaded yet. The RPC only returns the full email to the
+  // signed-in invitee, so the invitation is only valid for that identity.
+  const [invitationUserId, setInvitationUserId] = useState<string | null | undefined>(undefined);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -39,13 +43,27 @@ export default function AcceptInvite() {
   const [submitting, setSubmitting] = useState(false);
 
   const token = searchParams.get('token');
+  const userId = user?.id ?? null;
 
-  // Fetch invitation data
+  // Fetch invitation data. Runs again whenever the identity changes (login,
+  // signup with session, logout, account switch): get_invitation_by_token only
+  // returns the email to the signed-in invitee, so the answer depends on who asks.
   useEffect(() => {
     if (!token) {
       setViewState('invalid');
       return;
     }
+    // Wait for the session to be known, so the invitation is fetched as the right identity
+    if (authLoading) return;
+
+    // Only the latest request may update the state
+    let cancelled = false;
+    // Never override an acceptance in progress or already done
+    const settle = (next: ViewState) =>
+      setViewState((prev) => (prev === 'accepting' || prev === 'success' ? prev : next));
+
+    // Show the loading state while (re)loading, instead of a stale needs_auth/ready
+    settle('loading');
 
     const fetchInvitation = async () => {
       // Use secure RPC function to fetch invitation by token
@@ -53,8 +71,10 @@ export default function AcceptInvite() {
       const { data, error } = await supabase
         .rpc('get_invitation_by_token', { _token: token });
 
+      if (cancelled) return;
+
       if (error || !data || data.length === 0) {
-        setViewState('invalid');
+        settle('invalid');
         return;
       }
 
@@ -62,16 +82,17 @@ export default function AcceptInvite() {
 
       // Check if already accepted (RPC already filters this, but double-check)
       if (invitationData.accepted_at) {
-        setViewState('invalid');
+        settle('invalid');
         return;
       }
 
       // Check if expired (RPC already filters this, but double-check)
       if (new Date(invitationData.expires_at) < new Date()) {
-        setViewState('expired');
+        settle('expired');
         return;
       }
 
+      // email is null unless the caller is the signed-in invitee (normal without session)
       setInvitation({
         id: invitationData.id,
         email: invitationData.email ?? '',
@@ -82,17 +103,27 @@ export default function AcceptInvite() {
         inviter_name: null,
         expires_at: invitationData.expires_at,
       });
-      setEmail(invitationData.email ?? '');
+      setInvitationUserId(userId);
+      // Prefill only when the email is known; never wipe what the user typed
+      if (invitationData.email) setEmail(invitationData.email);
     };
 
     fetchInvitation();
-  }, [token]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, authLoading, userId]);
 
   // Check user status when invitation is loaded and user auth state changes
   useEffect(() => {
     if (!invitation || authLoading) return;
+    // The invitation on hand was loaded for another identity: a reload is in progress
+    if (invitationUserId !== userId) return;
     // Prevent checking if we're already in a terminal state
     if (viewState === 'ready' || viewState === 'already_member' || viewState === 'success' || viewState === 'accepting') return;
+
+    let cancelled = false;
 
     const checkUserStatus = async () => {
       if (!user) {
@@ -120,6 +151,8 @@ export default function AcceptInvite() {
         .eq('is_active', true)
         .maybeSingle();
 
+      if (cancelled) return;
+
       if (error) {
         logger.error('Error checking membership:', error);
         // Don't block the flow, proceed to ready state
@@ -136,8 +169,12 @@ export default function AcceptInvite() {
     };
 
     checkUserStatus();
+
+    return () => {
+      cancelled = true;
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [invitation, user, authLoading]);
+  }, [invitation, invitationUserId, user, authLoading]);
 
   const handleAcceptInvite = async () => {
     if (!invitation || !user || !token) return;
