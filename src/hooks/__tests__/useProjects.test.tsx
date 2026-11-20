@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
 const st = vi.hoisted(() => ({ from: vi.fn(), toast: vi.fn(), column: true, inserts: [] as any[], filters: [] as any[] }));
 vi.mock('@/contexts/WorkspaceContext', () => ({ useWorkspace: () => ({ currentWorkspace: { id: 'fake-workspace' }, fetchError: null }) }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 'fake-user' } }) }));
@@ -10,6 +12,16 @@ vi.mock('@/lib/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn() } }));
 vi.mock('@/lib/validation-schemas', () => ({ projectSchema: {}, projectUpdateSchema: {}, validateWithSchema: (_: unknown, data: unknown) => ({ success: true, data }) }));
 vi.mock('@/integrations/supabase/client', () => ({ supabase: { from: st.from } }));
 import { useProjects } from '../useProjects';
+
+function renderProjects() {
+  const client = new QueryClient();
+  return renderHook(useProjects, {
+    wrapper: ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    ),
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks(); st.column = true; st.inserts = []; st.filters = [];
   vi.stubGlobal('fetch', vi.fn(() => { throw new Error('rede proibida'); }));
@@ -25,20 +37,20 @@ beforeEach(() => {
 });
 describe('useProjects', () => {
   it('expõe estado e operações existentes', () => {
-    const { result } = renderHook(useProjects);
+    const { result } = renderProjects();
     expect(result.current.projects).toEqual([]);
     expect(typeof result.current.loading).toBe('boolean');
     for (const key of ['createProject','updateProject','deleteProject','duplicateProject','refresh'] as const) expect(typeof result.current[key]).toBe('function');
   });
   it.each(['createProject','duplicateProject'] as const)('%s usa coluna não final', async (operation) => {
-    const { result } = renderHook(useProjects);
+    const { result } = renderProjects();
     await act(async () => { if (operation === 'createProject') await result.current.createProject({ name: 'Fictício', type: 'video' }); else await result.current.duplicateProject('original'); });
     expect(st.filters.find(x => x.table === 'kanban_columns').filters).toContainEqual(['is_final', false]);
     expect(st.inserts[0].data.captacao_column_id).toBe('nonfinal');
     if (operation === 'duplicateProject') expect(st.inserts[0].data.is_delivered).toBe(false);
   });
   it.each(['createProject','duplicateProject'] as const)('%s sem coluna não insere projeto', async (operation) => {
-    st.column=false; const { result } = renderHook(useProjects);
+    st.column=false; const { result } = renderProjects();
     let value: unknown;
     await act(async () => { value = operation === 'createProject' ? await result.current.createProject({ name: 'Fictício', type: 'video' }) : await result.current.duplicateProject('original'); });
     expect(value).toBeNull(); expect(st.inserts).toHaveLength(0); expect(st.toast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' }));

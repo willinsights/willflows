@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,6 +9,7 @@ import { handleDatabaseError } from '@/lib/error-handler';
 import { projectSchema, projectUpdateSchema, validateWithSchema } from '@/lib/validation-schemas';
 import { logger } from '@/lib/logger';
 import { fetchAllRows } from '@/lib/fetch-all';
+import { PROJECTS_CHANGED_EVENT } from '@/lib/query-client';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 export type Project = Tables<'projects'>;
@@ -23,95 +25,70 @@ export function useProjects() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { canViewAllProjects, isLoading: permissionsLoading } = useFinancialPermissions();
-  const [projects, setProjects] = useState<ProjectWithClient[]>([]);
-  const [loading, setLoading] = useState(true);
-  
-  // Refs to prevent duplicate fetches
-  const isFetchingRef = useRef(false);
-  const lastFetchedWorkspaceIdRef = useRef<string | null>(null);
-  
-  // Check if user is a collaborator (non-admin) - they only see projects they're assigned to
-  // Usar permissão dinâmica em vez de verificação hardcoded
-  const isCollaborator = !canViewAllProjects;
+  const queryClient = useQueryClient();
+  const workspaceId = currentWorkspace?.id;
   const userId = user?.id;
+  const enabled = Boolean(workspaceId && userId && !fetchError && !permissionsLoading);
+  const queryKey = ['scoped-project-list', workspaceId, userId, canViewAllProjects] as const;
+  const query = useQuery({
+    queryKey,
+    enabled,
+    staleTime: 0,
+    gcTime: 0,
+    queryFn: async ({ signal }): Promise<ProjectWithClient[]> => {
+      if (!workspaceId || !userId) return [];
 
-  const fetchProjects = useCallback(async () => {
-    // Esperar que permissões carreguem antes de fetch
-    if (!currentWorkspace?.id || fetchError || permissionsLoading) return;
-    if (isFetchingRef.current) return;
-
-    try {
-      isFetchingRef.current = true;
-      setLoading(true);
-      
-      // For freelancers, first get project IDs they're assigned to
-      let assignedProjectIds: string[] | null = null;
-      if (isCollaborator && userId) {
-        const { data: assignedProjects } = await supabase
+      let assignedProjectIds: string[] | undefined;
+      if (!canViewAllProjects) {
+        const { data, error } = await supabase
           .from('project_team')
           .select('project_id')
-          .eq('user_id', userId);
-        assignedProjectIds = assignedProjects?.map(p => p.project_id) || [];
-        
-        // If no assigned projects, return empty array
-        if (assignedProjectIds.length === 0) {
-          setProjects([]);
-          lastFetchedWorkspaceIdRef.current = currentWorkspace.id;
-          return;
-        }
+          .eq('user_id', userId)
+          .abortSignal(signal);
+        if (error) throw error;
+        assignedProjectIds = data?.map(project => project.project_id) ?? [];
+        if (assignedProjectIds.length === 0) return [];
       }
-      
-      // Paginated fetch — never silently cut at the 1000-row limit
-      const data = await fetchAllRows(() => {
-        let query = supabase
+
+      return fetchAllRows(() => {
+        let request = supabase
           .from('projects')
           .select('*, clients(name)')
-          .eq('workspace_id', currentWorkspace.id)
+          .eq('workspace_id', workspaceId)
           .order('created_at', { ascending: false });
-
-        // Filter by assigned projects for collaborators
-        if (isCollaborator && assignedProjectIds !== null) {
-          query = query.in('id', assignedProjectIds);
-        }
-        return query;
+        if (assignedProjectIds) request = request.in('id', assignedProjectIds);
+        return request.abortSignal(signal);
       });
+    },
+  });
+  const projects = enabled ? query.data ?? [] : [];
+  const loading = !fetchError && (permissionsLoading || (enabled && query.isFetching));
+  const { refetch } = query;
 
-      setProjects(data);
-      lastFetchedWorkspaceIdRef.current = currentWorkspace.id;
-    } catch (error) {
-      logger.error('Error fetching projects:', error);
-    } finally {
-      isFetchingRef.current = false;
-      setLoading(false);
+  const fetchProjects = useCallback(async () => {
+    if (enabled) await refetch();
+  }, [enabled, refetch]);
+
+  const setProjects = (update: (previous: ProjectWithClient[]) => ProjectWithClient[]) => {
+    if (enabled) {
+      queryClient.setQueryData<ProjectWithClient[]>(queryKey, previous => update(previous ?? []));
     }
-  }, [currentWorkspace?.id, fetchError, isCollaborator, userId, permissionsLoading, canViewAllProjects]);
+  };
 
+  // The bridge also receives changes from Kanban and existing project mutations.
   useEffect(() => {
-    // Só fetch quando permissões estiverem carregadas
-    if (permissionsLoading) return;
-    
-    // Only fetch if workspace ID changed
-    if (currentWorkspace?.id && currentWorkspace.id !== lastFetchedWorkspaceIdRef.current && !fetchError) {
-      fetchProjects();
-    } else if (!currentWorkspace) {
-      setLoading(false);
-    }
-  }, [currentWorkspace?.id, fetchError, permissionsLoading, canViewAllProjects]);
-
-  // Refetch when another screen changes project data (event bridge from react-query invalidations)
-  useEffect(() => {
-    if (!currentWorkspace?.id) return;
-    let t: ReturnType<typeof setTimeout> | null = null;
+    if (!enabled) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const onChange = () => {
-      if (t) clearTimeout(t);
-      t = setTimeout(() => { fetchProjects(); }, 300);
+      clearTimeout(timer);
+      timer = setTimeout(() => void refetch({ cancelRefetch: false }), 300);
     };
-    window.addEventListener('willflow:projects-changed', onChange);
+    window.addEventListener(PROJECTS_CHANGED_EVENT, onChange);
     return () => {
-      window.removeEventListener('willflow:projects-changed', onChange);
-      if (t) clearTimeout(t);
+      window.removeEventListener(PROJECTS_CHANGED_EVENT, onChange);
+      clearTimeout(timer);
     };
-  }, [currentWorkspace?.id, fetchProjects]);
+  }, [enabled, refetch]);
 
   const createProject = async (project: Omit<ProjectInsert, 'workspace_id'>) => {
     if (!currentWorkspace) return null;
@@ -422,6 +399,7 @@ export function useProjects() {
   return {
     projects,
     loading,
+    error: enabled ? query.error : null,
     createProject,
     updateProject,
     deleteProject,
