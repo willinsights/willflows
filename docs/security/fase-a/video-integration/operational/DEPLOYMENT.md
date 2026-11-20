@@ -1,0 +1,40 @@
+# Functional job6 pause — staged, not activated
+
+## Concrete code
+
+`maintenance.sql` is a separate additive instrumentation migration. Private tables track each handler execution, heartbeat/90-second lease, completion/uncertainty and each issued PUT/ticket expiry. Service-only RPCs expose safe aggregate status; owner-only pause/freeze/resume functions are not accessible through the public Data API. Missing control state starts in observation mode, allowing current flows; missing schema rejects the instrumented handler, so SQL must precede deployment.
+
+Copies of the current cleanup, upload issuer and processor live under `operational/supabase/functions`. They retain existing authorization, accounting and media behavior; this is a pre-cutover bridge, NOT the durable PR2 processor. Cleanup admission happens after legacy secret authentication but before any query, notification, deletion or quota mutation. Paused authenticated calls return 200 `paused:true`, not a false completed-cleanup claim. No cron identity, command, secret or calendar needs changing. Original auth is deliberately preserved, not widened.
+
+Every subsequent database/network effect is checked against its execution lease. HTTP failures, thrown failures and swallowed provider errors retain uncertainty. Expired leases cannot be reclaimed or certified completed. They block a cutover until an operator verifies the outcome, but do not block new legacy traffic after pause timeout. Provider I/O already in flight cannot be cancelled or fenced by a PostgreSQL lease; the permanent uncertainty record is therefore mandatory, not a reason to assume drain.
+
+Legacy issuer records grant expiry BEFORE returning credentials; ticket expiry remains 3600 seconds. Grant drain adds a 60-second signing skew allowance. The PR2 candidate has 7200-second issuances and must use the same protocol when deployed. GET signing for Stream ingestion lasts 3600 seconds, distinct from the upload ticket. Do not shorten those TTLs. Requests/provider ingestion begun just before expiration can outlive the TTL.
+
+Statement fences use the existing accounting advisory lock identity, covering video_versions/workspace_storage INSERT/UPDATE/DELETE including old browser writes, RPCs and cascades. They are enabled only after explicit freeze; no change to quota values or link privileges. Recovery from pause expiry automatically reopens legacy issuance/cleanup/writers BEFORE coordinated accounting is activated. Once accounting changes, incompatible legacy cleanup must stay blocked (`coordinated=true`) even on timeout; automatically reopening that destructive writer would violate quota correctness. Recovery then must move forward with a compatible cleanup revision, not restore legacy behavior.
+
+## Ordered activation guards
+
+1. Obtain exact deployed revision/source coverage of ALL writers: current three handlers, status/settings mutations, legacy storage/direct upload endpoints and browser counter callbacks. Current checkout sources are not proof that every deployed isolate runs them. Preserve rollback sources for the deployed versions.
+2. Apply ONLY the reviewed instrumentation SQL first, then deploy instrumented current bridges in observation mode. Active-path edits may automatically deploy, so no active copies were made here. Prove unauthenticated requests remain denied and use non-destructive isolated probes to confirm revision/lease registration.
+3. Record the time when the **last old isolate capable of issuance/effects stopped admitting requests**, not just deployment acceptance. Old requests before instrumentation have no ledger. Wait at least 3600 seconds (+skew) from that point for verified current issuer TTL; use 7200 seconds (+skew) if v2/other issuance revisions cannot be excluded. Confirm platform execution bounds and pending provider calls separately. No ledger can retroactively count unknown older grants; status must remain unknown until this horizon is justified.
+4. Choose an upload-only maintenance window after observation proves viability. Owner calls private pause with the established instrumentation timestamp and horizon. Existing processors can finish, new issue/cleanup calls are skipped, job6 remains scheduled normally.
+5. Freeze only when the horizon elapsed, outstanding grants=0, unfinished/uncertain executions=0 and platform confirms old HTTP/provider operations ended. Aggregate status alone cannot establish pre-instrumentation drain. Reconcile the unique counter with a fresh individual fingerprint within the assembler's exact NOWAIT transaction. Never replace it with an unreviewed generic sum.
+6. Coordinate compatible readers/writers/frontend and mark coordinated mode atomically with accounting activation; ensure maintenance timeout cannot resume legacy cleanup. Do not deploy the PR2 runtime while its earlier independent fail-closed barrier lacks state. This adapter to the coordinated runtime is still a release dependency, not silently included.
+7. Before accounting changes, pause timeout or private resume restores traffic. After changes, retain accounting/operation history and recover forward; only a reviewed compatible cleanup can resume. Do not invoke destructive cleanup to test this sequence.
+
+## Why production did not activate in this session
+
+The missing `cron.alter_job` privilege is **no longer an architectural requirement**: functional handler pause replaces it without touching job6. Owner-only SQL control still requires an executor capable of invoking the private control functions; current read-only catalog access/managed scheduling interfaces do not provide that operation. No public permission/endpoint was added to bypass this.
+
+More importantly, no platform capability here exports exact active video source revisions, retires old isolates with a documented execution ceiling, or enumerates pre-instrumentation HTTP/provider calls. Cron SQL success cannot prove them completed. Starting observation and calling it zero-drain would be false; initiating a client-blocking pause before that evidence would violate the request. The minimum real TTL is one hour, not a short five-minute test window. Consequently no production SQL or bridge deployment, pause, counter correction, quota change, job invocation or publication occurred.
+
+The operator/platform step is to establish the last old revision admission time, bounded runtime/in-flight completion and owner-private control execution during an agreed window. No secret values are required. No request to increase cron privileges or stop unrelated jobs is made.
+
+## Executed tests, no visual/inventory repeat
+
+- 4 targeted Deno execution-control tests PASS: paused cleanup zero effects, uncertain failure retained, swallowed provider uncertainty retained, grant/check before delivery.
+- 8 private Unix-socket PostgreSQL groups PASS: observe mode/replay, persistent outstanding grants, pause/drain admission, uncertainty, old writer fences, automatic pre-cutover resume, coordinated cleanup protection, ACL.
+- Copied **actual cleanup entrypoint**, mocked authenticated runtime and private RPC returning paused: HTTP 200, paused=true, zero business queries/effects. No live cleanup called.
+- Deno checks PASS for all three copied instrumented handlers. Existing visual/media/inventory green tests were not repeated.
+
+Limitations: this is preparation, not active instrumentation; status/settings and coordinated runtime bridge still require matching instrumentation before any deployment. End-to-end concurrency against live provider effects remains deliberately unperformed. SQL rollback before use is the inverse additive deployment, but once records exist retain the evidence and disable control through private resume rather than dropping its tables.
