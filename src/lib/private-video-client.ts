@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-export const PRIVATE_VIDEO_CLIENT_REVISION = 'canonical-client-20261120-1';
+export const PRIVATE_VIDEO_CLIENT_REVISION = 'canonical-client-20261120-2';
 export class PrivateVideoError extends Error {constructor(public code:string){super('Não foi possível concluir esta operação.');}}
 export async function privateVideoRequest(body: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke('private-video', { body });

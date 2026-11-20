@@ -74,3 +74,12 @@ it.each(['expired','delivered','orphan'])('actual legacy cleanup %s branch, repe
  expect(legacyLink.active).toBe(branch!=='expired');expect(canonical).toEqual({key,uid,state:'ready',bytes:10});
  expect(selections.some(x=>x.includes('private'))).toBe(false);
 });
+
+it.each([false, true])('reports individual link revocation only when the database confirms it (%s)', async revoked => {
+ const f=await fixture();
+ f.d.authenticate=async()=>ws;
+ f.rpc.mockResolvedValueOnce({data:revoked,error:null});
+ const result=await f.request({action:'revoke',token});
+ expect(result.status).toBe(revoked?200:403);
+ expect(f.rpc).toHaveBeenCalledWith('private_video_revoke',{p_digest:await digestPrivateLink(token),p_user:ws});
+});

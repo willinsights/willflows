@@ -62,7 +62,7 @@ function VideoStudioRoutes(props: VideoProductionTabProps) {
   const onContext=useCallback((value:boolean)=>{setEnabled(value);if(!received.current){received.current=true;setView(value?'new':'legacy');}},[]);
   return <Tabs value={view} onValueChange={setView} className={props.className}>
     <TabsList><TabsTrigger value="new">Vídeos novos</TabsTrigger><TabsTrigger value="legacy">Vídeos já guardados</TabsTrigger></TabsList>
-    <TabsContent value="new" forceMount className={view==='new'?'mt-4':'hidden'}><CanonicalVideoStudio {...props} onContext={onContext}/></TabsContent>
+    <TabsContent value="new" forceMount className={view==='new'?'mt-4':'hidden'}><CanonicalVideoStudio key={JSON.stringify([props.workspaceId,props.projectId,props.taskId])} {...props} onContext={onContext}/></TabsContent>
     <TabsContent value="legacy"><VideoProductionTabContent {...props} allowLegacyUpload={enabled===false}/></TabsContent>
   </Tabs>;
 }
