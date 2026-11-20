@@ -1,0 +1,42 @@
+name: WillFlow 2.0 isolated demo checks
+
+on:
+  pull_request:
+    paths:
+      - 'demo/**'
+      - '.github/workflows/willflow-demo.yml'
+  push:
+    branches:
+      - willflow-2-demo-static
+    paths:
+      - 'demo/**'
+      - '.github/workflows/willflow-demo.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  demo:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+      - name: Install locked app/test dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Validate standalone product demo without network
+        run: node demo/test-demo.cjs
+      - name: Install Chromium browser for real click tests
+        run: npx playwright install --with-deps chromium
+      - name: Test mobile card clicks in a real browser
+        run: node demo/browser-smoke.cjs
+      - name: Check the external demo link serves the HTML file
+        run: |
+          curl --fail --location --retry 4 --retry-delay 4 --max-time 30 --silent --show-error https://raw.githack.com/willinsights/willflows/willflow-2-demo-static/demo/willflow20.html --output /tmp/willflow-demo.html
+          grep -Fq 'WillFlow 2.0' /tmp/willflow-demo.html
+          test "$(wc -c < /tmp/willflow-demo.html)" -gt 40000
