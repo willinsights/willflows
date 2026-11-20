@@ -136,7 +136,7 @@ serve(async (req) => {
 
       if (error) {
         console.error('OAuth error:', error);
-        return new Response(`<html><body><script>window.close();</script>Erro: ${error}</body></html>`, {
+        return new Response(`<html><body><script>window.close();</script>Erro na autorização. Pode fechar esta janela.</body></html>`, {
           headers: { 'Content-Type': 'text/html' },
         });
       }
@@ -177,7 +177,7 @@ serve(async (req) => {
 
       if (!tokenResponse.ok) {
         console.error('Token error:', tokens);
-        return new Response(`<html><body>Erro ao obter tokens: ${tokens.error_description || tokens.error}</body></html>`, {
+        return new Response(`<html><body>Erro ao obter tokens. Tente novamente.</body></html>`, {
           headers: { 'Content-Type': 'text/html' },
         });
       }
@@ -214,7 +214,7 @@ serve(async (req) => {
 
       if (upsertError) {
         console.error('Upsert error:', upsertError);
-        return new Response(`<html><body>Erro ao guardar conexão: ${upsertError.message}</body></html>`, {
+        return new Response(`<html><body>Erro ao guardar conexão. Tente novamente.</body></html>`, {
           headers: { 'Content-Type': 'text/html' },
         });
       }

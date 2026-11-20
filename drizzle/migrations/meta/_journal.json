@@ -134,6 +134,13 @@
       "when": 1795211497198,
       "tag": "0018_definer_functions_scope_tighten",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1795214548921,
+      "tag": "0019_restrict_chat_mentions",
+      "breakpoints": true
     }
   ]
 }
