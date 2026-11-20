@@ -24,10 +24,7 @@ import { cn } from '@/lib/utils';
 interface VideoVersion {
   id: string;
   version_number: number;
-  file_path: string;
   file_name: string;
-  file_size_bytes: number;
-  duration_seconds: number | null;
   created_at: string;
 }
 
@@ -73,7 +70,12 @@ export function ComparisonPlayer({
     url: string
   ) => {
     const video = videoRef.current;
-    if (!video || !url) return;
+    if (!video) return;
+    if (!url) {
+      video.removeAttribute('src');
+      video.load();
+      return;
+    }
 
     const isHls = url.includes('.m3u8');
 

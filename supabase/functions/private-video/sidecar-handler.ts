@@ -33,7 +33,9 @@ export async function sidecarRequest(req:Request,d:SidecarDependencies):Promise<
   }
   if(b.action==='revoke'){
    if(!user||!digest)return answer({code:'UNAUTHORIZED'},401);
-   await rpc('private_video_revoke',{p_digest:digest,p_user:user});return answer({success:true});
+   const revoked=await rpc('private_video_revoke',{p_digest:digest,p_user:user});
+   if(revoked!==true)return answer({code:'PRIVATE_VIDEO_UNAVAILABLE'},403);
+   return answer({success:true});
   }
   if(b.action==='list'){
    if(!digest&&(!user||!uuid.test(b.workspaceId??'')))return answer({code:'UNAUTHORIZED'},401);
