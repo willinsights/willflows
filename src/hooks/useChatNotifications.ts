@@ -51,7 +51,7 @@ export function useChatNotifications() {
     
     // Subscribe to new messages via Realtime
     const channel = supabase
-      .channel(`chat-notifications:${user.id}`)
+      .channel(`chat-notifications:${user.id}:${crypto.randomUUID()}`)
       .on(
         'postgres_changes',
         {

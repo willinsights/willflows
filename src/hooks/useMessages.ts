@@ -267,7 +267,7 @@ export function useMessages(conversationId: string | undefined) {
     if (!conversationId) return;
 
     const channel = supabase
-      .channel(`messages:${conversationId}`)
+      .channel(`messages:${conversationId}:${crypto.randomUUID()}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
         async (payload) => {
           const newMessage = payload.new as any;
@@ -410,7 +410,7 @@ export function useThreadMessages(parentMessageId: string | undefined) {
   useEffect(() => {
     if (!parentMessageId) return;
     const channel = supabase
-      .channel(`thread:${parentMessageId}`)
+      .channel(`thread:${parentMessageId}:${crypto.randomUUID()}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `parent_message_id=eq.${parentMessageId}` },
         () => queryClient.invalidateQueries({ queryKey: ['thread-messages', parentMessageId] })
       )

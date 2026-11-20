@@ -157,7 +157,7 @@ export function useKanbanData(phase: KanbanPhase) {
   useEffect(() => {
     if (!currentWorkspace?.id) return;
 
-    const channelName = `kanban-realtime-${currentWorkspace.id}-${phase}`;
+    const channelName = `kanban-realtime-${currentWorkspace.id}-${phase}-${crypto.randomUUID()}`;
 
     const handleProjectChange = (payload: RealtimePostgresChangesPayload<Project>) => {
       const newData = payload.new as Project | undefined;

@@ -493,7 +493,7 @@ export function useConversations() {
       timer = setTimeout(() => queryClient.invalidateQueries({ queryKey: ['conversations', workspace.id] }), 1000);
     };
     const channel = supabase
-      .channel(`conversations:${workspace.id}`)
+      .channel(`conversations:${workspace.id}:${crypto.randomUUID()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations', filter: `workspace_id=eq.${workspace.id}` }, refresh)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, refresh)
       .subscribe();

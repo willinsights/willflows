@@ -64,7 +64,7 @@ export function useProjectChatStatus(projectId: string | undefined): ProjectChat
     if (!data?.conversationId || !user?.id) return;
 
     const channel = supabase
-      .channel(`project-chat-${projectId}`)
+      .channel(`project-chat-${projectId}:${crypto.randomUUID()}`)
       .on(
         'postgres_changes',
         {

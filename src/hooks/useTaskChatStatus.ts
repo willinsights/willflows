@@ -64,7 +64,7 @@ export function useTaskChatStatus(taskId: string | undefined): TaskChatStatus {
     if (!data?.conversationId || !user?.id) return;
 
     const channel = supabase
-      .channel(`task-chat-${taskId}`)
+      .channel(`task-chat-${taskId}:${crypto.randomUUID()}`)
       .on(
         'postgres_changes',
         {
