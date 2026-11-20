@@ -264,13 +264,13 @@ export function AutomationsList() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="test-email">Email destinatário</Label>
+            <Label htmlFor="test-email">Email destinatário — o da tua conta verificada</Label>
             <Input
               id="test-email"
               type="email"
               value={testEmail}
-              onChange={(e) => setTestEmail(e.target.value)}
-              placeholder="voce@exemplo.com"
+              readOnly
+              title="O teste é enviado apenas para o email verificado da tua conta"
             />
           </div>
           <DialogFooter>

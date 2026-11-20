@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { resolveVerifiedTestRecipient } from '../_shared/test-recipient.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -214,23 +215,21 @@ Deno.serve(async (req) => {
     if (action === 'send-test') {
       const subject = String(body.subject || '').trim()
       const bodyText = String(body.body || '').trim()
-      const rawTestEmail = String(body.testEmail || '').trim().toLowerCase()
       if (!subject || !bodyText) {
         return new Response(JSON.stringify({ error: 'subject e body são obrigatórios' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
-      const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      const targetEmail = rawTestEmail && EMAIL_RE.test(rawTestEmail)
-        ? rawTestEmail
-        : (auth.user.email || '').toLowerCase()
-      if (!targetEmail || !EMAIL_RE.test(targetEmail)) {
-        return new Response(JSON.stringify({ error: 'Email de teste inválido' }), {
-          status: 400,
+      // Test messages may only go to the caller's own verified address.
+      const recipientDecision = resolveVerifiedTestRecipient(auth.user, body.testEmail)
+      if (!recipientDecision.ok) {
+        return new Response(JSON.stringify({ error: recipientDecision.error }), {
+          status: recipientDecision.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
+      const targetEmail = recipientDecision.email
       const recipient: Recipient = {
         id: auth.user.id,
         email: targetEmail,

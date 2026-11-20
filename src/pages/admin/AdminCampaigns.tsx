@@ -179,7 +179,7 @@ export default function AdminCampaigns() {
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getUser();
-      setTestEmail(data.user?.email || 'geral@willflow.app');
+      setTestEmail(data.user?.email || '');
     })();
   }, []);
 
@@ -443,13 +443,13 @@ export default function AdminCampaigns() {
 
       <div className="flex flex-wrap items-end gap-3 justify-end sticky bottom-4 bg-background/80 backdrop-blur border rounded-lg p-3">
         <div className="flex-1 min-w-[220px] max-w-sm">
-          <Label htmlFor="testEmail" className="text-xs text-muted-foreground">Email de teste</Label>
+          <Label htmlFor="testEmail" className="text-xs text-muted-foreground">Email de teste — o da tua conta verificada</Label>
           <Input
             id="testEmail"
             type="email"
             value={testEmail}
-            onChange={(e) => setTestEmail(e.target.value)}
-            placeholder="destinatario@exemplo.com"
+            readOnly
+            title="O teste é enviado apenas para o email verificado da tua conta"
           />
         </div>
         <Button variant="outline" onClick={handleSendTest} disabled={testSending || sending}>

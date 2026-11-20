@@ -26,6 +26,7 @@
 - [x] Executar duas fixtures R2/Stream privadas: 18 verificações PASS; autorização consumida permanentemente e função removida (HTTP 404). Provas no registo privado, resumo em docs/security/pr2-canary/RESULT.md.
 
 ## Retoma das pendências — novembro 2026
+- [x] 20/11 16:30 emails de teste: destinatário passa a ser apenas o email verificado do próprio remetente (campanhas e automações); 5 testes, dois handlers implantados, recusa ao vivo de endereço externo confirmada e os dois avisos encerrados.
 - [ ] Base 24869199: núcleo vídeo/quota isolado preparado em video-integration; 24 Vitest/13 grupos PG + 5 next/19 G04 regressivos PASS. Fecho bloqueado por créditos: compilação/cópia UI, tickets abas antigas, imutabilidade HEAD, writers SQL standalone/fencing/rollback; lista exacta em STATUS.md. Stripe primeiro lote permanece separado e NO-GO operacional
 - [x] Base 317ef62b: recursos operacionais lidos (logs alvo ausentes; backups/export activo não acessíveis), upload durável/outbox/contratos quota e Stripe mínimo isolados, SQL/reversão/testes em docs/security/fase-a/next
 - [ ] Produção continua bloqueada: proprietário confirmar contrato total/número replacement, timestamp backup, artefacto/version e drenagem; aprovação específica pacote Stripe antes de SQL/função/pausa; 46 push intocados e contador sem ajuste

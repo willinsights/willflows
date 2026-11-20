@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { resolveVerifiedTestRecipient } from '../_shared/test-recipient.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,11 +32,20 @@ Deno.serve(async (req) => {
     }
 
     const { automation_id, recipient_email, project_id } = await req.json()
-    if (!automation_id || !recipient_email) {
-      return new Response(JSON.stringify({ error: 'Missing automation_id or recipient_email' }), {
+    if (!automation_id) {
+      return new Response(JSON.stringify({ error: 'Missing automation_id' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+
+    // Test messages may only go to the caller's own verified address.
+    const recipientDecision = resolveVerifiedTestRecipient(userData.user, recipient_email)
+    if (!recipientDecision.ok) {
+      return new Response(JSON.stringify({ error: recipientDecision.error }), {
+        status: recipientDecision.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    const testRecipient = recipientDecision.email
 
     const { data: automation, error: aErr } = await supabase
       .from('workflow_automations')
@@ -146,7 +156,7 @@ Deno.serve(async (req) => {
     const { data: sendData, error: sendErr } = await supabase.functions.invoke('app-email', {
       body: {
         template: 'automation_test',
-        to: recipient_email,
+        to: testRecipient,
         data: { subject, body, brandName },
       },
     })
