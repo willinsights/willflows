@@ -1,0 +1,42 @@
+[
+  {
+    "function": "r2-upload-url",
+    "observed_at_utc": "2026-11-20T13:12:17.139627+00:00",
+    "options_http": 200,
+    "version": "1",
+    "source_marker_matches": true,
+    "unauthenticated_http": 401
+  },
+  {
+    "function": "stream-process-video",
+    "observed_at_utc": "2026-11-20T13:12:17.140534+00:00",
+    "options_http": 200,
+    "version": "1",
+    "source_marker_matches": true,
+    "unauthenticated_http": 401
+  },
+  {
+    "function": "stream-get-status",
+    "observed_at_utc": "2026-11-20T13:12:17.141106+00:00",
+    "options_http": 200,
+    "version": "1",
+    "source_marker_matches": true,
+    "unauthenticated_http": 401
+  },
+  {
+    "function": "stream-update-video",
+    "observed_at_utc": "2026-11-20T13:12:17.141660+00:00",
+    "options_http": 200,
+    "version": "1",
+    "source_marker_matches": true,
+    "unauthenticated_http": 401
+  },
+  {
+    "function": "cleanup-expired-videos",
+    "observed_at_utc": "2026-11-20T13:12:17.142186+00:00",
+    "options_http": 200,
+    "version": "1",
+    "source_marker_matches": true,
+    "unauthenticated_http": 401
+  }
+]

@@ -1,3 +1,4 @@
+import { controlled, MaintenanceStop } from '../_shared/execution-control.ts';
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { AwsClient } from "https://esm.sh/aws4fetch@1.0.20";
@@ -60,7 +61,7 @@ async function deleteR2Object(
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: { ...corsHeaders, "X-WillFlow-Observation-Version": "1", "X-WillFlow-Observation-Source": "adee4ff083af7b1e3167c774eca6a49e826511584c936c60b5b99787eba662df" } });
   }
 
   try {
@@ -161,8 +162,12 @@ serve(async (req) => {
     validateUploadFile(fileName, fileSize);
     const context = await resolveVideoContext(supabase, { workspace_id: workspaceId, project_id: projectId, task_id: taskId || null });
     await verifyUploadTicket(uploadTicket, { ...context, user_id: userId, key, file_name: fileName, file_size: fileSize, replace_version_id: replaceVersionId || null }, supabaseServiceKey);
+    return await controlled(supabase, 'process', async lease => {
+    const checkedFetch: typeof fetch = async (input, init) => { await lease.check(); const response = await fetch(input, init); if (!response.ok) lease.markUncertain(); return response; };
+    const guardedDb = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false }, global: { fetch: checkedFetch } });
     // Confirm actual object facts before any database mutation or Stream request.
     const r2 = new AwsClient({ accessKeyId: r2AccessKeyId, secretAccessKey: r2SecretAccessKey, region: 'auto', service: 's3' });
+    await lease.check();
     const object = await r2.fetch(`https://${accountId}.r2.cloudflarestorage.com/${bucketName}/${key}`, { method: 'HEAD' });
     if (!object.ok || Number(object.headers.get('content-length')) !== fileSize) throw new VideoContextError('Arquivo de upload não confirmado');
 
@@ -175,7 +180,7 @@ serve(async (req) => {
 
 
     if (isReplacement) {
-      const { data: targetVersion, error: targetError } = await supabase
+      const { data: targetVersion, error: targetError } = await guardedDb
         .from("video_versions")
         .select("*")
         .eq("id", replaceVersionId)
@@ -201,7 +206,7 @@ serve(async (req) => {
       logStep("Replacement mode (in-place update)", { versionId: replaceVersionId, newVersion: nextVersion });
 
 
-      const { data: replaced, error: replacementError } = await supabase
+      const { data: replaced, error: replacementError } = await guardedDb
         .from("video_versions")
         .update({
           // Overwrite the main columns so the version row holds the new video
@@ -260,7 +265,7 @@ serve(async (req) => {
       logStep("Next version", { nextVersion });
 
       // Create video version record with pending status
-      const { data: inserted, error: insertError } = await supabase
+      const { data: inserted, error: insertError } = await guardedDb
         .from("video_versions")
         .insert({
           task_id: taskId || null,
@@ -300,7 +305,7 @@ serve(async (req) => {
     logStep("Generated signed R2 URL for Stream");
 
     // Submit video to Cloudflare Stream using the signed URL
-    const streamResponse = await fetch(
+    const streamResponse = await checkedFetch(
       `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/copy`,
       {
         method: "POST",
@@ -328,7 +333,7 @@ serve(async (req) => {
       logStep("Stream API error", { status: streamResponse.status, error: errorText });
       
       // Update status to error on the appropriate column
-      await supabase
+      await guardedDb
         .from("video_versions")
         .update({ stream_status: "error" })
         .eq("id", versionData.id);
@@ -356,7 +361,7 @@ serve(async (req) => {
       stream_status: streamData.result.status?.state || "processing",
     };
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await guardedDb
       .from("video_versions")
       .update(updatePayload)
       .eq("id", versionData.id);
@@ -369,25 +374,26 @@ serve(async (req) => {
     if (isReplacement) {
       if (oldStreamUid && oldStreamUid !== streamUid) {
         try {
-          const delRes = await fetch(
+          const delRes = await checkedFetch(
             `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${oldStreamUid}`,
             { method: "DELETE", headers: { "Authorization": `Bearer ${streamToken}` } }
           );
           logStep("Old Stream video deleted", { oldStreamUid, ok: delRes.ok });
-        } catch (e) {
+        } catch (e) { lease.markUncertain();
           logStep("Failed deleting old Stream video", { error: e instanceof Error ? e.message : String(e) });
         }
       }
       if (oldR2Key && oldR2Key !== key) {
         try {
+          await lease.check();
           await deleteR2Object(accountId, r2AccessKeyId, r2SecretAccessKey, bucketName, oldR2Key);
           logStep("Old R2 object deleted", { oldR2Key });
-        } catch (e) {
+        } catch (e) { lease.markUncertain();
           logStep("Failed deleting old R2 object", { error: e instanceof Error ? e.message : String(e) });
         }
       }
       if (oldFileSize > 0) {
-        const { error: freeErr } = await supabase.rpc("add_workspace_storage", {
+        const { error: freeErr } = await guardedDb.rpc("add_workspace_storage", {
           p_workspace_id: workspaceId,
           p_bytes: -oldFileSize,
         });
@@ -397,7 +403,7 @@ serve(async (req) => {
 
 
     // Update workspace storage
-    const { error: storageUpdateError } = await supabase.rpc("add_workspace_storage", {
+    const { error: storageUpdateError } = await guardedDb.rpc("add_workspace_storage", {
       p_workspace_id: workspaceId,
       p_bytes: fileSize,
     });
@@ -429,13 +435,13 @@ serve(async (req) => {
       if (!existingToken) {
         let clientName: string | null = null;
         let clientEmail: string | null = null;
-        const { data: projectRow } = await supabase
+        const { data: projectRow } = await guardedDb
           .from("projects")
           .select("client_id")
           .eq("id", projectId)
           .maybeSingle();
         if (projectRow?.client_id) {
-          const { data: clientRow } = await supabase
+          const { data: clientRow } = await guardedDb
             .from("clients")
             .select("name, email")
             .eq("id", projectRow.client_id)
@@ -444,7 +450,7 @@ serve(async (req) => {
           clientEmail = clientRow?.email || null;
         }
 
-        const { error: tokenError } = await supabase
+        const { error: tokenError } = await guardedDb
           .from("video_approval_tokens")
           .insert({
             task_id: taskId || null,
@@ -463,7 +469,7 @@ serve(async (req) => {
           logStep("Approval token auto-created", { taskId, projectId });
         }
       }
-    } catch (tokenErr) {
+    } catch (tokenErr) { lease.markUncertain();
       const msg = tokenErr instanceof Error ? tokenErr.message : String(tokenErr);
       logStep("Error in approval token auto-create block", { error: msg });
     }
@@ -486,7 +492,9 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
+    });
   } catch (error) {
+    if (error instanceof MaintenanceStop) return new Response(JSON.stringify({ code: 'UPLOAD_MAINTENANCE' }), { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
     return new Response(JSON.stringify({ error: errorMessage }), {

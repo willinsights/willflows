@@ -1,3 +1,4 @@
+import { controlled, MaintenanceStop } from '../_shared/execution-control.ts';
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
@@ -13,7 +14,7 @@ const logStep = (step: string, details?: Record<string, unknown>) => {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: { ...corsHeaders, "X-WillFlow-Observation-Version": "1", "X-WillFlow-Observation-Source": "28c42de3b70e5c100b82a247dc1386d61bf72ee81b7fedfbd71a8a7b225e1e30" } });
   }
 
   try {
@@ -102,10 +103,13 @@ serve(async (req) => {
       }
     }
 
+    return await controlled(supabase, 'process', async lease => {
+    const checkedFetch: typeof fetch = async (input, init) => { await lease.check(); const response = await fetch(input, init); if (!response.ok) lease.markUncertain(); return response; };
+    const guardedDb = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false }, global: { fetch: checkedFetch } });
     logStep("Checking stream status", { streamUid });
 
     // Get video status from Cloudflare Stream
-    const streamResponse = await fetch(
+    const streamResponse = await checkedFetch(
       `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${streamUid}`,
       {
         method: "GET",
@@ -151,7 +155,7 @@ serve(async (req) => {
           updateData.duration_seconds = Math.round(duration);
         }
         // Preserve custom thumbnail time if set, otherwise default to 50%
-        const { data: versionRow } = await supabase
+        const { data: versionRow } = await guardedDb
           .from("video_versions")
           .select("thumbnail_time_seconds")
           .eq("id", versionId)
@@ -163,7 +167,7 @@ serve(async (req) => {
         updateData.stream_playback_url = `https://videodelivery.net/${streamUid}/manifest/video.m3u8`;
       }
 
-      const { error: updateError } = await supabase
+      const { error: updateError } = await guardedDb
         .from("video_versions")
         .update(updateData)
         .eq("id", versionId);
@@ -180,7 +184,7 @@ serve(async (req) => {
           const downloadsUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${streamUid}/downloads`;
           
           // Check if download already exists
-          const checkResponse = await fetch(downloadsUrl, {
+          const checkResponse = await checkedFetch(downloadsUrl, {
             headers: { "Authorization": `Bearer ${streamToken}` },
           });
           
@@ -188,7 +192,7 @@ serve(async (req) => {
           
           // Only create if not exists
           if (!checkData.result?.default) {
-            const createResponse = await fetch(downloadsUrl, {
+            const createResponse = await checkedFetch(downloadsUrl, {
               method: "POST",
               headers: { "Authorization": `Bearer ${streamToken}` },
             });
@@ -203,7 +207,7 @@ serve(async (req) => {
               status: checkData.result.default.status 
             });
           }
-        } catch (downloadError) {
+        } catch (downloadError) { lease.markUncertain();
           // Non-fatal - log and continue
           logStep("Download creation error (non-fatal)", { 
             error: downloadError instanceof Error ? downloadError.message : String(downloadError) 
@@ -223,7 +227,9 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
+    });
   } catch (error) {
+    if (error instanceof MaintenanceStop) return new Response(JSON.stringify({ code: 'UPLOAD_MAINTENANCE' }), { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
     return new Response(JSON.stringify({ error: errorMessage }), {

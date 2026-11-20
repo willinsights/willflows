@@ -1,3 +1,4 @@
+import { controlled, MaintenanceStop } from '../_shared/execution-control.ts';
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { AwsClient } from "https://esm.sh/aws4fetch@1.0.18";
@@ -52,7 +53,7 @@ async function generateR2PresignedUrl(
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: { ...corsHeaders, "X-WillFlow-Observation-Version": "1", "X-WillFlow-Observation-Source": "9f419cb547a61b44ab4b5ea4c959cf62d4d049f80fcb347ccddebca81f1abd7e" } });
   }
 
   try {
@@ -145,8 +146,11 @@ serve(async (req) => {
       if (error || !target || !sameVideoContext(await resolveVideoContext(supabase, target), context)) throw new VideoContextError('Versão de substituição incompatível');
     }
 
+    return await controlled(supabase, 'issue', async lease => {
+    const checkedFetch: typeof fetch = async (input, init) => { await lease.check(); const response = await fetch(input, init); if (!response.ok) lease.markUncertain(); return response; };
+    const guardedDb = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false }, global: { fetch: checkedFetch } });
     // Check workspace storage limits
-    const { data: storageData, error: storageError } = await supabase
+    const { data: storageData, error: storageError } = await guardedDb
       .from("workspace_storage")
       .select("storage_used_bytes, storage_limit_bytes, extra_storage_bytes")
       .eq("workspace_id", workspaceId)
@@ -155,7 +159,7 @@ serve(async (req) => {
     if (storageError) {
       logStep("Storage check failed", { error: storageError.message });
       // Create storage record if it doesn't exist
-      const { error: insertError } = await supabase
+      const { error: insertError } = await guardedDb
         .from("workspace_storage")
         .insert({
           workspace_id: workspaceId,
@@ -199,6 +203,8 @@ serve(async (req) => {
 
     logStep("Generating presigned URL", { key: uniqueKey, fileSize, mimeType });
 
+    const grantExpiry = Date.now() + 3600 * 1000;
+    await lease.grant(new Date(grantExpiry + 60000).toISOString());
     // Generate presigned URL using aws4fetch
     const presignedUrl = await generateR2PresignedUrl(
       accountId,
@@ -210,14 +216,14 @@ serve(async (req) => {
       3600
     );
 
-    const uploadTicket = await issueUploadTicket({ ...context, user_id: userId, key: uniqueKey, file_name: fileName, file_size: fileSize, expires_at: Date.now() + 3600 * 1000, replace_version_id: replaceVersionId || null }, supabaseServiceKey);
+    const uploadTicket = await issueUploadTicket({ ...context, user_id: userId, key: uniqueKey, file_name: fileName, file_size: fileSize, expires_at: grantExpiry, replace_version_id: replaceVersionId || null }, supabaseServiceKey);
     logStep("Presigned URL generated successfully");
 
     return new Response(JSON.stringify({
       uploadUrl: presignedUrl,
       key: uniqueKey,
       uploadTicket,
-      expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(),
+      expiresAt: new Date(grantExpiry).toISOString(),
       workspaceId,
       taskId,
       projectId,
@@ -225,7 +231,9 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
+    });
   } catch (error) {
+    if (error instanceof MaintenanceStop) return new Response(JSON.stringify({ code: 'UPLOAD_MAINTENANCE' }), { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
     return new Response(JSON.stringify({ error: errorMessage }), {

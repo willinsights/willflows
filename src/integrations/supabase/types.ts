@@ -5525,6 +5525,10 @@ export type Database = {
         }
         Returns: Json
       }
+      begin_video_execution: {
+        Args: { p_id: string; p_kind: string }
+        Returns: boolean
+      }
       can_access_feature: {
         Args: { p_feature: string; p_workspace_id: string }
         Returns: boolean
@@ -5559,6 +5563,7 @@ export type Database = {
         Args: { p_file_size_bytes: number; p_workspace_id: string }
         Returns: Json
       }
+      check_video_execution: { Args: { p_id: string }; Returns: boolean }
       claim_automation_jobs: {
         Args: { _limit?: number }
         Returns: {
@@ -5649,6 +5654,10 @@ export type Database = {
       }
       finish_pr2_video_canary: {
         Args: { p_id: string; p_proof: Json }
+        Returns: boolean
+      }
+      finish_video_execution: {
+        Args: { p_id: string; p_ok: boolean }
         Returns: boolean
       }
       finish_webhook_worker_dispatch: {
@@ -5896,6 +5905,10 @@ export type Database = {
         Args: { _promo_code_id: string; _workspace_id?: string }
         Returns: boolean
       }
+      record_video_grant: {
+        Args: { p_execution: string; p_expires: string }
+        Returns: boolean
+      }
       reopen_project: { Args: { p_project_id: string }; Returns: Json }
       reorder_kanban_columns: {
         Args: { p_phase: string; p_positions: Json; p_workspace_id: string }
@@ -5942,6 +5955,7 @@ export type Database = {
         Args: { p_digest: string }
         Returns: boolean
       }
+      video_control_status: { Args: never; Returns: Json }
       webhook_inbox_claim_batch: {
         Args: { p_limit?: number }
         Returns: {

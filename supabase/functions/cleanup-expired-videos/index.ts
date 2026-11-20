@@ -1,3 +1,4 @@
+import { controlled, MaintenanceStop } from '../_shared/execution-control.ts';
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { S3Client, DeleteObjectCommand } from "https://esm.sh/@aws-sdk/client-s3@3.709.0";
@@ -15,7 +16,7 @@ const logStep = (step: string, details?: Record<string, unknown>) => {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: { ...corsHeaders, "X-WillFlow-Observation-Version": "1", "X-WillFlow-Observation-Source": "6f54b028ecfaf2610e1304878bbcfd28cac5e7b6318f385ac2c7c23d16f2455f" } });
   }
 
   const providedSecret = req.headers.get('x-cron-secret');
@@ -49,6 +50,9 @@ serve(async (req) => {
       auth: { persistSession: false }
     });
 
+    return await controlled(supabase, 'cleanup', async lease => {
+    const checkedFetch: typeof fetch = async (input, init) => { await lease.check(); const response = await fetch(input, init); if (!response.ok) lease.markUncertain(); return response; };
+    const guardedDb = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false }, global: { fetch: checkedFetch } });
     // Create R2 client if credentials are available
     let s3Client: S3Client | null = null;
     if (accountId && accessKeyId && secretAccessKey && bucketName) {
@@ -68,7 +72,7 @@ serve(async (req) => {
     const threeDaysFromNow = new Date();
     threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
 
-    const { data: expiringItems, error: expiringError } = await supabase
+    const { data: expiringItems, error: expiringError } = await guardedDb
       .from('video_retention_queue')
       .select(`
         id,
@@ -95,7 +99,7 @@ serve(async (req) => {
 
       // Send notification to each workspace admin
       for (const [workspaceId, items] of Object.entries(byWorkspace)) {
-        const { data: admins } = await supabase
+        const { data: admins } = await guardedDb
           .from('workspace_members')
           .select('user_id')
           .eq('workspace_id', workspaceId)
@@ -113,7 +117,7 @@ serve(async (req) => {
             : `Os vídeos de "${taskNames}" serão eliminados em breve.`;
 
           for (const admin of admins) {
-            await supabase.from('notifications').insert({
+            await guardedDb.from('notifications').insert({
               workspace_id: workspaceId,
               user_id: admin.user_id,
               type: 'warning',
@@ -126,7 +130,7 @@ serve(async (req) => {
 
           // Mark as notified
           for (const item of items) {
-            await supabase
+            await guardedDb
               .from('video_retention_queue')
               .update({ status: 'notified', notified_at: now })
               .eq('id', item.id);
@@ -138,7 +142,7 @@ serve(async (req) => {
     }
 
     // 2. Delete videos that have passed their retention date
-    const { data: expiredItems, error: expiredError } = await supabase
+    const { data: expiredItems, error: expiredError } = await guardedDb
       .from('video_retention_queue')
       .select(`
         id,
@@ -154,7 +158,7 @@ serve(async (req) => {
       for (const item of expiredItems) {
         try {
           // Get all video versions for this task
-          const { data: videos } = await supabase
+          const { data: videos } = await guardedDb
             .from('video_versions')
             .select('id, file_path, file_size_bytes, thumbnail_path, r2_key, cloudflare_stream_uid')
             .eq('task_id', item.task_id)
@@ -167,12 +171,12 @@ serve(async (req) => {
               // Delete from Cloudflare R2
               if (video.r2_key && s3Client && bucketName) {
                 try {
-                  await s3Client.send(new DeleteObjectCommand({
+                  await (await lease.check(), s3Client).send(new DeleteObjectCommand({
                     Bucket: bucketName,
                     Key: video.r2_key,
                   }));
                   logStep("Deleted from R2", { key: video.r2_key });
-                } catch (r2Error) {
+                } catch (r2Error) { lease.markUncertain();
                   const errMsg = r2Error instanceof Error ? r2Error.message : String(r2Error);
                   logStep("Error deleting from R2", { key: video.r2_key, error: errMsg });
                 }
@@ -181,7 +185,7 @@ serve(async (req) => {
               // Delete from Cloudflare Stream
               if (video.cloudflare_stream_uid && accountId && streamToken) {
                 try {
-                  const streamResponse = await fetch(
+                  const streamResponse = await checkedFetch(
                     `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${video.cloudflare_stream_uid}`,
                     {
                       method: 'DELETE',
@@ -197,7 +201,7 @@ serve(async (req) => {
                     const errorText = await streamResponse.text();
                     logStep("Error deleting from Stream", { uid: video.cloudflare_stream_uid, error: errorText });
                   }
-                } catch (streamError) {
+                } catch (streamError) { lease.markUncertain();
                   const errMsg = streamError instanceof Error ? streamError.message : String(streamError);
                   logStep("Error deleting from Stream", { uid: video.cloudflare_stream_uid, error: errMsg });
                 }
@@ -205,7 +209,7 @@ serve(async (req) => {
 
               // Legacy: Delete from Supabase Storage if not R2
               if (video.file_path && !video.r2_key && !video.file_path.startsWith('r2://')) {
-                const { error: deleteError } = await supabase.storage
+                const { error: deleteError } = await guardedDb.storage
                   .from('video-versions')
                   .remove([video.file_path]);
 
@@ -214,7 +218,7 @@ serve(async (req) => {
                 }
 
                 if (video.thumbnail_path) {
-                  await supabase.storage
+                  await guardedDb.storage
                     .from('video-versions')
                     .remove([video.thumbnail_path]);
                 }
@@ -223,7 +227,7 @@ serve(async (req) => {
               totalBytesFreed += video.file_size_bytes || 0;
 
               // Mark video as deleted (preserve metadata)
-              await supabase
+              await guardedDb
                 .from('video_versions')
                 .update({
                   is_deleted: true,
@@ -238,7 +242,7 @@ serve(async (req) => {
 
             // Update workspace storage
             if (totalBytesFreed > 0) {
-              const { data: storageData } = await supabase
+              const { data: storageData } = await guardedDb
                 .from('workspace_storage')
                 .select('storage_used_bytes')
                 .eq('workspace_id', item.workspace_id)
@@ -246,7 +250,7 @@ serve(async (req) => {
 
               if (storageData) {
                 const newUsed = Math.max(0, (storageData.storage_used_bytes || 0) - totalBytesFreed);
-                await supabase
+                await guardedDb
                   .from('workspace_storage')
                   .update({
                     storage_used_bytes: newUsed,
@@ -264,18 +268,18 @@ serve(async (req) => {
           }
 
           // Deactivate approval tokens for this task
-          await supabase
+          await guardedDb
             .from('video_approval_tokens')
             .update({ is_active: false })
             .eq('task_id', item.task_id);
 
           // Mark retention queue item as deleted
-          await supabase
+          await guardedDb
             .from('video_retention_queue')
             .update({ status: 'deleted' })
             .eq('id', item.id);
 
-        } catch (err) {
+        } catch (err) { lease.markUncertain();
           const errMsg = err instanceof Error ? err.message : String(err);
           logStep("Error processing expired item", { itemId: item.id, error: errMsg });
         }
@@ -284,7 +288,7 @@ serve(async (req) => {
 
     // 2b. Delivered cards: videos expire 7 days after delivery
     const deliveredCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: oldProjects } = await supabase
+    const { data: oldProjects } = await guardedDb
       .from('projects')
       .select('id')
       .eq('is_delivered', true)
@@ -293,7 +297,7 @@ serve(async (req) => {
     let deliveredMarked = 0;
     const projectIds = (oldProjects || []).map((p: any) => p.id);
     for (let i = 0; i < projectIds.length && deliveredMarked < 300; i += 100) {
-      const { data: vids } = await supabase
+      const { data: vids } = await guardedDb
         .from('video_versions')
         .select('id, workspace_id, file_size_bytes, replacement_file_size_bytes')
         .in('project_id', projectIds.slice(i, i + 100))
@@ -304,14 +308,14 @@ serve(async (req) => {
       for (const v of vids as any[]) {
         freed[v.workspace_id] = (freed[v.workspace_id] || 0) + (v.file_size_bytes || 0) + (v.replacement_file_size_bytes || 0);
       }
-      await supabase.from('video_versions')
+      await guardedDb.from('video_versions')
         .update({ is_deleted: true, deleted_at: now })
         .in('id', vids.map((v: any) => v.id));
       for (const [ws, bytes] of Object.entries(freed)) {
-        const { data: st } = await supabase.from('workspace_storage')
+        const { data: st } = await guardedDb.from('workspace_storage')
           .select('storage_used_bytes').eq('workspace_id', ws).maybeSingle();
         if (st) {
-          await supabase.from('workspace_storage').update({
+          await guardedDb.from('workspace_storage').update({
             storage_used_bytes: Math.max(0, (st.storage_used_bytes || 0) - bytes),
             last_calculated_at: now,
           }).eq('workspace_id', ws);
@@ -322,7 +326,7 @@ serve(async (req) => {
     logStep("Delivered videos marked for deletion", { count: deliveredMarked });
 
     // 3. Clean up files of deleted videos (manual + delivered retention)
-    const { data: orphanedVideos } = await supabase
+    const { data: orphanedVideos } = await guardedDb
       .from('video_versions')
       .select('id, r2_key, cloudflare_stream_uid, replacement_r2_key, replacement_stream_uid')
       .eq('is_deleted', true)
@@ -339,8 +343,8 @@ serve(async (req) => {
         for (const key of [video.r2_key, video.replacement_r2_key]) {
           if (key && s3Client && bucketName) {
             try {
-              await s3Client.send(new DeleteObjectCommand({ Bucket: bucketName, Key: key }));
-            } catch (e) {
+              await (await lease.check(), s3Client).send(new DeleteObjectCommand({ Bucket: bucketName, Key: key }));
+            } catch (e) { lease.markUncertain();
               ok = false;
               logStep("R2 delete failed", { key, error: e instanceof Error ? e.message : String(e) });
             }
@@ -349,7 +353,7 @@ serve(async (req) => {
         for (const uid of [video.cloudflare_stream_uid, video.replacement_stream_uid]) {
           if (uid && accountId && streamToken) {
             try {
-              const r = await fetch(
+              const r = await checkedFetch(
                 `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${uid}`,
                 { method: 'DELETE', headers: { 'Authorization': `Bearer ${streamToken}` } }
               );
@@ -359,7 +363,7 @@ serve(async (req) => {
                 ok = false;
                 logStep("Stream delete failed", { uid, status: r.status, body: body.slice(0, 300) });
               }
-            } catch (e) {
+            } catch (e) { lease.markUncertain();
               ok = false;
               logStep("Stream delete failed", { uid, error: e instanceof Error ? e.message : String(e) });
             }
@@ -370,7 +374,7 @@ serve(async (req) => {
         // so failures are retried on the next run.
         if (!ok) { orphanFailures++; continue; }
         orphanCleaned++;
-        await supabase
+        await guardedDb
           .from('video_versions')
           .update({
             r2_key: null,
@@ -398,7 +402,9 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
+    });
   } catch (error) {
+    if (error instanceof MaintenanceStop) return new Response(JSON.stringify({ paused: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
     return new Response(JSON.stringify({ error: errorMessage }), {

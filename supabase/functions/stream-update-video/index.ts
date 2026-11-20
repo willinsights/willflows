@@ -1,3 +1,4 @@
+import { controlled, MaintenanceStop } from '../_shared/execution-control.ts';
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
@@ -13,7 +14,7 @@ const logStep = (step: string, details?: Record<string, unknown>) => {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: { ...corsHeaders, "X-WillFlow-Observation-Version": "1", "X-WillFlow-Observation-Source": "b9317791b1e25644e1839dcc6abb30a331eba232448c3a4c425e9f9ac4e99aca" } });
   }
 
   try {
@@ -103,10 +104,13 @@ serve(async (req) => {
       }
     }
 
+    return await controlled(supabase, 'process', async lease => {
+    const checkedFetch: typeof fetch = async (input, init) => { await lease.check(); const response = await fetch(input, init); if (!response.ok) lease.markUncertain(); return response; };
+    const guardedDb = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false }, global: { fetch: checkedFetch } });
     logStep("Updating video settings", { streamUid, allowedOrigins });
 
     // Update video settings in Cloudflare Stream
-    const updateResponse = await fetch(
+    const updateResponse = await checkedFetch(
       `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${streamUid}`,
       {
         method: "POST",
@@ -140,7 +144,7 @@ serve(async (req) => {
     // Preserve custom thumbnail time if set
     let thumbnailTimeParam = '?time=50p';
     if (versionId) {
-      const { data: versionRow } = await supabase
+      const { data: versionRow } = await guardedDb
         .from("video_versions")
         .select("thumbnail_time_seconds")
         .eq("id", versionId)
@@ -171,7 +175,7 @@ serve(async (req) => {
         updateFields.duration_seconds = Math.round(duration);
       }
 
-      const { error: dbError } = await supabase
+      const { error: dbError } = await guardedDb
         .from("video_versions")
         .update(updateFields)
         .eq("id", versionId);
@@ -194,7 +198,9 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
+    });
   } catch (error) {
+    if (error instanceof MaintenanceStop) return new Response(JSON.stringify({ code: 'UPLOAD_MAINTENANCE' }), { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
     return new Response(JSON.stringify({ error: errorMessage }), {
