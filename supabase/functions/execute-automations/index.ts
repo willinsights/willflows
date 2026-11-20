@@ -115,6 +115,24 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Entitlements are server-owned workspace data, for users AND queue callers.
+    // Completing a now-ineligible queued job without effects prevents retry storms.
+    const { data: entitlement, error: entitlementError } = await supabase
+      .from('workspaces')
+      .select('subscription_plan')
+      .eq('id', workspace_id)
+      .maybeSingle()
+    if (entitlementError) {
+      return new Response(JSON.stringify({ error: 'Unable to verify automation access' }), {
+        status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    if (entitlement?.subscription_plan !== 'studio') {
+      return new Response(JSON.stringify({ executed: 0, skipped: 'plan_not_entitled' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     // Fetch matching active automations
     let query = supabase
       .from('workflow_automations')

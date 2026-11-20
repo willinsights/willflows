@@ -10,11 +10,12 @@ let sends: string[];
 let failEmail: boolean;
 let failCompletion: boolean;
 let suppressEmail: boolean;
+let failEntitlement: boolean;
 let worker: typeof handler;
 let completion: { _success: boolean } | undefined;
 
 function client() {
-  return { from(table: string) {
+  return { auth: { getUser: async()=>({data:{user:{id:ids.user}},error:null}) }, from(table: string) {
     const filters: ((r: any) => boolean)[] = []; let inserted: any; let single = false;
     const q: any = {
       select: () => q, eq: (k: string,v: any) => { filters.push(r => r[k] === v); return q; },
@@ -23,6 +24,7 @@ function client() {
       single: () => { single = true; return q; }, maybeSingle: () => { single = true; return q; },
       insert: (r: any) => { inserted = r; return q; },
       then(resolve: any) {
+        if(table==='workspaces'&&failEntitlement)return Promise.resolve({data:null,error:{message:'fixture error'}}).then(resolve);
         if (inserted) { (rows[table] ??= []).push(inserted); return Promise.resolve({ data: null, error: null }).then(resolve); }
         const data = (rows[table] ?? []).filter(r => filters.every(f => f(r)));
         return Promise.resolve({ data: single ? data[0] ?? null : data, error: null }).then(resolve);
@@ -39,11 +41,11 @@ beforeEach(async () => {
       { id: 'notice', workspace_id: ids.ws, is_active: true, trigger_type: 'delivered', action_type: 'notify_in_app', recipient_config: { type: 'role', value: 'admin' } },
     ],
     projects: [{ id: ids.project, workspace_id: ids.ws, name: 'Projeto fictício' }],
-    workspaces: [{ id: ids.ws, name: 'Estúdio fictício' }],
+    workspaces: [{ id: ids.ws, name: 'Estúdio fictício', subscription_plan: 'studio' }],
     profiles: [{ id: ids.user, email: 'a@exemplo.invalid', full_name: 'Pessoa fictícia' }],
     workspace_members: [{ workspace_id: ids.ws, user_id: ids.user, role: 'admin', is_active: true }],
   };
-  sends = []; failEmail = false; failCompletion = false; suppressEmail = false;
+  sends = []; failEmail = false; failCompletion = false; suppressEmail = false;failEntitlement=false;
   vi.stubGlobal('fetch', () => { throw new Error('Network disabled'); });
   const source = readFileSync(new URL('../../../supabase/functions/execute-automations/index.ts', import.meta.url), 'utf8')
     .replace(/^import .*\n/gm, '');
@@ -78,6 +80,26 @@ async function run(job = ids.job) {
 }
 
 describe('Active handler, fictitious dependencies and no network', () => {
+  it.each(['starter','essencial','pro',null,undefined])('blocks internal sends without Studio entitlement (%s)',async plan=>{
+    rows.workspaces[0].subscription_plan=plan;
+    const response=await run();expect(response.status).toBe(200);
+    expect((await response.json()).skipped).toBe('plan_not_entitled');
+    expect(sends).toHaveLength(0);expect(rows.notifications??[]).toHaveLength(0);
+    expect(rows.email_send_log??[]).toHaveLength(0);
+  });
+  it('completes an ineligible queued job without sends or retries',async()=>{
+    rows.workspaces[0].subscription_plan='pro';
+    await worker(new Request('http://fixture.invalid',{method:'POST',headers:{'x-cron-secret':'fixture-only'}}));
+    expect(completion?._success).toBe(true);expect(sends).toHaveLength(0);
+  });
+  it('blocks an authenticated member despite a forged Studio payload',async()=>{
+    rows.workspaces[0].subscription_plan='pro';
+    const response=await handler(new Request('http://fixture.invalid',{method:'POST',headers:{Authorization:'Bearer fictitious-user'},body:JSON.stringify({workspace_id:ids.ws,project_id:ids.project,event_type:'delivered',triggered_by:ids.user,subscription_plan:'studio'})}));
+    expect((await response.json()).skipped).toBe('plan_not_entitled');expect(sends).toHaveLength(0);
+  });
+  it('fails closed when entitlement lookup fails',async()=>{
+    failEntitlement=true;expect((await run()).status).toBe(503);expect(sends).toHaveLength(0);
+  });
   it('does not resend emails or notifications after a completion failure', async () => {
     const request = () => new Request('http://fixture.invalid', { method: 'POST', headers: { 'x-cron-secret': 'fixture-only' } });
     failCompletion = true;
