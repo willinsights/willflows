@@ -5759,6 +5759,15 @@ export type Database = {
         }
         Returns: Json
       }
+      get_kanban_board_unchecked: {
+        Args: {
+          p_is_collaborator?: boolean
+          p_phase: string
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       get_kanban_metrics: {
         Args: {
           p_end_date?: string

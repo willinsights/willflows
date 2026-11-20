@@ -120,6 +120,13 @@
       "when": 1795208278416,
       "tag": "0016_security_tenant_checks_chat_role",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1795211288302,
+      "tag": "0017_kanban_board_caller_guard",
+      "breakpoints": true
     }
   ]
 }
