@@ -38,6 +38,7 @@ import {
 import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetch-all';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useUnbilledPool } from '@/hooks/useUnbilledPool';
 import { useClosings, type Closing, type ClosingItem } from '@/hooks/useClosings';
@@ -450,13 +451,14 @@ function ClosingDetail({
     enabled: !!wsId,
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('project_cost_lines')
-        .select('project_id, actual_amount, payment_status')
-        .eq('workspace_id', wsId!)
-        .neq('payment_status', 'cancelado');
-      if (error) throw error;
-      return data || [];
+      return await fetchAllRows(() =>
+        supabase
+          .from('project_cost_lines')
+          .select('project_id, actual_amount, payment_status')
+          .eq('workspace_id', wsId!)
+          .neq('payment_status', 'cancelado')
+          .order('id', { ascending: true })
+      );
     },
   });
 

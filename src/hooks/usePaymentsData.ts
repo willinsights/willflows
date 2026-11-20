@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetch-all';
 import type { TablesUpdate } from '@/integrations/supabase/types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
@@ -27,13 +28,15 @@ export function usePaymentsData() {
     staleTime: STALE,
     queryFn: async (): Promise<ProjectCustoExtra[]> => {
       if (!workspaceId) return [];
-      const { data, error } = await supabase
-        .from('projects')
-        .select(COSTS_COLS)
-        .eq('workspace_id', workspaceId)
-        .eq('is_delivered', true);
-      if (error) throw error;
-      return (data || []) as ProjectCustoExtra[];
+      const data = await fetchAllRows(() =>
+        supabase
+          .from('projects')
+          .select(COSTS_COLS)
+          .eq('workspace_id', workspaceId)
+          .eq('is_delivered', true)
+          .order('id', { ascending: true })
+      );
+      return data as ProjectCustoExtra[];
     },
   });
 
@@ -43,13 +46,15 @@ export function usePaymentsData() {
     staleTime: STALE,
     queryFn: async (): Promise<ProjectRevenue[]> => {
       if (!workspaceId) return [];
-      const { data, error } = await supabase
-        .from('projects')
-        .select(REVENUE_COLS)
-        .eq('workspace_id', workspaceId)
-        .eq('is_delivered', true);
-      if (error) throw error;
-      return (data || []) as ProjectRevenue[];
+      const data = await fetchAllRows(() =>
+        supabase
+          .from('projects')
+          .select(REVENUE_COLS)
+          .eq('workspace_id', workspaceId)
+          .eq('is_delivered', true)
+          .order('id', { ascending: true })
+      );
+      return data as ProjectRevenue[];
     },
   });
 

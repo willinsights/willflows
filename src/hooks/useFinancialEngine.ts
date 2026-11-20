@@ -3,6 +3,7 @@ import { useFinancialCostLines } from './useFinancialCostLines';
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetch-all';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useWorkLogs } from '@/hooks/useWorkLogs';
 import { subMonths } from 'date-fns';
@@ -60,12 +61,14 @@ export function useFinancialEngine(
     enabled: !!workspaceId && viewMode === 'CAIXA' && projects.length > 0,
     staleTime: STALE,
     queryFn: async (): Promise<TeamPayment[]> => {
-      const { data, error } = await supabase
-        .from('project_team')
-        .select('id, payment_amount, payment_status, paid_at, project_id, user_id')
-        .eq('workspace_id', workspaceId!);
-      if (error) throw error;
-      return (data || []) as TeamPayment[];
+      const data = await fetchAllRows(() =>
+        supabase
+          .from('project_team')
+          .select('id, payment_amount, payment_status, paid_at, project_id, user_id')
+          .eq('workspace_id', workspaceId!)
+          .order('id', { ascending: true })
+      );
+      return data as TeamPayment[];
     },
   });
 

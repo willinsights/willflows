@@ -55,7 +55,8 @@ export function useProjects() {
           .from('projects')
           .select('*, clients(name)')
           .eq('workspace_id', workspaceId)
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: true });
         if (assignedProjectIds) request = request.in('id', assignedProjectIds);
         return request.abortSignal(signal);
       });

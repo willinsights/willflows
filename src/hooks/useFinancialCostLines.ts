@@ -16,6 +16,7 @@ export function useFinancialCostLines(workspaceId: string | undefined) {
           .select('id, project_id, actual_amount, payment_status, paid_at, category, estimated_amount')
           .eq('workspace_id', workspaceId)
           .neq('payment_status', 'cancelado')
+          .order('id', { ascending: true })
       );
       return data as CostLinePayment[];
     },

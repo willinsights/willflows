@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetch-all';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { handleDatabaseError } from '@/lib/error-handler';
@@ -16,14 +17,15 @@ export interface PaymentWithDetails extends Payment {
 }
 
 async function fetchPaymentsFromDb(workspaceId: string): Promise<PaymentWithDetails[]> {
-  const { data, error } = await supabase
-    .from('payments')
-    .select('*, clients(name), projects(name, project_code)')
-    .eq('workspace_id', workspaceId)
-    .order('due_date', { ascending: true });
-
-  if (error) throw error;
-  return data || [];
+  const data = await fetchAllRows(() =>
+    supabase
+      .from('payments')
+      .select('*, clients(name), projects(name, project_code)')
+      .eq('workspace_id', workspaceId)
+      .order('due_date', { ascending: true })
+      .order('id', { ascending: true })
+  );
+  return data;
 }
 
 export function usePayments() {

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetch-all';
 import { useCurrentWorkspace } from '@/hooks/useCurrentWorkspace';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -62,13 +63,15 @@ export function useWorkLogs() {
     queryKey: ['work-logs', workspaceId],
     enabled: !!workspaceId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('work_logs')
-        .select('*')
-        .eq('workspace_id', workspaceId!)
-        .order('requested_at', { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as unknown as WorkLog[];
+      const data = await fetchAllRows(() =>
+        supabase
+          .from('work_logs')
+          .select('*')
+          .eq('workspace_id', workspaceId!)
+          .order('requested_at', { ascending: false })
+          .order('id', { ascending: true })
+      );
+      return data as unknown as WorkLog[];
     },
   });
 

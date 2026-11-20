@@ -1,6 +1,7 @@
 import { PrivacyBlur } from '@/components/ui/PrivacyBlur';
 import { useMemo, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetch-all';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,11 +40,17 @@ export function ClientProfitabilityReport() {
 
     const fetchData = async () => {
       // Fórmula única de lucro: vista do servidor (equipa + extras + linhas de custo)
-      const { data: projects } = await supabase
-        .from('v_project_profit' as any)
-        .select('id, client_id, client_name, agreed_value, total_cost, is_delivered, delivered_at')
-        .eq('workspace_id', currentWorkspace.id)
-        .eq('is_delivered', true);
+      // Paginado (nunca cortado nas 1.000 linhas). Em caso de erro mantém-se o
+      // comportamento anterior: sem dados.
+      const workspaceId = currentWorkspace.id;
+      const projects = await fetchAllRows<any>(() =>
+        supabase
+          .from('v_project_profit' as any)
+          .select('id, client_id, client_name, agreed_value, total_cost, is_delivered, delivered_at')
+          .eq('workspace_id', workspaceId)
+          .eq('is_delivered', true)
+          .order('id', { ascending: true }) as any
+      ).catch(() => null);
 
       if (!projects) { setLoading(false); return; }
 

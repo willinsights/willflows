@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { startOfMonth, endOfMonth, isWithinInterval, format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetch-all';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useProjects } from '@/hooks/useProjects';
 import { useTeamPayments } from '@/hooks/usePayments';
@@ -82,13 +83,14 @@ export function useMonthlyClosing(month: Date): MonthlyClosing {
     enabled: !!workspaceId,
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('project_cost_lines')
-        .select('id, project_id, description, actual_amount, payment_status')
-        .eq('workspace_id', workspaceId!)
-        .neq('payment_status', 'cancelado');
-      if (error) throw error;
-      return data || [];
+      return await fetchAllRows(() =>
+        supabase
+          .from('project_cost_lines')
+          .select('id, project_id, description, actual_amount, payment_status')
+          .eq('workspace_id', workspaceId!)
+          .neq('payment_status', 'cancelado')
+          .order('id', { ascending: true })
+      );
     },
   });
 

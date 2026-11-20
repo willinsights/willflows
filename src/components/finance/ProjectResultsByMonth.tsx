@@ -3,6 +3,7 @@ import { format, subMonths, startOfMonth } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetch-all';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useProjects } from '@/hooks/useProjects';
 import { Card, CardContent } from '@/components/ui/card';
@@ -30,13 +31,14 @@ export function ProjectResultsByMonth() {
     enabled: !!wsId,
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('project_cost_lines')
-        .select('project_id, actual_amount')
-        .eq('workspace_id', wsId!)
-        .neq('payment_status', 'cancelado');
-      if (error) throw error;
-      return data || [];
+      return await fetchAllRows(() =>
+        supabase
+          .from('project_cost_lines')
+          .select('project_id, actual_amount')
+          .eq('workspace_id', wsId!)
+          .neq('payment_status', 'cancelado')
+          .order('id', { ascending: true })
+      );
     },
   });
 

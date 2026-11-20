@@ -34,12 +34,20 @@ vi.mock("@/lib/validation-schemas", () => ({
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    from: vi.fn((table: string) => ({
+    from: vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
-          order: vi.fn(() => table === "project_team"
-            ? { range: vi.fn(async () => ({ data: [], error: null })) }
-            : Promise.resolve({ data: [], error: null })),
+          // Builder encadeável: aceita .order repetido e .range (fetchAllRows),
+          // continuando awaitable para as cadeias que terminam em .order.
+          order: vi.fn(() => {
+            const ordered: any = {
+              order: vi.fn(() => ordered),
+              range: vi.fn(async () => ({ data: [], error: null })),
+              then: (resolve: any, reject: any) =>
+                Promise.resolve({ data: [], error: null }).then(resolve, reject),
+            };
+            return ordered;
+          }),
         })),
         in: vi.fn(() => Promise.resolve({ data: [], error: null })),
       })),
