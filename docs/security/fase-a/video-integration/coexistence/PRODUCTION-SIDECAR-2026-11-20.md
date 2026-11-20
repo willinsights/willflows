@@ -27,4 +27,6 @@
 - Migração de vídeos históricos in-place continua NÃO aplicada: exige isolamento dos objetos já conhecidos pelas revisões antigas; uma revisão já aceita pelo fornecedor pode apagar um objeto legado antes de falhar na BD. Essa operação é separada, não necessária para esta fase new-only e não autorizada como destrutiva.
 
 ## Publicação
-Revisão pública e prova no domínio são registadas após o publish; esta publicação contém a integração canónica funcional, não apenas a atualização visual a56f1383.
+- Commit funcional 47bd3b6c; publish solicitado e percurso canónico confirmado em https://willflow.app após propagação: HTTP 200, HLS assinado avançou, comentários desktop/mobile e aprovação persistidos lidos no domínio, sem erros de runtime. Não houve nova escrita no teste público final.
+- O HTML raiz ainda anuncia data-commit-sha=a56f1383 no marcador do artefacto, inclusive fetch sem cache, embora o router canónico novo já funcione publicamente. Portanto revisão pública por marcador NÃO confirmada como 47bd3b6c; registrar discrepância de metadados, não apresentar o marcador antigo como prova do novo commit. A primeira tentativa durante propagação ainda não encontrou o leitor; a seguinte verificou o fluxo.
+- Deno check final com resolução npm automática passou; 5 testes routing/UI/upload, 18 Vitest de coexistência e os dois ensaios PostgreSQL (candidato e migrações aplicadas) passaram; último build supervisionado OK.
