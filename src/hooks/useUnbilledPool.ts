@@ -95,6 +95,7 @@ export function useUnbilledPool() {
       })
       .sort((a, b) => (b.deliveredAt || '').localeCompare(a.deliveredAt || ''));
 
-    return { rows, loading: projectsLoading };
+    // Só mostra esqueleto no primeiro carregamento; recargas em segundo plano mantêm a lista visível.
+    return { rows, loading: projectsLoading && projects.length === 0 };
   }, [projects, teamPayments, allProjectCosts, members, items, projectsLoading]);
 }
