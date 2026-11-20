@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef, type MouseEvent } from 'react';
 import { FileIcon, FileText, FileImage, FileVideo, FileAudio, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
@@ -39,16 +39,30 @@ function getFileIcon(mimeType: string | null) {
 
 // Cache for signed URLs to avoid regenerating them
 const SIGNED_URL_TTL_SECONDS = 600;
-const signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
+// A cached link is only reused while it still has at least half of its life left,
+// so nothing we hand out is about to expire.
+const CACHE_MIN_REMAINING_MS = (SIGNED_URL_TTL_SECONDS * 1000) / 2;
+// A media error only triggers a renewal when the link is (almost) expired.
+const EXPIRY_MARGIN_MS = 30 * 1000;
 
-async function getSignedUrl(filePath: string): Promise<string | null> {
-  // Check cache first
+interface SignedUrl {
+  url: string;
+  expiresAt: number;
+}
+
+const signedUrlCache = new Map<string, SignedUrl>();
+
+// `fresh` skips the cache: used for user actions (download, open, play) so the
+// link is always signed at the moment of the click.
+async function getSignedUrl(
+  filePath: string,
+  { fresh = false }: { fresh?: boolean } = {}
+): Promise<SignedUrl | null> {
   const cached = signedUrlCache.get(filePath);
   const now = Date.now();
-  
-  // Return cached URL if still valid (with 2 min buffer)
-  if (cached && cached.expiresAt > now + 2 * 60 * 1000) {
-    return cached.url;
+
+  if (!fresh && cached && cached.expiresAt > now + CACHE_MIN_REMAINING_MS) {
+    return cached;
   }
 
   const { data, error } = await supabase.storage
@@ -60,20 +74,23 @@ async function getSignedUrl(filePath: string): Promise<string | null> {
     return null;
   }
 
-  // Cache the URL
-  signedUrlCache.set(filePath, {
+  // Cache the URL (expiry counted from before the request, so it errs on the early side)
+  const signed: SignedUrl = {
     url: data.signedUrl,
     expiresAt: now + SIGNED_URL_TTL_SECONDS * 1000
-  });
+  };
+  signedUrlCache.set(filePath, signed);
 
-  return data.signedUrl;
+  return signed;
 }
 
 export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
-  const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string } | null>(null);
-  const [activeVideo, setActiveVideo] = useState<{ src: string; name: string } | null>(null);
-  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+  const [lightboxImage, setLightboxImage] = useState<{ src: string; attachment: MessageAttachment } | null>(null);
+  const [activeVideo, setActiveVideo] = useState<{ src: string; attachment: MessageAttachment } | null>(null);
+  const [signedUrls, setSignedUrls] = useState<Record<string, SignedUrl>>({});
   const [isLoading, setIsLoading] = useState(true);
+  // Link renewals in flight, by attachment id.
+  const pendingRenewals = useRef(new Map<string, Promise<SignedUrl | null>>());
 
   // Fetch signed URLs for all attachments
   useEffect(() => {
@@ -84,7 +101,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
 
     const fetchUrls = async () => {
       setIsLoading(true);
-      const urls: Record<string, string> = {};
+      const urls: Record<string, SignedUrl> = {};
       
       await Promise.all(
         attachments.map(async (attachment) => {
@@ -104,15 +121,117 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
 
   if (!attachments?.length) return null;
 
-  const handleDownload = async (url: string, filename: string) => {
+  // Inline previews keep the link they were rendered with. If the element fails to
+  // load and that link has expired, ask for a new one. A link that is not near
+  // expiry is never renewed here, so a broken file cannot cause a request loop.
+  const handleMediaError = async (attachment: MessageAttachment) => {
+    const current = signedUrls[attachment.id];
+    if (!current || Date.now() < current.expiresAt - EXPIRY_MARGIN_MS) return;
+
+    const renewed = await getSignedUrl(attachment.file_path);
+    if (renewed) {
+      setSignedUrls((prev) => ({ ...prev, [attachment.id]: renewed }));
+    }
+  };
+
+  const openLightbox = async (attachment: MessageAttachment) => {
+    const signed = await getSignedUrl(attachment.file_path);
+    if (!signed) {
+      toast.error('Erro ao abrir ficheiro');
+      return;
+    }
+    setLightboxImage({ src: signed.url, attachment });
+  };
+
+  const openVideo = async (attachment: MessageAttachment) => {
+    const signed = await getSignedUrl(attachment.file_path, { fresh: true });
+    if (!signed) {
+      toast.error('Erro ao abrir ficheiro');
+      return;
+    }
+    setActiveVideo({ src: signed.url, attachment });
+  };
+
+  // File links open through the native <a target="_blank">, so the href itself has
+  // to stay valid. Asks for a new link and stores it in state; at most one request
+  // per attachment at a time (callers share the pending one). Never throws.
+  const renewLink = (attachment: MessageAttachment): Promise<SignedUrl | null> => {
+    const pending = pendingRenewals.current.get(attachment.id);
+    if (pending) return pending;
+
+    const request = (async () => {
+      try {
+        const renewed = await getSignedUrl(attachment.file_path);
+        if (renewed) {
+          setSignedUrls((prev) => ({ ...prev, [attachment.id]: renewed }));
+        }
+        return renewed;
+      } catch (error) {
+        logger.error('Failed to renew signed URL:', error);
+        return null;
+      } finally {
+        pendingRenewals.current.delete(attachment.id);
+      }
+    })();
+    pendingRenewals.current.set(attachment.id, request);
+    return request;
+  };
+
+  // Pointer, focus or touch on the link: renew ahead of the click once less than
+  // half of the link's life is left, so middle click, "open in new tab" and
+  // "copy link" also get a link that works.
+  const keepLinkFresh = (attachment: MessageAttachment) => {
+    const current = signedUrls[attachment.id];
+    if (!current || current.expiresAt - Date.now() >= CACHE_MIN_REMAINING_MS) return;
+    void renewLink(attachment);
+  };
+
+  const handleFileLinkClick = async (
+    event: MouseEvent<HTMLAnchorElement>,
+    attachment: MessageAttachment
+  ) => {
+    const current = signedUrls[attachment.id];
+    // Link still valid: leave the click to the browser.
+    if (current && Date.now() < current.expiresAt - EXPIRY_MARGIN_MS) return;
+
+    // Expired right now: the native navigation would fail, so take over.
+    event.preventDefault();
+    const renewed = await renewLink(attachment);
+    if (!renewed) {
+      toast.error('Erro ao abrir ficheiro');
+      return;
+    }
+
+    // The tab is only opened once the link exists, so no blank tab is left behind.
+    // `noopener` cannot go in the features: window.open would then always return
+    // null and a blocked popup could not be told apart from an opened one.
+    let tab: Window | null = null;
     try {
-      const response = await fetch(url);
+      tab = window.open(renewed.url, '_blank');
+      if (tab) tab.opener = null;
+    } catch (error) {
+      logger.error('Failed to open attachment:', error);
+      tab = null;
+    }
+    if (!tab) {
+      // Popup blocked (blocker, installed PWA, webview): the href is already
+      // renewed, so a second click opens it natively.
+      toast.info('Ligação atualizada. Clique novamente para abrir.');
+    }
+  };
+
+  const handleDownload = async (attachment: MessageAttachment) => {
+    try {
+      const signed = await getSignedUrl(attachment.file_path, { fresh: true });
+      if (!signed) throw new Error('Falha ao descarregar');
+
+      const response = await fetch(signed.url);
       if (!response.ok) throw new Error('Falha ao descarregar');
       
       const blob = await response.blob();
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = filename;
+      link.download = attachment.file_name;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -154,19 +273,20 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
             images.length >= 3 && 'grid-cols-3 max-w-lg'
           )}>
             {images.map((attachment) => {
-              const url = signedUrls[attachment.id];
+              const url = signedUrls[attachment.id]?.url;
               if (!url) return null;
               return (
                 <div
                   key={attachment.id}
                   className="relative group rounded-lg overflow-hidden border border-border bg-muted/30 hover:border-primary/50 transition-colors cursor-pointer"
-                  onClick={() => setLightboxImage({ src: url, alt: attachment.file_name })}
+                  onClick={() => openLightbox(attachment)}
                 >
                   <img
                     src={url}
                     alt={attachment.file_name}
                     className="w-full h-auto max-h-[200px] object-cover"
                     loading="lazy"
+                    onError={() => handleMediaError(attachment)}
                   />
                   {/* Always visible download button */}
                   <Button
@@ -175,7 +295,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
                     className="absolute bottom-2 right-2 h-7 w-7 rounded-full bg-background/80 backdrop-blur-sm shadow-md hover:bg-background border border-border/50"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDownload(url, attachment.file_name);
+                      handleDownload(attachment);
                     }}
                   >
                     <Download className="h-3.5 w-3.5" />
@@ -192,18 +312,19 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
         {videos.length > 0 && (
           <div className="space-y-2">
             {videos.map((attachment) => {
-              const url = signedUrls[attachment.id];
+              const url = signedUrls[attachment.id]?.url;
               if (!url) return null;
               return (
                 <div 
                   key={attachment.id} 
                   className="max-w-md relative group cursor-pointer"
-                  onClick={() => setActiveVideo({ src: url, name: attachment.file_name })}
+                  onClick={() => openVideo(attachment)}
                 >
                   <video
                     src={url}
                     className="w-full rounded-lg border border-border"
                     preload="metadata"
+                    onError={() => handleMediaError(attachment)}
                   />
                   {/* Play overlay */}
                   <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors rounded-lg">
@@ -221,7 +342,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
                       className="h-6 w-6"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDownload(url, attachment.file_name);
+                        handleDownload(attachment);
                       }}
                     >
                       <Download className="h-3 w-3" />
@@ -237,7 +358,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
         {otherFiles.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {otherFiles.map((attachment) => {
-              const url = signedUrls[attachment.id];
+              const url = signedUrls[attachment.id]?.url;
               const IconComponent = getFileIcon(attachment.mime_type);
               if (!url) return null;
               return (
@@ -251,6 +372,10 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
                       href={url}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onPointerEnter={() => keepLinkFresh(attachment)}
+                      onFocus={() => keepLinkFresh(attachment)}
+                      onTouchStart={() => keepLinkFresh(attachment)}
+                      onClick={(e) => handleFileLinkClick(e, attachment)}
                       className="text-sm font-medium truncate group-hover:text-primary transition-colors block"
                     >
                       {attachment.file_name}
@@ -265,7 +390,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 flex-shrink-0 opacity-50 group-hover:opacity-100"
-                    onClick={() => handleDownload(url, attachment.file_name)}
+                    onClick={() => handleDownload(attachment)}
                   >
                     <Download className="h-4 w-4" />
                   </Button>
@@ -280,9 +405,9 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
       {lightboxImage && (
         <ImageLightbox
           src={lightboxImage.src}
-          alt={lightboxImage.alt}
+          alt={lightboxImage.attachment.file_name}
           onClose={() => setLightboxImage(null)}
-          onDownload={() => handleDownload(lightboxImage.src, lightboxImage.alt)}
+          onDownload={() => handleDownload(lightboxImage.attachment)}
         />
       )}
 
@@ -290,9 +415,9 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
       {activeVideo && (
         <VideoModal
           src={activeVideo.src}
-          name={activeVideo.name}
+          name={activeVideo.attachment.file_name}
           onClose={() => setActiveVideo(null)}
-          onDownload={() => handleDownload(activeVideo.src, activeVideo.name)}
+          onDownload={() => handleDownload(activeVideo.attachment)}
         />
       )}
     </>
