@@ -113,6 +113,13 @@
       "when": 1795183936861,
       "tag": "0015_private_video_authenticated_client_integration",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1795208278416,
+      "tag": "0016_security_tenant_checks_chat_role",
+      "breakpoints": true
     }
   ]
 }

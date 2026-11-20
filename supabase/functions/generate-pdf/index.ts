@@ -1,5 +1,5 @@
 // Generate PDF invoices using pdf-lib (pure Deno, no Python/Docker)
-import { PDFDocument, rgb, StandardFonts, PDFFont, PDFPage } from "https://cdn.skypack.dev/pdf-lib@1.17.1?dts";
+import { PDFDocument, rgb, StandardFonts, PDFFont, PDFPage } from "npm:pdf-lib@1.17.1";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
@@ -425,6 +425,7 @@ Deno.serve(async (req) => {
         .from("clients")
         .select("id,name,company,email,nif,vat_number,address,city,postal_code,country")
         .eq("id", invoice.client_id)
+        .eq("workspace_id", workspaceId)
         .maybeSingle();
       client = c as Client | null;
     }
@@ -436,6 +437,7 @@ Deno.serve(async (req) => {
         .from("projects")
         .select("id,title")
         .eq("id", invoice.project_id)
+        .eq("workspace_id", workspaceId)
         .maybeSingle();
       project = p as Project | null;
     }

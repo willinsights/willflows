@@ -5767,7 +5767,30 @@ export type Database = {
         }
         Returns: Json
       }
+      get_kanban_metrics_unchecked: {
+        Args: {
+          p_end_date?: string
+          p_start_date?: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       get_monthly_summary: {
+        Args: { p_month: number; p_workspace_id: string; p_year: number }
+        Returns: {
+          delivered_count: number
+          extras_paid: number
+          extras_pending: number
+          margin_percent: number
+          project_count: number
+          team_payments_paid: number
+          team_payments_pending: number
+          total_cost: number
+          total_profit: number
+          total_revenue: number
+        }[]
+      }
+      get_monthly_summary_unchecked: {
         Args: { p_month: number; p_workspace_id: string; p_year: number }
         Returns: {
           delivered_count: number

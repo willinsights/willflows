@@ -38,6 +38,7 @@ function getFileIcon(mimeType: string | null) {
 }
 
 // Cache for signed URLs to avoid regenerating them
+const SIGNED_URL_TTL_SECONDS = 600;
 const signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
 
 async function getSignedUrl(filePath: string): Promise<string | null> {
@@ -45,14 +46,14 @@ async function getSignedUrl(filePath: string): Promise<string | null> {
   const cached = signedUrlCache.get(filePath);
   const now = Date.now();
   
-  // Return cached URL if still valid (with 5 min buffer)
-  if (cached && cached.expiresAt > now + 5 * 60 * 1000) {
+  // Return cached URL if still valid (with 2 min buffer)
+  if (cached && cached.expiresAt > now + 2 * 60 * 1000) {
     return cached.url;
   }
 
   const { data, error } = await supabase.storage
     .from('chat-attachments')
-    .createSignedUrl(filePath, 3600); // 1 hour expiry
+    .createSignedUrl(filePath, SIGNED_URL_TTL_SECONDS); // short-lived so revoked access stops quickly
 
   if (error || !data?.signedUrl) {
     logger.error('Failed to get signed URL:', error);
@@ -62,7 +63,7 @@ async function getSignedUrl(filePath: string): Promise<string | null> {
   // Cache the URL
   signedUrlCache.set(filePath, {
     url: data.signedUrl,
-    expiresAt: now + 3600 * 1000
+    expiresAt: now + SIGNED_URL_TTL_SECONDS * 1000
   });
 
   return data.signedUrl;

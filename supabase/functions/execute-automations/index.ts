@@ -72,40 +72,13 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Automations run only from the durable server queue, which records real
+    // events. Direct browser calls could fabricate events and email clients.
     if (!isInternal) {
-      if (!authHeader?.startsWith('Bearer ')) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
-      }
-      const token = authHeader.replace('Bearer ', '')
-      const { data: userData, error: userErr } = await supabase.auth.getUser(token)
-      if (userErr || !userData?.user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
-      }
-      if (!workspace_id) {
-        return new Response(JSON.stringify({ error: 'workspace_id required' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
-      }
-      const { data: membership } = await supabase
-        .from('workspace_members')
-        .select('id')
-        .eq('user_id', userData.user.id)
-        .eq('workspace_id', workspace_id)
-        .eq('is_active', true)
-        .maybeSingle()
-      if (!membership) {
-        return new Response(JSON.stringify({ error: 'Forbidden' }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
-      }
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     if (!event_type || !project_id || !workspace_id) {

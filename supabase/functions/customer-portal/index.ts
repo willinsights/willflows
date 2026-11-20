@@ -91,7 +91,8 @@ serve(async (req) => {
       logStep("Found existing Stripe customer", { customerId });
     }
 
-    const requestOrigin = req.headers.get("origin") || "https://willflow.app";
+    const rawOrigin = req.headers.get("origin");
+    const requestOrigin = rawOrigin && allowedOrigins.includes(rawOrigin) ? rawOrigin : "https://willflow.app";
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: `${requestOrigin}/app/conta`,
