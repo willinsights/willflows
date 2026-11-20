@@ -608,18 +608,18 @@ export default function VideoApproval() {
         <div className="min-h-screen bg-background">
         {/* Header */}
         <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-          <div className="container py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="container py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-4">
               <img src={logoIconPurple} alt="WillFlow" className="h-8 w-8 dark:hidden" />
               <img src={logoIconCyan} alt="WillFlow" className="h-8 w-8 hidden dark:block" />
               <Separator orientation="vertical" className="h-6" />
-              <div>
+              <div className="min-w-0">
                 <h1 className="font-semibold">Studio Review</h1>
-                <p className="text-sm text-muted-foreground">{data.task.project_name}</p>
+                <p className="break-words text-sm text-muted-foreground">{data.task.project_name}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
               {/* Version selector */}
               <Select value={selectedVersionId} onValueChange={setSelectedVersionId}>
                 <SelectTrigger className="w-[120px]">
@@ -916,7 +916,7 @@ export default function VideoApproval() {
 
                   {/* Always visible comment input (Frame.io style) */}
                   <Card className="p-4">
-                    <div className="flex items-start gap-3">
+                    <div className="flex flex-col items-start gap-3 sm:flex-row">
                       {/* Timecode badge - shows when user starts typing */}
                       {hasStartedTyping && (
                         <div className="flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5 text-sm font-mono text-primary shrink-0">
@@ -925,7 +925,7 @@ export default function VideoApproval() {
                         </div>
                       )}
 
-                      <div className="flex-1 space-y-3">
+                      <div className="w-full min-w-0 flex-1 space-y-3">
                         {/* Comment textarea */}
                         <Textarea
                           ref={commentInputRef}
@@ -941,8 +941,8 @@ export default function VideoApproval() {
                         />
 
                         {/* Name input and submit button */}
-                        <div className="flex items-center gap-3">
-                          <div className="flex flex-col gap-1">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-none">
                             <Label htmlFor="client-name-input" className="text-xs text-muted-foreground">
                               O seu nome
                             </Label>
@@ -951,7 +951,7 @@ export default function VideoApproval() {
                               placeholder="Ex: João Silva"
                               value={clientName}
                               onChange={(e) => setClientName(e.target.value)}
-                              className="h-9 w-[200px]"
+                              className="h-9 w-full sm:w-[200px]"
                             />
                           </div>
                           
@@ -985,7 +985,7 @@ export default function VideoApproval() {
 
                   {/* Version info */}
                   {selectedVersion && (
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <div className="flex flex-wrap items-center justify-between gap-2 break-words text-sm text-muted-foreground">
                       <span>
                         Versão {selectedVersion.version_number} • {selectedVersion.file_name}
                       </span>
