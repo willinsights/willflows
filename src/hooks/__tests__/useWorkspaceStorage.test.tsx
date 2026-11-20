@@ -6,6 +6,8 @@ import React from "react";
 const GB = 1024 * 1024 * 1024;
 
 let mockStorageRow: Record<string, unknown> | null = null;
+let privateBytes=0;
+vi.mock('@/lib/private-video-client',()=>({privateVideoRequest:async()=>({legacy_bytes:mockStorageRow?.storage_used_bytes??0,private_bytes:privateBytes})}));
 
 const mockWorkspace = { id: "ws-1", name: "WS" };
 
@@ -45,6 +47,13 @@ const wrapper = ({ children }: { children: React.ReactNode }) => {
 describe("useWorkspaceStorage — quota check (client-side)", () => {
   beforeEach(() => {
     mockStorageRow = null;
+    privateBytes=0;
+  });
+
+  it('includes canonical bytes once without writing them into the legacy counter',async()=>{
+    mockStorageRow={id:'s-1',workspace_id:'ws-1',storage_used_bytes:2*GB,storage_limit_bytes:10*GB};privateBytes=3*GB;
+    const {result}=renderHook(()=>useWorkspaceStorage(),{wrapper});await waitFor(()=>expect(result.current.storage.usedBytes).toBe(5*GB));
+    expect(result.current.storage.canUpload(6*GB)).toBe(false);expect(mockStorageRow.storage_used_bytes).toBe(2*GB);
   });
 
   it("permite upload quando há espaço disponível", async () => {

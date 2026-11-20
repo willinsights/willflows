@@ -20,7 +20,7 @@ export async function privateUpload(req:Request,d:PrivateUploadDependencies):Pro
   const user=await d.authenticate(req);if(!user)return answer({code:'UNAUTHORIZED'},401);
   const b=await req.json();if(!b||typeof b!=='object'||Array.isArray(b)||!uuid.test(b.operationId??''))return answer({code:'INVALID_INPUT'},400);
   if(b.action==='issue'){
-   if(!uuid.test(b.workspaceId??'')||!uuid.test(b.projectId??'')||(b.taskId!=null&&!uuid.test(b.taskId))||typeof b.fileName!=='string'||!b.fileName.trim()||b.fileName.length>255||!Number.isSafeInteger(b.bytes)||b.bytes<=0||!['video/mp4','video/quicktime','video/webm'].includes(b.type))return answer({code:'INVALID_INPUT'},400);
+   if(!uuid.test(b.workspaceId??'')||!uuid.test(b.projectId??'')||(b.taskId!=null&&!uuid.test(b.taskId))||typeof b.fileName!=='string'||!b.fileName.trim()||b.fileName.length>255||!Number.isSafeInteger(b.bytes)||b.bytes<=0||b.bytes>5*1024**3||!['video/mp4','video/quicktime','video/webm','video/x-msvideo','video/x-matroska'].includes(b.type))return answer({code:'INVALID_INPUT'},400);
    const v:PrivateOperation=await call('private_video_issue',{p_operation:b.operationId,p_ws:b.workspaceId,p_project:b.projectId,p_task:b.taskId??null,p_user:user,p_name:b.fileName,p_bytes:b.bytes});
    const seconds=Math.floor((new Date(v.expires_at).getTime()-Date.now())/1000);
    if(v.state!=='issued'||seconds<=0)return answer({code:'EXPIRED_OR_ALREADY_PERSISTED'},409);

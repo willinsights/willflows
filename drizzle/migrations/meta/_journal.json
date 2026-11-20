@@ -106,6 +106,13 @@
       "when": 1795183095769,
       "tag": "0014_private_video_subscription_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1795183936861,
+      "tag": "0015_private_video_authenticated_client_integration",
+      "breakpoints": true
     }
   ]
 }

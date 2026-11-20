@@ -4,6 +4,7 @@ export interface SidecarDependencies {
  authenticate:(req:Request)=>Promise<string|null>;
  sign:(uid:string)=>Promise<{url:string;thumbnail:string;expiresAt:number}>;
  ready:(uid:string)=>Promise<boolean>;
+ download?:(key:string)=>Promise<string>;
 }
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export async function digestPrivateLink(token:unknown):Promise<string> {
@@ -38,9 +39,32 @@ export async function sidecarRequest(req:Request,d:SidecarDependencies):Promise<
    if(!digest&&(!user||!uuid.test(b.workspaceId??'')))return answer({code:'UNAUTHORIZED'},401);
    return answer({versions:await rpc('private_video_list',{p_user:digest?null:user,p_digest:digest,p_ws:digest?null:b.workspaceId})});
   }
+  if(['context','client-list','revoke-scope','usage'].includes(b.action)){
+   if(!user||digest||!uuid.test(b.workspaceId??'')||(b.projectId!=null&&!uuid.test(b.projectId))||(b.taskId!=null&&!uuid.test(b.taskId)))return answer({code:'UNAUTHORIZED'},401);
+   if(b.action==='usage')return answer(await rpc('private_video_usage',{p_ws:b.workspaceId,p_user:user}));
+   if(b.action!=='client-list'&&!uuid.test(b.projectId??''))return answer({code:'INVALID_INPUT'},400);
+   const params={p_ws:b.workspaceId,p_project:b.projectId??null,p_task:b.taskId??null,p_user:user};
+   if(b.action==='context')return answer(await rpc('private_video_context',params));
+   if(b.action==='revoke-scope'){await rpc('private_video_revoke_scope',params);return answer({success:true});}
+   return answer({versions:await rpc('private_video_client_list',params)});
+  }
   if(!uuid.test(b.versionId??'')||(!user&&!digest))return answer({code:'UNAUTHORIZED'},401);
   const args={p_version:b.versionId,p_user:digest?null:user,p_digest:digest};
   const initial=await rpc('private_video_read',args);
+  if(b.action==='download'){
+   if(!d.download)return answer({code:'DOWNLOAD_UNAVAILABLE'},503);
+   if(initial.version.state!=='ready')return answer({code:'DOWNLOAD_UNAVAILABLE'},409);
+   const url=await d.download('__willflow_v2/'+initial.version.workspace_id+'/'+initial.version.operation_id+'/frozen.mp4');
+   const latest=await rpc('private_video_read',args);
+   if(latest.version.object_key!==initial.version.object_key||latest.version.generation!==initial.version.generation)throw Error('PRIVATE_CONTEXT_DENIED');
+   return answer({url,fileName:latest.version.file_name});
+  }
+  if(['client-comment','client-approval','client-withdraw'].includes(b.action)){
+   if(!user||digest)return answer({code:'UNAUTHORIZED'},401);
+   if(b.action==='client-withdraw'){await rpc('private_video_client_withdraw',{p_version:b.versionId,p_user:user});return answer({success:true});}
+   if(!uuid.test(b.requestId??'')||typeof b.body!=='string'||b.body.length>5000||!Number.isFinite(b.timestamp??0)||(b.timestamp??0)<0)return answer({code:'INVALID_INPUT'},400);
+   await rpc('private_video_client_feedback',{p_request:b.requestId,p_version:b.versionId,p_user:user,p_type:b.action==='client-comment'?'comment':'approval',p_body:b.body,p_timestamp:b.timestamp??0});return answer({success:true},201);
+  }
   if(b.action==='read'){
    const v=initial.version;
    let playback=null;

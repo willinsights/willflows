@@ -42,6 +42,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 
 import { logger } from '@/lib/logger';
+import { CanonicalStorageList } from './CanonicalStorageList';
 interface VideoVersionWithProject {
   id: string;
   version_number: number;
@@ -347,6 +348,7 @@ export function StorageManagerTab() {
 
   return (
     <div className="space-y-6">
+      {currentWorkspace?.id && <CanonicalStorageList workspaceId={currentWorkspace.id}/>}
       {/* Storage Overview */}
       <Card className="glass-card">
         <CardHeader className="flex flex-row items-center justify-between pb-2">

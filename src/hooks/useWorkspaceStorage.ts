@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { privateVideoRequest } from '@/lib/private-video-client';
 
 export interface WorkspaceStorageData {
   id: string;
@@ -56,7 +57,8 @@ export function useWorkspaceStorage() {
         return null;
       }
 
-      return data as WorkspaceStorageData;
+      const usage = await privateVideoRequest({action:'usage',workspaceId:workspace.id});
+      return {...data,storage_used_bytes:Number(usage.legacy_bytes)+Number(usage.private_bytes)} as WorkspaceStorageData;
     },
     enabled: !!workspace?.id,
     staleTime: 60000, // 1 minute

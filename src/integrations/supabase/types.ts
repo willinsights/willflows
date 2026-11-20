@@ -5944,6 +5944,39 @@ export type Database = {
         Args: { p_operation: string; p_user: string }
         Returns: string
       }
+      private_video_client_feedback: {
+        Args: {
+          p_body: string
+          p_request: string
+          p_timestamp: number
+          p_type: string
+          p_user: string
+          p_version: string
+        }
+        Returns: boolean
+      }
+      private_video_client_list: {
+        Args: {
+          p_project: string
+          p_task: string
+          p_user: string
+          p_ws: string
+        }
+        Returns: Json
+      }
+      private_video_client_withdraw: {
+        Args: { p_user: string; p_version: string }
+        Returns: boolean
+      }
+      private_video_context: {
+        Args: {
+          p_project: string
+          p_task: string
+          p_user: string
+          p_ws: string
+        }
+        Returns: Json
+      }
       private_video_feedback: {
         Args: {
           p_body: string
@@ -6014,6 +6047,15 @@ export type Database = {
       }
       private_video_revoke: {
         Args: { p_digest: string; p_user: string }
+        Returns: boolean
+      }
+      private_video_revoke_scope: {
+        Args: {
+          p_project: string
+          p_task: string
+          p_user: string
+          p_ws: string
+        }
         Returns: boolean
       }
       private_video_usage: {

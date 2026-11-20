@@ -12,7 +12,7 @@ export function PrivateVideoApproval({request,token}:{request:(body:Record<strin
   try{const data=await request({action:'read',versionId:id,token});setReview(data);setError('');}
   catch{setReview(null);setError('Este vídeo não está disponível.');}
  },[request,token]);
- useEffect(()=>{let active=true;request({action:'list',token}).then(data=>{if(!Array.isArray(data?.versions))throw Error('Invalid list');if(active){setVersions(data.versions);setSelected(data.versions[0]?.id??'');}}).catch(()=>{if(active)setError('Este link não está disponível.');});return()=>{active=false;};},[request,token]);
+ useEffect(()=>{let active=true;request({action:'list',token}).then(data=>{if(!Array.isArray(data?.versions))throw Error('Invalid list');if(active){setVersions(data.versions);setSelected(data.versions[data.versions.length-1]?.id??'');}}).catch(()=>{if(active)setError('Este link não está disponível.');});return()=>{active=false;};},[request,token]);
  useEffect(()=>{if(!selected)return;void load(selected);const timer=setInterval(()=>void load(selected),60000);return()=>clearInterval(timer);},[selected,load]);
  const feedback=async(action:'comment'|'approval')=>{
   if(!selected||!name.trim()||busy)return;

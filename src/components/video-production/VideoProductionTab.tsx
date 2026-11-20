@@ -23,6 +23,7 @@ import { useVideoVersions, VideoVersion } from '@/hooks/useVideoVersions';
 import { useVideoComments } from '@/hooks/useVideoComments';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { FeatureTeaser } from '@/components/subscription/FeatureTeaser';
+import { CanonicalVideoStudio } from './CanonicalVideoStudio';
 
 import { logger } from '@/lib/logger';
 interface VideoProductionTabProps {
@@ -51,7 +52,19 @@ export function VideoProductionTab({
     );
   }
 
-  return <VideoProductionTabContent taskId={taskId} workspaceId={workspaceId} projectId={projectId} className={className} />;
+  return <VideoStudioRoutes key={`${workspaceId}:${projectId}:${taskId}`} taskId={taskId} workspaceId={workspaceId} projectId={projectId} className={className} />;
+}
+
+function VideoStudioRoutes(props: VideoProductionTabProps) {
+  const [enabled,setEnabled]=useState<boolean|null>(null);
+  const [view,setView]=useState('new');
+  const received=useRef(false);
+  const onContext=useCallback((value:boolean)=>{setEnabled(value);if(!received.current){received.current=true;setView(value?'new':'legacy');}},[]);
+  return <Tabs value={view} onValueChange={setView} className={props.className}>
+    <TabsList><TabsTrigger value="new">Vídeos novos</TabsTrigger><TabsTrigger value="legacy">Vídeos já guardados</TabsTrigger></TabsList>
+    <TabsContent value="new" forceMount className={view==='new'?'mt-4':'hidden'}><CanonicalVideoStudio {...props} onContext={onContext}/></TabsContent>
+    <TabsContent value="legacy"><VideoProductionTabContent {...props} allowLegacyUpload={enabled===false}/></TabsContent>
+  </Tabs>;
 }
 
 function VideoProductionTabContent({
@@ -59,7 +72,8 @@ function VideoProductionTabContent({
   workspaceId,
   projectId,
   className,
-}: VideoProductionTabProps) {
+  allowLegacyUpload=true,
+}: VideoProductionTabProps & {allowLegacyUpload?:boolean}) {
   const { versions, loading, deleteVersion, replaceVersion, getSignedUrl, isProcessing, refetch, setThumbnailTime, checkVersionStatus, checkingStatusIds } = useVideoVersions(taskId, workspaceId, projectId);
   const [selectedVersion, setSelectedVersion] = useState<VideoVersion | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -329,11 +343,11 @@ function VideoProductionTabContent({
           )}
 
           {/* Upload area */}
-          <VideoVersionUpload
+          {allowLegacyUpload && <VideoVersionUpload
             taskId={taskId}
             workspaceId={workspaceId}
             projectId={projectId}
-          />
+          />}
 
 
           {/* Comments section */}

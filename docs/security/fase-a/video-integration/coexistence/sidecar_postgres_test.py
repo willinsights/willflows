@@ -68,6 +68,10 @@ try:
     assert sql("SELECT to_regnamespace('willflow_video_private') IS NULL")=='t'
     sql(f"UPDATE workspace_storage SET storage_used_bytes={5 if production else 4};")
     sql(candidate)
+    client='--client-runtime' in sys.argv
+    if client:
+        sql("ALTER TABLE workspaces ADD subscription_plan text DEFAULT 'studio';ALTER TABLE projects ADD name text DEFAULT 'Fixture';CREATE TABLE profiles(id uuid PRIMARY KEY,full_name text);CREATE FUNCTION has_workspace_permission(p_user uuid,p_ws uuid,p_permission text) RETURNS boolean LANGUAGE sql STABLE SET search_path=public AS $$ SELECT EXISTS(SELECT 1 FROM workspace_members WHERE workspace_id=p_ws AND user_id=p_user AND is_active AND role IN ('admin','edicao')) $$;")
+        sql((here/'client-runtime.sql').read_text())
     assert sql('SELECT count(*) FROM willflow_video_private.enrollment')=='0'
     reject(c+f"SELECT private_video_issue('{op}','{ws}','{project}','{task}','{user}','fixture.mp4',10);",'Private uploads disabled')
     sql(f"INSERT INTO willflow_video_private.enrollment VALUES('{ws}',true);")
@@ -79,10 +83,18 @@ try:
     print('PASS service-only RPCs and no private schema access even for service client')
     if production:
         sql('UPDATE workspaces SET active=false;')
-        reject(c+f"SELECT private_video_issue('{op}','{ws}','{project}','{task}','{user}','fixture.mp4',10);",'Private workspace subscription inactive')
+        reject(c+f"SELECT private_video_issue('{op}','{ws}','{project}','{task}','{user}','fixture.mp4',10);",'Private Studio subscription required' if client else 'Private workspace subscription inactive')
         sql('UPDATE workspaces SET active=true;')
         print('PASS exact production subscription guard rejects service issuance on expired workspace')
     issue=f"SELECT private_video_issue('{op}','{ws}','{project}','{task}','{user}','fixture.mp4',10);"
+    if client:
+        sql("UPDATE workspaces SET subscription_plan='starter';")
+        reject(c+issue,'Private Studio subscription required')
+        sql("UPDATE workspaces SET subscription_plan='studio';UPDATE workspace_members SET role='visualizacao';")
+        reject(c+issue,'Invalid issuance')
+        ctx=json.loads(sql(c+f"SELECT private_video_context('{ws}','{project}','{task}','{user}');").splitlines()[-1]);assert ctx['canEdit'] is False
+        sql("UPDATE workspace_members SET role='edicao';")
+        print('PASS client runtime refuses starter and viewer issuance; context reflects workspace permissions')
     initial=json.loads(sql(c+issue).splitlines()[-1]);vid=initial['id']
     assert initial['object_key']==f'__willflow_v2/{ws}/{op}/input.mp4'
     assert json.loads(sql(c+issue).splitlines()[-1])['id']==vid
@@ -132,6 +144,17 @@ try:
     sql(f"UPDATE workspace_members SET is_active=false;");reject(c+f"SELECT private_video_read('{vid}','{user}');",'Forbidden reader')
     sql("UPDATE workspace_members SET is_active=true;")
     print('PASS expiry, explicit revocation, duplicate link and membership revocation fail closed')
+    if client:
+        outsider='77777777-7777-4777-8777-777777777777'
+        reject(c+f"SELECT private_video_client_list('{ws}','{project}','{task}','{outsider}');",'Forbidden list')
+        rows=json.loads(sql(c+f"SELECT private_video_client_list('{ws}','{project}','{task}','{user}');").splitlines()[-1]);assert rows[0]['id']==vid
+        sql("UPDATE workspace_members SET role='visualizacao';")
+        reject(c+f"SELECT private_video_client_withdraw('{vid}','{user}');",'Forbidden withdrawal')
+        reject(c+f"SELECT private_video_client_feedback(gen_random_uuid(),'{vid}','{user}','approval','',0);",'Forbidden feedback')
+        sql(f"BEGIN;{c}SELECT private_video_client_feedback(gen_random_uuid(),'{vid}','{user}','comment','viewer can comment',0);ROLLBACK;")
+        sql("UPDATE workspace_members SET role='edicao';")
+        sql(f"BEGIN;{c}SELECT private_video_client_withdraw('{vid}','{user}');ROLLBACK;")
+        print('PASS client scoped list, outsider denial, viewer read/comment only and editor reversible withdrawal')
     sql(c+f"SELECT private_video_withdraw('{op}','{user}');")
     reject(c+f"SELECT private_video_read('{vid}','{user}');",'Forbidden reader')
     assert sql('SELECT count(*) FROM willflow_video_private.assets')=='2'
