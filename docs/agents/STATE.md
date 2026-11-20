@@ -4,23 +4,22 @@ Atualizado pelo orquestrador no fim de cada execução. Não guardar aqui segred
 
 ## Estado atual
 
-- Última atualização: 20/11/2026, cerca das 20:00 UTC
-- HEAD do `main`: `7b66a36` (integração do PR #17, orquestrador e agentes)
+- Última atualização: 20/11/2026, cerca das 22:00 UTC
+- HEAD do `main`: `62e8ae4`. Os PRs #18, #19, #20 e #21 estão integrados e publicados.
 - Execuções: 1, conduzida à mão na sessão de preparação. O comando `/orquestrar` ainda não foi executado.
 
 ## PRs abertos, por integrar
 
 | PR | Tarefa | CI | Revisor | Nota |
 | --- | --- | --- | --- | --- |
-| #18 | B2a | verde | PASS | Um teste usa temporizadores reais e pode ser instável |
-| #19 | B2b | verde à segunda | PASS | Reverter exige 2 commits; verificar a rentabilidade por cliente depois de integrar |
-| #20 | F1a | verde | PASS | — |
+| #23 | S4 | verde | PASS com reservas, corrigidas | Segunda versão não voltou ao revisor; por verificar num browser |
+| #24 | S5 | não cobre estas funções | FAIL à primeira, corrigido | Integrar implanta duas funções; testar uma notificação depois |
 
-Nenhum foi verificado na aplicação a correr. Ordem sugerida: #20, #18, #19. Os PRs #18 e #19 tocam ambos em `useProjects.ts`.
+O PR #22 foi fechado sem integrar: a mesma alteração entrou pelo commit 91556ee.
 
 ## Próximas tarefas elegíveis (sem aprovação)
 
-A6, B1, B2c (depois do #19), D4, F1b, F1c, F1e, D2a (depois do #19)
+A6, B1, B2c, D2a, D4, F1b, F1c, F1e, S7, S8, S9
 
 ## Decisões em aberto do proprietário
 
@@ -31,6 +30,10 @@ A6, B1, B2c (depois do #19), D4, F1b, F1c, F1e, D2a (depois do #19)
 - C2: número da versão na substituição de vídeo.
 - F1: Finalizados continua como tabela à parte ou é unificado com o Kanban.
 - Dar acesso aos logs das funções (desbloqueia A1d).
+
+## Coordenação com o agente do Lovable
+
+A 20/11 o agente do Lovable aplicou correções de segurança diretamente no `main` e na base, ao mesmo tempo que os agentes deste backlog, sem PR, CI nem revisão. O resultado ficou coerente, mas houve trabalho duplicado. Regra: antes de usar a correção automática do Lovable, registar aqui o que vai ser corrigido, e não correr as duas vias sobre o mesmo ponto.
 
 ## Limitações conhecidas do ambiente dos agentes
 
@@ -48,3 +51,7 @@ A6, B1, B2c (depois do #19), D4, F1b, F1c, F1e, D2a (depois do #19)
 | 20/11/2026 | 1 | B2a | PR aberto, CI verde, revisor PASS | #18 |
 | 20/11/2026 | 1 | B2b | PR aberto, CI falhou em mocks de teste, corrigido, CI verde, revisor PASS | #19 |
 | 20/11/2026 | 1 | F1a | PR aberto, CI verde, revisor PASS | #20 |
+| 20/11/2026 | 1 | #18, #19, #20, #21 | Integrados pelo proprietário; CI do `main` verde; publicados | — |
+| 20/11/2026 | 1 | S1, S2, S3 | Aplicados em produção (parte pelos agentes, parte pelo Lovable) e confirmados pelo proprietário | — |
+| 20/11/2026 | 1 | S4 | PR aberto, CI verde, corrigido após revisão | #23 |
+| 20/11/2026 | 1 | S5 | PR aberto, corrigido após revisão, função verificada por execução | #24 |
