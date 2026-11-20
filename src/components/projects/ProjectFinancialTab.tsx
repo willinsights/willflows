@@ -71,7 +71,23 @@ const paymentStatusOptions = [
   { value: 'cancelado', label: 'Cancelado', color: 'bg-muted text-muted-foreground border-border' },
 ];
 
-export function ProjectFinancialTab({
+export function ProjectFinancialTab(props: ProjectFinancialTabProps) {
+  const { canViewAllFinancials, canViewOwnFinancials, userId } = useFinancialPermissions();
+  if (!canViewOwnFinancials) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <Lock className="h-12 w-12 text-muted-foreground/50 mb-3" />
+        <p className="text-muted-foreground">
+          Não tem permissão para ver informação financeira.
+        </p>
+      </div>
+    );
+  }
+
+  return <ProjectFinancialContent {...props} canViewAllFinancials={canViewAllFinancials} userId={userId} />;
+}
+
+function ProjectFinancialContent({
   projectId,
   project,
   projectTeam,
@@ -80,9 +96,10 @@ export function ProjectFinancialTab({
   editForm,
   setEditForm,
   onTeamPaymentUpdate,
-}: ProjectFinancialTabProps) {
+  canViewAllFinancials,
+  userId,
+}: ProjectFinancialTabProps & Pick<ReturnType<typeof useFinancialPermissions>, 'canViewAllFinancials' | 'userId'>) {
   const { toast } = useToast();
-  const { canViewAllFinancials, canViewOwnFinancials, userId } = useFinancialPermissions();
   const { hideValues } = useHideValues();
   const [clientPayment, setClientPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(false);
@@ -98,18 +115,6 @@ export function ProjectFinancialTab({
     client_payment_status: project.client_payment_status,
     client_payment_due_date: project.client_payment_due_date,
   } : null);
-
-  // Se não pode ver valores financeiros (visualizador), mostra mensagem
-  if (!canViewOwnFinancials) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <Lock className="h-12 w-12 text-muted-foreground/50 mb-3" />
-        <p className="text-muted-foreground">
-          Não tem permissão para ver informação financeira.
-        </p>
-      </div>
-    );
-  }
 
   // Separate team members by phase
   const captacaoTeam = projectTeam.filter(t => t.phase === 'captacao');

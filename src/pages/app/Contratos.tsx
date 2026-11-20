@@ -28,12 +28,15 @@ import { toast } from 'sonner';
 
 export default function Contratos() {
   const { canViewContracts } = useFinancialPermissions();
-  const { contracts, loading, metrics, sendContract, cancelContract, deleteContract, refresh } = useContracts();
-
-  // Block access for collaborators
   if (!canViewContracts) {
     return <AccessDenied description="Apenas administradores e editores podem aceder aos Contratos." />;
   }
+  return <ContratosContent />;
+}
+
+function ContratosContent() {
+  const { contracts, loading, metrics, sendContract, cancelContract, deleteContract, refresh } = useContracts();
+
   const { templates, loading: loadingTemplates, deleteTemplate, duplicateTemplate } = useContractTemplates();
 
   const [searchQuery, setSearchQuery] = useState('');

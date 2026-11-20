@@ -46,6 +46,13 @@ import { PageHeader } from '@/components/layout/PageHeader';
 
 export default function Leads() {
   const { canViewLeads } = useFinancialPermissions();
+  if (!canViewLeads) {
+    return <AccessDenied description="Apenas administradores, editores e captação podem aceder aos Leads." />;
+  }
+  return <LeadsContent />;
+}
+
+function LeadsContent() {
   const { leads, leadsByStatus, loading, pipelineMetrics, updateLeadStatus, deleteLead, deleteMultipleLeads, importLeads, refresh } = useLeads();
   const { currentWorkspace } = useWorkspace();
   const { formatCurrency } = useFormatCurrency();
@@ -63,11 +70,6 @@ export default function Leads() {
   // Bulk selection state
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
-
-  // Block access for collaborators
-  if (!canViewLeads) {
-    return <AccessDenied description="Apenas administradores, editores e captação podem aceder aos Leads." />;
-  }
 
   // Filter leads for list view
   const filteredLeads = useMemo(() => {
