@@ -4,6 +4,7 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { uploadHandlers, UploadFailure } from './integrated-upload.ts';
 import { VideoContextError } from './video-context.ts';
 import { freezeVideoSource } from './r2-frozen-source.ts';
+import { uploadIssuanceOpen } from './upload-barrier.ts';
 export function serveUpload(action:'issue'|'process'|'abort'|'recover') {
   Deno.serve(async req=>{
     if(req.method==='OPTIONS')return new Response('ok',{headers:corsHeaders});
@@ -12,6 +13,7 @@ export function serveUpload(action:'issue'|'process'|'abort'|'recover') {
     try {
       const env=(name:string)=>{const v=Deno.env.get(name);if(!v)throw new UploadFailure('SERVER_CONFIGURATION',503);return v;};
       const db=createClient(env('SUPABASE_URL'),env('SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});
+      if(action==='issue' && !(await uploadIssuanceOpen(db)))return json({code:'UPLOAD_MAINTENANCE'},503);
       const account=env('CLOUDFLARE_ACCOUNT_ID'),bucket=env('CLOUDFLARE_R2_BUCKET');
       const aws=new AwsClient({accessKeyId:env('CLOUDFLARE_R2_ACCESS_KEY'),secretAccessKey:env('CLOUDFLARE_R2_SECRET_KEY'),region:'auto',service:'s3'});
       const streamToken=env('CLOUDFLARE_STREAM_TOKEN');

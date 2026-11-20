@@ -1,6 +1,8 @@
 # Roadmap — pendências da auditoria
 
 ## PR #2 — activação coordenada autorizada em 19/11/2026
+- [x] 20/11: navegador anónimo com página real e handlers candidatos locais, HLS real dos dois clipes privados; frames, mesmo link, comentário e aprovação persistidos em SQLite fictício; inventário individual 54 HEAD R2 coincidentes e 54 referências Stream existentes.
+- [ ] 20/11: barreira de emissão candidata preparada; aplicar/pausar job6 só após prova operacional de drenagem e reversão. Ferramentas geridas não disponibilizam pausa do job legado; logs cleanup ausentes. Contador não alterado antes da janela estável.
 - [x] Implementar reprodução privada candidata: ingestão/settings signed-only, signer autorizado e página/hook/approval; 72 testes, tipos/build e GET real playlists/segmentos 200 dos dois UIDs sintéticos, 1064 bytes cada; sem deploy/quota. Provas PRIVATE-PLAYBACK-2026-11-19.md.
 - [x] Rever baseline individual actual, dependências e compatibilidade pós-PR11; 47 hashes intactos, 64 testes, 22 grupos PG, 5 Deno checks e overlay/browser aprovados; relatório ACTIVATION-2026-11-19.md.
 - [ ] Aplicar apenas SQL montado pelo assembler: bloqueado por reconciliação individual não comprovada, ausência de barreira/janela e drenagem HTTP/job6; não alterar job12, faturação ou limpeza.
