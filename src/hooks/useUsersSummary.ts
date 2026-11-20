@@ -395,7 +395,7 @@ export function useUsersSummary() {
         });
 
         if (emailError) {
-          logger.warn(`Failed to send beta invite email to ${email}:`, emailError);
+          logger.warn('Failed to send beta invite email:', emailError);
           // Still count as success since invite was created
         }
 

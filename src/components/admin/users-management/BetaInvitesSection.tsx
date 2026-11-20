@@ -255,7 +255,7 @@ export function BetaInvitesSection() {
         await sendBetaInviteEmail(invite.email!, invite.token);
         successCount++;
       } catch (error) {
-        logger.error(`Failed to resend to ${invite.email}:`, error);
+        logger.error('Failed to resend beta invite:', error);
       }
     }
 
@@ -335,7 +335,7 @@ export function BetaInvitesSection() {
         await inviteFromWaitlist(entry, true);
         successCount++;
       } catch (error) {
-        logger.error(`Failed to invite ${entry.email}:`, error);
+        logger.error('Failed to invite waitlist entry:', error);
       }
     }
 

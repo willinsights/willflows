@@ -158,6 +158,21 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Financial exports require the payments.view permission
+    if (report_type === 'financial' || report_type === 'payments') {
+      const { data: canViewPayments, error: permError } = await supabase.rpc('has_workspace_permission', {
+        _user_id: user.id,
+        _workspace_id: workspace_id,
+        _permission_key: 'payments.view',
+      });
+      if (permError || canViewPayments !== true) {
+        return new Response(
+          JSON.stringify({ error: 'Sem permissão para exportar dados financeiros' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Check if user has Pro or Studio plan for exports
     const { data: subscription } = await supabase
       .from('user_subscriptions')
