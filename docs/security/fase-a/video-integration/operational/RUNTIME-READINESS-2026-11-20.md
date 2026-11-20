@@ -1,5 +1,7 @@
 # Runtime coordenado — candidato, sem ativação
 
+> Nota posterior 20/11 13:26 UTC: observação 0010/ownership postgres já aplicados, cinco bridges confirmados por OPTIONS; a informação do gateway solicitada abaixo foi declarada indisponível pelo suporte. Este pedido e a janela que dele dependia ficam substituídos pela alternativa `../coexistence/RESULT.md`, não por um tempo de espera arbitrário. Não pausar clientes para executar o roteiro histórico abaixo.
+
 ## Alterações concretas
 
 O runtime PR2 usa agora o protocolo privado `begin/check/grant/finish` também na emissão, processamento, aborto e recuperação. A pausa recusa apenas novas emissões e limpeza; processamento/aborto/recuperação continuam a drenar. O freeze recusa todas as admissões. Cada escrita RPC, HEAD, reserva de snapshot, cópia R2 e submissão Stream verifica a execução; qualquer falha deixa uma execução incerta permanente, sem reaproveitar leases expiradas. Falha após aceitação pelo fornecedor continua sem reenvio automático; a recuperação procura a identidade persistida.

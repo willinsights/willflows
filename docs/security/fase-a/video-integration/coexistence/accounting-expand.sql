@@ -1,0 +1,158 @@
+BEGIN;
+-- Keep the checked baseline stable until the transaction commits.
+LOCK TABLE public.video_versions, public.workspace_storage IN SHARE ROW EXCLUSIVE MODE NOWAIT;
+-- Separate candidate, requires prior phase-A schema. NOT a production migration.
+-- Never install the new counter ownership model over an unreconciled
+-- legacy drift. An optional, snapshot-checked correction can run under the
+-- same locks in the assembled transaction, immediately before this check.
+DO $integrity$
+BEGIN
+ IF EXISTS (
+   SELECT 1 FROM public.video_versions v
+   WHERE NOT EXISTS (
+     SELECT 1 FROM public.workspace_storage s WHERE s.workspace_id = v.workspace_id
+   )
+ ) THEN RAISE EXCEPTION 'VIDEO_ACCOUNTING_MISSING_WORKSPACE_STORAGE'; END IF;
+ IF EXISTS (
+   SELECT 1 FROM public.workspace_storage s
+   LEFT JOIN (
+      SELECT workspace_id,COALESCE(SUM(
+        CASE WHEN is_deleted IS NOT TRUE THEN
+          COALESCE(file_size_bytes,0)+COALESCE(replacement_file_size_bytes,0)
+          ELSE 0 END
+      ),0) AS computed
+      FROM public.video_versions GROUP BY workspace_id
+   ) v ON v.workspace_id=s.workspace_id
+   WHERE s.storage_used_bytes IS DISTINCT FROM COALESCE(v.computed,0)
+ ) THEN RAISE EXCEPTION 'VIDEO_ACCOUNTING_BASELINE_MISMATCH: reconcile before migration'; END IF;
+END $integrity$;
+-- COEXISTENCE CANDIDATE ONLY: does not fence provider deletion or late asset association.
+-- Stored RPC callers have already persisted the version. The new trigger owns its bytes.
+-- Keep the original function and its ACLs together for pre-use rollback.
+CREATE SCHEMA willflow_video_migration;
+REVOKE ALL ON SCHEMA willflow_video_migration FROM PUBLIC, anon, authenticated, service_role;
+ALTER FUNCTION public.add_workspace_storage(uuid,bigint) SET SCHEMA willflow_video_migration;
+CREATE FUNCTION public.add_workspace_storage(p_workspace_id uuid, p_bytes bigint) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
+BEGIN
+  IF (current_setting('request.jwt.claims',true)::jsonb->>'role'='service_role') IS NOT TRUE THEN
+    RAISE EXCEPTION 'Forbidden';
+  END IF;
+  IF p_bytes IS NULL OR NOT EXISTS (SELECT 1 FROM public.workspace_storage WHERE workspace_id=p_workspace_id) THEN
+    RAISE EXCEPTION 'Invalid legacy accounting request';
+  END IF;
+END $$;
+REVOKE ALL ON FUNCTION public.add_workspace_storage(uuid,bigint) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.add_workspace_storage(uuid,bigint) TO service_role;
+
+CREATE FUNCTION public.lock_video_accounting() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
+BEGIN PERFORM pg_advisory_xact_lock(742019,1); RETURN NULL; END $$;
+REVOKE ALL ON FUNCTION public.lock_video_accounting() FROM PUBLIC,anon,authenticated;
+CREATE TRIGGER video_accounting_serial BEFORE INSERT OR UPDATE OR DELETE ON public.video_versions
+FOR EACH STATEMENT EXECUTE FUNCTION public.lock_video_accounting();
+CREATE TRIGGER storage_accounting_serial BEFORE INSERT OR UPDATE OR DELETE ON public.workspace_storage
+FOR EACH STATEMENT EXECUTE FUNCTION public.lock_video_accounting();
+
+CREATE FUNCTION public.guard_storage_counter() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
+BEGIN
+  IF pg_trigger_depth()=1 AND
+    ((TG_OP='UPDATE' AND NEW.storage_used_bytes IS DISTINCT FROM OLD.storage_used_bytes)
+      OR (TG_OP='INSERT' AND NEW.storage_used_bytes<>0)) THEN
+    -- A stale absolute legacy write must not overwrite authoritative deltas.
+    -- Accept its API call without applying its redundant accounting adjustment.
+    IF TG_OP='UPDATE' THEN NEW.storage_used_bytes:=OLD.storage_used_bytes;
+    ELSE NEW.storage_used_bytes:=0; END IF;
+  END IF;
+  RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION public.guard_storage_counter() FROM PUBLIC,anon,authenticated;
+CREATE TRIGGER guard_storage_counter BEFORE INSERT OR UPDATE ON public.workspace_storage
+FOR EACH ROW EXECUTE FUNCTION public.guard_storage_counter();
+
+CREATE OR REPLACE FUNCTION public.sync_workspace_storage_from_video_versions() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
+DECLARE previous bigint:=0; following bigint:=0; ws uuid; delta bigint;
+BEGIN
+  IF TG_OP<>'INSERT' THEN
+    ws:=OLD.workspace_id;
+    IF OLD.is_deleted IS NOT TRUE THEN previous:=coalesce(OLD.file_size_bytes,0)+coalesce(OLD.replacement_file_size_bytes,0); END IF;
+  END IF;
+  IF TG_OP<>'DELETE' THEN
+    IF NEW.file_size_bytes<0 OR NEW.replacement_file_size_bytes<0 THEN RAISE EXCEPTION 'Invalid size'; END IF;
+    IF TG_OP='UPDATE' AND NEW.workspace_id IS DISTINCT FROM OLD.workspace_id THEN RAISE EXCEPTION 'Workspace immutable'; END IF;
+    ws:=NEW.workspace_id;
+    IF NEW.is_deleted IS NOT TRUE THEN following:=coalesce(NEW.file_size_bytes,0)+coalesce(NEW.replacement_file_size_bytes,0); END IF;
+  END IF;
+  delta:=following-previous;
+  -- Parent workspace DELETE may cascade storage first. Never mask missing quota
+  -- for a live workspace or an ordinary version deletion.
+  IF TG_OP='DELETE' AND NOT EXISTS(SELECT 1 FROM public.workspaces WHERE id=ws) THEN
+    RETURN OLD;
+  END IF;
+  UPDATE public.workspace_storage SET storage_used_bytes=storage_used_bytes+delta,last_calculated_at=now()
+    WHERE workspace_id=ws AND storage_used_bytes+delta>=0
+      AND (delta<=0 OR storage_used_bytes+delta<=storage_limit_bytes);
+  IF NOT FOUND THEN RAISE EXCEPTION 'Quota missing, inconsistent or exhausted'; END IF;
+  RETURN coalesce(NEW,OLD);
+END $$;
+DROP TRIGGER trg_sync_storage_video_versions ON public.video_versions;
+CREATE TRIGGER trg_sync_storage_video_versions AFTER INSERT OR UPDATE OR DELETE ON public.video_versions
+FOR EACH ROW EXECUTE FUNCTION public.sync_workspace_storage_from_video_versions();
+
+
+-- Non-cascading identity evidence: delayed INSERT must not rebind an old key to a new version.
+DO $duplicates$ BEGIN
+ IF EXISTS (SELECT provider,key FROM (
+   SELECT id,'r2' AS provider,r2_key AS key FROM public.video_versions
+   UNION ALL SELECT id,'r2',replacement_r2_key FROM public.video_versions
+   UNION ALL SELECT id,'stream',cloudflare_stream_uid FROM public.video_versions
+   UNION ALL SELECT id,'stream',replacement_stream_uid FROM public.video_versions
+ ) refs WHERE key IS NOT NULL GROUP BY provider,key HAVING count(DISTINCT id)>1)
+ THEN RAISE EXCEPTION 'AMBIGUOUS_LEGACY_ASSET_IDENTITY'; END IF;
+END $duplicates$;
+CREATE TABLE public.video_legacy_asset_identities (
+ provider text NOT NULL CHECK(provider IN ('r2','stream')), asset_key text NOT NULL,
+ workspace_id uuid NOT NULL, version_id uuid NOT NULL,
+ PRIMARY KEY(provider,asset_key)
+);
+GRANT SELECT ON public.video_legacy_asset_identities TO service_role;
+REVOKE ALL ON public.video_legacy_asset_identities FROM PUBLIC,anon,authenticated;
+ALTER TABLE public.video_legacy_asset_identities ENABLE ROW LEVEL SECURITY;
+INSERT INTO public.video_legacy_asset_identities(provider,asset_key,workspace_id,version_id)
+ SELECT DISTINCT provider,key,workspace_id,id FROM (
+   SELECT id,workspace_id,'r2' AS provider,r2_key AS key FROM public.video_versions
+   UNION ALL SELECT id,workspace_id,'r2',replacement_r2_key FROM public.video_versions
+   UNION ALL SELECT id,workspace_id,'stream',cloudflare_stream_uid FROM public.video_versions
+   UNION ALL SELECT id,workspace_id,'stream',replacement_stream_uid FROM public.video_versions
+ ) refs WHERE key IS NOT NULL;
+CREATE FUNCTION public.bind_legacy_video_asset_identity() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
+DECLARE asset record; owner_record public.video_legacy_asset_identities;
+BEGIN
+ FOR asset IN SELECT * FROM (VALUES ('r2',NEW.r2_key),('r2',NEW.replacement_r2_key),
+   ('stream',NEW.cloudflare_stream_uid),('stream',NEW.replacement_stream_uid)) refs(provider,key)
+ LOOP
+   IF asset.key IS NULL THEN CONTINUE; END IF;
+   SELECT * INTO owner_record FROM public.video_legacy_asset_identities
+     WHERE provider=asset.provider AND asset_key=asset.key;
+   IF FOUND THEN
+     IF TG_OP='INSERT' OR owner_record.workspace_id IS DISTINCT FROM NEW.workspace_id
+       OR owner_record.version_id IS DISTINCT FROM NEW.id THEN
+       RAISE EXCEPTION 'LEGACY_ASSET_IDENTITY_REUSE';
+     END IF;
+   ELSE
+     INSERT INTO public.video_legacy_asset_identities(provider,asset_key,workspace_id,version_id)
+       VALUES(asset.provider,asset.key,NEW.workspace_id,NEW.id);
+   END IF;
+ END LOOP;
+ RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION public.bind_legacy_video_asset_identity() FROM PUBLIC,anon,authenticated;
+CREATE TRIGGER legacy_video_asset_identity BEFORE INSERT OR UPDATE OF workspace_id,r2_key,replacement_r2_key,cloudflare_stream_uid,replacement_stream_uid
+ ON public.video_versions FOR EACH ROW EXECUTE FUNCTION public.bind_legacy_video_asset_identity();
+-- A new unknown Stream UID can still be associated by an old writer using the same version ID.
+-- This candidate therefore is NOT a complete generation/CAS fence and must NOT be activated alone.
+
+COMMIT;

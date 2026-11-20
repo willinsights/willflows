@@ -2,6 +2,8 @@
 
 > **Estado: BLOQUEADO PARA PRODUÇÃO.** Este documento é um plano operacional, não uma autorização nem um script de implantação. Nunca colar comandos de pausa/alteração de contas na base real sem validação de pré-condições.
 
+> Atualização 20/11 13:26 UTC: a observação 0010 e os cinco bridges já estão em produção; 0011/autorização Studio foram posteriores. O suporte não fornece metadados globais de drenagem: não os solicitar novamente nem inferir drenagem de silêncio. A sequência alternativa vigente e os contraexemplos de coexistência estão em `coexistence/RESULT.md`; o roteiro de janela abaixo não deve ser executado enquanto a proteção externa não estiver demonstrada.
+
 ## Vídeos de aprovação
 
 Em 19/11/2026, o proprietário confirmou que os originais estão arquivados fora do WillFlow e da Cloudflare. O vídeo carregado serve para aprovação e pode ser reenviado a partir do original. Em caso de perda de uma cópia, a recuperação prevista é a substituição do ficheiro, preservando a identidade da versão, o link de revisão, os comentários e o estado de aprovação. Esta decisão não autoriza apagar conteúdos nem reiniciar quotas.
@@ -40,7 +42,7 @@ Consulta de agregados em produção: 19 workspaces; 1 contador divergente; no wo
 3. **Provider smoke test isolado**: criar um objeto fictício na conta/bucket de teste (não clientes), experimentar `CopyObject` com `x-amz-copy-source-if-match`, `cf-copy-destination-if-none-match: *`, testar 412 por origem alterada e destino existente, e garantir HEAD do snapshot antes de chamar Stream. R2 destination condition está em beta; sem prova de suporte efetivo, STOP.
 4. **Stream**: usar `POST /stream/copy` com `input`, `meta.name=operationId` e procurar `GET /stream?video_name=<ID>`; testar zero, um, dois, resposta incerta e substituição obsoleta. Proibir resend após incerteza.
 5. **Coerência**: validar o conjunto final de scripts SQL, ACL/RLS, fonte de quota, migração de todos os escritores, hook e handlers, teste real com sessão fictícia e preservação de números/comentários no replacement.
-6. **Drenagem**: janela de manutenção anunciada; bloquear novos uploads enquanto antigos terminam, pausar **só o job que interfere no lote** (job 6) mediante plano aprovado e confirmar HTTP em voo pelo operador (não inferir de cron.run_details). Recolher antes/depois a configuração do job e função Edge ativa.
+6. **Convivência/drenagem verificável**: não depender de timestamp global, término por revisão ou limite que o suporte declarou indisponíveis. Exigir isolamento dos novos objetos e do lifecycle face a leitores/deleters antigos, ou fence externo comprovado que cubra pedidos já aceites. Só então considerar pausa funcional do job6 e grants instrumentados, sem mudar a cadência; ver `coexistence/RESULT.md`. Nem cron.run_details, nem ledger vazio, nem logs silenciosos provam a retirada de chamadas não instrumentadas.
 7. **Sequência**: baseline estável verificado → pacote SQL atómico → health checks e grants → deploy individual dos handlers com bridge legada → frontend canário → teste fictício não destrutivo → observação de quota e estado Stream → retomar job 6, conservando o mesmo schedule se continuar suportado.
 8. **Abort/rollback**: antes da primeira operação durável pode executar-se `rollback-all-empty.sql` apenas se a verificação provar ledger e outbox vazios; depois da primeira operação, reverter por recuperação progressiva, guardando claims/IDs, sem voltar a lançar cópias duplicadas. Limpeza, cobranças, notificações e fila push continuam fora deste lote.
 

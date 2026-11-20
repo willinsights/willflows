@@ -1,0 +1,53 @@
+{
+  "functions": [
+    {
+      "function": "r2-upload-url",
+      "http": 200,
+      "headers": {
+        "x-willflow-observation-source": "9f419cb547a61b44ab4b5ea4c959cf62d4d049f80fcb347ccddebca81f1abd7e",
+        "x-willflow-observation-version": "1"
+      },
+      "utc": "2026-11-20T13:26:01.351218+00:00"
+    },
+    {
+      "function": "stream-process-video",
+      "http": 200,
+      "headers": {
+        "x-willflow-observation-source": "adee4ff083af7b1e3167c774eca6a49e826511584c936c60b5b99787eba662df",
+        "x-willflow-observation-version": "1"
+      },
+      "utc": "2026-11-20T13:26:00.995190+00:00"
+    },
+    {
+      "function": "stream-get-status",
+      "http": 200,
+      "headers": {
+        "x-willflow-observation-source": "28c42de3b70e5c100b82a247dc1386d61bf72ee81b7fedfbd71a8a7b225e1e30",
+        "x-willflow-observation-version": "1"
+      },
+      "utc": "2026-11-20T13:26:00.913085+00:00"
+    },
+    {
+      "function": "stream-update-video",
+      "http": 200,
+      "headers": {
+        "x-willflow-observation-source": "b9317791b1e25644e1839dcc6abb30a331eba232448c3a4c425e9f9ac4e99aca",
+        "x-willflow-observation-version": "1"
+      },
+      "utc": "2026-11-20T13:26:00.901192+00:00"
+    },
+    {
+      "function": "cleanup-expired-videos",
+      "http": 200,
+      "headers": {
+        "x-willflow-observation-source": "6f54b028ecfaf2610e1304878bbcfd28cac5e7b6318f385ac2c7c23d16f2455f",
+        "x-willflow-observation-version": "1"
+      },
+      "utc": "2026-11-20T13:26:00.904024+00:00"
+    }
+  ],
+  "public": {
+    "http": 200,
+    "commit": "c3504bc09cdf5c856d74a3e447e3d47b03faa0ce"
+  }
+}
