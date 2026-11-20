@@ -45,9 +45,9 @@ Deno.serve(async (req) => {
     const payload: AutomationPayload = await req.json()
     const { event_type, project_id, workspace_id, to_column_id, from_column_id, triggered_by } = payload
 
-    // Auth: allow internal callers with x-cron-secret, callers authenticated
-    // with the service-role key (function-to-function invokes), or
-    // authenticated workspace members who belong to the given workspace_id.
+    // Auth: internal callers only — x-cron-secret, or the service-role key
+    // (function-to-function invokes). User sessions are never accepted, even
+    // for workspace members: automations run only from the server-side queue.
     const cronSecret = Deno.env.get('CRON_SECRET')
     const automationSecret = Deno.env.get('AUTOMATION_CRON_SECRET')
     const providedSecret = req.headers.get('x-cron-secret')
@@ -72,40 +72,12 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Non-internal callers are refused here, before any database read.
     if (!isInternal) {
-      if (!authHeader?.startsWith('Bearer ')) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
-      }
-      const token = authHeader.replace('Bearer ', '')
-      const { data: userData, error: userErr } = await supabase.auth.getUser(token)
-      if (userErr || !userData?.user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
-      }
-      if (!workspace_id) {
-        return new Response(JSON.stringify({ error: 'workspace_id required' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
-      }
-      const { data: membership } = await supabase
-        .from('workspace_members')
-        .select('id')
-        .eq('user_id', userData.user.id)
-        .eq('workspace_id', workspace_id)
-        .eq('is_active', true)
-        .maybeSingle()
-      if (!membership) {
-        return new Response(JSON.stringify({ error: 'Forbidden' }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
-      }
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     if (!event_type || !project_id || !workspace_id) {
@@ -115,7 +87,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Entitlements are server-owned workspace data, for users AND queue callers.
+    // Entitlements are server-owned workspace data and apply to queue callers too.
     // Completing a now-ineligible queued job without effects prevents retry storms.
     const { data: entitlement, error: entitlementError } = await supabase
       .from('workspaces')
