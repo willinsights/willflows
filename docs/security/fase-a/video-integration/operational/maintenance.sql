@@ -90,8 +90,8 @@ CREATE FUNCTION willflow_video_control.pause(p_instrumented timestamptz,p_legacy
 LANGUAGE plpgsql SECURITY INVOKER SET search_path=public AS $$
 BEGIN
  IF current_user<>'postgres' THEN RAISE EXCEPTION 'Owner required'; END IF;
- IF p_instrumented IS NULL OR p_instrumented>clock_timestamp() OR p_legacy_seconds NOT BETWEEN 3600 AND 7200
- OR p_minutes NOT BETWEEN 1 AND 180 THEN RAISE EXCEPTION 'Invalid window'; END IF;
+ IF p_instrumented IS NULL OR p_instrumented>clock_timestamp() OR p_legacy_seconds IS NULL OR p_legacy_seconds NOT BETWEEN 3600 AND 7200
+ OR p_minutes IS NULL OR p_minutes NOT BETWEEN 1 AND 180 THEN RAISE EXCEPTION 'Invalid window'; END IF;
  PERFORM pg_advisory_xact_lock(742019,1);
  INSERT INTO willflow_video_control.state(singleton,instrumented_at,legacy_not_before,pause_until)
  VALUES(true,p_instrumented,p_instrumented+make_interval(secs=>p_legacy_seconds),clock_timestamp()+make_interval(mins=>p_minutes))
@@ -114,6 +114,7 @@ CREATE FUNCTION willflow_video_control.resume() RETURNS void
 LANGUAGE plpgsql SECURITY INVOKER SET search_path=public AS $$
 BEGIN
  IF current_user<>'postgres' THEN RAISE EXCEPTION 'Owner required'; END IF;
+ PERFORM pg_advisory_xact_lock(742019,1);
  UPDATE willflow_video_control.state SET pause_until=NULL,frozen=false WHERE singleton;
 END $$;
 REVOKE ALL ON FUNCTION willflow_video_control.pause(timestamptz,integer,integer),willflow_video_control.freeze(),willflow_video_control.resume() FROM PUBLIC,anon,authenticated,service_role;

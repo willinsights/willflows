@@ -21,6 +21,9 @@ try:
  assert sql(c+f"SELECT begin_video_execution('{a}','issue');").splitlines()[-1]=='t'
  assert sql(c+f"SELECT begin_video_execution('{a}','issue');").splitlines()[-1]=='f'
  print('PASS observe mode admits once without blocking clients')
+ fail('SELECT willflow_video_control.pause(clock_timestamp(),NULL,120);')
+ fail('SELECT willflow_video_control.pause(clock_timestamp(),3600,NULL);')
+ print('PASS null window/TTL cannot disable bounded recovery')
  sql(c+f"SELECT record_video_grant('{a}',clock_timestamp()+interval '1 hour');SELECT finish_video_execution('{a}',true);")
  assert sql(c+"SELECT (video_control_status()->>'outstanding_grants')::int;").splitlines()[-1]=='1'
  print('PASS persisted grants survive request completion')
@@ -45,6 +48,15 @@ try:
  print('PASS coordinated mode never auto-enables incompatible destructive cleanup')
  assert sql("SELECT has_function_privilege('authenticated','video_control_status()','EXECUTE'),has_schema_privilege('service_role','willflow_video_control','USAGE');")=='f|f'
  print('PASS private state and control ACL closed')
+ from concurrent.futures import ThreadPoolExecutor
+ sql("UPDATE willflow_video_control.state SET coordinated=false,frozen=false,pause_until=NULL;")
+ race_id='33333333-3333-4333-8333-333333333333'
+ with ThreadPoolExecutor(max_workers=8) as pool:
+  results=list(pool.map(lambda _:sql(c+f"SELECT begin_video_execution('{race_id}','process');").splitlines()[-1],range(8)))
+ assert results.count('t')==1 and results.count('f')==7
+ sql(f"UPDATE willflow_video_control.executions SET lease_until=clock_timestamp()-interval '1 second' WHERE id='{race_id}';")
+ assert sql(c+f"SELECT finish_video_execution('{race_id}',true);").splitlines()[-1]=='f'
+ print('PASS concurrent duplicate admission once and expired lease cannot certify completion')
 finally:
  if started:cmd(['/bin/pg_ctl','-D',str(root/'data'),'-m','immediate','stop'],stdout=subprocess.DEVNULL)
  shutil.rmtree(root)

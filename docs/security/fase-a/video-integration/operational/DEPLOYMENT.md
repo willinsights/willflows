@@ -33,7 +33,7 @@ The operator/platform step is to establish the last old revision admission time,
 ## Executed tests, no visual/inventory repeat
 
 - 4 targeted Deno execution-control tests PASS: paused cleanup zero effects, uncertain failure retained, swallowed provider uncertainty retained, grant/check before delivery.
-- 8 private Unix-socket PostgreSQL groups PASS: observe mode/replay, persistent outstanding grants, pause/drain admission, uncertainty, old writer fences, automatic pre-cutover resume, coordinated cleanup protection, ACL.
+- 10 private Unix-socket PostgreSQL groups PASS: observe mode/replay, required non-null TTL/window, persistent outstanding grants, pause/drain admission, uncertainty, old writer fences, automatic pre-cutover resume, coordinated cleanup protection, ACL, eight concurrent attempts with exactly one admission and expired-lease completion rejection.
 - Copied **actual cleanup entrypoint**, mocked authenticated runtime and private RPC returning paused: HTTP 200, paused=true, zero business queries/effects. No live cleanup called.
 - Deno checks PASS for all five copied instrumented handlers. Existing visual/media/inventory green tests were not repeated.
 
