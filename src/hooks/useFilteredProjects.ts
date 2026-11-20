@@ -27,6 +27,7 @@ export function useFilteredProjects() {
   const [allProjects, setAllProjects] = useState<ProjectWithClient[]>([]);
   const [userProjectIds, setUserProjectIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   
   const isFetchingRef = useRef(false);
   const lastFetchedKeyRef = useRef<string | null>(null);
@@ -38,6 +39,7 @@ export function useFilteredProjects() {
     try {
       isFetchingRef.current = true;
       setLoading(true);
+      setError(false);
       
       // Fetch all projects (paginated — never silently cut at 1000 rows)
       const projectsData = await fetchAllRows(() =>
@@ -63,6 +65,7 @@ export function useFilteredProjects() {
       lastFetchedKeyRef.current = currentWorkspace.id;
     } catch (error) {
       logger.error('Error fetching filtered projects:', error);
+      setError(true);
     } finally {
       isFetchingRef.current = false;
       setLoading(false);
@@ -97,6 +100,7 @@ export function useFilteredProjects() {
     projects,
     allProjects, // For cases where we need all projects regardless of permissions
     loading,
+    error, // true quando a última leitura falhou (o detalhe fica apenas no log)
     userProjectIds, // For filtering in other components
     refresh: fetchData,
   };
