@@ -17,6 +17,22 @@ Origem: auditoria de 20/11/2026. Os detalhes sensíveis de segurança são manti
 | A5 | Explicar por versão a diferença entre 54 versões ativas (inventário de 20/11) e 50 (consulta de 20/11) | pronta (explicada em agregado, falta por versão; ver relatório) | auditor | — | Explicação documentada por versão, sem alterar nem apagar nada |
 | A6 | Existem dois diretórios de migrações (`supabase/migrations` e `drizzle/migrations`) com definições diferentes do mesmo trigger: apurar qual vale em produção | pronta | auditor | — | Relatório com a origem de cada objeto aplicado e a recomendação de fonte única |
 
+## S. Segurança (verificação de 20/11)
+
+Achados da verificação de segurança do Lovable de 20/11. Descrições genéricas de propósito: o detalhe técnico fica fora do repositório público.
+
+| ID | Tarefa | Estado | Agente | Depende de | Critério de aceitação |
+| --- | --- | --- | --- | --- | --- |
+| S1 | Isolamento entre workspaces em funções de resumo e métricas | concluida (aplicado em produção a 20/11; commit 91556ee e alteração direta na base) | — | — | Pedidos de outro workspace recusados; confirmado pelo proprietário |
+| S2 | Papéis no chat: sem auto-promoção | concluida (aplicado em produção a 20/11) | — | — | Entrada em canal só como membro; criador mantém-se admin |
+| S3 | Executor de automações aceita apenas chamadas internas | concluida (commit 91556ee) | — | — | Chamadas diretas recusadas; automações por fila inalteradas |
+| S4 | Anexos do chat com link de curta duração: pedir link novo no uso | em_pr (#23; CI verde; revisor PASS com reservas, corrigidas) | programador | — | Anexos abrem numa conversa aberta há mais de 10 minutos |
+| S5 | Notificações push: mesma verificação do destino nas duas funções de envio | em_pr (#24; revisor FAIL corrigido; função verificada por execução) | programador | — | Só serviços de push de browsers conhecidos; subscrições legítimas inalteradas |
+| S6 | Endurecimento adicional do chat e da gravação de subscrições push | precisa_aprovacao (SQL) | programador | proprietario | Ensaio com dados fictícios; fluxos de chat e push inalterados |
+| S7 | Rever os avisos restantes da verificação depois de a repetir | pronta | auditor | proprietario: repetir a verificação | Cada aviso confirmado ou descartado com evidência |
+| S8 | Revisão independente dos commits de segurança feitos diretamente no `main` a 20/11 (91556ee revisto; dfc09cc e 62e8ae4 por rever) | pronta | auditor | — | Relatório por commit: regressões e correções incompletas |
+| S9 | Incluir nas migrações as alterações aplicadas diretamente na base a 20/11 | pronta | programador | A2, A6 | Sem diferença entre a base e o repositório para estes objetos |
+
 ## B. Estabilidade
 
 | ID | Tarefa | Estado | Agente | Depende de | Critério de aceitação |
