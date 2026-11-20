@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, type MouseEvent } from 'react';
 import { FileIcon, FileText, FileImage, FileVideo, FileAudio, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
@@ -89,6 +89,8 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
   const [activeVideo, setActiveVideo] = useState<{ src: string; attachment: MessageAttachment } | null>(null);
   const [signedUrls, setSignedUrls] = useState<Record<string, SignedUrl>>({});
   const [isLoading, setIsLoading] = useState(true);
+  // Link renewals in flight, by attachment id.
+  const pendingRenewals = useRef(new Map<string, Promise<SignedUrl | null>>());
 
   // Fetch signed URLs for all attachments
   useEffect(() => {
@@ -150,18 +152,72 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
     setActiveVideo({ src: signed.url, attachment });
   };
 
-  const handleOpenFile = async (attachment: MessageAttachment) => {
-    // Open the tab during the click (otherwise popup blockers stop it) and point
-    // it at the link once it has been signed.
-    const tab = window.open('', '_blank');
-    const signed = await getSignedUrl(attachment.file_path, { fresh: true });
-    if (!tab || !signed) {
-      tab?.close();
+  // File links open through the native <a target="_blank">, so the href itself has
+  // to stay valid. Asks for a new link and stores it in state; at most one request
+  // per attachment at a time (callers share the pending one). Never throws.
+  const renewLink = (attachment: MessageAttachment): Promise<SignedUrl | null> => {
+    const pending = pendingRenewals.current.get(attachment.id);
+    if (pending) return pending;
+
+    const request = (async () => {
+      try {
+        const renewed = await getSignedUrl(attachment.file_path);
+        if (renewed) {
+          setSignedUrls((prev) => ({ ...prev, [attachment.id]: renewed }));
+        }
+        return renewed;
+      } catch (error) {
+        logger.error('Failed to renew signed URL:', error);
+        return null;
+      } finally {
+        pendingRenewals.current.delete(attachment.id);
+      }
+    })();
+    pendingRenewals.current.set(attachment.id, request);
+    return request;
+  };
+
+  // Pointer, focus or touch on the link: renew ahead of the click once less than
+  // half of the link's life is left, so middle click, "open in new tab" and
+  // "copy link" also get a link that works.
+  const keepLinkFresh = (attachment: MessageAttachment) => {
+    const current = signedUrls[attachment.id];
+    if (!current || current.expiresAt - Date.now() >= CACHE_MIN_REMAINING_MS) return;
+    void renewLink(attachment);
+  };
+
+  const handleFileLinkClick = async (
+    event: MouseEvent<HTMLAnchorElement>,
+    attachment: MessageAttachment
+  ) => {
+    const current = signedUrls[attachment.id];
+    // Link still valid: leave the click to the browser.
+    if (current && Date.now() < current.expiresAt - EXPIRY_MARGIN_MS) return;
+
+    // Expired right now: the native navigation would fail, so take over.
+    event.preventDefault();
+    const renewed = await renewLink(attachment);
+    if (!renewed) {
       toast.error('Erro ao abrir ficheiro');
       return;
     }
-    tab.opener = null;
-    tab.location.href = signed.url;
+
+    // The tab is only opened once the link exists, so no blank tab is left behind.
+    // `noopener` cannot go in the features: window.open would then always return
+    // null and a blocked popup could not be told apart from an opened one.
+    let tab: Window | null = null;
+    try {
+      tab = window.open(renewed.url, '_blank');
+      if (tab) tab.opener = null;
+    } catch (error) {
+      logger.error('Failed to open attachment:', error);
+      tab = null;
+    }
+    if (!tab) {
+      // Popup blocked (blocker, installed PWA, webview): the href is already
+      // renewed, so a second click opens it natively.
+      toast.info('Ligação atualizada. Clique novamente para abrir.');
+    }
   };
 
   const handleDownload = async (attachment: MessageAttachment) => {
@@ -316,10 +372,10 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
                       href={url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleOpenFile(attachment);
-                      }}
+                      onPointerEnter={() => keepLinkFresh(attachment)}
+                      onFocus={() => keepLinkFresh(attachment)}
+                      onTouchStart={() => keepLinkFresh(attachment)}
+                      onClick={(e) => handleFileLinkClick(e, attachment)}
                       className="text-sm font-medium truncate group-hover:text-primary transition-colors block"
                     >
                       {attachment.file_name}
