@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -24,9 +24,32 @@ type InvitationData = {
 
 type ViewState = 'loading' | 'invalid' | 'expired' | 'already_member' | 'needs_auth' | 'ready' | 'accepting' | 'success';
 
+// Same keys as WorkspaceContext (SWITCH_HANDOFF_KEY / CACHE_KEY, not exported there).
+// The handoff value is the plain workspace id; it is read once, with top priority,
+// when the workspace list is loaded after the full reload.
+const WORKSPACE_SWITCH_HANDOFF_KEY = 'willflow_workspace_switch_to';
+const WORKSPACE_CACHE_KEY = 'willflow_workspace_cache';
+const REDIRECT_DELAY_MS = 2000;
+
+// Make the next full load of the app open this workspace: leave the handoff and
+// drop the cached workspace list, which predates the membership and would
+// otherwise be reused without asking the server.
+function prepareWorkspaceEntry(workspaceId: string | null | undefined) {
+  if (!workspaceId) return;
+  try {
+    sessionStorage.setItem(WORKSPACE_SWITCH_HANDOFF_KEY, workspaceId);
+  } catch {
+    // Storage unavailable: the reload still loads the new membership
+  }
+  try {
+    localStorage.removeItem(WORKSPACE_CACHE_KEY);
+  } catch {
+    // Ignore
+  }
+}
+
 export default function AcceptInvite() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   
@@ -44,6 +67,28 @@ export default function AcceptInvite() {
 
   const token = searchParams.get('token');
   const userId = user?.id ?? null;
+
+  // Workspace joined by the acceptance, and the pending automatic redirect
+  const joinedWorkspaceIdRef = useRef<string | null>(null);
+  const redirectTimerRef = useRef<number | null>(null);
+
+  const clearRedirectTimer = () => {
+    if (redirectTimerRef.current !== null) {
+      window.clearTimeout(redirectTimerRef.current);
+      redirectTimerRef.current = null;
+    }
+  };
+
+  // Never leave the redirect pending after the page is gone
+  useEffect(() => clearRedirectTimer, []);
+
+  // Enter the app with a full reload, so the workspace list is loaded from
+  // scratch (a SPA navigation would reuse the list loaded before the acceptance)
+  const enterApp = (workspaceId: string | null | undefined) => {
+    clearRedirectTimer();
+    prepareWorkspaceEntry(workspaceId);
+    window.location.assign('/app');
+  };
 
   // Fetch invitation data. Runs again whenever the identity changes (login,
   // signup with session, logout, account switch): get_invitation_by_token only
@@ -196,6 +241,13 @@ export default function AcceptInvite() {
         throw new Error(result.error || 'Failed to accept invitation');
       }
 
+      const joinedWorkspaceId =
+        typeof result.workspace_id === 'string' && result.workspace_id
+          ? result.workspace_id
+          : invitation.workspace_id;
+      joinedWorkspaceIdRef.current = joinedWorkspaceId;
+      prepareWorkspaceEntry(joinedWorkspaceId);
+
       setViewState('success');
 
       toast({
@@ -204,9 +256,10 @@ export default function AcceptInvite() {
       });
 
       // Redirect after 2 seconds
-      setTimeout(() => {
-        navigate('/app');
-      }, 2000);
+      clearRedirectTimer();
+      redirectTimerRef.current = window.setTimeout(() => {
+        window.location.assign('/app');
+      }, REDIRECT_DELAY_MS);
     } catch (error: any) {
       logger.error('Error accepting invite:', error);
       toast({
@@ -365,8 +418,8 @@ export default function AcceptInvite() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex justify-center">
-                <Button asChild>
-                  <Link to="/app">Ir para o Dashboard</Link>
+                <Button onClick={() => enterApp(invitation.workspace_id)}>
+                  Ir para o Dashboard
                 </Button>
               </CardContent>
             </>
@@ -515,11 +568,9 @@ export default function AcceptInvite() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex justify-center">
-                <Button asChild>
-                  <Link to="/app">
-                    Ir para o Dashboard
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Link>
+                <Button onClick={() => enterApp(joinedWorkspaceIdRef.current ?? invitation.workspace_id)}>
+                  Ir para o Dashboard
+                  <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
               </CardContent>
             </>
