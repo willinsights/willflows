@@ -380,7 +380,7 @@ function ClosingsList({
                         : 'bg-warning/10 text-warning border-warning/30',
                     )}
                   >
-                    {reconciled ? 'Morais pago · saldo pendente' : received ? 'Recebido' : 'Por receber'}
+                    {reconciled ? 'Reconciliação pessoal' : received ? 'Recebido' : 'Por receber'}
                   </Badge>
                 </div>
 
@@ -556,6 +556,8 @@ function ClosingDetail({
 
   // ---- Build unified flat list: one row per project ----
   const buildFlatExport = () => {
+    const title = `Fecho — ${closing.label || 'Sem nome'}`;
+    const filename = `fecho-${(closing.label || 'sem-nome').replace(/[^a-zA-Z0-9-_]/g, '_')}-${format(new Date(), 'yyyy-MM-dd')}`;
     if (reconciliation) {
       const headers = ['Código', 'Projeto', 'Data Entrega', 'Cliente', 'Receita', 'Edição', 'Captação', 'Lucro', 'Meu total', 'Minha parte pendente'];
       const rows: (string | number)[][] = reconciliation.projects.map((p) => [
@@ -565,7 +567,7 @@ function ClosingDetail({
       ]);
       const t = getReconciliationTotals(reconciliation);
       rows.push(['TOTAL', '', '', '', t.revenue, t.editing, t.capture, t.profit, t.revenue - t.editing, t.pending]);
-      return { headers, rows, title: `Fecho — ${closing.label}`, filename: 'fecho-Morais-Setembro-2026-reconciliado' };
+      return { headers, rows, title, filename: `${filename}-reconciliado` };
     }
     // Colunas: custo do card (cost_amount ?? payment_amount, via projects.custo_*).
     // Meu total = Receita − Edição; Lucro = Receita − (Edição + Captação + Extras + custos detalhados).
@@ -637,9 +639,6 @@ function ClosingDetail({
       formatCurrencyRaw(tot.mine),
     ]);
 
-    const title = `Fecho — ${closing.label || 'Sem nome'}`;
-    const filename = `fecho-${(closing.label || 'sem-nome').replace(/[^a-zA-Z0-9-_]/g, '_')}-${format(new Date(), 'yyyy-MM-dd')}`;
-
     return { headers, rows, title, filename };
   };
 
@@ -648,7 +647,7 @@ function ClosingDetail({
     const { headers, rows, title, filename } = buildFlatExport();
     await exportToExcel({
       title,
-      subtitle: reconciled ? `WillFlow · Morais pago: €1.445 · Sua parte recebida nos 17 hotéis: ${formatCurrencyRaw(reconciled.received)} · Sua parte pendente: ${formatCurrencyRaw(reconciled.pending)}` : 'WillFlow',
+      subtitle: reconciled ? `WillFlow · Sua parte recebida: ${formatCurrencyRaw(reconciled.received)} · Sua parte pendente: ${formatCurrencyRaw(reconciled.pending)}` : 'WillFlow',
       clientName,
       periodLabel: format(new Date(closing.created_at), "d 'de' MMMM 'de' yyyy", { locale: pt }),
       headers,
@@ -668,7 +667,7 @@ function ClosingDetail({
       { label: 'Custos', value: formatCurrencyRaw(totalCosts), className: 'destructive' as const },
       { label: 'Lucro', value: formatCurrencyRaw(profit), className: profit >= 0 ? 'success' as const : 'destructive' as const },
       ...(reconciled ? [
-        { label: 'Sua parte recebida · 17 hotéis', value: formatCurrencyRaw(reconciled.received), className: 'success' as const },
+        { label: 'Sua parte recebida', value: formatCurrencyRaw(reconciled.received), className: 'success' as const },
         { label: 'Sua parte pendente', value: formatCurrencyRaw(reconciled.pending), className: 'destructive' as const },
       ] : []),
     ];
@@ -751,7 +750,7 @@ function ClosingDetail({
         </CardContent></Card>
         {mode === 'studio' && (
           <Card><CardContent className="p-4">
-            <div className="flex items-center justify-between"><span className="text-xs text-muted-foreground uppercase">{reconciled ? 'Lucro dos 22 cards' : 'O meu lucro'}</span><Wallet className="h-4 w-4" /></div>
+            <div className="flex items-center justify-between"><span className="text-xs text-muted-foreground uppercase">{reconciled ? 'Lucro dos projetos' : 'O meu lucro'}</span><Wallet className="h-4 w-4" /></div>
             <div className={cn('text-2xl font-bold', profit >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(profit)}</div>
             {!reconciled && <Badge variant="outline" className="mt-1 text-[10px]">{closing.status === 'received' ? 'Recebido' : 'Por receber'}</Badge>}
           </CardContent></Card>
@@ -762,18 +761,18 @@ function ClosingDetail({
         <section className="space-y-4 border-y py-4">
           <h3 className="font-semibold">Reconciliação da sua parte</h3>
           <dl className="grid gap-4 sm:grid-cols-3">
-            <div><dt className="text-sm text-muted-foreground">Morais · pago em 30/09/2026</dt><dd className="text-xl font-bold">{formatCurrency(teamItems.reduce((sum, i) => sum + Number(i.amount_snapshot), 0))}</dd></div>
-            <div><dt className="text-sm text-muted-foreground">Sua parte recebida · 17 hotéis de Marrocos</dt><dd className="text-xl font-bold text-success">{formatCurrency(reconciled.received)}</dd><p className="text-xs text-muted-foreground">Gravação €4.250 + gestão/edição €1.472 · data não informada</p></div>
-            <div><dt className="text-sm text-muted-foreground">Sua parte ainda a receber · planilha de setembro</dt><dd className="text-xl font-bold text-warning">{formatCurrency(reconciled.pending)}</dd><p className="text-xs text-muted-foreground">Anzarya €240 + Modena €72</p></div>
+            <div><dt className="text-sm text-muted-foreground">Custos de equipa no fecho</dt><dd className="text-xl font-bold">{formatCurrency(teamItems.reduce((sum, i) => sum + Number(i.amount_snapshot), 0))}</dd></div>
+            <div><dt className="text-sm text-muted-foreground">Sua parte recebida</dt><dd className="text-xl font-bold text-success">{formatCurrency(reconciled.received)}</dd></div>
+            <div><dt className="text-sm text-muted-foreground">Sua parte ainda a receber</dt><dd className="text-xl font-bold text-warning">{formatCurrency(reconciled.pending)}</dd></div>
           </dl>
-          <p className="text-sm text-muted-foreground">Os €5.722 abrangem 17 hotéis, não apenas os cards deste fecho. O lucro dos cards é separado do saldo a receber. O recebimento integral dos clientes não foi confirmado.</p>
+          <p className="text-sm text-muted-foreground">A reconciliação pessoal pode incluir recebimentos de outros projetos. O lucro do fecho e o saldo pessoal são apresentados separadamente.</p>
           <div className="overflow-x-auto border rounded-lg">
             <table className="w-full text-sm tabular-nums">
               <thead className="bg-muted/40"><tr><th className="p-2 text-left">Card</th><th className="p-2 text-right">Receita</th><th className="p-2 text-right">Lucro</th><th className="p-2 text-right">Sua parte pendente</th></tr></thead>
               <tbody>{reconciliation.projects.map((p) => <tr key={p.project_id} className="border-t"><td className="p-2"><div>{p.name}</div><div className="text-xs text-muted-foreground">{p.code}</div></td><td className="p-2 text-right">{formatCurrency(p.revenue)}</td><td className="p-2 text-right">{formatCurrency(p.revenue - p.editing - p.capture - p.extras - p.detailed)}</td><td className="p-2 text-right">{formatCurrency(p.personal_pending)}</td></tr>)}</tbody>
             </table>
           </div>
-          <details><summary className="cursor-pointer text-sm font-medium">Recebimentos dos 17 hotéis</summary><div className="mt-2 overflow-x-auto"><table className="w-full text-sm tabular-nums"><thead><tr><th className="p-2 text-left">Hotel</th><th className="p-2 text-right">Gravação recebida</th><th className="p-2 text-right">Gestão/edição recebida</th></tr></thead><tbody>{reconciliation.personal_receipts.map((r) => <tr key={r.project_id} className="border-t"><td className="p-2">{r.name}</td><td className="p-2 text-right">{formatCurrency(r.capture)}</td><td className="p-2 text-right">{formatCurrency(r.management)}</td></tr>)}</tbody></table></div></details>
+          <details><summary className="cursor-pointer text-sm font-medium">Detalhe dos recebimentos</summary><div className="mt-2 overflow-x-auto"><table className="w-full text-sm tabular-nums"><thead><tr><th className="p-2 text-left">Projeto</th><th className="p-2 text-right">Gravação recebida</th><th className="p-2 text-right">Gestão/edição recebida</th></tr></thead><tbody>{reconciliation.personal_receipts.map((r) => <tr key={r.project_id} className="border-t"><td className="p-2">{r.name}</td><td className="p-2 text-right">{formatCurrency(r.capture)}</td><td className="p-2 text-right">{formatCurrency(r.management)}</td></tr>)}</tbody></table></div></details>
         </section>
       )}
 
