@@ -1,0 +1,26 @@
+import { lazy, Suspense } from 'react';
+import { useParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
+import { FullPageLoader } from '@/components/layout/FullPageLoader';
+import { supabase } from '@/integrations/supabase/client';
+import { videoApprovalReader } from '@/lib/video-approval-routing';
+
+const LegacyApproval = lazy(() => import('./VideoApproval'));
+const PrivateApproval = lazy(() => import('@/components/video-production/PrivateVideoApproval').then(m => ({ default: m.PrivateVideoApproval })));
+async function privateRequest(body: Record<string, unknown>) {
+  const { data, error } = await supabase.functions.invoke('private-video', { body });
+  const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+  if (error || !parsed || typeof parsed !== 'object' || parsed.code) throw new Error('PRIVATE_VIDEO_UNAVAILABLE');
+  return parsed;
+}
+export default function VideoApprovalRouter() {
+  const { token } = useParams<{ token: string }>();
+  const reader = videoApprovalReader(token);
+  if (reader === 'invalid' || !token) return <main className="min-h-screen bg-background p-6 text-foreground"><p role="alert">Este link não está disponível.</p></main>;
+  return <>
+    <Helmet><meta name="robots" content="noindex, nofollow"/><meta name="referrer" content="no-referrer"/></Helmet>
+    <Suspense fallback={<FullPageLoader />}>
+      {reader === 'legacy' ? <LegacyApproval /> : <PrivateApproval key={token} token={token} request={privateRequest} />}
+    </Suspense>
+  </>;
+}

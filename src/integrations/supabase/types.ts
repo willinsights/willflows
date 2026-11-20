@@ -4471,6 +4471,45 @@ export type Database = {
           },
         ]
       }
+      video_counter_reconciliations: {
+        Row: {
+          active_versions: number
+          corrected_bytes: number
+          physical_evidence_summary: Json
+          previous_bytes: number
+          previous_functions: Json
+          previous_trigger: string
+          recorded_at: string
+          recorded_by: unknown
+          snapshot_hash: string
+          workspace_id: string
+        }
+        Insert: {
+          active_versions: number
+          corrected_bytes: number
+          physical_evidence_summary: Json
+          previous_bytes: number
+          previous_functions: Json
+          previous_trigger: string
+          recorded_at?: string
+          recorded_by?: unknown
+          snapshot_hash: string
+          workspace_id: string
+        }
+        Update: {
+          active_versions?: number
+          corrected_bytes?: number
+          physical_evidence_summary?: Json
+          previous_bytes?: number
+          previous_functions?: Json
+          previous_trigger?: string
+          recorded_at?: string
+          recorded_by?: unknown
+          snapshot_hash?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       video_retention_queue: {
         Row: {
           created_at: string
@@ -5901,6 +5940,90 @@ export type Database = {
         Returns: Json
       }
       mask_email: { Args: { _email: string }; Returns: string }
+      private_video_claim: {
+        Args: { p_operation: string; p_user: string }
+        Returns: string
+      }
+      private_video_feedback: {
+        Args: {
+          p_body: string
+          p_digest: string
+          p_name: string
+          p_request: string
+          p_timestamp?: number
+          p_type: string
+          p_version: string
+        }
+        Returns: boolean
+      }
+      private_video_finish: {
+        Args: { p_claim: string; p_operation: string; p_uid: string }
+        Returns: boolean
+      }
+      private_video_hold: {
+        Args: { p_claim: string; p_key: string; p_operation: string }
+        Returns: boolean
+      }
+      private_video_issue: {
+        Args: {
+          p_bytes: number
+          p_name: string
+          p_operation: string
+          p_project: string
+          p_task: string
+          p_user: string
+          p_ws: string
+        }
+        Returns: Json
+      }
+      private_video_link: {
+        Args: {
+          p_digest: string
+          p_expires: string
+          p_project: string
+          p_task: string
+          p_user: string
+          p_ws: string
+        }
+        Returns: boolean
+      }
+      private_video_list: {
+        Args: { p_digest?: string; p_user?: string; p_ws?: string }
+        Returns: Json
+      }
+      private_video_operation: {
+        Args: { p_operation: string; p_user: string }
+        Returns: Json
+      }
+      private_video_persist: {
+        Args: { p_operation: string; p_user: string }
+        Returns: Json
+      }
+      private_video_read: {
+        Args: { p_digest?: string; p_user?: string; p_version: string }
+        Returns: Json
+      }
+      private_video_recover: {
+        Args: {
+          p_claim: string
+          p_operation: string
+          p_uid: string
+          p_user: string
+        }
+        Returns: boolean
+      }
+      private_video_revoke: {
+        Args: { p_digest: string; p_user: string }
+        Returns: boolean
+      }
+      private_video_usage: {
+        Args: { p_user: string; p_ws: string }
+        Returns: Json
+      }
+      private_video_withdraw: {
+        Args: { p_abort?: boolean; p_operation: string; p_user: string }
+        Returns: boolean
+      }
       record_promo_redemption: {
         Args: { _promo_code_id: string; _workspace_id?: string }
         Returns: boolean

@@ -85,6 +85,27 @@
       "when": 1795180754376,
       "tag": "0011_require_verified_invitation_email",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795182896700,
+      "tag": "0012_video_verified_accounting_reconciliation",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795183042052,
+      "tag": "0013_private_video_registry_disabled_expand",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795183095769,
+      "tag": "0014_private_video_subscription_guard",
+      "breakpoints": true
     }
   ]
 }

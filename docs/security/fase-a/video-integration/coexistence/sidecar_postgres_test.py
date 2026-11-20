@@ -1,7 +1,7 @@
 """Real service RPC pilot on disposable Unix socket; fictitious identities only."""
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
-import os, subprocess, tempfile, shutil, json
+import os, subprocess, tempfile, shutil, json, sys
 here=Path(__file__).resolve().parent
 pg=next(iter(Path('/nix/store').glob('*-postgresql-17.*/bin')),None)
 if pg is None:
@@ -28,7 +28,8 @@ try:
     run([pg/'initdb','-D',tmp/'data','-A','trust','-U','fixture','--no-locale'],stdout=subprocess.DEVNULL)
     run([pg/'pg_ctl','-D',tmp/'data','-l',tmp/'log','-o',f"-k {tmp} -p 55462 -c listen_addresses=''",'-w','start'],stdout=subprocess.DEVNULL);started=True
     sql('''CREATE ROLE anon;CREATE ROLE authenticated;CREATE ROLE service_role BYPASSRLS;
-    CREATE TABLE workspaces(id uuid PRIMARY KEY);
+    CREATE TABLE workspaces(id uuid PRIMARY KEY,active boolean DEFAULT true);
+    CREATE FUNCTION workspace_is_active(p_ws uuid) RETURNS boolean LANGUAGE sql STABLE SET search_path=public AS $$SELECT active FROM workspaces WHERE id=p_ws$$;
     CREATE TABLE projects(id uuid PRIMARY KEY,workspace_id uuid);
     CREATE TABLE tasks(id uuid PRIMARY KEY,project_id uuid);
     CREATE TABLE workspace_members(workspace_id uuid,user_id uuid,role text,is_active boolean);
@@ -42,17 +43,30 @@ try:
     CREATE TABLE video_approval_tokens(token text PRIMARY KEY,is_active boolean);
     CREATE TABLE video_comments(id uuid PRIMARY KEY,body text);
     CREATE TABLE video_approvals(id uuid PRIMARY KEY,notes text);''')
-    sql(f"INSERT INTO workspaces VALUES('{ws}');INSERT INTO projects VALUES('{project}','{ws}');INSERT INTO tasks VALUES('{task}','{project}');INSERT INTO workspace_members VALUES('{ws}','{user}','edicao',true);INSERT INTO workspace_storage VALUES('{ws}',4,100,NULL,0,NULL);")
+    sql(f"INSERT INTO workspaces(id) VALUES('{ws}');INSERT INTO projects VALUES('{project}','{ws}');INSERT INTO tasks VALUES('{task}','{project}');INSERT INTO workspace_members VALUES('{ws}','{user}','edicao',true);INSERT INTO workspace_storage VALUES('{ws}',4,100,NULL,0,NULL);")
     sql(f"INSERT INTO video_versions VALUES('{ws}','old-key','old-uid',false,'{ws}',4,0,NULL,NULL);INSERT INTO video_approval_tokens VALUES('old-link',true);INSERT INTO video_comments VALUES('{ws}','Histórico');INSERT INTO video_approvals VALUES('{ws}','Consolidada');")
     before=sql("SELECT row_to_json(t) FROM video_versions t;SELECT row_to_json(t) FROM video_approval_tokens t;SELECT row_to_json(t) FROM video_comments t;SELECT row_to_json(t) FROM video_approvals t;")
-    candidate=subprocess.check_output([os.sys.executable,here/'assemble_sidecar.py'],text=True)
+    production='--production-migrations' in sys.argv
+    if production:
+        sql('ALTER TABLE video_versions ADD project_id uuid,ADD task_id uuid;')
+        before=sql("SELECT row_to_json(t) FROM video_versions t;SELECT row_to_json(t) FROM video_approval_tokens t;SELECT row_to_json(t) FROM video_comments t;SELECT row_to_json(t) FROM video_approvals t;")
+        fingerprint=sql("SELECT md5(string_agg(concat_ws('|',id::text,coalesce(file_size_bytes,0)::text,coalesce(replacement_file_size_bytes,0)::text,coalesce(r2_key,''),coalesce(replacement_r2_key,''),coalesce(cloudflare_stream_uid,''),coalesce(replacement_stream_uid,''),coalesce(project_id::text,''),coalesce(task_id::text,''),coalesce(is_deleted::text,'null')),E'\\n' ORDER BY id)) FROM video_versions WHERE is_deleted IS NOT TRUE;")
+        migrations=Path(__file__).resolve().parents[5]/'drizzle/migrations'
+        # Replace ONLY reviewed fixture identity/counts, not accounting/RPC behavior. Never touch hosted files.
+        accounting=(migrations/'0012_video_verified_accounting_reconciliation.sql').read_text().replace("'postgres'","'fixture'").replace('6ee9555c-1dbd-4503-8889-24f97226b202',ws).replace('92143699665','5').replace('16862211040','4').replace('b7ad3bc91f130f55293ebc34a2c21e42',fingerprint).replace('<>54','<>1').replace(',54,',',1,')
+        private=(migrations/'0013_private_video_registry_disabled_expand.sql').read_text().replace("'postgres'","'fixture'")
+        subscription=(migrations/'0014_private_video_subscription_guard.sql').read_text()
+        candidate='BEGIN;\n'+accounting+'\n'+private+'\n'+subscription+'\nCOMMIT;'
+        sql('UPDATE workspace_storage SET storage_used_bytes=5;')
+    else:
+        candidate=subprocess.check_output([os.sys.executable,here/'assemble_sidecar.py'],text=True)
     reject(candidate.rsplit('COMMIT;',1)[0]+'SELECT 1/0;COMMIT;','division by zero')
     assert sql("SELECT to_regnamespace('willflow_video_private') IS NULL")=='t'
     assert sql("SELECT row_to_json(t) FROM video_versions t;SELECT row_to_json(t) FROM video_approval_tokens t;SELECT row_to_json(t) FROM video_comments t;SELECT row_to_json(t) FROM video_approvals t;")==before
-    sql("UPDATE workspace_storage SET storage_used_bytes=5;")
-    reject(candidate,'VIDEO_ACCOUNTING_BASELINE_MISMATCH')
+    sql(f"UPDATE workspace_storage SET storage_used_bytes={6 if production else 5};")
+    reject(candidate,'REVIEWED_COUNTER_CHANGED' if production else 'VIDEO_ACCOUNTING_BASELINE_MISMATCH')
     assert sql("SELECT to_regnamespace('willflow_video_private') IS NULL")=='t'
-    sql("UPDATE workspace_storage SET storage_used_bytes=4;")
+    sql(f"UPDATE workspace_storage SET storage_used_bytes={5 if production else 4};")
     sql(candidate)
     assert sql('SELECT count(*) FROM willflow_video_private.enrollment')=='0'
     reject(c+f"SELECT private_video_issue('{op}','{ws}','{project}','{task}','{user}','fixture.mp4',10);",'Private uploads disabled')
@@ -63,6 +77,11 @@ try:
     reject(f"SET ROLE service_role;SELECT * FROM willflow_video_private.versions;",'permission denied')
     reject(f"SELECT private_video_issue('{op}','{ws}','{project}','{task}','{user}','fixture.mp4',10);",'Forbidden')
     print('PASS service-only RPCs and no private schema access even for service client')
+    if production:
+        sql('UPDATE workspaces SET active=false;')
+        reject(c+f"SELECT private_video_issue('{op}','{ws}','{project}','{task}','{user}','fixture.mp4',10);",'Private workspace subscription inactive')
+        sql('UPDATE workspaces SET active=true;')
+        print('PASS exact production subscription guard rejects service issuance on expired workspace')
     issue=f"SELECT private_video_issue('{op}','{ws}','{project}','{task}','{user}','fixture.mp4',10);"
     initial=json.loads(sql(c+issue).splitlines()[-1]);vid=initial['id']
     assert initial['object_key']==f'__willflow_v2/{ws}/{op}/input.mp4'

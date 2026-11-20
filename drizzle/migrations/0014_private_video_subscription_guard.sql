@@ -1,0 +1,3 @@
+CREATE FUNCTION willflow_video_private.active_subscription() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$ BEGIN IF NOT public.workspace_is_active(NEW.workspace_id) THEN RAISE EXCEPTION 'Private workspace subscription inactive';END IF;RETURN NEW;END $$;
+REVOKE ALL ON FUNCTION willflow_video_private.active_subscription() FROM PUBLIC;
+CREATE TRIGGER private_video_active_subscription BEFORE INSERT ON willflow_video_private.versions FOR EACH ROW EXECUTE FUNCTION willflow_video_private.active_subscription();

@@ -102,7 +102,7 @@ const Chat = lazy(() => import("./pages/app/Chat"));
 const Leads = lazy(() => import("./pages/app/Leads"));
 const Contratos = lazy(() => import("./pages/app/Contratos"));
 const ContractSign = lazy(() => import("./pages/public/ContractSign"));
-const VideoApproval = lazy(() => import("./pages/public/VideoApproval"));
+const VideoApproval = lazy(() => import("./pages/public/VideoApprovalRouter"));
 
 // Admin pages (new /admin route)
 const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));

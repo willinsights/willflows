@@ -104,6 +104,8 @@ INSERT INTO public.public_access_attempts(identifier,action) VALUES ('fict-s01',
 INSERT INTO public.push_notification_queue(user_id,title,body,status) VALUES ('11000000-0000-4000-8000-000000000006','Fict S01','Não enviar','failed');
 INSERT INTO public.stripe_webhook_log(event_type,event_id) VALUES ('fict','fict-s01');
 INSERT INTO public.subscription_discrepancies(workspace_id,user_id) VALUES ('22000000-0000-4000-8000-000000000003','11000000-0000-4000-8000-000000000006');
+-- The normalized video trigger requires a pre-existing quota row, including for zero-byte fixtures.
+INSERT INTO public.workspace_storage(workspace_id,storage_used_bytes,storage_limit_bytes) VALUES ('22000000-0000-4000-8000-000000000003',0,10737418240) ON CONFLICT(workspace_id) DO NOTHING;
 INSERT INTO public.video_versions(id,workspace_id,project_id,file_path,file_name) VALUES ('66000000-0000-4000-8000-000000000001','22000000-0000-4000-8000-000000000003','33000000-0000-4000-8000-000000000301','fict/s01.mp4','fict.mp4');
 INSERT INTO public.video_comments(video_version_id,workspace_id,project_id,body,author_id) VALUES ('66000000-0000-4000-8000-000000000001','22000000-0000-4000-8000-000000000003','33000000-0000-4000-8000-000000000301','Fict comment','11000000-0000-4000-8000-000000000006');
 INSERT INTO public.video_approvals(video_version_id,workspace_id,project_id) VALUES ('66000000-0000-4000-8000-000000000001','22000000-0000-4000-8000-000000000003','33000000-0000-4000-8000-000000000301');
