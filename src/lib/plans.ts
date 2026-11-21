@@ -90,12 +90,12 @@ export const STRIPE_PRICES = {
   },
   studio: {
     eur: {
-      monthly: 'price_1SrikfGr2lXbVyw9fXBV7BGs',
-      yearly: 'price_1SrikfGr2lXbVyw9KpGstQ2S',
+      monthly: 'price_1UeHdFGr2lXbVyw9FROVLOgH',
+      yearly: 'price_1UeHdxGr2lXbVyw9QWswuXXG',
     },
     brl: {
-      monthly: 'price_1SrikgGr2lXbVyw9Rt6xW57v',
-      yearly: 'price_1SrikhGr2lXbVyw9JnFXF1E2',
+      monthly: 'price_1UeHebGr2lXbVyw9ukkckd8y',
+      yearly: 'price_1UeHfLGr2lXbVyw9jrB6CDfn',
     },
     product_id: 'prod_TpNVM1mlDtAvKA',
   },

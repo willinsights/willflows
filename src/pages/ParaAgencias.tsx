@@ -119,7 +119,7 @@ export default function ParaAgencias() {
             "brand": { "@type": "Brand", "name": "WillFlow" },
             "offers": {
               "@type": "Offer",
-              "price": "49",
+              "price": "42",
               "priceCurrency": "EUR",
               "priceValidUntil": "2026-12-31",
               "availability": "https://schema.org/InStock"

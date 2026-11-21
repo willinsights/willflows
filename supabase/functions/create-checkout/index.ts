@@ -38,10 +38,10 @@ const ALLOWED_PRICE_IDS = new Set<string>([
   'price_1SrikcGr2lXbVyw9uMfHWw6L',
   'price_1SrikcGr2lXbVyw9JDMREfdR',
   'price_1SrikdGr2lXbVyw98tP1rsYd',
-  'price_1SrikfGr2lXbVyw9fXBV7BGs',
-  'price_1SrikfGr2lXbVyw9KpGstQ2S',
-  'price_1SrikgGr2lXbVyw9Rt6xW57v',
-  'price_1SrikhGr2lXbVyw9JnFXF1E2',
+  'price_1UeHdFGr2lXbVyw9FROVLOgH',
+  'price_1UeHdxGr2lXbVyw9QWswuXXG',
+  'price_1UeHebGr2lXbVyw9ukkckd8y',
+  'price_1UeHfLGr2lXbVyw9jrB6CDfn',
 ]);
 
 // Helper logging function for debugging - only logs when DEBUG=true
