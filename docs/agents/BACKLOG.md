@@ -26,12 +26,20 @@ Achados da verificação de segurança do Lovable de 20/11. Descrições genéri
 | S1 | Isolamento entre workspaces em funções de resumo e métricas | concluida (aplicado em produção a 20/11; commit 91556ee e alteração direta na base) | — | — | Pedidos de outro workspace recusados; confirmado pelo proprietário |
 | S2 | Papéis no chat: sem auto-promoção | concluida (aplicado em produção a 20/11) | — | — | Entrada em canal só como membro; criador mantém-se admin |
 | S3 | Executor de automações aceita apenas chamadas internas | concluida (commit 91556ee) | — | — | Chamadas diretas recusadas; automações por fila inalteradas |
-| S4 | Anexos do chat com link de curta duração: pedir link novo no uso | em_pr (#23; CI verde; revisor PASS com reservas, corrigidas) | programador | — | Anexos abrem numa conversa aberta há mais de 10 minutos |
-| S5 | Notificações push: mesma verificação do destino nas duas funções de envio | em_pr (#24; revisor FAIL corrigido; função verificada por execução) | programador | — | Só serviços de push de browsers conhecidos; subscrições legítimas inalteradas |
+| S4 | Anexos do chat com link de curta duração: pedir link novo no uso | concluida (#23 integrado a 20/11; por verificar num browser) | programador | — | Anexos abrem numa conversa aberta há mais de 10 minutos |
+| S5 | Notificações push: mesma verificação do destino nas duas funções de envio | concluida (#24 integrado a 20/11; por testar uma notificação real) | programador | — | Só serviços de push de browsers conhecidos; subscrições legítimas inalteradas |
 | S6 | Endurecimento adicional do chat e da gravação de subscrições push | precisa_aprovacao (SQL) | programador | proprietario | Ensaio com dados fictícios; fluxos de chat e push inalterados |
 | S7 | Rever os avisos restantes da verificação depois de a repetir | pronta | auditor | proprietario: repetir a verificação | Cada aviso confirmado ou descartado com evidência |
-| S8 | Revisão independente dos commits de segurança feitos diretamente no `main` a 20/11 (91556ee revisto; dfc09cc e 62e8ae4 por rever) | pronta | auditor | — | Relatório por commit: regressões e correções incompletas |
+| S8 | Revisão independente dos commits feitos diretamente no `main` a 20/11 (sete revistos; 93ec1b0, atualização de dependências, e 2255b69, canais de tempo real, por rever) | pronta | auditor | — | Relatório por commit: regressões e correções incompletas |
 | S9 | Incluir nas migrações as alterações aplicadas diretamente na base a 20/11 | pronta | programador | A2, A6 | Sem diferença entre a base e o repositório para estes objetos |
+| S10 | Convite: recarregar depois do login (regressão de 381ff12) | concluida (#26 integrado e publicado a 20/11) | programador | — | Login na página do convite avança sem recarregar o browser |
+| S11 | Convite: entrar no workspace que convidou em vez de criar um novo (defeito antigo) | concluida (#27 integrado e publicado a 20/11; por confirmar com um convite novo) | programador | — | Convidado sem workspace entra no workspace que convidou |
+| S12 | Carregamento de workspaces: não mostrar a criação de workspace enquanto a lista ainda está a carregar | pronta | programador | — | Sem passagem pelo ecrã de criação com rede lenta; teste do contexto com a guarda de rotas |
+| S13 | Menções do chat alinhadas com a regra do servidor e sem falhas silenciosas | em_pr (#28; CI verde; revisor PASS com reservas) | programador | — | Sugestões só de quem pode ser mencionado; uma menção recusada não impede as outras |
+| S14 | Exportações de projetos e de clientes com verificação de permissão; listagem de exportações com a mesma verificação do estado | precisa_aprovacao (função do servidor) | programador | proprietario | Só quem tem a permissão certa exporta; ensaio com dados fictícios |
+| S15 | Regra do período de teste: incluir o chat durante o teste (decisão do proprietário de 21/11) | precisa_aprovacao (SQL e frontend) | programador | proprietario | Workspace em teste válido envia mensagens; teste expirado não |
+| S16 | Estado de subscrição: workspaces com o teste expirado continuam marcados como em teste | pronta | auditor | — | Relatório: o que a app faz com um teste expirado e onde a regra é aplicada |
+| S17 | Limpeza dos workspaces vazios criados pelo defeito S11 | precisa_aprovacao (elimina dados) | proprietario | S11 | Lista aprovada pelo proprietário; cópia de segurança das linhas antes de eliminar |
 
 ## B. Estabilidade
 

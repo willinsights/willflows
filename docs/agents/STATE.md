@@ -4,22 +4,19 @@ Atualizado pelo orquestrador no fim de cada execução. Não guardar aqui segred
 
 ## Estado atual
 
-- Última atualização: 20/11/2026, cerca das 22:00 UTC
-- HEAD do `main`: `62e8ae4`. Os PRs #18, #19, #20 e #21 estão integrados e publicados.
+- Última atualização: 21/11/2026, cerca das 11:00 UTC
+- HEAD do `main`: `2255b69`. Publicado: `e345602`. Os PRs #18 a #21 e #23 a #27 estão integrados; os dois últimos commits do `main` (dependências e canais de tempo real) ainda não estão publicados.
 - Execuções: 1, conduzida à mão na sessão de preparação. O comando `/orquestrar` ainda não foi executado.
 
 ## PRs abertos, por integrar
 
 | PR | Tarefa | CI | Revisor | Nota |
 | --- | --- | --- | --- | --- |
-| #23 | S4 | verde | PASS com reservas, corrigidas | Segunda versão não voltou ao revisor; por verificar num browser |
-| #24 | S5 | não cobre estas funções | FAIL à primeira, corrigido | Integrar implanta duas funções; testar uma notificação depois |
-
-O PR #22 foi fechado sem integrar: a mesma alteração entrou pelo commit 91556ee.
+| #28 | S13 | verde | PASS com reservas | Mencionar continua a adicionar à conversa quando o autor gere membros (decisão do proprietário) |
 
 ## Próximas tarefas elegíveis (sem aprovação)
 
-A6, B1, B2c, D2a, D4, F1b, F1c, F1e, S7, S8, S9
+A6, B1, B2c, D2a, D4, F1b, F1c, F1e, S7, S8, S9, S12, S16
 
 ## Decisões em aberto do proprietário
 
@@ -55,3 +52,8 @@ A 20/11 o agente do Lovable aplicou correções de segurança diretamente no `ma
 | 20/11/2026 | 1 | S1, S2, S3 | Aplicados em produção (parte pelos agentes, parte pelo Lovable) e confirmados pelo proprietário | — |
 | 20/11/2026 | 1 | S4 | PR aberto, CI verde, corrigido após revisão | #23 |
 | 20/11/2026 | 1 | S5 | PR aberto, corrigido após revisão, função verificada por execução | #24 |
+| 20/11/2026 | 1 | S4, S5 | Integrados pelo proprietário | #23, #24 |
+| 20/11/2026 | 1 | S8 | Sete commits do Lovable revistos: duas regressões (convite, menções) e uma regra de plano alterada sem aprovação | — |
+| 20/11/2026 | 1 | S10 | Integrado e publicado | #26 |
+| 20/11/2026 | 1 | S11 | Integrado e publicado; por confirmar com um convite novo | #27 |
+| 20/11/2026 | 1 | S13 | PR aberto, CI verde, revisor PASS com reservas | #28 |
