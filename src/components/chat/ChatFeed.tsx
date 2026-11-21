@@ -11,6 +11,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
 import { ChatMessage } from './ChatMessage';
+import { getMentionCandidates, canManageConversationMembers, isPublicChannel } from './mentionCandidates';
 import { ChatComposer } from './ChatComposer';
 import { ChatThread } from './ChatThread';
 import { DeleteConversationModal } from './DeleteConversationModal';
@@ -40,7 +41,7 @@ interface ChatFeedProps {
 export function ChatFeed({ conversationId }: ChatFeedProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { workspace } = useWorkspace();
+  const { workspace, membership } = useWorkspace();
   const queryClient = useQueryClient();
   const { messages, isLoading, sendMessage, updateMessage, toggleReaction, markAsRead, replyingTo, setReplyingTo } = useMessages(conversationId);
   const { conversations, leaveConversation } = useConversations();
@@ -92,18 +93,21 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
     });
   };
 
-  // Map workspace members to mention format - filter out members without user_id
+  // Quem gere membros (criador ou admin/edicao) pode mencionar quem ainda não está
+  // na conversa: é adicionado antes de a menção ser inserida (ver useMessages).
+  const canManageMembers = canManageConversationMembers(conversation, user?.id, membership);
+  const addMentionedToConversation = canManageMembers && !isPublicChannel(conversation);
+
+  // Só oferece no seletor quem o servidor aceita como mencionado:
+  // canal público -> membros ativos do workspace; restantes -> membros da conversa.
   const mentionMembers = useMemo(() => {
-    return workspaceMembers
-      .filter((m) => m.user_id)
-      .map((m) => ({
-        id: m.user_id,
-        user_id: m.user_id,
-        full_name: m.full_name || null,
-        avatar_url: m.avatar_url || null,
-        email: m.email,
-      }));
-  }, [workspaceMembers]);
+    return getMentionCandidates({
+      conversation,
+      workspaceMembers,
+      conversationMemberIds: conversationMembers.map((m) => m.user_id),
+      canManageMembers,
+    });
+  }, [conversation, workspaceMembers, conversationMembers, canManageMembers]);
 
   // Mark conversation as read when opened (using last message timestamp to avoid clock skew)
   // Uses upsert to ensure membership exists (important for public channels)
@@ -286,7 +290,17 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
     } : undefined;
     
     stopTyping();
-    await sendMessage.mutateAsync({ body, attachments, mentionedUserIds, replyTo });
+    const mentionNames = Object.fromEntries(
+      mentionMembers.map((m) => [m.user_id, m.full_name || m.email?.split('@')[0] || ''])
+    );
+    await sendMessage.mutateAsync({
+      body,
+      attachments,
+      mentionedUserIds,
+      replyTo,
+      mentionNames,
+      addMentionedToConversation,
+    });
   };
 
   const handleReply = (message: typeof messages[0]) => {
@@ -509,7 +523,7 @@ export function ChatFeed({ conversationId }: ChatFeedProps) {
               onSend={handleSendMessage}
               placeholder={`Mensagem para ${conversation?.displayName || conversation?.name || 'conversa'}...`}
               isLoading={sendMessage.isPending}
-              members={conversation?.type === 'dm' ? [] : mentionMembers}
+              members={mentionMembers}
               showMentionButton={conversation?.type !== 'dm'}
               conversationId={conversationId}
               projectId={conversation?.project_id || undefined}
