@@ -1,10 +1,9 @@
 // Read-only, server-authorized maintenance inventory. Never signs/downloads media or exposes credentials.
+import {authenticatePrivateVideo} from './authentication.ts';
 export async function inventory(req:Request,body:any,db:any,aws:any,object:(key:string)=>string,stream:(path:string)=>Promise<any>){
  const fail=(code:string,status:number)=>new Response(JSON.stringify({code}),{status});
- const bearer=/^Bearer ([^\s,]+)$/.exec(req.headers.get('authorization')??'')?.[1];
- if(!bearer)return fail('UNAUTHORIZED',401);
- const {data:auth,error:authError}=await db.auth.getUser(bearer);const user=auth?.user?.id;
- if(authError||!user)return fail('UNAUTHORIZED',401);
+ const user=await authenticatePrivateVideo(req,db.auth);
+ if(!user)return fail('UNAUTHORIZED',401);
  if(typeof body.workspaceId!=='string'||!/^[0-9a-f-]{36}$/i.test(body.workspaceId))return fail('INVALID_SCOPE',400);
  const {data:allowed,error:accessError}=await db.rpc('is_workspace_admin',{_user_id:user,_workspace_id:body.workspaceId});
  if(accessError||allowed!==true)return fail('FORBIDDEN',403);
