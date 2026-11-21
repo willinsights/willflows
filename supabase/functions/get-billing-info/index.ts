@@ -46,7 +46,7 @@ serve(async (req) => {
     const email = (claimsData.claims as any).email as string | undefined;
     const userId = (claimsData.claims as any).sub as string | undefined;
     if (!email) throw new Error("User not authenticated or email not available");
-    logStep("User authenticated", { userId, email });
+    logStep("User authenticated", { userId });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email, limit: 1 });

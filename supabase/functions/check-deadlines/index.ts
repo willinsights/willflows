@@ -74,7 +74,8 @@ Deno.serve(async (req) => {
       const { data: memberships, error: membershipError } = await supabaseAdmin
         .from('workspace_members')
         .select('workspace_id')
-        .eq('user_id', pushUser.user_id);
+        .eq('user_id', pushUser.user_id)
+        .eq('is_active', true);
 
       if (membershipError || !memberships) {
         console.error(`Error fetching workspaces for user ${pushUser.user_id}:`, membershipError);

@@ -4377,6 +4377,32 @@ export type Database = {
           },
         ]
       }
+      video_comment_delete_keys: {
+        Row: {
+          comment_id: string
+          created_at: string
+          key_hash: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string
+          key_hash: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string
+          key_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_comment_delete_keys_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: true
+            referencedRelation: "video_comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       video_comments: {
         Row: {
           author_id: string | null

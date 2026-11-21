@@ -54,7 +54,7 @@ serve(async (req) => {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    logStep("User authenticated", { userId: user.id, email: user.email });
+    logStep("User authenticated", { userId: user.id });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
@@ -63,7 +63,7 @@ serve(async (req) => {
     
     if (customers.data.length === 0) {
       // Create a new Stripe customer if one doesn't exist
-      logStep("No Stripe customer found, creating one", { email: user.email });
+      logStep("No Stripe customer found, creating one");
       const newCustomer = await stripe.customers.create({
         email: user.email,
         metadata: {
