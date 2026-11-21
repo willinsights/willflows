@@ -16,6 +16,7 @@ import {
   selectWorkspacesForPropagation,
   shouldInvoiceFailureMarkPastDue,
   shouldInvoicePaidActivate,
+  getSubscriptionPeriodEnd,
   type WorkspaceBillingRow,
 } from "../_shared/stripe-billing.ts";
 
@@ -599,9 +600,8 @@ serve(async (req) => {
             });
           }
           
-          const currentPeriodEnd = subscription.current_period_end 
-            ? new Date(subscription.current_period_end * 1000).toISOString()
-            : null;
+          // API basil: the period end lives on the subscription items
+          const currentPeriodEnd = getSubscriptionPeriodEnd(subscription);
 
           // Calculate trial_ends_at for trialing subscriptions
           let trialEndsAt: string | null = null;
@@ -716,9 +716,8 @@ serve(async (req) => {
           });
         }
         
-        const currentPeriodEnd = subscription.current_period_end 
-          ? new Date(subscription.current_period_end * 1000).toISOString()
-          : null;
+        // API basil: the period end lives on the subscription items
+        const currentPeriodEnd = getSubscriptionPeriodEnd(subscription);
 
         // Calculate trial_ends_at for trialing subscriptions
         let trialEndsAt: string | null = null;

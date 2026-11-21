@@ -13,7 +13,8 @@ import {
 
 /**
  * Compra de plano e portal de faturação com as mensagens comuns a todos os ecrãs.
- * Quando a conta já tem plano, mostra a mensagem própria com a ação que abre o portal.
+ * Quando a conta já tem plano, ou tem um pagamento de subscrição pendente, mostra a
+ * mensagem própria com a ação que abre o portal.
  */
 export function usePlanCheckout() {
   const { toast } = useToast();
@@ -43,7 +44,20 @@ export function usePlanCheckout() {
     ): Promise<CheckoutResult> => {
       const result = await startPlanCheckout(params);
 
-      if (result.status === 'already_subscribed') {
+      if (result.status === 'payment_pending') {
+        // Diálogos bloqueantes mostram a mensagem e a ação dentro do próprio diálogo
+        if (options?.inlineAlreadySubscribed) return result;
+
+        toast({
+          title: 'Pagamento pendente',
+          description: CHECKOUT_MESSAGES.payment_pending,
+          action: (
+            <ToastAction altText="Abrir a gestão de subscrição" onClick={() => void openPortal()}>
+              Gerir subscrição
+            </ToastAction>
+          ),
+        });
+      } else if (result.status === 'already_subscribed') {
         // Diálogos bloqueantes mostram a mensagem e a ação dentro do próprio diálogo
         if (options?.inlineAlreadySubscribed) return result;
 

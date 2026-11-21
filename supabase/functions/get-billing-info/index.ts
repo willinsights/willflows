@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { getSubscriptionPeriodEndSeconds } from "../_shared/stripe-billing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -119,7 +120,8 @@ serve(async (req) => {
     const subscription = subscriptions.data.length > 0 ? {
       id: subscriptions.data[0].id,
       status: subscriptions.data[0].status,
-      currentPeriodEnd: subscriptions.data[0].current_period_end,
+      // API basil: the period end lives on the subscription items (Unix seconds)
+      currentPeriodEnd: getSubscriptionPeriodEndSeconds(subscriptions.data[0]),
       cancelAtPeriodEnd: subscriptions.data[0].cancel_at_period_end,
       priceId: subscriptions.data[0].items.data[0]?.price.id,
       productId: subscriptions.data[0].items.data[0]?.price.product,

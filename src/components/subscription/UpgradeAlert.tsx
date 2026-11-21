@@ -84,7 +84,11 @@ export const UpgradeAlert = forwardRef<HTMLDivElement, UpgradeAlertProps>(functi
         workspaceId: checkoutWorkspaceId,
       });
       // Fecha-se o diálogo para a ação «Gerir subscrição» do aviso ficar acessível
-      if (result.status === 'redirected' || result.status === 'already_subscribed') {
+      if (
+        result.status === 'redirected' ||
+        result.status === 'already_subscribed' ||
+        result.status === 'payment_pending'
+      ) {
         onClose();
       }
     } finally {

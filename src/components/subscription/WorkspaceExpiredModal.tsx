@@ -50,7 +50,8 @@ export function WorkspaceExpiredModal({ open }: WorkspaceExpiredModalProps) {
   const [selectedPlan, setSelectedPlan] = useState<PlanId>('pro');
   const [loading, setLoading] = useState(false);
   const [showPlans, setShowPlans] = useState(isOwner);
-  const [alreadySubscribed, setAlreadySubscribed] = useState(false);
+  // Recusa do checkout mostrada dentro do diálogo (conta com plano ou pagamento pendente)
+  const [checkoutBlock, setCheckoutBlock] = useState<'already_subscribed' | 'payment_pending' | null>(null);
 
   // Pagamento em atraso: a subscrição existe, o que falta é atualizar o pagamento
   const isPastDue = status === 'past_due';
@@ -66,8 +67,8 @@ export function WorkspaceExpiredModal({ open }: WorkspaceExpiredModalProps) {
         workspaceId: checkoutWorkspaceId,
       }, { inlineAlreadySubscribed: true });
       // Este diálogo é bloqueante: a saída para a gestão de subscrição fica aqui dentro
-      if (result.status === 'already_subscribed') {
-        setAlreadySubscribed(true);
+      if (result.status === 'already_subscribed' || result.status === 'payment_pending') {
+        setCheckoutBlock(result.status);
       }
     } finally {
       setLoading(false);
@@ -173,7 +174,27 @@ export function WorkspaceExpiredModal({ open }: WorkspaceExpiredModalProps) {
         )}
 
         {/* A conta já tem plano: a saída é a gestão de subscrição */}
-        {isOwner && !isPastDue && alreadySubscribed && (
+        {/* Pagamento de subscrição pendente no Stripe: concluir ou aguardar */}
+        {isOwner && !isPastDue && checkoutBlock === 'payment_pending' && (
+          <div role="alert" className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4 text-center">
+            <p className="text-sm">{CHECKOUT_MESSAGES.payment_pending}</p>
+            <Button
+              variant="outline"
+              onClick={() => void openPortal()}
+              disabled={portalLoading}
+              className="w-full"
+            >
+              {portalLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CreditCard className="mr-2 h-4 w-4" />
+              )}
+              Gerir subscrição
+            </Button>
+          </div>
+        )}
+
+        {isOwner && !isPastDue && checkoutBlock === 'already_subscribed' && (
           <div role="alert" className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4 text-center">
             {/* Plano atribuído manualmente: não há portal de faturação para abrir */}
             {manualPlan ? (

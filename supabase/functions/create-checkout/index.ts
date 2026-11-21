@@ -267,9 +267,12 @@ serve(async (req) => {
     if (!stripeDecision.allow) {
       logStep("Checkout refused: plan subscription already in Stripe", {
         subscriptionId: stripeDecision.blockingSubscriptionId,
+        code: stripeDecision.code,
       });
+      // PAYMENT_PENDING: only an 'incomplete' plan subscription blocks it.
+      const refusalCode = stripeDecision.code ?? ALREADY_SUBSCRIBED_CODE;
       return new Response(
-        JSON.stringify({ error: ALREADY_SUBSCRIBED_CODE, code: ALREADY_SUBSCRIBED_CODE }),
+        JSON.stringify({ error: refusalCode, code: refusalCode }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

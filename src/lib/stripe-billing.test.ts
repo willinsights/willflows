@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ALREADY_SUBSCRIBED_CODE,
   DEFAULT_BASE_STORAGE_BYTES,
+  PAYMENT_PENDING_CODE,
   PRODUCT_TO_PLAN,
   STORAGE_ADDON_PRODUCTS,
   STORAGE_TIER_BYTES,
@@ -10,6 +12,8 @@ import {
   decideStripePlanCheckout,
   decidePlanEvent,
   getInvoiceSubscriptionId,
+  getSubscriptionPeriodEnd,
+  getSubscriptionPeriodEndSeconds,
   isDuplicatePlanSubscription,
   isEmailCustomerAcceptableForUser,
   isInvoiceForStoredPlan,
@@ -753,24 +757,37 @@ describe('parallel plan checkouts (F10)', () => {
 
   describe('decideStripePlanCheckout', () => {
     it('allows when the customer has no subscriptions', () => {
-      expect(decideStripePlanCheckout([])).toEqual({ allow: true, blockingSubscriptionId: null });
-      expect(decideStripePlanCheckout(null)).toEqual({ allow: true, blockingSubscriptionId: null });
+      expect(decideStripePlanCheckout([])).toEqual({ allow: true, blockingSubscriptionId: null, code: null });
+      expect(decideStripePlanCheckout(null)).toEqual({ allow: true, blockingSubscriptionId: null, code: null });
     });
 
     it('refuses with an active plan subscription', () => {
       expect(decideStripePlanCheckout([sub('sub_a', 'active', [planProduct])]))
-        .toEqual({ allow: false, blockingSubscriptionId: 'sub_a' });
+        .toEqual({ allow: false, blockingSubscriptionId: 'sub_a', code: 'ALREADY_SUBSCRIBED' });
     });
 
     it('refuses with trialing, past_due, unpaid or paused plan subscriptions', () => {
       for (const status of ['trialing', 'past_due', 'unpaid', 'paused']) {
-        expect(decideStripePlanCheckout([sub('sub_x', status, [planProduct])]).allow).toBe(false);
+        const decision = decideStripePlanCheckout([sub('sub_x', status, [planProduct])]);
+        expect(decision.allow).toBe(false);
+        expect(decision.code).toBe(ALREADY_SUBSCRIBED_CODE);
       }
     });
 
-    it('counts an incomplete plan subscription', () => {
+    it('refuses an incomplete plan subscription as PAYMENT_PENDING (F14)', () => {
       expect(decideStripePlanCheckout([sub('sub_i', 'incomplete', [planProduct])]))
-        .toEqual({ allow: false, blockingSubscriptionId: 'sub_i' });
+        .toEqual({ allow: false, blockingSubscriptionId: 'sub_i', code: PAYMENT_PENDING_CODE });
+    });
+
+    it('a running plan subscription wins over an incomplete one (F14)', () => {
+      expect(decideStripePlanCheckout([
+        sub('sub_i', 'incomplete', [planProduct]),
+        sub('sub_a', 'active', [planProduct]),
+      ])).toEqual({ allow: false, blockingSubscriptionId: 'sub_a', code: ALREADY_SUBSCRIBED_CODE });
+    });
+
+    it('an incomplete storage add-on never blocks (F14)', () => {
+      expect(decideStripePlanCheckout([sub('sub_s', 'incomplete', [addonProduct])]).allow).toBe(true);
     });
 
     it('ignores canceled and incomplete_expired plan subscriptions', () => {
@@ -797,7 +814,7 @@ describe('parallel plan checkouts (F10)', () => {
         sub('sub_s', 'active', [addonProduct]),
         sub('sub_c', 'canceled', [planProduct]),
         sub('sub_p', 'past_due', [planProduct]),
-      ])).toEqual({ allow: false, blockingSubscriptionId: 'sub_p' });
+      ])).toEqual({ allow: false, blockingSubscriptionId: 'sub_p', code: ALREADY_SUBSCRIBED_CODE });
     });
   });
 
@@ -853,5 +870,59 @@ describe('parallel plan checkouts (F10)', () => {
       expect(isDuplicatePlanSubscription({ ...base, storedStatus: 'canceled' })).toBe(false);
       expect(isDuplicatePlanSubscription({ ...base, eventStatus: 'incomplete' })).toBe(false);
     });
+  });
+});
+
+describe('getSubscriptionPeriodEnd (F14, Stripe API basil)', () => {
+  const planProduct = productFor(PRODUCT_TO_PLAN, 'pro');
+  const addonProduct = productFor(STORAGE_ADDON_PRODUCTS, '50gb');
+  const T1 = 1_767_225_600; // 2026-01-01T00:00:00Z
+  const T2 = 1_769_904_000; // 2026-02-01T00:00:00Z
+
+  it('uses subscription.current_period_end when present (older API payloads)', () => {
+    expect(getSubscriptionPeriodEnd({
+      current_period_end: T1,
+      items: { data: [{ current_period_end: T2, price: { product: planProduct } }] },
+    })).toBe('2026-01-01T00:00:00.000Z');
+  });
+
+  it('reads the period end from the items when the subscription has none (basil)', () => {
+    expect(getSubscriptionPeriodEnd({
+      items: { data: [{ current_period_end: T2, price: { product: planProduct } }] },
+    })).toBe('2026-02-01T00:00:00.000Z');
+  });
+
+  it('prefers the plan item over other items', () => {
+    expect(getSubscriptionPeriodEndSeconds({
+      items: {
+        data: [
+          { current_period_end: T2, price: { product: addonProduct } },
+          { current_period_end: T1, price: { product: { id: planProduct } } },
+        ],
+      },
+    })).toBe(T1);
+  });
+
+  it('without a plan item uses the latest item period end', () => {
+    expect(getSubscriptionPeriodEndSeconds({
+      items: {
+        data: [
+          { current_period_end: T1, price: { product: 'prod_unknown' } },
+          null,
+          { current_period_end: T2, price: { product: 'prod_unknown' } },
+        ],
+      },
+    })).toBe(T2);
+  });
+
+  it('returns null without a valid value', () => {
+    expect(getSubscriptionPeriodEnd(null)).toBeNull();
+    expect(getSubscriptionPeriodEnd(undefined)).toBeNull();
+    expect(getSubscriptionPeriodEnd({})).toBeNull();
+    expect(getSubscriptionPeriodEnd({ items: { data: [] } })).toBeNull();
+    expect(getSubscriptionPeriodEnd({
+      current_period_end: null,
+      items: { data: [{ current_period_end: 'x' }, { current_period_end: 0 }, { current_period_end: Number.NaN }] },
+    })).toBeNull();
   });
 });

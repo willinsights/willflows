@@ -32,6 +32,15 @@ describe('classifyCheckoutFailure', () => {
     expect(classifyCheckoutFailure(null, { code: 'ALREADY_SUBSCRIBED' })).toBe('already_subscribed');
   });
 
+  it('distingue o pagamento pendente (409 PAYMENT_PENDING) da conta com plano', () => {
+    expect(classifyCheckoutFailure(409, { error: 'PAYMENT_PENDING', code: 'PAYMENT_PENDING' })).toBe('payment_pending');
+    expect(classifyCheckoutFailure(null, { code: 'PAYMENT_PENDING' })).toBe('payment_pending');
+    expect(classifyCheckoutFailure(409, { code: 'ALREADY_SUBSCRIBED' })).toBe('already_subscribed');
+    expect(CHECKOUT_MESSAGES.payment_pending).toBe(
+      'Há um pagamento de subscrição pendente. Conclua-o ou aguarde até 24 horas e tente de novo.',
+    );
+  });
+
   it('distingue email por confirmar de falta de permissão no 403', () => {
     expect(classifyCheckoutFailure(403, { error: 'Confirme o seu email antes de subscrever um plano.' })).toBe('email_not_confirmed');
     expect(classifyCheckoutFailure(403, { error: 'Não tem permissão para subscrever este workspace.' })).toBe('forbidden');
@@ -115,6 +124,16 @@ describe('startPlanCheckout', () => {
     const result = await startPlanCheckout({ priceId: 'price_sintetico' });
     expect(result).toEqual({ status: 'already_subscribed', message: CHECKOUT_MESSAGES.already_subscribed });
     expect(result.message).not.toContain('non-2xx');
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it('devolve payment_pending com a mensagem própria quando a subscrição está incompleta', async () => {
+    state.invoke.mockResolvedValue({
+      data: null,
+      error: httpFailure(409, { error: 'PAYMENT_PENDING', code: 'PAYMENT_PENDING' }),
+    });
+    const result = await startPlanCheckout({ priceId: 'price_sintetico' });
+    expect(result).toEqual({ status: 'payment_pending', message: CHECKOUT_MESSAGES.payment_pending });
     expect(assign).not.toHaveBeenCalled();
   });
 

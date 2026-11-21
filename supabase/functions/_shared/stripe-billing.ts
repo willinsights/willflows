@@ -106,6 +106,9 @@ export const PLAN_CHECKOUT_KIND = 'plan';
 
 // Error code returned (HTTP 409) when the account already has a plan.
 export const ALREADY_SUBSCRIBED_CODE = 'ALREADY_SUBSCRIBED';
+// Error code returned (HTTP 409) when the only plan subscription blocking the
+// checkout is 'incomplete' (first payment pending or failed in Stripe).
+export const PAYMENT_PENDING_CODE = 'PAYMENT_PENDING';
 
 // Error codes returned with HTTP 403 by the plan checkout.
 export const EMAIL_NOT_CONFIRMED_CODE = 'EMAIL_NOT_CONFIRMED';
@@ -214,20 +217,83 @@ export interface StripePlanCheckoutDecision {
   allow: boolean;
   // Id of the first plan subscription that blocks the checkout, if any.
   blockingSubscriptionId: string | null;
+  // Error code for the 409 when refused; null when allowed.
+  code: typeof ALREADY_SUBSCRIBED_CODE | typeof PAYMENT_PENDING_CODE | null;
 }
 
 // Decides from the subscriptions of the Stripe customer (listed with
 // status 'all') whether a new plan checkout may be opened. Any plan
-// subscription with a blocking status refuses it (409 ALREADY_SUBSCRIBED).
+// subscription with a blocking status refuses it (HTTP 409). The code is
+// PAYMENT_PENDING when every blocking plan subscription is 'incomplete' (first
+// payment pending or failed), ALREADY_SUBSCRIBED otherwise: a running
+// subscription takes precedence over a pending one.
 export function decideStripePlanCheckout(
   subscriptions: ReadonlyArray<StripeSubscriptionLike> | null | undefined,
 ): StripePlanCheckoutDecision {
-  const blocking = (subscriptions ?? []).find((s) =>
+  const blocking = (subscriptions ?? []).filter((s) =>
     !!s && BLOCKING_PLAN_SUBSCRIPTION_STATUSES.has(s.status) && isPlanSubscription(s)
   );
-  return blocking
-    ? { allow: false, blockingSubscriptionId: blocking.id }
-    : { allow: true, blockingSubscriptionId: null };
+  if (blocking.length === 0) {
+    return { allow: true, blockingSubscriptionId: null, code: null };
+  }
+  const running = blocking.find((s) => s.status !== 'incomplete');
+  return running
+    ? { allow: false, blockingSubscriptionId: running.id, code: ALREADY_SUBSCRIBED_CODE }
+    : { allow: false, blockingSubscriptionId: blocking[0].id, code: PAYMENT_PENDING_CODE };
+}
+
+// ---- Subscription period end (stripe-webhook, check-subscription, get-billing-info) ----
+//
+// Since Stripe API 2025-03-31.basil the period fields left the Subscription
+// object and live on each item (items.data[i].current_period_end). Older
+// payloads still carry subscription.current_period_end; it wins when present.
+
+export interface SubscriptionPeriodLike {
+  current_period_end?: unknown;
+  metadata?: Record<string, unknown> | null;
+  items?: {
+    data?: ReadonlyArray<{
+      current_period_end?: unknown;
+      price?: { product?: unknown } | null;
+    } | null> | null;
+  } | null;
+}
+
+const validEpochSeconds = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+
+// Period end in Unix seconds, or null. Order: subscription.current_period_end;
+// else the latest current_period_end among the PLAN items; else the latest
+// among all items (subscriptions with an unclassified product).
+export function getSubscriptionPeriodEndSeconds(
+  subscription: SubscriptionPeriodLike | null | undefined,
+): number | null {
+  if (!subscription || typeof subscription !== 'object') return null;
+  const direct = validEpochSeconds(subscription.current_period_end);
+  if (direct !== null) return direct;
+
+  const items = (subscription.items?.data ?? []).filter((i) => !!i);
+  const maxOf = (list: typeof items): number | null => {
+    let best: number | null = null;
+    for (const item of list) {
+      const v = validEpochSeconds(item?.current_period_end);
+      if (v !== null && (best === null || v > best)) best = v;
+    }
+    return best;
+  };
+
+  const planItems = items.filter((item) =>
+    classifyProduct(idOf(item?.price?.product), subscription.metadata).kind === 'plan'
+  );
+  return maxOf(planItems) ?? maxOf(items);
+}
+
+// Same as getSubscriptionPeriodEndSeconds, as an ISO string (or null).
+export function getSubscriptionPeriodEnd(
+  subscription: SubscriptionPeriodLike | null | undefined,
+): string | null {
+  const seconds = getSubscriptionPeriodEndSeconds(subscription);
+  return seconds === null ? null : new Date(seconds * 1000).toISOString();
 }
 
 export interface StripeCheckoutSessionLike {

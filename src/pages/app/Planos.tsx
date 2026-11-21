@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +45,7 @@ import { cn } from '@/lib/utils';
 import { StorageManagementCard } from '@/components/video-production/StorageManagementCard';
 
 import { logger } from '@/lib/logger';
+import { hasPortalReturnParam, removePortalReturnParam } from '@/lib/billing/portalReturn';
 interface Invoice {
   id: string;
   number: string | null;
@@ -70,7 +71,7 @@ interface PaymentMethod {
 interface Subscription {
   id: string;
   status: string;
-  currentPeriodEnd: number;
+  currentPeriodEnd: number | null;
   cancelAtPeriodEnd: boolean;
   priceId: string;
   productId: string;
@@ -115,7 +116,16 @@ export default function Planos() {
   } = useWorkspaceSubscription();
   const { toast } = useToast();
   
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('planos');
+
+  // Regresso do portal de faturação: a cache do workspace já foi ignorada ao
+  // arrancar (WorkspaceContext); aqui só se retira o parâmetro do URL.
+  useEffect(() => {
+    if (hasPortalReturnParam(searchParams.toString())) {
+      setSearchParams(new URLSearchParams(removePortalReturnParam(searchParams.toString())), { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly');
   const [currency, setCurrency] = useState<'eur' | 'brl'>(() => {
@@ -676,7 +686,9 @@ export default function Planos() {
                           <div className="flex items-center justify-between">
                             <span className="text-muted-foreground">Próxima faturação</span>
                             <span className="font-medium">
-                              {formatDatePt(new Date(billingInfo.subscription.currentPeriodEnd * 1000), "d 'de' MMMM, yyyy")}
+                              {billingInfo.subscription.currentPeriodEnd
+                                ? formatDatePt(new Date(billingInfo.subscription.currentPeriodEnd * 1000), "d 'de' MMMM, yyyy")
+                                : "—"}
                             </span>
                           </div>
                           {billingInfo.subscription.cancelAtPeriodEnd && (

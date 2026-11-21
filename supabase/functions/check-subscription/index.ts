@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { getSubscriptionPeriodEnd } from "../_shared/stripe-billing.ts";
 
 const allowedOrigins = [
   'https://willflow.app',
@@ -216,10 +217,8 @@ serve(async (req) => {
 
       if (hasActiveSub) {
         const subscription = subscriptions.data[0];
-        const end = (subscription as any).current_period_end;
-        if (typeof end === 'number' && Number.isFinite(end) && end > 0) {
-          subscriptionEnd = new Date(end * 1000).toISOString();
-        }
+        // API basil: the period end lives on the subscription items
+        subscriptionEnd = getSubscriptionPeriodEnd(subscription);
 
         const productId = subscription.items.data[0]?.price?.product as string | undefined;
         plan = (productId && PLAN_MAPPING[productId]) ? PLAN_MAPPING[productId] : workspacePlan;
