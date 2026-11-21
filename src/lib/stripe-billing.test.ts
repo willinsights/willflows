@@ -7,15 +7,19 @@ import {
   buildWorkspacePlanPatch,
   classifyProduct,
   decideCheckout,
+  decideStripePlanCheckout,
   decidePlanEvent,
   getInvoiceSubscriptionId,
+  isDuplicatePlanSubscription,
   isEmailCustomerAcceptableForUser,
   isInvoiceForStoredPlan,
   isManualGrant,
+  isPlanSubscription,
   isStripeResourceMissing,
   isUsableStripeCustomer,
   mapStripeSubscriptionStatus,
   pickEmailCustomerForUser,
+  selectPlanSessionsToExpire,
   selectWorkspacesForPropagation,
   shouldApplyPlanEvent,
   shouldInvoiceFailureMarkPastDue,
@@ -734,5 +738,120 @@ describe('shouldInvoiceFailureMarkPastDue', () => {
     expect(
       shouldInvoiceFailureMarkPastDue({ ...stored, storedSubscriptionId: null, storedStatus: 'active' }),
     ).toBe(false);
+  });
+});
+
+describe('parallel plan checkouts (F10)', () => {
+  const planProduct = productFor(PRODUCT_TO_PLAN, 'pro');
+  const addonProduct = productFor(STORAGE_ADDON_PRODUCTS, '50gb');
+  const sub = (id: string, status: string, products: unknown[], metadata?: Record<string, unknown>) => ({
+    id,
+    status,
+    metadata,
+    items: { data: products.map((product) => ({ price: { product } })) },
+  });
+
+  describe('decideStripePlanCheckout', () => {
+    it('allows when the customer has no subscriptions', () => {
+      expect(decideStripePlanCheckout([])).toEqual({ allow: true, blockingSubscriptionId: null });
+      expect(decideStripePlanCheckout(null)).toEqual({ allow: true, blockingSubscriptionId: null });
+    });
+
+    it('refuses with an active plan subscription', () => {
+      expect(decideStripePlanCheckout([sub('sub_a', 'active', [planProduct])]))
+        .toEqual({ allow: false, blockingSubscriptionId: 'sub_a' });
+    });
+
+    it('refuses with trialing, past_due, unpaid or paused plan subscriptions', () => {
+      for (const status of ['trialing', 'past_due', 'unpaid', 'paused']) {
+        expect(decideStripePlanCheckout([sub('sub_x', status, [planProduct])]).allow).toBe(false);
+      }
+    });
+
+    it('counts an incomplete plan subscription', () => {
+      expect(decideStripePlanCheckout([sub('sub_i', 'incomplete', [planProduct])]))
+        .toEqual({ allow: false, blockingSubscriptionId: 'sub_i' });
+    });
+
+    it('ignores canceled and incomplete_expired plan subscriptions', () => {
+      expect(decideStripePlanCheckout([
+        sub('sub_c', 'canceled', [planProduct]),
+        sub('sub_e', 'incomplete_expired', [planProduct]),
+      ]).allow).toBe(true);
+    });
+
+    it('ignores a subscription that is only a storage add-on', () => {
+      expect(decideStripePlanCheckout([sub('sub_s', 'active', [addonProduct])]).allow).toBe(true);
+      expect(decideStripePlanCheckout([
+        sub('sub_m', 'active', ['prod_unknown'], { addon_type: 'storage', storage_tier: '25gb' }),
+      ]).allow).toBe(true);
+    });
+
+    it('ignores unknown products even with plan metadata', () => {
+      expect(decideStripePlanCheckout([sub('sub_u', 'active', ['prod_unknown'], { kind: 'plan' })]).allow)
+        .toBe(true);
+    });
+
+    it('finds the plan subscription among add-ons and canceled ones', () => {
+      expect(decideStripePlanCheckout([
+        sub('sub_s', 'active', [addonProduct]),
+        sub('sub_c', 'canceled', [planProduct]),
+        sub('sub_p', 'past_due', [planProduct]),
+      ])).toEqual({ allow: false, blockingSubscriptionId: 'sub_p' });
+    });
+  });
+
+  describe('isPlanSubscription', () => {
+    it('accepts an expanded product object', () => {
+      expect(isPlanSubscription(sub('sub_o', 'active', [{ id: planProduct }]))).toBe(true);
+    });
+
+    it('is false without items', () => {
+      expect(isPlanSubscription({ id: 'sub_n', status: 'active' })).toBe(false);
+      expect(isPlanSubscription(null)).toBe(false);
+    });
+  });
+
+  describe('selectPlanSessionsToExpire', () => {
+    it('selects open plan sessions, including ones without kind', () => {
+      expect(selectPlanSessionsToExpire([
+        { id: 'cs_plan', status: 'open', mode: 'subscription', metadata: { kind: 'plan' } },
+        { id: 'cs_legacy', status: 'open', mode: 'subscription', metadata: {} },
+      ])).toEqual(['cs_plan', 'cs_legacy']);
+    });
+
+    it('keeps storage add-on, non-open and non-subscription sessions', () => {
+      expect(selectPlanSessionsToExpire([
+        { id: 'cs_addon', status: 'open', mode: 'subscription', metadata: { addon_type: 'storage' } },
+        { id: 'cs_done', status: 'complete', mode: 'subscription', metadata: { kind: 'plan' } },
+        { id: 'cs_pay', status: 'open', mode: 'payment', metadata: {} },
+      ])).toEqual([]);
+      expect(selectPlanSessionsToExpire(undefined)).toEqual([]);
+    });
+  });
+
+  describe('isDuplicatePlanSubscription', () => {
+    const base = {
+      storedSubscriptionId: 'sub_old',
+      storedStatus: 'active',
+      eventSubscriptionId: 'sub_new',
+      eventStatus: 'active',
+    };
+
+    it('is true for a different running subscription on a running account', () => {
+      expect(isDuplicatePlanSubscription(base)).toBe(true);
+      expect(isDuplicatePlanSubscription({ ...base, storedStatus: 'past_due', eventStatus: 'trialing' }))
+        .toBe(true);
+    });
+
+    it('is false for the same subscription or nothing stored', () => {
+      expect(isDuplicatePlanSubscription({ ...base, eventSubscriptionId: 'sub_old' })).toBe(false);
+      expect(isDuplicatePlanSubscription({ ...base, storedSubscriptionId: null })).toBe(false);
+    });
+
+    it('is false when the stored one is canceled or the new one is not running', () => {
+      expect(isDuplicatePlanSubscription({ ...base, storedStatus: 'canceled' })).toBe(false);
+      expect(isDuplicatePlanSubscription({ ...base, eventStatus: 'incomplete' })).toBe(false);
+    });
   });
 });

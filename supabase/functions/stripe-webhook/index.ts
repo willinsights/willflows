@@ -11,6 +11,7 @@ import {
   classifyProduct,
   decidePlanEvent,
   getInvoiceSubscriptionId,
+  isDuplicatePlanSubscription,
   mapStripeSubscriptionStatus,
   selectWorkspacesForPropagation,
   shouldInvoiceFailureMarkPastDue,
@@ -558,6 +559,20 @@ serve(async (req) => {
             throw new Error(`Plan checkout: could not read account (${accountRowError.message})`);
           }
 
+          // F10: two plan subscriptions for the same account. Only logged
+          // (ids only, no email); nothing is canceled automatically.
+          if (isDuplicatePlanSubscription({
+            storedSubscriptionId: accountRow?.stripe_subscription_id ?? null,
+            storedStatus: accountRow?.subscription_status ?? null,
+            eventSubscriptionId: subscription.id,
+            eventStatus: subscription.status,
+          })) {
+            console.error(
+              `[billing][duplicate-subscription] event=${PLAN_CHECKOUT_EVENT} ` +
+              `new_subscription=${subscription.id} stored_subscription=${accountRow?.stripe_subscription_id}`,
+            );
+          }
+
           const checkoutDecision = decidePlanEvent({
             storedSubscriptionId: accountRow?.stripe_subscription_id ?? null,
             storedStatus: accountRow?.subscription_status ?? null,
@@ -661,6 +676,20 @@ serve(async (req) => {
 
         // Guard: an old or secondary subscription must not overwrite the
         // plan subscription stored on the account
+        // F10: two plan subscriptions for the same account. Only logged on
+        // creation (ids only, no email); nothing is canceled automatically.
+        if (event.type === "customer.subscription.created" && isDuplicatePlanSubscription({
+          storedSubscriptionId: account.storedSubscriptionId,
+          storedStatus: account.storedStatus,
+          eventSubscriptionId: subscription.id,
+          eventStatus: subscription.status,
+        })) {
+          console.error(
+            `[billing][duplicate-subscription] event=${event.type} ` +
+            `new_subscription=${subscription.id} stored_subscription=${account.storedSubscriptionId}`,
+          );
+        }
+
         const decision = decidePlanEvent({
           storedSubscriptionId: account.storedSubscriptionId,
           storedStatus: account.storedStatus,

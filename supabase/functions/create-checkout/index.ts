@@ -10,7 +10,9 @@ import {
   NOT_WORKSPACE_OWNER_CODE,
   PLAN_CHECKOUT_KIND,
   decideCheckout,
+  decideStripePlanCheckout,
   isWorkspaceOwner,
+  selectPlanSessionsToExpire,
   isStripeResourceMissing,
   isUsableStripeCustomer,
   pickEmailCustomerForUser,
@@ -251,6 +253,47 @@ serve(async (req) => {
       if (saveError) {
         console.warn("[CREATE-CHECKOUT] Could not store the Stripe customer id on the account", saveError.message);
       }
+    }
+
+    // Parallel checkouts (F10): the account row is written by the webhook only
+    // after the first purchase, so two tabs could both pass decideCheckout.
+    // Stripe itself is checked here. Fail closed: a listing error throws (500).
+    const existingSubscriptions = await stripe.subscriptions.list({
+      customer: customerId,
+      status: "all",
+      limit: 100,
+    });
+    const stripeDecision = decideStripePlanCheckout(existingSubscriptions.data);
+    if (!stripeDecision.allow) {
+      logStep("Checkout refused: plan subscription already in Stripe", {
+        subscriptionId: stripeDecision.blockingSubscriptionId,
+      });
+      return new Response(
+        JSON.stringify({ error: ALREADY_SUBSCRIBED_CODE, code: ALREADY_SUBSCRIBED_CODE }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Only the newest plan checkout may be paid: expire the open ones of this
+    // customer. A failure is logged and the checkout continues.
+    try {
+      const openSessions = await stripe.checkout.sessions.list({
+        customer: customerId,
+        status: "open",
+        limit: 100,
+      });
+      for (const sessionId of selectPlanSessionsToExpire(openSessions.data)) {
+        try {
+          await stripe.checkout.sessions.expire(sessionId);
+          logStep("Expired previous open plan checkout session", { sessionId });
+        } catch (expireError) {
+          console.error("[CREATE-CHECKOUT] Could not expire open checkout session", sessionId,
+            expireError instanceof Error ? expireError.message : String(expireError));
+        }
+      }
+    } catch (listError) {
+      console.error("[CREATE-CHECKOUT] Could not list open checkout sessions",
+        listError instanceof Error ? listError.message : String(listError));
     }
 
     const requestOrigin = origin && allowedOrigins.includes(origin) ? origin : "https://willflow.app";

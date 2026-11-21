@@ -121,7 +121,7 @@ export default function ParaAgencias() {
               "@type": "Offer",
               "price": "42",
               "priceCurrency": "EUR",
-              "priceValidUntil": "2026-12-31",
+              "priceValidUntil": "2027-12-31",
               "availability": "https://schema.org/InStock"
             }
           })}
