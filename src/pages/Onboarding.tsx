@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Check,
   Loader2,
   RefreshCw,
   AlertCircle,
+  ArrowLeft,
   ArrowRight,
   Sparkles,
 } from 'lucide-react';
@@ -28,10 +29,12 @@ export default function Onboarding() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { refreshWorkspaces, currentWorkspace } = useWorkspace();
+  const { refreshWorkspaces, currentWorkspace, allWorkspaces } = useWorkspace();
   const { toast } = useToast();
 
   const isCreatingNew = searchParams.get('new') === 'true';
+  // Só há app para onde voltar quando se cria um workspace adicional
+  const canGoBackToApp = isCreatingNew && (currentWorkspace !== null || allWorkspaces.length > 0);
 
   // State
   const [step, setStep] = useState<Step>('region');
@@ -137,7 +140,17 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background">
+    <div className="relative min-h-screen flex flex-col items-center justify-center p-6 bg-background">
+      {canGoBackToApp && step === 'region' && !loading && (
+        <Link
+          to="/app"
+          className="absolute top-6 left-6 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Voltar</span>
+        </Link>
+      )}
+
       {/* Logo */}
       <div className="mb-8">
         <img src={logoWillflow} alt="WillFlow" className="h-12 object-contain" />
