@@ -21,7 +21,7 @@ function formatDaysRemaining(daysRemaining: number) {
 
 export function AccountPlanTab() {
   // Só o dono do workspace (primeiro administrador) gere o plano
-  const { currentWorkspace, isWorkspaceOwner } = useWorkspace();
+  const { currentWorkspace, isWorkspaceOwner, checkoutWorkspaceId, loading: workspaceLoading } = useWorkspace();
   const { subscription, loading: subscriptionLoading } = useUserSubscription();
   const { toast } = useToast();
   const [portalLoading, setPortalLoading] = useState(false);
@@ -95,7 +95,7 @@ export function AccountPlanTab() {
 
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         headers: { Authorization: `Bearer ${session.access_token}` },
-        body: { priceId, workspaceId: currentWorkspace?.id },
+        body: { priceId, workspaceId: checkoutWorkspaceId },
       });
 
       if (error) throw error;
@@ -137,7 +137,8 @@ export function AccountPlanTab() {
     ? trialDaysRemaining < 0
     : false;
 
-  if (subscriptionLoading) {
+  // Enquanto o dono do workspace não é conhecido não se afirma «acesso restrito»
+  if (subscriptionLoading || workspaceLoading) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

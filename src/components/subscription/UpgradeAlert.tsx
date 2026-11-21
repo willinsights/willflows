@@ -59,7 +59,7 @@ export const UpgradeAlert = forwardRef<HTMLDivElement, UpgradeAlertProps>(functi
   const navigate = useNavigate();
   const { checkout } = usePlanCheckout();
   // Só o dono do workspace (primeiro administrador) compra a partir daqui
-  const { currentWorkspace, isWorkspaceOwner } = useWorkspace();
+  const { currentWorkspace, isWorkspaceOwner, checkoutWorkspaceId, loading: workspaceLoading } = useWorkspace();
   const [loading, setLoading] = useState(false);
 
   if (!feature || !requiredPlan) return null;
@@ -75,13 +75,13 @@ export const UpgradeAlert = forwardRef<HTMLDivElement, UpgradeAlertProps>(functi
   };
 
   const handleUpgrade = async () => {
-    if (!currentWorkspace || !isWorkspaceOwner) return;
+    if (!currentWorkspace || !isWorkspaceOwner || !checkoutWorkspaceId) return;
 
     setLoading(true);
     try {
       const result = await checkout({
         priceId: getPriceId(requiredPlan, currencyKey, 'monthly'),
-        workspaceId: currentWorkspace.id,
+        workspaceId: checkoutWorkspaceId,
       });
       // Fecha-se o diálogo para a ação «Gerir subscrição» do aviso ficar acessível
       if (result.status === 'redirected' || result.status === 'already_subscribed') {
@@ -187,7 +187,7 @@ export const UpgradeAlert = forwardRef<HTMLDivElement, UpgradeAlertProps>(functi
                 {LEAVING_PAGE_WARNING}
               </p>
             </>
-          ) : (
+          ) : workspaceLoading ? null : (
             <p className="text-sm text-center text-muted-foreground">
               {CONTACT_OWNER_MESSAGE}.
             </p>

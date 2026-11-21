@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { trackTrialStarted } from '@/lib/google-ads';
@@ -51,12 +52,16 @@ const getBlockedMessage = (reason: BlockedReason, accountStatus: string | null |
 const formatDayMonth = (iso: string): string =>
   new Date(iso).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
 
+const formatFullDate = (iso: string): string =>
+  new Date(iso).toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric' });
+
 export default function Onboarding() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, subscription: accountSubscription } = useAuth();
   const { refreshWorkspaces, currentWorkspace, allWorkspaces, isWorkspaceOwner } = useWorkspace();
   const { toast } = useToast();
+  const { isSuperAdmin } = useSuperAdmin();
 
   const isCreatingNew = searchParams.get('new') === 'true';
   // Só há app para onde voltar quando se cria um workspace adicional
@@ -68,7 +73,10 @@ export default function Onboarding() {
   // usa o plano (ou o teste em curso) da conta. O servidor é a autoridade.
   // Uma conta que já comprou o plano (sem workspace próprio) também não começa teste,
   // e uma conta cujo teste já terminou vê logo a explicação e os planos.
+  // O super admin nunca vê «Ver planos» em vez do botão de criar: o servidor
+  // não lhe aplica limites nem a regra do teste.
   const offer = getOnboardingOffer({
+    isSuperAdmin,
     accountStatus: accountSubscription?.status,
     trialStartedAt: accountSubscription?.trialStartedAt,
     trialEndsAt: accountSubscription?.trialEndsAt,
@@ -76,6 +84,9 @@ export default function Onboarding() {
   });
   const trialAlreadyStarted = offer !== 'trial';
   const trialUsed = offer === 'trial_used';
+  // Teste em curso e sem workspace próprio: não começa outro teste de 7 dias
+  const trialInProgress = offer === 'trial_in_progress';
+  const trialInProgressEnd = accountSubscription?.trialEndsAt ?? null;
 
   // /app/planos exige um workspace (o ProtectedRoute envia para /onboarding) e só o
   // dono compra lá. Sem workspace, ou sem ser o dono, usa-se a página pública
@@ -87,8 +98,23 @@ export default function Onboarding() {
       title: 'Usa o plano da sua conta',
       description: 'O novo workspace não inicia um novo período de teste.',
     };
+    if (trialInProgress) {
+      return {
+        title: 'Teste em curso',
+        description: trialInProgressEnd
+          ? `O seu período de teste termina a ${formatFullDate(trialInProgressEnd)}.`
+          : 'O novo workspace usa o período de teste da sua conta.',
+      };
+    }
     if (!accountSubscription) return generic;
     const { plan, status, trialEndsAt } = accountSubscription;
+    // Super admin sem plano ativo: nada a afirmar sobre plano ou teste
+    if (isSuperAdmin && status !== 'active') {
+      return {
+        title: 'Conta de administração',
+        description: 'A criação de workspaces não depende do período de teste.',
+      };
+    }
     if (status === 'active' && plan) {
       return {
         title: `Usa o seu plano ${getDisplayPlanName(plan)}`,
@@ -182,7 +208,9 @@ export default function Onboarding() {
       if (trialAlreadyStarted) {
         toast({
           title: 'Workspace criado',
-          description: 'O novo workspace usa o plano da sua conta.',
+          description: trialInProgress
+            ? 'O novo workspace usa o período de teste em curso da sua conta.'
+            : 'O novo workspace usa o plano da sua conta.',
         });
       } else {
         // Track trial started conversion

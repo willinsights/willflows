@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { isWorkspaceOwner } from '@/lib/billing/accountPlan';
 
 interface WorkspaceWithRole {
   id: string;
@@ -14,11 +15,14 @@ interface WorkspaceWithRole {
   trial_ends_at?: string | null;
   role: 'admin' | 'edicao' | 'captacao' | 'gestao' | 'visualizacao';
   logo_url?: string | null;
+  owner_id?: string | null;
 }
 
 interface ActiveWorkspacesListProps {
   workspaces: WorkspaceWithRole[];
   currentWorkspaceId: string | null;
+  /** Utilizador com sessão: o selo de dono segue `owner_id`, não o papel admin. */
+  currentUserId?: string | null;
   onSelectWorkspace: (workspaceId: string) => Promise<void>;
   loading?: boolean;
 }
@@ -40,6 +44,7 @@ const roleLabels: Record<string, string> = {
 export function ActiveWorkspacesList({
   workspaces,
   currentWorkspaceId,
+  currentUserId = null,
   onSelectWorkspace,
   loading = false,
 }: ActiveWorkspacesListProps) {
@@ -84,7 +89,7 @@ export function ActiveWorkspacesList({
         <div className="space-y-2 pr-4">
           {otherWorkspaces.map((workspace) => {
             const isSelected = selectedId === workspace.id;
-            const isOwner = workspace.role === 'admin';
+            const isOwner = isWorkspaceOwner(workspace, currentUserId);
 
             return (
               <button

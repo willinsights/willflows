@@ -114,7 +114,7 @@ function getFeatureValue(planId: PlanId, featureKey: string): string | boolean {
 
 export default function PlanosComparar() {
   const { user } = useAuth();
-  const { currentWorkspace, isWorkspaceOwner } = useWorkspace();
+  const { checkoutWorkspaceId } = useWorkspace();
   const { checkout } = usePlanCheckout();
   const navigate = useNavigate();
 
@@ -141,7 +141,7 @@ export default function PlanosComparar() {
     try {
       await checkout({
         priceId: getPriceId(planId, currency, interval),
-        workspaceId: currentWorkspace && isWorkspaceOwner ? currentWorkspace.id : undefined,
+        workspaceId: checkoutWorkspaceId,
       });
     } finally {
       setLoadingPlan(null);

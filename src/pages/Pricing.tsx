@@ -36,7 +36,7 @@ import {
 const faqs = [
   {
     question: 'Como funciona o período de teste?',
-    answer: 'Ao criar conta, tem automaticamente 7 dias grátis para experimentar todas as funcionalidades sem precisar de cartão. Após o trial, escolhe o plano que melhor se adequa.',
+    answer: 'Ao criar conta, tem automaticamente 7 dias grátis para experimentar todas as funcionalidades. O teste gratuito não exige cartão. Quando subscreve um plano, o pagamento é cobrado no momento da compra.',
   },
   {
     question: 'Posso mudar de plano a qualquer momento?',
@@ -62,7 +62,7 @@ const faqs = [
 
 export default function Pricing() {
   const { user } = useAuth();
-  const { currentWorkspace, isWorkspaceOwner } = useWorkspace();
+  const { checkoutWorkspaceId } = useWorkspace();
   const { checkout } = usePlanCheckout();
   const navigate = useNavigate();
   
@@ -96,7 +96,7 @@ export default function Pricing() {
     try {
       await checkout({
         priceId: getPriceId(planId, currency, interval),
-        workspaceId: currentWorkspace && isWorkspaceOwner ? currentWorkspace.id : undefined,
+        workspaceId: checkoutWorkspaceId,
       });
     } finally {
       setLoadingPlan(null);

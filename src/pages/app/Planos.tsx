@@ -100,7 +100,7 @@ function formatDatePt(date: Date, fmt: string) {
 }
 
 export default function Planos() {
-  const { currentWorkspace, ownedWorkspaces } = useWorkspace();
+  const { currentWorkspace, ownedWorkspaces, checkoutWorkspaceId } = useWorkspace();
   const { subscription: accountSubscription } = useAuth();
   const { checkout, openPortal, portalLoading } = usePlanCheckout();
   const { 
@@ -200,7 +200,7 @@ export default function Planos() {
 
       await checkout({
         priceId: getPriceId(planId, currency, billingInterval),
-        workspaceId: currentWorkspace?.id,
+        workspaceId: checkoutWorkspaceId,
       });
     } finally {
       setCheckoutLoading(null);
@@ -601,7 +601,7 @@ export default function Planos() {
                             )
                           ) : (
                             <Button variant="outline" disabled className="w-full">
-                              {isCurrentPlan ? 'Plano Atual' : 'Contactar Admin'}
+                              {isCurrentPlan ? 'Plano Atual' : userSubLoading ? 'A carregar...' : 'Contactar o dono'}
                             </Button>
                           )}
                         </CardContent>

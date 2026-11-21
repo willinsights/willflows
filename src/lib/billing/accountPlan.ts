@@ -78,7 +78,7 @@ export function isManuallyGrantedPlan(account: {
   return account.status === 'active' && account.hasStripeSubscription === false;
 }
 
-export type OnboardingOffer = 'trial' | 'account_plan' | 'trial_used';
+export type OnboardingOffer = 'trial' | 'trial_in_progress' | 'account_plan' | 'trial_used';
 
 export interface OnboardingOfferInput {
   /** Estado da conta (`user_subscriptions.subscription_status`). */
@@ -87,23 +87,32 @@ export interface OnboardingOfferInput {
   trialEndsAt: string | null | undefined;
   /** A conta já é dona de um workspace e está a criar outro. */
   addingToOwnWorkspaces: boolean;
+  /** Super admin: o servidor não lhe aplica limites nem a regra do teste. */
+  isSuperAdmin?: boolean;
 }
 
 /**
  * O que o onboarding mostra antes de criar o workspace. Função pura; o servidor
  * continua a ser a autoridade.
  * - plano ativo: o workspace usa o plano da conta;
- * - teste já usado (começou e já terminou) sem plano ativo: explicação e planos,
- *   nunca a promessa de 7 dias grátis;
- * - conta que já é dona de um workspace: usa o plano ou o teste em curso;
- * - caso contrário: oferta do teste gratuito.
+ * - teste já começado e sem fim no futuro (terminou, ou não tem data de fim)
+ *   e sem plano ativo: teste usado, com a explicação e os planos, nunca a
+ *   promessa de 7 dias grátis. O super admin nunca fica neste estado: pode
+ *   sempre criar o workspace;
+ * - teste em curso (fim no futuro): não começa outro teste. Quem já é dono de
+ *   um workspace usa o plano/teste da conta; quem não é vê a data em que o
+ *   teste em curso termina;
+ * - teste nunca começado: quem já é dono de um workspace usa o plano da conta;
+ *   caso contrário, oferta do teste gratuito.
  */
 export function getOnboardingOffer(input: OnboardingOfferInput, now: number = Date.now()): OnboardingOffer {
   if (hasActivePaidPlan(input.accountStatus)) return 'account_plan';
 
   if (input.trialStartedAt) {
     const end = input.trialEndsAt ? Date.parse(input.trialEndsAt) : NaN;
-    if (Number.isFinite(end) && end <= now) return 'trial_used';
+    const trialRunning = Number.isFinite(end) && end > now;
+    if (!trialRunning) return input.isSuperAdmin ? 'account_plan' : 'trial_used';
+    return input.addingToOwnWorkspaces ? 'account_plan' : 'trial_in_progress';
   }
 
   return input.addingToOwnWorkspaces ? 'account_plan' : 'trial';

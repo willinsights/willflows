@@ -125,8 +125,10 @@ describe('getOnboardingOffer', () => {
     ).toBe('account_plan');
   });
 
-  it('teste em curso: não é teste usado', () => {
-    expect(getOnboardingOffer({ ...base, trialStartedAt: past, trialEndsAt: future }, now)).toBe('trial');
+  it('teste em curso: não é teste usado nem oferta de um teste novo', () => {
+    expect(getOnboardingOffer({ ...base, trialStartedAt: past, trialEndsAt: future }, now)).toBe(
+      'trial_in_progress',
+    );
     expect(
       getOnboardingOffer(
         { ...base, trialStartedAt: past, trialEndsAt: future, addingToOwnWorkspaces: true },
@@ -135,10 +137,36 @@ describe('getOnboardingOffer', () => {
     ).toBe('account_plan');
   });
 
-  it('sem início de teste, ou sem data de fim legível, não afirma que foi usado', () => {
+  it('sem início de teste não afirma que foi usado', () => {
     expect(getOnboardingOffer({ ...base, trialStartedAt: null, trialEndsAt: past }, now)).toBe('trial');
-    expect(getOnboardingOffer({ ...base, trialStartedAt: past, trialEndsAt: null }, now)).toBe('trial');
-    expect(getOnboardingOffer({ ...base, trialStartedAt: past, trialEndsAt: 'x' }, now)).toBe('trial');
+  });
+
+  it('teste começado sem data de fim (ou ilegível): teste usado, como no servidor', () => {
+    expect(getOnboardingOffer({ ...base, trialStartedAt: past, trialEndsAt: null }, now)).toBe('trial_used');
+    expect(getOnboardingOffer({ ...base, trialStartedAt: past, trialEndsAt: 'x' }, now)).toBe('trial_used');
+    expect(
+      getOnboardingOffer(
+        { ...base, trialStartedAt: past, trialEndsAt: null, addingToOwnWorkspaces: true },
+        now,
+      ),
+    ).toBe('trial_used');
+  });
+
+  it('super admin nunca fica em «teste usado»', () => {
+    const superAdmin = { ...base, isSuperAdmin: true };
+    expect(getOnboardingOffer({ ...superAdmin, trialStartedAt: past, trialEndsAt: past }, now)).toBe(
+      'account_plan',
+    );
+    expect(getOnboardingOffer({ ...superAdmin, trialStartedAt: past, trialEndsAt: null }, now)).toBe(
+      'account_plan',
+    );
+    expect(
+      getOnboardingOffer(
+        { ...superAdmin, accountStatus: 'expired', trialStartedAt: past, trialEndsAt: past, addingToOwnWorkspaces: true },
+        now,
+      ),
+    ).toBe('account_plan');
+    expect(getOnboardingOffer(superAdmin, now)).toBe('trial');
   });
 
   it('conta que já é dona de um workspace usa o plano da conta', () => {

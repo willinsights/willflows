@@ -1,6 +1,6 @@
 import { MANUAL_PLAN_MESSAGE, isManuallyGrantedPlan } from '@/lib/billing/accountPlan';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Crown, Sparkles, Check, Loader2, LogOut, AlertTriangle, CreditCard } from 'lucide-react';
 import {
@@ -36,12 +36,12 @@ interface WorkspaceExpiredModalProps {
 
 export function WorkspaceExpiredModal({ open }: WorkspaceExpiredModalProps) {
   const navigate = useNavigate();
-  const { signOut, subscription: accountSubscription } = useAuth();
+  const { user, signOut, subscription: accountSubscription } = useAuth();
   const manualPlan = isManuallyGrantedPlan({
     status: accountSubscription?.status,
     hasStripeSubscription: accountSubscription?.hasStripeSubscription,
   });
-  const { currentWorkspace, activeWorkspaces, setCurrentWorkspace, loading: workspaceLoading } = useWorkspace();
+  const { currentWorkspace, activeWorkspaces, setCurrentWorkspace, checkoutWorkspaceId, loading: workspaceLoading } = useWorkspace();
   const { isOwner, canManageSubscription, isTrial, status } = useWorkspaceSubscription();
   const { checkout, openPortal, portalLoading } = usePlanCheckout();
   const { toast } = useToast();
@@ -54,14 +54,14 @@ export function WorkspaceExpiredModal({ open }: WorkspaceExpiredModalProps) {
   const isPastDue = status === 'past_due';
 
   const handleUpgrade = async () => {
-    if (!currentWorkspace || !canManageSubscription) return;
+    if (!currentWorkspace || !canManageSubscription || !checkoutWorkspaceId) return;
 
     setLoading(true);
     try {
       const currencyKey: Currency = (currentWorkspace.currency?.toLowerCase() === 'brl' ? 'brl' : 'eur');
       const result = await checkout({
         priceId: getPriceId(selectedPlan, currencyKey, 'monthly'),
-        workspaceId: currentWorkspace.id,
+        workspaceId: checkoutWorkspaceId,
       }, { inlineAlreadySubscribed: true });
       // Este diálogo é bloqueante: a saída para a gestão de subscrição fica aqui dentro
       if (result.status === 'already_subscribed') {
@@ -314,6 +314,7 @@ export function WorkspaceExpiredModal({ open }: WorkspaceExpiredModalProps) {
             <ActiveWorkspacesList
               workspaces={activeWorkspaces}
               currentWorkspaceId={currentWorkspace?.id || null}
+              currentUserId={user?.id ?? null}
               onSelectWorkspace={handleSwitchWorkspace}
               loading={workspaceLoading}
             />
@@ -321,10 +322,23 @@ export function WorkspaceExpiredModal({ open }: WorkspaceExpiredModalProps) {
         )}
 
         {/* No other workspaces message for non-owners */}
-        {!isOwner && !hasOtherWorkspaces && (
+        {!isOwner && !workspaceLoading && !hasOtherWorkspaces && (
           <div className="text-center py-4 text-muted-foreground">
             <p className="text-sm">
               Não tem outros workspaces ativos. Contacte o dono deste workspace para {isPastDue ? 'atualizar o pagamento' : 'renovar a subscrição'}.
+            </p>
+          </div>
+        )}
+
+        {/* Quem não é dono (administrador ou membro) pode comprar um plano para a
+            própria conta na página pública de planos, sem workspace */}
+        {!isOwner && !workspaceLoading && (
+          <div className="space-y-2 text-center">
+            <Button asChild variant="outline" className="w-full">
+              <Link to="/planos">Ver planos para a minha conta</Link>
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Um plano na sua conta serve para os seus próprios workspaces; este workspace continua a depender do plano do dono.
             </p>
           </div>
         )}

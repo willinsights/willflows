@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 const mocks = vi.hoisted(() => {
@@ -13,7 +13,9 @@ const mocks = vi.hoisted(() => {
       | undefined;
   } = { subscription: undefined };
   const rpc = vi.fn();
-  return { workspaceState, authState, rpc };
+  const toast = vi.fn();
+  const superAdminState = { isSuperAdmin: false };
+  return { workspaceState, authState, rpc, toast, superAdminState };
 });
 
 vi.mock('@/integrations/supabase/client', () => ({
@@ -42,7 +44,11 @@ vi.mock('@/contexts/WorkspaceContext', () => ({
 }));
 
 vi.mock('@/hooks/use-toast', () => ({
-  useToast: () => ({ toast: vi.fn() }),
+  useToast: () => ({ toast: mocks.toast }),
+}));
+
+vi.mock('@/hooks/useSuperAdmin', () => ({
+  useSuperAdmin: () => ({ isSuperAdmin: mocks.superAdminState.isSuperAdmin, loading: false }),
 }));
 
 vi.mock('@/lib/google-ads', () => ({
@@ -64,6 +70,8 @@ describe('Onboarding', () => {
     mocks.workspaceState.currentWorkspace = null;
     mocks.workspaceState.allWorkspaces = [];
     mocks.authState.subscription = undefined;
+    mocks.superAdminState.isSuperAdmin = false;
+    mocks.toast.mockReset();
     mocks.rpc.mockReset();
     mocks.rpc.mockResolvedValue({ data: null, error: null });
   });
@@ -216,6 +224,65 @@ describe('Onboarding', () => {
     expect(screen.queryByRole('button', { name: /Criar workspace/ })).not.toBeInTheDocument();
     expect(screen.getByText('O período de teste desta conta já foi usado')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Ver planos/ })).toHaveAttribute('href', '/planos');
+  });
+
+  it('teste começado sem data de fim: mostra «teste usado», como o servidor decide', () => {
+    mocks.authState.subscription = {
+      plan: 'starter',
+      status: 'trialing',
+      trialStartedAt: '2026-01-01T00:00:00Z',
+      trialEndsAt: null,
+    };
+
+    renderAt('/onboarding');
+
+    expect(screen.queryByText('7 dias grátis')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Começar teste grátis/ })).not.toBeInTheDocument();
+    expect(screen.getByText('O período de teste desta conta já foi usado')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Ver planos/ })).toHaveAttribute('href', '/planos');
+  });
+
+  it('super admin com o teste usado mantém o botão de criar, sem «Ver planos»', () => {
+    mocks.superAdminState.isSuperAdmin = true;
+    mocks.authState.subscription = {
+      plan: 'starter',
+      status: 'expired',
+      trialStartedAt: '2026-01-01T00:00:00Z',
+      trialEndsAt: '2026-01-08T00:00:00Z',
+    };
+
+    renderAt('/onboarding');
+
+    expect(screen.getByRole('button', { name: /Criar workspace/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Ver planos/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('O período de teste desta conta já foi usado')).not.toBeInTheDocument();
+    expect(screen.queryByText('7 dias grátis')).not.toBeInTheDocument();
+  });
+
+  it('teste em curso sem workspace próprio: mostra quando termina e não promete 7 dias', async () => {
+    const end = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+    mocks.authState.subscription = {
+      plan: 'starter',
+      status: 'trialing',
+      trialStartedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+      trialEndsAt: end.toISOString(),
+    };
+
+    renderAt('/onboarding');
+
+    const fullDate = end.toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric' });
+    expect(screen.getByText(`O seu período de teste termina a ${fullDate}.`)).toBeInTheDocument();
+    expect(screen.queryByText('7 dias grátis')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Sem cartão de crédito/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Começar teste grátis/ })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Criar workspace/ }));
+
+    await waitFor(() => expect(mocks.toast).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText('7 dias de teste ativados!')).not.toBeInTheDocument();
+    const shown = JSON.stringify(mocks.toast.mock.calls[0][0]);
+    expect(shown).not.toMatch(/7 dias/);
+    expect(shown).toMatch(/período de teste em curso/);
   });
 
   it('teste já usado mas com plano ativo: usa o plano da conta e pode criar o workspace', () => {
