@@ -4196,6 +4196,7 @@ export type Database = {
           subscription_plan: Database["public"]["Enums"]["subscription_plan"]
           subscription_status: string
           trial_ends_at: string | null
+          trial_started_at: string | null
           updated_at: string
           user_id: string
         }
@@ -4208,6 +4209,7 @@ export type Database = {
           subscription_plan?: Database["public"]["Enums"]["subscription_plan"]
           subscription_status?: string
           trial_ends_at?: string | null
+          trial_started_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -4220,6 +4222,7 @@ export type Database = {
           subscription_plan?: Database["public"]["Enums"]["subscription_plan"]
           subscription_status?: string
           trial_ends_at?: string | null
+          trial_started_at?: string | null
           updated_at?: string
           user_id?: string
         }
