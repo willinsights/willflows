@@ -11,8 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { usePlanCheckout } from '@/hooks/usePlanCheckout';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { getPriceId, PLANS as PLAN_INFO } from '@/lib/plans';
 import type { SubscriptionPlan } from '@/hooks/useUserSubscription';
@@ -57,8 +56,8 @@ export const UpgradeAlert = forwardRef<HTMLDivElement, UpgradeAlertProps>(functi
   alternativeAction,
 }, ref) {
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const { currentWorkspace } = useWorkspace();
+  const { checkout } = usePlanCheckout();
+  const { currentWorkspace, isAdmin } = useWorkspace();
   const [loading, setLoading] = useState(false);
 
   if (!feature || !requiredPlan) return null;
@@ -74,30 +73,19 @@ export const UpgradeAlert = forwardRef<HTMLDivElement, UpgradeAlertProps>(functi
   };
 
   const handleUpgrade = async () => {
+    // Só o administrador do workspace compra a partir daqui
+    if (!currentWorkspace || !isAdmin) return;
+
     setLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Not authenticated');
-
-      const planId = requiredPlan;
-      const priceId = getPriceId(planId, currencyKey, 'monthly');
-
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-        body: { priceId },
+      const result = await checkout({
+        priceId: getPriceId(requiredPlan, currencyKey, 'monthly'),
+        workspaceId: currentWorkspace.id,
       });
-
-      if (error) throw error;
-      if (data?.url) {
-        window.open(data.url, '_blank');
+      // Fecha-se o diálogo para a ação «Gerir subscrição» do aviso ficar acessível
+      if (result.status === 'redirected' || result.status === 'already_subscribed') {
         onClose();
       }
-    } catch (error: any) {
-      toast({
-        title: 'Erro ao iniciar checkout',
-        description: error.message,
-        variant: 'destructive',
-      });
     } finally {
       setLoading(false);
     }
@@ -184,14 +172,20 @@ export const UpgradeAlert = forwardRef<HTMLDivElement, UpgradeAlertProps>(functi
         </div>
 
         <DialogFooter className="flex-col gap-2 sm:flex-col">
-          <Button 
-            onClick={handleUpgrade} 
-            disabled={loading}
-            className="w-full gap-2"
-          >
-            <Crown className="h-4 w-4" />
-            {loading ? 'A processar...' : `Fazer Upgrade para ${PLAN_LABELS[requiredPlan]}`}
-          </Button>
+          {isAdmin ? (
+            <Button 
+              onClick={handleUpgrade} 
+              disabled={loading}
+              className="w-full gap-2"
+            >
+              <Crown className="h-4 w-4" />
+              {loading ? 'A processar...' : `Fazer Upgrade para ${PLAN_LABELS[requiredPlan]}`}
+            </Button>
+          ) : (
+            <p className="text-sm text-center text-muted-foreground">
+              Contacte o administrador deste workspace para alterar o plano.
+            </p>
+          )}
           <Button variant="ghost" onClick={handleViewPlans} className="w-full">
             Ver todos os planos
           </Button>

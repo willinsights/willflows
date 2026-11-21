@@ -22,6 +22,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { trackTrialStarted } from '@/lib/google-ads';
 import { getDisplayPlanName } from '@/lib/plans';
+import { getWorkspaceLimitMessage, hasActivePaidPlan } from '@/lib/billing/accountPlan';
 
 import { logger } from '@/lib/logger';
 type Step = 'region' | 'success';
@@ -36,12 +37,11 @@ const getBlockedReason = (message: unknown): BlockedReason | null => {
   return null;
 };
 
-const BLOCKED_MESSAGES: Record<BlockedReason, string> = {
-  WORKSPACE_LIMIT_REACHED:
-    'A sua conta já atingiu o número de workspaces incluído no plano. Para criar mais um, mude para um plano superior.',
-  TRIAL_ALREADY_USED:
-    'O período de teste desta conta já foi usado. Para criar um workspace, escolha um plano.',
-};
+// A mensagem do limite depende de a conta ter ou não um plano pago ativo
+const getBlockedMessage = (reason: BlockedReason, accountStatus: string | null | undefined): string =>
+  reason === 'WORKSPACE_LIMIT_REACHED'
+    ? getWorkspaceLimitMessage(accountStatus)
+    : 'O período de teste desta conta já foi usado. Para criar um workspace, escolha um plano.';
 
 const formatDayMonth = (iso: string): string =>
   new Date(iso).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
@@ -50,7 +50,7 @@ export default function Onboarding() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, subscription: accountSubscription } = useAuth();
-  const { refreshWorkspaces, currentWorkspace, allWorkspaces } = useWorkspace();
+  const { refreshWorkspaces, currentWorkspace, allWorkspaces, isAdmin } = useWorkspace();
   const { toast } = useToast();
 
   const isCreatingNew = searchParams.get('new') === 'true';
@@ -61,11 +61,15 @@ export default function Onboarding() {
   // O teste gratuito é um por conta e começa com o primeiro workspace próprio.
   // Quem já é admin de um workspace não recebe 7 dias novos: o workspace novo
   // usa o plano (ou o teste em curso) da conta. O servidor é a autoridade.
-  const trialAlreadyStarted = isCreatingNew && allWorkspaces.some((w) => w.role === 'admin');
+  // Uma conta que já comprou o plano (sem workspace próprio) também não começa teste.
+  const trialAlreadyStarted =
+    (isCreatingNew && allWorkspaces.some((w) => w.role === 'admin')) ||
+    hasActivePaidPlan(accountSubscription?.status);
 
-  // /app/planos exige um workspace (o ProtectedRoute envia para /onboarding);
-  // sem workspace usa-se a página pública de planos.
-  const plansPath = hasAnyWorkspace ? '/app/planos' : '/planos';
+  // /app/planos exige um workspace (o ProtectedRoute envia para /onboarding) e só o
+  // administrador compra lá. Sem workspace, ou como convidado, usa-se a página pública
+  // de planos, onde a compra é feita para a conta, sem workspace.
+  const plansPath = currentWorkspace && isAdmin ? '/app/planos' : '/planos';
 
   const accountPlanInfo = (() => {
     const generic = {
@@ -345,7 +349,7 @@ export default function Onboarding() {
                 >
                   <div className="flex items-start gap-3">
                     <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
-                    <p className="flex-1 text-sm text-destructive">{BLOCKED_MESSAGES[blockedReason]}</p>
+                    <p className="flex-1 text-sm text-destructive">{getBlockedMessage(blockedReason, accountSubscription?.status)}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button asChild size="sm">
