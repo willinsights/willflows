@@ -26,7 +26,7 @@ Nenhum dos agentes. F10 (segunda subscrição por sessões paralelas) está em c
 
 ## Próximas tarefas elegíveis (sem aprovação)
 
-A6, B1, B2c, D2a, D4, F1b, F1c, F1e, F10, F13, S7, S8, S9, S12, S16, S19, S20, S21
+A6, B1, B2c, D2a, D4, F1b, F1c, F1e, F13, S7, S8, S9, S12, S16, S19, S20, S21
 
 ## Decisões em aberto do proprietário
 

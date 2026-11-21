@@ -7,6 +7,11 @@ Esta pasta guarda registos de alterações feitas **diretamente na base de dados
 - Não copiar nem mover estes ficheiros para `supabase/migrations` nem para `drizzle/migrations` sem uma decisão explícita do proprietário (ver as tarefas A2, A6 e A7 do `BACKLOG.md`). A plataforma de alojamento pode aplicar automaticamente migrações novas, e estas alterações já existem na base.
 - Não executar estes ficheiros numa base de produção. A secção de alterações de dados de cada registo é só descritiva e não deve ser repetida.
 
+## Limites deste registo
+
+- O registo não chega, sozinho, para reconstruir a base do zero. Depende de objetos que só existem nas migrações antigas (por exemplo `enforce_workspace_subscription_active()` e `get_monthly_summary_unchecked`), e só inclui os triggers de bloqueio de UPDATE criados neste dia, não os de INSERT que já existiam.
+- As secções de estrutura são SQL executável (idempotente). Só a secção de dados está comentada.
+
 ## Antes de reaplicar migrações antigas
 
 As migrações antigas do repositório têm versões anteriores de algumas funções. Antes de reaplicar ou reconstruir a base a partir delas, confirmar que não sobrepõem as definições registadas aqui. Exemplos do registo de 2026-11-21:
