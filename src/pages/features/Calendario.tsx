@@ -91,8 +91,9 @@ export default function CalendarioFeature() {
             "offers": {
               "@type": "AggregateOffer",
               "priceCurrency": "EUR",
-              "lowPrice": "0",
-              "highPrice": "49.99"
+              "lowPrice": "14",
+              "highPrice": "42",
+              "offerCount": "3"
             }
           })}
         </script>

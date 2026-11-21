@@ -13,6 +13,8 @@ import {
   STRIPE_PRICES,
   type PlanId,
 } from '../plans';
+import plansSource from '../plans.ts?raw';
+import createCheckoutSource from '../../../supabase/functions/create-checkout/index.ts?raw';
 
 describe('plans.ts - Plan Configuration', () => {
   describe('PLAN_LIMITS', () => {
@@ -260,6 +262,57 @@ describe('plans.ts - Plan Configuration', () => {
         expect(productId).toBeDefined();
         expect(productId).toMatch(/^prod_/);
       });
+    });
+  });
+
+  describe('Studio a €42 (F12)', () => {
+    const NEW_STUDIO_PRICES = {
+      eur: { monthly: 'price_1UeHdFGr2lXbVyw9FROVLOgH', yearly: 'price_1UeHdxGr2lXbVyw9QWswuXXG' },
+      brl: { monthly: 'price_1UeHebGr2lXbVyw9ukkckd8y', yearly: 'price_1UeHfLGr2lXbVyw9jrB6CDfn' },
+    };
+    // Antigos preços do Studio a €32: não podem voltar a aparecer
+    const OLD_STUDIO_PRICE_IDS = [
+      'price_1SrikfGr2lXbVyw9fXBV7BGs',
+      'price_1SrikfGr2lXbVyw9KpGstQ2S',
+      'price_1SrikgGr2lXbVyw9Rt6xW57v',
+      'price_1SrikhGr2lXbVyw9JnFXF1E2',
+    ];
+
+    it('usa os 4 novos identificadores de preço do Studio', () => {
+      expect(STRIPE_PRICES.studio.eur).toEqual(NEW_STUDIO_PRICES.eur);
+      expect(STRIPE_PRICES.studio.brl).toEqual(NEW_STUDIO_PRICES.brl);
+      expect(getPriceId('studio', 'eur', 'monthly')).toBe(NEW_STUDIO_PRICES.eur.monthly);
+      expect(getPriceId('studio', 'eur', 'yearly')).toBe(NEW_STUDIO_PRICES.eur.yearly);
+      expect(getPriceId('studio', 'brl', 'monthly')).toBe(NEW_STUDIO_PRICES.brl.monthly);
+      expect(getPriceId('studio', 'brl', 'yearly')).toBe(NEW_STUDIO_PRICES.brl.yearly);
+    });
+
+    it('mantém o produto Studio e os valores exibidos 42/403/247/2371', () => {
+      expect(getProductId('studio')).toBe('prod_TpNVM1mlDtAvKA');
+      expect(PLANS.studio.prices).toEqual({
+        eur: { monthly: 42, yearly: 403 },
+        brl: { monthly: 247, yearly: 2371 },
+      });
+    });
+
+    it('nenhum identificador antigo do Studio aparece em plans.ts', () => {
+      OLD_STUDIO_PRICE_IDS.forEach((id) => {
+        expect(plansSource).not.toContain(id);
+      });
+    });
+
+    it('create-checkout aceita exatamente os preços de plans.ts', () => {
+      const allowed = new Set(createCheckoutSource.match(/'price_[A-Za-z0-9]+'/g)?.map((m) => m.slice(1, -1)));
+      const fromPlans = new Set<string>();
+      (['starter', 'pro', 'studio'] as const).forEach((plan) => {
+        (['eur', 'brl'] as const).forEach((currency) => {
+          (['monthly', 'yearly'] as const).forEach((interval) => {
+            fromPlans.add(getPriceId(plan, currency, interval));
+          });
+        });
+      });
+      expect([...allowed].sort()).toEqual([...fromPlans].sort());
+      OLD_STUDIO_PRICE_IDS.forEach((id) => expect(allowed.has(id)).toBe(false));
     });
   });
 

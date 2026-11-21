@@ -108,10 +108,10 @@ export default function Pricing() {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>Planos e Preços | WillFlow - A partir de 14€/mês</title>
+        <title>Planos e Preços | WillFlow - A partir de 14€/mês + IVA</title>
         <meta name="description" content="Escolha o plano ideal para o seu estúdio. Starter, Pro ou Studio. 7 dias grátis, sem cartão. Facturação em EUR ou BRL. Cancele quando quiser." />
         <link rel="canonical" href="https://willflow.app/planos" />
-        <meta property="og:title" content="Planos e Preços | WillFlow - A partir de 14€/mês" />
+        <meta property="og:title" content="Planos e Preços | WillFlow - A partir de 14€/mês + IVA" />
         <meta property="og:description" content="Escolha o plano ideal para o seu estúdio. Starter, Pro ou Studio. 7 dias grátis, sem cartão. Facturação em EUR ou BRL." />
         <meta property="og:url" content="https://willflow.app/planos" />
         <meta property="og:type" content="website" />
@@ -121,7 +121,7 @@ export default function Pricing() {
         <meta property="og:site_name" content="WillFlow" />
         <meta property="og:locale" content="pt_PT" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Planos e Preços | WillFlow - A partir de 14€/mês" />
+        <meta name="twitter:title" content="Planos e Preços | WillFlow - A partir de 14€/mês + IVA" />
         <meta name="twitter:description" content="Escolha o plano ideal para o seu estúdio. Starter, Pro ou Studio. 7 dias grátis, sem cartão." />
         <meta name="twitter:image" content="https://willflow.app/og-image.png" />
         <script type="application/ld+json">
