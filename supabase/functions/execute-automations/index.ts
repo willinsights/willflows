@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
     // Completing a now-ineligible queued job without effects prevents retry storms.
     const { data: entitlement, error: entitlementError } = await supabase
       .from('workspaces')
-      .select('subscription_plan')
+      .select('subscription_plan, subscription_status, trial_ends_at')
       .eq('id', workspace_id)
       .maybeSingle()
     if (entitlementError) {
@@ -100,7 +100,13 @@ Deno.serve(async (req) => {
         status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
-    if (entitlement?.subscription_plan !== 'studio') {
+    // A valid trial uses features as Studio (same rule as can_access_feature):
+    // status 'trialing' AND an end date strictly in the future.
+    const trialEndsAtMs = entitlement?.trial_ends_at ? Date.parse(entitlement.trial_ends_at) : NaN
+    const hasValidTrial = entitlement?.subscription_status === 'trialing'
+      && Number.isFinite(trialEndsAtMs)
+      && trialEndsAtMs > Date.now()
+    if (entitlement?.subscription_plan !== 'studio' && !hasValidTrial) {
       return new Response(JSON.stringify({ executed: 0, skipped: 'plan_not_entitled' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
