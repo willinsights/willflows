@@ -23,6 +23,33 @@ const ERROR_MESSAGES: Record<PostgresErrorCode, string> = {
   'PGRST301': 'Sessão expirada. Por favor, faça login novamente.',
 };
 
+/** Frase com que o servidor recusa gravações num workspace sem plano ativo. */
+const WORKSPACE_INACTIVE_SERVER_PHRASE = 'A subscrição deste workspace expirou';
+
+/** Mensagem mostrada quando o servidor bloqueia gravações por falta de plano ativo. */
+export const WORKSPACE_INACTIVE_MESSAGE =
+  'Este workspace está sem plano ativo. As alterações estão bloqueadas até o plano ser renovado.';
+
+/**
+ * Reconhece o bloqueio do servidor a gravações num workspace sem plano ativo
+ * (mensagem do servidor, com ou sem o código check_violation/23514).
+ */
+export function isWorkspaceInactiveError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const message = (error as { message?: unknown }).message;
+  return typeof message === 'string' && message.includes(WORKSPACE_INACTIVE_SERVER_PHRASE);
+}
+
+/**
+ * Texto a mostrar num erro de gravação: a mensagem do workspace sem plano
+ * quando é esse o motivo; caso contrário, a mensagem do erro ou o texto dado.
+ */
+export function getWriteErrorMessage(error: unknown, fallback: string): string {
+  if (isWorkspaceInactiveError(error)) return WORKSPACE_INACTIVE_MESSAGE;
+  const message = error && typeof error === 'object' ? (error as { message?: unknown }).message : undefined;
+  return typeof message === 'string' && message.trim() ? message : fallback;
+}
+
 const DEFAULT_ERROR_MESSAGE = 'Ocorreu um erro. Por favor, tente novamente.';
 
 export interface SafeError {
@@ -41,6 +68,11 @@ export function getSafeErrorMessage(error: unknown): SafeError {
   }
 
   const err = error as any;
+
+  // Workspace sem plano ativo: tem prioridade sobre a mensagem genérica de 23514
+  if (isWorkspaceInactiveError(error)) {
+    return { message: WORKSPACE_INACTIVE_MESSAGE, isAuthError: false };
+  }
   
   // Check for Supabase error codes
   if (err.code && ERROR_MESSAGES[err.code]) {

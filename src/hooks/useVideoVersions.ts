@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { getWriteErrorMessage } from '@/lib/error-handler';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspaceStorage } from './useWorkspaceStorage';
 
@@ -383,7 +384,7 @@ export function useVideoVersions(
     } catch (error: any) {
       toast({
         title: 'Erro ao carregar vídeo',
-        description: error.message,
+        description: getWriteErrorMessage(error, 'Não foi possível carregar o vídeo.'),
         variant: 'destructive',
       });
       throw error;
@@ -417,7 +418,7 @@ export function useVideoVersions(
     } catch (error: any) {
       toast({
         title: 'Erro ao apagar versão',
-        description: error.message,
+        description: getWriteErrorMessage(error, 'Não foi possível apagar a versão.'),
         variant: 'destructive',
       });
       throw error;
@@ -506,7 +507,7 @@ export function useVideoVersions(
     } catch (error: any) {
       toast({
         title: 'Erro ao substituir vídeo',
-        description: error.message,
+        description: getWriteErrorMessage(error, 'Não foi possível substituir o vídeo.'),
         variant: 'destructive',
       });
       throw error;
@@ -586,7 +587,7 @@ export function useVideoVersions(
       .eq('id', versionId);
 
     if (error) {
-      toast({ title: 'Erro ao definir thumbnail', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erro ao definir thumbnail', description: getWriteErrorMessage(error, 'Não foi possível definir a thumbnail.'), variant: 'destructive' });
       return;
     }
 

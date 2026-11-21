@@ -21,6 +21,7 @@ import {
 import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import { useClients } from '@/hooks/useClients';
 import { toast } from 'sonner';
+import { getWriteErrorMessage } from '@/lib/error-handler';
 import {
   useWorkLogs,
   WORK_LOG_STATUS_LABELS,
@@ -116,7 +117,7 @@ export function WorkLogModal({ open, onOpenChange, editing }: WorkLogModalProps)
       }
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Não foi possível guardar o registo');
+      toast.error(getWriteErrorMessage(e, 'Não foi possível guardar o registo'));
     } finally {
       setSaving(false);
     }

@@ -3,6 +3,7 @@ import { getTrialDaysRemaining } from '@/lib/subscription-utils';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { getPlanLimits, type PlanLimits } from '@/lib/plans';
 import { useSuperAdmin } from './useSuperAdmin';
+import { getWorkspaceAccessState, type WorkspaceAccessState } from '@/lib/billing/workspaceAccess';
 
 export type SubscriptionPlan = 'starter' | 'pro' | 'studio';
 
@@ -10,6 +11,7 @@ export interface WorkspaceSubscription {
   plan: SubscriptionPlan;
   status: string;
   trialEndsAt: string | null;
+  pastDueSince: string | null;
 }
 
 export interface WorkspaceSubscriptionState {
@@ -29,6 +31,13 @@ export interface WorkspaceSubscriptionState {
   
   // Workspace expiration - blocks ALL users (not just owners)
   isWorkspaceExpired: boolean;
+
+  /** Estado de acesso pela regra única partilhada com o servidor. */
+  access: WorkspaceAccessState;
+  /** Pagamento em atraso, ainda dentro dos dias de tolerância (não bloqueia). */
+  isPastDueGrace: boolean;
+  /** Dias de tolerância que faltam quando `isPastDueGrace`; null nos outros casos. */
+  pastDueDaysLeft: number | null;
   
   // User's role and permissions in this workspace
   isOwner: boolean; // true if the user is the workspace owner (workspaces.owner_id)
@@ -82,6 +91,9 @@ export function useWorkspaceSubscription(): WorkspaceSubscriptionState {
         isTrial: false,
         trialExpired: false,
         isWorkspaceExpired: false,
+        access: { active: false, reason: 'other' },
+        isPastDueGrace: false,
+        pastDueDaysLeft: null,
         isOwner: false,
         isAdmin: false,
         canEdit: false,
@@ -97,24 +109,18 @@ export function useWorkspaceSubscription(): WorkspaceSubscriptionState {
     const plan = (workspace.subscription_plan || 'starter') as SubscriptionPlan;
     const status = workspace.subscription_status || 'trialing';
     const trialEndsAt = workspace.trial_ends_at || null;
+    const pastDueSince = workspace.past_due_since ?? null;
     
     const isTrial = status === 'trialing';
+
+    // Regra única, igual à do servidor (workspace_is_active)
+    const now = Date.now();
+    const access = getWorkspaceAccessState({ status, trialEndsAt, pastDueSince, now });
     
-    // Calculate trial days remaining
-    let trialDaysRemaining: number | null = null;
-    let trialExpired = false;
-    
-    if (isTrial) {
-      const deadline = trialEndsAt ? Date.parse(trialEndsAt) : NaN;
-      if (Number.isFinite(deadline)) {
-        const now = Date.now();
-        trialDaysRemaining = getTrialDaysRemaining({ trialEndsAt }, now);
-        trialExpired = deadline <= now;
-      } else {
-        // Older workspaces may have no recorded expiry.
-        trialDaysRemaining = 7;
-      }
-    }
+    // Teste sem data de fim não é válido (o servidor também o trata como inativo)
+    const trialDaysRemaining: number | null =
+      isTrial && access.reason !== 'trial_no_end' ? getTrialDaysRemaining({ trialEndsAt }, now) : null;
+    const isPastDueGrace = access.reason === 'past_due_grace';
     // Owner = first administrator (workspaces.owner_id). Other admins
     // administer the workspace but do not buy or manage its plan.
     const isUserOwner = isWorkspaceOwner === true;
@@ -126,20 +132,13 @@ export function useWorkspaceSubscription(): WorkspaceSubscriptionState {
       plan,
       status,
       trialEndsAt,
+      pastDueSince,
     };
 
-    // Workspace is expired if:
-    // 1. status is 'expired' OR 'canceled' OR 'past_due' OR 'unpaid'
-    // 2. OR status is 'trialing' AND trial has expired
-    // 3. NEVER expired for Super Admins
-    const isTrialExpired = isTrial && trialExpired;
-    const isWorkspaceExpired = isSuperAdmin 
-      ? false 
-      : (status === 'expired' || 
-         status === 'canceled' || 
-         status === 'past_due' || 
-         status === 'unpaid' ||
-         isTrialExpired);
+    // Inativo pela regra do servidor (pagamento em atraso só depois da tolerância).
+    // NUNCA expirado para Super Admins.
+    const isTrialExpired = isTrial && !access.active;
+    const isWorkspaceExpired = isSuperAdmin ? false : !access.active;
 
     return {
       subscription,
@@ -151,6 +150,9 @@ export function useWorkspaceSubscription(): WorkspaceSubscriptionState {
       isTrial,
       trialExpired: isTrialExpired,
       isWorkspaceExpired,
+      access,
+      isPastDueGrace,
+      pastDueDaysLeft: isPastDueGrace ? access.daysLeft ?? null : null,
       isOwner: isUserOwner,
       isAdmin,
       canEdit,

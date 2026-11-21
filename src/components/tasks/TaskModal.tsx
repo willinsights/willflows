@@ -31,6 +31,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
+import { getWriteErrorMessage } from '@/lib/error-handler';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { VideoProductionTab } from '@/components/video-production/VideoProductionTab';
@@ -221,7 +222,7 @@ export function TaskModal({
       logger.error('Error saving task:', error);
       toast({
         title: 'Erro',
-        description: error.message || 'Não foi possível guardar a tarefa.',
+        description: getWriteErrorMessage(error, 'Não foi possível guardar a tarefa.'),
         variant: 'destructive',
       });
     } finally {
