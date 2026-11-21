@@ -145,6 +145,16 @@ export function isWorkspaceTrialValid(
   return Number.isFinite(deadline) && deadline > now;
 }
 
+// Chaves que são limites/quotas e não funcionalidades: nunca sobem com o teste,
+// seguem sempre o plano gravado.
+const RECORDED_PLAN_ONLY_FEATURES: ReadonlySet<FeatureKey> = new Set<FeatureKey>([
+  'workspaces',
+  'users',
+  'projects',
+  'clients',
+  'videoStorage',
+]);
+
 /**
  * Limite de workspaces próprios segundo o plano da CONTA (não do workspace atual).
  * Espelha a regra do servidor (create_workspace_with_admin), que é a autoridade:
@@ -245,12 +255,14 @@ export function usePlanFeatures() {
   const trialStatus = subscription?.status ?? null;
   const trialEndsAt = subscription?.trialEndsAt ?? null;
 
-  // Exceção do período de teste: apenas o chat fica disponível enquanto o teste
-  // do workspace estiver válido. A data é comparada com o relógio em cada chamada
-  // (não fica guardada), para deixar de valer quando o teste expira.
-  const isTrialOnlyFeatureAvailable = useCallback((feature: FeatureKey): boolean => {
-    return feature === 'chat' && isWorkspaceTrialValid({ status: trialStatus, trialEndsAt });
-  }, [trialStatus, trialEndsAt]);
+  // Período de teste válido: as FUNCIONALIDADES ficam como no plano Studio.
+  // Só vale para as verificações de funcionalidades abaixo; o plano mostrado
+  // (currentPlan) e os limites numéricos (limits/usage) continuam a ser os do
+  // plano gravado. A data é comparada com o relógio em cada chamada (não fica
+  // guardada), para deixar de valer quando o teste expira.
+  const getFeaturePlan = useCallback((): SubscriptionPlan => {
+    return isWorkspaceTrialValid({ status: trialStatus, trialEndsAt }) ? 'studio' : currentPlan;
+  }, [currentPlan, trialStatus, trialEndsAt]);
 
   // Check if user can use a specific feature (boolean check only)
   const canUseFeature = useCallback((feature: FeatureKey): boolean => {
@@ -260,7 +272,7 @@ export function usePlanFeatures() {
     const featureInfo = FEATURES[feature];
     if (!featureInfo) return false;
 
-    // For limit-based features, check current usage
+    // For limit-based features, check current usage (sempre com o plano gravado)
     if (feature === 'workspaces') {
       return usage.workspaces < limits.workspaces;
     }
@@ -273,10 +285,13 @@ export function usePlanFeatures() {
     if (feature === 'clients') {
       return usage.clients < limits.clients;
     }
+    if (RECORDED_PLAN_ONLY_FEATURES.has(feature)) {
+      return isPlanAtLeast(currentPlan, featureInfo.minimumPlan);
+    }
 
-    // For boolean features, check plan level (chat também durante o teste válido)
-    return isPlanAtLeast(currentPlan, featureInfo.minimumPlan) || isTrialOnlyFeatureAvailable(feature);
-  }, [currentPlan, usage, limits, isSuperAdmin, isTrialOnlyFeatureAvailable]);
+    // For boolean features, check plan level (Studio durante o teste válido)
+    return isPlanAtLeast(getFeaturePlan(), featureInfo.minimumPlan);
+  }, [currentPlan, usage, limits, isSuperAdmin, getFeaturePlan]);
 
   // Check if user has access to a feature (plan level, ignoring limits)
   const hasFeatureAccess = useCallback((feature: FeatureKey): boolean => {
@@ -285,8 +300,9 @@ export function usePlanFeatures() {
     
     const featureInfo = FEATURES[feature];
     if (!featureInfo) return false;
-    return isPlanAtLeast(currentPlan, featureInfo.minimumPlan) || isTrialOnlyFeatureAvailable(feature);
-  }, [currentPlan, isSuperAdmin, isTrialOnlyFeatureAvailable]);
+    const plan = RECORDED_PLAN_ONLY_FEATURES.has(feature) ? currentPlan : getFeaturePlan();
+    return isPlanAtLeast(plan, featureInfo.minimumPlan);
+  }, [currentPlan, isSuperAdmin, getFeaturePlan]);
 
   // Get the minimum plan required for a feature
   const getRequiredPlan = useCallback((feature: FeatureKey): SubscriptionPlan => {

@@ -283,7 +283,7 @@ describe("usePlanFeatures", () => {
     });
   });
 
-  describe("Chat durante o período de teste", () => {
+  describe("Funcionalidades durante o período de teste", () => {
     const DAY = 24 * 60 * 60 * 1000;
     const future = () => new Date(Date.now() + 3 * DAY).toISOString();
     const past = () => new Date(Date.now() - 3 * DAY).toISOString();
@@ -328,13 +328,95 @@ describe("usePlanFeatures", () => {
       expect(result.current.hasFeatureAccess("chat")).toBe(false);
     });
 
-    it("Starter + teste válido: outras funcionalidades continuam indisponíveis", () => {
+    it("Starter + teste válido: todas as funcionalidades ficam como em Studio", () => {
       mockWorkspace({ plan: "starter", status: "trialing", trialEndsAt: future() });
       const { result } = render();
-      expect(result.current.canUseFeature("exportExcel")).toBe(false);
-      expect(result.current.hasFeatureAccess("exportExcel")).toBe(false);
-      expect(result.current.canUseFeature("exportPdf")).toBe(false);
-      expect(result.current.canUseFeature("videoApproval")).toBe(false);
+      const features: FeatureKey[] = [
+        "chat", "exportExcel", "exportPdf", "googleCalendar", "googleMeet",
+        "reportsAdvanced", "templates", "crmComplete", "videoApproval", "automations", "permissions", "api",
+      ];
+      features.forEach((feature) => {
+        expect(result.current.canUseFeature(feature), feature).toBe(true);
+        expect(result.current.hasFeatureAccess(feature), feature).toBe(true);
+        expect(result.current.features[feature].available, feature).toBe(true);
+        expect(result.current.features[feature].hasAccess, feature).toBe(true);
+      });
+    });
+
+    it("Starter + teste válido: checkFeature não abre o alerta de upgrade", () => {
+      mockWorkspace({ plan: "starter", status: "trialing", trialEndsAt: future() });
+      const { result } = render();
+      act(() => {
+        expect(result.current.checkFeature("videoApproval")).toBe(true);
+      });
+      expect(result.current.upgradeAlert.isOpen).toBe(false);
+    });
+
+    it("Starter + teste expirado ou sem data: videoApproval, automations e exportExcel indisponíveis", () => {
+      const features: FeatureKey[] = ["videoApproval", "automations", "exportExcel"];
+      [past(), null].forEach((trialEndsAt) => {
+        mockWorkspace({ plan: "starter", status: "trialing", trialEndsAt });
+        const { result } = render();
+        features.forEach((feature) => {
+          expect(result.current.canUseFeature(feature), feature).toBe(false);
+          expect(result.current.hasFeatureAccess(feature), feature).toBe(false);
+        });
+      });
+    });
+
+    it("Starter + teste válido: limites numéricos e plano mostrado continuam os do plano gravado", () => {
+      mockWorkspace({ plan: "starter", status: "trialing", trialEndsAt: future() });
+      const { result } = render();
+      expect(result.current.currentPlan).toBe("starter");
+      expect(result.current.limits).toEqual({ workspaces: 1, users: 2, projects: 10, clients: 25 });
+      expect(result.current.getRemainingQuota("users")).toBe(2);
+      expect(result.current.getRemainingQuota("projects")).toBe(10);
+      expect(result.current.getRemainingQuota("clients")).toBe(25);
+      expect(result.current.getRemainingQuota("workspaces")).toBe(1);
+      // O armazenamento de vídeo é uma quota: segue o plano gravado.
+      expect(result.current.canUseFeature("videoStorage")).toBe(false);
+      expect(result.current.hasFeatureAccess("videoStorage")).toBe(false);
+    });
+
+    it("Starter + teste válido: um limite esgotado continua a bloquear", () => {
+      mockUseWorkspaceSubscription.mockReturnValue({
+        subscription: { plan: "starter", status: "trialing", trialEndsAt: future() },
+        limits: { workspaces: 0, users: 0, projects: 0, clients: 0 },
+        loading: false,
+        isOwner: true,
+        canManageSubscription: true,
+      });
+      const { result } = render();
+      (["workspaces", "users", "projects", "clients"] as FeatureKey[]).forEach((feature) => {
+        expect(result.current.canUseFeature(feature), feature).toBe(false);
+      });
+    });
+
+    it("Starter + teste válido: getRequiredPlan e getUpgradePlan mantêm o plano necessário depois do teste", () => {
+      mockWorkspace({ plan: "starter", status: "trialing", trialEndsAt: future() });
+      const { result } = render();
+      expect(result.current.getRequiredPlan("videoApproval")).toBe("studio");
+      expect(result.current.getRequiredPlan("chat")).toBe("pro");
+      expect(result.current.getUpgradePlan("videoApproval")).toBe("studio");
+      expect(result.current.getUpgradePlan("exportExcel")).toBe("pro");
+    });
+
+    it("Pro pago (sem teste): continua sem as funcionalidades exclusivas de Studio", () => {
+      mockWorkspace({ plan: "pro", status: "active", trialEndsAt: null });
+      const { result } = render();
+      expect(result.current.canUseFeature("exportExcel")).toBe(true);
+      (["videoApproval", "automations", "permissions"] as FeatureKey[]).forEach((feature) => {
+        expect(result.current.canUseFeature(feature), feature).toBe(false);
+        expect(result.current.hasFeatureAccess(feature), feature).toBe(false);
+      });
+    });
+
+    it("Pro + teste válido: funcionalidades de Studio disponíveis e plano mostrado continua Pro", () => {
+      mockWorkspace({ plan: "pro", status: "trialing", trialEndsAt: future() });
+      const { result } = render();
+      expect(result.current.currentPlan).toBe("pro");
+      expect(result.current.canUseFeature("videoApproval")).toBe(true);
+      expect(result.current.canUseFeature("automations")).toBe(true);
     });
 
     it("Pro e Studio: chat disponível com ou sem teste", () => {
@@ -356,8 +438,10 @@ describe("usePlanFeatures", () => {
         });
         const { result } = render();
         expect(result.current.canUseFeature("chat")).toBe(true);
+        expect(result.current.canUseFeature("videoApproval")).toBe(true);
         vi.setSystemTime(now + 2 * 60 * 1000);
         expect(result.current.canUseFeature("chat")).toBe(false);
+        expect(result.current.canUseFeature("videoApproval")).toBe(false);
       } finally {
         vi.useRealTimers();
       }
