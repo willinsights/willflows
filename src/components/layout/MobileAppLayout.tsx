@@ -8,6 +8,7 @@ import { useWorkspaceSubscription } from '@/hooks/useWorkspaceSubscription';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { WorkspaceExpiredModal } from '@/components/subscription/WorkspaceExpiredModal';
+import { PastDueBanner } from '@/components/subscription/PastDueBanner';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useTrialWarning } from '@/hooks/useTrialWarning';
 import { FeedbackButton } from '@/components/feedback/FeedbackButton';
@@ -103,6 +104,8 @@ export function MobileAppLayout() {
 
       {/* Main Content with bottom padding for nav bar */}
       <main className={`flex-1 overflow-auto pb-24 px-4 ${fetchError ? 'pt-16' : ''}`}>
+        {/* Pagamento em atraso dentro da tolerância: aviso persistente */}
+        <PastDueBanner className="mt-4" />
         <ErrorBoundary>
           <Outlet />
         </ErrorBoundary>

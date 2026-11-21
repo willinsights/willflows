@@ -5353,6 +5353,7 @@ export type Database = {
           onboarding_completed: boolean
           onboarding_completed_at: string | null
           owner_id: string | null
+          past_due_since: string | null
           slug: string
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
@@ -5377,6 +5378,7 @@ export type Database = {
           onboarding_completed?: boolean
           onboarding_completed_at?: string | null
           owner_id?: string | null
+          past_due_since?: string | null
           slug: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -5401,6 +5403,7 @@ export type Database = {
           onboarding_completed?: boolean
           onboarding_completed_at?: string | null
           owner_id?: string | null
+          past_due_since?: string | null
           slug?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null

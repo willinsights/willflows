@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, useRef, ReactNode, useC
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
 import { User } from '@supabase/supabase-js';
-import { differenceInDays, parseISO } from 'date-fns';
+import { getWorkspaceAccessState } from '@/lib/billing/workspaceAccess';
 import {
   getCheckoutWorkspaceId,
   getOwnedWorkspaces,
@@ -21,6 +21,11 @@ interface Workspace {
   subscription_plan: 'starter' | 'pro' | 'studio';
   subscription_status: string;
   trial_ends_at?: string | null;
+  /**
+   * Desde quando o pagamento está em atraso (preenchido pelo servidor). Ausente
+   * ou null em `past_due` conta como «agora», como no servidor.
+   */
+  past_due_since?: string | null;
   /** Dono do workspace: o primeiro administrador. Null = sem dono registado. */
   owner_id?: string | null;
 }
@@ -62,30 +67,13 @@ interface WorkspaceContextType {
   canEdit: boolean;
 }
 
-// Helper to check if a workspace is active (not expired)
+// Workspace ativo pela regra única partilhada com o servidor (workspace_is_active)
 function isWorkspaceActive(workspace: WorkspaceWithRole): boolean {
-  const status = workspace.subscription_status;
-  
-  // Active or trialing with valid trial
-  if (status === 'active') return true;
-  
-  if (status === 'trialing') {
-    if (workspace.trial_ends_at) {
-      try {
-        const daysRemaining = differenceInDays(
-          parseISO(workspace.trial_ends_at),
-          new Date()
-        );
-        return daysRemaining >= 0;
-      } catch {
-        return false;
-      }
-    }
-    // No trial end date means trial is still valid
-    return true;
-  }
-  
-  return false;
+  return getWorkspaceAccessState({
+    status: workspace.subscription_status,
+    trialEndsAt: workspace.trial_ends_at,
+    pastDueSince: workspace.past_due_since,
+  }).active;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
@@ -390,6 +378,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         subscription_plan: targetWorkspace.subscription_plan,
         subscription_status: targetWorkspace.subscription_status,
         trial_ends_at: targetWorkspace.trial_ends_at,
+        past_due_since: targetWorkspace.past_due_since ?? null,
         // Sem isto o dono passava a ser tratado como não-dono depois da troca
         owner_id: targetWorkspace.owner_id ?? null,
       };

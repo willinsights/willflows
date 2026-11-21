@@ -12,6 +12,7 @@ import { useWorkspaceSubscription } from '@/hooks/useWorkspaceSubscription';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { WorkspaceExpiredModal } from '@/components/subscription/WorkspaceExpiredModal';
+import { PastDueBanner } from '@/components/subscription/PastDueBanner';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useTrialWarning } from '@/hooks/useTrialWarning';
 import { FeedbackButton } from '@/components/feedback/FeedbackButton';
@@ -259,6 +260,8 @@ function DesktopAppLayout() {
         
         <main className={`flex-1 overflow-auto ${fetchError ? 'pt-14' : ''}`}>
           <div className="h-full">
+            {/* Pagamento em atraso dentro da tolerância: aviso persistente */}
+            <PastDueBanner className="mx-6 mt-4" />
             {/* Breadcrumbs - positioned at top of content */}
             <div className="px-6 pt-4 pb-2">
               <AppBreadcrumbs />
