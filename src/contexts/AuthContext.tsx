@@ -25,6 +25,8 @@ interface AuthContextType {
   subscription: {
     subscribed: boolean;
     plan: string | null;
+    /** Estado da subscrição da CONTA (ex.: 'active', 'trialing'); null se desconhecido. */
+    status: string | null;
     subscriptionEnd: string | null;
     trialExpired: boolean;
     trialEndsAt: string | null;
@@ -178,6 +180,7 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
       return {
         subscribed: false,
         plan: null,
+        status: null,
         subscriptionEnd: null,
         trialExpired: false,
         trialEndsAt: null,
@@ -191,6 +194,7 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
     return {
       subscribed: isPaid || (userSubscription.status === 'trialing' && !trialExpiredStatus),
       plan: userSubscription.plan,
+      status: userSubscription.status,
       subscriptionEnd: userSubscription.currentPeriodEnd,
       trialExpired: trialExpiredStatus && !isPaid,
       trialEndsAt: userSubscription.trialEndsAt,
