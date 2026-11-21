@@ -83,7 +83,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   // IMPORTANT: If user has ANY workspace (admin or member), or has a valid cache, don't redirect to onboarding
   const hasAnyWorkspace = allWorkspaces.length > 0 || currentWorkspace !== null || hasCachedWorkspace(user?.id);
   
-  if (!fetchError && !hasAnyWorkspace && location.pathname !== '/onboarding') {
+  // /checkout-success não precisa de workspace: uma conta pode comprar o plano antes
+  // de criar o seu (essa página encaminha depois para a criação do workspace).
+  const needsWorkspace = location.pathname !== '/onboarding' && location.pathname !== '/checkout-success';
+
+  if (!fetchError && !hasAnyWorkspace && needsWorkspace) {
     return <Navigate to="/onboarding" replace />;
   }
 

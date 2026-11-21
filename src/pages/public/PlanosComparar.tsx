@@ -14,8 +14,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { usePlanCheckout } from '@/hooks/usePlanCheckout';
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
 import { Link } from 'react-router-dom';
@@ -115,8 +114,8 @@ function getFeatureValue(planId: PlanId, featureKey: string): string | boolean {
 
 export default function PlanosComparar() {
   const { user } = useAuth();
-  const { currentWorkspace } = useWorkspace();
-  const { toast } = useToast();
+  const { currentWorkspace, isAdmin } = useWorkspace();
+  const { checkout } = usePlanCheckout();
   const navigate = useNavigate();
 
   const [showBRL, setShowBRL] = useState(false);
@@ -133,27 +132,13 @@ export default function PlanosComparar() {
       return;
     }
 
-    if (!currentWorkspace) {
-      navigate(`/onboarding?plan=${planId}&currency=${currency}&interval=${interval}`);
-      return;
-    }
-
+    // O plano pertence à conta. Só o administrador do workspace atual compra
+    // «para o workspace»; sem workspace, ou como convidado, a compra é para a conta.
     setLoadingPlan(planId);
     try {
-      const priceId = getPriceId(planId, currency, interval);
-      if (!priceId) throw new Error('Preço não encontrado');
-
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { priceId, workspaceId: currentWorkspace.id },
-      });
-
-      if (error) throw error;
-      if (data?.url) window.open(data.url, '_blank');
-    } catch (error: any) {
-      toast({
-        title: 'Erro ao iniciar checkout',
-        description: error.message,
-        variant: 'destructive',
+      await checkout({
+        priceId: getPriceId(planId, currency, interval),
+        workspaceId: currentWorkspace && isAdmin ? currentWorkspace.id : undefined,
       });
     } finally {
       setLoadingPlan(null);
@@ -383,7 +368,7 @@ export default function PlanosComparar() {
                           {loadingPlan === planId ? (
                             <Loader2 className="h-4 w-4 animate-spin mr-2" />
                           ) : null}
-                          Começar grátis
+                          {user ? 'Subscrever' : 'Começar grátis'}
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
                       </td>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Crown, Sparkles, Check, Loader2, LogOut, AlertTriangle } from 'lucide-react';
+import { Crown, Sparkles, Check, Loader2, LogOut, AlertTriangle, CreditCard } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useWorkspaceSubscription } from '@/hooks/useWorkspaceSubscription';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { usePlanCheckout } from '@/hooks/usePlanCheckout';
+import { CHECKOUT_MESSAGES } from '@/lib/billing/startPlanCheckout';
 import { ActiveWorkspacesList } from '@/components/workspace/ActiveWorkspacesList';
 import { 
   PLANS, 
@@ -36,11 +37,16 @@ export function WorkspaceExpiredModal({ open }: WorkspaceExpiredModalProps) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { currentWorkspace, activeWorkspaces, setCurrentWorkspace, loading: workspaceLoading } = useWorkspace();
-  const { isOwner, canManageSubscription, isTrial } = useWorkspaceSubscription();
+  const { isOwner, canManageSubscription, isTrial, status } = useWorkspaceSubscription();
+  const { checkout, openPortal, portalLoading } = usePlanCheckout();
   const { toast } = useToast();
   const [selectedPlan, setSelectedPlan] = useState<PlanId>('pro');
   const [loading, setLoading] = useState(false);
   const [showPlans, setShowPlans] = useState(isOwner);
+  const [alreadySubscribed, setAlreadySubscribed] = useState(false);
+
+  // Pagamento em atraso: a subscrição existe, o que falta é atualizar o pagamento
+  const isPastDue = status === 'past_due';
 
   const handleUpgrade = async () => {
     if (!currentWorkspace || !canManageSubscription) return;
@@ -48,22 +54,14 @@ export function WorkspaceExpiredModal({ open }: WorkspaceExpiredModalProps) {
     setLoading(true);
     try {
       const currencyKey: Currency = (currentWorkspace.currency?.toLowerCase() === 'brl' ? 'brl' : 'eur');
-      const priceId = getPriceId(selectedPlan, currencyKey, 'monthly');
-
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { priceId, workspaceId: currentWorkspace.id },
-      });
-
-      if (error) throw error;
-      if (data?.url) {
-        window.location.href = data.url;
+      const result = await checkout({
+        priceId: getPriceId(selectedPlan, currencyKey, 'monthly'),
+        workspaceId: currentWorkspace.id,
+      }, { inlineAlreadySubscribed: true });
+      // Este diálogo é bloqueante: a saída para a gestão de subscrição fica aqui dentro
+      if (result.status === 'already_subscribed') {
+        setAlreadySubscribed(true);
       }
-    } catch (error: any) {
-      toast({
-        title: 'Erro ao iniciar checkout',
-        description: error.message,
-        variant: 'destructive',
-      });
     } finally {
       setLoading(false);
     }
@@ -96,13 +94,19 @@ export function WorkspaceExpiredModal({ open }: WorkspaceExpiredModalProps) {
   const currencySymbol = getCurrencySymbol(currencyKey);
 
   // Determine modal title and description based on context
-  const title = isTrial 
-    ? 'O seu período de teste terminou' 
-    : 'Workspace expirado';
+  const title = isPastDue
+    ? 'Pagamento em atraso'
+    : isTrial 
+      ? 'O seu período de teste terminou' 
+      : 'Workspace expirado';
   
-  const description = isOwner
-    ? 'Escolha um plano para continuar a usar o WillFlow ou mude para outro workspace ativo.'
-    : 'Este workspace está expirado. Mude para outro workspace ativo para continuar a trabalhar.';
+  const description = isPastDue
+    ? (isOwner
+        ? 'Não foi possível cobrar a subscrição. Atualize o pagamento para continuar a usar o WillFlow.'
+        : 'O pagamento da subscrição deste workspace está em atraso. Contacte o administrador deste workspace para atualizar o pagamento.')
+    : isOwner
+      ? 'Escolha um plano para continuar a usar o WillFlow ou mude para outro workspace ativo.'
+      : 'Este workspace está expirado. Mude para outro workspace ativo para continuar a trabalhar.';
 
   const hasOtherWorkspaces = activeWorkspaces.length > 0;
 
@@ -130,13 +134,59 @@ export function WorkspaceExpiredModal({ open }: WorkspaceExpiredModalProps) {
           </p>
           <p className="text-xs text-muted-foreground mt-1">
             {isOwner 
-              ? 'Ao subscrever, terá acesso imediato a todos os seus projetos e clientes.'
-              : 'O administrador pode renovar a subscrição para restaurar o acesso.'}
+              ? (isPastDue
+                  ? 'Depois de atualizar o pagamento, volta a ter acesso a todos os seus projetos e clientes.'
+                  : 'Ao subscrever, terá acesso imediato a todos os seus projetos e clientes.')
+              : (isPastDue
+                  ? 'O administrador pode atualizar o pagamento para restaurar o acesso.'
+                  : 'O administrador pode renovar a subscrição para restaurar o acesso.')}
           </p>
         </div>
 
+        {/* Owner com pagamento em atraso: atualizar o pagamento no portal */}
+        {isOwner && isPastDue && (
+          <Button
+            onClick={() => void openPortal()}
+            disabled={portalLoading}
+            className="w-full gradient-primary"
+            size="lg"
+          >
+            {portalLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                A abrir...
+              </>
+            ) : (
+              <>
+                <CreditCard className="mr-2 h-4 w-4" />
+                Atualizar pagamento
+              </>
+            )}
+          </Button>
+        )}
+
+        {/* A conta já tem plano: a saída é a gestão de subscrição */}
+        {isOwner && !isPastDue && alreadySubscribed && (
+          <div role="alert" className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4 text-center">
+            <p className="text-sm">{CHECKOUT_MESSAGES.already_subscribed}</p>
+            <Button
+              variant="outline"
+              onClick={() => void openPortal()}
+              disabled={portalLoading}
+              className="w-full"
+            >
+              {portalLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CreditCard className="mr-2 h-4 w-4" />
+              )}
+              Gerir subscrição
+            </Button>
+          </div>
+        )}
+
         {/* Owner: Show upgrade options */}
-        {isOwner && (
+        {isOwner && !isPastDue && (
           <>
             {showPlans ? (
               <>
@@ -262,7 +312,7 @@ export function WorkspaceExpiredModal({ open }: WorkspaceExpiredModalProps) {
         {!isOwner && !hasOtherWorkspaces && (
           <div className="text-center py-4 text-muted-foreground">
             <p className="text-sm">
-              Não tem outros workspaces ativos. Contacte o administrador deste workspace para renovar a subscrição.
+              Não tem outros workspaces ativos. Contacte o administrador deste workspace para {isPastDue ? 'atualizar o pagamento' : 'renovar a subscrição'}.
             </p>
           </div>
         )}
@@ -280,7 +330,9 @@ export function WorkspaceExpiredModal({ open }: WorkspaceExpiredModalProps) {
 
         <p className="text-xs text-center text-muted-foreground mt-2">
           {isOwner 
-            ? 'Pode cancelar a qualquer momento. Sem compromisso.'
+            ? (isPastDue
+                ? 'O pagamento é atualizado na gestão de subscrição.'
+                : 'Pode cancelar a qualquer momento. Sem compromisso.')
             : 'Os seus dados permanecem seguros enquanto aguarda.'}
         </p>
       </DialogContent>

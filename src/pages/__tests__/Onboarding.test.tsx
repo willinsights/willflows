@@ -30,6 +30,9 @@ vi.mock('@/contexts/WorkspaceContext', () => ({
     refreshWorkspaces: vi.fn(),
     currentWorkspace: mocks.workspaceState.currentWorkspace,
     allWorkspaces: mocks.workspaceState.allWorkspaces,
+    isAdmin: mocks.workspaceState.allWorkspaces.some(
+      (w) => w.id === mocks.workspaceState.currentWorkspace?.id && w.role === 'admin',
+    ),
   }),
 }));
 
@@ -139,8 +142,45 @@ describe('Onboarding', () => {
     expect(screen.getByText('7 dias grátis')).toBeInTheDocument();
   });
 
+  it('conta com plano pago e sem workspace próprio não promete um teste', () => {
+    mocks.authState.subscription = { plan: 'studio', status: 'active', trialEndsAt: null };
+
+    renderAt('/onboarding?new=true');
+
+    expect(screen.queryByText('7 dias grátis')).not.toBeInTheDocument();
+    expect(screen.getByText('Usa o seu plano Studio')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Criar workspace/ })).toBeInTheDocument();
+  });
+
+  it('WORKSPACE_LIMIT_REACHED sem plano pago ativo pede um plano ativo', async () => {
+    withOwnWorkspace();
+    mocks.authState.subscription = { plan: 'starter', status: 'trialing', trialEndsAt: null };
+    rejectWith('WORKSPACE_LIMIT_REACHED');
+
+    renderAt('/onboarding?new=true');
+    fireEvent.click(screen.getByRole('button', { name: /Criar workspace/ }));
+
+    expect(
+      await screen.findByText('Para criar mais workspaces é preciso um plano ativo.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/mude para um plano superior/)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ver planos' })).toHaveAttribute('href', '/app/planos');
+  });
+
+  it('convidado sem workspace próprio vê os planos na página pública', async () => {
+    mocks.workspaceState.currentWorkspace = { id: 'workspace-anfitriao' };
+    mocks.workspaceState.allWorkspaces = [{ id: 'workspace-anfitriao', role: 'edicao' }];
+    rejectWith('TRIAL_ALREADY_USED');
+
+    renderAt('/onboarding?new=true');
+    fireEvent.click(screen.getByRole('button', { name: /Começar trial grátis/ }));
+
+    expect(await screen.findByRole('link', { name: 'Ver planos' })).toHaveAttribute('href', '/planos');
+  });
+
   it('erro WORKSPACE_LIMIT_REACHED mostra a mensagem, os planos e o regresso à aplicação', async () => {
     withOwnWorkspace();
+    mocks.authState.subscription = { plan: 'pro', status: 'active', trialEndsAt: null };
     rejectWith('WORKSPACE_LIMIT_REACHED');
 
     renderAt('/onboarding?new=true');

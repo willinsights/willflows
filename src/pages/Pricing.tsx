@@ -13,8 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { usePlanCheckout } from '@/hooks/usePlanCheckout';
 import {
   Accordion,
   AccordionContent,
@@ -63,8 +62,8 @@ const faqs = [
 
 export default function Pricing() {
   const { user } = useAuth();
-  const { currentWorkspace } = useWorkspace();
-  const { toast } = useToast();
+  const { currentWorkspace, isAdmin } = useWorkspace();
+  const { checkout } = usePlanCheckout();
   const navigate = useNavigate();
   
   const [showBRL, setShowBRL] = useState(false);
@@ -86,37 +85,13 @@ export default function Pricing() {
       return;
     }
 
-    // If no workspace, redirect to onboarding with plan param
-    if (!currentWorkspace) {
-      navigate(`/onboarding?plan=${planId}&currency=${currency}&interval=${interval}`);
-      return;
-    }
-
-    // If authenticated with workspace, start checkout
+    // O plano pertence à conta. Só o administrador do workspace atual compra
+    // «para o workspace»; sem workspace, ou como convidado, a compra é para a conta.
     setLoadingPlan(planId);
     try {
-      const priceId = getPriceId(planId, currency, interval);
-      
-      if (!priceId) {
-        throw new Error('Preço não encontrado');
-      }
-
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: {
-          priceId,
-          workspaceId: currentWorkspace.id,
-        },
-      });
-
-      if (error) throw error;
-      if (data?.url) {
-        window.open(data.url, '_blank');
-      }
-    } catch (error: any) {
-      toast({
-        title: 'Erro ao iniciar checkout',
-        description: error.message,
-        variant: 'destructive',
+      await checkout({
+        priceId: getPriceId(planId, currency, interval),
+        workspaceId: currentWorkspace && isAdmin ? currentWorkspace.id : undefined,
       });
     } finally {
       setLoadingPlan(null);
@@ -385,7 +360,7 @@ export default function Pricing() {
                     {loadingPlan === planId ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     ) : null}
-                    Começar 7 dias grátis
+                    {user ? 'Subscrever' : 'Começar 7 dias grátis'}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </motion.div>
@@ -504,7 +479,7 @@ export default function Pricing() {
             onClick={() => handleSelectPlan('pro')}
           >
             <ArrowRight className="mr-2 h-5 w-5" />
-            Começar teste grátis
+            {user ? 'Subscrever o plano Pro' : 'Começar teste grátis'}
           </Button>
         </div>
       </section>
