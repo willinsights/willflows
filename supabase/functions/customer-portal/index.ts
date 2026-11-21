@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { NEW_ACCOUNT_PLAN, NEW_ACCOUNT_STATUS } from "../_shared/stripe-billing.ts";
 
 const allowedOrigins = [
   'https://willflow.app',
@@ -73,18 +74,31 @@ serve(async (req) => {
       customerId = newCustomer.id;
       logStep("Created new Stripe customer", { customerId });
 
-      // Update user subscription record with the new customer ID
-      const { error: updateError } = await supabaseClient
+      // Store the customer id on the account. An existing row only gets
+      // stripe_customer_id (plan and status are never reset here); a row is
+      // inserted only when the account has none, with the same minimal pair
+      // a new account gets.
+      const { data: updatedRows, error: updateError } = await supabaseClient
         .from('user_subscriptions')
-        .upsert({
-          user_id: user.id,
-          stripe_customer_id: customerId,
-          subscription_status: 'trialing',
-          subscription_plan: 'starter',
-        }, { onConflict: 'user_id' });
+        .update({ stripe_customer_id: customerId })
+        .eq('user_id', user.id)
+        .select('user_id');
 
       if (updateError) {
         logStep("Warning: Failed to update user subscription with customer ID", { error: updateError.message });
+      } else if (!updatedRows || updatedRows.length === 0) {
+        const { error: insertError } = await supabaseClient
+          .from('user_subscriptions')
+          .insert({
+            user_id: user.id,
+            stripe_customer_id: customerId,
+            subscription_plan: NEW_ACCOUNT_PLAN,
+            subscription_status: NEW_ACCOUNT_STATUS,
+          });
+
+        if (insertError) {
+          logStep("Warning: Failed to create user subscription with customer ID", { error: insertError.message });
+        }
       }
     } else {
       customerId = customers.data[0].id;

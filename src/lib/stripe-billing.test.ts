@@ -6,6 +6,7 @@ import {
   STORAGE_TIER_BYTES,
   buildWorkspacePlanPatch,
   classifyProduct,
+  decideCheckout,
   decidePlanEvent,
   getInvoiceSubscriptionId,
   isInvoiceForStoredPlan,
@@ -140,6 +141,49 @@ describe('shouldApplyPlanEvent', () => {
     ).toBe(true);
   });
 
+  it('ignores every event of the stored subscription once the account is canceled', () => {
+    const canceled = { ...base, storedStatus: 'canceled' };
+    for (const eventType of [CREATED, UPDATED, DELETED, CHECKOUT]) {
+      for (const eventStatus of ['active', 'trialing', 'past_due', 'canceled', 'unpaid']) {
+        expect(decidePlanEvent({ ...canceled, eventStatus, eventType })).toEqual({
+          apply: false,
+          reason: 'stored_already_canceled',
+          replacesStored: false,
+        });
+      }
+    }
+  });
+
+  it('keeps applying events of the stored subscription while it is not canceled', () => {
+    for (const storedStatus of ['active', 'trialing', 'past_due']) {
+      expect(decidePlanEvent({ ...base, storedStatus, eventStatus: 'active' })).toEqual({
+        apply: true,
+        reason: 'stored_subscription',
+        replacesStored: false,
+      });
+      expect(
+        shouldApplyPlanEvent({ ...base, storedStatus, eventStatus: 'canceled', eventType: DELETED }),
+      ).toBe(true);
+    }
+  });
+
+  it('still reports an incomplete event of a canceled stored subscription as incomplete', () => {
+    expect(
+      decidePlanEvent({ ...base, storedStatus: 'canceled', eventStatus: 'incomplete' }).reason,
+    ).toBe('incomplete_status');
+  });
+
+  it('after a cancellation, a different live subscription still starts a new plan', () => {
+    expect(
+      decidePlanEvent({
+        ...other,
+        storedStatus: 'canceled',
+        eventStatus: 'active',
+        eventType: CHECKOUT,
+      }),
+    ).toEqual({ apply: true, reason: 'first_or_after_canceled', replacesStored: false });
+  });
+
   it('never applies an incomplete event, even of the stored subscription', () => {
     for (const eventStatus of ['incomplete', 'incomplete_expired']) {
       for (const eventType of [CREATED, UPDATED, DELETED, CHECKOUT]) {
@@ -231,6 +275,62 @@ describe('shouldApplyPlanEvent', () => {
       shouldApplyPlanEvent({ ...base, storedSubscriptionId: '', eventSubscriptionId: '' }),
     ).toBe(false);
   });
+});
+
+describe('decideCheckout', () => {
+  it.each([true, false])(
+    'refuses an active or past_due account (Stripe subscription: %s)',
+    (hasStripeSubscription) => {
+      for (const accountStatus of ['active', 'past_due']) {
+        expect(decideCheckout({ accountStatus, hasStripeSubscription })).toEqual({
+          allow: false,
+          reason: 'already_subscribed',
+        });
+      }
+    },
+  );
+
+  it('refuses a Stripe trial: trialing with a Stripe subscription', () => {
+    expect(decideCheckout({ accountStatus: 'trialing', hasStripeSubscription: true })).toEqual({
+      allow: false,
+      reason: 'stripe_trial',
+    });
+  });
+
+  it('allows the free trial of the app: trialing without a Stripe subscription', () => {
+    expect(decideCheckout({ accountStatus: 'trialing', hasStripeSubscription: false })).toEqual({
+      allow: true,
+      reason: 'app_trial',
+    });
+  });
+
+  it.each([true, false])(
+    'allows a canceled account (old Stripe subscription id kept: %s)',
+    (hasStripeSubscription) => {
+      expect(decideCheckout({ accountStatus: 'canceled', hasStripeSubscription })).toEqual({
+        allow: true,
+        reason: 'no_plan',
+      });
+    },
+  );
+
+  it('allows an account without a row', () => {
+    for (const accountStatus of [null, undefined]) {
+      expect(decideCheckout({ accountStatus, hasStripeSubscription: false }).allow).toBe(true);
+    }
+  });
+
+  it.each([true, false])(
+    'allows any other status (Stripe subscription: %s)',
+    (hasStripeSubscription) => {
+      for (const accountStatus of ['', 'unpaid', 'incomplete', 'incomplete_expired', 'paused', 'expired']) {
+        expect(decideCheckout({ accountStatus, hasStripeSubscription })).toEqual({
+          allow: true,
+          reason: 'no_plan',
+        });
+      }
+    },
+  );
 });
 
 describe('selectWorkspacesForPropagation', () => {

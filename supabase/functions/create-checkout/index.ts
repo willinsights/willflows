@@ -1,6 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import {
+  ALREADY_SUBSCRIBED_CODE,
+  NEW_ACCOUNT_PLAN,
+  NEW_ACCOUNT_STATUS,
+  PLAN_CHECKOUT_KIND,
+  decideCheckout,
+} from "../_shared/stripe-billing.ts";
 
 const allowedOrigins = [
   'https://willflow.app',
@@ -68,7 +75,12 @@ serve(async (req) => {
     const { data } = await supabaseClient.auth.getUser(token);
     const user = data.user;
     if (!user?.email) throw new Error("User not authenticated or email not available");
-    logStep("User authenticated", { userId: user.id, email: user.email });
+    if (!user.email_confirmed_at) {
+      return new Response(JSON.stringify({ error: "Confirme o seu email antes de subscrever um plano." }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    logStep("User authenticated", { userId: user.id });
 
     const { priceId, workspaceId } = await req.json();
     if (!priceId || typeof priceId !== "string" || !ALLOWED_PRICE_IDS.has(priceId)) {
@@ -78,13 +90,17 @@ serve(async (req) => {
     }
     logStep("Request body parsed", { priceId, workspaceId });
 
+    // Service role client: every query below MUST filter by the authenticated
+    // user's id (user.id), never by a value taken from the request body.
+    const adminClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
     // Security: never trust the workspaceId from the body.
     // The caller must be an active admin of the workspace it is paying for.
     if (workspaceId) {
-      const adminClient = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-      );
       const { data: membership, error: memberError } = await adminClient
         .from("workspace_members")
         .select("role")
@@ -102,17 +118,78 @@ serve(async (req) => {
       logStep("Workspace ownership verified", { workspaceId });
     }
 
+    // The plan belongs to the ACCOUNT: one plan subscription per account.
+    // Fail closed: if the account cannot be read, no session is created.
+    const { data: account, error: accountError } = await adminClient
+      .from("user_subscriptions")
+      .select("subscription_status, stripe_customer_id, stripe_subscription_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (accountError) {
+      console.error("[CREATE-CHECKOUT] Could not read account subscription", accountError.message);
+      return new Response(
+        JSON.stringify({ error: "Não foi possível verificar a subscrição da conta. Tente novamente." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const checkoutDecision = decideCheckout({
+      accountStatus: account?.subscription_status ?? null,
+      hasStripeSubscription: !!account?.stripe_subscription_id,
+    });
+
+    if (!checkoutDecision.allow) {
+      logStep("Checkout refused", { reason: checkoutDecision.reason });
+      return new Response(
+        JSON.stringify({ error: ALREADY_SUBSCRIBED_CODE, code: ALREADY_SUBSCRIBED_CODE }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
-    // Check if a Stripe customer already exists for this user
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    let customerId: string | undefined;
-    
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
-      logStep("Found existing Stripe customer", { customerId });
+    // Stable Stripe customer: the id stored on the account first, then the
+    // lookup by email, and only then a new customer.
+    let customerId: string | null = account?.stripe_customer_id ?? null;
+
+    if (customerId) {
+      logStep("Using the Stripe customer stored on the account");
     } else {
-      logStep("No existing Stripe customer found");
+      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+      if (customers.data.length > 0) {
+        customerId = customers.data[0].id;
+        logStep("Found existing Stripe customer by email");
+      } else {
+        const newCustomer = await stripe.customers.create({
+          email: user.email,
+          metadata: { user_id: user.id },
+        });
+        customerId = newCustomer.id;
+        logStep("Created new Stripe customer");
+
+        // Store the new id on the account. Only stripe_customer_id is written
+        // on an existing row; a missing row gets the same minimal pair a new
+        // account gets (never a paid plan, trial dates untouched). A failure
+        // is logged (no email) and the checkout continues.
+        const { error: saveError } = account
+          ? await adminClient
+              .from("user_subscriptions")
+              .update({ stripe_customer_id: customerId })
+              .eq("user_id", user.id)
+          : await adminClient
+              .from("user_subscriptions")
+              .insert({
+                user_id: user.id,
+                stripe_customer_id: customerId,
+                subscription_plan: NEW_ACCOUNT_PLAN,
+                subscription_status: NEW_ACCOUNT_STATUS,
+              });
+
+        if (saveError) {
+          console.warn("[CREATE-CHECKOUT] Could not store the Stripe customer id on the account", saveError.message);
+        }
+      }
     }
 
     const requestOrigin = origin && allowedOrigins.includes(origin) ? origin : "https://willflow.app";
@@ -120,13 +197,12 @@ serve(async (req) => {
     // Create a subscription checkout session with full EU VAT compliance
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      customer_email: customerId ? undefined : user.email,
       
-      // Allow updating customer address/name for existing customers
-      customer_update: customerId ? {
+      // The session always uses a customer: let checkout update its address/name
+      customer_update: {
         address: 'auto',
         name: 'auto',
-      } : undefined,
+      },
       
       line_items: [
         {
@@ -155,11 +231,13 @@ serve(async (req) => {
       cancel_url: `${requestOrigin}/planos?checkout=cancelled`,
       
       metadata: {
+        kind: PLAN_CHECKOUT_KIND,
         user_id: user.id,
         workspace_id: workspaceId || "",
       },
       subscription_data: {
         metadata: {
+          kind: PLAN_CHECKOUT_KIND,
           user_id: user.id,
           workspace_id: workspaceId || "",
         },

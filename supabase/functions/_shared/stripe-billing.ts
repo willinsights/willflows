@@ -95,6 +95,58 @@ export function mapStripeSubscriptionStatus(status: string): string {
   }
 }
 
+// ---- Plan checkout (create-checkout) ----
+
+// Marks the session and the subscription created by the plan checkout.
+export const PLAN_CHECKOUT_KIND = 'plan';
+
+// Error code returned (HTTP 409) when the account already has a plan.
+export const ALREADY_SUBSCRIBED_CODE = 'ALREADY_SUBSCRIBED';
+
+// Minimal row for an account that has none yet: the same pair a new account
+// gets on signup. Never a paid plan; trial dates are left to the database.
+export const NEW_ACCOUNT_PLAN = 'essencial';
+export const NEW_ACCOUNT_STATUS = 'trialing';
+
+export interface CheckoutDecisionInput {
+  // subscription_status stored on the account; null/undefined without a row.
+  accountStatus: string | null | undefined;
+  // True when the account has a stripe_subscription_id.
+  hasStripeSubscription: boolean;
+}
+
+export type CheckoutDecisionReason =
+  | 'no_plan'
+  | 'app_trial'
+  | 'already_subscribed'
+  | 'stripe_trial';
+
+export interface CheckoutDecision {
+  allow: boolean;
+  reason: CheckoutDecisionReason;
+}
+
+// One plan subscription per account. Decides whether the account may open a
+// new plan checkout.
+// - active or past_due: refused, with or without a Stripe subscription (an
+//   active account without one is a manual grant and does not buy here).
+// - trialing WITH a Stripe subscription (Stripe trial): refused.
+// - trialing without one (free trial of the app), canceled, no row or any
+//   other status: allowed.
+export function decideCheckout(input: CheckoutDecisionInput): CheckoutDecision {
+  const { accountStatus, hasStripeSubscription } = input;
+
+  if (accountStatus === 'active' || accountStatus === 'past_due') {
+    return { allow: false, reason: 'already_subscribed' };
+  }
+  if (accountStatus === 'trialing') {
+    return hasStripeSubscription
+      ? { allow: false, reason: 'stripe_trial' }
+      : { allow: true, reason: 'app_trial' };
+  }
+  return { allow: true, reason: 'no_plan' };
+}
+
 export const PLAN_CHECKOUT_EVENT = 'checkout.session.completed';
 const SUBSCRIPTION_CREATED_EVENT = 'customer.subscription.created';
 const SUBSCRIPTION_UPDATED_EVENT = 'customer.subscription.updated';
@@ -115,6 +167,7 @@ export type PlanEventReason =
   | 'missing_subscription_id'
   | 'incomplete_status'
   | 'stored_subscription'
+  | 'stored_already_canceled'
   | 'first_or_after_canceled'
   | 'not_stored_and_not_startable'
   | 'replaces_stored'
@@ -134,7 +187,10 @@ const isLiveStatus = (status: string): boolean =>
 // Decides whether a PLAN subscription event may change the account.
 // a. An incomplete / incomplete_expired event never applies: an unfinished
 //    payment attempt must not end a trial nor change the plan shown.
-// b. An event of the stored subscription applies (except a.).
+// b. An event of the stored subscription applies (except a.), unless the
+//    account is already canceled: a subscription deleted in Stripe does not
+//    come back, so a late update or a reprocessed checkout of that same
+//    subscription must not reactivate the account.
 // c. Nothing stored, or the stored one is canceled: only created / updated /
 //    plan checkout with an active or trialing status applies. A deletion, or
 //    any other status, of a subscription that is not the stored one is ignored.
@@ -153,6 +209,7 @@ export function decidePlanEvent(input: PlanEventDecisionInput): PlanEventDecisio
   }
 
   if (storedSubscriptionId && storedSubscriptionId === eventSubscriptionId) {
+    if (storedStatus === 'canceled') return no('stored_already_canceled');
     return { apply: true, reason: 'stored_subscription', replacesStored: false };
   }
 
