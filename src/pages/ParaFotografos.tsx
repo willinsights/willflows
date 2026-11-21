@@ -106,7 +106,7 @@ export default function ParaFotografos() {
               "@type": "Offer",
               "price": "14",
               "priceCurrency": "EUR",
-              "priceValidUntil": "2026-12-31",
+              "priceValidUntil": "2027-12-31",
               "availability": "https://schema.org/InStock"
             }
           })}

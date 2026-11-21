@@ -173,6 +173,107 @@ export function decideCheckout(input: CheckoutDecisionInput): CheckoutDecision {
   return { allow: true, reason: 'no_plan' };
 }
 
+// ---- Parallel plan checkouts (create-checkout, stripe-webhook) ----
+//
+// decideCheckout reads the account row, which the webhook writes only after
+// the first purchase completes. Two checkout sessions opened in parallel (two
+// tabs) both pass it. The checks below look at Stripe itself.
+
+// Stripe statuses of a plan subscription that still exists and blocks a new
+// plan checkout. incomplete counts: its first payment may still succeed.
+// unpaid and paused are suspended, not ended (same rule as decideCheckout).
+// canceled and incomplete_expired are over and never block.
+export const BLOCKING_PLAN_SUBSCRIPTION_STATUSES: ReadonlySet<string> = new Set([
+  'active',
+  'trialing',
+  'past_due',
+  'incomplete',
+  'unpaid',
+  'paused',
+]);
+
+export interface StripeSubscriptionLike {
+  id: string;
+  status: string;
+  metadata?: Record<string, unknown> | null;
+  items?: {
+    data?: ReadonlyArray<{ price?: { product?: unknown } | null } | null> | null;
+  } | null;
+}
+
+// True when at least one item of the subscription is a PLAN product. Storage
+// add-ons and unknown products are not plans.
+export function isPlanSubscription(subscription: StripeSubscriptionLike | null | undefined): boolean {
+  if (!subscription) return false;
+  return (subscription.items?.data ?? []).some((item) =>
+    classifyProduct(idOf(item?.price?.product), subscription.metadata).kind === 'plan'
+  );
+}
+
+export interface StripePlanCheckoutDecision {
+  allow: boolean;
+  // Id of the first plan subscription that blocks the checkout, if any.
+  blockingSubscriptionId: string | null;
+}
+
+// Decides from the subscriptions of the Stripe customer (listed with
+// status 'all') whether a new plan checkout may be opened. Any plan
+// subscription with a blocking status refuses it (409 ALREADY_SUBSCRIBED).
+export function decideStripePlanCheckout(
+  subscriptions: ReadonlyArray<StripeSubscriptionLike> | null | undefined,
+): StripePlanCheckoutDecision {
+  const blocking = (subscriptions ?? []).find((s) =>
+    !!s && BLOCKING_PLAN_SUBSCRIPTION_STATUSES.has(s.status) && isPlanSubscription(s)
+  );
+  return blocking
+    ? { allow: false, blockingSubscriptionId: blocking.id }
+    : { allow: true, blockingSubscriptionId: null };
+}
+
+export interface StripeCheckoutSessionLike {
+  id: string;
+  status?: string | null;
+  mode?: string | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+// Open plan checkout sessions of the customer that must be expired before a
+// new one is created, so only the newest can be paid. Storage add-on sessions
+// (metadata.addon_type = 'storage') and non-subscription sessions are kept.
+// Sessions without kind (created before it existed) are treated as plan.
+export function selectPlanSessionsToExpire(
+  sessions: ReadonlyArray<StripeCheckoutSessionLike> | null | undefined,
+): string[] {
+  return (sessions ?? [])
+    .filter((s) =>
+      !!s && !!s.id && s.status === 'open' &&
+      (s.mode == null || s.mode === 'subscription') &&
+      s.metadata?.addon_type !== 'storage'
+    )
+    .map((s) => s.id);
+}
+
+export interface DuplicatePlanSubscriptionInput {
+  storedSubscriptionId: string | null | undefined;
+  storedStatus: string | null | undefined;
+  eventSubscriptionId: string | null | undefined;
+  // Raw Stripe status of the subscription in the event.
+  eventStatus: string | null | undefined;
+}
+
+const isRunningStatus = (status: string | null | undefined): boolean =>
+  status === 'active' || status === 'trialing' || status === 'past_due';
+
+// True when a running plan subscription event arrives for an account that
+// already stores ANOTHER running plan subscription: the customer holds two
+// plan subscriptions. The webhook only logs it; nothing is canceled.
+export function isDuplicatePlanSubscription(input: DuplicatePlanSubscriptionInput): boolean {
+  const { storedSubscriptionId, storedStatus, eventSubscriptionId, eventStatus } = input;
+  return !!storedSubscriptionId && !!eventSubscriptionId &&
+    storedSubscriptionId !== eventSubscriptionId &&
+    isRunningStatus(storedStatus) && isRunningStatus(eventStatus);
+}
+
 // ---- Stripe customer of the account (create-checkout, customer-portal) ----
 
 // True when a Stripe call failed because the object no longer exists (for
