@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tansta
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppToast } from '@/hooks/useAppToast';
+import { logger } from '@/lib/logger';
 
 export type MessageType = 'text' | 'post' | 'system';
 
@@ -117,12 +118,16 @@ export function useMessages(conversationId: string | undefined) {
   const messages: Message[] = data?.pages.flatMap((page) => page.messages).reverse() || [];
 
   const sendMessage = useMutation({
-    mutationFn: async ({ body, parentMessageId, attachments, mentionedUserIds, replyTo }: { 
+    mutationFn: async ({ body, parentMessageId, attachments, mentionedUserIds, replyTo, mentionNames, addMentionedToConversation }: { 
       body: string; 
       parentMessageId?: string; 
       attachments?: File[]; 
       mentionedUserIds?: string[];
       replyTo?: { id: string; body: string; user_name: string } | null;
+      /** Nomes a mostrar no aviso quando uma menção é recusada (user_id -> nome). */
+      mentionNames?: Record<string, string>;
+      /** Só para quem pode gerir membros: adiciona o mencionado à conversa antes da menção. */
+      addMentionedToConversation?: boolean;
     }) => {
 
       if (!conversationId || !user?.id) throw new Error('Conversa ou utilizador não encontrado');
@@ -145,22 +150,48 @@ export function useMessages(conversationId: string | undefined) {
 
       if (mentionedUserIds && mentionedUserIds.length > 0) {
         const uniqueUserIds = [...new Set(mentionedUserIds)];
-        await supabase.from('message_mentions').insert(
-          uniqueUserIds.map(userId => ({
-            message_id: data.id,
-            mentioned_user_id: userId,
-          }))
-        );
+        const failedUserIds: string[] = [];
 
-        const uniqueMentionedIds = uniqueUserIds.filter(id => id !== user.id);
-        for (const mentionedUserId of uniqueMentionedIds) {
-          await supabase
-            .from('conversation_members')
-            .upsert(
-              { conversation_id: conversationId, user_id: mentionedUserId, role: 'member' },
-              { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
-            )
-            .select();
+        // Uma a uma: o servidor recusa menções a quem não é membro da conversa
+        // (exceto em canal público) e uma recusa não pode arrastar as restantes.
+        for (const mentionedUserId of uniqueUserIds) {
+          try {
+            // Primeiro a entrada na conversa, depois a menção, para esta passar na regra.
+            if (addMentionedToConversation && mentionedUserId !== user.id) {
+              const { error: memberError } = await supabase
+                .from('conversation_members')
+                .upsert(
+                  { conversation_id: conversationId, user_id: mentionedUserId, role: 'member' },
+                  { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
+                )
+                .select();
+              if (memberError) {
+                logger.warn('[Chat] Não foi possível adicionar o mencionado à conversa:', memberError.message);
+              }
+            }
+
+            const { error: mentionError } = await supabase
+              .from('message_mentions')
+              .insert({ message_id: data.id, mentioned_user_id: mentionedUserId });
+            if (mentionError) {
+              logger.warn('[Chat] Menção recusada:', mentionError.message);
+              failedUserIds.push(mentionedUserId);
+            }
+          } catch (mentionException) {
+            logger.warn('[Chat] Erro ao registar menção:', mentionException);
+            failedUserIds.push(mentionedUserId);
+          }
+        }
+
+        // A mensagem já foi enviada: avisa sem bloquear.
+        if (failedUserIds.length > 0) {
+          const names = failedUserIds.map((id) => mentionNames?.[id]).filter((n): n is string => !!n);
+          const who = names.length === failedUserIds.length
+            ? names.join(', ')
+            : failedUserIds.length === 1 ? 'uma pessoa mencionada' : `${failedUserIds.length} pessoas mencionadas`;
+          toast.warning(`Não foi possível notificar ${who}`, {
+            description: 'A mensagem foi enviada, mas a menção não foi aceite nesta conversa.',
+          });
         }
       }
 
@@ -196,8 +227,11 @@ export function useMessages(conversationId: string | undefined) {
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+      if (variables.addMentionedToConversation && variables.mentionedUserIds?.length) {
+        queryClient.invalidateQueries({ queryKey: ['conversation-members', conversationId] });
+      }
       setReplyingTo(null);
     },
     onError: (error: Error) => {
