@@ -60,7 +60,6 @@ const SAMPLE_DATA: Record<string, object> = {
   },
   email_change: {
     siteName: SITE_NAME,
-    oldEmail: SAMPLE_EMAIL,
     email: SAMPLE_EMAIL,
     newEmail: SAMPLE_EMAIL,
     confirmationUrl: SAMPLE_PROJECT_URL,
@@ -168,8 +167,7 @@ const handler = createAuthEmailHandler({
       render: (data) =>
         React.createElement(EmailChangeEmail, {
           siteName: SITE_NAME,
-          oldEmail: data.old_email ?? '',
-          email: data.email,
+          email: data.old_email ?? data.email,
           newEmail: data.new_email ?? '',
           confirmationUrl: data.url,
         }),
