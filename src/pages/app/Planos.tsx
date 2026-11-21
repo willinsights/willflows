@@ -71,7 +71,7 @@ interface PaymentMethod {
 interface Subscription {
   id: string;
   status: string;
-  currentPeriodEnd: number;
+  currentPeriodEnd: number | null;
   cancelAtPeriodEnd: boolean;
   priceId: string;
   productId: string;
@@ -686,7 +686,9 @@ export default function Planos() {
                           <div className="flex items-center justify-between">
                             <span className="text-muted-foreground">Próxima faturação</span>
                             <span className="font-medium">
-                              {formatDatePt(new Date(billingInfo.subscription.currentPeriodEnd * 1000), "d 'de' MMMM, yyyy")}
+                              {billingInfo.subscription.currentPeriodEnd
+                                ? formatDatePt(new Date(billingInfo.subscription.currentPeriodEnd * 1000), "d 'de' MMMM, yyyy")
+                                : "—"}
                             </span>
                           </div>
                           {billingInfo.subscription.cancelAtPeriodEnd && (

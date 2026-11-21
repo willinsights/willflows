@@ -54,7 +54,7 @@ interface PaymentMethod {
 interface Subscription {
   id: string;
   status: string;
-  currentPeriodEnd: number;
+  currentPeriodEnd: number | null;
   cancelAtPeriodEnd: boolean;
   priceId: string;
   productId: string;
@@ -256,7 +256,9 @@ export default function Faturacao() {
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Próxima faturação</span>
                       <span className="font-medium">
-                        {format(new Date(billingInfo.subscription.currentPeriodEnd * 1000), "d 'de' MMMM, yyyy", { locale: pt })}
+                        {billingInfo.subscription.currentPeriodEnd
+                          ? format(new Date(billingInfo.subscription.currentPeriodEnd * 1000), "d 'de' MMMM, yyyy", { locale: pt })
+                          : "—"}
                       </span>
                     </div>
                     {billingInfo.subscription.cancelAtPeriodEnd && (
