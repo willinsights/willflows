@@ -95,6 +95,10 @@ export function mapStripeSubscriptionStatus(status: string): string {
   }
 }
 
+export const PLAN_CHECKOUT_EVENT = 'checkout.session.completed';
+const SUBSCRIPTION_CREATED_EVENT = 'customer.subscription.created';
+const SUBSCRIPTION_UPDATED_EVENT = 'customer.subscription.updated';
+
 export interface PlanEventDecisionInput {
   // stripe_subscription_id currently stored on the account, if any.
   storedSubscriptionId: string | null | undefined;
@@ -103,26 +107,74 @@ export interface PlanEventDecisionInput {
   eventSubscriptionId: string;
   // Raw Stripe status of the subscription in the event.
   eventStatus: string;
+  // Stripe event type (customer.subscription.* or checkout.session.completed).
   eventType: string;
 }
 
+export type PlanEventReason =
+  | 'missing_subscription_id'
+  | 'incomplete_status'
+  | 'stored_subscription'
+  | 'first_or_after_canceled'
+  | 'not_stored_and_not_startable'
+  | 'replaces_stored'
+  | 'other_subscription_ignored';
+
+export interface PlanEventDecision {
+  apply: boolean;
+  reason: PlanEventReason;
+  // True when a different, not canceled subscription is stored and this event
+  // takes its place: the customer may now hold two plan subscriptions.
+  replacesStored: boolean;
+}
+
+const isLiveStatus = (status: string): boolean =>
+  status === 'active' || status === 'trialing';
+
 // Decides whether a PLAN subscription event may change the account.
-// - No stored subscription, or the same subscription: accept.
-// - A deletion of any other subscription: ignore (never cancels the account).
-// - Another subscription while the stored one is not canceled: accept only
-//   when the event subscription is active/trialing (a new one replacing it).
-// - Another subscription while the stored one is canceled: accept.
-export function shouldApplyPlanEvent(input: PlanEventDecisionInput): boolean {
+// a. An incomplete / incomplete_expired event never applies: an unfinished
+//    payment attempt must not end a trial nor change the plan shown.
+// b. An event of the stored subscription applies (except a.).
+// c. Nothing stored, or the stored one is canceled: only created / updated /
+//    plan checkout with an active or trialing status applies. A deletion, or
+//    any other status, of a subscription that is not the stored one is ignored.
+// d. Another subscription is stored and not canceled: only a creation (or the
+//    plan checkout) with an active or trialing status may replace it. Updates
+//    and deletions of another subscription are always ignored, even if active.
+export function decidePlanEvent(input: PlanEventDecisionInput): PlanEventDecision {
   const { storedSubscriptionId, storedStatus, eventSubscriptionId, eventStatus, eventType } = input;
+  const no = (reason: PlanEventReason): PlanEventDecision =>
+    ({ apply: false, reason, replacesStored: false });
 
-  if (!eventSubscriptionId) return false;
-  if (!storedSubscriptionId) return true;
-  if (storedSubscriptionId === eventSubscriptionId) return true;
+  if (!eventSubscriptionId) return no('missing_subscription_id');
 
-  if (eventType === 'customer.subscription.deleted') return false;
+  if (eventStatus === 'incomplete' || eventStatus === 'incomplete_expired') {
+    return no('incomplete_status');
+  }
 
-  if (storedStatus === 'canceled') return true;
-  return eventStatus === 'active' || eventStatus === 'trialing';
+  if (storedSubscriptionId && storedSubscriptionId === eventSubscriptionId) {
+    return { apply: true, reason: 'stored_subscription', replacesStored: false };
+  }
+
+  const live = isLiveStatus(eventStatus);
+  const isCreation =
+    eventType === SUBSCRIPTION_CREATED_EVENT || eventType === PLAN_CHECKOUT_EVENT;
+
+  if (!storedSubscriptionId || storedStatus === 'canceled') {
+    if (live && (isCreation || eventType === SUBSCRIPTION_UPDATED_EVENT)) {
+      return { apply: true, reason: 'first_or_after_canceled', replacesStored: false };
+    }
+    return no('not_stored_and_not_startable');
+  }
+
+  if (live && isCreation) {
+    return { apply: true, reason: 'replaces_stored', replacesStored: true };
+  }
+  return no('other_subscription_ignored');
+}
+
+export function shouldApplyPlanEvent(input: PlanEventDecisionInput): boolean {
+  return decidePlanEvent(input).apply;
 }
 
 const idOf = (value: unknown): string | null => {
@@ -157,6 +209,29 @@ export function isInvoiceForStoredPlan(
     invoiceSubscriptionId === storedSubscriptionId;
 }
 
+export interface InvoiceDecisionInput {
+  invoiceSubscriptionId: string | null | undefined;
+  // stripe_subscription_id and subscription_status stored on the account.
+  storedSubscriptionId: string | null | undefined;
+  storedStatus: string | null | undefined;
+}
+
+// invoice.paid sets the account back to active only for the stored plan
+// subscription and only while the account is not canceled: a redelivered
+// invoice.paid after the cancellation must not reactivate it.
+export function shouldInvoicePaidActivate(input: InvoiceDecisionInput): boolean {
+  return isInvoiceForStoredPlan(input.invoiceSubscriptionId, input.storedSubscriptionId) &&
+    input.storedStatus !== 'canceled';
+}
+
+// invoice.payment_failed marks past_due only for the stored plan subscription
+// and only from a status that is still running.
+export function shouldInvoiceFailureMarkPastDue(input: InvoiceDecisionInput): boolean {
+  return isInvoiceForStoredPlan(input.invoiceSubscriptionId, input.storedSubscriptionId) &&
+    (input.storedStatus === 'active' || input.storedStatus === 'trialing' ||
+      input.storedStatus === 'past_due');
+}
+
 export interface WorkspaceMemberRow {
   workspace_id: string;
   user_id: string;
@@ -164,20 +239,41 @@ export interface WorkspaceMemberRow {
   is_active: boolean | null;
 }
 
+// Current billing columns of a candidate workspace.
+export interface WorkspaceBillingRow {
+  id: string;
+  subscription_status: string | null;
+  stripe_subscription_id: string | null;
+}
+
 export interface PropagationSelection {
   // Workspaces whose only active admin is this user.
   propagate: string[];
   // Workspaces where the user is an active admin among several: left alone.
   skipped: string[];
+  // Manual grants (active without a Stripe subscription): never touched.
+  manual: string[];
+  // Workspaces whose current billing columns were not supplied: left alone.
+  unreadable: string[];
+}
+
+// A plan granted by hand: active with no Stripe subscription behind it.
+export function isManualGrant(
+  workspace: Pick<WorkspaceBillingRow, 'subscription_status' | 'stripe_subscription_id'>,
+): boolean {
+  return workspace.subscription_status === 'active' && !workspace.stripe_subscription_id;
 }
 
 // There is no owner column: "owner" = active admin. The plan is only copied
 // to a workspace when it has EXACTLY ONE active admin and it is this user.
 // `members` should hold the member rows of the candidate workspaces; rows
-// that are not active admins are ignored here.
+// that are not active admins are ignored here. `workspaces` holds the current
+// billing columns of the candidates: a manual grant is never selected, and a
+// workspace without a row here is not selected either (fail closed).
 export function selectWorkspacesForPropagation(
   userId: string,
   members: WorkspaceMemberRow[],
+  workspaces: WorkspaceBillingRow[],
 ): PropagationSelection {
   const adminsByWorkspace = new Map<string, Set<string>>();
 
@@ -192,16 +288,64 @@ export function selectWorkspacesForPropagation(
     admins.add(m.user_id);
   }
 
-  const propagate: string[] = [];
-  const skipped: string[] = [];
+  const billingByWorkspace = new Map<string, WorkspaceBillingRow>();
+  for (const w of workspaces ?? []) {
+    if (w && w.id) billingByWorkspace.set(w.id, w);
+  }
 
-  if (!userId) return { propagate, skipped };
+  const selection: PropagationSelection = {
+    propagate: [],
+    skipped: [],
+    manual: [],
+    unreadable: [],
+  };
+
+  if (!userId) return selection;
 
   adminsByWorkspace.forEach((admins, workspaceId) => {
     if (!admins.has(userId)) return;
-    if (admins.size === 1) propagate.push(workspaceId);
-    else skipped.push(workspaceId);
+    if (admins.size !== 1) {
+      selection.skipped.push(workspaceId);
+      return;
+    }
+    const billing = billingByWorkspace.get(workspaceId);
+    if (!billing) selection.unreadable.push(workspaceId);
+    else if (isManualGrant(billing)) selection.manual.push(workspaceId);
+    else selection.propagate.push(workspaceId);
   });
 
-  return { propagate, skipped };
+  return selection;
+}
+
+export interface AccountPlanRow {
+  subscription_plan: string | null;
+  subscription_status: string | null;
+  trial_ends_at: string | null;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+}
+
+export interface WorkspacePlanPatch {
+  patch: Partial<AccountPlanRow>;
+  // True when status and trial end were left out of the patch.
+  statusWithheld: boolean;
+}
+
+// Columns copied from the account to a workspace. An account that is trialing
+// with no end date would read as "active with no deadline" on the workspace,
+// so in that case the workspace status and trial end are left as they are.
+export function buildWorkspacePlanPatch(account: AccountPlanRow): WorkspacePlanPatch {
+  const patch: Partial<AccountPlanRow> = {
+    subscription_plan: account.subscription_plan,
+    stripe_customer_id: account.stripe_customer_id,
+    stripe_subscription_id: account.stripe_subscription_id,
+  };
+
+  if (account.subscription_status === 'trialing' && !account.trial_ends_at) {
+    return { patch, statusWithheld: true };
+  }
+
+  patch.subscription_status = account.subscription_status;
+  patch.trial_ends_at = account.trial_ends_at;
+  return { patch, statusWithheld: false };
 }
