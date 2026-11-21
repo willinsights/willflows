@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react';
+import { useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable';
@@ -7,34 +7,7 @@ import { isTrialExpired, hasPaidSubscription } from '@/lib/subscription-utils';
 import { queryClient } from '@/lib/query-client';
 
 import { logger } from '@/lib/logger';
-// Simplified subscription state - detailed subscription info comes from useUserSubscription hook
-interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null; data?: { user: User | null } }>;
-  signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ error: Error | null }>;
-  updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
-  signInWithGoogle: () => Promise<{ error: Error | null }>;
-  /**
-   * @deprecated Use the `useUserSubscription` hook instead for subscription data.
-   * This state is maintained for backwards compatibility only.
-   */
-  subscription: {
-    subscribed: boolean;
-    plan: string | null;
-    /** Estado da subscrição da CONTA (ex.: 'active', 'trialing'); null se desconhecido. */
-    status: string | null;
-    subscriptionEnd: string | null;
-    trialExpired: boolean;
-    trialEndsAt: string | null;
-    loading: boolean;
-  };
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { AuthContext } from './auth-context';
 
 // Internal provider that uses the subscription hook
 function AuthProviderInner({ children }: { children: ReactNode }) {
