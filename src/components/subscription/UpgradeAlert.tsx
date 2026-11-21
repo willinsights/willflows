@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { usePlanCheckout } from '@/hooks/usePlanCheckout';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { getPriceId, PLANS as PLAN_INFO } from '@/lib/plans';
+import { getPriceId, getTaxSuffix, PLANS as PLAN_INFO } from '@/lib/plans';
 import type { SubscriptionPlan } from '@/hooks/useUserSubscription';
 import type { FeatureInfo } from '@/hooks/usePlanFeatures';
 
@@ -167,6 +167,7 @@ export const UpgradeAlert = forwardRef<HTMLDivElement, UpgradeAlertProps>(functi
               <p className="text-2xl font-bold">
                 {currencySymbol}{price}
                 <span className="text-sm font-normal text-muted-foreground">/mês</span>
+                <span className="ml-1 text-xs font-normal text-muted-foreground">{getTaxSuffix(currencyKey)}</span>
               </p>
             </div>
           )}

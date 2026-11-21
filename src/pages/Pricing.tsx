@@ -28,6 +28,8 @@ import {
   getDisplayPrice, 
   getYearlyTotal,
   getCurrencySymbol,
+  getTaxSuffix,
+  PRICES_TAX_NOTE,
   getPriceId,
   type PlanId,
   type Currency,
@@ -304,11 +306,12 @@ export default function Pricing() {
                         {currencySymbol}{getPrice(planId)}
                       </span>
                       <span className="text-muted-foreground">/mês</span>
+                      <span className="text-xs text-muted-foreground">{getTaxSuffix(currency)}</span>
                     </div>
                     
                     {isAnnual && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        Faturado anualmente ({currencySymbol}{getYearlyTotal(planId, currency)}/ano)
+                        Faturado anualmente ({currencySymbol}{getYearlyTotal(planId, currency)}/ano {getTaxSuffix(currency)})
                       </p>
                     )}
                   </div>
@@ -374,6 +377,10 @@ export default function Pricing() {
               );
             })}
           </div>
+
+          <p className="text-xs text-muted-foreground text-center mt-6">
+            {PRICES_TAX_NOTE}
+          </p>
         </div>
       </section>
 

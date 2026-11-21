@@ -10,7 +10,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { STORAGE_ADDON_PRICES, type StorageAddonTier, type Currency } from '@/lib/plans';
+import { STORAGE_ADDON_PRICES, getTaxSuffix, PRICES_TAX_NOTE, type StorageAddonTier, type Currency } from '@/lib/plans';
 import { cn } from '@/lib/utils';
 
 interface StorageManagementCardProps {
@@ -182,7 +182,8 @@ export function StorageManagementCard({ className }: StorageManagementCardProps)
                   <div>
                     <p className="font-medium">{addon.displayName}</p>
                     <p className="text-sm text-muted-foreground">
-                      {currencySymbol}{price}/mês
+                      {currencySymbol}{price}/mês{' '}
+                      <span className="text-xs">{getTaxSuffix(currency)}</span>
                     </p>
                   </div>
                   {isCurrentTier ? (
@@ -211,6 +212,7 @@ export function StorageManagementCard({ className }: StorageManagementCardProps)
               );
             })}
           </div>
+          <p className="text-xs text-muted-foreground">{PRICES_TAX_NOTE}</p>
         </div>
 
         {/* Info text */}

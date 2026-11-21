@@ -40,7 +40,7 @@ import { useToast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
 import { format, differenceInDays, parseISO, isValid } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { PLANS as PLAN_INFO, getPriceId } from '@/lib/plans';
+import { PLANS as PLAN_INFO, getPriceId, getTaxSuffix, PRICES_TAX_NOTE } from '@/lib/plans';
 import { cn } from '@/lib/utils';
 import { StorageManagementCard } from '@/components/video-production/StorageManagementCard';
 
@@ -552,10 +552,11 @@ export default function Planos() {
                             <div className="flex items-baseline justify-center gap-1">
                               <span className="text-4xl font-bold">{currencySymbol}{monthlyEquivalent}</span>
                               <span className="text-muted-foreground">/mês</span>
+                              <span className="text-xs text-muted-foreground">{getTaxSuffix(currency)}</span>
                             </div>
                             {billingInterval === 'yearly' && (
                               <p className="text-xs text-muted-foreground mt-1">
-                                {currencySymbol}{price} cobrado anualmente
+                                {currencySymbol}{price} {getTaxSuffix(currency)} cobrado anualmente
                               </p>
                             )}
                           </div>
@@ -615,6 +616,7 @@ export default function Planos() {
               <div className="text-center text-sm text-muted-foreground space-y-1">
                 <p>Todos os planos incluem suporte por email e atualizações gratuitas.</p>
                 <p>Pode cancelar a qualquer momento sem compromisso.</p>
+                <p className="text-xs">{PRICES_TAX_NOTE}</p>
               </div>
             </>
           )}
