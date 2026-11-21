@@ -9,6 +9,12 @@ interface DeleteCommentPayload {
   token: string;
   comment_id: string;
   client_name: string;
+  delete_key?: string;
+}
+
+async function sha256Hex(v: string): Promise<string> {
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
+  return Array.from(new Uint8Array(b)).map((x) => x.toString(16).padStart(2, '0')).join('');
 }
 
 Deno.serve(async (req) => {
@@ -121,6 +127,19 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Require the secret key issued when the comment was created
+    const { data: keyRow } = await supabase
+      .from('video_comment_delete_keys')
+      .select('key_hash')
+      .eq('comment_id', comment.id)
+      .maybeSingle();
+    if (!payload.delete_key || typeof payload.delete_key !== 'string' || payload.delete_key.length > 200 || !keyRow || keyRow.key_hash !== await sha256Hex(payload.delete_key)) {
+      return new Response(
+        JSON.stringify({ error: 'Não tem permissão para apagar este comentário' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Verify the client name matches (case-insensitive)
     const sanitizedPayloadName = payload.client_name.trim().toLowerCase();
     const sanitizedCommentName = (comment.client_name || '').trim().toLowerCase();
@@ -158,7 +177,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Comment ${payload.comment_id} deleted by client "${payload.client_name}"`);
+    console.log(`Client comment ${payload.comment_id} deleted`);
 
     return new Response(
       JSON.stringify({ success: true }),

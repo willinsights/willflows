@@ -148,6 +148,13 @@
       "when": 1795216240671,
       "tag": "0020_chat_requires_paid_plan",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1795268620708,
+      "tag": "0021_security_hardening_selected_findings",
+      "breakpoints": true
     }
   ]
 }

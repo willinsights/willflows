@@ -550,7 +550,7 @@ export function useVideoVersions(
     try {
       const { data, error } = await supabase.storage
         .from('video-versions')
-        .createSignedUrl(filePath, 3600); // 1 hour
+        .createSignedUrl(filePath, 600); // 10 minutes: limits access after membership removal
 
       if (error) throw error;
       return data.signedUrl;

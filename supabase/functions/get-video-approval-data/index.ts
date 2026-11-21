@@ -207,7 +207,7 @@ Deno.serve(async (req) => {
         // Fallback to Supabase Storage signed URL for legacy videos
         const { data: urlData, error: urlError } = await supabase.storage
           .from('video-versions')
-          .createSignedUrl(version.file_path, 1800); // 30 minutes
+          .createSignedUrl(version.file_path, 600); // 10 minutes: limits access after link revocation
 
         if (urlData?.signedUrl && !urlError) {
           videoUrls[version.id] = urlData.signedUrl;

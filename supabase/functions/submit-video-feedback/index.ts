@@ -24,6 +24,11 @@ interface ApprovalPayload {
 
 type FeedbackPayload = CommentPayload | ApprovalPayload;
 
+async function sha256Hex(v: string): Promise<string> {
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
+  return Array.from(new Uint8Array(b)).map((x) => x.toString(16).padStart(2, '0')).join('');
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -145,10 +150,14 @@ Deno.serve(async (req) => {
         );
       }
 
-      console.log(`Comment added by client "${sanitizedName}" on version ${commentPayload.video_version_id}`);
+      // Secret key proving authorship; only its hash is stored server-side
+      const deleteKey = `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(/-/g, '');
+      await supabase.from('video_comment_delete_keys').insert({ comment_id: comment.id, key_hash: await sha256Hex(deleteKey) });
+
+      console.log(`Client comment added on version ${commentPayload.video_version_id}`);
 
       return new Response(
-        JSON.stringify({ success: true, comment }),
+        JSON.stringify({ success: true, comment, delete_key: deleteKey }),
         { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
 
