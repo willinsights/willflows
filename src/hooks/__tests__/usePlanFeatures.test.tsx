@@ -61,7 +61,7 @@ vi.mock("@/hooks/useWorkspaceSubscription", () => ({
 }));
 
 // Import hook after all mocks
-import { usePlanFeatures, type FeatureKey } from "@/hooks/usePlanFeatures";
+import { usePlanFeatures, isWorkspaceTrialValid, type FeatureKey } from "@/hooks/usePlanFeatures";
 import { useSuperAdmin } from "@/hooks/useSuperAdmin";
 
 const createWrapper = () => {
@@ -278,6 +278,98 @@ describe("usePlanFeatures", () => {
         wrapper: createWrapper(),
       });
       expect(result.current.hasFeatureAccess("videoApproval")).toBe(false);
+    });
+  });
+
+  describe("Chat durante o período de teste", () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    const future = () => new Date(Date.now() + 3 * DAY).toISOString();
+    const past = () => new Date(Date.now() - 3 * DAY).toISOString();
+
+    const mockWorkspace = (subscription: Record<string, unknown>) => {
+      mockUseWorkspaceSubscription.mockReturnValue({
+        subscription,
+        limits: { workspaces: 1, users: 2, projects: 10, clients: 25 },
+        loading: false,
+        isOwner: true,
+        canManageSubscription: true,
+      });
+    };
+
+    const render = () =>
+      renderHook(() => usePlanFeatures(), { wrapper: createWrapper() });
+
+    it("Starter + teste válido: chat disponível", () => {
+      mockWorkspace({ plan: "starter", status: "trialing", trialEndsAt: future() });
+      const { result } = render();
+      expect(result.current.canUseFeature("chat")).toBe(true);
+      expect(result.current.hasFeatureAccess("chat")).toBe(true);
+    });
+
+    it("Starter + estado trialing com data expirada: chat indisponível", () => {
+      mockWorkspace({ plan: "starter", status: "trialing", trialEndsAt: past() });
+      const { result } = render();
+      expect(result.current.canUseFeature("chat")).toBe(false);
+      expect(result.current.hasFeatureAccess("chat")).toBe(false);
+    });
+
+    it("Starter + estado trialing sem data de fim: chat indisponível", () => {
+      mockWorkspace({ plan: "starter", status: "trialing", trialEndsAt: null });
+      const { result } = render();
+      expect(result.current.canUseFeature("chat")).toBe(false);
+    });
+
+    it("Starter sem teste (ativo, mesmo com data futura): chat indisponível", () => {
+      mockWorkspace({ plan: "starter", status: "active", trialEndsAt: future() });
+      const { result } = render();
+      expect(result.current.canUseFeature("chat")).toBe(false);
+      expect(result.current.hasFeatureAccess("chat")).toBe(false);
+    });
+
+    it("Starter + teste válido: outras funcionalidades continuam indisponíveis", () => {
+      mockWorkspace({ plan: "starter", status: "trialing", trialEndsAt: future() });
+      const { result } = render();
+      expect(result.current.canUseFeature("exportExcel")).toBe(false);
+      expect(result.current.hasFeatureAccess("exportExcel")).toBe(false);
+      expect(result.current.canUseFeature("exportPdf")).toBe(false);
+      expect(result.current.canUseFeature("videoApproval")).toBe(false);
+    });
+
+    it("Pro e Studio: chat disponível com ou sem teste", () => {
+      mockWorkspace({ plan: "pro", status: "active", trialEndsAt: null });
+      expect(render().result.current.canUseFeature("chat")).toBe(true);
+      mockWorkspace({ plan: "studio", status: "trialing", trialEndsAt: past() });
+      expect(render().result.current.canUseFeature("chat")).toBe(true);
+    });
+
+    it("a data é reavaliada em cada chamada: o chat deixa de estar disponível quando o teste expira", () => {
+      vi.useFakeTimers();
+      try {
+        const now = new Date("2026-11-21T12:00:00Z").getTime();
+        vi.setSystemTime(now);
+        mockWorkspace({
+          plan: "starter",
+          status: "trialing",
+          trialEndsAt: new Date(now + 60 * 1000).toISOString(),
+        });
+        const { result } = render();
+        expect(result.current.canUseFeature("chat")).toBe(true);
+        vi.setSystemTime(now + 2 * 60 * 1000);
+        expect(result.current.canUseFeature("chat")).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("isWorkspaceTrialValid: exige estado trialing e data futura", () => {
+      const now = Date.parse("2026-11-21T12:00:00Z");
+      expect(isWorkspaceTrialValid({ status: "trialing", trialEndsAt: "2026-11-22T00:00:00Z" }, now)).toBe(true);
+      expect(isWorkspaceTrialValid({ status: "trialing", trialEndsAt: "2026-11-21T12:00:00Z" }, now)).toBe(false);
+      expect(isWorkspaceTrialValid({ status: "trialing", trialEndsAt: "2026-11-01T00:00:00Z" }, now)).toBe(false);
+      expect(isWorkspaceTrialValid({ status: "trialing", trialEndsAt: null }, now)).toBe(false);
+      expect(isWorkspaceTrialValid({ status: "trialing", trialEndsAt: "data-invalida" }, now)).toBe(false);
+      expect(isWorkspaceTrialValid({ status: "active", trialEndsAt: "2026-11-22T00:00:00Z" }, now)).toBe(false);
+      expect(isWorkspaceTrialValid(null, now)).toBe(false);
     });
   });
 
