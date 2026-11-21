@@ -612,7 +612,7 @@ serve(async (req) => {
 
           await updateUserSubscription(targetUserId, {
             subscription_plan: plan,
-            subscription_status: subscription.status === 'trialing' ? 'trialing' : 'active',
+            subscription_status: mapStripeSubscriptionStatus(subscription.status),
             stripe_customer_id: session.customer as string,
             stripe_subscription_id: session.subscription as string,
             trial_ends_at: trialEndsAt,
