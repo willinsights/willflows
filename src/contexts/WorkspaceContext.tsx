@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
 import { User } from '@supabase/supabase-js';
 import { getWorkspaceAccessState } from '@/lib/billing/workspaceAccess';
+import { isReturningFromPortal } from '@/lib/billing/portalReturn';
 import {
   getCheckoutWorkspaceId,
   getOwnedWorkspaces,
@@ -205,6 +206,19 @@ function getInitialStateFromCache(): {
   hasValidCache: boolean;
   cachedUserId: string | null;
 } {
+  // Regresso do portal de faturação: o plano pode ter mudado no Stripe, por
+  // isso a cache local é descartada e o workspace é lido do servidor.
+  if (isReturningFromPortal()) {
+    clearCachedWorkspace();
+    return {
+      workspace: null,
+      membership: null,
+      allWorkspaces: [],
+      hasValidCache: false,
+      cachedUserId: null,
+    };
+  }
+
   try {
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {

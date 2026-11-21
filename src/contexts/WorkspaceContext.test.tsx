@@ -210,6 +210,36 @@ describe('WorkspaceProvider: dono do workspace e cache local', () => {
     expect(mocks.listReads).toBe(0);
   });
 
+  it('regresso do portal (?portal=return): cache válida ignorada e plano lido do servidor (F14)', async () => {
+    const cachedStarter = { ...workspaceRow('ws-a', USER_ID), subscription_plan: 'starter' };
+    localStorage.setItem(
+      CACHE_KEY,
+      JSON.stringify({
+        v: 2,
+        userId: USER_ID,
+        workspace: cachedStarter,
+        membership: cachedMembership('ws-a'),
+        allWorkspaces: [{ ...cachedStarter, role: 'admin' }],
+        cachedAt: Date.now(),
+      }),
+    );
+    // O servidor já tem o plano novo (pro) gravado pelo webhook
+    mocks.memberships = [membershipRow('ws-a', USER_ID)];
+    window.history.replaceState(null, '', '/app/conta?portal=return');
+
+    try {
+      const { result } = renderProvider();
+      expect(result.current.workspace).toBeNull();
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      expect(mocks.listReads).toBe(1);
+      expect(result.current.workspace?.subscription_plan).toBe('pro');
+      expect(readCache().workspace.subscription_plan).toBe('pro');
+    } finally {
+      window.history.replaceState(null, '', '/');
+    }
+  });
+
   it('servidor sem a coluna owner_id: dono nulo, cache válida e sem releituras em ciclo', async () => {
     mocks.memberships = [membershipRow('ws-a', undefined)];
 

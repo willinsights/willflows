@@ -11,6 +11,7 @@ import { logger } from '@/lib/logger';
 
 export type CheckoutFailure =
   | 'already_subscribed'
+  | 'payment_pending'
   | 'email_not_confirmed'
   | 'forbidden'
   | 'not_workspace_owner'
@@ -37,6 +38,8 @@ export interface StartPlanCheckoutParams {
 }
 
 export const ALREADY_SUBSCRIBED_CODE = 'ALREADY_SUBSCRIBED';
+/** Recusa 409 quando a única subscrição de plano que bloqueia está `incomplete` no Stripe. */
+export const PAYMENT_PENDING_CODE = 'PAYMENT_PENDING';
 export const EMAIL_NOT_CONFIRMED_CODE = 'EMAIL_NOT_CONFIRMED';
 export const FORBIDDEN_CODE = 'FORBIDDEN';
 export const NOT_WORKSPACE_OWNER_CODE = 'NOT_WORKSPACE_OWNER';
@@ -44,6 +47,8 @@ export const NOT_WORKSPACE_OWNER_CODE = 'NOT_WORKSPACE_OWNER';
 export const CHECKOUT_MESSAGES: Record<CheckoutFailure, string> = {
   already_subscribed:
     'Esta conta já tem um plano. Para mudar de plano ou atualizar o pagamento, use a gestão de subscrição.',
+  payment_pending:
+    'Há um pagamento de subscrição pendente. Conclua-o ou aguarde até 24 horas e tente de novo.',
   email_not_confirmed: 'Confirme o seu email antes de subscrever um plano.',
   forbidden: 'Não tem permissão para subscrever um plano para este workspace.',
   not_workspace_owner:
@@ -70,6 +75,10 @@ export function classifyCheckoutFailure(httpStatus: number | null, body: unknown
   const code = readText(body, 'code');
   const error = readText(body, 'error');
 
+  // Pagamento pendente vem antes da regra geral do 409
+  if (code === PAYMENT_PENDING_CODE || error === PAYMENT_PENDING_CODE) {
+    return 'payment_pending';
+  }
   if (httpStatus === 409 || code === ALREADY_SUBSCRIBED_CODE || error === ALREADY_SUBSCRIBED_CODE) {
     return 'already_subscribed';
   }
