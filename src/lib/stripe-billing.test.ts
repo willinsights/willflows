@@ -9,9 +9,13 @@ import {
   decideCheckout,
   decidePlanEvent,
   getInvoiceSubscriptionId,
+  isEmailCustomerAcceptableForUser,
   isInvoiceForStoredPlan,
   isManualGrant,
+  isStripeResourceMissing,
+  isUsableStripeCustomer,
   mapStripeSubscriptionStatus,
+  pickEmailCustomerForUser,
   selectWorkspacesForPropagation,
   shouldApplyPlanEvent,
   shouldInvoiceFailureMarkPastDue,
@@ -112,7 +116,7 @@ describe('mapStripeSubscriptionStatus', () => {
     expect(mapStripeSubscriptionStatus('trialing')).toBe('trialing');
     expect(mapStripeSubscriptionStatus('past_due')).toBe('past_due');
     expect(mapStripeSubscriptionStatus('canceled')).toBe('canceled');
-    expect(mapStripeSubscriptionStatus('unpaid')).toBe('canceled');
+    expect(mapStripeSubscriptionStatus('unpaid')).toBe('past_due');
     expect(mapStripeSubscriptionStatus('incomplete')).toBe('incomplete');
   });
 });
@@ -320,17 +324,166 @@ describe('decideCheckout', () => {
     }
   });
 
-  it.each([true, false])(
-    'allows any other status (Stripe subscription: %s)',
-    (hasStripeSubscription) => {
-      for (const accountStatus of ['', 'unpaid', 'incomplete', 'incomplete_expired', 'paused', 'expired']) {
-        expect(decideCheckout({ accountStatus, hasStripeSubscription })).toEqual({
-          allow: true,
-          reason: 'no_plan',
-        });
-      }
-    },
-  );
+  it('refuses any other not canceled status when a Stripe subscription is stored', () => {
+    for (const accountStatus of ['paused', 'unpaid', 'incomplete', 'incomplete_expired', 'expired']) {
+      expect(decideCheckout({ accountStatus, hasStripeSubscription: true })).toEqual({
+        allow: false,
+        reason: 'already_subscribed',
+      });
+    }
+  });
+
+  it('allows any other status without a Stripe subscription', () => {
+    for (const accountStatus of ['', 'unpaid', 'incomplete', 'incomplete_expired', 'paused', 'expired']) {
+      expect(decideCheckout({ accountStatus, hasStripeSubscription: false })).toEqual({
+        allow: true,
+        reason: 'no_plan',
+      });
+    }
+  });
+
+  it('allows a missing or empty status even with a Stripe subscription id', () => {
+    for (const accountStatus of [null, undefined, '']) {
+      expect(decideCheckout({ accountStatus, hasStripeSubscription: true })).toEqual({
+        allow: true,
+        reason: 'no_plan',
+      });
+    }
+  });
+
+  it('refuses while a suspended (unpaid) subscription is stored as past_due', () => {
+    expect(
+      decideCheckout({
+        accountStatus: mapStripeSubscriptionStatus('unpaid'),
+        hasStripeSubscription: true,
+      }).allow,
+    ).toBe(false);
+  });
+});
+
+describe('suspended subscription (unpaid stored as past_due)', () => {
+  const stored = { storedSubscriptionId: 'sub_plan', storedStatus: mapStripeSubscriptionStatus('unpaid') };
+
+  it('stores unpaid as past_due, never as canceled', () => {
+    expect(stored.storedStatus).toBe('past_due');
+  });
+
+  it('applies updated(active) of the same subscription when past_due is stored', () => {
+    expect(
+      decidePlanEvent({
+        storedSubscriptionId: 'sub_plan',
+        storedStatus: 'past_due',
+        eventSubscriptionId: 'sub_plan',
+        eventStatus: 'active',
+        eventType: 'customer.subscription.updated',
+      }),
+    ).toEqual({ apply: true, reason: 'stored_subscription', replacesStored: false });
+  });
+
+  it('applies updated(unpaid) of the stored subscription and keeps it reactivable', () => {
+    expect(
+      shouldApplyPlanEvent({
+        ...stored,
+        storedStatus: 'active',
+        eventSubscriptionId: 'sub_plan',
+        eventStatus: 'unpaid',
+        eventType: 'customer.subscription.updated',
+      }),
+    ).toBe(true);
+  });
+
+  it('lets invoice.paid reactivate it and a new failure keep it past_due', () => {
+    expect(shouldInvoicePaidActivate({ ...stored, invoiceSubscriptionId: 'sub_plan' })).toBe(true);
+    expect(shouldInvoiceFailureMarkPastDue({ ...stored, invoiceSubscriptionId: 'sub_plan' })).toBe(true);
+  });
+
+  it('still ignores an update of another subscription', () => {
+    expect(
+      shouldApplyPlanEvent({
+        ...stored,
+        eventSubscriptionId: 'sub_other',
+        eventStatus: 'active',
+        eventType: 'customer.subscription.updated',
+      }),
+    ).toBe(false);
+  });
+});
+
+describe('isStripeResourceMissing', () => {
+  it('recognises a missing object, directly or in the raw error', () => {
+    expect(isStripeResourceMissing({ code: 'resource_missing' })).toBe(true);
+    expect(isStripeResourceMissing({ raw: { code: 'resource_missing' } })).toBe(true);
+    const err = Object.assign(new Error('No such customer'), { code: 'resource_missing' });
+    expect(isStripeResourceMissing(err)).toBe(true);
+  });
+
+  it('does not treat any other failure as missing', () => {
+    for (const error of [
+      null,
+      undefined,
+      'resource_missing',
+      new Error('network'),
+      { code: 'rate_limit' },
+      { code: 'api_key_expired' },
+      { raw: null },
+      { type: 'StripeAuthenticationError' },
+    ]) {
+      expect(isStripeResourceMissing(error)).toBe(false);
+    }
+  });
+});
+
+describe('isUsableStripeCustomer', () => {
+  it('accepts an existing customer and rejects a deleted stub or nothing', () => {
+    expect(isUsableStripeCustomer({ id: 'cus_1' })).toBe(true);
+    expect(isUsableStripeCustomer({ id: 'cus_1', deleted: false })).toBe(true);
+    expect(isUsableStripeCustomer({ id: 'cus_1', deleted: true })).toBe(false);
+    expect(isUsableStripeCustomer({ id: '' })).toBe(false);
+    expect(isUsableStripeCustomer(null)).toBe(false);
+    expect(isUsableStripeCustomer('cus_1')).toBe(false);
+  });
+});
+
+describe('customers found by email', () => {
+  it('accepts a customer without owner or owned by this user', () => {
+    expect(isEmailCustomerAcceptableForUser({ id: 'cus_1' }, 'u-1')).toBe(true);
+    expect(isEmailCustomerAcceptableForUser({ id: 'cus_1', metadata: null }, 'u-1')).toBe(true);
+    expect(isEmailCustomerAcceptableForUser({ id: 'cus_1', metadata: {} }, 'u-1')).toBe(true);
+    expect(isEmailCustomerAcceptableForUser({ id: 'cus_1', metadata: { user_id: '' } }, 'u-1')).toBe(true);
+    expect(isEmailCustomerAcceptableForUser({ id: 'cus_1', metadata: { user_id: 'u-1' } }, 'u-1')).toBe(true);
+  });
+
+  it('rejects a customer of another user, a deleted one, or an empty user', () => {
+    expect(isEmailCustomerAcceptableForUser({ id: 'cus_1', metadata: { user_id: 'u-2' } }, 'u-1')).toBe(false);
+    expect(isEmailCustomerAcceptableForUser({ id: 'cus_1', deleted: true }, 'u-1')).toBe(false);
+    expect(isEmailCustomerAcceptableForUser(null, 'u-1')).toBe(false);
+    expect(isEmailCustomerAcceptableForUser({ id: 'cus_1' }, '')).toBe(false);
+  });
+
+  it('picks the customer of this user first, then one without owner', () => {
+    expect(
+      pickEmailCustomerForUser(
+        [
+          { id: 'cus_other', metadata: { user_id: 'u-2' } },
+          { id: 'cus_free', metadata: {} },
+          { id: 'cus_mine', metadata: { user_id: 'u-1' } },
+        ],
+        'u-1',
+      ),
+    ).toBe('cus_mine');
+    expect(
+      pickEmailCustomerForUser(
+        [{ id: 'cus_other', metadata: { user_id: 'u-2' } }, { id: 'cus_free' }],
+        'u-1',
+      ),
+    ).toBe('cus_free');
+  });
+
+  it('returns null when every customer belongs to another user, or there is none', () => {
+    expect(pickEmailCustomerForUser([{ id: 'cus_other', metadata: { user_id: 'u-2' } }], 'u-1')).toBeNull();
+    expect(pickEmailCustomerForUser([], 'u-1')).toBeNull();
+    expect(pickEmailCustomerForUser(null, 'u-1')).toBeNull();
+  });
 });
 
 describe('selectWorkspacesForPropagation', () => {

@@ -79,6 +79,10 @@ export function classifyProduct(
 }
 
 // Map a Stripe subscription status to the status stored on the account.
+// unpaid is a SUSPENDED subscription, not an ended one: it is stored as
+// past_due so that a later customer.subscription.updated / invoice.paid of the
+// same subscription reactivates the account, and so that the plan checkout
+// stays refused while it is suspended. Only canceled ends the subscription.
 export function mapStripeSubscriptionStatus(status: string): string {
   switch (status) {
     case 'active':
@@ -86,9 +90,9 @@ export function mapStripeSubscriptionStatus(status: string): string {
     case 'trialing':
       return 'trialing';
     case 'past_due':
+    case 'unpaid':
       return 'past_due';
     case 'canceled':
-    case 'unpaid':
       return 'canceled';
     default:
       return status;
@@ -131,8 +135,11 @@ export interface CheckoutDecision {
 // - active or past_due: refused, with or without a Stripe subscription (an
 //   active account without one is a manual grant and does not buy here).
 // - trialing WITH a Stripe subscription (Stripe trial): refused.
-// - trialing without one (free trial of the app), canceled, no row or any
-//   other status: allowed.
+// - any other status that is not canceled (paused, unpaid, incomplete, ...)
+//   WITH a Stripe subscription stored: refused. That subscription still
+//   exists in Stripe and is managed in the billing portal, not replaced.
+// - trialing without one (free trial of the app), canceled, no row or no
+//   status, or another status without a Stripe subscription: allowed.
 export function decideCheckout(input: CheckoutDecisionInput): CheckoutDecision {
   const { accountStatus, hasStripeSubscription } = input;
 
@@ -144,7 +151,59 @@ export function decideCheckout(input: CheckoutDecisionInput): CheckoutDecision {
       ? { allow: false, reason: 'stripe_trial' }
       : { allow: true, reason: 'app_trial' };
   }
+  if (hasStripeSubscription && accountStatus && accountStatus !== 'canceled') {
+    return { allow: false, reason: 'already_subscribed' };
+  }
   return { allow: true, reason: 'no_plan' };
+}
+
+// ---- Stripe customer of the account (create-checkout, customer-portal) ----
+
+// True when a Stripe call failed because the object no longer exists (for
+// example a stored customer id that was deleted). Any other error is a real
+// failure and must not be treated as "no customer".
+export function isStripeResourceMissing(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const e = error as { code?: unknown; raw?: { code?: unknown } | null };
+  return e.code === 'resource_missing' || e.raw?.code === 'resource_missing';
+}
+
+// A retrieved customer can be used only when it exists and is not a deleted
+// stub ({ id, deleted: true }).
+export function isUsableStripeCustomer(customer: unknown): boolean {
+  if (!customer || typeof customer !== 'object') return false;
+  const c = customer as { id?: unknown; deleted?: unknown };
+  return typeof c.id === 'string' && !!c.id && c.deleted !== true;
+}
+
+export interface StripeCustomerLike {
+  id: string;
+  deleted?: boolean | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+// A customer found by EMAIL is accepted only when it carries no user_id or
+// the user_id of this account: the email alone does not prove ownership.
+export function isEmailCustomerAcceptableForUser(
+  customer: StripeCustomerLike | null | undefined,
+  userId: string,
+): boolean {
+  if (!userId || !isUsableStripeCustomer(customer)) return false;
+  const owner = customer!.metadata?.user_id;
+  if (owner === undefined || owner === null || owner === '') return true;
+  return owner === userId;
+}
+
+// Picks the customer to reuse among those found by email: one already marked
+// with this user first, then one without an owner. Customers of another user
+// are never returned; null means a new customer must be created.
+export function pickEmailCustomerForUser(
+  customers: ReadonlyArray<StripeCustomerLike> | null | undefined,
+  userId: string,
+): string | null {
+  const acceptable = (customers ?? []).filter((c) => isEmailCustomerAcceptableForUser(c, userId));
+  const own = acceptable.find((c) => c.metadata?.user_id === userId);
+  return (own ?? acceptable[0])?.id ?? null;
 }
 
 export const PLAN_CHECKOUT_EVENT = 'checkout.session.completed';

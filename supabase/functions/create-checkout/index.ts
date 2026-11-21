@@ -7,6 +7,9 @@ import {
   NEW_ACCOUNT_STATUS,
   PLAN_CHECKOUT_KIND,
   decideCheckout,
+  isStripeResourceMissing,
+  isUsableStripeCustomer,
+  pickEmailCustomerForUser,
 } from "../_shared/stripe-billing.ts";
 
 const allowedOrigins = [
@@ -151,14 +154,34 @@ serve(async (req) => {
 
     // Stable Stripe customer: the id stored on the account first, then the
     // lookup by email, and only then a new customer.
-    let customerId: string | null = account?.stripe_customer_id ?? null;
+    const storedCustomerId: string | null = account?.stripe_customer_id ?? null;
+    let customerId: string | null = null;
 
-    if (customerId) {
-      logStep("Using the Stripe customer stored on the account");
-    } else {
-      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-      if (customers.data.length > 0) {
-        customerId = customers.data[0].id;
+    // The stored id is validated first. A customer that no longer exists in
+    // Stripe (resource_missing) or is marked as deleted counts as "no stored
+    // id": the lookup below replaces it. Any other Stripe error still fails.
+    if (storedCustomerId) {
+      try {
+        const storedCustomer = await stripe.customers.retrieve(storedCustomerId);
+        if (isUsableStripeCustomer(storedCustomer)) {
+          customerId = storedCustomerId;
+          logStep("Using the Stripe customer stored on the account");
+        } else {
+          logStep("Stored Stripe customer is deleted, replacing it");
+        }
+      } catch (retrieveError) {
+        if (!isStripeResourceMissing(retrieveError)) throw retrieveError;
+        logStep("Stored Stripe customer no longer exists, replacing it");
+      }
+    }
+
+    if (!customerId) {
+      // A customer found by email is reused only when it has no user_id or
+      // the user_id of this account; one of another user is ignored.
+      const customers = await stripe.customers.list({ email: user.email, limit: 10 });
+      customerId = pickEmailCustomerForUser(customers.data, user.id);
+
+      if (customerId) {
         logStep("Found existing Stripe customer by email");
       } else {
         const newCustomer = await stripe.customers.create({
@@ -167,28 +190,29 @@ serve(async (req) => {
         });
         customerId = newCustomer.id;
         logStep("Created new Stripe customer");
+      }
 
-        // Store the new id on the account. Only stripe_customer_id is written
-        // on an existing row; a missing row gets the same minimal pair a new
-        // account gets (never a paid plan, trial dates untouched). A failure
-        // is logged (no email) and the checkout continues.
-        const { error: saveError } = account
-          ? await adminClient
-              .from("user_subscriptions")
-              .update({ stripe_customer_id: customerId })
-              .eq("user_id", user.id)
-          : await adminClient
-              .from("user_subscriptions")
-              .insert({
-                user_id: user.id,
-                stripe_customer_id: customerId,
-                subscription_plan: NEW_ACCOUNT_PLAN,
-                subscription_status: NEW_ACCOUNT_STATUS,
-              });
+      // Store the id on the account, found by email or new. Only
+      // stripe_customer_id is written on an existing row; a missing row gets
+      // the same minimal pair a new account gets (never a paid plan, trial
+      // dates untouched). A failure is logged (no email) and the checkout
+      // continues.
+      const { error: saveError } = account
+        ? await adminClient
+            .from("user_subscriptions")
+            .update({ stripe_customer_id: customerId })
+            .eq("user_id", user.id)
+        : await adminClient
+            .from("user_subscriptions")
+            .insert({
+              user_id: user.id,
+              stripe_customer_id: customerId,
+              subscription_plan: NEW_ACCOUNT_PLAN,
+              subscription_status: NEW_ACCOUNT_STATUS,
+            });
 
-        if (saveError) {
-          console.warn("[CREATE-CHECKOUT] Could not store the Stripe customer id on the account", saveError.message);
-        }
+      if (saveError) {
+        console.warn("[CREATE-CHECKOUT] Could not store the Stripe customer id on the account", saveError.message);
       }
     }
 

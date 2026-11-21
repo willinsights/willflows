@@ -1,7 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { NEW_ACCOUNT_PLAN, NEW_ACCOUNT_STATUS } from "../_shared/stripe-billing.ts";
+import {
+  NEW_ACCOUNT_PLAN,
+  NEW_ACCOUNT_STATUS,
+  isStripeResourceMissing,
+  isUsableStripeCustomer,
+  pickEmailCustomerForUser,
+} from "../_shared/stripe-billing.ts";
 
 const allowedOrigins = [
   'https://willflow.app',
@@ -57,52 +63,88 @@ serve(async (req) => {
     }
     logStep("User authenticated", { userId: user.id });
 
+    // Service role client: the account row is always read and written with
+    // a filter by the authenticated user's id. Fail closed: if the account
+    // cannot be read, nothing is looked up, created or overwritten.
+    const { data: account, error: accountError } = await supabaseClient
+      .from('user_subscriptions')
+      .select('stripe_customer_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (accountError) {
+      logStep("ERROR: could not read the account subscription", { error: accountError.message });
+      return new Response(
+        JSON.stringify({ error: "Não foi possível abrir a faturação da conta. Tente novamente." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    
-    let customerId: string;
-    
-    if (customers.data.length === 0) {
-      // Create a new Stripe customer if one doesn't exist
-      logStep("No Stripe customer found, creating one");
-      const newCustomer = await stripe.customers.create({
-        email: user.email,
-        metadata: {
-          user_id: user.id,
-        },
-      });
-      customerId = newCustomer.id;
-      logStep("Created new Stripe customer", { customerId });
+
+    // The customer stored on the account comes first and, while it exists in
+    // Stripe, is never replaced. One that no longer exists (resource_missing)
+    // or is marked as deleted counts as "no stored id"; any other Stripe error
+    // still fails.
+    const storedCustomerId: string | null = account?.stripe_customer_id ?? null;
+    let customerId: string | null = null;
+
+    if (storedCustomerId) {
+      try {
+        const storedCustomer = await stripe.customers.retrieve(storedCustomerId);
+        if (isUsableStripeCustomer(storedCustomer)) {
+          customerId = storedCustomerId;
+          logStep("Using the Stripe customer stored on the account", { customerId });
+        } else {
+          logStep("Stored Stripe customer is deleted, replacing it");
+        }
+      } catch (retrieveError) {
+        if (!isStripeResourceMissing(retrieveError)) throw retrieveError;
+        logStep("Stored Stripe customer no longer exists, replacing it");
+      }
+    }
+
+    if (!customerId) {
+      // A customer found by email is reused only when it has no user_id or
+      // the user_id of this account; one of another user is ignored.
+      const customers = await stripe.customers.list({ email: user.email, limit: 10 });
+      customerId = pickEmailCustomerForUser(customers.data, user.id);
+
+      if (customerId) {
+        logStep("Found existing Stripe customer by email", { customerId });
+      } else {
+        logStep("No Stripe customer found, creating one");
+        const newCustomer = await stripe.customers.create({
+          email: user.email,
+          metadata: {
+            user_id: user.id,
+          },
+        });
+        customerId = newCustomer.id;
+        logStep("Created new Stripe customer", { customerId });
+      }
 
       // Store the customer id on the account. An existing row only gets
       // stripe_customer_id (plan and status are never reset here); a row is
       // inserted only when the account has none, with the same minimal pair
       // a new account gets.
-      const { data: updatedRows, error: updateError } = await supabaseClient
-        .from('user_subscriptions')
-        .update({ stripe_customer_id: customerId })
-        .eq('user_id', user.id)
-        .select('user_id');
+      const { error: saveError } = account
+        ? await supabaseClient
+            .from('user_subscriptions')
+            .update({ stripe_customer_id: customerId })
+            .eq('user_id', user.id)
+        : await supabaseClient
+            .from('user_subscriptions')
+            .insert({
+              user_id: user.id,
+              stripe_customer_id: customerId,
+              subscription_plan: NEW_ACCOUNT_PLAN,
+              subscription_status: NEW_ACCOUNT_STATUS,
+            });
 
-      if (updateError) {
-        logStep("Warning: Failed to update user subscription with customer ID", { error: updateError.message });
-      } else if (!updatedRows || updatedRows.length === 0) {
-        const { error: insertError } = await supabaseClient
-          .from('user_subscriptions')
-          .insert({
-            user_id: user.id,
-            stripe_customer_id: customerId,
-            subscription_plan: NEW_ACCOUNT_PLAN,
-            subscription_status: NEW_ACCOUNT_STATUS,
-          });
-
-        if (insertError) {
-          logStep("Warning: Failed to create user subscription with customer ID", { error: insertError.message });
-        }
+      if (saveError) {
+        logStep("Warning: Failed to store the customer ID on the account", { error: saveError.message });
       }
-    } else {
-      customerId = customers.data[0].id;
-      logStep("Found existing Stripe customer", { customerId });
     }
 
     const rawOrigin = req.headers.get("origin");
@@ -112,7 +154,7 @@ serve(async (req) => {
       return_url: `${requestOrigin}/app/conta`,
     });
     
-    logStep("Customer portal session created", { sessionId: portalSession.id, url: portalSession.url });
+    logStep("Customer portal session created", { sessionId: portalSession.id });
 
     return new Response(JSON.stringify({ url: portalSession.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
