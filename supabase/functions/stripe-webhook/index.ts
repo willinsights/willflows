@@ -6,12 +6,16 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 // so they can be unit tested.
 import {
   DEFAULT_BASE_STORAGE_BYTES,
+  PLAN_CHECKOUT_EVENT,
+  buildWorkspacePlanPatch,
   classifyProduct,
+  decidePlanEvent,
   getInvoiceSubscriptionId,
-  isInvoiceForStoredPlan,
   mapStripeSubscriptionStatus,
   selectWorkspacesForPropagation,
-  shouldApplyPlanEvent,
+  shouldInvoiceFailureMarkPastDue,
+  shouldInvoicePaidActivate,
+  type WorkspaceBillingRow,
   type WorkspaceMemberRow,
 } from "../_shared/stripe-billing.ts";
 
@@ -39,7 +43,7 @@ const sanitizeForLogging = (details: any): any => {
   });
   
   // Truncate IDs for correlation while hiding full value
-  const idFields = ['customerId', 'subscriptionId', 'invoiceId', 'sessionId', 'userId'];
+  const idFields = ['customerId', 'subscriptionId', 'storedSubscriptionId', 'invoiceId', 'sessionId', 'userId'];
   idFields.forEach(field => {
     if (sanitized[field] && typeof sanitized[field] === 'string') {
       sanitized[field] = sanitized[field].substring(0, 12) + '...';
@@ -73,6 +77,8 @@ const logDecision = (step: string, details?: any) => {
 // the account to the workspaces this user owns. There is no owner column:
 // a workspace is only updated when it has exactly one active admin and it is
 // this user. Workspaces with several active admins are left alone and logged.
+// A workspace that is active without a Stripe subscription is a manual grant
+// and is never touched.
 // Errors are logged and never interrupt the webhook.
 const propagateAccountPlan = async (supabaseAdmin: any, userId: string): Promise<void> => {
   try {
@@ -133,7 +139,26 @@ const propagateAccountPlan = async (supabaseAdmin: any, userId: string): Promise
       adminRows.push(...(admins as WorkspaceMemberRow[]));
     }
 
-    const { propagate, skipped } = selectWorkspacesForPropagation(userId, adminRows);
+    // Current billing columns of the candidates, to recognise manual grants.
+    // A failed read propagates nothing (fail closed).
+    const { data: billingRows, error: billingError } = await supabaseAdmin
+      .from('workspaces')
+      .select('id, subscription_status, stripe_subscription_id')
+      .in('id', candidateIds);
+
+    if (billingError || !billingRows) {
+      logDecision("Propagation skipped: could not read workspaces", {
+        userId,
+        error: billingError?.message,
+      });
+      return;
+    }
+
+    const { propagate, skipped, manual, unreadable } = selectWorkspacesForPropagation(
+      userId,
+      adminRows,
+      billingRows as WorkspaceBillingRow[],
+    );
 
     if (skipped.length > 0) {
       logDecision("Propagation skipped: workspaces with several active admins", {
@@ -141,17 +166,31 @@ const propagateAccountPlan = async (supabaseAdmin: any, userId: string): Promise
         workspaceIds: skipped,
       });
     }
+    if (manual.length > 0) {
+      logDecision("Propagation skipped: manually granted workspaces", {
+        userId,
+        workspaceIds: manual,
+      });
+    }
+    if (unreadable.length > 0) {
+      logDecision("Propagation skipped: workspace billing state not readable", {
+        userId,
+        workspaceIds: unreadable,
+      });
+    }
+
+    const { patch, statusWithheld } = buildWorkspacePlanPatch(account);
+    if (statusWithheld && propagate.length > 0) {
+      logDecision("Propagation: account trialing without end date, workspace status and trial end untouched", {
+        userId,
+        workspaceIds: propagate,
+      });
+    }
 
     for (const workspaceId of propagate) {
       const { error: updateError } = await supabaseAdmin
         .from('workspaces')
-        .update({
-          subscription_plan: account.subscription_plan,
-          subscription_status: account.subscription_status,
-          trial_ends_at: account.trial_ends_at,
-          stripe_customer_id: account.stripe_customer_id,
-          stripe_subscription_id: account.stripe_subscription_id,
-        })
+        .update(patch)
         .eq('id', workspaceId);
 
       if (updateError) {
@@ -159,7 +198,12 @@ const propagateAccountPlan = async (supabaseAdmin: any, userId: string): Promise
       }
     }
 
-    logStep("Account plan propagated", { userId, workspaces: propagate.length, skipped: skipped.length });
+    logStep("Account plan propagated", {
+      userId,
+      workspaces: propagate.length,
+      skipped: skipped.length,
+      manual: manual.length,
+    });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     logDecision("Propagation error", { userId, error: message });
@@ -457,11 +501,18 @@ serve(async (req) => {
               .from('workspace_storage')
               .select('*')
               .eq('workspace_id', workspaceId)
-              .single();
-            
+              .maybeSingle();
+
+            // A failed read or write throws: the event is then marked failed
+            // in the inbox and retried instead of being marked processed.
+            if (storageError) {
+              throw new Error(`Storage addon credit: could not read workspace storage (${storageError.message})`);
+            }
+
+            let addonWriteError: { message: string } | null = null;
             if (existingStorage) {
               // Update existing record
-              await supabaseClient
+              ({ error: addonWriteError } = await supabaseClient
                 .from('workspace_storage')
                 .update({
                   extra_storage_bytes: addonInfo.bytes,
@@ -470,10 +521,10 @@ serve(async (req) => {
                   stripe_addon_subscription_id: session.subscription as string,
                   last_calculated_at: new Date().toISOString(),
                 })
-                .eq('workspace_id', workspaceId);
+                .eq('workspace_id', workspaceId));
             } else {
               // Insert new record
-              await supabaseClient
+              ({ error: addonWriteError } = await supabaseClient
                 .from('workspace_storage')
                 .insert({
                   workspace_id: workspaceId,
@@ -483,7 +534,11 @@ serve(async (req) => {
                   storage_limit_bytes: 10737418240 + addonInfo.bytes,
                   addon_tier: addonInfo.tier,
                   stripe_addon_subscription_id: session.subscription as string,
-                });
+                }));
+            }
+
+            if (addonWriteError) {
+              throw new Error(`Storage addon credit: write failed (${addonWriteError.message})`);
             }
             
             logStep("Storage addon activated", { workspaceId, tier: addonInfo.tier });
@@ -492,6 +547,44 @@ serve(async (req) => {
           
           // Regular subscription plan purchase
           const plan = classification.plan;
+
+          // Same guard as the subscription events. A failed read throws so
+          // the paid checkout is retried from the inbox, never dropped.
+          const { data: accountRow, error: accountRowError } = await supabaseClient
+            .from('user_subscriptions')
+            .select('stripe_subscription_id, subscription_status')
+            .eq('user_id', targetUserId)
+            .maybeSingle();
+
+          if (accountRowError) {
+            throw new Error(`Plan checkout: could not read account (${accountRowError.message})`);
+          }
+
+          const checkoutDecision = decidePlanEvent({
+            storedSubscriptionId: accountRow?.stripe_subscription_id ?? null,
+            storedStatus: accountRow?.subscription_status ?? null,
+            eventSubscriptionId: subscription.id,
+            eventStatus: subscription.status,
+            eventType: PLAN_CHECKOUT_EVENT,
+          });
+
+          if (!checkoutDecision.apply) {
+            logDecision("Plan checkout ignored", {
+              userId: targetUserId,
+              subscriptionId: subscription.id,
+              status: subscription.status,
+              reason: checkoutDecision.reason,
+            });
+            break;
+          }
+
+          if (checkoutDecision.replacesStored) {
+            logDecision("Plan checkout replaces another stored subscription: possible double subscription", {
+              userId: targetUserId,
+              subscriptionId: subscription.id,
+              storedSubscriptionId: accountRow?.stripe_subscription_id,
+            });
+          }
           
           const currentPeriodEnd = subscription.current_period_end 
             ? new Date(subscription.current_period_end * 1000).toISOString()
@@ -570,19 +663,30 @@ serve(async (req) => {
 
         // Guard: an old or secondary subscription must not overwrite the
         // plan subscription stored on the account
-        if (!shouldApplyPlanEvent({
+        const decision = decidePlanEvent({
           storedSubscriptionId: account.storedSubscriptionId,
           storedStatus: account.storedStatus,
           eventSubscriptionId: subscription.id,
           eventStatus: subscription.status,
           eventType: event.type,
-        })) {
-          logDecision("Plan event ignored: not the stored plan subscription", {
+        });
+
+        if (!decision.apply) {
+          logDecision("Plan event ignored", {
             userId: account.userId,
             subscriptionId: subscription.id,
             status: subscription.status,
+            reason: decision.reason,
           });
           break;
+        }
+
+        if (decision.replacesStored) {
+          logDecision("Plan event replaces another stored subscription: possible double subscription", {
+            userId: account.userId,
+            subscriptionId: subscription.id,
+            storedSubscriptionId: account.storedSubscriptionId,
+          });
         }
         
         const currentPeriodEnd = subscription.current_period_end 
@@ -633,14 +737,20 @@ serve(async (req) => {
           logStep("Processing storage addon cancellation");
           
           // Find and update the workspace storage
-          const { data: storageRecords } = await supabaseClient
+          const { data: storageRecords, error: storageReadError } = await supabaseClient
             .from('workspace_storage')
             .select('workspace_id, base_storage_bytes')
             .eq('stripe_addon_subscription_id', subscription.id);
+
+          // A failed read or write throws: the event is then marked failed
+          // in the inbox and retried instead of being marked processed.
+          if (storageReadError) {
+            throw new Error(`Storage addon removal: could not read workspace storage (${storageReadError.message})`);
+          }
           
           if (storageRecords && storageRecords.length > 0) {
             for (const record of storageRecords) {
-              await supabaseClient
+              const { error: resetError } = await supabaseClient
                 .from('workspace_storage')
                 .update({
                   extra_storage_bytes: 0,
@@ -651,6 +761,10 @@ serve(async (req) => {
                   last_calculated_at: new Date().toISOString(),
                 })
                 .eq('workspace_id', record.workspace_id);
+
+              if (resetError) {
+                throw new Error(`Storage addon removal: write failed (${resetError.message})`);
+              }
               
               logStep("Storage addon removed", { workspaceId: record.workspace_id });
             }
@@ -666,8 +780,8 @@ serve(async (req) => {
           break;
         }
 
-        // Regular plan cancellation: only the stored plan subscription (or an
-        // account with none stored) may cancel the account
+        // Regular plan cancellation: only the stored plan subscription may
+        // cancel the account
         const account = await findAccountForSubscription(subscription);
         if (!account) {
           break;
@@ -682,16 +796,19 @@ serve(async (req) => {
           break;
         }
 
-        if (!shouldApplyPlanEvent({
+        const deletionDecision = decidePlanEvent({
           storedSubscriptionId: account.storedSubscriptionId,
           storedStatus: account.storedStatus,
           eventSubscriptionId: subscription.id,
           eventStatus: subscription.status,
           eventType: event.type,
-        })) {
-          logDecision("Plan deletion ignored: not the stored plan subscription", {
+        });
+
+        if (!deletionDecision.apply) {
+          logDecision("Plan deletion ignored", {
             userId: account.userId,
             subscriptionId: subscription.id,
+            reason: deletionDecision.reason,
           });
           break;
         }
@@ -723,7 +840,7 @@ serve(async (req) => {
         // Find user by Stripe customer ID
         const { data: userSubForInvoice } = await supabaseClient
           .from('user_subscriptions')
-          .select('user_id, stripe_subscription_id')
+          .select('user_id, stripe_subscription_id, subscription_status')
           .eq('stripe_customer_id', customerId)
           .single();
 
@@ -811,10 +928,16 @@ serve(async (req) => {
         // ========== END EU VAT COMPLIANCE ==========
 
         // Only an invoice of the stored PLAN subscription changes the account
-        // status. Addon or unknown-subscription invoices leave it untouched.
+        // status, and never when the account is already canceled (a redelivered
+        // invoice.paid must not reactivate it). Addon or unknown-subscription
+        // invoices leave it untouched.
         if (
           userSubForInvoice?.user_id &&
-          isInvoiceForStoredPlan(invoiceSubscriptionId, userSubForInvoice.stripe_subscription_id)
+          shouldInvoicePaidActivate({
+            invoiceSubscriptionId,
+            storedSubscriptionId: userSubForInvoice.stripe_subscription_id,
+            storedStatus: userSubForInvoice.subscription_status,
+          })
         ) {
           const activated = await updateUserSubscription(userSubForInvoice.user_id, {
             subscription_status: "active",
@@ -827,7 +950,7 @@ serve(async (req) => {
           
           logStep("Subscription status updated to active after invoice paid");
         } else if (invoiceSubscriptionId) {
-          logDecision("Invoice paid: not the stored plan subscription, account status untouched", {
+          logDecision("Invoice paid: not the stored plan subscription or account canceled, account status untouched", {
             invoiceId: invoice.id,
             subscriptionId: invoiceSubscriptionId,
           });
@@ -848,16 +971,21 @@ serve(async (req) => {
         // Find the account by Stripe customer ID
         const { data: userSub, error: userSubError } = await supabaseClient
           .from('user_subscriptions')
-          .select('user_id, stripe_subscription_id')
+          .select('user_id, stripe_subscription_id, subscription_status')
           .eq('stripe_customer_id', customerId)
           .maybeSingle();
 
         // Only an invoice of the stored PLAN subscription changes the account
-        // status. Addon or unknown-subscription invoices leave it untouched.
+        // status, and only from active, trialing or past_due. Addon or
+        // unknown-subscription invoices leave it untouched.
         if (
           !userSubError &&
           userSub?.user_id &&
-          isInvoiceForStoredPlan(invoiceSubscriptionId, userSub.stripe_subscription_id)
+          shouldInvoiceFailureMarkPastDue({
+            invoiceSubscriptionId,
+            storedSubscriptionId: userSub.stripe_subscription_id,
+            storedStatus: userSub.subscription_status,
+          })
         ) {
           const marked = await updateUserSubscription(userSub.user_id, {
             subscription_status: "past_due",
@@ -870,7 +998,7 @@ serve(async (req) => {
           
           logStep("Subscription status updated to past_due after payment failure");
         } else {
-          logDecision("Invoice payment failed: not the stored plan subscription, account status untouched", {
+          logDecision("Invoice payment failed: not the stored plan subscription or account not running, account status untouched", {
             invoiceId: invoice.id,
             subscriptionId: invoiceSubscriptionId,
             error: userSubError?.message,

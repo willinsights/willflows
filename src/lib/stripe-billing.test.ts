@@ -4,12 +4,18 @@ import {
   PRODUCT_TO_PLAN,
   STORAGE_ADDON_PRODUCTS,
   STORAGE_TIER_BYTES,
+  buildWorkspacePlanPatch,
   classifyProduct,
+  decidePlanEvent,
   getInvoiceSubscriptionId,
   isInvoiceForStoredPlan,
+  isManualGrant,
   mapStripeSubscriptionStatus,
   selectWorkspacesForPropagation,
   shouldApplyPlanEvent,
+  shouldInvoiceFailureMarkPastDue,
+  shouldInvoicePaidActivate,
+  type WorkspaceBillingRow,
   type WorkspaceMemberRow,
 } from '../../supabase/functions/_shared/stripe-billing.ts';
 
@@ -111,108 +117,119 @@ describe('mapStripeSubscriptionStatus', () => {
 });
 
 describe('shouldApplyPlanEvent', () => {
+  const CREATED = 'customer.subscription.created';
+  const UPDATED = 'customer.subscription.updated';
+  const DELETED = 'customer.subscription.deleted';
+  const CHECKOUT = 'checkout.session.completed';
+
   const base = {
-    storedSubscriptionId: 'sub_stored',
-    storedStatus: 'active',
+    storedSubscriptionId: 'sub_stored' as string | null | undefined,
+    storedStatus: 'active' as string | null | undefined,
     eventSubscriptionId: 'sub_stored',
     eventStatus: 'active',
-    eventType: 'customer.subscription.updated',
+    eventType: UPDATED,
   };
+  const other = { ...base, eventSubscriptionId: 'sub_other' };
 
-  it('accepts events of the stored subscription, whatever the status', () => {
+  it('accepts events of the stored subscription', () => {
     expect(shouldApplyPlanEvent(base)).toBe(true);
     expect(shouldApplyPlanEvent({ ...base, eventStatus: 'past_due' })).toBe(true);
     expect(shouldApplyPlanEvent({ ...base, eventStatus: 'canceled' })).toBe(true);
     expect(
-      shouldApplyPlanEvent({
-        ...base,
-        eventStatus: 'canceled',
-        eventType: 'customer.subscription.deleted',
-      }),
+      shouldApplyPlanEvent({ ...base, eventStatus: 'canceled', eventType: DELETED }),
     ).toBe(true);
   });
 
-  it('lets another active or trialing subscription replace the stored one', () => {
-    expect(
-      shouldApplyPlanEvent({
-        ...base,
-        eventSubscriptionId: 'sub_new',
-        eventStatus: 'active',
-        eventType: 'customer.subscription.created',
-      }),
-    ).toBe(true);
-    expect(
-      shouldApplyPlanEvent({ ...base, eventSubscriptionId: 'sub_new', eventStatus: 'trialing' }),
-    ).toBe(true);
+  it('never applies an incomplete event, even of the stored subscription', () => {
+    for (const eventStatus of ['incomplete', 'incomplete_expired']) {
+      for (const eventType of [CREATED, UPDATED, DELETED, CHECKOUT]) {
+        expect(shouldApplyPlanEvent({ ...base, eventStatus, eventType })).toBe(false);
+        expect(shouldApplyPlanEvent({ ...base, storedStatus: 'trialing', eventStatus, eventType }))
+          .toBe(false);
+      }
+    }
+    expect(decidePlanEvent({ ...base, eventStatus: 'incomplete' }).reason).toBe('incomplete_status');
   });
 
-  it('ignores updates of an old subscription that is not active', () => {
-    for (const eventStatus of ['canceled', 'past_due', 'unpaid', 'incomplete', 'incomplete_expired']) {
-      expect(
-        shouldApplyPlanEvent({ ...base, eventSubscriptionId: 'sub_old', eventStatus }),
-      ).toBe(false);
+  it('ignores an update of another subscription even when it is active', () => {
+    for (const eventStatus of ['active', 'trialing', 'canceled', 'past_due', 'unpaid']) {
+      expect(shouldApplyPlanEvent({ ...other, eventStatus, eventType: UPDATED })).toBe(false);
+    }
+    expect(decidePlanEvent({ ...other, eventType: UPDATED }).reason).toBe(
+      'other_subscription_ignored',
+    );
+  });
+
+  it('ignores the deletion of another subscription, whatever its status', () => {
+    for (const storedStatus of ['active', 'trialing', 'past_due', 'canceled']) {
+      for (const eventStatus of ['canceled', 'active']) {
+        expect(
+          shouldApplyPlanEvent({ ...other, storedStatus, eventStatus, eventType: DELETED }),
+        ).toBe(false);
+      }
     }
   });
 
-  it('ignores the deletion of a subscription that is not the stored one', () => {
-    expect(
-      shouldApplyPlanEvent({
-        ...base,
-        eventSubscriptionId: 'sub_old',
-        eventStatus: 'canceled',
-        eventType: 'customer.subscription.deleted',
-      }),
-    ).toBe(false);
-    // Even when the stored one is already canceled and the event looks active.
-    expect(
-      shouldApplyPlanEvent({
-        ...base,
-        storedStatus: 'canceled',
-        eventSubscriptionId: 'sub_old',
-        eventStatus: 'active',
-        eventType: 'customer.subscription.deleted',
-      }),
-    ).toBe(false);
+  it('lets a created active or trialing subscription replace another stored one', () => {
+    for (const eventStatus of ['active', 'trialing']) {
+      for (const eventType of [CREATED, CHECKOUT]) {
+        expect(decidePlanEvent({ ...other, eventStatus, eventType })).toEqual({
+          apply: true,
+          reason: 'replaces_stored',
+          replacesStored: true,
+        });
+      }
+    }
   });
 
-  it('accepts any event when no subscription is stored', () => {
+  it('does not let a created subscription that is not live replace the stored one', () => {
+    for (const eventStatus of ['past_due', 'unpaid', 'canceled', 'paused', 'incomplete']) {
+      expect(shouldApplyPlanEvent({ ...other, eventStatus, eventType: CREATED })).toBe(false);
+    }
+  });
+
+  it('with nothing stored, applies only a live created, updated or checkout event', () => {
     for (const storedSubscriptionId of [null, undefined, '']) {
-      expect(
-        shouldApplyPlanEvent({
-          ...base,
-          storedSubscriptionId,
-          storedStatus: 'trialing',
-          eventSubscriptionId: 'sub_first',
-          eventStatus: 'incomplete',
-          eventType: 'customer.subscription.created',
-        }),
-      ).toBe(true);
-      expect(
-        shouldApplyPlanEvent({
-          ...base,
-          storedSubscriptionId,
-          eventSubscriptionId: 'sub_first',
-          eventStatus: 'canceled',
-          eventType: 'customer.subscription.deleted',
-        }),
-      ).toBe(true);
+      for (const storedStatus of [null, 'trialing']) {
+        const first = { ...other, storedSubscriptionId, storedStatus };
+        for (const eventType of [CREATED, UPDATED, CHECKOUT]) {
+          expect(decidePlanEvent({ ...first, eventStatus: 'active', eventType })).toEqual({
+            apply: true,
+            reason: 'first_or_after_canceled',
+            replacesStored: false,
+          });
+          expect(shouldApplyPlanEvent({ ...first, eventStatus: 'trialing', eventType })).toBe(true);
+          for (const eventStatus of ['incomplete', 'incomplete_expired', 'canceled', 'past_due', 'unpaid', 'paused']) {
+            expect(shouldApplyPlanEvent({ ...first, eventStatus, eventType })).toBe(false);
+          }
+        }
+        // A deletion never applies to an account with nothing stored.
+        for (const eventStatus of ['canceled', 'active']) {
+          expect(shouldApplyPlanEvent({ ...first, eventStatus, eventType: DELETED })).toBe(false);
+        }
+      }
     }
   });
 
-  it('accepts another subscription once the stored one is canceled', () => {
+  it('once the stored one is canceled, another subscription applies only when live', () => {
+    const afterCancel = { ...other, storedStatus: 'canceled' };
     expect(
-      shouldApplyPlanEvent({
-        ...base,
-        storedStatus: 'canceled',
-        eventSubscriptionId: 'sub_new',
-        eventStatus: 'incomplete',
-        eventType: 'customer.subscription.created',
-      }),
-    ).toBe(true);
+      decidePlanEvent({ ...afterCancel, eventStatus: 'active', eventType: CREATED }),
+    ).toEqual({ apply: true, reason: 'first_or_after_canceled', replacesStored: false });
+    expect(shouldApplyPlanEvent({ ...afterCancel, eventStatus: 'active', eventType: UPDATED }))
+      .toBe(true);
+    expect(shouldApplyPlanEvent({ ...afterCancel, eventStatus: 'trialing', eventType: CHECKOUT }))
+      .toBe(true);
+    for (const eventStatus of ['incomplete', 'incomplete_expired', 'canceled', 'past_due', 'unpaid']) {
+      expect(shouldApplyPlanEvent({ ...afterCancel, eventStatus, eventType: CREATED })).toBe(false);
+    }
   });
 
   it('refuses an event without a subscription id', () => {
     expect(shouldApplyPlanEvent({ ...base, eventSubscriptionId: '' })).toBe(false);
+    expect(
+      shouldApplyPlanEvent({ ...base, storedSubscriptionId: '', eventSubscriptionId: '' }),
+    ).toBe(false);
   });
 });
 
@@ -224,70 +241,173 @@ describe('selectWorkspacesForPropagation', () => {
     is_active: boolean | null = true,
   ): WorkspaceMemberRow => ({ workspace_id, user_id, role, is_active });
 
+  const ws = (
+    id: string,
+    subscription_status: string | null = 'trialing',
+    stripe_subscription_id: string | null = null,
+  ): WorkspaceBillingRow => ({ id, subscription_status, stripe_subscription_id });
+
+  const all = [ws('w-1'), ws('w-2'), ws('w-3'), ws('w-4'), ws('w-9')];
+  const none = { propagate: [], skipped: [], manual: [], unreadable: [] };
+
   it('selects a workspace whose only active admin is the user', () => {
     expect(
-      selectWorkspacesForPropagation('u-1', [member('w-1', 'u-1'), member('w-1', 'u-2', 'editor')]),
-    ).toEqual({ propagate: ['w-1'], skipped: [] });
+      selectWorkspacesForPropagation(
+        'u-1',
+        [member('w-1', 'u-1'), member('w-1', 'u-2', 'editor')],
+        all,
+      ),
+    ).toEqual({ ...none, propagate: ['w-1'] });
   });
 
   it('skips a workspace with two active admins', () => {
     expect(
-      selectWorkspacesForPropagation('u-1', [member('w-1', 'u-1'), member('w-1', 'u-2')]),
-    ).toEqual({ propagate: [], skipped: ['w-1'] });
+      selectWorkspacesForPropagation('u-1', [member('w-1', 'u-1'), member('w-1', 'u-2')], all),
+    ).toEqual({ ...none, skipped: ['w-1'] });
   });
 
   it('does not count an inactive admin', () => {
     expect(
-      selectWorkspacesForPropagation('u-1', [
-        member('w-1', 'u-1'),
-        member('w-1', 'u-2', 'admin', false),
-        member('w-1', 'u-3', 'admin', null),
-      ]),
-    ).toEqual({ propagate: ['w-1'], skipped: [] });
+      selectWorkspacesForPropagation(
+        'u-1',
+        [
+          member('w-1', 'u-1'),
+          member('w-1', 'u-2', 'admin', false),
+          member('w-1', 'u-3', 'admin', null),
+        ],
+        all,
+      ),
+    ).toEqual({ ...none, propagate: ['w-1'] });
   });
 
   it('selects nothing when the user is an inactive admin', () => {
     expect(
-      selectWorkspacesForPropagation('u-1', [member('w-1', 'u-1', 'admin', false)]),
-    ).toEqual({ propagate: [], skipped: [] });
+      selectWorkspacesForPropagation('u-1', [member('w-1', 'u-1', 'admin', false)], all),
+    ).toEqual(none);
   });
 
   it('selects nothing when the user is only a member', () => {
     expect(
-      selectWorkspacesForPropagation('u-1', [
-        member('w-1', 'u-1', 'editor'),
-        member('w-1', 'u-2'),
-        member('w-2', 'u-1', 'viewer'),
-      ]),
-    ).toEqual({ propagate: [], skipped: [] });
+      selectWorkspacesForPropagation(
+        'u-1',
+        [member('w-1', 'u-1', 'editor'), member('w-1', 'u-2'), member('w-2', 'u-1', 'viewer')],
+        all,
+      ),
+    ).toEqual(none);
   });
 
   it('never selects a workspace administered only by someone else', () => {
-    expect(selectWorkspacesForPropagation('u-1', [member('w-9', 'u-2')])).toEqual({
-      propagate: [],
-      skipped: [],
-    });
+    expect(selectWorkspacesForPropagation('u-1', [member('w-9', 'u-2')], all)).toEqual(none);
   });
 
   it('decides each workspace independently and ignores duplicate rows', () => {
     expect(
-      selectWorkspacesForPropagation('u-1', [
-        member('w-1', 'u-1'),
-        member('w-1', 'u-1'),
-        member('w-2', 'u-1'),
-        member('w-2', 'u-2'),
-        member('w-3', 'u-1'),
-        member('w-4', 'u-2'),
-      ]),
-    ).toEqual({ propagate: ['w-1', 'w-3'], skipped: ['w-2'] });
+      selectWorkspacesForPropagation(
+        'u-1',
+        [
+          member('w-1', 'u-1'),
+          member('w-1', 'u-1'),
+          member('w-2', 'u-1'),
+          member('w-2', 'u-2'),
+          member('w-3', 'u-1'),
+          member('w-4', 'u-2'),
+        ],
+        all,
+      ),
+    ).toEqual({ ...none, propagate: ['w-1', 'w-3'], skipped: ['w-2'] });
   });
 
   it('selects nothing without a user or without rows', () => {
-    expect(selectWorkspacesForPropagation('', [member('w-1', '')])).toEqual({
-      propagate: [],
-      skipped: [],
+    expect(selectWorkspacesForPropagation('', [member('w-1', '')], all)).toEqual(none);
+    expect(selectWorkspacesForPropagation('u-1', [], all)).toEqual(none);
+  });
+
+  it('leaves a manual grant alone: active without a Stripe subscription', () => {
+    expect(
+      selectWorkspacesForPropagation('u-1', [member('w-1', 'u-1')], [ws('w-1', 'active', null)]),
+    ).toEqual({ ...none, manual: ['w-1'] });
+    expect(
+      selectWorkspacesForPropagation('u-1', [member('w-1', 'u-1')], [ws('w-1', 'active', '')]),
+    ).toEqual({ ...none, manual: ['w-1'] });
+  });
+
+  it('propagates to an active workspace that has a Stripe subscription', () => {
+    expect(
+      selectWorkspacesForPropagation('u-1', [member('w-1', 'u-1')], [ws('w-1', 'active', 'sub_1')]),
+    ).toEqual({ ...none, propagate: ['w-1'] });
+  });
+
+  it('propagates to trialing, canceled and past_due workspaces with or without an id', () => {
+    for (const status of ['trialing', 'canceled', 'past_due', null]) {
+      for (const subscriptionId of [null, 'sub_1']) {
+        expect(
+          selectWorkspacesForPropagation(
+            'u-1',
+            [member('w-1', 'u-1')],
+            [ws('w-1', status, subscriptionId)],
+          ),
+        ).toEqual({ ...none, propagate: ['w-1'] });
+      }
+    }
+  });
+
+  it('reports several admins before the manual grant and mixes outcomes', () => {
+    expect(
+      selectWorkspacesForPropagation(
+        'u-1',
+        [member('w-1', 'u-1'), member('w-2', 'u-1'), member('w-2', 'u-2'), member('w-3', 'u-1')],
+        [ws('w-1', 'active', null), ws('w-2', 'active', null), ws('w-3', 'trialing', null)],
+      ),
+    ).toEqual({ ...none, propagate: ['w-3'], skipped: ['w-2'], manual: ['w-1'] });
+  });
+
+  it('does not propagate to a workspace whose billing state is unknown', () => {
+    expect(selectWorkspacesForPropagation('u-1', [member('w-1', 'u-1')], [])).toEqual({
+      ...none,
+      unreadable: ['w-1'],
     });
-    expect(selectWorkspacesForPropagation('u-1', [])).toEqual({ propagate: [], skipped: [] });
+  });
+
+  it('recognises a manual grant', () => {
+    expect(isManualGrant({ subscription_status: 'active', stripe_subscription_id: null })).toBe(true);
+    expect(isManualGrant({ subscription_status: 'active', stripe_subscription_id: 'sub_1' })).toBe(false);
+    expect(isManualGrant({ subscription_status: 'trialing', stripe_subscription_id: null })).toBe(false);
+  });
+});
+
+describe('buildWorkspacePlanPatch', () => {
+  const account = {
+    subscription_plan: 'pro',
+    subscription_status: 'active',
+    trial_ends_at: null,
+    stripe_customer_id: 'cus_1',
+    stripe_subscription_id: 'sub_1',
+  };
+
+  it('copies plan, status, trial end and Stripe ids', () => {
+    expect(buildWorkspacePlanPatch(account)).toEqual({ patch: account, statusWithheld: false });
+    const trialing = { ...account, subscription_status: 'trialing', trial_ends_at: '2030-01-01T00:00:00.000Z' };
+    expect(buildWorkspacePlanPatch(trialing)).toEqual({ patch: trialing, statusWithheld: false });
+  });
+
+  it('withholds status and trial end when trialing without an end date', () => {
+    const result = buildWorkspacePlanPatch({ ...account, subscription_status: 'trialing' });
+    expect(result.statusWithheld).toBe(true);
+    expect(result.patch).toEqual({
+      subscription_plan: 'pro',
+      stripe_customer_id: 'cus_1',
+      stripe_subscription_id: 'sub_1',
+    });
+    expect('subscription_status' in result.patch).toBe(false);
+    expect('trial_ends_at' in result.patch).toBe(false);
+  });
+
+  it('clears the trial end when the account is canceled', () => {
+    const canceled = { ...account, subscription_status: 'canceled' };
+    expect(buildWorkspacePlanPatch(canceled).patch).toMatchObject({
+      subscription_status: 'canceled',
+      trial_ends_at: null,
+    });
   });
 });
 
@@ -341,5 +461,53 @@ describe('isInvoiceForStoredPlan', () => {
     expect(isInvoiceForStoredPlan('sub_plan', null)).toBe(false);
     expect(isInvoiceForStoredPlan(null, null)).toBe(false);
     expect(isInvoiceForStoredPlan('', '')).toBe(false);
+  });
+});
+
+describe('shouldInvoicePaidActivate', () => {
+  const stored = { invoiceSubscriptionId: 'sub_plan', storedSubscriptionId: 'sub_plan' };
+
+  it('activates for the stored plan subscription while not canceled', () => {
+    for (const storedStatus of ['active', 'trialing', 'past_due']) {
+      expect(shouldInvoicePaidActivate({ ...stored, storedStatus })).toBe(true);
+    }
+  });
+
+  it('does not reactivate a canceled account', () => {
+    expect(shouldInvoicePaidActivate({ ...stored, storedStatus: 'canceled' })).toBe(false);
+  });
+
+  it('ignores invoices of another or of no subscription', () => {
+    expect(
+      shouldInvoicePaidActivate({ ...stored, invoiceSubscriptionId: 'sub_addon', storedStatus: 'past_due' }),
+    ).toBe(false);
+    expect(
+      shouldInvoicePaidActivate({ ...stored, invoiceSubscriptionId: null, storedStatus: 'past_due' }),
+    ).toBe(false);
+    expect(
+      shouldInvoicePaidActivate({ ...stored, storedSubscriptionId: null, storedStatus: 'trialing' }),
+    ).toBe(false);
+  });
+});
+
+describe('shouldInvoiceFailureMarkPastDue', () => {
+  const stored = { invoiceSubscriptionId: 'sub_plan', storedSubscriptionId: 'sub_plan' };
+
+  it('marks past_due only from active, trialing or past_due', () => {
+    for (const storedStatus of ['active', 'trialing', 'past_due']) {
+      expect(shouldInvoiceFailureMarkPastDue({ ...stored, storedStatus })).toBe(true);
+    }
+    for (const storedStatus of ['canceled', 'incomplete', null, undefined]) {
+      expect(shouldInvoiceFailureMarkPastDue({ ...stored, storedStatus })).toBe(false);
+    }
+  });
+
+  it('ignores invoices of another or of no subscription', () => {
+    expect(
+      shouldInvoiceFailureMarkPastDue({ ...stored, invoiceSubscriptionId: 'sub_addon', storedStatus: 'active' }),
+    ).toBe(false);
+    expect(
+      shouldInvoiceFailureMarkPastDue({ ...stored, storedSubscriptionId: null, storedStatus: 'active' }),
+    ).toBe(false);
   });
 });
