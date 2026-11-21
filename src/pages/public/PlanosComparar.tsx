@@ -24,6 +24,8 @@ import {
   getDisplayPrice,
   getYearlyTotal,
   getCurrencySymbol,
+  getTaxSuffix,
+  PRICES_TAX_NOTE,
   getPriceId,
   type PlanId,
   type Currency,
@@ -225,9 +227,10 @@ export default function PlanosComparar() {
                 <h2 className="text-2xl font-bold mb-2">{plan.name}</h2>
                 <p className="text-lg font-semibold mb-3">
                   {currencySymbol}{getDisplayPrice(planId, currency, interval)}/mês
+                  <span className="ml-1 text-xs font-normal text-muted-foreground">{getTaxSuffix(currency)}</span>
                   {isAnnual && (
                     <span className="block text-sm font-normal text-muted-foreground">
-                      {currencySymbol}{getYearlyTotal(planId, currency)}/ano · cobrança anual
+                      {currencySymbol}{getYearlyTotal(planId, currency)}/ano {getTaxSuffix(currency)} · cobrança anual
                     </span>
                   )}
                 </p>
@@ -285,10 +288,11 @@ export default function PlanosComparar() {
                           <p className="text-2xl font-bold">
                             {currencySymbol}{getDisplayPrice(planId, currency, interval)}
                             <span className="text-sm font-normal text-muted-foreground">/mês</span>
+                            <span className="block text-xs font-normal text-muted-foreground">{getTaxSuffix(currency)}</span>
                           </p>
                           {isAnnual && (
                             <p className="text-xs text-muted-foreground">
-                              {currencySymbol}{getYearlyTotal(planId, currency)}/ano
+                              {currencySymbol}{getYearlyTotal(planId, currency)}/ano {getTaxSuffix(currency)}
                             </p>
                           )}
                         </div>
@@ -392,6 +396,9 @@ export default function PlanosComparar() {
             <strong>{user ? billingNote : '7 dias grátis · Sem cartão'}</strong>.
             Cancele a qualquer momento sem compromisso.
           </motion.p>
+          <p className="text-center text-xs text-muted-foreground mt-2">
+            {PRICES_TAX_NOTE}
+          </p>
         </div>
       </section>
 

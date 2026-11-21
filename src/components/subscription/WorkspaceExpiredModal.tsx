@@ -25,6 +25,8 @@ import {
   PLAN_ORDER, 
   getPriceId,
   getCurrencySymbol,
+  getTaxSuffix,
+  PRICES_TAX_NOTE,
   type PlanId,
   type Currency,
 } from '@/lib/plans';
@@ -233,6 +235,7 @@ export function WorkspaceExpiredModal({ open }: WorkspaceExpiredModalProps) {
                               {currencySymbol}{price}
                             </span>
                             <span className="text-muted-foreground text-sm">/mês</span>
+                            <span className="block text-xs text-muted-foreground">{getTaxSuffix(currencyKey)}</span>
                           </div>
                         </div>
 
@@ -281,6 +284,9 @@ export function WorkspaceExpiredModal({ open }: WorkspaceExpiredModalProps) {
                     </>
                   )}
                 </Button>
+                <p className="text-xs text-center text-muted-foreground mt-2">
+                  {PRICES_TAX_NOTE}
+                </p>
               </>
             ) : (
               <Button 

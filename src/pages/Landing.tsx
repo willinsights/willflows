@@ -163,6 +163,8 @@ import {
   PLAN_ORDER, 
   getDisplayPrice, 
   getCurrencySymbol,
+  getTaxSuffix,
+  PRICES_TAX_NOTE,
   type PlanId,
   type Currency,
 } from '@/lib/plans';
@@ -703,10 +705,11 @@ export default function Landing() {
                         {currencySymbol}{getPrice(planId)}
                       </span>
                       <span className="text-muted-foreground">/mês</span>
+                      <span className="text-xs text-muted-foreground">{getTaxSuffix(currency)}</span>
                     </div>
                     {isAnnual && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        Faturado anualmente ({currencySymbol}{plan.prices[currency].yearly}/ano)
+                        Faturado anualmente ({currencySymbol}{plan.prices[currency].yearly}/ano {getTaxSuffix(currency)})
                       </p>
                     )}
                   </div>
@@ -770,7 +773,11 @@ export default function Landing() {
             })}
           </div>
 
-          <div className="text-center mt-8">
+          <p className="text-xs text-muted-foreground text-center mt-6">
+            {PRICES_TAX_NOTE}
+          </p>
+
+          <div className="text-center mt-4">
             <Link to="/planos/comparar">
               <Button variant="link" className="text-primary">
                 Ver comparação detalhada de todos os planos →

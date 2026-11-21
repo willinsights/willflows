@@ -417,3 +417,19 @@ export function getDisplayPlans(currency: Currency): DisplayPlan[] {
 
 // For backwards compatibility - re-export as PLAN_INFO
 export const PLAN_INFO = PLANS;
+
+// ----- TAX DISPLAY -----
+
+/**
+ * Os preços dos planos e do armazenamento adicional não incluem impostos:
+ * o Stripe calcula o imposto no pagamento, conforme o país, e soma-o ao preço.
+ * Devolve o sufixo a mostrar junto do preço: «+ IVA» em euros, «+ impostos» nas
+ * outras moedas (incluindo reais).
+ */
+export function getTaxSuffix(currency: string | null | undefined): string {
+  return (currency ?? '').toLowerCase() === 'eur' ? '+ IVA' : '+ impostos';
+}
+
+/** Linha de rodapé para as secções de preços. */
+export const PRICES_TAX_NOTE =
+  'Preços sem impostos. O IVA ou outros impostos aplicáveis são calculados no pagamento, conforme o país.';
