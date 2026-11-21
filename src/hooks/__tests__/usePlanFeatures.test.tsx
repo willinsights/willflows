@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
@@ -61,8 +61,10 @@ vi.mock("@/hooks/useWorkspaceSubscription", () => ({
 }));
 
 // Import hook after all mocks
-import { usePlanFeatures, isWorkspaceTrialValid, type FeatureKey } from "@/hooks/usePlanFeatures";
+import { usePlanFeatures, isWorkspaceTrialValid, getAccountWorkspaceLimit, type FeatureKey } from "@/hooks/usePlanFeatures";
 import { useSuperAdmin } from "@/hooks/useSuperAdmin";
+import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -370,6 +372,138 @@ describe("usePlanFeatures", () => {
       expect(isWorkspaceTrialValid({ status: "trialing", trialEndsAt: "data-invalida" }, now)).toBe(false);
       expect(isWorkspaceTrialValid({ status: "active", trialEndsAt: "2026-11-22T00:00:00Z" }, now)).toBe(false);
       expect(isWorkspaceTrialValid(null, now)).toBe(false);
+    });
+  });
+
+  describe("Limite de workspaces: regra da conta", () => {
+    const ws = (id: string, role: string) => ({ id, role });
+
+    // clearAllMocks não repõe valores de retorno: repor os mocks por omissão
+    afterEach(() => {
+      vi.mocked(useAuth).mockReturnValue({
+        user: { id: "test-user-id", email: "test@example.com" },
+        loading: false,
+      } as never);
+      vi.mocked(useWorkspace).mockReturnValue({
+        workspace: { id: "test-workspace-id", subscription_plan: "pro" },
+        membership: { role: "admin" },
+        loading: false,
+      } as never);
+      vi.mocked(useSuperAdmin).mockReturnValue({ isSuperAdmin: false, loading: false });
+    });
+
+    const setup = (opts: {
+      account?: { plan: string | null; status: string | null };
+      workspaces: { id: string; role: string }[];
+      currentPlanLimit: number;
+      isOwner?: boolean;
+      superAdmin?: boolean;
+    }) => {
+      vi.mocked(useAuth).mockReturnValue({
+        user: { id: "test-user-id", email: "test@example.com" },
+        loading: false,
+        subscription: opts.account,
+      } as never);
+      vi.mocked(useWorkspace).mockReturnValue({
+        workspace: { id: "test-workspace-id" },
+        membership: { role: opts.isOwner === false ? "edicao" : "admin" },
+        allWorkspaces: opts.workspaces,
+        loading: false,
+      } as never);
+      vi.mocked(useSuperAdmin).mockReturnValue({ isSuperAdmin: !!opts.superAdmin, loading: false });
+      mockUseWorkspaceSubscription.mockReturnValue({
+        subscription: { plan: "pro" },
+        limits: { workspaces: opts.currentPlanLimit, users: 10, projects: 999, clients: 100 },
+        loading: false,
+        isOwner: opts.isOwner !== false,
+        canManageSubscription: opts.isOwner !== false,
+      });
+      return renderHook(() => usePlanFeatures(), { wrapper: createWrapper() }).result;
+    };
+
+    it("conta os workspaces onde o utilizador é admin, em todos os workspaces", () => {
+      const result = setup({
+        account: { plan: "pro", status: "active" },
+        workspaces: [ws("a", "admin"), ws("b", "admin"), ws("c", "edicao")],
+        currentPlanLimit: 1,
+      });
+      expect(result.current.usage.workspaces).toBe(2);
+      expect(result.current.limits.workspaces).toBe(3);
+      expect(result.current.canUseFeature("workspaces")).toBe(true);
+    });
+
+    it("convidado num workspace Studio: vale o plano da própria conta, não o do dono", () => {
+      const result = setup({
+        account: { plan: "starter", status: "trialing" },
+        workspaces: [ws("meu", "admin"), ws("cliente", "edicao")],
+        currentPlanLimit: 10,
+        isOwner: false,
+      });
+      expect(result.current.usage.workspaces).toBe(1);
+      expect(result.current.limits.workspaces).toBe(1);
+      expect(result.current.canUseFeature("workspaces")).toBe(false);
+    });
+
+    it("Pro pago com 3 workspaces próprios: limite atingido", () => {
+      const result = setup({
+        account: { plan: "pro", status: "active" },
+        workspaces: [ws("a", "admin"), ws("b", "admin"), ws("c", "admin")],
+        currentPlanLimit: 3,
+      });
+      expect(result.current.canUseFeature("workspaces")).toBe(false);
+      expect(result.current.getRemainingQuota("workspaces")).toBe(0);
+    });
+
+    it("plano Studio em teste (sem plano pago ativo): limite 1", () => {
+      const result = setup({
+        account: { plan: "studio", status: "trialing" },
+        workspaces: [ws("a", "admin")],
+        currentPlanLimit: 10,
+      });
+      expect(result.current.limits.workspaces).toBe(1);
+      expect(result.current.canUseFeature("workspaces")).toBe(false);
+    });
+
+    it("super admin não tem limite", () => {
+      const result = setup({
+        account: { plan: "starter", status: "trialing" },
+        workspaces: [ws("a", "admin"), ws("b", "admin")],
+        currentPlanLimit: 1,
+        superAdmin: true,
+      });
+      expect(result.current.canUseFeature("workspaces")).toBe(true);
+    });
+
+    it("sem subscrição da conta conhecida: mantém o limite do workspace atual", () => {
+      const result = setup({
+        account: undefined,
+        workspaces: [ws("a", "admin")],
+        currentPlanLimit: 3,
+      });
+      expect(result.current.limits.workspaces).toBe(3);
+      expect(result.current.canUseFeature("workspaces")).toBe(true);
+    });
+
+    it("não altera os outros limites", () => {
+      const result = setup({
+        account: { plan: "starter", status: "active" },
+        workspaces: [ws("a", "admin")],
+        currentPlanLimit: 3,
+      });
+      expect(result.current.limits.users).toBe(10);
+      expect(result.current.limits.projects).toBe(999);
+      expect(result.current.limits.clients).toBe(100);
+    });
+
+    it("getAccountWorkspaceLimit: tabela por plano da conta", () => {
+      expect(getAccountWorkspaceLimit({ plan: "studio", status: "active" })).toBe(10);
+      expect(getAccountWorkspaceLimit({ plan: "pro", status: "active" })).toBe(3);
+      expect(getAccountWorkspaceLimit({ plan: "starter", status: "active" })).toBe(1);
+      expect(getAccountWorkspaceLimit({ plan: "essencial", status: "active" })).toBe(1);
+      expect(getAccountWorkspaceLimit({ plan: "pro", status: "trialing" })).toBe(1);
+      expect(getAccountWorkspaceLimit({ plan: "studio", status: "canceled" })).toBe(1);
+      expect(getAccountWorkspaceLimit({ plan: "pro", status: null })).toBeNull();
+      expect(getAccountWorkspaceLimit(null)).toBeNull();
     });
   });
 

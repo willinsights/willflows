@@ -58,6 +58,7 @@ export function WorkspaceSelector() {
     limits, 
     usage, 
     checkFeature, 
+    canUseFeature,
     upgradeAlert, 
     closeUpgradeAlert,
     getFeatureInfo,
@@ -132,7 +133,9 @@ export function WorkspaceSelector() {
     window.location.href = '/app';
   };
 
-  const canCreateWorkspace = usage.workspaces < limits.workspaces;
+  // Regra da conta (ver usePlanFeatures); super admins não têm limite.
+  // O servidor é a autoridade: isto só evita um clique inútil.
+  const canCreateWorkspace = canUseFeature('workspaces');
 
   if (loading) {
     return (

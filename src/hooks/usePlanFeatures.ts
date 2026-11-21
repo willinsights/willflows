@@ -1,12 +1,14 @@
 import { useMemo, useCallback, useState } from 'react';
 import { useWorkspaceSubscription, type SubscriptionPlan } from './useWorkspaceSubscription';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { useSuperAdmin } from './useSuperAdmin';
 import { 
   PLANS, 
   PLAN_DB_MAPPING, 
+  getPlanLimits,
   isPlanAtLeast as isPlanAtLeastFromPlans,
   type PlanId,
 } from '@/lib/plans';
@@ -142,6 +144,21 @@ export function isWorkspaceTrialValid(
   return Number.isFinite(deadline) && deadline > now;
 }
 
+/**
+ * Limite de workspaces próprios segundo o plano da CONTA (não do workspace atual).
+ * Espelha a regra do servidor (create_workspace_with_admin), que é a autoridade:
+ * plano pago ativo = limite do plano (Starter 1, Pro 3, Studio 10);
+ * sem plano pago ativo (inclui teste) = 1.
+ * Devolve null quando a subscrição da conta não é conhecida no cliente.
+ */
+export function getAccountWorkspaceLimit(
+  account: { plan?: string | null; status?: string | null } | null | undefined,
+): number | null {
+  if (!account || !account.status) return null;
+  if (account.status !== 'active' || !account.plan) return 1;
+  return getPlanLimits(account.plan).workspaces;
+}
+
 export interface UpgradeAlertState {
   isOpen: boolean;
   feature: FeatureInfo | null;
@@ -150,18 +167,19 @@ export interface UpgradeAlertState {
 }
 
 export function usePlanFeatures() {
-  const { subscription, limits, loading: workspaceLoading, isOwner, canManageSubscription } = useWorkspaceSubscription();
-  const { workspace } = useWorkspace();
+  const { subscription, limits: workspaceLimits, loading: workspaceLoading, isOwner, canManageSubscription } = useWorkspaceSubscription();
+  const { workspace, allWorkspaces } = useWorkspace();
+  const { subscription: accountSubscription } = useAuth();
   const { isSuperAdmin, loading: superAdminLoading } = useSuperAdmin();
   
   // Combined loading state - we need both to be ready
   const loading = workspaceLoading || superAdminLoading;
   
   // Fetch workspace usage counts
-  const { data: usage = { workspaces: 0, users: 0, projects: 0, clients: 0 } } = useQuery({
+  const { data: workspaceUsage = { users: 0, projects: 0, clients: 0 } } = useQuery({
     queryKey: ['workspace-usage', workspace?.id],
     queryFn: async () => {
-      if (!workspace?.id) return { workspaces: 0, users: 0, projects: 0, clients: 0 };
+      if (!workspace?.id) return { users: 0, projects: 0, clients: 0 };
       
       // Count members in this workspace
       const { count: membersCount } = await supabase
@@ -183,20 +201,7 @@ export function usePlanFeatures() {
         .eq('workspace_id', workspace.id)
         .eq('is_active', true);
       
-      // For workspaces count, we count how many workspaces the admin owns
-      // This is only relevant if user is admin
-      let workspacesCount = 1;
-      if (isOwner) {
-        const { data: memberships } = await supabase
-          .from('workspace_members')
-          .select('workspace_id')
-          .eq('role', 'admin')
-          .eq('is_active', true);
-        workspacesCount = memberships?.length ?? 1;
-      }
-      
       return {
-        workspaces: workspacesCount,
         users: membersCount ?? 0,
         projects: projectsCount ?? 0,
         clients: clientsCount ?? 0,
@@ -206,6 +211,26 @@ export function usePlanFeatures() {
     staleTime: 30000, // 30 seconds
   });
   
+  // Workspaces: a regra é da CONTA, não do workspace atual.
+  // Contagem = workspaces onde o utilizador é admin ativo (o contexto já só traz
+  // as participações ativas do próprio utilizador, em todos os workspaces).
+  const ownedWorkspacesCount = useMemo(
+    () => (allWorkspaces ?? []).filter((w) => w.role === 'admin').length,
+    [allWorkspaces],
+  );
+  const usage = useMemo(
+    () => ({ ...workspaceUsage, workspaces: ownedWorkspacesCount }),
+    [workspaceUsage, ownedWorkspacesCount],
+  );
+
+  // Limite = plano da conta quando conhecido; caso contrário mantém o do workspace atual.
+  const accountPlan = accountSubscription?.plan ?? null;
+  const accountStatus = accountSubscription?.status ?? null;
+  const limits = useMemo(() => {
+    const accountLimit = getAccountWorkspaceLimit({ plan: accountPlan, status: accountStatus });
+    return accountLimit === null ? workspaceLimits : { ...workspaceLimits, workspaces: accountLimit };
+  }, [workspaceLimits, accountPlan, accountStatus]);
+
   const [upgradeAlert, setUpgradeAlert] = useState<UpgradeAlertState>({
     isOpen: false,
     feature: null,
