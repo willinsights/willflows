@@ -17,6 +17,7 @@ import {
 type Phase = "checking" | "confirmed" | "pending";
 
 const APP_PATH = "/app";
+const PLANS_PATH = "/planos";
 const CREATE_WORKSPACE_PATH = "/onboarding?new=true";
 
 // Navegação com recarregamento: o estado da conta e dos workspaces em memória
@@ -34,7 +35,7 @@ const CheckoutSuccess = () => {
   const hasTrackedConversion = useRef(false);
   const userId = user?.id ?? null;
 
-  const ownsWorkspace = hasOwnWorkspace(allWorkspaces);
+  const ownsWorkspace = hasOwnWorkspace(allWorkspaces, userId);
 
   // Relê o plano da conta; o servidor grava-o depois de receber o pagamento.
   const readAccountPlan = useCallback(async (): Promise<boolean> => {
@@ -109,15 +110,25 @@ const CheckoutSuccess = () => {
               <Clock className="h-10 w-10 text-muted-foreground" />
             </div>
             <div className="space-y-2" role="status" aria-live="polite">
-              <h1 className="text-2xl font-bold">Pagamento recebido</h1>
+              <h1 className="text-2xl font-bold">A aguardar confirmação</h1>
               <p className="text-muted-foreground">
-                Pagamento recebido; a ativação pode demorar alguns instantes.
+                Ainda não conseguimos confirmar o pagamento. Se concluiu a compra, a ativação pode demorar alguns instantes.
               </p>
             </div>
-            <Button onClick={() => setAttempt((n) => n + 1)} className="w-full gap-2" size="lg">
-              <RefreshCw className="h-4 w-4" />
-              Atualizar
-            </Button>
+            <div className="space-y-3">
+              <Button onClick={() => setAttempt((n) => n + 1)} className="w-full gap-2" size="lg">
+                <RefreshCw className="h-4 w-4" />
+                Atualizar
+              </Button>
+              <Button variant="outline" onClick={() => goTo(PLANS_PATH)} className="w-full">
+                Ver planos
+              </Button>
+              {allWorkspaces.length > 0 && (
+                <Button variant="ghost" onClick={() => goTo(APP_PATH)} className="w-full">
+                  Ir para a aplicação
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>

@@ -171,6 +171,10 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
       subscriptionEnd: userSubscription.currentPeriodEnd,
       trialExpired: trialExpiredStatus && !isPaid,
       trialEndsAt: userSubscription.trialEndsAt,
+      trialStartedAt: userSubscription.trialStartedAt,
+      hasStripeSubscription: userSubscription.hasSubscriptionRow
+        ? !!userSubscription.stripeSubscriptionId
+        : undefined,
       loading: subscriptionLoading,
     };
   }, [userSubscription, subscriptionLoading]);

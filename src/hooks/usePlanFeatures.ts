@@ -1,3 +1,4 @@
+import { countOwnedWorkspaces } from '@/lib/billing/accountPlan';
 import { useMemo, useCallback, useState } from 'react';
 import { useWorkspaceSubscription, type SubscriptionPlan } from './useWorkspaceSubscription';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -169,7 +170,7 @@ export interface UpgradeAlertState {
 export function usePlanFeatures() {
   const { subscription, limits: workspaceLimits, loading: workspaceLoading, isOwner, canManageSubscription } = useWorkspaceSubscription();
   const { workspace, allWorkspaces } = useWorkspace();
-  const { subscription: accountSubscription } = useAuth();
+  const { subscription: accountSubscription, user: accountUser } = useAuth();
   const { isSuperAdmin, loading: superAdminLoading } = useSuperAdmin();
   
   // Combined loading state - we need both to be ready
@@ -212,11 +213,13 @@ export function usePlanFeatures() {
   });
   
   // Workspaces: a regra é da CONTA, não do workspace atual.
-  // Contagem = workspaces onde o utilizador é admin ativo (o contexto já só traz
-  // as participações ativas do próprio utilizador, em todos os workspaces).
+  // Contagem = workspaces de que o utilizador é DONO (owner_id), não aqueles
+  // em que é apenas administrador (o contexto traz as participações ativas do
+  // próprio utilizador, em todos os workspaces).
+  const accountUserId = accountUser?.id ?? null;
   const ownedWorkspacesCount = useMemo(
-    () => (allWorkspaces ?? []).filter((w) => w.role === 'admin').length,
-    [allWorkspaces],
+    () => countOwnedWorkspaces(allWorkspaces, accountUserId),
+    [allWorkspaces, accountUserId],
   );
   const usage = useMemo(
     () => ({ ...workspaceUsage, workspaces: ownedWorkspacesCount }),

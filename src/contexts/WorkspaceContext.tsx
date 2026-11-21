@@ -3,6 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
 import { User } from '@supabase/supabase-js';
 import { differenceInDays, parseISO } from 'date-fns';
+import {
+  getCheckoutWorkspaceId,
+  getOwnedWorkspaces,
+  isWorkspaceOwner as checkWorkspaceOwner,
+} from '@/lib/billing/accountPlan';
 
 interface Workspace {
   id: string;
@@ -16,6 +21,8 @@ interface Workspace {
   subscription_plan: 'starter' | 'pro' | 'studio';
   subscription_status: string;
   trial_ends_at?: string | null;
+  /** Dono do workspace: o primeiro administrador. Null = sem dono registado. */
+  owner_id?: string | null;
 }
 
 interface WorkspaceMember {
@@ -40,6 +47,18 @@ interface WorkspaceContextType {
   refreshWorkspace: () => Promise<void>;
   setCurrentWorkspace: (workspaceId: string) => Promise<boolean>;
   isAdmin: boolean;
+  /**
+   * O utilizador é o DONO do workspace atual (primeiro administrador).
+   * Só o dono compra e gere o plano; `isAdmin` continua a valer para o resto.
+   */
+  isWorkspaceOwner: boolean;
+  /** Workspaces de que o utilizador é dono (contam para o limite da conta). */
+  ownedWorkspaces: WorkspaceWithRole[];
+  /**
+   * Workspace a indicar numa compra de plano: o atual quando o utilizador é o
+   * dono; `undefined` nos outros casos (a compra é para a própria conta).
+   */
+  checkoutWorkspaceId: string | undefined;
   canEdit: boolean;
 }
 
@@ -85,7 +104,14 @@ function isValidRole(role: unknown): role is WorkspaceMember['role'] {
   return typeof role === 'string' && VALID_ROLES.includes(role as any);
 }
 
+// Versão do formato da cache local. Sobe sempre que o formato muda de modo que
+// uma cache antiga daria uma resposta errada. v2: o workspace traz `owner_id`
+// (quem é o dono). Cache sem versão, de versão antiga ou sem a chave `owner_id`
+// é ignorada e apagada, e os dados são lidos do servidor.
+const CACHE_VERSION = 2;
+
 interface CachedWorkspaceData {
+  v: number;
   userId: string;
   workspace: Workspace;
   membership: WorkspaceMember;
@@ -93,11 +119,43 @@ interface CachedWorkspaceData {
   cachedAt: number; // Timestamp para validar se cache ainda é recente
 }
 
+// `null` é um valor válido (workspace sem dono registado); o que invalida a
+// cache é a chave não existir, porque aí não se sabe quem é o dono.
+function hasOwnerKey(value: unknown): boolean {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'owner_id' in value &&
+    (value as { owner_id?: unknown }).owner_id !== undefined
+  );
+}
+
+function isCurrentCacheFormat(data: unknown): data is CachedWorkspaceData {
+  if (typeof data !== 'object' || data === null) return false;
+  const candidate = data as Partial<CachedWorkspaceData>;
+  if (candidate.v !== CACHE_VERSION) return false;
+  if (!hasOwnerKey(candidate.workspace)) return false;
+  if (candidate.allWorkspaces == null) return true;
+  return Array.isArray(candidate.allWorkspaces) && candidate.allWorkspaces.every(hasOwnerKey);
+}
+
+// O servidor é a origem de `owner_id`. Um registo sem a coluna fica com dono
+// nulo (ninguém é dono), para o objeto ter sempre a chave.
+function withOwnerId<T extends { owner_id?: string | null }>(value: T): T & { owner_id: string | null } {
+  return { ...value, owner_id: value.owner_id ?? null };
+}
+
 function getCachedWorkspace(): CachedWorkspaceData | null {
   try {
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
       const data = JSON.parse(cached) as CachedWorkspaceData;
+
+      // Formato antigo (sem versão ou sem dono): não serve, lê-se do servidor
+      if (!isCurrentCacheFormat(data)) {
+        clearCachedWorkspace();
+        return null;
+      }
 
       // VALIDAR role também aqui (este helper é usado como fallback em erros de fetch)
       // para evitar reintroduzir roles inválidos (ex: "gestor") e causar erros de enum.
@@ -130,6 +188,7 @@ function isCacheValid(cached: CachedWorkspaceData | null): boolean {
 function setCachedWorkspace(userId: string, workspace: Workspace, membership: WorkspaceMember, allWorkspaces: WorkspaceWithRole[]) {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify({ 
+      v: CACHE_VERSION,
       userId, 
       workspace, 
       membership, 
@@ -163,8 +222,9 @@ function getInitialStateFromCache(): {
     if (cached) {
       const data = JSON.parse(cached) as CachedWorkspaceData;
       
-      // VALIDAR role antes de usar cache - previne erros de enum inválido
-      if (data.workspace && data.membership && isValidRole(data.membership.role)) {
+      // VALIDAR formato (versão e dono) e role antes de usar cache: uma cache
+      // antiga sem `owner_id` faria o dono passar por não-dono
+      if (isCurrentCacheFormat(data) && data.workspace && data.membership && isValidRole(data.membership.role)) {
         // Também validar roles de allWorkspaces
         const validWorkspaces = (data.allWorkspaces || []).filter(ws => isValidRole(ws.role));
         
@@ -176,8 +236,8 @@ function getInitialStateFromCache(): {
           cachedUserId: data.userId,
         };
       } else {
-        // Cache com role inválido - limpar automaticamente
-        logger.warn('[WorkspaceContext] Cache with invalid role detected, clearing cache');
+        // Cache de formato antigo ou com role inválido - limpar automaticamente
+        logger.warn('[WorkspaceContext] Outdated or invalid cache detected, clearing cache');
         localStorage.removeItem(CACHE_KEY);
       }
     }
@@ -330,6 +390,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         subscription_plan: targetWorkspace.subscription_plan,
         subscription_status: targetWorkspace.subscription_status,
         trial_ends_at: targetWorkspace.trial_ends_at,
+        // Sem isto o dono passava a ser tratado como não-dono depois da troca
+        owner_id: targetWorkspace.owner_id ?? null,
       };
 
       const mem: WorkspaceMember = {
@@ -426,7 +488,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       const workspacesWithRoles: WorkspaceWithRole[] = membershipsData
         .filter((m: any) => m.workspaces)
         .map((m: any) => ({
-          ...m.workspaces,
+          ...withOwnerId(m.workspaces),
           role: m.role,
         }));
 
@@ -470,7 +532,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       }
 
       if (selectedMembership) {
-        const ws = selectedMembership.workspaces as Workspace;
+        const ws = withOwnerId(selectedMembership.workspaces as Workspace);
         const mem = {
           id: selectedMembership.id,
           workspace_id: selectedMembership.workspace_id,
@@ -599,14 +661,29 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setWorkspace(null);
       setMembership(null);
       setAllWorkspaces([]);
-      setLoading(false);
+      // Enquanto a sessão ainda está a ser lida não se dá o carregamento por
+      // concluído: sem cache aplicável, a leitura ao servidor que se segue não
+      // pode passar por «conta sem workspaces» (ecrã de onboarding por instantes).
+      if (!authLoading) {
+        setLoading(false);
+      }
       clearCachedWorkspace();
       // Note: We intentionally do NOT clear lastWorkspaceId here
       // Each user has their own key, so it persists across logout/login
     }
-  }, [user, refreshWorkspace]);
+  }, [user, authLoading, refreshWorkspace]);
 
   const isAdmin = membership?.role === 'admin';
+  // Único sítio que decide «sou dono deste workspace?»: a regra pura vive em
+  // lib/billing/accountPlan e todos os ecrãs leem o resultado daqui.
+  const userId = user?.id ?? null;
+  const isWorkspaceOwner = checkWorkspaceOwner(workspace, userId);
+  const ownedWorkspaces = useMemo(
+    () => getOwnedWorkspaces(allWorkspaces, userId),
+    [allWorkspaces, userId],
+  );
+  // Único sítio que decide para que workspace é uma compra de plano
+  const checkoutWorkspaceId = getCheckoutWorkspaceId(workspace, userId);
   // canEdit is now dynamic - will be computed by useFinancialPermissions hook
   // For backward compatibility, we still provide a basic check here
   // but components should use useFinancialPermissions for accurate permissions
@@ -633,6 +710,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         refreshWorkspace,
         setCurrentWorkspace,
         isAdmin,
+        isWorkspaceOwner,
+        ownedWorkspaces,
+        checkoutWorkspaceId,
         canEdit,
       }}
     >
@@ -655,6 +735,9 @@ export function useWorkspace() {
       refreshWorkspace: async () => {},
       setCurrentWorkspace: async () => false,
       isAdmin: false,
+      isWorkspaceOwner: false,
+      ownedWorkspaces: [] as WorkspaceWithRole[],
+      checkoutWorkspaceId: undefined as string | undefined,
       canEdit: false,
       currentWorkspace: null,
       currentMembership: null,

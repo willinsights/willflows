@@ -1,3 +1,6 @@
+import { useAuth } from '@/contexts/AuthContext';
+import { MANUAL_PLAN_MESSAGE, isManuallyGrantedPlan } from '@/lib/billing/accountPlan';
+import { PORTAL_MESSAGES, openBillingPortal } from '@/lib/billing/startPlanCheckout';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -69,6 +72,7 @@ export default function Faturacao() {
   const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
+  const { subscription: accountSubscription } = useAuth();
 
   const isAdmin = membership?.role === 'admin';
 
@@ -101,28 +105,25 @@ export default function Faturacao() {
     }
   };
 
+  // Plano atribuído manualmente: não há subscrição Stripe nem portal para abrir
+  const manualPlan = isManuallyGrantedPlan({
+    status: accountSubscription?.status,
+    hasStripeSubscription: accountSubscription?.hasStripeSubscription,
+  });
+
   const handleManageSubscription = async () => {
+    if (manualPlan) {
+      toast.info(MANUAL_PLAN_MESSAGE);
+      return;
+    }
+
+    setPortalLoading(true);
     try {
-      setPortalLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error('Sessão expirada');
-        return;
+      // Mesmo separador e erro tratado pelo helper comum
+      const result = await openBillingPortal();
+      if (result.status !== 'redirected') {
+        toast.error(result.message ?? PORTAL_MESSAGES.error);
       }
-
-      const { data, error } = await supabase.functions.invoke('customer-portal', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
-
-      if (error) throw error;
-      if (data?.url) {
-        window.open(data.url, '_blank');
-      }
-    } catch (error: any) {
-      logger.error('Error opening customer portal:', error);
-      toast.error('Erro ao abrir portal de gestão');
     } finally {
       setPortalLoading(false);
     }

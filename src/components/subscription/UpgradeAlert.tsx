@@ -1,3 +1,4 @@
+import { CONTACT_OWNER_MESSAGE, LEAVING_PAGE_WARNING } from '@/lib/billing/accountPlan';
 import { useState, forwardRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Crown, Sparkles, ArrowRight } from 'lucide-react';
@@ -57,7 +58,8 @@ export const UpgradeAlert = forwardRef<HTMLDivElement, UpgradeAlertProps>(functi
 }, ref) {
   const navigate = useNavigate();
   const { checkout } = usePlanCheckout();
-  const { currentWorkspace, isAdmin } = useWorkspace();
+  // Só o dono do workspace (primeiro administrador) compra a partir daqui
+  const { currentWorkspace, isWorkspaceOwner, checkoutWorkspaceId, loading: workspaceLoading } = useWorkspace();
   const [loading, setLoading] = useState(false);
 
   if (!feature || !requiredPlan) return null;
@@ -73,14 +75,13 @@ export const UpgradeAlert = forwardRef<HTMLDivElement, UpgradeAlertProps>(functi
   };
 
   const handleUpgrade = async () => {
-    // Só o administrador do workspace compra a partir daqui
-    if (!currentWorkspace || !isAdmin) return;
+    if (!currentWorkspace || !isWorkspaceOwner || !checkoutWorkspaceId) return;
 
     setLoading(true);
     try {
       const result = await checkout({
         priceId: getPriceId(requiredPlan, currencyKey, 'monthly'),
-        workspaceId: currentWorkspace.id,
+        workspaceId: checkoutWorkspaceId,
       });
       // Fecha-se o diálogo para a ação «Gerir subscrição» do aviso ficar acessível
       if (result.status === 'redirected' || result.status === 'already_subscribed') {
@@ -172,18 +173,23 @@ export const UpgradeAlert = forwardRef<HTMLDivElement, UpgradeAlertProps>(functi
         </div>
 
         <DialogFooter className="flex-col gap-2 sm:flex-col">
-          {isAdmin ? (
-            <Button 
-              onClick={handleUpgrade} 
-              disabled={loading}
-              className="w-full gap-2"
-            >
-              <Crown className="h-4 w-4" />
-              {loading ? 'A processar...' : `Fazer Upgrade para ${PLAN_LABELS[requiredPlan]}`}
-            </Button>
-          ) : (
+          {isWorkspaceOwner ? (
+            <>
+              <Button 
+                onClick={handleUpgrade} 
+                disabled={loading}
+                className="w-full gap-2"
+              >
+                <Crown className="h-4 w-4" />
+                {loading ? 'A processar...' : `Fazer Upgrade para ${PLAN_LABELS[requiredPlan]}`}
+              </Button>
+              <p className="text-xs text-center text-muted-foreground">
+                {LEAVING_PAGE_WARNING}
+              </p>
+            </>
+          ) : workspaceLoading ? null : (
             <p className="text-sm text-center text-muted-foreground">
-              Contacte o administrador deste workspace para alterar o plano.
+              {CONTACT_OWNER_MESSAGE}.
             </p>
           )}
           <Button variant="ghost" onClick={handleViewPlans} className="w-full">
