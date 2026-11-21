@@ -111,6 +111,13 @@ interface ApprovalData {
 
 // Local storage key for client name persistence
 const CLIENT_NAME_KEY = 'willflow_client_name';
+const DELETE_KEYS_KEY = 'willflow_comment_delete_keys';
+const readDeleteKeys = (): Record<string, string> => {
+  try { return JSON.parse(localStorage.getItem(DELETE_KEYS_KEY) || '{}') || {}; } catch { return {}; }
+};
+const saveDeleteKey = (id: string, key: string) => {
+  try { localStorage.setItem(DELETE_KEYS_KEY, JSON.stringify({ ...readDeleteKeys(), [id]: key })); } catch { /* ignore */ }
+};
 
 export default function VideoApproval() {
   const { token } = useParams<{ token: string }>();
@@ -412,6 +419,8 @@ export default function VideoApproval() {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Erro ao enviar comentário');
       }
+      const created = await response.json().catch(() => null);
+      if (created?.comment?.id && created?.delete_key) saveDeleteKey(created.comment.id, created.delete_key);
 
       // Sync with backend to get real ID (without reloading player)
       await refreshComments();
@@ -487,6 +496,7 @@ export default function VideoApproval() {
             token,
             comment_id: commentId,
             client_name: clientName.trim(),
+            delete_key: readDeleteKeys()[commentId],
           }),
         }
       );
@@ -723,7 +733,7 @@ export default function VideoApproval() {
                                 
                                 {/* Delete button - only for client's own comments */}
                                 {comment.is_client_comment && 
-                                 comment.client_name?.toLowerCase().trim() === clientName.toLowerCase().trim() && (
+                                 !!readDeleteKeys()[comment.id] && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();

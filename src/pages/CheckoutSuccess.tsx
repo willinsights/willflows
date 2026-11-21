@@ -1,77 +1,141 @@
-import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle, Loader2, ArrowRight, Sparkles } from "lucide-react";
+import { CheckCircle, Clock, Loader2, ArrowRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useUserSubscription } from "@/hooks/useUserSubscription";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { trackCheckoutSuccess } from "@/lib/google-ads";
+import {
+  getAccountPlanLabel,
+  hasActivePaidPlan,
+  hasOwnWorkspace,
+  waitForPlanConfirmation,
+} from "@/lib/billing/accountPlan";
+
+type Phase = "checking" | "confirmed" | "pending";
+
+const APP_PATH = "/app";
+const PLANS_PATH = "/planos";
+const CREATE_WORKSPACE_PATH = "/onboarding?new=true";
+
+// Navegação com recarregamento: o estado da conta e dos workspaces em memória
+// é anterior ao pagamento e tem de ser lido de novo.
+const goTo = (path: string) => {
+  globalThis.location.assign(path);
+};
 
 const CheckoutSuccess = () => {
-  const navigate = useNavigate();
-  const { subscription, refresh, loading: subscriptionLoading } = useUserSubscription();
-  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
+  const { allWorkspaces } = useWorkspace();
+  const [phase, setPhase] = useState<Phase>("checking");
+  const [plan, setPlan] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(5);
   const hasTrackedConversion = useRef(false);
+  const userId = user?.id ?? null;
+
+  const ownsWorkspace = hasOwnWorkspace(allWorkspaces, userId);
+
+  // Relê o plano da conta; o servidor grava-o depois de receber o pagamento.
+  const readAccountPlan = useCallback(async (): Promise<boolean> => {
+    if (!userId) return false;
+    const { data, error } = await supabase
+      .from("user_subscriptions")
+      .select("subscription_plan, subscription_status")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error || !data) return false;
+    if (!hasActivePaidPlan(data.subscription_status)) return false;
+    setPlan(data.subscription_plan ?? null);
+    return true;
+  }, [userId]);
+
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    const verifySubscription = async () => {
-      await refresh();
-      // Small delay to ensure data is loaded
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 500);
+    if (!userId) return;
+    let cancelled = false;
+    setPhase("checking");
+    waitForPlanConfirmation({
+      check: readAccountPlan,
+      isCancelled: () => cancelled,
+    }).then((confirmed) => {
+      if (!cancelled) setPhase(confirmed ? "confirmed" : "pending");
+    });
+    return () => {
+      cancelled = true;
     };
-    verifySubscription();
-  }, [refresh]);
+  }, [userId, readAccountPlan, attempt]);
 
-  // Track conversion once subscription is loaded
+  // Conversão registada uma única vez, só depois de o plano estar confirmado
   useEffect(() => {
-    if (!isLoading && subscription?.plan && !hasTrackedConversion.current) {
-      trackCheckoutSuccess(subscription.plan);
+    if (phase === "confirmed" && plan && !hasTrackedConversion.current) {
+      trackCheckoutSuccess(plan);
       hasTrackedConversion.current = true;
     }
-  }, [isLoading, subscription?.plan]);
+  }, [phase, plan]);
+
+  // Redireciona sozinho só quando já existe workspace próprio para onde ir
+  const autoRedirect = phase === "confirmed" && ownsWorkspace;
+  useEffect(() => {
+    if (!autoRedirect) return;
+    const timer = setInterval(() => {
+      setCountdown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [autoRedirect]);
 
   useEffect(() => {
-    if (!isLoading) {
-      const timer = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            navigate("/app");
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [isLoading, navigate]);
+    if (autoRedirect && countdown === 0) goTo(APP_PATH);
+  }, [autoRedirect, countdown]);
 
-  const getPlanDisplayName = (plan: string | null) => {
-    switch (plan) {
-      case "starter":
-        return "Starter";
-      case "pro":
-        return "Pro";
-      case "studio":
-        return "Studio";
-      default:
-        return "Premium";
-    }
-  };
-
-  if (isLoading) {
+  if (phase === "checking") {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="text-center space-y-4" role="status" aria-live="polite">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-          <p className="text-muted-foreground">A verificar subscrição...</p>
+          <p className="text-muted-foreground">A confirmar o pagamento...</p>
         </div>
       </div>
     );
   }
+
+  if (phase === "pending") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md border-primary/20 shadow-xl">
+          <CardContent className="pt-8 pb-6 px-6 text-center space-y-6">
+            <div className="mx-auto w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+              <Clock className="h-10 w-10 text-muted-foreground" />
+            </div>
+            <div className="space-y-2" role="status" aria-live="polite">
+              <h1 className="text-2xl font-bold">A aguardar confirmação</h1>
+              <p className="text-muted-foreground">
+                Ainda não conseguimos confirmar o pagamento. Se concluiu a compra, a ativação pode demorar alguns instantes.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <Button onClick={() => setAttempt((n) => n + 1)} className="w-full gap-2" size="lg">
+                <RefreshCw className="h-4 w-4" />
+                Atualizar
+              </Button>
+              <Button variant="outline" onClick={() => goTo(PLANS_PATH)} className="w-full">
+                Ver planos
+              </Button>
+              {allWorkspaces.length > 0 && (
+                <Button variant="ghost" onClick={() => goTo(APP_PATH)} className="w-full">
+                  Ir para a aplicação
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const planLabel = getAccountPlanLabel(plan);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -110,28 +174,27 @@ const CheckoutSuccess = () => {
                 transition={{ delay: 0.4 }}
                 className="text-muted-foreground"
               >
-                Bem-vindo ao plano{" "}
-                <span className="font-semibold text-primary">
-                  {getPlanDisplayName(subscription?.plan || null)}
-                </span>
+                {planLabel ? (
+                  <>
+                    Bem-vindo ao plano{" "}
+                    <span className="font-semibold text-primary">{planLabel}</span>
+                  </>
+                ) : (
+                  "O plano da sua conta está ativo."
+                )}
               </motion.p>
             </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="bg-muted/50 rounded-lg p-4 space-y-3"
-            >
-              <div className="flex items-center justify-center gap-2 text-sm">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <span>O seu trial de 7 dias começou</span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Explore todas as funcionalidades premium. Será cobrado
-                automaticamente após o período de trial.
-              </p>
-            </motion.div>
+            {!ownsWorkspace && (
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground"
+              >
+                O plano pertence à sua conta. Falta criar o seu workspace para começar a usá-lo.
+              </motion.p>
+            )}
 
             <motion.div
               initial={{ opacity: 0 }}
@@ -139,17 +202,29 @@ const CheckoutSuccess = () => {
               transition={{ delay: 0.6 }}
               className="space-y-3"
             >
-              <Button
-                onClick={() => navigate("/app")}
-                className="w-full gap-2"
-                size="lg"
-              >
-                Começar a usar
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Redirecionando automaticamente em {countdown}s...
-              </p>
+              {ownsWorkspace ? (
+                <>
+                  <Button onClick={() => goTo(APP_PATH)} className="w-full gap-2" size="lg">
+                    Começar a usar
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Redirecionando automaticamente em {countdown}s...
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Button onClick={() => goTo(CREATE_WORKSPACE_PATH)} className="w-full gap-2" size="lg">
+                    Criar o meu workspace
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                  {allWorkspaces.length > 0 && (
+                    <Button variant="ghost" onClick={() => goTo(APP_PATH)} className="w-full">
+                      Ir para a aplicação
+                    </Button>
+                  )}
+                </>
+              )}
             </motion.div>
           </CardContent>
         </Card>

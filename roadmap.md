@@ -1,5 +1,8 @@
 # Roadmap — pendências da auditoria
 
+## SEO — plan comparison
+- [x] Clarify Starter, Pro and Studio on /planos/comparar and its title/description without changing plan facts; 54 plan regression tests passed, desktop/mobile currency→annual→signup verified without runtime errors, metadata duplicates removed and build OK. Publication remains separate.
+
 ## PR #2 — activação coordenada autorizada em 19/11/2026
 - [x] 20/11 14:08: Review Studio autenticado integrado e publicado 9afe0cf7; percurso real no domínio sem interceptação passou upload→playback→comentário→link/aprovação→reload. Versão HTML 9afe0cf76b6e8d14bafb62f2a9361da93ead74d4, bundle index-BYnmyAa8.js, marcador canonical-client-20261120-1. Ativados 6 Studio elegíveis (inclui fixture); zero divergências/projeções privadas e históricos intactos. Limitações privadas: corrigido no mesmo ID/comparação/thumbnail ainda não integrados; usar nova versão, sem release integral. Resultado CLIENT-RELEASE-2026-11-20.md.
 - [x] 20/11 retoma 65c4109e: inventário 54/54 estável; reconciliação 0012 aplicada sob locks/fingerprint, zero divergências; registry 0013/guard 0014 e private-video implantados; router integrado, HLS/comentários/aprovação reais desktop/mobile e legado fictício verificados. Piloto habilitado somente no workspace sintético; uploads normais abertos. Publicação e revisão registadas em PRODUCTION-SIDECAR-2026-11-20.md.

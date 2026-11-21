@@ -64,7 +64,8 @@ export function useProjects() {
     },
   });
   const projects = enabled ? query.data ?? [] : [];
-  const loading = !fetchError && (permissionsLoading || (enabled && query.isFetching));
+  // Only block the panel for its first load; background refetches retain the current details.
+  const loading = !fetchError && (permissionsLoading || (enabled && query.isLoading));
   const { refetch } = query;
 
   const fetchProjects = useCallback(async () => {

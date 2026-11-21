@@ -83,22 +83,17 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   // IMPORTANT: If user has ANY workspace (admin or member), or has a valid cache, don't redirect to onboarding
   const hasAnyWorkspace = allWorkspaces.length > 0 || currentWorkspace !== null || hasCachedWorkspace(user?.id);
   
-  if (!fetchError && !hasAnyWorkspace && location.pathname !== '/onboarding') {
+  // /checkout-success não precisa de workspace: uma conta pode comprar o plano antes
+  // de criar o seu (essa página encaminha depois para a criação do workspace).
+  const needsWorkspace = location.pathname !== '/onboarding' && location.pathname !== '/checkout-success';
+
+  if (!fetchError && !hasAnyWorkspace && needsWorkspace) {
     return <Navigate to="/onboarding" replace />;
   }
 
-  // Onboarding with ?new=true requires being admin of at least one workspace
-  // OR having no workspaces at all (first time user)
-  if (location.pathname === '/onboarding') {
-    const isCreatingNew = new URLSearchParams(location.search).get('new') === 'true';
-    const hasAdminWorkspace = allWorkspaces.some(w => w.role === 'admin');
-    
-    // If creating new and user has no admin workspaces but has member workspaces,
-    // they shouldn't be here - redirect to app
-    if (isCreatingNew && !hasAdminWorkspace && allWorkspaces.length > 0) {
-      return <Navigate to="/app" replace />;
-    }
-  }
+  // Onboarding with ?new=true is open to anyone with a session: an account that is
+  // only a guest in other workspaces may create its own (the server decides whether
+  // the account still has its trial, a paid plan, or has reached its workspace limit).
 
   // Check if trial expired - allow access to account/settings pages
   // The TrialExpiredModal in AppLayout will handle blocking the UI

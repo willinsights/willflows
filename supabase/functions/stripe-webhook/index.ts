@@ -1,29 +1,26 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+// Product maps and the billing rules (classification, plan-event guard,
+// workspace selection, invoice subscription id) live in the shared pure module
+// so they can be unit tested.
+import {
+  DEFAULT_BASE_STORAGE_BYTES,
+  PLAN_CHECKOUT_EVENT,
+  buildWorkspacePlanPatch,
+  classifyProduct,
+  decidePlanEvent,
+  getInvoiceSubscriptionId,
+  mapStripeSubscriptionStatus,
+  selectWorkspacesForPropagation,
+  shouldInvoiceFailureMarkPastDue,
+  shouldInvoicePaidActivate,
+  type WorkspaceBillingRow,
+} from "../_shared/stripe-billing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature, x-internal-retry-secret, x-inbox-id",
-};
-
-// Product ID to Plan mapping - now using 'starter' instead of 'essencial'
-const PRODUCT_TO_PLAN: Record<string, string> = {
-  'prod_TpNVDQjhG0wlZ4': 'starter',
-  'prod_TpNVjl9D0tQ8wQ': 'pro',
-  'prod_TpNVM1mlDtAvKA': 'studio',
-};
-
-// Storage Addon Product IDs to tier mapping
-const STORAGE_ADDON_PRODUCTS: Record<string, { tier: '50gb' | '100gb' | '250gb'; bytes: number }> = {
-  'prod_TsfrcvSlClixZM': { tier: '50gb', bytes: 50 * 1024 * 1024 * 1024 },
-  'prod_TsfrGDXzlIOhaM': { tier: '100gb', bytes: 100 * 1024 * 1024 * 1024 },
-  'prod_TsfrRubX5bCWEh': { tier: '250gb', bytes: 250 * 1024 * 1024 * 1024 },
-};
-
-// Check if a product is a storage addon
-const isStorageAddon = (productId: string): boolean => {
-  return productId in STORAGE_ADDON_PRODUCTS;
 };
 
 // Helper logging function for debugging - only logs when DEBUG=true
@@ -45,7 +42,7 @@ const sanitizeForLogging = (details: any): any => {
   });
   
   // Truncate IDs for correlation while hiding full value
-  const idFields = ['customerId', 'subscriptionId', 'invoiceId', 'sessionId', 'userId'];
+  const idFields = ['customerId', 'subscriptionId', 'storedSubscriptionId', 'invoiceId', 'sessionId', 'userId'];
   idFields.forEach(field => {
     if (sanitized[field] && typeof sanitized[field] === 'string') {
       sanitized[field] = sanitized[field].substring(0, 12) + '...';
@@ -65,6 +62,150 @@ const logStep = (step: string, details?: any) => {
   const sanitized = sanitizeForLogging(details);
   const detailsStr = sanitized ? ` - ${JSON.stringify(sanitized)}` : '';
   console.log(`[STRIPE-WEBHOOK] ${step}${detailsStr}`);
+};
+
+// Always-on log for billing decisions that skip or refuse a write. Same
+// sanitisation as logStep; callers pass ids only, never emails.
+const logDecision = (step: string, details?: any) => {
+  const sanitized = sanitizeForLogging(details);
+  const detailsStr = sanitized ? ` - ${JSON.stringify(sanitized)}` : '';
+  console.warn(`[STRIPE-WEBHOOK] ${step}${detailsStr}`);
+};
+
+// The plan belongs to the ACCOUNT (user_subscriptions). Copy plan/status from
+// the account to the workspaces this user OWNS (workspaces.owner_id = user).
+// Other administrators of a workspace are not its owner: their plan is never
+// copied to it. A workspace without an owner is left alone and logged.
+// A workspace that is active without a Stripe subscription is a manual grant
+// and is never touched.
+// Errors are logged and never interrupt the webhook.
+const propagateAccountPlan = async (supabaseAdmin: any, userId: string): Promise<void> => {
+  try {
+    if (!userId) return;
+
+    const { data: account, error: accountError } = await supabaseAdmin
+      .from('user_subscriptions')
+      .select('subscription_plan, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (accountError || !account) {
+      logDecision("Propagation skipped: account subscription not readable", {
+        userId,
+        error: accountError?.message,
+      });
+      return;
+    }
+
+    // Workspaces owned by this account, with their current billing columns
+    // (to recognise manual grants). A failed read propagates nothing.
+    const { data: ownedRows, error: ownedError } = await supabaseAdmin
+      .from('workspaces')
+      .select('id, owner_id, subscription_status, stripe_subscription_id')
+      .eq('owner_id', userId);
+
+    if (ownedError || !ownedRows) {
+      logDecision("Propagation skipped: could not read owned workspaces", {
+        userId,
+        error: ownedError?.message,
+      });
+      return;
+    }
+
+    // Diagnostic only: workspaces this user administers that have NO owner.
+    // They are never written; they are logged so the owner can be set by hand.
+    // A failure here does not stop the propagation to the owned workspaces.
+    let ownerlessRows: WorkspaceBillingRow[] = [];
+    const { data: adminMemberships, error: adminError } = await supabaseAdmin
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', userId)
+      .eq('role', 'admin')
+      .eq('is_active', true);
+
+    if (adminError) {
+      logDecision("Propagation: could not check for workspaces without owner", {
+        userId,
+        error: adminError.message,
+      });
+    } else {
+      const administeredIds: string[] = Array.from(
+        new Set<string>((adminMemberships ?? []).map((m: { workspace_id: string }) => m.workspace_id)),
+      );
+      if (administeredIds.length > 0) {
+        const { data: noOwnerRows, error: noOwnerError } = await supabaseAdmin
+          .from('workspaces')
+          .select('id, owner_id, subscription_status, stripe_subscription_id')
+          .in('id', administeredIds)
+          .is('owner_id', null);
+
+        if (noOwnerError) {
+          logDecision("Propagation: could not check for workspaces without owner", {
+            userId,
+            error: noOwnerError.message,
+          });
+        } else {
+          ownerlessRows = (noOwnerRows ?? []) as WorkspaceBillingRow[];
+        }
+      }
+    }
+
+    // The pure rule checks owner_id again on every row: a row that is not
+    // owned by this user is never selected, whatever the query returned.
+    const { propagate, notOwner, ownerless, manual } = selectWorkspacesForPropagation(
+      userId,
+      [...(ownedRows as WorkspaceBillingRow[]), ...ownerlessRows],
+    );
+
+    if (ownerless.length > 0) {
+      logDecision("Propagation skipped: workspaces without owner", {
+        userId,
+        workspaceIds: ownerless,
+      });
+    }
+    if (notOwner.length > 0) {
+      logDecision("Propagation skipped: workspaces owned by another account", {
+        userId,
+        workspaceIds: notOwner,
+      });
+    }
+    if (manual.length > 0) {
+      logDecision("Propagation skipped: manually granted workspaces", {
+        userId,
+        workspaceIds: manual,
+      });
+    }
+
+    const { patch, statusWithheld } = buildWorkspacePlanPatch(account);
+    if (statusWithheld && propagate.length > 0) {
+      logDecision("Propagation: account trialing without end date, workspace status and trial end untouched", {
+        userId,
+        workspaceIds: propagate,
+      });
+    }
+
+    for (const workspaceId of propagate) {
+      const { error: updateError } = await supabaseAdmin
+        .from('workspaces')
+        .update(patch)
+        .eq('id', workspaceId)
+        .eq('owner_id', userId);
+
+      if (updateError) {
+        logDecision("Propagation failed for workspace", { workspaceId, error: updateError.message });
+      }
+    }
+
+    logStep("Account plan propagated", {
+      userId,
+      workspaces: propagate.length,
+      ownerless: ownerless.length,
+      manual: manual.length,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    logDecision("Propagation error", { userId, error: message });
+  }
 };
 
 serve(async (req) => {
@@ -228,6 +369,72 @@ serve(async (req) => {
       return true;
     };
 
+    // Helper: find the account a PLAN subscription belongs to. Uses the
+    // subscription metadata first, then the stored Stripe customer. Returns
+    // null (after logging) when the account is missing or ambiguous, so the
+    // caller writes nothing.
+    const findAccountForSubscription = async (
+      subscription: Stripe.Subscription
+    ): Promise<{
+      userId: string;
+      hasRow: boolean;
+      storedSubscriptionId: string | null;
+      storedStatus: string | null;
+    } | null> => {
+      const metadataUserId = subscription.metadata?.user_id;
+      const customerId = subscription.customer as string;
+
+      if (metadataUserId) {
+        const { data: row, error } = await supabaseClient
+          .from('user_subscriptions')
+          .select('user_id, stripe_subscription_id, subscription_status')
+          .eq('user_id', metadataUserId)
+          .maybeSingle();
+
+        if (error) {
+          logDecision("Plan event ignored: account lookup failed", {
+            subscriptionId: subscription.id,
+            error: error.message,
+          });
+          return null;
+        }
+        return {
+          userId: metadataUserId,
+          hasRow: !!row,
+          storedSubscriptionId: row?.stripe_subscription_id ?? null,
+          storedStatus: row?.subscription_status ?? null,
+        };
+      }
+
+      if (!customerId) {
+        logDecision("Plan event ignored: no user or customer on subscription", {
+          subscriptionId: subscription.id,
+        });
+        return null;
+      }
+
+      const { data: row, error } = await supabaseClient
+        .from('user_subscriptions')
+        .select('user_id, stripe_subscription_id, subscription_status')
+        .eq('stripe_customer_id', customerId)
+        .maybeSingle();
+
+      if (error || !row?.user_id) {
+        logDecision("Plan event ignored: account not found or ambiguous for customer", {
+          subscriptionId: subscription.id,
+          customerId,
+          error: error?.message,
+        });
+        return null;
+      }
+      return {
+        userId: row.user_id,
+        hasRow: true,
+        storedSubscriptionId: row.stripe_subscription_id ?? null,
+        storedStatus: row.subscription_status ?? null,
+      };
+    };
+
     // Process the event
     switch (event.type) {
       case "checkout.session.completed": {
@@ -258,15 +465,29 @@ serve(async (req) => {
           const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
           const productId = subscription.items.data[0]?.price.product as string;
           
-          // Check if this is a storage addon purchase
-          if (isStorageAddon(productId)) {
+          const classification = classifyProduct(productId, {
+            ...(subscription.metadata ?? {}),
+            ...(session.metadata ?? {}),
+          });
+
+          if (classification.kind === 'unknown') {
+            logDecision("Checkout ignored: unknown product", {
+              sessionId: session.id,
+              subscriptionId: subscription.id,
+              productId,
+            });
+            break;
+          }
+
+          // Storage addon purchase: credits storage only, never the plan
+          if (classification.kind === 'storage_addon') {
             const workspaceId = session.metadata?.workspace_id;
             if (!workspaceId) {
               logStep("WARNING: Storage addon purchase without workspace_id");
               break;
             }
             
-            const addonInfo = STORAGE_ADDON_PRODUCTS[productId];
+            const addonInfo = { tier: classification.tier, bytes: classification.bytes };
             logStep("Processing storage addon purchase", { 
               workspaceId, 
               tier: addonInfo.tier, 
@@ -278,11 +499,18 @@ serve(async (req) => {
               .from('workspace_storage')
               .select('*')
               .eq('workspace_id', workspaceId)
-              .single();
-            
+              .maybeSingle();
+
+            // A failed read or write throws: the event is then marked failed
+            // in the inbox and retried instead of being marked processed.
+            if (storageError) {
+              throw new Error(`Storage addon credit: could not read workspace storage (${storageError.message})`);
+            }
+
+            let addonWriteError: { message: string } | null = null;
             if (existingStorage) {
               // Update existing record
-              await supabaseClient
+              ({ error: addonWriteError } = await supabaseClient
                 .from('workspace_storage')
                 .update({
                   extra_storage_bytes: addonInfo.bytes,
@@ -291,10 +519,10 @@ serve(async (req) => {
                   stripe_addon_subscription_id: session.subscription as string,
                   last_calculated_at: new Date().toISOString(),
                 })
-                .eq('workspace_id', workspaceId);
+                .eq('workspace_id', workspaceId));
             } else {
               // Insert new record
-              await supabaseClient
+              ({ error: addonWriteError } = await supabaseClient
                 .from('workspace_storage')
                 .insert({
                   workspace_id: workspaceId,
@@ -304,7 +532,11 @@ serve(async (req) => {
                   storage_limit_bytes: 10737418240 + addonInfo.bytes,
                   addon_tier: addonInfo.tier,
                   stripe_addon_subscription_id: session.subscription as string,
-                });
+                }));
+            }
+
+            if (addonWriteError) {
+              throw new Error(`Storage addon credit: write failed (${addonWriteError.message})`);
             }
             
             logStep("Storage addon activated", { workspaceId, tier: addonInfo.tier });
@@ -312,7 +544,45 @@ serve(async (req) => {
           }
           
           // Regular subscription plan purchase
-          const plan = PRODUCT_TO_PLAN[productId] || 'starter';
+          const plan = classification.plan;
+
+          // Same guard as the subscription events. A failed read throws so
+          // the paid checkout is retried from the inbox, never dropped.
+          const { data: accountRow, error: accountRowError } = await supabaseClient
+            .from('user_subscriptions')
+            .select('stripe_subscription_id, subscription_status')
+            .eq('user_id', targetUserId)
+            .maybeSingle();
+
+          if (accountRowError) {
+            throw new Error(`Plan checkout: could not read account (${accountRowError.message})`);
+          }
+
+          const checkoutDecision = decidePlanEvent({
+            storedSubscriptionId: accountRow?.stripe_subscription_id ?? null,
+            storedStatus: accountRow?.subscription_status ?? null,
+            eventSubscriptionId: subscription.id,
+            eventStatus: subscription.status,
+            eventType: PLAN_CHECKOUT_EVENT,
+          });
+
+          if (!checkoutDecision.apply) {
+            logDecision("Plan checkout ignored", {
+              userId: targetUserId,
+              subscriptionId: subscription.id,
+              status: subscription.status,
+              reason: checkoutDecision.reason,
+            });
+            break;
+          }
+
+          if (checkoutDecision.replacesStored) {
+            logDecision("Plan checkout replaces another stored subscription: possible double subscription", {
+              userId: targetUserId,
+              subscriptionId: subscription.id,
+              storedSubscriptionId: accountRow?.stripe_subscription_id,
+            });
+          }
           
           const currentPeriodEnd = subscription.current_period_end 
             ? new Date(subscription.current_period_end * 1000).toISOString()
@@ -340,27 +610,15 @@ serve(async (req) => {
 
           await updateUserSubscription(targetUserId, {
             subscription_plan: plan,
-            subscription_status: subscription.status === 'trialing' ? 'trialing' : 'active',
+            subscription_status: mapStripeSubscriptionStatus(subscription.status),
             stripe_customer_id: session.customer as string,
             stripe_subscription_id: session.subscription as string,
             trial_ends_at: trialEndsAt,
             current_period_end: currentPeriodEnd,
           });
 
-          // Also update workspace for backward compatibility
-          const workspaceId = session.metadata?.workspace_id;
-          if (workspaceId) {
-            await supabaseClient
-              .from("workspaces")
-              .update({
-                stripe_customer_id: session.customer as string,
-                stripe_subscription_id: session.subscription as string,
-                subscription_plan: plan,
-                subscription_status: subscription.status === 'trialing' ? 'trialing' : 'active',
-                trial_ends_at: trialEndsAt,
-              })
-              .eq("id", workspaceId);
-          }
+          // The plan belongs to the account: copy it to the owned workspaces
+          await propagateAccountPlan(supabaseClient, targetUserId);
           
           logStep("User subscription updated successfully", { userId: targetUserId, plan, trialEndsAt });
         }
@@ -378,7 +636,56 @@ serve(async (req) => {
 
         const customerId = subscription.customer as string;
         const productId = subscription.items.data[0]?.price.product as string;
-        const plan = PRODUCT_TO_PLAN[productId] || 'starter';
+        const classification = classifyProduct(productId, subscription.metadata);
+
+        // Storage addon: never changes the account plan/status or workspaces
+        if (classification.kind === 'storage_addon') {
+          logStep("Storage addon subscription event: plan untouched", { subscriptionId: subscription.id });
+          break;
+        }
+
+        if (classification.kind === 'unknown') {
+          logDecision("Subscription event ignored: unknown product", {
+            subscriptionId: subscription.id,
+            productId,
+          });
+          break;
+        }
+
+        const plan = classification.plan;
+
+        const account = await findAccountForSubscription(subscription);
+        if (!account) {
+          break;
+        }
+
+        // Guard: an old or secondary subscription must not overwrite the
+        // plan subscription stored on the account
+        const decision = decidePlanEvent({
+          storedSubscriptionId: account.storedSubscriptionId,
+          storedStatus: account.storedStatus,
+          eventSubscriptionId: subscription.id,
+          eventStatus: subscription.status,
+          eventType: event.type,
+        });
+
+        if (!decision.apply) {
+          logDecision("Plan event ignored", {
+            userId: account.userId,
+            subscriptionId: subscription.id,
+            status: subscription.status,
+            reason: decision.reason,
+          });
+          break;
+        }
+
+        if (decision.replacesStored) {
+          logDecision("Plan event replaces another stored subscription: possible double subscription", {
+            userId: account.userId,
+            subscriptionId: subscription.id,
+            storedSubscriptionId: account.storedSubscriptionId,
+          });
+        }
         
         const currentPeriodEnd = subscription.current_period_end 
           ? new Date(subscription.current_period_end * 1000).toISOString()
@@ -391,53 +698,22 @@ serve(async (req) => {
         }
 
         // Map Stripe status to our status
-        let subscriptionStatus: string;
-        switch (subscription.status) {
-          case "active":
-            subscriptionStatus = "active";
-            break;
-          case "trialing":
-            subscriptionStatus = "trialing";
-            break;
-          case "past_due":
-            subscriptionStatus = "past_due";
-            break;
-          case "canceled":
-          case "unpaid":
-            subscriptionStatus = "canceled";
-            break;
-          default:
-            subscriptionStatus = subscription.status;
+        const subscriptionStatus = mapStripeSubscriptionStatus(subscription.status);
+
+        const updated = await updateUserSubscription(account.userId, {
+          subscription_plan: plan,
+          subscription_status: subscriptionStatus,
+          stripe_customer_id: customerId,
+          stripe_subscription_id: subscription.id,
+          current_period_end: currentPeriodEnd,
+          trial_ends_at: trialEndsAt,
+        });
+        logStep("User subscription updated", { userId: account.userId, plan, status: subscriptionStatus, trialEndsAt });
+
+        // The plan belongs to the account: copy it to the owned workspaces
+        if (updated) {
+          await propagateAccountPlan(supabaseClient, account.userId);
         }
-
-        // Find user by Stripe customer ID
-        const { data: userSub } = await supabaseClient
-          .from('user_subscriptions')
-          .select('user_id')
-          .eq('stripe_customer_id', customerId)
-          .single();
-
-        if (userSub?.user_id) {
-          await updateUserSubscription(userSub.user_id, {
-            subscription_plan: plan,
-            subscription_status: subscriptionStatus,
-            stripe_subscription_id: subscription.id,
-            current_period_end: currentPeriodEnd,
-            trial_ends_at: trialEndsAt,
-          });
-          logStep("User subscription updated", { userId: userSub.user_id, plan, status: subscriptionStatus, trialEndsAt });
-        }
-
-        // Also update workspace for backward compatibility
-        await supabaseClient
-          .from("workspaces")
-          .update({
-            subscription_plan: plan,
-            subscription_status: subscriptionStatus,
-            stripe_subscription_id: subscription.id,
-            trial_ends_at: trialEndsAt,
-          })
-          .eq("stripe_customer_id", customerId);
         
         break;
       }
@@ -452,28 +728,41 @@ serve(async (req) => {
         const customerId = subscription.customer as string;
         const productId = subscription.items.data[0]?.price.product as string;
 
-        // Check if this is a storage addon cancellation
-        if (isStorageAddon(productId)) {
+        const classification = classifyProduct(productId, subscription.metadata);
+
+        // Storage addon cancellation: restores base storage, never the plan
+        if (classification.kind === 'storage_addon') {
           logStep("Processing storage addon cancellation");
           
           // Find and update the workspace storage
-          const { data: storageRecords } = await supabaseClient
+          const { data: storageRecords, error: storageReadError } = await supabaseClient
             .from('workspace_storage')
-            .select('workspace_id')
+            .select('workspace_id, base_storage_bytes')
             .eq('stripe_addon_subscription_id', subscription.id);
+
+          // A failed read or write throws: the event is then marked failed
+          // in the inbox and retried instead of being marked processed.
+          if (storageReadError) {
+            throw new Error(`Storage addon removal: could not read workspace storage (${storageReadError.message})`);
+          }
           
           if (storageRecords && storageRecords.length > 0) {
             for (const record of storageRecords) {
-              await supabaseClient
+              const { error: resetError } = await supabaseClient
                 .from('workspace_storage')
                 .update({
                   extra_storage_bytes: 0,
-                  storage_limit_bytes: 10737418240, // Reset to base 10GB
+                  // Reset to the workspace base quota (fallback: 10GB)
+                  storage_limit_bytes: record.base_storage_bytes || DEFAULT_BASE_STORAGE_BYTES,
                   addon_tier: null,
                   stripe_addon_subscription_id: null,
                   last_calculated_at: new Date().toISOString(),
                 })
                 .eq('workspace_id', record.workspace_id);
+
+              if (resetError) {
+                throw new Error(`Storage addon removal: write failed (${resetError.message})`);
+              }
               
               logStep("Storage addon removed", { workspaceId: record.workspace_id });
             }
@@ -481,26 +770,56 @@ serve(async (req) => {
           break;
         }
 
-        // Regular subscription cancellation
-        // Update user subscription
-        const { data: userSub } = await supabaseClient
-          .from('user_subscriptions')
-          .select('user_id')
-          .eq('stripe_customer_id', customerId)
-          .single();
-
-        if (userSub?.user_id) {
-          await updateUserSubscription(userSub.user_id, {
-            subscription_status: "canceled",
+        if (classification.kind === 'unknown') {
+          logDecision("Subscription deletion ignored: unknown product", {
+            subscriptionId: subscription.id,
+            productId,
           });
-          logStep("User subscription marked as canceled", { userId: userSub.user_id });
+          break;
         }
 
-        // Also update workspace for backward compatibility
-        await supabaseClient
-          .from("workspaces")
-          .update({ subscription_status: "canceled" })
-          .eq("stripe_customer_id", customerId);
+        // Regular plan cancellation: only the stored plan subscription may
+        // cancel the account
+        const account = await findAccountForSubscription(subscription);
+        if (!account) {
+          break;
+        }
+
+        // A deletion never creates an account row
+        if (!account.hasRow) {
+          logDecision("Plan deletion ignored: account has no subscription row", {
+            userId: account.userId,
+            subscriptionId: subscription.id,
+          });
+          break;
+        }
+
+        const deletionDecision = decidePlanEvent({
+          storedSubscriptionId: account.storedSubscriptionId,
+          storedStatus: account.storedStatus,
+          eventSubscriptionId: subscription.id,
+          eventStatus: subscription.status,
+          eventType: event.type,
+        });
+
+        if (!deletionDecision.apply) {
+          logDecision("Plan deletion ignored", {
+            userId: account.userId,
+            subscriptionId: subscription.id,
+            reason: deletionDecision.reason,
+          });
+          break;
+        }
+
+        const canceled = await updateUserSubscription(account.userId, {
+          subscription_status: "canceled",
+        });
+        logStep("User subscription marked as canceled", { userId: account.userId });
+
+        // The plan belongs to the account: copy it to the owned workspaces
+        if (canceled) {
+          await propagateAccountPlan(supabaseClient, account.userId);
+        }
         
         break;
       }
@@ -510,15 +829,16 @@ serve(async (req) => {
         logStep("Processing invoice.paid", { 
           invoiceId: invoice.id,
           customerId: invoice.customer,
-          subscriptionId: invoice.subscription
+          subscriptionId: getInvoiceSubscriptionId(invoice)
         });
 
         const customerId = invoice.customer as string;
+        const invoiceSubscriptionId = getInvoiceSubscriptionId(invoice);
 
         // Find user by Stripe customer ID
         const { data: userSubForInvoice } = await supabaseClient
           .from('user_subscriptions')
-          .select('user_id')
+          .select('user_id, stripe_subscription_id, subscription_status')
           .eq('stripe_customer_id', customerId)
           .single();
 
@@ -605,20 +925,33 @@ serve(async (req) => {
         }
         // ========== END EU VAT COMPLIANCE ==========
 
-        if (invoice.subscription) {
-          if (userSubForInvoice?.user_id) {
-            await updateUserSubscription(userSubForInvoice.user_id, {
-              subscription_status: "active",
-            });
-          }
+        // Only an invoice of the stored PLAN subscription changes the account
+        // status, and never when the account is already canceled (a redelivered
+        // invoice.paid must not reactivate it). Addon or unknown-subscription
+        // invoices leave it untouched.
+        if (
+          userSubForInvoice?.user_id &&
+          shouldInvoicePaidActivate({
+            invoiceSubscriptionId,
+            storedSubscriptionId: userSubForInvoice.stripe_subscription_id,
+            storedStatus: userSubForInvoice.subscription_status,
+          })
+        ) {
+          const activated = await updateUserSubscription(userSubForInvoice.user_id, {
+            subscription_status: "active",
+          });
 
-          // Also update workspace for backward compatibility
-          await supabaseClient
-            .from("workspaces")
-            .update({ subscription_status: "active" })
-            .eq("stripe_customer_id", customerId);
+          // The plan belongs to the account: copy it to the owned workspaces
+          if (activated) {
+            await propagateAccountPlan(supabaseClient, userSubForInvoice.user_id);
+          }
           
           logStep("Subscription status updated to active after invoice paid");
+        } else if (invoiceSubscriptionId) {
+          logDecision("Invoice paid: not the stored plan subscription or account canceled, account status untouched", {
+            invoiceId: invoice.id,
+            subscriptionId: invoiceSubscriptionId,
+          });
         }
         break;
       }
@@ -631,27 +964,44 @@ serve(async (req) => {
         });
 
         const customerId = invoice.customer as string;
+        const invoiceSubscriptionId = getInvoiceSubscriptionId(invoice);
 
-        // Update user subscription
-        const { data: userSub } = await supabaseClient
+        // Find the account by Stripe customer ID
+        const { data: userSub, error: userSubError } = await supabaseClient
           .from('user_subscriptions')
-          .select('user_id')
+          .select('user_id, stripe_subscription_id, subscription_status')
           .eq('stripe_customer_id', customerId)
-          .single();
+          .maybeSingle();
 
-        if (userSub?.user_id) {
-          await updateUserSubscription(userSub.user_id, {
+        // Only an invoice of the stored PLAN subscription changes the account
+        // status, and only from active, trialing or past_due. Addon or
+        // unknown-subscription invoices leave it untouched.
+        if (
+          !userSubError &&
+          userSub?.user_id &&
+          shouldInvoiceFailureMarkPastDue({
+            invoiceSubscriptionId,
+            storedSubscriptionId: userSub.stripe_subscription_id,
+            storedStatus: userSub.subscription_status,
+          })
+        ) {
+          const marked = await updateUserSubscription(userSub.user_id, {
             subscription_status: "past_due",
           });
-        }
 
-        // Also update workspace for backward compatibility
-        await supabaseClient
-          .from("workspaces")
-          .update({ subscription_status: "past_due" })
-          .eq("stripe_customer_id", customerId);
-        
-        logStep("Subscription status updated to past_due after payment failure");
+          // The plan belongs to the account: copy it to the owned workspaces
+          if (marked) {
+            await propagateAccountPlan(supabaseClient, userSub.user_id);
+          }
+          
+          logStep("Subscription status updated to past_due after payment failure");
+        } else {
+          logDecision("Invoice payment failed: not the stored plan subscription or account not running, account status untouched", {
+            invoiceId: invoice.id,
+            subscriptionId: invoiceSubscriptionId,
+            error: userSubError?.message,
+          });
+        }
         break;
       }
 

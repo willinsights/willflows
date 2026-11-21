@@ -4196,6 +4196,7 @@ export type Database = {
           subscription_plan: Database["public"]["Enums"]["subscription_plan"]
           subscription_status: string
           trial_ends_at: string | null
+          trial_started_at: string | null
           updated_at: string
           user_id: string
         }
@@ -4208,6 +4209,7 @@ export type Database = {
           subscription_plan?: Database["public"]["Enums"]["subscription_plan"]
           subscription_status?: string
           trial_ends_at?: string | null
+          trial_started_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -4220,6 +4222,7 @@ export type Database = {
           subscription_plan?: Database["public"]["Enums"]["subscription_plan"]
           subscription_status?: string
           trial_ends_at?: string | null
+          trial_started_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -4370,6 +4373,32 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_comment_delete_keys: {
+        Row: {
+          comment_id: string
+          created_at: string
+          key_hash: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string
+          key_hash: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string
+          key_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_comment_delete_keys_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: true
+            referencedRelation: "video_comments"
             referencedColumns: ["id"]
           },
         ]
@@ -5323,6 +5352,7 @@ export type Database = {
           onboarding_business_type: string | null
           onboarding_completed: boolean
           onboarding_completed_at: string | null
+          owner_id: string | null
           slug: string
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
@@ -5346,6 +5376,7 @@ export type Database = {
           onboarding_business_type?: string | null
           onboarding_completed?: boolean
           onboarding_completed_at?: string | null
+          owner_id?: string | null
           slug: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -5369,6 +5400,7 @@ export type Database = {
           onboarding_business_type?: string | null
           onboarding_completed?: boolean
           onboarding_completed_at?: string | null
+          owner_id?: string | null
           slug?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null

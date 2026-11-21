@@ -6,6 +6,7 @@ import {sidecarRequest} from './sidecar-handler.ts';
 import {privateUpload} from './sidecar-upload.ts';
 import {providerPlayback} from './playback.ts';
 import {inventory} from './inventory.ts';
+import {authenticatePrivateVideo} from './authentication.ts';
 Deno.serve(async(req:Request)=>{
  const headers={...corsHeaders,'Content-Type':'application/json','Cache-Control':'private, no-store','X-WillFlow-Private-Video':'sidecar-1'};
  if(req.method==='OPTIONS')return new Response('ok',{headers});
@@ -20,10 +21,7 @@ Deno.serve(async(req:Request)=>{
    const r=await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/stream${path}`,{...init,headers:{Authorization:`Bearer ${credential}`,'Content-Type':'application/json'}});
    if(!r.ok)throw Error('Provider unconfirmed');const data=await r.json();if(data.success!==true)throw Error('Provider unconfirmed');return data;
   };
-  const base={rpc:async(name:string,args:Record<string,unknown>)=>await db.rpc(name,args),authenticate:async(r:Request)=>{
-   const token=/^Bearer ([^\s,]+)$/.exec(r.headers.get('authorization')??'')?.[1];if(!token)return null;
-   const {data,error}=await db.auth.getUser(token);return error?null:data.user?.id??null;
-  }};
+  const base={rpc:async(name:string,args:Record<string,unknown>)=>await db.rpc(name,args),authenticate:(r:Request)=>authenticatePrivateVideo(r,db.auth)};
   const body=await req.clone().json();const upload=['issue','process','abort','withdraw','recover'].includes(body?.action);
   if(body?.action==='inventory'){
    const result=await inventory(req,body,db,aws,object,stream);

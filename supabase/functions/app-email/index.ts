@@ -32,7 +32,7 @@ const SENDER_DOMAIN = 'notify.willflow.app'
 const FROM_ADDRESS = `${SITE_NAME} <noreply@willflow.app>`
 
 interface TransactionalEmailRequest {
-  template: 'payment_alert' | 'weekly_summary' | 'beta_welcome' | 'welcome' | 'password_reset' | 'invitation' | 'beta_invite'
+  template: 'payment_alert' | 'weekly_summary' | 'beta_welcome' | 'welcome' | 'password_reset' | 'invitation' | 'beta_invite' | 'contact_message' | 'automation_test' | 'admin_subscription_discrepancy' | 'reactivation'
   to: string
   data: Record<string, unknown>
 }

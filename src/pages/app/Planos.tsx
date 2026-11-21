@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +26,15 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { usePlanCheckout } from '@/hooks/usePlanCheckout';
+import {
+  CONTACT_OWNER_MESSAGE,
+  MANUAL_PLAN_MESSAGE,
+  getAccountPlanLabel,
+  hasActivePaidPlan,
+  isManuallyGrantedPlan,
+} from '@/lib/billing/accountPlan';
 import { useWorkspaceSubscription } from '@/hooks/useWorkspaceSubscription';
 import { useToast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
@@ -90,7 +100,9 @@ function formatDatePt(date: Date, fmt: string) {
 }
 
 export default function Planos() {
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspace, ownedWorkspaces, checkoutWorkspaceId } = useWorkspace();
+  const { subscription: accountSubscription } = useAuth();
+  const { checkout, openPortal, portalLoading } = usePlanCheckout();
   const { 
     subscription, 
     plan: currentPlan,
@@ -105,7 +117,6 @@ export default function Planos() {
   
   const [activeTab, setActiveTab] = useState('planos');
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
-  const [portalLoading, setPortalLoading] = useState(false);
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly');
   const [currency, setCurrency] = useState<'eur' | 'brl'>(() => {
     return (currentWorkspace?.currency?.toLowerCase() === 'brl' ? 'brl' : 'eur') as 'eur' | 'brl';
@@ -118,7 +129,19 @@ export default function Planos() {
   // Use workspace subscription data
   const isSubscribed = subscription?.status === 'active';
 
-  // Fetch billing info only for admins
+  // Plano da própria conta (para quem está num workspace de outra pessoa)
+  const accountHasPaidPlan = hasActivePaidPlan(accountSubscription.status);
+  const accountPaymentOverdue =
+    accountSubscription.status === 'past_due' || accountSubscription.status === 'unpaid';
+  const accountPlanLabel = getAccountPlanLabel(accountSubscription.plan);
+  const accountHasOwnWorkspace = (ownedWorkspaces ?? []).length > 0;
+  // Plano atribuído manualmente: não há subscrição Stripe nem portal para abrir
+  const accountPlanIsManual = isManuallyGrantedPlan({
+    status: accountSubscription.status,
+    hasStripeSubscription: accountSubscription.hasStripeSubscription,
+  });
+
+  // Fetch billing info only for the workspace owner
   useEffect(() => {
     if (canManageSubscription) {
       fetchBillingInfo();
@@ -155,7 +178,7 @@ export default function Planos() {
     if (!canManageSubscription) {
       toast({
         title: 'Sem permissão',
-        description: 'Apenas administradores do workspace podem alterar o plano.',
+        description: 'Só o dono do workspace pode alterar o plano.',
         variant: 'destructive',
       });
       return;
@@ -163,25 +186,21 @@ export default function Planos() {
 
     try {
       setCheckoutLoading(planId);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Not authenticated');
 
-      const priceId = getPriceId(planId, currency, billingInterval);
-
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-        body: { priceId, workspaceId: currentWorkspace?.id },
-      });
-
-      if (error) throw error;
-      if (data?.url) {
-        window.open(data.url, '_blank');
+      // Conta que já tem plano muda de plano na gestão de subscrição, não num novo checkout
+      // (o servidor recusa um segundo checkout; esse caso mostra a mesma ação)
+      if (accountHasPaidPlan) {
+        if (accountPlanIsManual) {
+          toast({ title: MANUAL_PLAN_MESSAGE });
+          return;
+        }
+        await openPortal();
+        return;
       }
-    } catch (error: any) {
-      toast({
-        title: 'Erro ao iniciar checkout',
-        description: error.message,
-        variant: 'destructive',
+
+      await checkout({
+        priceId: getPriceId(planId, currency, billingInterval),
+        workspaceId: checkoutWorkspaceId,
       });
     } finally {
       setCheckoutLoading(null);
@@ -192,45 +211,18 @@ export default function Planos() {
     if (!canManageSubscription) {
       toast({
         title: 'Sem permissão',
-        description: 'Apenas administradores do workspace podem gerir a subscrição.',
+        description: 'Só o dono do workspace pode gerir a subscrição.',
         variant: 'destructive',
       });
       return;
     }
 
-    try {
-      setPortalLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        sonnerToast.error('Sessão expirada');
-        return;
-      }
-
-      const { data, error } = await supabase.functions.invoke('customer-portal', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
-
-      if (error) throw error;
-      if (data?.url) {
-        window.open(data.url, '_blank');
-      }
-    } catch (error: any) {
-      logger.error('Error opening customer portal:', error);
-      const errorMessage = error.message || 'Erro desconhecido';
-      
-      if (errorMessage.includes('No Stripe customer found')) {
-        toast({
-          title: 'Sem subscrição ativa',
-          description: 'Escolha um plano para começar.',
-        });
-      } else {
-        sonnerToast.error('Erro ao abrir portal de gestão');
-      }
-    } finally {
-      setPortalLoading(false);
+    if (accountPlanIsManual) {
+      toast({ title: MANUAL_PLAN_MESSAGE });
+      return;
     }
+
+    await openPortal();
   };
 
   const formatCurrency = (amount: number, currencyCode: string) => {
@@ -276,7 +268,10 @@ export default function Planos() {
           <h1 className="text-2xl font-bold">Planos</h1>
           <p className="text-muted-foreground">Gerir plano, subscrição e faturação</p>
         </div>
-        {canManageSubscription && (
+        {canManageSubscription && accountPlanIsManual && (
+          <p className="text-sm text-muted-foreground">{MANUAL_PLAN_MESSAGE}</p>
+        )}
+        {canManageSubscription && !accountPlanIsManual && (
           <Button 
             onClick={handleManageSubscription} 
             disabled={portalLoading || (!billingInfo?.hasCustomer && !isTrial)}
@@ -384,13 +379,89 @@ export default function Planos() {
                     <div className="flex items-center gap-3">
                       <Info className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                       <div>
-                        <p className="font-medium">Plano gerido pelo administrador</p>
+                        <p className="font-medium">Plano gerido pelo dono do workspace</p>
                         <p className="text-sm text-muted-foreground">
                           Está a usar o plano <span className="font-medium capitalize">{currentPlan}</span> deste workspace. 
-                          Contacte o administrador para alterar o plano.
+                          {CONTACT_OWNER_MESSAGE}.
                         </p>
                       </div>
                     </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* O meu plano - plano da própria conta, para quem não é dono deste workspace (inclui administradores) */}
+              {!canManageSubscription && !accountSubscription.loading && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Crown className="h-4 w-4 text-primary" />
+                      O meu plano
+                    </CardTitle>
+                    <CardDescription>
+                      O plano pertence à conta. Neste workspace usa o plano do dono do workspace.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {accountHasPaidPlan ? (
+                      <>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-medium">
+                            {accountPlanLabel ? `Plano ${accountPlanLabel}` : 'Plano ativo'}
+                          </p>
+                          <Badge variant="default">Ativo</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          A sua conta tem um plano próprio.
+                          {!accountHasOwnWorkspace && ' Já pode criar o seu workspace.'}
+                        </p>
+                        {accountPlanIsManual && (
+                          <p className="text-sm text-muted-foreground">{MANUAL_PLAN_MESSAGE}</p>
+                        )}
+                        <div className="flex flex-wrap gap-2">
+                          {!accountPlanIsManual && (
+                            <Button
+                              variant="outline"
+                              onClick={() => void openPortal()}
+                              disabled={portalLoading}
+                              className="gap-2"
+                            >
+                              <Settings className="h-4 w-4" />
+                              {portalLoading ? 'A abrir...' : 'Gerir subscrição'}
+                            </Button>
+                          )}
+                          {!accountHasOwnWorkspace && (
+                            <Button asChild>
+                              <Link to="/onboarding?new=true">Criar o meu workspace</Link>
+                            </Button>
+                          )}
+                        </div>
+                      </>
+                    ) : accountPaymentOverdue ? (
+                      <>
+                        <p className="text-sm text-muted-foreground">
+                          O pagamento do seu plano está em atraso. Atualize o pagamento na gestão de subscrição.
+                        </p>
+                        <Button
+                          variant="outline"
+                          onClick={() => void openPortal()}
+                          disabled={portalLoading}
+                          className="gap-2"
+                        >
+                          <Settings className="h-4 w-4" />
+                          {portalLoading ? 'A abrir...' : 'Gerir subscrição'}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-muted-foreground">
+                          A sua conta não tem um plano próprio ativo. Com um plano próprio pode criar o seu workspace.
+                        </p>
+                        <Button asChild variant="outline">
+                          <Link to="/planos">Ver planos</Link>
+                        </Button>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -530,7 +601,7 @@ export default function Planos() {
                             )
                           ) : (
                             <Button variant="outline" disabled className="w-full">
-                              {isCurrentPlan ? 'Plano Atual' : 'Contactar Admin'}
+                              {isCurrentPlan ? 'Plano Atual' : userSubLoading ? 'A carregar...' : 'Contactar o dono'}
                             </Button>
                           )}
                         </CardContent>

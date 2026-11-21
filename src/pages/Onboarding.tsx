@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Check,
   Loader2,
   RefreshCw,
   AlertCircle,
+  ArrowLeft,
   ArrowRight,
   Sparkles,
 } from 'lucide-react';
@@ -17,21 +18,117 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useSuperAdmin } from '@/hooks/useSuperAdmin';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { trackTrialStarted } from '@/lib/google-ads';
+import { getDisplayPlanName } from '@/lib/plans';
+import {
+  TRIAL_USED_MESSAGE,
+  getOnboardingOffer,
+  getWorkspaceLimitMessage,
+  hasOwnWorkspace,
+} from '@/lib/billing/accountPlan';
 
 import { logger } from '@/lib/logger';
 type Step = 'region' | 'success';
 
+// Recusas do servidor (create_workspace_with_admin) com mensagem própria
+type BlockedReason = 'WORKSPACE_LIMIT_REACHED' | 'TRIAL_ALREADY_USED';
+
+const getBlockedReason = (message: unknown): BlockedReason | null => {
+  if (typeof message !== 'string') return null;
+  if (message.includes('WORKSPACE_LIMIT_REACHED')) return 'WORKSPACE_LIMIT_REACHED';
+  if (message.includes('TRIAL_ALREADY_USED')) return 'TRIAL_ALREADY_USED';
+  return null;
+};
+
+// A mensagem do limite depende de a conta ter ou não um plano pago ativo
+const getBlockedMessage = (reason: BlockedReason, accountStatus: string | null | undefined): string =>
+  reason === 'WORKSPACE_LIMIT_REACHED'
+    ? getWorkspaceLimitMessage(accountStatus)
+    : TRIAL_USED_MESSAGE;
+
+const formatDayMonth = (iso: string): string =>
+  new Date(iso).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+
+const formatFullDate = (iso: string): string =>
+  new Date(iso).toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric' });
+
 export default function Onboarding() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { refreshWorkspaces, currentWorkspace } = useWorkspace();
+  const { user, subscription: accountSubscription } = useAuth();
+  const { refreshWorkspaces, currentWorkspace, allWorkspaces, isWorkspaceOwner } = useWorkspace();
   const { toast } = useToast();
+  const { isSuperAdmin } = useSuperAdmin();
 
   const isCreatingNew = searchParams.get('new') === 'true';
+  // Só há app para onde voltar quando se cria um workspace adicional
+  const hasAnyWorkspace = currentWorkspace !== null || allWorkspaces.length > 0;
+  const canGoBackToApp = isCreatingNew && hasAnyWorkspace;
+
+  // O teste gratuito é um por conta e começa com o primeiro workspace próprio.
+  // Quem já é DONO de um workspace não recebe 7 dias novos: o workspace novo
+  // usa o plano (ou o teste em curso) da conta. O servidor é a autoridade.
+  // Uma conta que já comprou o plano (sem workspace próprio) também não começa teste,
+  // e uma conta cujo teste já terminou vê logo a explicação e os planos.
+  // O super admin nunca vê «Ver planos» em vez do botão de criar: o servidor
+  // não lhe aplica limites nem a regra do teste.
+  const offer = getOnboardingOffer({
+    isSuperAdmin,
+    accountStatus: accountSubscription?.status,
+    trialStartedAt: accountSubscription?.trialStartedAt,
+    trialEndsAt: accountSubscription?.trialEndsAt,
+    addingToOwnWorkspaces: isCreatingNew && hasOwnWorkspace(allWorkspaces, user?.id),
+  });
+  const trialAlreadyStarted = offer !== 'trial';
+  const trialUsed = offer === 'trial_used';
+  // Teste em curso e sem workspace próprio: não começa outro teste de 7 dias
+  const trialInProgress = offer === 'trial_in_progress';
+  const trialInProgressEnd = accountSubscription?.trialEndsAt ?? null;
+
+  // /app/planos exige um workspace (o ProtectedRoute envia para /onboarding) e só o
+  // dono compra lá. Sem workspace, ou sem ser o dono, usa-se a página pública
+  // de planos, onde a compra é feita para a conta, sem workspace.
+  const plansPath = currentWorkspace && isWorkspaceOwner ? '/app/planos' : '/planos';
+
+  const accountPlanInfo = (() => {
+    const generic = {
+      title: 'Usa o plano da sua conta',
+      description: 'O novo workspace não inicia um novo período de teste.',
+    };
+    if (trialInProgress) {
+      return {
+        title: 'Teste em curso',
+        description: trialInProgressEnd
+          ? `O seu período de teste termina a ${formatFullDate(trialInProgressEnd)}.`
+          : 'O novo workspace usa o período de teste da sua conta.',
+      };
+    }
+    if (!accountSubscription) return generic;
+    const { plan, status, trialEndsAt } = accountSubscription;
+    // Super admin sem plano ativo: nada a afirmar sobre plano ou teste
+    if (isSuperAdmin && status !== 'active') {
+      return {
+        title: 'Conta de administração',
+        description: 'A criação de workspaces não depende do período de teste.',
+      };
+    }
+    if (status === 'active' && plan) {
+      return {
+        title: `Usa o seu plano ${getDisplayPlanName(plan)}`,
+        description: 'O novo workspace fica incluído no plano da sua conta, sem novo período de teste.',
+      };
+    }
+    if (status === 'trialing' && trialEndsAt && Date.parse(trialEndsAt) > Date.now()) {
+      return {
+        title: 'Usa o teste em curso',
+        description: `O novo workspace usa o período de teste da sua conta, que termina a ${formatDayMonth(trialEndsAt)}. Não começa um novo teste.`,
+      };
+    }
+    return generic;
+  })();
 
   // State
   const [step, setStep] = useState<Step>('region');
@@ -39,6 +136,9 @@ export default function Onboarding() {
   const [workspaceName, setWorkspaceName] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [blockedReason, setBlockedReason] = useState<BlockedReason | null>(null);
+  // Fixado no momento da criação: depois do refresh a conta passa a ter workspace próprio
+  const [createdWithoutTrial, setCreatedWithoutTrial] = useState(false);
 
   // Pre-fill workspace name with suggestion
   useEffect(() => {
@@ -84,6 +184,7 @@ export default function Onboarding() {
     const finalName = workspaceName.trim() || getWorkspaceName();
     setLoading(true);
     setError(null);
+    setBlockedReason(null);
 
     try {
       // Create workspace (comes with trial from backend - starter plan, trialing status)
@@ -101,15 +202,25 @@ export default function Onboarding() {
       // Refresh workspaces to get the new one
       await refreshWorkspaces();
 
+      setCreatedWithoutTrial(trialAlreadyStarted);
       setStep('success');
       
-      // Track trial started conversion
-      trackTrialStarted();
-      
-      toast({
-        title: '🎉 Bem-vindo ao WillFlow!',
-        description: 'O seu trial de 7 dias começou. Explore à vontade!',
-      });
+      if (trialAlreadyStarted) {
+        toast({
+          title: 'Workspace criado',
+          description: trialInProgress
+            ? 'O novo workspace usa o período de teste em curso da sua conta.'
+            : 'O novo workspace usa o plano da sua conta.',
+        });
+      } else {
+        // Track trial started conversion
+        trackTrialStarted();
+
+        toast({
+          title: '🎉 Bem-vindo ao WillFlow!',
+          description: 'O seu teste de 7 dias começou. Explore à vontade!',
+        });
+      }
 
       // Redirect directly to app (no Stripe checkout)
       setTimeout(() => {
@@ -117,6 +228,12 @@ export default function Onboarding() {
       }, 1500);
     } catch (err: any) {
       logger.error('Error creating workspace:', err);
+      const reason = getBlockedReason(err?.message);
+      if (reason) {
+        // Recusa esperada do servidor: mostra-se a explicação e os planos, sem «Tentar»
+        setBlockedReason(reason);
+        return;
+      }
       const errorMessage = err.message?.includes('Failed to fetch') 
         ? 'Erro de ligação. Verifique a sua internet e tente novamente.'
         : err.message || 'Ocorreu um erro. Tente novamente.';
@@ -137,7 +254,17 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background">
+    <div className="relative min-h-screen flex flex-col items-center justify-center p-6 bg-background">
+      {canGoBackToApp && step === 'region' && !loading && (
+        <Link
+          to="/app"
+          className="absolute top-6 left-6 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Voltar</span>
+        </Link>
+      )}
+
       {/* Logo */}
       <div className="mb-8">
         <img src={logoWillflow} alt="WillFlow" className="h-12 object-contain" />
@@ -176,15 +303,23 @@ export default function Onboarding() {
                 </p>
               </div>
 
-              {/* Trial info banner */}
+              {/* Oferta do teste, plano da conta (teste já começado) ou teste já usado */}
               <div className="flex items-center gap-3 p-4 rounded-lg bg-primary/10 border border-primary/20">
                 <div className="p-2 rounded-full bg-primary/20">
                   <Sparkles className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium text-sm">7 dias grátis</p>
+                  <p className="font-medium text-sm">
+                    {trialUsed
+                      ? 'O período de teste desta conta já foi usado'
+                      : trialAlreadyStarted ? accountPlanInfo.title : '7 dias grátis'}
+                  </p>
                   <p className="text-xs text-muted-foreground">
-                    Acesso completo • Sem cartão de crédito
+                    {trialUsed
+                      ? 'Para criar um workspace, escolha um plano.'
+                      : trialAlreadyStarted
+                        ? accountPlanInfo.description
+                        : 'Acesso completo • Sem cartão de crédito'}
                   </p>
                 </div>
               </div>
@@ -247,6 +382,31 @@ export default function Onboarding() {
                 </p>
               </div>
 
+              {/* Recusa do servidor: limite de workspaces ou teste já usado */}
+              {blockedReason && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  role="alert"
+                  className="space-y-3 p-4 rounded-lg bg-destructive/10 border border-destructive/20"
+                >
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
+                    <p className="flex-1 text-sm text-destructive">{getBlockedMessage(blockedReason, accountSubscription?.status)}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button asChild size="sm">
+                      <Link to={plansPath}>Ver planos</Link>
+                    </Button>
+                    {blockedReason === 'WORKSPACE_LIMIT_REACHED' && hasAnyWorkspace && (
+                      <Button asChild variant="outline" size="sm">
+                        <Link to="/app">Voltar à aplicação</Link>
+                      </Button>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
               {/* Error State */}
               {error && (
                 <motion.div
@@ -269,6 +429,14 @@ export default function Onboarding() {
                 </motion.div>
               )}
 
+              {trialUsed ? (
+                <Button asChild className="w-full gradient-primary" size="lg">
+                  <Link to={plansPath}>
+                    Ver planos
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              ) : (
               <Button 
                 onClick={handleCreateTrialWorkspace} 
                 className="w-full gradient-primary"
@@ -282,16 +450,21 @@ export default function Onboarding() {
                   </>
                 ) : (
                   <>
-                    Começar trial grátis
+                    {trialAlreadyStarted ? 'Criar workspace' : 'Começar teste grátis'}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </>
                 )}
               </Button>
+              )}
 
               <p className="text-xs text-center text-muted-foreground">
                 Ao continuar, concorda com os nossos Termos de Serviço e Política de Privacidade.
-                <br />
-                <span className="text-primary/80">Pode fazer upgrade a qualquer momento.</span>
+                {!trialAlreadyStarted && (
+                  <>
+                    <br />
+                    <span className="text-primary/80">Pode fazer upgrade a qualquer momento.</span>
+                  </>
+                )}
               </p>
             </motion.div>
           )}
@@ -311,8 +484,12 @@ export default function Onboarding() {
                 <h1 className="text-2xl font-bold mb-2">Tudo pronto! 🎉</h1>
                 <p className="text-muted-foreground">
                   O seu workspace foi criado com sucesso.
-                  <br />
-                  <span className="text-primary">7 dias de trial ativados!</span>
+                  {!createdWithoutTrial && (
+                    <>
+                      <br />
+                      <span className="text-primary">7 dias de teste ativados!</span>
+                    </>
+                  )}
                 </p>
               </div>
               <div className="flex justify-center">

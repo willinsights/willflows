@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
@@ -14,8 +14,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { usePlanCheckout } from '@/hooks/usePlanCheckout';
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
 import { Link } from 'react-router-dom';
@@ -29,6 +28,21 @@ import {
   type PlanId,
   type Currency,
 } from '@/lib/plans';
+
+const planComparisonHighlights: Record<PlanId, { audience: string; featureKeys: string[] }> = {
+  starter: {
+    audience: 'Para profissionais independentes: organize projetos, clientes e finanças.',
+    featureKeys: ['kanban', 'crmBasic', 'financialReports'],
+  },
+  pro: {
+    audience: 'Para equipes em crescimento: acrescente comunicação, exportações e integrações.',
+    featureKeys: ['chat', 'exportExcel', 'googleCalendar', 'reportsAdvanced'],
+  },
+  studio: {
+    audience: 'Para agências e produtoras: todos os recursos do Pro, mais revisão de vídeo e automações.',
+    featureKeys: ['videoApproval', 'videoStorage', 'automations', 'permissions'],
+  },
+};
 
 // Feature categories for organized display
 const featureCategories = [
@@ -100,8 +114,8 @@ function getFeatureValue(planId: PlanId, featureKey: string): string | boolean {
 
 export default function PlanosComparar() {
   const { user } = useAuth();
-  const { currentWorkspace } = useWorkspace();
-  const { toast } = useToast();
+  const { checkoutWorkspaceId } = useWorkspace();
+  const { checkout } = usePlanCheckout();
   const navigate = useNavigate();
 
   const [showBRL, setShowBRL] = useState(false);
@@ -112,33 +126,22 @@ export default function PlanosComparar() {
   const interval = isAnnual ? 'yearly' : 'monthly';
   const currencySymbol = getCurrencySymbol(currency);
 
+  // Com sessão iniciada os botões cobram de imediato: nada de «7 dias grátis».
+  const billingNote = isAnnual ? 'Subscrição anual' : 'Subscrição mensal';
+
   const handleSelectPlan = async (planId: PlanId) => {
     if (!user) {
       navigate(`/auth?plan=${planId}&currency=${currency}&interval=${interval}`);
       return;
     }
 
-    if (!currentWorkspace) {
-      navigate(`/onboarding?plan=${planId}&currency=${currency}&interval=${interval}`);
-      return;
-    }
-
+    // O plano pertence à conta. Só o DONO do workspace atual compra
+    // «para o workspace»; sem workspace, ou sem ser o dono, a compra é para a conta.
     setLoadingPlan(planId);
     try {
-      const priceId = getPriceId(planId, currency, interval);
-      if (!priceId) throw new Error('Preço não encontrado');
-
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { priceId, workspaceId: currentWorkspace.id },
-      });
-
-      if (error) throw error;
-      if (data?.url) window.open(data.url, '_blank');
-    } catch (error: any) {
-      toast({
-        title: 'Erro ao iniciar checkout',
-        description: error.message,
-        variant: 'destructive',
+      await checkout({
+        priceId: getPriceId(planId, currency, interval),
+        workspaceId: checkoutWorkspaceId,
       });
     } finally {
       setLoadingPlan(null);
@@ -148,14 +151,14 @@ export default function PlanosComparar() {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>Comparação de Planos | WillFlow - Starter vs Pro vs Studio</title>
+        <title>Starter vs Pro vs Studio: compare planos e preços | WillFlow</title>
         <meta
           name="description"
-          content="Compare todos os planos WillFlow lado a lado. Veja funcionalidades, limites e preços de cada plano. Encontre o ideal para o seu estúdio."
+          content="Compare os planos WillFlow: Starter para organizar projetos; Pro com chat, Excel e Google Calendar; Studio com aprovação de vídeo e automações. Veja preços."
         />
         <link rel="canonical" href="https://willflow.app/planos/comparar" />
-        <meta property="og:title" content="Comparação de Planos | WillFlow" />
-        <meta property="og:description" content="Compare Starter, Pro e Studio. Encontre o plano ideal para o seu estúdio de foto e vídeo." />
+        <meta property="og:title" content="Starter vs Pro vs Studio: compare planos e preços | WillFlow" />
+        <meta property="og:description" content="Compare os planos WillFlow: Starter para organizar projetos; Pro com chat, Excel e Google Calendar; Studio com aprovação de vídeo e automações. Veja preços." />
         <meta property="og:url" content="https://willflow.app/planos/comparar" />
       </Helmet>
       <PublicHeader />
@@ -174,10 +177,11 @@ export default function PlanosComparar() {
             </Link>
 
             <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              Comparação <span className="gradient-text">detalhada</span> de planos
+              Starter vs Pro vs Studio: <span className="gradient-text">compare os planos</span> WillFlow
             </h1>
             <p className="text-xl text-muted-foreground mb-8">
-              Encontre o plano perfeito para as necessidades do seu estúdio.
+              Starter para organizar o trabalho. Pro para colaborar com a equipe.
+              Studio para aprovar vídeos e automatizar a produção.
             </p>
 
             {/* Toggles */}
@@ -186,7 +190,7 @@ export default function PlanosComparar() {
                 <span className={`text-sm font-medium ${!showBRL ? 'text-foreground' : 'text-muted-foreground'}`}>
                   🇵🇹 EUR
                 </span>
-                <Switch checked={showBRL} onCheckedChange={setShowBRL} />
+                <Switch checked={showBRL} onCheckedChange={setShowBRL} aria-label="Mostrar preços em reais" />
                 <span className={`text-sm font-medium ${showBRL ? 'text-foreground' : 'text-muted-foreground'}`}>
                   🇧🇷 BRL
                 </span>
@@ -196,7 +200,7 @@ export default function PlanosComparar() {
                 <span className={`text-sm font-medium ${!isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>
                   Mensal
                 </span>
-                <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
+                <Switch checked={isAnnual} onCheckedChange={setIsAnnual} aria-label="Mostrar cobrança anual" />
                 <span className={`text-sm font-medium ${isAnnual ? 'text-foreground' : 'text-muted-foreground'}`}>
                   Anual
                 </span>
@@ -211,9 +215,54 @@ export default function PlanosComparar() {
         </div>
       </section>
 
+      <section aria-label="Principais diferenças entre os planos" className="px-4 pb-12">
+        <div className="container mx-auto max-w-6xl grid gap-8 md:grid-cols-3">
+          {PLAN_ORDER.map((planId) => {
+            const plan = PLANS[planId];
+            const highlights = planComparisonHighlights[planId];
+            return (
+              <div key={planId} className="border-t border-border pt-6 min-w-0">
+                <h2 className="text-2xl font-bold mb-2">{plan.name}</h2>
+                <p className="text-lg font-semibold mb-3">
+                  {currencySymbol}{getDisplayPrice(planId, currency, interval)}/mês
+                  {isAnnual && (
+                    <span className="block text-sm font-normal text-muted-foreground">
+                      {currencySymbol}{getYearlyTotal(planId, currency)}/ano · cobrança anual
+                    </span>
+                  )}
+                </p>
+                <p className="text-muted-foreground mb-4">{highlights.audience}</p>
+                <p className="text-sm mb-4">
+                  {plan.limitsDisplay.workspaces} · {plan.limitsDisplay.users}
+                  {planId === 'starter' && ` · ${plan.limitsDisplay.projects}`}
+                </p>
+                <ul className="space-y-2">
+                  {highlights.featureKeys.map((key) => {
+                    const feature = plan.features.find((item) => item.key === key && item.included);
+                    if (!feature) return null;
+                    return (
+                      <li key={key} className="flex items-start gap-2 text-sm">
+                        <Check aria-hidden="true" className="h-4 w-4 mt-0.5 shrink-0 text-success" />
+                        <span>{feature.name}{typeof feature.value === 'string' ? ` (${feature.value})` : ''}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Comparison Table */}
       <section className="pb-20 px-4">
         <div className="container mx-auto max-w-6xl">
+          <h2 className="text-2xl font-bold mb-3">Compare recursos, limites e preços lado a lado</h2>
+          <p className="text-muted-foreground mb-6">
+            Kanban, CRM, calendário e relatórios financeiros estão nos três planos.
+            Chat, exportações Excel e PDF e Google Calendar entram no Pro e no Studio.
+            Aprovação de vídeo, timeline e automações são exclusivos do Studio.
+          </p>
           <div className="overflow-x-auto rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm">
             <table className="w-full min-w-[800px]">
               {/* Header with plan names and prices */}
@@ -251,7 +300,7 @@ export default function PlanosComparar() {
 
               <tbody>
                 {featureCategories.map((category, catIndex) => (
-                  <>
+                  <Fragment key={category.name}>
                     {/* Category header */}
                     <tr key={`cat-${catIndex}`} className="bg-muted/30">
                       <td colSpan={4} className="py-3 px-6">
@@ -301,7 +350,7 @@ export default function PlanosComparar() {
                         })}
                       </tr>
                     ))}
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
 
@@ -322,7 +371,7 @@ export default function PlanosComparar() {
                           {loadingPlan === planId ? (
                             <Loader2 className="h-4 w-4 animate-spin mr-2" />
                           ) : null}
-                          Começar grátis
+                          {user ? 'Subscrever' : 'Começar grátis'}
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
                       </td>
@@ -340,7 +389,7 @@ export default function PlanosComparar() {
             viewport={{ once: true }}
             className="text-center text-sm text-muted-foreground mt-8"
           >
-            <strong>7 dias grátis · Sem cartão</strong>.
+            <strong>{user ? billingNote : '7 dias grátis · Sem cartão'}</strong>.
             Cancele a qualquer momento sem compromisso.
           </motion.p>
         </div>

@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
         protectedEmails: protectedEmailsList,
       };
 
-      logStep('Preview generated', preview);
+      logStep('Preview generated', { ...preview, protectedEmails: preview.protectedEmails.length });
 
       return new Response(
         JSON.stringify({ success: true, preview }),

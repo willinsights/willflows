@@ -47,7 +47,7 @@ function getTrialDays(trialEndsAt: string | null | undefined): number | null {
 
 export function WorkspaceSelector() {
   const navigate = useNavigate();
-  const { currentWorkspace, allWorkspaces, setCurrentWorkspace, loading, refreshWorkspace } = useWorkspace();
+  const { currentWorkspace, allWorkspaces, ownedWorkspaces, setCurrentWorkspace, loading, refreshWorkspace } = useWorkspace();
   const { toast } = useToast();
   const [switching, setSwitching] = useState(false);
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
@@ -58,13 +58,17 @@ export function WorkspaceSelector() {
     limits, 
     usage, 
     checkFeature, 
+    canUseFeature,
     upgradeAlert, 
     closeUpgradeAlert,
     getFeatureInfo,
   } = usePlanFeatures();
 
-  const adminWorkspaces = allWorkspaces.filter((w) => w.role === 'admin');
-  const memberWorkspaces = allWorkspaces.filter((w) => w.role !== 'admin');
+  // «Meus workspaces» = aqueles de que a conta é dona (contam para o limite).
+  // Um administrador que não é dono aparece com os restantes workspaces.
+  const ownedIds = new Set((ownedWorkspaces ?? []).map((w) => w.id));
+  const adminWorkspaces = allWorkspaces.filter((w) => ownedIds.has(w.id));
+  const memberWorkspaces = allWorkspaces.filter((w) => !ownedIds.has(w.id));
 
   const handleSelectWorkspace = async (workspaceId: string) => {
     if (workspaceId === currentWorkspace?.id) return;
@@ -132,7 +136,9 @@ export function WorkspaceSelector() {
     window.location.href = '/app';
   };
 
-  const canCreateWorkspace = usage.workspaces < limits.workspaces;
+  // Regra da conta (ver usePlanFeatures); super admins não têm limite.
+  // O servidor é a autoridade: isto só evita um clique inútil.
+  const canCreateWorkspace = canUseFeature('workspaces');
 
   if (loading) {
     return (

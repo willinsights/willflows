@@ -35,7 +35,7 @@ export const AdminSubscriptionDiscrepancyEmail = ({
 }: Props) => (
   <Html lang="pt" dir="ltr">
     <Head />
-    <Preview>{totalDiscrepancies} divergência(s) de subscrição detetada(s)</Preview>
+    <Preview>{`${totalDiscrepancies} divergência(s) de subscrição detetada(s)`}</Preview>
     <Body style={main}>
       <Container style={container}>
         <Heading style={h1}>⚠️ Divergências de subscrição Stripe</Heading>

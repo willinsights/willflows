@@ -13,7 +13,7 @@ export interface WorkspaceStorageData {
   base_storage_bytes: number;
   extra_storage_bytes: number;
   stripe_addon_subscription_id: string | null;
-  addon_tier: '50gb' | '100gb' | '250gb' | null;
+  addon_tier: '25gb' | '50gb' | '100gb' | '250gb' | null;
   last_calculated_at: string;
 }
 

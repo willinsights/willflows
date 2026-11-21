@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import webpush from "https://esm.sh/web-push@3.6.7";
+import * as webpush from "https://esm.sh/web-push@3.6.7";
 import { isTrustedPushEndpoint, pushEndpointHostForLog } from "../_shared/push-endpoint.ts";
 
 const corsHeaders = {

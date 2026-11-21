@@ -20,17 +20,18 @@ function formatDaysRemaining(daysRemaining: number) {
 }
 
 export function AccountPlanTab() {
-  const { currentWorkspace, isAdmin } = useWorkspace();
+  // Só o dono do workspace (primeiro administrador) gere o plano
+  const { currentWorkspace, isWorkspaceOwner, checkoutWorkspaceId, loading: workspaceLoading } = useWorkspace();
   const { subscription, loading: subscriptionLoading } = useUserSubscription();
   const { toast } = useToast();
   const [portalLoading, setPortalLoading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
   const handleOpenPortal = async () => {
-    if (!isAdmin) {
+    if (!isWorkspaceOwner) {
       toast({
         title: 'Sem permissão',
-        description: 'Apenas administradores podem gerir a subscrição.',
+        description: 'Só o dono do workspace pode gerir a subscrição.',
         variant: 'destructive',
       });
       return;
@@ -73,10 +74,10 @@ export function AccountPlanTab() {
   };
 
   const handleUpgrade = async (planId: 'starter' | 'pro' | 'studio') => {
-    if (!isAdmin) {
+    if (!isWorkspaceOwner) {
       toast({
         title: 'Sem permissão',
-        description: 'Apenas administradores podem alterar o plano.',
+        description: 'Só o dono do workspace pode alterar o plano.',
         variant: 'destructive',
       });
       return;
@@ -94,7 +95,7 @@ export function AccountPlanTab() {
 
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         headers: { Authorization: `Bearer ${session.access_token}` },
-        body: { priceId, workspaceId: currentWorkspace?.id },
+        body: { priceId, workspaceId: checkoutWorkspaceId },
       });
 
       if (error) throw error;
@@ -136,7 +137,8 @@ export function AccountPlanTab() {
     ? trialDaysRemaining < 0
     : false;
 
-  if (subscriptionLoading) {
+  // Enquanto o dono do workspace não é conhecido não se afirma «acesso restrito»
+  if (subscriptionLoading || workspaceLoading) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -144,8 +146,8 @@ export function AccountPlanTab() {
     );
   }
 
-  // Not admin warning
-  if (!isAdmin) {
+  // Not owner warning
+  if (!isWorkspaceOwner) {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-3 p-4 rounded-lg border border-muted bg-muted/50">
@@ -153,7 +155,7 @@ export function AccountPlanTab() {
           <div>
             <p className="font-medium">Acesso restrito</p>
             <p className="text-sm text-muted-foreground">
-              Apenas administradores do workspace podem gerir a subscrição.
+              Só o dono do workspace pode gerir a subscrição.
             </p>
           </div>
         </div>

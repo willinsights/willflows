@@ -469,6 +469,8 @@ serve(async (req) => {
           .from('calendar_events')
           .select('*')
           .eq('workspace_id', workspaceId)
+          // Private events are only synced to their creator's own calendar
+          .or(`is_private.is.null,is_private.eq.false,created_by.eq.${userId}`)
           .gte('start_at', `${todayStr}T00:00:00`)
           .order('start_at', { ascending: true })
           .limit(50);

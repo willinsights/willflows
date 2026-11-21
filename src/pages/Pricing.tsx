@@ -13,8 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { usePlanCheckout } from '@/hooks/usePlanCheckout';
 import {
   Accordion,
   AccordionContent,
@@ -37,7 +36,7 @@ import {
 const faqs = [
   {
     question: 'Como funciona o período de teste?',
-    answer: 'Ao criar conta, tem automaticamente 7 dias grátis para experimentar todas as funcionalidades sem precisar de cartão. Após o trial, escolhe o plano que melhor se adequa.',
+    answer: 'Ao criar conta, tem automaticamente 7 dias grátis para experimentar todas as funcionalidades. O teste gratuito não exige cartão. Quando subscreve um plano, o pagamento é cobrado no momento da compra.',
   },
   {
     question: 'Posso mudar de plano a qualquer momento?',
@@ -63,8 +62,8 @@ const faqs = [
 
 export default function Pricing() {
   const { user } = useAuth();
-  const { currentWorkspace } = useWorkspace();
-  const { toast } = useToast();
+  const { checkoutWorkspaceId } = useWorkspace();
+  const { checkout } = usePlanCheckout();
   const navigate = useNavigate();
   
   const [showBRL, setShowBRL] = useState(false);
@@ -74,6 +73,11 @@ export default function Pricing() {
   const currency: Currency = showBRL ? 'brl' : 'eur';
   const interval = isAnnual ? 'yearly' : 'monthly';
   const currencySymbol = getCurrencySymbol(currency);
+
+  // Com sessão iniciada os botões cobram de imediato: nada de «7 dias grátis».
+  const billingNote = isAnnual
+    ? 'Subscrição anual, cancele quando quiser'
+    : 'Subscrição mensal, cancele quando quiser';
 
   const getPrice = (planId: PlanId) => {
     return getDisplayPrice(planId, currency, interval);
@@ -86,37 +90,13 @@ export default function Pricing() {
       return;
     }
 
-    // If no workspace, redirect to onboarding with plan param
-    if (!currentWorkspace) {
-      navigate(`/onboarding?plan=${planId}&currency=${currency}&interval=${interval}`);
-      return;
-    }
-
-    // If authenticated with workspace, start checkout
+    // O plano pertence à conta. Só o DONO do workspace atual compra
+    // «para o workspace»; sem workspace, ou sem ser o dono, a compra é para a conta.
     setLoadingPlan(planId);
     try {
-      const priceId = getPriceId(planId, currency, interval);
-      
-      if (!priceId) {
-        throw new Error('Preço não encontrado');
-      }
-
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: {
-          priceId,
-          workspaceId: currentWorkspace.id,
-        },
-      });
-
-      if (error) throw error;
-      if (data?.url) {
-        window.open(data.url, '_blank');
-      }
-    } catch (error: any) {
-      toast({
-        title: 'Erro ao iniciar checkout',
-        description: error.message,
-        variant: 'destructive',
+      await checkout({
+        priceId: getPriceId(planId, currency, interval),
+        workspaceId: checkoutWorkspaceId,
       });
     } finally {
       setLoadingPlan(null);
@@ -219,7 +199,7 @@ export default function Pricing() {
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-success/10 border border-success/20 text-success mb-6">
               <Check className="h-4 w-4" />
               <span className="text-sm font-medium">
-                7 dias grátis · Sem cartão
+                {user ? billingNote : '7 dias grátis · Sem cartão'}
               </span>
             </div>
 
@@ -228,7 +208,9 @@ export default function Pricing() {
               <span className="gradient-text">negócio</span>
             </h1>
             <p className="text-xl text-muted-foreground mb-8">
-              Comece com 7 dias grátis e faça upgrade conforme cresce. Cancele a qualquer momento.
+              {user
+                ? 'Escolha o plano que acompanha o crescimento do seu estúdio.'
+                : 'Comece com 7 dias grátis e faça upgrade conforme cresce. Cancele a qualquer momento.'}
             </p>
 
             {/* Toggles Container */}
@@ -385,7 +367,7 @@ export default function Pricing() {
                     {loadingPlan === planId ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     ) : null}
-                    Começar 7 dias grátis
+                    {user ? 'Subscrever' : 'Começar 7 dias grátis'}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </motion.div>
@@ -496,7 +478,7 @@ export default function Pricing() {
             Pronto para começar?
           </h2>
           <p className="text-xl text-muted-foreground mb-8">
-            7 dias grátis · Sem cartão
+            {user ? billingNote : '7 dias grátis · Sem cartão'}
           </p>
           <Button 
             size="lg" 
@@ -504,7 +486,7 @@ export default function Pricing() {
             onClick={() => handleSelectPlan('pro')}
           >
             <ArrowRight className="mr-2 h-5 w-5" />
-            Começar teste grátis
+            {user ? 'Subscrever o plano Pro' : 'Começar teste grátis'}
           </Button>
         </div>
       </section>

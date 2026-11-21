@@ -145,4 +145,28 @@ describe('project list visibility scope', () => {
     });
     await waitFor(() => expect(mock.projects).toHaveBeenCalledTimes(2));
   });
+
+  it('keeps both project consumers loaded while a newly mounted consumer refreshes shared data', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    mock.projects.mockResolvedValueOnce({ data: [{ id: 'project-a' }], error: null });
+    const parent = renderProjects(client);
+    await waitFor(() => expect(parent.result.current.loading).toBe(false));
+
+    let finishRefresh: ((value: { data: { id: string }[]; error: null }) => void) | undefined;
+    mock.projects.mockImplementationOnce(() => new Promise(resolve => { finishRefresh = resolve; }));
+    const child = renderProjects(client);
+    await waitFor(() => expect(mock.projects).toHaveBeenCalledTimes(2));
+    await wait(30);
+    expect(parent.result.current.loading).toBe(false);
+    expect(child.result.current.loading).toBe(false);
+    expect(parent.result.current.projects).toEqual([{ id: 'project-a' }]);
+    expect(child.result.current.projects).toEqual([{ id: 'project-a' }]);
+
+    if (!finishRefresh) throw new Error('Shared refresh never started');
+    await act(async () => finishRefresh?.({ data: [{ id: 'project-updated' }], error: null }));
+    await waitFor(() => expect(parent.result.current.projects).toEqual([{ id: 'project-updated' }]));
+    expect(child.result.current.projects).toEqual([{ id: 'project-updated' }]);
+    expect(mock.projects).toHaveBeenCalledTimes(2);
+    parent.unmount(); child.unmount(); client.clear();
+  });
 });
