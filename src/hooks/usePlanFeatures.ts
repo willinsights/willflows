@@ -127,6 +127,21 @@ function isPlanAtLeast(userPlan: SubscriptionPlan, requiredPlan: SubscriptionPla
   return isPlanAtLeastFromPlans(userPlan, requiredPlanId);
 }
 
+/**
+ * Teste válido do WORKSPACE atual: estado 'trialing' E data de fim no futuro.
+ * Espelha a regra do servidor (can_access_feature): o estado sozinho não chega,
+ * porque há workspaces com o teste expirado que continuam em 'trialing'.
+ * Sem data de fim (ou data inválida) o teste não conta como válido.
+ */
+export function isWorkspaceTrialValid(
+  subscription: { status?: string | null; trialEndsAt?: string | null } | null | undefined,
+  now: number = Date.now(),
+): boolean {
+  if (!subscription || subscription.status !== 'trialing' || !subscription.trialEndsAt) return false;
+  const deadline = Date.parse(subscription.trialEndsAt);
+  return Number.isFinite(deadline) && deadline > now;
+}
+
 export interface UpgradeAlertState {
   isOpen: boolean;
   feature: FeatureInfo | null;
@@ -199,6 +214,15 @@ export function usePlanFeatures() {
   });
 
   const currentPlan = subscription?.plan || 'starter';
+  const trialStatus = subscription?.status ?? null;
+  const trialEndsAt = subscription?.trialEndsAt ?? null;
+
+  // Exceção do período de teste: apenas o chat fica disponível enquanto o teste
+  // do workspace estiver válido. A data é comparada com o relógio em cada chamada
+  // (não fica guardada), para deixar de valer quando o teste expira.
+  const isTrialOnlyFeatureAvailable = useCallback((feature: FeatureKey): boolean => {
+    return feature === 'chat' && isWorkspaceTrialValid({ status: trialStatus, trialEndsAt });
+  }, [trialStatus, trialEndsAt]);
 
   // Check if user can use a specific feature (boolean check only)
   const canUseFeature = useCallback((feature: FeatureKey): boolean => {
@@ -222,9 +246,9 @@ export function usePlanFeatures() {
       return usage.clients < limits.clients;
     }
 
-    // For boolean features, check plan level
-    return isPlanAtLeast(currentPlan, featureInfo.minimumPlan);
-  }, [currentPlan, usage, limits, isSuperAdmin]);
+    // For boolean features, check plan level (chat também durante o teste válido)
+    return isPlanAtLeast(currentPlan, featureInfo.minimumPlan) || isTrialOnlyFeatureAvailable(feature);
+  }, [currentPlan, usage, limits, isSuperAdmin, isTrialOnlyFeatureAvailable]);
 
   // Check if user has access to a feature (plan level, ignoring limits)
   const hasFeatureAccess = useCallback((feature: FeatureKey): boolean => {
@@ -233,8 +257,8 @@ export function usePlanFeatures() {
     
     const featureInfo = FEATURES[feature];
     if (!featureInfo) return false;
-    return isPlanAtLeast(currentPlan, featureInfo.minimumPlan);
-  }, [currentPlan, isSuperAdmin]);
+    return isPlanAtLeast(currentPlan, featureInfo.minimumPlan) || isTrialOnlyFeatureAvailable(feature);
+  }, [currentPlan, isSuperAdmin, isTrialOnlyFeatureAvailable]);
 
   // Get the minimum plan required for a feature
   const getRequiredPlan = useCallback((feature: FeatureKey): SubscriptionPlan => {
