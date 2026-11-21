@@ -62,7 +62,7 @@ const faqs = [
 
 export default function Pricing() {
   const { user } = useAuth();
-  const { currentWorkspace, isAdmin } = useWorkspace();
+  const { currentWorkspace, isWorkspaceOwner } = useWorkspace();
   const { checkout } = usePlanCheckout();
   const navigate = useNavigate();
   
@@ -73,6 +73,11 @@ export default function Pricing() {
   const currency: Currency = showBRL ? 'brl' : 'eur';
   const interval = isAnnual ? 'yearly' : 'monthly';
   const currencySymbol = getCurrencySymbol(currency);
+
+  // Com sessão iniciada os botões cobram de imediato: nada de «7 dias grátis».
+  const billingNote = isAnnual
+    ? 'Subscrição anual, cancele quando quiser'
+    : 'Subscrição mensal, cancele quando quiser';
 
   const getPrice = (planId: PlanId) => {
     return getDisplayPrice(planId, currency, interval);
@@ -85,13 +90,13 @@ export default function Pricing() {
       return;
     }
 
-    // O plano pertence à conta. Só o administrador do workspace atual compra
-    // «para o workspace»; sem workspace, ou como convidado, a compra é para a conta.
+    // O plano pertence à conta. Só o DONO do workspace atual compra
+    // «para o workspace»; sem workspace, ou sem ser o dono, a compra é para a conta.
     setLoadingPlan(planId);
     try {
       await checkout({
         priceId: getPriceId(planId, currency, interval),
-        workspaceId: currentWorkspace && isAdmin ? currentWorkspace.id : undefined,
+        workspaceId: currentWorkspace && isWorkspaceOwner ? currentWorkspace.id : undefined,
       });
     } finally {
       setLoadingPlan(null);
@@ -194,7 +199,7 @@ export default function Pricing() {
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-success/10 border border-success/20 text-success mb-6">
               <Check className="h-4 w-4" />
               <span className="text-sm font-medium">
-                7 dias grátis · Sem cartão
+                {user ? billingNote : '7 dias grátis · Sem cartão'}
               </span>
             </div>
 
@@ -203,7 +208,9 @@ export default function Pricing() {
               <span className="gradient-text">negócio</span>
             </h1>
             <p className="text-xl text-muted-foreground mb-8">
-              Comece com 7 dias grátis e faça upgrade conforme cresce. Cancele a qualquer momento.
+              {user
+                ? 'Escolha o plano que acompanha o crescimento do seu estúdio.'
+                : 'Comece com 7 dias grátis e faça upgrade conforme cresce. Cancele a qualquer momento.'}
             </p>
 
             {/* Toggles Container */}
@@ -471,7 +478,7 @@ export default function Pricing() {
             Pronto para começar?
           </h2>
           <p className="text-xl text-muted-foreground mb-8">
-            7 dias grátis · Sem cartão
+            {user ? billingNote : '7 dias grátis · Sem cartão'}
           </p>
           <Button 
             size="lg" 

@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
 import { User } from '@supabase/supabase-js';
 import { differenceInDays, parseISO } from 'date-fns';
+import { getOwnedWorkspaces, isWorkspaceOwner as checkWorkspaceOwner } from '@/lib/billing/accountPlan';
 
 interface Workspace {
   id: string;
@@ -16,6 +17,8 @@ interface Workspace {
   subscription_plan: 'starter' | 'pro' | 'studio';
   subscription_status: string;
   trial_ends_at?: string | null;
+  /** Dono do workspace: o primeiro administrador. Null = sem dono registado. */
+  owner_id?: string | null;
 }
 
 interface WorkspaceMember {
@@ -40,6 +43,13 @@ interface WorkspaceContextType {
   refreshWorkspace: () => Promise<void>;
   setCurrentWorkspace: (workspaceId: string) => Promise<boolean>;
   isAdmin: boolean;
+  /**
+   * O utilizador é o DONO do workspace atual (primeiro administrador).
+   * Só o dono compra e gere o plano; `isAdmin` continua a valer para o resto.
+   */
+  isWorkspaceOwner: boolean;
+  /** Workspaces de que o utilizador é dono (contam para o limite da conta). */
+  ownedWorkspaces: WorkspaceWithRole[];
   canEdit: boolean;
 }
 
@@ -607,6 +617,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [user, refreshWorkspace]);
 
   const isAdmin = membership?.role === 'admin';
+  // Único sítio que decide «sou dono deste workspace?»: a regra pura vive em
+  // lib/billing/accountPlan e todos os ecrãs leem o resultado daqui.
+  const userId = user?.id ?? null;
+  const isWorkspaceOwner = checkWorkspaceOwner(workspace, userId);
+  const ownedWorkspaces = useMemo(
+    () => getOwnedWorkspaces(allWorkspaces, userId),
+    [allWorkspaces, userId],
+  );
   // canEdit is now dynamic - will be computed by useFinancialPermissions hook
   // For backward compatibility, we still provide a basic check here
   // but components should use useFinancialPermissions for accurate permissions
@@ -633,6 +651,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         refreshWorkspace,
         setCurrentWorkspace,
         isAdmin,
+        isWorkspaceOwner,
+        ownedWorkspaces,
         canEdit,
       }}
     >
@@ -655,6 +675,8 @@ export function useWorkspace() {
       refreshWorkspace: async () => {},
       setCurrentWorkspace: async () => false,
       isAdmin: false,
+      isWorkspaceOwner: false,
+      ownedWorkspaces: [] as WorkspaceWithRole[],
       canEdit: false,
       currentWorkspace: null,
       currentMembership: null,

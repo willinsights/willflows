@@ -1,3 +1,4 @@
+import { MANUAL_PLAN_MESSAGE, isManuallyGrantedPlan } from '@/lib/billing/accountPlan';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -35,7 +36,11 @@ interface WorkspaceExpiredModalProps {
 
 export function WorkspaceExpiredModal({ open }: WorkspaceExpiredModalProps) {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { signOut, subscription: accountSubscription } = useAuth();
+  const manualPlan = isManuallyGrantedPlan({
+    status: accountSubscription?.status,
+    hasStripeSubscription: accountSubscription?.hasStripeSubscription,
+  });
   const { currentWorkspace, activeWorkspaces, setCurrentWorkspace, loading: workspaceLoading } = useWorkspace();
   const { isOwner, canManageSubscription, isTrial, status } = useWorkspaceSubscription();
   const { checkout, openPortal, portalLoading } = usePlanCheckout();
@@ -103,7 +108,7 @@ export function WorkspaceExpiredModal({ open }: WorkspaceExpiredModalProps) {
   const description = isPastDue
     ? (isOwner
         ? 'Não foi possível cobrar a subscrição. Atualize o pagamento para continuar a usar o WillFlow.'
-        : 'O pagamento da subscrição deste workspace está em atraso. Contacte o administrador deste workspace para atualizar o pagamento.')
+        : 'O pagamento da subscrição deste workspace está em atraso. Contacte o dono deste workspace para atualizar o pagamento.')
     : isOwner
       ? 'Escolha um plano para continuar a usar o WillFlow ou mude para outro workspace ativo.'
       : 'Este workspace está expirado. Mude para outro workspace ativo para continuar a trabalhar.';
@@ -138,8 +143,8 @@ export function WorkspaceExpiredModal({ open }: WorkspaceExpiredModalProps) {
                   ? 'Depois de atualizar o pagamento, volta a ter acesso a todos os seus projetos e clientes.'
                   : 'Ao subscrever, terá acesso imediato a todos os seus projetos e clientes.')
               : (isPastDue
-                  ? 'O administrador pode atualizar o pagamento para restaurar o acesso.'
-                  : 'O administrador pode renovar a subscrição para restaurar o acesso.')}
+                  ? 'O dono do workspace pode atualizar o pagamento para restaurar o acesso.'
+                  : 'O dono do workspace pode renovar a subscrição para restaurar o acesso.')}
           </p>
         </div>
 
@@ -168,20 +173,27 @@ export function WorkspaceExpiredModal({ open }: WorkspaceExpiredModalProps) {
         {/* A conta já tem plano: a saída é a gestão de subscrição */}
         {isOwner && !isPastDue && alreadySubscribed && (
           <div role="alert" className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4 text-center">
-            <p className="text-sm">{CHECKOUT_MESSAGES.already_subscribed}</p>
-            <Button
-              variant="outline"
-              onClick={() => void openPortal()}
-              disabled={portalLoading}
-              className="w-full"
-            >
-              {portalLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <CreditCard className="mr-2 h-4 w-4" />
-              )}
-              Gerir subscrição
-            </Button>
+            {/* Plano atribuído manualmente: não há portal de faturação para abrir */}
+            {manualPlan ? (
+              <p className="text-sm">{MANUAL_PLAN_MESSAGE}</p>
+            ) : (
+              <>
+                <p className="text-sm">{CHECKOUT_MESSAGES.already_subscribed}</p>
+                <Button
+                  variant="outline"
+                  onClick={() => void openPortal()}
+                  disabled={portalLoading}
+                  className="w-full"
+                >
+                  {portalLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CreditCard className="mr-2 h-4 w-4" />
+                  )}
+                  Gerir subscrição
+                </Button>
+              </>
+            )}
           </div>
         )}
 
@@ -312,7 +324,7 @@ export function WorkspaceExpiredModal({ open }: WorkspaceExpiredModalProps) {
         {!isOwner && !hasOtherWorkspaces && (
           <div className="text-center py-4 text-muted-foreground">
             <p className="text-sm">
-              Não tem outros workspaces ativos. Contacte o administrador deste workspace para {isPastDue ? 'atualizar o pagamento' : 'renovar a subscrição'}.
+              Não tem outros workspaces ativos. Contacte o dono deste workspace para {isPastDue ? 'atualizar o pagamento' : 'renovar a subscrição'}.
             </p>
           </div>
         )}

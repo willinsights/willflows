@@ -38,6 +38,26 @@ describe('classifyCheckoutFailure', () => {
     expect(classifyCheckoutFailure(403, null)).toBe('forbidden');
   });
 
+  it('classifica os 403 pelo código quando o servidor o envia', () => {
+    expect(
+      classifyCheckoutFailure(403, { error: 'Só o dono do workspace pode gerir o plano', code: 'NOT_WORKSPACE_OWNER' }),
+    ).toBe('not_workspace_owner');
+    expect(classifyCheckoutFailure(403, { error: 'qualquer texto', code: 'EMAIL_NOT_CONFIRMED' })).toBe('email_not_confirmed');
+    // O código prevalece sobre o texto: «email» no texto não engana o classificador
+    expect(classifyCheckoutFailure(403, { error: 'Confirme o seu email', code: 'FORBIDDEN' })).toBe('forbidden');
+    expect(classifyCheckoutFailure(403, { error: 'Confirme o seu email', code: 'NOT_WORKSPACE_OWNER' })).toBe('not_workspace_owner');
+  });
+
+  it('código desconhecido no 403 recorre ao texto', () => {
+    expect(classifyCheckoutFailure(403, { error: 'Confirme o seu email.', code: 'OUTRO' })).toBe('email_not_confirmed');
+    expect(classifyCheckoutFailure(403, { error: 'Sem permissão.', code: 'OUTRO' })).toBe('forbidden');
+  });
+
+  it('tem mensagem própria para o administrador que não é dono', () => {
+    expect(CHECKOUT_MESSAGES.not_workspace_owner).toContain('Só o dono do workspace pode gerir o plano');
+    expect(CHECKOUT_MESSAGES.not_workspace_owner).not.toBe(CHECKOUT_MESSAGES.forbidden);
+  });
+
   it('trata o resto como erro genérico', () => {
     expect(classifyCheckoutFailure(500, { error: 'falha' })).toBe('error');
     expect(classifyCheckoutFailure(400, { error: 'Plano inválido.' })).toBe('error');

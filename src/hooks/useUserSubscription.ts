@@ -11,9 +11,13 @@ export interface UserSubscription {
   plan: SubscriptionPlan;
   status: string;
   trialEndsAt: string | null;
+  /** Início do teste gratuito da conta (`trial_started_at`). */
+  trialStartedAt?: string | null;
   currentPeriodEnd: string | null;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
+  /** `true` quando os dados vêm de uma linha lida em `user_subscriptions`. */
+  hasSubscriptionRow?: boolean;
 }
 
 export interface SubscriptionLimits {
@@ -126,6 +130,8 @@ export function useUserSubscription(props?: UseUserSubscriptionProps) {
         plan: subData.subscription_plan as SubscriptionPlan,
         status: subData.subscription_status,
         trialEndsAt: subData.trial_ends_at,
+        trialStartedAt: subData.trial_started_at ?? null,
+        hasSubscriptionRow: true,
         currentPeriodEnd: subData.current_period_end,
         stripeCustomerId: subData.stripe_customer_id,
         stripeSubscriptionId: subData.stripe_subscription_id,
@@ -133,6 +139,8 @@ export function useUserSubscription(props?: UseUserSubscriptionProps) {
         plan: 'starter',
         status: 'trialing',
         trialEndsAt: null,
+        trialStartedAt: null,
+        hasSubscriptionRow: false,
         currentPeriodEnd: null,
         stripeCustomerId: null,
         stripeSubscriptionId: null,

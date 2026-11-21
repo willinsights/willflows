@@ -8,10 +8,109 @@ export function hasActivePaidPlan(status: string | null | undefined): boolean {
   return status === 'active';
 }
 
-/** A conta tem workspace próprio quando é administradora de pelo menos um. */
-export function hasOwnWorkspace(workspaces: ReadonlyArray<{ role: string }>): boolean {
-  return workspaces.some((workspace) => workspace.role === 'admin');
+/**
+ * Dono do workspace = o PRIMEIRO administrador (coluna `owner_id`).
+ * Outros administradores administram, mas não são donos: não compram nem gerem
+ * o plano do workspace, e o workspace não conta para o limite deles.
+ * Sem dono registado (`owner_id` nulo) ninguém é dono.
+ */
+export interface WorkspaceOwnerRef {
+  owner_id?: string | null;
 }
+
+/** Único sítio que decide «sou dono deste workspace?». Função pura. */
+export function isWorkspaceOwner(
+  workspace: WorkspaceOwnerRef | null | undefined,
+  userId: string | null | undefined,
+): boolean {
+  const ownerId = workspace?.owner_id;
+  return typeof ownerId === 'string' && ownerId.length > 0 && !!userId && ownerId === userId;
+}
+
+/** Workspaces de que a conta é dona (os únicos que contam para o limite). */
+export function getOwnedWorkspaces<T extends WorkspaceOwnerRef>(
+  workspaces: ReadonlyArray<T> | null | undefined,
+  userId: string | null | undefined,
+): T[] {
+  return (workspaces ?? []).filter((workspace) => isWorkspaceOwner(workspace, userId));
+}
+
+export function countOwnedWorkspaces(
+  workspaces: ReadonlyArray<WorkspaceOwnerRef> | null | undefined,
+  userId: string | null | undefined,
+): number {
+  return getOwnedWorkspaces(workspaces, userId).length;
+}
+
+/** A conta tem workspace próprio quando é dona de pelo menos um. */
+export function hasOwnWorkspace(
+  workspaces: ReadonlyArray<WorkspaceOwnerRef> | null | undefined,
+  userId: string | null | undefined,
+): boolean {
+  return countOwnedWorkspaces(workspaces, userId) > 0;
+}
+
+/**
+ * Workspace a indicar numa compra de plano: só quando quem compra é o dono.
+ * Qualquer outro membro (incluindo administradores) compra para a própria conta.
+ */
+export function getCheckoutWorkspaceId(
+  workspace: (WorkspaceOwnerRef & { id: string }) | null | undefined,
+  userId: string | null | undefined,
+): string | undefined {
+  return workspace && isWorkspaceOwner(workspace, userId) ? workspace.id : undefined;
+}
+
+export const CONTACT_OWNER_MESSAGE = 'Contacte o dono deste workspace para alterar o plano';
+export const MANUAL_PLAN_MESSAGE = 'O seu plano é gerido pela equipa WillFlow';
+export const LEAVING_PAGE_WARNING =
+  'Vai sair desta página para concluir o pagamento; o que estiver por guardar perde-se.';
+
+/**
+ * Plano atribuído manualmente: conta ativa sem subscrição Stripe. Não há portal
+ * de faturação para abrir. Só é afirmado quando se SABE que não há subscrição
+ * (`hasStripeSubscription === false`); desconhecido não conta como manual.
+ */
+export function isManuallyGrantedPlan(account: {
+  status: string | null | undefined;
+  hasStripeSubscription: boolean | null | undefined;
+}): boolean {
+  return account.status === 'active' && account.hasStripeSubscription === false;
+}
+
+export type OnboardingOffer = 'trial' | 'account_plan' | 'trial_used';
+
+export interface OnboardingOfferInput {
+  /** Estado da conta (`user_subscriptions.subscription_status`). */
+  accountStatus: string | null | undefined;
+  trialStartedAt: string | null | undefined;
+  trialEndsAt: string | null | undefined;
+  /** A conta já é dona de um workspace e está a criar outro. */
+  addingToOwnWorkspaces: boolean;
+}
+
+/**
+ * O que o onboarding mostra antes de criar o workspace. Função pura; o servidor
+ * continua a ser a autoridade.
+ * - plano ativo: o workspace usa o plano da conta;
+ * - teste já usado (começou e já terminou) sem plano ativo: explicação e planos,
+ *   nunca a promessa de 7 dias grátis;
+ * - conta que já é dona de um workspace: usa o plano ou o teste em curso;
+ * - caso contrário: oferta do teste gratuito.
+ */
+export function getOnboardingOffer(input: OnboardingOfferInput, now: number = Date.now()): OnboardingOffer {
+  if (hasActivePaidPlan(input.accountStatus)) return 'account_plan';
+
+  if (input.trialStartedAt) {
+    const end = input.trialEndsAt ? Date.parse(input.trialEndsAt) : NaN;
+    if (Number.isFinite(end) && end <= now) return 'trial_used';
+  }
+
+  return input.addingToOwnWorkspaces ? 'account_plan' : 'trial';
+}
+
+export const TRIAL_USED_MESSAGE =
+  'O período de teste desta conta já foi usado. Para criar um workspace, escolha um plano.';
 
 const PLAN_LABELS: Record<string, string> = {
   starter: 'Starter',

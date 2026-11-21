@@ -376,7 +376,9 @@ describe("usePlanFeatures", () => {
   });
 
   describe("Limite de workspaces: regra da conta", () => {
-    const ws = (id: string, role: string) => ({ id, role });
+    // Papel "admin" = dono (owner_id do utilizador de teste), salvo indicação em contrário.
+    const ws = (id: string, role: string, owner_id: string | null = role === "admin" ? "test-user-id" : "outro-utilizador") =>
+      ({ id, role, owner_id });
 
     // clearAllMocks não repõe valores de retorno: repor os mocks por omissão
     afterEach(() => {
@@ -394,7 +396,7 @@ describe("usePlanFeatures", () => {
 
     const setup = (opts: {
       account?: { plan: string | null; status: string | null };
-      workspaces: { id: string; role: string }[];
+      workspaces: { id: string; role: string; owner_id: string | null }[];
       currentPlanLimit: number;
       isOwner?: boolean;
       superAdmin?: boolean;
@@ -421,7 +423,16 @@ describe("usePlanFeatures", () => {
       return renderHook(() => usePlanFeatures(), { wrapper: createWrapper() }).result;
     };
 
-    it("conta os workspaces onde o utilizador é admin, em todos os workspaces", () => {
+    it("administrador que não é dono: o workspace não conta para o limite dele", () => {
+      const result = setup({
+        account: { plan: "starter", status: "active" },
+        workspaces: [ws("meu", "admin"), ws("de-outro", "admin", "outro-utilizador"), ws("sem-dono", "admin", null)],
+        currentPlanLimit: 10,
+      });
+      expect(result.current.usage.workspaces).toBe(1);
+    });
+
+    it("conta os workspaces de que o utilizador é dono, em todos os workspaces", () => {
       const result = setup({
         account: { plan: "pro", status: "active" },
         workspaces: [ws("a", "admin"), ws("b", "admin"), ws("c", "edicao")],

@@ -3,10 +3,14 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import {
   ALREADY_SUBSCRIBED_CODE,
+  EMAIL_NOT_CONFIRMED_CODE,
+  FORBIDDEN_CODE,
   NEW_ACCOUNT_PLAN,
   NEW_ACCOUNT_STATUS,
+  NOT_WORKSPACE_OWNER_CODE,
   PLAN_CHECKOUT_KIND,
   decideCheckout,
+  isWorkspaceOwner,
   isStripeResourceMissing,
   isUsableStripeCustomer,
   pickEmailCustomerForUser,
@@ -79,7 +83,7 @@ serve(async (req) => {
     const user = data.user;
     if (!user?.email) throw new Error("User not authenticated or email not available");
     if (!user.email_confirmed_at) {
-      return new Response(JSON.stringify({ error: "Confirme o seu email antes de subscrever um plano." }), {
+      return new Response(JSON.stringify({ error: "Confirme o seu email antes de subscrever um plano.", code: EMAIL_NOT_CONFIRMED_CODE }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -102,8 +106,17 @@ serve(async (req) => {
     );
 
     // Security: never trust the workspaceId from the body.
-    // The caller must be an active admin of the workspace it is paying for.
+    // The caller must be an active admin of the workspace it is paying for
+    // AND its owner (workspaces.owner_id): other administrators administer
+    // the workspace but do not buy or manage its plan.
     if (workspaceId) {
+      if (typeof workspaceId !== "string") {
+        return new Response(
+          JSON.stringify({ error: "Não tem permissão para subscrever este workspace.", code: FORBIDDEN_CODE }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       const { data: membership, error: memberError } = await adminClient
         .from("workspace_members")
         .select("role")
@@ -114,7 +127,31 @@ serve(async (req) => {
 
       if (memberError || !membership || membership.role !== "admin") {
         return new Response(
-          JSON.stringify({ error: "Não tem permissão para subscrever este workspace." }),
+          JSON.stringify({ error: "Não tem permissão para subscrever este workspace.", code: FORBIDDEN_CODE }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Fail closed: if the owner cannot be read, no session is created.
+      const { data: workspaceRow, error: workspaceError } = await adminClient
+        .from("workspaces")
+        .select("owner_id")
+        .eq("id", workspaceId)
+        .maybeSingle();
+
+      if (workspaceError) {
+        console.error("[CREATE-CHECKOUT] Could not read the workspace owner", workspaceError.message);
+        return new Response(
+          JSON.stringify({ error: "Não foi possível verificar o dono do workspace. Tente novamente." }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // A workspace without an owner (owner_id null) has no one who can buy
+      // for it here: an administrator is refused like any non-owner.
+      if (!isWorkspaceOwner(workspaceRow?.owner_id, user.id)) {
+        return new Response(
+          JSON.stringify({ error: "Só o dono do workspace pode gerir o plano", code: NOT_WORKSPACE_OWNER_CODE }),
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }

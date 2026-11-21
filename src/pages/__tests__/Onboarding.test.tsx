@@ -5,10 +5,12 @@ import { MemoryRouter } from 'react-router-dom';
 const mocks = vi.hoisted(() => {
   const workspaceState: {
     currentWorkspace: { id: string } | null;
-    allWorkspaces: { id: string; role: string }[];
+    allWorkspaces: { id: string; role: string; owner_id?: string | null }[];
   } = { currentWorkspace: null, allWorkspaces: [] };
   const authState: {
-    subscription: { plan: string | null; status: string | null; trialEndsAt: string | null } | undefined;
+    subscription:
+      | { plan: string | null; status: string | null; trialEndsAt: string | null; trialStartedAt?: string | null }
+      | undefined;
   } = { subscription: undefined };
   const rpc = vi.fn();
   return { workspaceState, authState, rpc };
@@ -32,6 +34,9 @@ vi.mock('@/contexts/WorkspaceContext', () => ({
     allWorkspaces: mocks.workspaceState.allWorkspaces,
     isAdmin: mocks.workspaceState.allWorkspaces.some(
       (w) => w.id === mocks.workspaceState.currentWorkspace?.id && w.role === 'admin',
+    ),
+    isWorkspaceOwner: mocks.workspaceState.allWorkspaces.some(
+      (w) => w.id === mocks.workspaceState.currentWorkspace?.id && w.owner_id === 'user-1',
     ),
   }),
 }));
@@ -65,7 +70,7 @@ describe('Onboarding', () => {
 
   const withOwnWorkspace = () => {
     mocks.workspaceState.currentWorkspace = { id: 'workspace-1' };
-    mocks.workspaceState.allWorkspaces = [{ id: 'workspace-1', role: 'admin' }];
+    mocks.workspaceState.allWorkspaces = [{ id: 'workspace-1', role: 'admin', owner_id: 'user-1' }];
   };
 
   const rejectWith = (message: string) =>
@@ -73,7 +78,7 @@ describe('Onboarding', () => {
 
   it('mostra «Voltar» para a app ao criar um workspace adicional', () => {
     mocks.workspaceState.currentWorkspace = { id: 'workspace-1' };
-    mocks.workspaceState.allWorkspaces = [{ id: 'workspace-1', role: 'admin' }];
+    mocks.workspaceState.allWorkspaces = [{ id: 'workspace-1', role: 'admin', owner_id: 'user-1' }];
 
     renderAt('/onboarding?new=true');
 
@@ -98,7 +103,7 @@ describe('Onboarding', () => {
     renderAt('/onboarding');
 
     expect(screen.getByText('7 dias grátis')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Começar trial grátis/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Começar teste grátis/ })).toBeInTheDocument();
     expect(screen.getByText('Pode fazer upgrade a qualquer momento.')).toBeInTheDocument();
   });
 
@@ -108,7 +113,7 @@ describe('Onboarding', () => {
     renderAt('/onboarding?new=true');
 
     expect(screen.queryByText('7 dias grátis')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Começar trial grátis/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Começar teste grátis/ })).not.toBeInTheDocument();
     expect(screen.queryByText('Pode fazer upgrade a qualquer momento.')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Criar workspace/ })).toBeInTheDocument();
     expect(screen.getByText('Usa o plano da sua conta')).toBeInTheDocument();
@@ -173,7 +178,7 @@ describe('Onboarding', () => {
     rejectWith('TRIAL_ALREADY_USED');
 
     renderAt('/onboarding?new=true');
-    fireEvent.click(screen.getByRole('button', { name: /Começar trial grátis/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Começar teste grátis/ }));
 
     expect(await screen.findByRole('link', { name: 'Ver planos' })).toHaveAttribute('href', '/planos');
   });
@@ -195,11 +200,55 @@ describe('Onboarding', () => {
     expect(screen.queryByRole('button', { name: /Tentar/ })).not.toBeInTheDocument();
   });
 
+  it('conta com o teste já usado e sem plano ativo vê logo a explicação e os planos', () => {
+    mocks.authState.subscription = {
+      plan: 'starter',
+      status: 'trialing',
+      trialStartedAt: '2026-01-01T00:00:00Z',
+      trialEndsAt: '2026-01-08T00:00:00Z',
+    };
+
+    renderAt('/onboarding');
+
+    expect(screen.queryByText('7 dias grátis')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Sem cartão de crédito/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Começar teste grátis/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Criar workspace/ })).not.toBeInTheDocument();
+    expect(screen.getByText('O período de teste desta conta já foi usado')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Ver planos/ })).toHaveAttribute('href', '/planos');
+  });
+
+  it('teste já usado mas com plano ativo: usa o plano da conta e pode criar o workspace', () => {
+    mocks.authState.subscription = {
+      plan: 'pro',
+      status: 'active',
+      trialStartedAt: '2026-01-01T00:00:00Z',
+      trialEndsAt: '2026-01-08T00:00:00Z',
+    };
+
+    renderAt('/onboarding');
+
+    expect(screen.queryByText('O período de teste desta conta já foi usado')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Criar workspace/ })).toBeInTheDocument();
+  });
+
+  it('administrador que não é dono mantém a oferta do teste ao criar o seu workspace', () => {
+    mocks.workspaceState.currentWorkspace = { id: 'workspace-anfitriao' };
+    mocks.workspaceState.allWorkspaces = [
+      { id: 'workspace-anfitriao', owner_id: 'outro-utilizador', role: 'admin' as string },
+    ];
+
+    renderAt('/onboarding?new=true');
+
+    expect(screen.getByText('7 dias grátis')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Começar teste grátis/ })).toBeInTheDocument();
+  });
+
   it('erro TRIAL_ALREADY_USED sem workspace mostra a mensagem e a página pública de planos', async () => {
     rejectWith('P0001: TRIAL_ALREADY_USED');
 
     renderAt('/onboarding');
-    fireEvent.click(screen.getByRole('button', { name: /Começar trial grátis/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Começar teste grátis/ }));
 
     expect(
       await screen.findByText(/O período de teste desta conta já foi usado/),
@@ -212,7 +261,7 @@ describe('Onboarding', () => {
     rejectWith('Falha inesperada');
 
     renderAt('/onboarding');
-    fireEvent.click(screen.getByRole('button', { name: /Começar trial grátis/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Começar teste grátis/ }));
 
     expect(await screen.findByText('Falha inesperada')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Tentar/ })).toBeInTheDocument();

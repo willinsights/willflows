@@ -16,7 +16,6 @@ import {
   shouldInvoiceFailureMarkPastDue,
   shouldInvoicePaidActivate,
   type WorkspaceBillingRow,
-  type WorkspaceMemberRow,
 } from "../_shared/stripe-billing.ts";
 
 const corsHeaders = {
@@ -74,9 +73,9 @@ const logDecision = (step: string, details?: any) => {
 };
 
 // The plan belongs to the ACCOUNT (user_subscriptions). Copy plan/status from
-// the account to the workspaces this user owns. There is no owner column:
-// a workspace is only updated when it has exactly one active admin and it is
-// this user. Workspaces with several active admins are left alone and logged.
+// the account to the workspaces this user OWNS (workspaces.owner_id = user).
+// Other administrators of a workspace are not its owner: their plan is never
+// copied to it. A workspace without an owner is left alone and logged.
 // A workspace that is active without a Stripe subscription is a manual grant
 // and is never touched.
 // Errors are logged and never interrupt the webhook.
@@ -98,84 +97,82 @@ const propagateAccountPlan = async (supabaseAdmin: any, userId: string): Promise
       return;
     }
 
-    const { data: ownMemberships, error: ownError } = await supabaseAdmin
+    // Workspaces owned by this account, with their current billing columns
+    // (to recognise manual grants). A failed read propagates nothing.
+    const { data: ownedRows, error: ownedError } = await supabaseAdmin
+      .from('workspaces')
+      .select('id, owner_id, subscription_status, stripe_subscription_id')
+      .eq('owner_id', userId);
+
+    if (ownedError || !ownedRows) {
+      logDecision("Propagation skipped: could not read owned workspaces", {
+        userId,
+        error: ownedError?.message,
+      });
+      return;
+    }
+
+    // Diagnostic only: workspaces this user administers that have NO owner.
+    // They are never written; they are logged so the owner can be set by hand.
+    // A failure here does not stop the propagation to the owned workspaces.
+    let ownerlessRows: WorkspaceBillingRow[] = [];
+    const { data: adminMemberships, error: adminError } = await supabaseAdmin
       .from('workspace_members')
       .select('workspace_id')
       .eq('user_id', userId)
       .eq('role', 'admin')
       .eq('is_active', true);
 
-    if (ownError) {
-      logDecision("Propagation skipped: could not read memberships", { userId, error: ownError.message });
-      return;
-    }
-
-    const candidateIds: string[] = Array.from(
-      new Set<string>((ownMemberships ?? []).map((m: { workspace_id: string }) => m.workspace_id)),
-    );
-    if (candidateIds.length === 0) {
-      logStep("Propagation: user is not an active admin of any workspace", { userId });
-      return;
-    }
-
-    // Count active admins per workspace. One small query per workspace so a
-    // row cap can never hide a second admin; a failed read skips the workspace.
-    const adminRows: WorkspaceMemberRow[] = [];
-    for (const workspaceId of candidateIds) {
-      const { data: admins, error: adminsError } = await supabaseAdmin
-        .from('workspace_members')
-        .select('workspace_id, user_id, role, is_active')
-        .eq('workspace_id', workspaceId)
-        .eq('role', 'admin')
-        .eq('is_active', true);
-
-      if (adminsError || !admins) {
-        logDecision("Propagation skipped for workspace: could not count admins", {
-          workspaceId,
-          error: adminsError?.message,
-        });
-        continue;
-      }
-      adminRows.push(...(admins as WorkspaceMemberRow[]));
-    }
-
-    // Current billing columns of the candidates, to recognise manual grants.
-    // A failed read propagates nothing (fail closed).
-    const { data: billingRows, error: billingError } = await supabaseAdmin
-      .from('workspaces')
-      .select('id, subscription_status, stripe_subscription_id')
-      .in('id', candidateIds);
-
-    if (billingError || !billingRows) {
-      logDecision("Propagation skipped: could not read workspaces", {
+    if (adminError) {
+      logDecision("Propagation: could not check for workspaces without owner", {
         userId,
-        error: billingError?.message,
+        error: adminError.message,
       });
-      return;
+    } else {
+      const administeredIds: string[] = Array.from(
+        new Set<string>((adminMemberships ?? []).map((m: { workspace_id: string }) => m.workspace_id)),
+      );
+      if (administeredIds.length > 0) {
+        const { data: noOwnerRows, error: noOwnerError } = await supabaseAdmin
+          .from('workspaces')
+          .select('id, owner_id, subscription_status, stripe_subscription_id')
+          .in('id', administeredIds)
+          .is('owner_id', null);
+
+        if (noOwnerError) {
+          logDecision("Propagation: could not check for workspaces without owner", {
+            userId,
+            error: noOwnerError.message,
+          });
+        } else {
+          ownerlessRows = (noOwnerRows ?? []) as WorkspaceBillingRow[];
+        }
+      }
     }
 
-    const { propagate, skipped, manual, unreadable } = selectWorkspacesForPropagation(
+    // The pure rule checks owner_id again on every row: a row that is not
+    // owned by this user is never selected, whatever the query returned.
+    const { propagate, notOwner, ownerless, manual } = selectWorkspacesForPropagation(
       userId,
-      adminRows,
-      billingRows as WorkspaceBillingRow[],
+      [...(ownedRows as WorkspaceBillingRow[]), ...ownerlessRows],
     );
 
-    if (skipped.length > 0) {
-      logDecision("Propagation skipped: workspaces with several active admins", {
+    if (ownerless.length > 0) {
+      logDecision("Propagation skipped: workspaces without owner", {
         userId,
-        workspaceIds: skipped,
+        workspaceIds: ownerless,
+      });
+    }
+    if (notOwner.length > 0) {
+      logDecision("Propagation skipped: workspaces owned by another account", {
+        userId,
+        workspaceIds: notOwner,
       });
     }
     if (manual.length > 0) {
       logDecision("Propagation skipped: manually granted workspaces", {
         userId,
         workspaceIds: manual,
-      });
-    }
-    if (unreadable.length > 0) {
-      logDecision("Propagation skipped: workspace billing state not readable", {
-        userId,
-        workspaceIds: unreadable,
       });
     }
 
@@ -191,7 +188,8 @@ const propagateAccountPlan = async (supabaseAdmin: any, userId: string): Promise
       const { error: updateError } = await supabaseAdmin
         .from('workspaces')
         .update(patch)
-        .eq('id', workspaceId);
+        .eq('id', workspaceId)
+        .eq('owner_id', userId);
 
       if (updateError) {
         logDecision("Propagation failed for workspace", { workspaceId, error: updateError.message });
@@ -201,7 +199,7 @@ const propagateAccountPlan = async (supabaseAdmin: any, userId: string): Promise
     logStep("Account plan propagated", {
       userId,
       workspaces: propagate.length,
-      skipped: skipped.length,
+      ownerless: ownerless.length,
       manual: manual.length,
     });
   } catch (err: unknown) {

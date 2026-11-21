@@ -31,13 +31,13 @@ export interface WorkspaceSubscriptionState {
   isWorkspaceExpired: boolean;
   
   // User's role and permissions in this workspace
-  isOwner: boolean; // true if role === 'admin'
-  isAdmin: boolean; // same as isOwner (alias)
+  isOwner: boolean; // true if the user is the workspace owner (workspaces.owner_id)
+  isAdmin: boolean; // true if role === 'admin' (administers, may not be the owner)
   canEdit: boolean;
   
   // Visibility flags - determines what UI to show
   shouldShowTrialUI: boolean; // Only show trial UI if user is owner
-  canManageSubscription: boolean; // Only admins can manage billing
+  canManageSubscription: boolean; // Only the owner can buy/manage the plan
   
   // Super Admin flag - has full access to everything
   isSuperAdmin: boolean;
@@ -64,6 +64,7 @@ export function useWorkspaceSubscription(): WorkspaceSubscriptionState {
     membership, 
     loading, 
     isAdmin,
+    isWorkspaceOwner,
     canEdit,
   } = useWorkspace();
   const { isSuperAdmin } = useSuperAdmin();
@@ -114,7 +115,9 @@ export function useWorkspaceSubscription(): WorkspaceSubscriptionState {
         trialDaysRemaining = 7;
       }
     }
-    const isUserOwner = isAdmin; // In our system, 'admin' role = owner
+    // Owner = first administrator (workspaces.owner_id). Other admins
+    // administer the workspace but do not buy or manage its plan.
+    const isUserOwner = isWorkspaceOwner === true;
     
     // Get plan limits based on the workspace's plan
     const limits = getPlanLimits(plan);
@@ -149,18 +152,18 @@ export function useWorkspaceSubscription(): WorkspaceSubscriptionState {
       trialExpired: isTrialExpired,
       isWorkspaceExpired,
       isOwner: isUserOwner,
-      isAdmin: isUserOwner,
+      isAdmin,
       canEdit,
       // Only show trial UI to workspace owners, NEVER for Super Admins
       shouldShowTrialUI: isUserOwner && isTrial && !isSuperAdmin,
-      // Only admins can manage billing
+      // Only the owner can manage billing
       canManageSubscription: isUserOwner,
       isSuperAdmin,
       loading,
       workspaceId: workspace.id,
       workspaceName: workspace.name,
     };
-  }, [workspace, membership, loading, isAdmin, canEdit, isSuperAdmin]);
+  }, [workspace, membership, loading, isAdmin, isWorkspaceOwner, canEdit, isSuperAdmin]);
 }
 
 /**

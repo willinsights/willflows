@@ -9,7 +9,7 @@ const state = vi.hoisted(() => ({
   },
 }));
 vi.mock('@/contexts/WorkspaceContext', () => ({ useWorkspace: () => ({
-  workspace: state.workspace, membership: { role: 'admin' }, loading: false, isAdmin: true, canEdit: true,
+  workspace: state.workspace, membership: { role: 'admin' }, loading: false, isAdmin: true, isWorkspaceOwner: true, canEdit: true,
 }) }));
 vi.mock('../useSuperAdmin', () => ({ useSuperAdmin: () => ({ isSuperAdmin: false }) }));
 

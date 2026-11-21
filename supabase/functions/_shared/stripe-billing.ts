@@ -107,6 +107,22 @@ export const PLAN_CHECKOUT_KIND = 'plan';
 // Error code returned (HTTP 409) when the account already has a plan.
 export const ALREADY_SUBSCRIBED_CODE = 'ALREADY_SUBSCRIBED';
 
+// Error codes returned with HTTP 403 by the plan checkout.
+export const EMAIL_NOT_CONFIRMED_CODE = 'EMAIL_NOT_CONFIRMED';
+export const FORBIDDEN_CODE = 'FORBIDDEN';
+// The caller administers the workspace but is not its owner.
+export const NOT_WORKSPACE_OWNER_CODE = 'NOT_WORKSPACE_OWNER';
+
+// The owner of a workspace is its FIRST administrator (workspaces.owner_id).
+// Other administrators administer it but do not buy or manage its plan.
+// A workspace without an owner has no owner: nobody matches.
+export function isWorkspaceOwner(
+  ownerId: string | null | undefined,
+  userId: string | null | undefined,
+): boolean {
+  return typeof ownerId === 'string' && !!ownerId && !!userId && ownerId === userId;
+}
+
 // Minimal row for an account that has none yet: the same pair a new account
 // gets on signup. Never a paid plan; trial dates are left to the database.
 export const NEW_ACCOUNT_PLAN = 'essencial';
@@ -348,29 +364,24 @@ export function shouldInvoiceFailureMarkPastDue(input: InvoiceDecisionInput): bo
       input.storedStatus === 'past_due');
 }
 
-export interface WorkspaceMemberRow {
-  workspace_id: string;
-  user_id: string;
-  role: string;
-  is_active: boolean | null;
-}
-
-// Current billing columns of a candidate workspace.
+// Current owner and billing columns of a candidate workspace.
 export interface WorkspaceBillingRow {
   id: string;
+  // First administrator of the workspace. Null = workspace without an owner.
+  owner_id: string | null;
   subscription_status: string | null;
   stripe_subscription_id: string | null;
 }
 
 export interface PropagationSelection {
-  // Workspaces whose only active admin is this user.
+  // Workspaces owned by this user: the account plan is copied to them.
   propagate: string[];
-  // Workspaces where the user is an active admin among several: left alone.
-  skipped: string[];
+  // Workspaces owned by someone else (the user may administer them): left alone.
+  notOwner: string[];
+  // Workspaces without an owner: left alone and logged.
+  ownerless: string[];
   // Manual grants (active without a Stripe subscription): never touched.
   manual: string[];
-  // Workspaces whose current billing columns were not supplied: left alone.
-  unreadable: string[];
 }
 
 // A plan granted by hand: active with no Stripe subscription behind it.
@@ -380,55 +391,34 @@ export function isManualGrant(
   return workspace.subscription_status === 'active' && !workspace.stripe_subscription_id;
 }
 
-// There is no owner column: "owner" = active admin. The plan is only copied
-// to a workspace when it has EXACTLY ONE active admin and it is this user.
-// `members` should hold the member rows of the candidate workspaces; rows
-// that are not active admins are ignored here. `workspaces` holds the current
-// billing columns of the candidates: a manual grant is never selected, and a
-// workspace without a row here is not selected either (fail closed).
+// The plan of an account is copied only to the workspaces that account OWNS
+// (workspaces.owner_id = the user). Other administrators administer the
+// workspace but are not its owner: their plan is never copied to it.
+// `workspaces` holds the rows that were read; a workspace that is not in the
+// list is never selected (fail closed). A manual grant is never selected.
 export function selectWorkspacesForPropagation(
   userId: string,
-  members: WorkspaceMemberRow[],
   workspaces: WorkspaceBillingRow[],
 ): PropagationSelection {
-  const adminsByWorkspace = new Map<string, Set<string>>();
-
-  for (const m of members ?? []) {
-    if (!m || !m.workspace_id || !m.user_id) continue;
-    if (m.role !== 'admin' || m.is_active !== true) continue;
-    let admins = adminsByWorkspace.get(m.workspace_id);
-    if (!admins) {
-      admins = new Set<string>();
-      adminsByWorkspace.set(m.workspace_id, admins);
-    }
-    admins.add(m.user_id);
-  }
-
-  const billingByWorkspace = new Map<string, WorkspaceBillingRow>();
-  for (const w of workspaces ?? []) {
-    if (w && w.id) billingByWorkspace.set(w.id, w);
-  }
-
   const selection: PropagationSelection = {
     propagate: [],
-    skipped: [],
+    notOwner: [],
+    ownerless: [],
     manual: [],
-    unreadable: [],
   };
 
   if (!userId) return selection;
 
-  adminsByWorkspace.forEach((admins, workspaceId) => {
-    if (!admins.has(userId)) return;
-    if (admins.size !== 1) {
-      selection.skipped.push(workspaceId);
-      return;
-    }
-    const billing = billingByWorkspace.get(workspaceId);
-    if (!billing) selection.unreadable.push(workspaceId);
-    else if (isManualGrant(billing)) selection.manual.push(workspaceId);
-    else selection.propagate.push(workspaceId);
-  });
+  const seen = new Set<string>();
+  for (const w of workspaces ?? []) {
+    if (!w || !w.id || seen.has(w.id)) continue;
+    seen.add(w.id);
+
+    if (!w.owner_id) selection.ownerless.push(w.id);
+    else if (w.owner_id !== userId) selection.notOwner.push(w.id);
+    else if (isManualGrant(w)) selection.manual.push(w.id);
+    else selection.propagate.push(w.id);
+  }
 
   return selection;
 }

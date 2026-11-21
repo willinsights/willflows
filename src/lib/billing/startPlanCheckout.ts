@@ -5,14 +5,15 @@ import { logger } from '@/lib/logger';
  * Ponto único de compra de plano e de abertura do portal de faturação.
  *
  * O plano pertence à conta. Sem `workspaceId` a compra é feita para a conta;
- * com `workspaceId` o servidor exige que quem compra seja administrador ativo
- * desse workspace. O servidor é a autoridade: aqui só se classifica a resposta.
+ * com `workspaceId` o servidor exige que quem compra seja o dono desse
+ * workspace (o primeiro administrador). O servidor é a autoridade: aqui só se classifica a resposta.
  */
 
 export type CheckoutFailure =
   | 'already_subscribed'
   | 'email_not_confirmed'
   | 'forbidden'
+  | 'not_workspace_owner'
   | 'error';
 
 export type CheckoutOutcome = 'redirected' | CheckoutFailure;
@@ -36,12 +37,17 @@ export interface StartPlanCheckoutParams {
 }
 
 export const ALREADY_SUBSCRIBED_CODE = 'ALREADY_SUBSCRIBED';
+export const EMAIL_NOT_CONFIRMED_CODE = 'EMAIL_NOT_CONFIRMED';
+export const FORBIDDEN_CODE = 'FORBIDDEN';
+export const NOT_WORKSPACE_OWNER_CODE = 'NOT_WORKSPACE_OWNER';
 
 export const CHECKOUT_MESSAGES: Record<CheckoutFailure, string> = {
   already_subscribed:
     'Esta conta já tem um plano. Para mudar de plano ou atualizar o pagamento, use a gestão de subscrição.',
   email_not_confirmed: 'Confirme o seu email antes de subscrever um plano.',
   forbidden: 'Não tem permissão para subscrever um plano para este workspace.',
+  not_workspace_owner:
+    'Só o dono do workspace pode gerir o plano. Contacte o dono deste workspace para alterar o plano.',
   error: 'Não foi possível iniciar o pagamento. Tente novamente.',
 };
 
@@ -67,6 +73,11 @@ export function classifyCheckoutFailure(httpStatus: number | null, body: unknown
   if (httpStatus === 409 || code === ALREADY_SUBSCRIBED_CODE || error === ALREADY_SUBSCRIBED_CODE) {
     return 'already_subscribed';
   }
+  // O código da recusa é a referência; o texto fica como recurso para
+  // respostas de versões do servidor que ainda não enviam `code`.
+  if (code === NOT_WORKSPACE_OWNER_CODE) return 'not_workspace_owner';
+  if (code === EMAIL_NOT_CONFIRMED_CODE) return 'email_not_confirmed';
+  if (code === FORBIDDEN_CODE) return 'forbidden';
   if (httpStatus === 403) {
     return /e-?mail/i.test(error) ? 'email_not_confirmed' : 'forbidden';
   }

@@ -114,7 +114,7 @@ function getFeatureValue(planId: PlanId, featureKey: string): string | boolean {
 
 export default function PlanosComparar() {
   const { user } = useAuth();
-  const { currentWorkspace, isAdmin } = useWorkspace();
+  const { currentWorkspace, isWorkspaceOwner } = useWorkspace();
   const { checkout } = usePlanCheckout();
   const navigate = useNavigate();
 
@@ -126,19 +126,22 @@ export default function PlanosComparar() {
   const interval = isAnnual ? 'yearly' : 'monthly';
   const currencySymbol = getCurrencySymbol(currency);
 
+  // Com sessão iniciada os botões cobram de imediato: nada de «7 dias grátis».
+  const billingNote = isAnnual ? 'Subscrição anual' : 'Subscrição mensal';
+
   const handleSelectPlan = async (planId: PlanId) => {
     if (!user) {
       navigate(`/auth?plan=${planId}&currency=${currency}&interval=${interval}`);
       return;
     }
 
-    // O plano pertence à conta. Só o administrador do workspace atual compra
-    // «para o workspace»; sem workspace, ou como convidado, a compra é para a conta.
+    // O plano pertence à conta. Só o DONO do workspace atual compra
+    // «para o workspace»; sem workspace, ou sem ser o dono, a compra é para a conta.
     setLoadingPlan(planId);
     try {
       await checkout({
         priceId: getPriceId(planId, currency, interval),
-        workspaceId: currentWorkspace && isAdmin ? currentWorkspace.id : undefined,
+        workspaceId: currentWorkspace && isWorkspaceOwner ? currentWorkspace.id : undefined,
       });
     } finally {
       setLoadingPlan(null);
@@ -386,7 +389,7 @@ export default function PlanosComparar() {
             viewport={{ once: true }}
             className="text-center text-sm text-muted-foreground mt-8"
           >
-            <strong>7 dias grátis · Sem cartão</strong>.
+            <strong>{user ? billingNote : '7 dias grátis · Sem cartão'}</strong>.
             Cancele a qualquer momento sem compromisso.
           </motion.p>
         </div>

@@ -21,7 +21,6 @@ import {
   shouldInvoiceFailureMarkPastDue,
   shouldInvoicePaidActivate,
   type WorkspaceBillingRow,
-  type WorkspaceMemberRow,
 } from '../../supabase/functions/_shared/stripe-billing.ts';
 
 const GB = 1024 * 1024 * 1024;
@@ -487,138 +486,111 @@ describe('customers found by email', () => {
 });
 
 describe('selectWorkspacesForPropagation', () => {
-  const member = (
-    workspace_id: string,
-    user_id: string,
-    role = 'admin',
-    is_active: boolean | null = true,
-  ): WorkspaceMemberRow => ({ workspace_id, user_id, role, is_active });
-
   const ws = (
     id: string,
+    owner_id: string | null = 'u-1',
     subscription_status: string | null = 'trialing',
     stripe_subscription_id: string | null = null,
-  ): WorkspaceBillingRow => ({ id, subscription_status, stripe_subscription_id });
+  ): WorkspaceBillingRow => ({ id, owner_id, subscription_status, stripe_subscription_id });
 
-  const all = [ws('w-1'), ws('w-2'), ws('w-3'), ws('w-4'), ws('w-9')];
-  const none = { propagate: [], skipped: [], manual: [], unreadable: [] };
+  const none = { propagate: [], notOwner: [], ownerless: [], manual: [] };
 
-  it('selects a workspace whose only active admin is the user', () => {
-    expect(
-      selectWorkspacesForPropagation(
-        'u-1',
-        [member('w-1', 'u-1'), member('w-1', 'u-2', 'editor')],
-        all,
-      ),
-    ).toEqual({ ...none, propagate: ['w-1'] });
+  it('selects a workspace owned by the user', () => {
+    expect(selectWorkspacesForPropagation('u-1', [ws('w-1')])).toEqual({
+      ...none,
+      propagate: ['w-1'],
+    });
   });
 
-  it('skips a workspace with two active admins', () => {
-    expect(
-      selectWorkspacesForPropagation('u-1', [member('w-1', 'u-1'), member('w-1', 'u-2')], all),
-    ).toEqual({ ...none, skipped: ['w-1'] });
+  it('propagates for the owner whatever the number of other administrators', () => {
+    // The selection only looks at owner_id: other admins of the workspace do
+    // not appear in the input and cannot block the owner.
+    expect(selectWorkspacesForPropagation('u-1', [ws('w-1'), ws('w-2')])).toEqual({
+      ...none,
+      propagate: ['w-1', 'w-2'],
+    });
   });
 
-  it('does not count an inactive admin', () => {
-    expect(
-      selectWorkspacesForPropagation(
-        'u-1',
-        [
-          member('w-1', 'u-1'),
-          member('w-1', 'u-2', 'admin', false),
-          member('w-1', 'u-3', 'admin', null),
-        ],
-        all,
-      ),
-    ).toEqual({ ...none, propagate: ['w-1'] });
+  it('never selects a workspace owned by someone else (admin who is not the owner)', () => {
+    expect(selectWorkspacesForPropagation('u-2', [ws('w-1', 'u-1')])).toEqual({
+      ...none,
+      notOwner: ['w-1'],
+    });
   });
 
-  it('selects nothing when the user is an inactive admin', () => {
-    expect(
-      selectWorkspacesForPropagation('u-1', [member('w-1', 'u-1', 'admin', false)], all),
-    ).toEqual(none);
+  it('never selects a workspace without an owner and reports it', () => {
+    expect(selectWorkspacesForPropagation('u-1', [ws('w-1', null)])).toEqual({
+      ...none,
+      ownerless: ['w-1'],
+    });
+    expect(selectWorkspacesForPropagation('u-1', [ws('w-1', '')])).toEqual({
+      ...none,
+      ownerless: ['w-1'],
+    });
   });
 
-  it('selects nothing when the user is only a member', () => {
-    expect(
-      selectWorkspacesForPropagation(
-        'u-1',
-        [member('w-1', 'u-1', 'editor'), member('w-1', 'u-2'), member('w-2', 'u-1', 'viewer')],
-        all,
-      ),
-    ).toEqual(none);
-  });
-
-  it('never selects a workspace administered only by someone else', () => {
-    expect(selectWorkspacesForPropagation('u-1', [member('w-9', 'u-2')], all)).toEqual(none);
+  it('a workspace without an owner is not selected even as a manual grant candidate', () => {
+    expect(selectWorkspacesForPropagation('u-1', [ws('w-1', null, 'active', null)])).toEqual({
+      ...none,
+      ownerless: ['w-1'],
+    });
   });
 
   it('decides each workspace independently and ignores duplicate rows', () => {
     expect(
-      selectWorkspacesForPropagation(
-        'u-1',
-        [
-          member('w-1', 'u-1'),
-          member('w-1', 'u-1'),
-          member('w-2', 'u-1'),
-          member('w-2', 'u-2'),
-          member('w-3', 'u-1'),
-          member('w-4', 'u-2'),
-        ],
-        all,
-      ),
-    ).toEqual({ ...none, propagate: ['w-1', 'w-3'], skipped: ['w-2'] });
+      selectWorkspacesForPropagation('u-1', [
+        ws('w-1'),
+        ws('w-1'),
+        ws('w-2', 'u-2'),
+        ws('w-3'),
+        ws('w-4', null),
+      ]),
+    ).toEqual({ ...none, propagate: ['w-1', 'w-3'], notOwner: ['w-2'], ownerless: ['w-4'] });
   });
 
   it('selects nothing without a user or without rows', () => {
-    expect(selectWorkspacesForPropagation('', [member('w-1', '')], all)).toEqual(none);
-    expect(selectWorkspacesForPropagation('u-1', [], all)).toEqual(none);
+    expect(selectWorkspacesForPropagation('', [ws('w-1', '')])).toEqual(none);
+    expect(selectWorkspacesForPropagation('', [ws('w-1')])).toEqual(none);
+    expect(selectWorkspacesForPropagation('u-1', [])).toEqual(none);
   });
 
   it('leaves a manual grant alone: active without a Stripe subscription', () => {
-    expect(
-      selectWorkspacesForPropagation('u-1', [member('w-1', 'u-1')], [ws('w-1', 'active', null)]),
-    ).toEqual({ ...none, manual: ['w-1'] });
-    expect(
-      selectWorkspacesForPropagation('u-1', [member('w-1', 'u-1')], [ws('w-1', 'active', '')]),
-    ).toEqual({ ...none, manual: ['w-1'] });
+    expect(selectWorkspacesForPropagation('u-1', [ws('w-1', 'u-1', 'active', null)])).toEqual({
+      ...none,
+      manual: ['w-1'],
+    });
+    expect(selectWorkspacesForPropagation('u-1', [ws('w-1', 'u-1', 'active', '')])).toEqual({
+      ...none,
+      manual: ['w-1'],
+    });
   });
 
   it('propagates to an active workspace that has a Stripe subscription', () => {
-    expect(
-      selectWorkspacesForPropagation('u-1', [member('w-1', 'u-1')], [ws('w-1', 'active', 'sub_1')]),
-    ).toEqual({ ...none, propagate: ['w-1'] });
+    expect(selectWorkspacesForPropagation('u-1', [ws('w-1', 'u-1', 'active', 'sub_1')])).toEqual({
+      ...none,
+      propagate: ['w-1'],
+    });
   });
 
   it('propagates to trialing, canceled and past_due workspaces with or without an id', () => {
     for (const status of ['trialing', 'canceled', 'past_due', null]) {
       for (const subscriptionId of [null, 'sub_1']) {
         expect(
-          selectWorkspacesForPropagation(
-            'u-1',
-            [member('w-1', 'u-1')],
-            [ws('w-1', status, subscriptionId)],
-          ),
+          selectWorkspacesForPropagation('u-1', [ws('w-1', 'u-1', status, subscriptionId)]),
         ).toEqual({ ...none, propagate: ['w-1'] });
       }
     }
   });
 
-  it('reports several admins before the manual grant and mixes outcomes', () => {
+  it('mixes outcomes: owner, manual grant, other owner and no owner', () => {
     expect(
-      selectWorkspacesForPropagation(
-        'u-1',
-        [member('w-1', 'u-1'), member('w-2', 'u-1'), member('w-2', 'u-2'), member('w-3', 'u-1')],
-        [ws('w-1', 'active', null), ws('w-2', 'active', null), ws('w-3', 'trialing', null)],
-      ),
-    ).toEqual({ ...none, propagate: ['w-3'], skipped: ['w-2'], manual: ['w-1'] });
-  });
-
-  it('does not propagate to a workspace whose billing state is unknown', () => {
-    expect(selectWorkspacesForPropagation('u-1', [member('w-1', 'u-1')], [])).toEqual({
-      ...none,
-      unreadable: ['w-1'],
-    });
+      selectWorkspacesForPropagation('u-1', [
+        ws('w-1', 'u-1', 'active', null),
+        ws('w-2', 'u-2', 'active', null),
+        ws('w-3', 'u-1', 'trialing', null),
+        ws('w-4', null, 'trialing', null),
+      ]),
+    ).toEqual({ propagate: ['w-3'], notOwner: ['w-2'], ownerless: ['w-4'], manual: ['w-1'] });
   });
 
   it('recognises a manual grant', () => {

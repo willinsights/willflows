@@ -19,6 +19,10 @@ export interface AuthContextType {
     subscriptionEnd: string | null;
     trialExpired: boolean;
     trialEndsAt: string | null;
+    /** Início do teste gratuito da conta (null se nunca começou ou desconhecido). */
+    trialStartedAt?: string | null;
+    /** A conta tem subscrição Stripe guardada; `undefined` = desconhecido. */
+    hasStripeSubscription?: boolean;
     loading: boolean;
   };
 }
