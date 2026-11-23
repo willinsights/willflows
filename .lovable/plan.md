@@ -1,18 +1,15 @@
-# Capacidades operacionais para fechar os PRs #1 e #2 (só verificação)
+# Valores nos 95 cartões «Em espera 😒» (In-Sights)
 
-## O que posso executar nesta sessão
+## O que muda
+Em cada um dos 95 cartões que estão agora na coluna «Em espera 😒» do In-Sights:
+- **Preço do cliente:** 48€
+- **Edição:** 30€, atribuída a **wilker oliveira**
+- **Lucro resultante:** 18€ (48 − 30; calculado automaticamente, não é gravado à parte)
 
-| Necessidade | Posso executar? | Detalhe |
-|---|---|---|
-| Criar uma credencial aleatória só para `webhook-retry-worker` nos segredos das funções, sem mostrar o valor | Sim | A ferramenta de gerar segredos cria e guarda um valor aleatório que nunca é mostrado. Só aceita nomes novos e não substitui um segredo existente. |
-| Pôr o mesmo valor também no Vault da base de dados | Não, de forma segura | Não tenho nenhuma ferramenta que copie um segredo das funções para o Vault. Para o fazer, o valor teria de aparecer numa instrução SQL, o que o exporia. Gerar um segundo valor diretamente na base de dados dá uma credencial diferente, que não coincide com a primeira. |
-| Destino privado e separado para restaurar a exportação | Não | Não consigo restaurar uma exportação num projeto separado; isso tem de ser feito por ti, num projeto teu. Consigo criar um rascunho com backend próprio, mas começa vazio, sem os dados da exportação. |
-| R2 e Stream exclusivos de teste | Não | Não tenho forma de criar contas, buckets ou credenciais da Cloudflare. Seria necessário que tu os criasses e guardasses as credenciais em Project Settings → Secrets. |
+Só estes 95 cartões; cartões que entrem depois na coluna não são afetados. Nenhum ficheiro da app é alterado.
 
-## Consequência para os PRs
-
-- PR com credencial do worker: falta uma forma suportada de partilhar o mesmo valor entre as funções e o Vault. Alternativa sem exposição: a função passa a validar uma credencial gerida que a própria plataforma já fornece aos agendamentos, em vez do Vault. Esta alternativa exige outra aprovação.
-- PR com teste de restauro/vídeo: depende de um destino e de credenciais de teste fornecidos pelo proprietário.
-
-## Nesta etapa
-Não faço nada: não edito ficheiros, não implanto, não gero segredos nem leio valores.
+## Detalhes técnicos
+- `projects.agreed_value = 48` para os projetos com `workspace_id = 6ee9555c-…` e `edicao_column_id = 37038877-…` (lista de IDs fixada antes da escrita).
+- Inserir em `project_team` uma linha por projeto: `user_id = 697806bf-89b2-4ad6-af64-eaf0796a34c4`, `phase = 'edicao'`, `cost_amount = 30`, `payment_amount = 30`, `payment_status = 'pendente'`. O trigger `sync_project_people_costs` atualiza `custo_edicao = 30`.
+- Se algum cartão estiver num mês fechado, o servidor recusa; nesse caso informo quais.
+- Verificação final: 95 cartões com `agreed_value = 48`, `custo_edicao = 30` e lucro 18 em `v_project_profit`.
