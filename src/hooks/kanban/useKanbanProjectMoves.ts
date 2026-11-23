@@ -1,5 +1,6 @@
 import { transferToEditing } from '@/lib/kanban/transferToEditing';
-import { useState, useCallback } from 'react';
+import { createElement, useState, useCallback } from 'react';
+import { ToastAction, type ToastActionElement } from '@/components/ui/toast';
 import { supabase } from '@/integrations/supabase/client';
 import type { TablesUpdate } from '@/integrations/supabase/types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -57,7 +58,11 @@ export function useKanbanProjectMoves({ phase, columns, setColumns, fetchColumns
   const clearPendingAlert = useCallback(() => setPendingAlert(initialPendingAlert), []);
   const clearPendingDelivery = useCallback(() => setPendingDelivery(initialPendingDelivery), []);
 
-  const moveProject = async (projectId: string, targetColumnId: string) => {
+  /**
+   * `undoFrom` marks an undo of a normal move: the card returns from that
+   * column and no further undo is offered (F1c).
+   */
+  const moveProject = async (projectId: string, targetColumnId: string, options?: { undoFrom?: string }) => {
     if (!currentWorkspace) return;
 
     const columnField = phase === 'captacao' ? 'captacao_column_id' : 'edicao_column_id';
@@ -65,7 +70,9 @@ export function useKanbanProjectMoves({ phase, columns, setColumns, fetchColumns
       ? { captacao_column_id: targetColumnId, updated_at: new Date().toISOString() }
       : { edicao_column_id: targetColumnId, updated_at: new Date().toISOString() };
     const targetColumn = columns.find(c => c.id === targetColumnId);
-    const sourceColumn = columns.find(c => c.projects.some(p => p.id === projectId));
+    const sourceColumn = options?.undoFrom
+      ? columns.find(c => c.id === options.undoFrom)
+      : columns.find(c => c.projects.some(p => p.id === projectId));
     const project = columns.flatMap(c => c.projects).find(p => p.id === projectId);
 
     logger.debug('[moveProject]', {
@@ -242,6 +249,19 @@ export function useKanbanProjectMoves({ phase, columns, setColumns, fetchColumns
         .eq('id', projectId);
 
       if (error) throw error;
+
+      // F1c: undo only for a normal move between non-final columns
+      // (never for delivery, reopening or transfer to Editing).
+      if (!options?.undoFrom && sourceColumn && !sourceColumn.is_final && targetColumn && !targetColumn.is_final) {
+        const fromId = sourceColumn.id;
+        toast({
+          title: `Movido para ${targetColumn.name}`,
+          action: createElement(ToastAction, {
+            altText: 'Anular o movimento do card',
+            onClick: () => { void moveProject(projectId, fromId, { undoFrom: targetColumnId }); },
+          }, 'Anular') as unknown as ToastActionElement,
+        });
+      }
 
       if (currentWorkspace?.id && userId) {
         supabase.from('kanban_column_transitions').insert({
