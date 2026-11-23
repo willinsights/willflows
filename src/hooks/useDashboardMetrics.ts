@@ -218,6 +218,7 @@ export function useDashboardMetrics() {
         .from('projects')
         .select('id, name, agreed_value, client_payment_status, client_payment_due_date, delivered_at, created_at, client_id, clients(name)')
         .eq('workspace_id', workspaceId!)
+        .eq('is_delivered', true)
         .in('client_payment_status', ['pendente', 'vencido'])
         .order('client_payment_due_date', { ascending: true, nullsFirst: true })
         .limit(1000);

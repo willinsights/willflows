@@ -31,6 +31,8 @@ interface VideoPlayerProps {
   onAddComment?: (timestampSeconds: number) => void;
   onSetThumbnail?: (timestampSeconds: number) => void;
   onFixVideo?: () => void;
+  onRenewVideoUrl?: () => void;
+  renewingVideoUrl?: boolean;
   className?: string;
 }
 
@@ -76,6 +78,8 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   onAddComment,
   onSetThumbnail,
   onFixVideo,
+  onRenewVideoUrl,
+  renewingVideoUrl,
   className
 }, ref) => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -528,6 +532,11 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       {!isLoading && loadError && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 px-6 text-center gap-3">
           <p className="text-sm text-white/90">{loadError}</p>
+          {onRenewVideoUrl && (
+            <Button size="sm" variant="secondary" disabled={renewingVideoUrl} onClick={onRenewVideoUrl}>
+              {renewingVideoUrl ? 'A renovar acesso…' : 'Renovar acesso ao vídeo'}
+            </Button>
+          )}
           {onFixVideo ? (
             <Button
               size="sm"

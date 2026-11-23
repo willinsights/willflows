@@ -72,9 +72,8 @@ export default function Colaboradores() {
     transactions
       .filter((t) => t.kind === 'team')
       .forEach((t) => {
-        // detail = "Nome · Fase"
-        const name = t.detail.split(' · ')[0] || 'Colaborador';
-        const key = name;
+        const name = t.collaborator?.name ?? 'Colaborador';
+        const key = t.collaborator?.userId ?? `sem-utilizador:${t.id}`;
         if (!acc[key]) {
           acc[key] = {
             key,

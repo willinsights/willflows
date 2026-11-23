@@ -17,8 +17,9 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { motion } from 'framer-motion';
-import { Plus, Search, Loader2, Upload } from 'lucide-react';
+import { Plus, Search, Upload } from 'lucide-react';
 import { isToday, isThisWeek, isThisMonth, isPast } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -31,6 +32,8 @@ import { ChecklistPendingAlert } from '@/components/projects/ChecklistPendingAle
 import { ImportProjectsModal } from '@/components/projects/ImportProjectsModal';
 import { DeliverConfirmDialog } from './DeliverConfirmDialog';
 import { useKanban, KanbanPhase, ProjectWithClient } from '@/hooks/useKanban';
+import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useCategories } from '@/hooks/useCategories';
 
 interface KanbanBoardProps {
@@ -55,10 +58,34 @@ interface PendingAlertData {
 }
 
 export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
-  const { columns, loading, moveProject, updateColumn, addColumn, deleteColumn, reorderColumns, refresh, silentRefresh, pendingAlert, clearPendingAlert, pendingDelivery, clearPendingDelivery, confirmDelivery } = useKanban(phase);
+  const { columns, loading, loadFailed, moveProject, updateColumn, addColumn, deleteColumn, reorderColumns, refresh, silentRefresh, pendingAlert, clearPendingAlert, pendingDelivery, clearPendingDelivery, confirmDelivery } = useKanban(phase);
   const { categories } = useCategories();
   const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState<KanbanFilterState>(defaultFilters);
+  const { user } = useAuth();
+  const { currentWorkspace } = useWorkspace();
+  const filterKey = user?.id && currentWorkspace?.id
+    ? `willflow:kanban-filters:${user.id}:${currentWorkspace.id}:${phase}`
+    : null;
+  const storedFilters = useMemo(() => {
+    if (!filterKey) return defaultFilters;
+    try {
+      const saved = sessionStorage.getItem(filterKey);
+      return saved ? { ...defaultFilters, ...JSON.parse(saved) } as KanbanFilterState : defaultFilters;
+    } catch {
+      return defaultFilters;
+    }
+  }, [filterKey]);
+  const [filterOverride, setFilterOverride] = useState<{ key: string | null; value: KanbanFilterState }>();
+  const filters = filterOverride?.key === filterKey ? filterOverride.value : storedFilters;
+  const setFilters = (value: KanbanFilterState) => {
+    setFilterOverride({ key: filterKey, value });
+    if (!filterKey) return;
+    try {
+      sessionStorage.setItem(filterKey, JSON.stringify(value));
+    } catch {
+      // Filters remain usable for this visit if browser storage is unavailable.
+    }
+  };
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
@@ -292,8 +319,23 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+      <div role="status" aria-label="A carregar Kanban" className="flex gap-3 overflow-hidden p-3">
+        {[0, 1, 2].map((column) => (
+          <div key={column} className="w-64 shrink-0 space-y-3 rounded-lg border p-3">
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (loadFailed) {
+    return (
+      <div role="alert" className="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
+        <p>Não foi possível carregar o Kanban.</p>
+        <Button variant="outline" onClick={() => void refresh()}>Tentar novamente</Button>
       </div>
     );
   }

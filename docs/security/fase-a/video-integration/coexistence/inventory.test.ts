@@ -3,7 +3,7 @@ import {inventory} from '../../../../../supabase/functions/private-video/invento
 const ws='11111111-1111-4111-8111-111111111111';
 function fixture(admin:boolean){
  const fetch=vi.fn();const stream=vi.fn();
- const db={auth:{getUser:async()=>({data:{user:{id:ws}},error:null})},rpc:vi.fn(async()=>({data:admin,error:null})),from:vi.fn(()=>{throw Error('No access without authorization');})};
+ const db={auth:{getClaims:async()=>({data:{claims:{sub:ws,role:'authenticated'}},error:null})},rpc:vi.fn(async()=>({data:admin,error:null})),from:vi.fn(()=>{throw Error('No access without authorization');})};
  const req=new Request('http://localhost/fixture',{method:'POST',headers:{authorization:'Bearer fixture-only'}});
  return {db,req,fetch,stream};
 }

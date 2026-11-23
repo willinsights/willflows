@@ -25,6 +25,7 @@ export function useKanban(phase: import('./kanban/types').KanbanPhase) {
     columns,
     setColumns,
     loading,
+    loadFailed,
     fetchColumns,
     silentRefresh,
     markLocalUpdate,
@@ -55,6 +56,7 @@ export function useKanban(phase: import('./kanban/types').KanbanPhase) {
   return {
     columns,
     loading,
+    loadFailed,
     moveProject,
     reorderColumns,
     updateColumn,

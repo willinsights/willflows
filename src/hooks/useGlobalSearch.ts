@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -21,15 +21,17 @@ export function useGlobalSearch(query: string) {
   const [loading, setLoading] = useState(false);
   const debouncedQuery = useDebounce(query, 300);
 
-  const search = useCallback(async (searchTerm: string) => {
+  const search = useCallback(async (searchTerm: string, signal: AbortSignal) => {
     if (!currentWorkspace?.id || !searchTerm.trim()) {
       setResults([]);
+      setLoading(false);
       return;
     }
 
     const term = searchTerm.trim().toLowerCase();
     if (term.length < 2) {
       setResults([]);
+      setLoading(false);
       return;
     }
 
@@ -37,42 +39,50 @@ export function useGlobalSearch(query: string) {
 
     try {
       // Search projects, clients, and tasks in parallel
-      const [projectsRes, clientsRes, tasksRes] = await Promise.all([
+      const [projectsRes, projectCodesRes, clientsRes, tasksRes] = await Promise.all([
         supabase
           .from('projects')
-          .select('id, name, current_phase, is_delivered, clients(name)')
+          .select('id, name, project_code, current_phase, is_delivered, clients(name)')
           .eq('workspace_id', currentWorkspace.id)
           .ilike('name', `%${term}%`)
-          .limit(5),
+          .limit(5).abortSignal(signal),
+        supabase
+          .from('projects')
+          .select('id, name, project_code, current_phase, is_delivered, clients(name)')
+          .eq('workspace_id', currentWorkspace.id)
+          .ilike('project_code', `%${term}%`)
+          .limit(5).abortSignal(signal),
         supabase
           .from('clients')
           .select('id, name, company, email')
           .eq('workspace_id', currentWorkspace.id)
           .eq('is_active', true)
           .or(`name.ilike.%${term}%,company.ilike.%${term}%,email.ilike.%${term}%`)
-          .limit(5),
+          .limit(5).abortSignal(signal),
         supabase
           .from('tasks')
           .select('id, title, project_id, projects(name, current_phase, is_delivered)')
           .eq('workspace_id', currentWorkspace.id)
           .ilike('title', `%${term}%`)
-          .limit(5),
+          .limit(5).abortSignal(signal),
       ]);
+
+      if (signal.aborted) return;
 
       const searchResults: SearchResult[] = [];
 
-      // Add projects
-      if (projectsRes.data) {
-        projectsRes.data.forEach((project: any) => {
-          searchResults.push({
-            id: project.id,
-            type: 'project',
-            title: project.name,
-            subtitle: project.clients?.name || undefined,
-            meta: 'Projeto',
-            currentPhase: project.current_phase,
-            isDelivered: project.is_delivered,
-          });
+      const projects = new Map(
+        [...(projectCodesRes.data ?? []), ...(projectsRes.data ?? [])].map((project) => [project.id, project]),
+      );
+      for (const project of Array.from(projects.values()).slice(0, 5)) {
+        searchResults.push({
+          id: project.id,
+          type: 'project',
+          title: project.name,
+          subtitle: project.clients?.name || undefined,
+          meta: project.project_code || 'Projeto',
+          currentPhase: project.current_phase as SearchResult['currentPhase'],
+          isDelivered: project.is_delivered ?? undefined,
         });
       }
 
@@ -107,15 +117,19 @@ export function useGlobalSearch(query: string) {
 
       setResults(searchResults);
     } catch (error) {
+      if (signal.aborted) return;
       logger.error('Search error:', error);
       setResults([]);
     } finally {
-      setLoading(false);
+      if (!signal.aborted) setLoading(false);
     }
   }, [currentWorkspace?.id]);
 
   useEffect(() => {
-    search(debouncedQuery);
+    const controller = new AbortController();
+    setResults([]);
+    void search(debouncedQuery, controller.signal);
+    return () => controller.abort();
   }, [debouncedQuery, search]);
 
   return { results, loading, hasQuery: debouncedQuery.length >= 2 };

@@ -171,7 +171,7 @@ function getCachedWorkspace(): CachedWorkspaceData | null {
 function isCacheValid(cached: CachedWorkspaceData | null): boolean {
   if (!cached || !cached.cachedAt) return false;
   const age = Date.now() - cached.cachedAt;
-  return age < CACHE_VALID_MS;
+  return age >= 0 && age < CACHE_VALID_MS;
 }
 
 function setCachedWorkspace(userId: string, workspace: Workspace, membership: WorkspaceMember, allWorkspaces: WorkspaceWithRole[]) {
@@ -226,7 +226,7 @@ function getInitialStateFromCache(): {
       
       // VALIDAR formato (versão e dono) e role antes de usar cache: uma cache
       // antiga sem `owner_id` faria o dono passar por não-dono
-      if (isCurrentCacheFormat(data) && data.workspace && data.membership && isValidRole(data.membership.role)) {
+      if (isCurrentCacheFormat(data) && isCacheValid(data) && data.workspace && data.membership && isValidRole(data.membership.role)) {
         // Também validar roles de allWorkspaces
         const validWorkspaces = (data.allWorkspaces || []).filter(ws => isValidRole(ws.role));
         
@@ -448,6 +448,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    let retryScheduled = false;
     try {
       isFetchingRef.current = true;
       
@@ -558,6 +559,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       
       // Only retry if under max retries
       if (retryCountRef.current < MAX_RETRIES) {
+        retryScheduled = true;
         retryCountRef.current++;
         const delay = Math.pow(2, retryCountRef.current) * 1000;
         
@@ -568,7 +570,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         
         // Try to use cached data while retrying
         const cached = getCachedWorkspace();
-        if (cached) {
+        if (cached?.userId === user.id && isCacheValid(cached)) {
           setWorkspace(cached.workspace);
           setMembership(cached.membership);
           setAllWorkspaces(cached.allWorkspaces || []);
@@ -581,18 +583,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       
       // Try to use cached data on final error
       const cached = getCachedWorkspace();
-      if (cached) {
+      if (cached?.userId === user.id && isCacheValid(cached)) {
         setWorkspace(cached.workspace);
         setMembership(cached.membership);
         setAllWorkspaces(cached.allWorkspaces || []);
       }
     } finally {
       isFetchingRef.current = false;
-      setLoading(false);
+      if (!retryScheduled) setLoading(false);
     }
   }, [user, fetchError]);
 
   useEffect(() => {
+    if (authLoading) return;
     // CRITICAL: Verificar se o user do auth corresponde ao user do cache
     // Se não corresponder, precisamos limpar e fazer refetch
     const cachedUserId = initialCacheRef.current.cachedUserId;
@@ -633,7 +636,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       
       // Se temos dados do cache inicial do MESMO user, aplicar e marcar como fetched
       const initialCacheData = initialCacheRef.current;
-      if (initialCacheData.hasValidCache && initialCacheData.cachedUserId === user.id && !hasFetchedRef.current) {
+      if (cacheIsValid && initialCacheData.hasValidCache && initialCacheData.cachedUserId === user.id && !hasFetchedRef.current) {
         // Aplicar dados do cache inicial agora que confirmamos o user
         setWorkspace(initialCacheData.workspace);
         setMembership(initialCacheData.membership);
@@ -644,15 +647,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       }
       
       // Only use fresh cache if it belongs to the current user
-      if (cached && cached.userId === user.id && !hasFetchedRef.current) {
+      if (cached && cacheIsValid && !hasFetchedRef.current) {
         setWorkspace(cached.workspace);
         setMembership(cached.membership);
         setAllWorkspaces(cached.allWorkspaces || []);
         setLoading(false);
-        
-        if (cacheIsValid) {
-          hasFetchedRef.current = true;
-        }
+        hasFetchedRef.current = true;
       }
       
       // Fetch se: não temos cache válido OU cache expirou
@@ -664,12 +664,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setWorkspace(null);
       setMembership(null);
       setAllWorkspaces([]);
-      // Enquanto a sessão ainda está a ser lida não se dá o carregamento por
-      // concluído: sem cache aplicável, a leitura ao servidor que se segue não
-      // pode passar por «conta sem workspaces» (ecrã de onboarding por instantes).
-      if (!authLoading) {
-        setLoading(false);
-      }
+      setLoading(false);
       clearCachedWorkspace();
       // Note: We intentionally do NOT clear lastWorkspaceId here
       // Each user has their own key, so it persists across logout/login
