@@ -12,7 +12,7 @@ Decisão do proprietário de 23/11/2026: os vídeos servem só para aprovação 
 4. Comentários, aprovações, links e linhas de versão **ficam** na base. A quota privada liberta-se porque `withdrawn` já está excluído da soma.
 
 ## Ensaios (dados fictícios)
-- `python3 -I ensaio_postgres.py` usa PostgreSQL 17 descartável com `sidecar.sql` + candidato. Os 10 pontos passam:
+- `python3 -I ensaio_postgres.py` usa PostgreSQL 17 descartável. Carrega as migrações aplicadas `drizzle/migrations/0013–0015` (com `WF_SIDECAR=draft`, o rascunho `sidecar.sql`) e depois o candidato. Os 10 pontos passam:
   - desligado não faz nada;
   - pedido sem `service_role` é recusado;
   - só o âmbito vencido é retirado;
@@ -29,6 +29,6 @@ Decisão do proprietário de 23/11/2026: os vídeos servem só para aprovação 
 ## Riscos para aprovação
 - **Eliminação externa irreversível.** Depois de ativado, os ficheiros R2/Stream das versões privadas aprovadas há mais de 7 dias são apagados. O link de aprovação continua a abrir, mas sem vídeo.
 - **Âmbito por tarefa.** Aprovar uma versão retira também as outras versões da mesma tarefa, como na regra legada. Numa entrega sem tarefa, todo o projeto conta como um âmbito, o que é mais largo do que no legado, onde só a versão aprovada sai.
-- **Definições de produção.** O ensaio usa o texto de `sidecar.sql`. As definições aplicadas em produção (0013/0014, `client-runtime.sql`) não foram comparadas diretamente, porque não há acesso de leitura à base (ver A6/A7).
+- **Definições de produção.** O ensaio usa o texto das migrações 0013–0015 do repositório. As dependências externas (contabilidade, permissões, assinatura) ficam como stubs, e as fixtures são inseridas com os triggers desligados. O catálogo real de produção não foi comparado, porque não há acesso de leitura à base (ver A6/A7).
 - **Leitores.** `withdrawn` faz o leitor privado recusar a versão. A interface deve mostrar «vídeo expirado após aprovação» e não um erro genérico; isso ainda não está feito.
 - **Ordem de ativação.** Aplicar o SQL, publicar o worker em `cleanup-expired-videos` e só depois ligar o interruptor. O rollback desliga e remove as funções, mas não repõe ficheiros já apagados.

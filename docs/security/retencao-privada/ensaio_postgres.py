@@ -2,21 +2,24 @@
 from pathlib import Path
 import os, subprocess, tempfile, shutil, sys
 here = Path(__file__).resolve().parent
-side = here.parent / 'fase-a/video-integration/coexistence/sidecar.sql'
+# Por omissão usa as migrações aplicadas (drizzle 0013–0015); WF_SIDECAR=draft usa o rascunho sidecar.sql.
+repo = here.parents[2]
+sides = ([here.parent / 'fase-a/video-integration/coexistence/sidecar.sql'] if os.environ.get('WF_SIDECAR') == 'draft'
+         else sorted((repo / 'drizzle/migrations').glob('001[345]_*.sql')))
 pg = Path(os.environ.get('PG_BIN', '/opt/homebrew/opt/postgresql@17/bin'))
 tmp = Path(tempfile.mkdtemp(prefix='wfr', dir='/tmp'))
 env = {k: v for k, v in os.environ.items() if not k.startswith(('PG', 'DATABASE', 'SUPABASE', 'LOVABLE'))}
 env['LC_ALL'] = 'C'  # macOS: o postmaster recusa arrancar sem locale válido
 def run(a, **kw): return subprocess.run([str(x) for x in a], env=env, check=True, **kw)
-def sql(s): return run([pg/'psql', '-X', '-h', tmp, '-p', '55463', '-U', 'fixture', '-d', 'postgres', '-At', '-v', 'ON_ERROR_STOP=1'], input=s, text=True, capture_output=True).stdout.strip()
-def file(p): return run([pg/'psql', '-X', '-h', tmp, '-p', '55463', '-U', 'fixture', '-d', 'postgres', '-q', '-v', 'ON_ERROR_STOP=1', '-f', p], capture_output=True, text=True)
+def sql(s): return run([pg/'psql', '-X', '-h', tmp, '-p', '55463', '-U', 'postgres', '-d', 'postgres', '-At', '-v', 'ON_ERROR_STOP=1'], input=s, text=True, capture_output=True).stdout.strip()
+def file(p): return subprocess.run([str(x) for x in [pg/'psql', '-X', '-h', tmp, '-p', '55463', '-U', 'postgres', '-d', 'postgres', '-q', '-1', '-v', 'ON_ERROR_STOP=1', '-f', p]], env=env, capture_output=True, text=True)
 SR = "SET request.jwt.claims='{\"role\":\"service_role\"}';"
 WS = '11111111-1111-4111-8111-111111111111'; P = '22222222-2222-4222-8222-222222222222'
 T1 = '55555555-5555-4555-8555-555555555551'; T2 = '55555555-5555-4555-8555-555555555552'; T3 = '55555555-5555-4555-8555-555555555553'
 def vid(n): return f'aaaaaaaa-0000-4000-8000-{n:012d}'
 started = False
 try:
-    run([pg/'initdb', '-D', tmp/'data', '-A', 'trust', '-U', 'fixture', '--no-locale'], stdout=subprocess.DEVNULL)
+    run([pg/'initdb', '-D', tmp/'data', '-A', 'trust', '-U', 'postgres', '--no-locale'], stdout=subprocess.DEVNULL)
     run([pg/'pg_ctl', '-D', tmp/'data', '-l', tmp/'log', '-o', f"-k {tmp} -p 55463 -c listen_addresses=''", '-w', 'start'], stdout=subprocess.DEVNULL); started = True
     sql('''CREATE ROLE anon;CREATE ROLE authenticated;CREATE ROLE service_role BYPASSRLS;
     CREATE TABLE workspaces(id uuid PRIMARY KEY,active boolean DEFAULT true,subscription_plan text);
@@ -26,9 +29,15 @@ try:
     CREATE TABLE workspace_members(workspace_id uuid,user_id uuid,role text,is_active boolean);
     CREATE TABLE workspace_storage(workspace_id uuid PRIMARY KEY,storage_used_bytes bigint,storage_limit_bytes bigint,base_storage_bytes bigint,extra_storage_bytes bigint,last_calculated_at timestamptz);
     CREATE TABLE video_versions(id uuid PRIMARY KEY,r2_key text,cloudflare_stream_uid text,is_deleted boolean,workspace_id uuid,file_size_bytes bigint,replacement_file_size_bytes bigint,replacement_r2_key text,replacement_stream_uid text);
-    CREATE TABLE video_approval_tokens(id uuid PRIMARY KEY,token text);''')
-    r = file(side)
-    if r.returncode: print(r.stderr); raise SystemExit(1)
+    CREATE TABLE video_approval_tokens(id uuid PRIMARY KEY,token text);
+    CREATE FUNCTION noop_trg() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RETURN NEW;END$$;
+    CREATE TRIGGER video_accounting_serial BEFORE INSERT OR UPDATE ON video_versions FOR EACH ROW EXECUTE FUNCTION noop_trg();
+    CREATE TRIGGER guard_storage_counter BEFORE UPDATE ON workspace_storage FOR EACH ROW EXECUTE FUNCTION noop_trg();
+    CREATE FUNCTION has_workspace_permission(p_ws uuid,p_user uuid,p_perm text) RETURNS boolean LANGUAGE sql STABLE AS $$SELECT true$$;
+    CREATE FUNCTION lock_video_accounting() RETURNS void LANGUAGE sql AS $$SELECT pg_advisory_xact_lock(742019,1)$$;''')
+    for side in sides:
+        r = file(side)
+        if r.returncode: print(side.name, r.stderr[-1500:]); raise SystemExit(1)
     r = file(here/'candidate.sql')
     if r.returncode: print(r.stderr); raise SystemExit(1)
     # Fixtures: 3 tarefas. T1 aprovada há 8 dias (2 versões), T2 aprovada há 2 dias, T3 aprovada há 9 dias mas reaprovada há 1 dia.
@@ -36,7 +45,7 @@ try:
     ins = ''.join(f"INSERT INTO willflow_video_private.versions(id,workspace_id,project_id,task_id,author_id,file_name,bytes,object_key,operation_id,state,stream_uid,expires_at) VALUES('{vid(n)}','{WS}','{P}','{t}','{WS}','demo{n}.mp4',100,'{WS}/obj{n}','{vid(100+n)}','{s}',{('NULL' if u is None else repr(u))},now()+interval '1 day');" for n, t, s, u in rows)
     appr = [(2, 8), (3, 2), (4, 9), (5, 1)]
     ins += ''.join(f"INSERT INTO willflow_video_private.approvals(request_id,version_id,digest,name,approved_at) VALUES('{vid(200+n)}','{vid(n)}','{'b'*64}','Cliente Demo',now()-interval '{d} days');" for n, d in appr)
-    sql(ins)
+    sql("SET session_replication_role=replica;" + ins)  # fixtures: ignora triggers de assinatura/quota
     checks = []
     # 1) Desligado por omissão: nada acontece.
     checks.append(('desligado', sql(SR + "SELECT public.private_video_retention_withdraw(100);").splitlines()[-1] == '0'))
