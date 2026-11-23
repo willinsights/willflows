@@ -1,3 +1,4 @@
+import { offerValidUntil } from '@/lib/seo/offerValidity';
 import "@/styles/marketing.css";
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
@@ -106,7 +107,7 @@ export default function ParaFotografos() {
               "@type": "Offer",
               "price": "14",
               "priceCurrency": "EUR",
-              "priceValidUntil": "2027-12-31",
+              "priceValidUntil": offerValidUntil(),
               "availability": "https://schema.org/InStock"
             }
           })}

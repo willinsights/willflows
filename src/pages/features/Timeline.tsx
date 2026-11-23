@@ -1,3 +1,4 @@
+import { offerValidUntil } from '@/lib/seo/offerValidity';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -83,7 +84,7 @@ const seoSchema = [
       "@type": "Offer",
       "price": "42",
       "priceCurrency": "EUR",
-      "priceValidUntil": "2027-12-31",
+      "priceValidUntil": offerValidUntil(),
       "availability": "https://schema.org/InStock",
       "description": "Incluído no plano Studio"
     }

@@ -1,3 +1,4 @@
+import { offerValidUntil } from '@/lib/seo/offerValidity';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -162,7 +163,7 @@ export default function Pricing() {
                 "url": "https://willflow.app/planos",
                 "priceCurrency": "EUR",
                 "price": "14",
-                "priceValidUntil": "2027-12-31",
+                "priceValidUntil": offerValidUntil(),
                 "availability": "https://schema.org/InStock"
               },
               {
@@ -171,7 +172,7 @@ export default function Pricing() {
                 "url": "https://willflow.app/planos",
                 "priceCurrency": "EUR",
                 "price": "24",
-                "priceValidUntil": "2027-12-31",
+                "priceValidUntil": offerValidUntil(),
                 "availability": "https://schema.org/InStock"
               },
               {
@@ -180,7 +181,7 @@ export default function Pricing() {
                 "url": "https://willflow.app/planos",
                 "priceCurrency": "EUR",
                 "price": "42",
-                "priceValidUntil": "2027-12-31",
+                "priceValidUntil": offerValidUntil(),
                 "availability": "https://schema.org/InStock"
               }
             ]
