@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useHlsPlayer } from '@/hooks/useHlsPlayer';
+import { createUrlRenewalGuard, isExpiringStorageUrl } from '@/lib/video/urlRenewal';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -279,6 +280,30 @@ export default function VideoApproval() {
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
       setDuration(videoRef.current.duration);
+      if (resumeAtRef.current !== null) {
+        videoRef.current.currentTime = resumeAtRef.current;
+        resumeAtRef.current = null;
+      }
+    }
+  };
+
+  // S19: legacy Storage links last 10 minutes. On a playback error, ask the
+  // server for fresh links once per link (same token check) and resume.
+  const renewalGuardRef = useRef(createUrlRenewalGuard());
+  const resumeAtRef = useRef<number | null>(null);
+  const handleVideoError = async () => {
+    if (!token || !isExpiringStorageUrl(videoUrl) || !renewalGuardRef.current.shouldRenew(videoUrl)) return;
+    resumeAtRef.current = videoRef.current?.currentTime ?? null;
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-video-approval-data?token=${encodeURIComponent(token)}`,
+        { method: 'GET', headers: publicApiHeaders },
+      );
+      if (!response.ok) return;
+      const fresh: ApprovalData = await response.json();
+      setData(prev => prev ? { ...prev, signed_urls: fresh.signed_urls } : prev);
+    } catch (err) {
+      logger.error('Error renewing video link:', err);
     }
   };
 
@@ -807,6 +832,7 @@ export default function VideoApproval() {
                           poster={posterUrl}
                           onTimeUpdate={handleTimeUpdate}
                           onLoadedMetadata={handleLoadedMetadata}
+                          onError={() => { void handleVideoError(); }}
                           onPlay={() => { setIsPlaying(true); setShowControls(true); }}
                           onPause={() => { setIsPlaying(false); setShowControls(true); }}
                           onEnded={() => { setIsPlaying(false); setShowControls(true); }}
