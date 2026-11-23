@@ -14,6 +14,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useFinancialCostLines } from '@/hooks/useFinancialCostLines';
+import { uniqueFinancialCostLines } from '@/lib/finance/costLineRows';
+import { getProjectProfit } from '@/lib/finance/financialEngine';
 import { useHideValues } from '@/hooks/useHideValues';
 import { cn } from '@/lib/utils';
 import { TeamMemberPaymentInput } from './TeamMemberPaymentInput';
@@ -101,6 +105,8 @@ function ProjectFinancialContent({
 }: ProjectFinancialTabProps & Pick<ReturnType<typeof useFinancialPermissions>, 'canViewAllFinancials' | 'userId'>) {
   const { toast } = useToast();
   const { hideValues } = useHideValues();
+  const { currentWorkspace } = useWorkspace();
+  const projectCosts = useFinancialCostLines(canViewAllFinancials ? currentWorkspace?.id : undefined);
   const [clientPayment, setClientPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -141,8 +147,21 @@ function ProjectFinancialContent({
   const custoCaptacao = isEditing ? editForm.custo_captacao : (project.custo_captacao || 0);
   const custoEdicao = isEditing ? editForm.custo_edicao : (project.custo_edicao || 0);
   const custosExtras = isEditing ? editForm.custos_extras : (project.custos_extras || 0);
-  const totalCustos = custoCaptacao + custoEdicao + custosExtras;
-  const profit = agreedValue - totalCustos;
+  const costLinesTotal = useMemo(
+    () => uniqueFinancialCostLines((projectCosts.data ?? []).filter((line) => line.project_id === projectId))
+      .reduce((total, line) => total + line.actual_amount, 0),
+    [projectCosts.data, projectId],
+  );
+  const profit = getProjectProfit({
+    agreed_value: agreedValue,
+    custo_captacao: custoCaptacao,
+    custo_edicao: custoEdicao,
+    custos_extras: custosExtras,
+    cost_lines_total: costLinesTotal,
+  });
+  const profitLabel = projectCosts.isError
+    ? 'Custos indisponíveis'
+    : projectCosts.isPending ? 'A carregar…' : `€${profit.toFixed(2)}`;
 
   // Fetch client payment
   useEffect(() => {
@@ -515,11 +534,11 @@ function ProjectFinancialContent({
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Lucro Estimado</span>
                   <span className={cn("text-xl font-bold", profit >= 0 ? "text-success" : "text-destructive")}>
-                    €{profit.toFixed(2)}
+                    {profitLabel}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  (Preço Cliente - Captação - Edição - Extras)
+                  Preço do cliente menos captação, edição, extras e linhas de custo ativas.
                 </p>
               </div>
             </div>
@@ -569,7 +588,7 @@ function ProjectFinancialContent({
                     {healthScore && <ProjectHealthScoreBadge result={healthScore} size="sm" />}
                   </div>
                   <p className={cn("text-xl font-bold mt-1", profit >= 0 ? "text-primary" : "text-destructive", hideValues && "blur-md select-none")}>
-                    €{profit.toFixed(2)}
+                    {profitLabel}
                   </p>
                 </div>
               </div>

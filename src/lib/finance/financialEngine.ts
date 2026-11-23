@@ -59,18 +59,21 @@ export function withFinancialCostLines(projects: FinancialProject[], lines: Cost
   return projects.map(project => ({ ...project, cost_lines_total: totals.get(project.id) ?? 0 }));
 }
 
+type ProjectCost = Pick<FinancialProject, 'custo_captacao' | 'custo_edicao' | 'custos_extras' | 'cost_lines_total'>;
+type ProjectProfit = ProjectCost & Pick<FinancialProject, 'agreed_value'>;
+
 /** Total project cost = custo_captacao + custo_edicao + custos_extras + sum(project_cost_lines.actual_amount). */
-export function getProjectCost(p: FinancialProject): number {
+export function getProjectCost(p: ProjectCost): number {
   return (p.custo_captacao || 0) + (p.custo_edicao || 0) + (p.custos_extras || 0) + (p.cost_lines_total || 0);
 }
 
 /** Project revenue (agreed value with the client). */
-export function getProjectRevenue(p: FinancialProject): number {
+export function getProjectRevenue(p: Pick<FinancialProject, 'agreed_value'>): number {
   return p.agreed_value || 0;
 }
 
 /** Project profit = revenue − cost. */
-export function getProjectProfit(p: FinancialProject): number {
+export function getProjectProfit(p: ProjectProfit): number {
   return getProjectRevenue(p) - getProjectCost(p);
 }
 
