@@ -6112,6 +6112,27 @@ export type Database = {
         }
         Returns: boolean
       }
+      private_video_retention_pending: {
+        Args: { p_limit?: number }
+        Returns: Json
+      }
+      private_video_retention_preview: {
+        Args: { p_days?: number }
+        Returns: Json
+      }
+      private_video_retention_result: {
+        Args: {
+          p_error?: string
+          p_key: string
+          p_ok: boolean
+          p_provider: string
+        }
+        Returns: boolean
+      }
+      private_video_retention_withdraw: {
+        Args: { p_limit?: number }
+        Returns: number
+      }
       private_video_revoke: {
         Args: { p_digest: string; p_user: string }
         Returns: boolean
