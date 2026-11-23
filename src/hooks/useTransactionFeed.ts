@@ -20,6 +20,7 @@ export interface FinanceTx {
   projectName: string;
   projectCode: string | null;
   clientName: string | null;
+  collaborator?: { userId: string | null; name: string };
   /** Extra descriptor: client (revenue), collaborator name+phase (team), or "Custos extras". */
   detail: string;
   /** Mutator for inline status change. */
@@ -128,6 +129,7 @@ export function useTransactionFeed({ filterByUserId }: Params = {}): {
         projectCode: project.project_code ?? null,
         clientName: project.clients?.name ?? null,
         detail: `${collab} · ${phase}`,
+        collaborator: { userId: t.user_id, name: collab },
         updateStatus: (s) => handleFreelancerStatusChange(t.id, s),
       });
     });
