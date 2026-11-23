@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { ChevronDown, ChevronRight, CheckCircle2, Wallet, Paperclip } from 'lucide-react';
@@ -49,6 +50,7 @@ export function PayablesByCollaborator({ teamPayments, projects, members, onStat
   const [receipt, setReceipt] = useState<File | null>(null);
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const groups = useMemo(() => {
     const projById = new Map(projects.map(p => [p.id, p]));
@@ -90,39 +92,46 @@ export function PayablesByCollaborator({ teamPayments, projects, members, onStat
     });
   };
 
+  // D3: one atomic server call — all selected values are paid, or none are.
+  // The receipt is created by the server with the total it computed and is
+  // linked only to the values it paid.
   const paySelected = async () => {
-    if (selected.size === 0) return;
+    if (selected.size === 0 || !currentWorkspace?.id) return;
     setPaying(true);
     const ids = Array.from(selected);
-    let failed = 0;
-    let receiptId: string | null = null;
-    if (receipt && currentWorkspace?.id && user) {
+    let receiptPath: string | null = null;
+    if (receipt && user) {
       const path = `${currentWorkspace.id}/${Date.now()}-${receipt.name.replace(/[^\w.-]/g, '_')}`;
       const up = await supabase.storage.from('payment-receipts').upload(path, receipt);
-      if (!up.error) {
-        const { data } = await (supabase as any).from('payment_receipts')
-          .insert({ workspace_id: currentWorkspace.id, file_path: path, amount: selectedTotal, created_by: user.id })
-          .select('id').single();
-        receiptId = data?.id ?? null;
+      if (up.error) {
+        setPaying(false);
+        toast({ title: 'Comprovativo não foi guardado', description: 'Nenhum pagamento foi registado. Tenta novamente.', variant: 'destructive' });
+        return;
       }
-      if (!receiptId) toast({ title: 'Comprovativo não foi guardado', description: 'Os pagamentos seguem sem anexo.', variant: 'destructive' });
+      receiptPath = path;
     }
-    for (const id of ids) {
-      try { await onStatusChange(id, 'pago'); } catch { failed++; }
-    }
-    if (receiptId) {
-      await (supabase as any).from('project_team').update({ receipt_id: receiptId }).in('id', ids);
+    const { data, error } = await supabase.rpc('pay_team_batch' as never, {
+      p_workspace_id: currentWorkspace.id,
+      p_ids: ids,
+      p_expected_total: selectedTotal,
+      p_receipt_path: receiptPath,
+    } as never) as { data: { paid?: number } | null; error: { message?: string } | null };
+    setPaying(false);
+    if (error) {
+      if (receiptPath) await supabase.storage.from('payment-receipts').remove([receiptPath]);
+      const changed = String(error.message || '').includes('BATCH_TOTAL_CHANGED') || String(error.message || '').includes('BATCH_ITEMS_NOT_PAYABLE');
+      toast({
+        title: 'Nenhum pagamento foi registado',
+        description: changed ? 'Os valores mudaram entretanto. Atualiza a lista e tenta de novo.' : 'Não foi possível registar o lote.',
+        variant: 'destructive',
+      });
+      return;
     }
     setReceipt(null);
-    setPaying(false);
     setSelected(new Set());
-    toast({
-      title: failed ? 'Alguns pagamentos falharam' : 'Pagamentos registados',
-      description: failed
-        ? `${ids.length - failed} marcados como pagos, ${failed} com erro.`
-        : `${ids.length} valores marcados como pagos.`,
-      variant: failed ? 'destructive' : 'default',
-    });
+    await queryClient.invalidateQueries({ queryKey: ['teamPayments', currentWorkspace.id] });
+    await queryClient.invalidateQueries({ queryKey: ['payments', currentWorkspace.id] });
+    toast({ title: 'Pagamentos registados', description: `${data?.paid ?? ids.length} valores marcados como pagos.` });
   };
 
   const monthLabel = (k: string) => format(new Date(`${k}-01T00:00:00`), 'MMMM yyyy', { locale: pt });
