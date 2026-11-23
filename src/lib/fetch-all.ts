@@ -29,3 +29,20 @@ export async function fetchAllRows<T>(
   }
   return all;
 }
+
+/**
+ * Same as fetchAllRows, but keeps the `{ data, error }` shape of a single
+ * Supabase call so existing call sites change as little as possible (B2c).
+ * The query must have a stable order (add `.order('id')` as tiebreaker).
+ */
+export async function fetchAllAsResult<T>(
+  makeQuery: () => {
+    range: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>;
+  }
+): Promise<{ data: T[] | null; error: unknown }> {
+  try {
+    return { data: await fetchAllRows<T>(makeQuery), error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+}

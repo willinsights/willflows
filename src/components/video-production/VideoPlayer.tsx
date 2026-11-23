@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle, useMemo } from 'react';
+import { createUrlRenewalGuard } from '@/lib/video/urlRenewal';
 import Hls from 'hls.js';
 import { useHlsPlayer } from '@/hooks/useHlsPlayer';
 import { Button } from '@/components/ui/button';
@@ -144,6 +145,10 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
   useEffect(() => {
     retryCountRef.current = 0;
   }, [videoSource.url]);
+
+  // S19: automatic link renewal (once per link), resuming at the same position.
+  const renewalGuardRef = useRef(createUrlRenewalGuard());
+  const resumeAtRef = useRef<number | null>(null);
 
   // Track when we're inside a reinit pass so MANIFEST_PARSED can clear loading state
   const reinitPassRef = useRef(false);
@@ -292,6 +297,10 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
         setIsPortrait(ratio < 1); // Vertical if width < height
       }
       setDuration(videoRef.current.duration);
+      if (resumeAtRef.current !== null) {
+        videoRef.current.currentTime = resumeAtRef.current;
+        resumeAtRef.current = null;
+      }
       setIsLoading(false);
       setLoadError(null);
     }
@@ -342,6 +351,14 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       return;
     }
     
+    // S19: an expired direct link gets one automatic renewal before the error is shown.
+    if (videoSource.type !== 'hls' && onRenewVideoUrl && renewalGuardRef.current.shouldRenew(videoSource.url)) {
+      resumeAtRef.current = preserveTime;
+      setIsLoading(true);
+      onRenewVideoUrl();
+      return;
+    }
+
     // All recovery attempts exhausted - show error
     const message = mediaError
       ? `Falha ao carregar o vídeo (código ${mediaError.code}).`
@@ -349,7 +366,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
     setIsLoading(false);
     setIsPlaying(false);
     setLoadError(message);
-  }, [reinitializeHls, videoSource.type, videoSource.url]);
+  }, [reinitializeHls, videoSource.type, videoSource.url, onRenewVideoUrl]);
 
   const handleSeek = useCallback((value: number[]) => {
     const newTime = value[0];

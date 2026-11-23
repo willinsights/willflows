@@ -1,3 +1,4 @@
+import { offerValidUntil } from '@/lib/seo/offerValidity';
 import "@/styles/marketing.css";
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
@@ -121,7 +122,7 @@ export default function ParaAgencias() {
               "@type": "Offer",
               "price": "42",
               "priceCurrency": "EUR",
-              "priceValidUntil": "2027-12-31",
+              "priceValidUntil": offerValidUntil(),
               "availability": "https://schema.org/InStock"
             }
           })}
