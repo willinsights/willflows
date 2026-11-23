@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { getSubscriptionPeriodEnd } from "../_shared/stripe-billing.ts";
+import { getSubscriptionPeriodEnd, isEmailSubscriptionOwnedByUser, pickEmailCustomerForUser } from "../_shared/stripe-billing.ts";
 
 const allowedOrigins = [
   'https://willflow.app',
@@ -172,9 +172,12 @@ serve(async (req) => {
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
     try {
-      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+      // F8: never take a customer of another account just because the email matches.
+      const customers = await stripe.customers.list({ email: user.email, limit: 10 });
+      const pickedCustomerId = pickEmailCustomerForUser(customers.data, user.id);
+      const pickedCustomer = customers.data.find((c: { id: string }) => c.id === pickedCustomerId) ?? null;
 
-      if (customers.data.length === 0) {
+      if (!pickedCustomer) {
         logStep("No Stripe customer found");
         
         const trialExpired = trialEndsAt ? new Date(trialEndsAt) < new Date() : false;
@@ -202,7 +205,7 @@ serve(async (req) => {
         });
       }
 
-      const customerId = customers.data[0].id;
+      const customerId = pickedCustomer.id;
       logStep("Found Stripe customer", { customerId });
 
       const subscriptions = await stripe.subscriptions.list({
@@ -211,7 +214,12 @@ serve(async (req) => {
         limit: 1,
       });
 
-      const hasActiveSub = subscriptions.data.length > 0;
+      // F8: the subscription is associated only when it is provably this account's.
+      const hasActiveSub = subscriptions.data.length > 0
+        && isEmailSubscriptionOwnedByUser(pickedCustomer, subscriptions.data[0], user.id);
+      if (subscriptions.data.length > 0 && !hasActiveSub) {
+        logStep("Active subscription found by email but not owned by this account; not associated");
+      }
       let plan: string | null = workspacePlan;
       let subscriptionEnd: string | null = null;
 

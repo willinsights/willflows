@@ -1,0 +1,11 @@
+BEGIN;
+DROP TRIGGER IF EXISTS trg_guard_message_identity ON public.messages;
+DROP FUNCTION IF EXISTS public.guard_message_identity();
+DROP POLICY IF EXISTS "Authors can update messages" ON public.messages;
+CREATE POLICY "Authors can update messages" ON public.messages FOR UPDATE USING (user_id = auth.uid());
+DROP TRIGGER IF EXISTS trg_guard_push_subscription ON public.user_push_preferences;
+DROP FUNCTION IF EXISTS public.guard_push_subscription();
+DROP FUNCTION IF EXISTS public.is_trusted_push_subscription(jsonb);
+DROP POLICY IF EXISTS "Users can update their own preferences" ON public.user_push_preferences;
+CREATE POLICY "Users can update their own preferences" ON public.user_push_preferences FOR UPDATE USING (auth.uid() = user_id);
+COMMIT;

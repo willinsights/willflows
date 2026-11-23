@@ -622,3 +622,38 @@ export function buildWorkspacePlanPatch(account: AccountPlanRow): WorkspacePlanP
   patch.trial_ends_at = account.trial_ends_at;
   return { patch, statusWithheld: false };
 }
+
+export type StorageAddonRefusal = 'unauthenticated' | 'workspace_not_found' | 'not_studio' | 'not_owner' | null;
+
+// F9: only the workspace OWNER (first administrator) buys or manages storage
+// add-ons; other administrators are refused like any other member.
+export function decideStorageAddonPurchase(input: {
+  userId: string | null | undefined;
+  workspace: { subscription_plan?: string | null; owner_id?: string | null } | null | undefined;
+}): StorageAddonRefusal {
+  if (!input.userId) return 'unauthenticated';
+  if (!input.workspace) return 'workspace_not_found';
+  if (input.workspace.subscription_plan !== 'studio') return 'not_studio';
+  if (!isWorkspaceOwner(input.workspace.owner_id, input.userId)) return 'not_owner';
+  return null;
+}
+
+export interface StripeOwnedSubscriptionLike {
+  id: string;
+  metadata?: Record<string, unknown> | null;
+}
+
+// F8: before check-subscription stores a plan found through an EMAIL lookup,
+// the customer or the subscription must carry this account's user_id
+// (checkout writes it on both). An unmarked customer that merely shares the
+// email is not proof of ownership and is never associated.
+export function isEmailSubscriptionOwnedByUser(
+  customer: StripeCustomerLike | null | undefined,
+  subscription: StripeOwnedSubscriptionLike | null | undefined,
+  userId: string,
+): boolean {
+  if (!userId || !isUsableStripeCustomer(customer) || !subscription?.id) return false;
+  const customerOwner = customer!.metadata?.user_id;
+  if (customerOwner !== undefined && customerOwner !== null && customerOwner !== '' && customerOwner !== userId) return false;
+  return customerOwner === userId || subscription.metadata?.user_id === userId;
+}
