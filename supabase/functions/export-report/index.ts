@@ -1,9 +1,19 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { columnPermissions, isReportType, redactRows, requiredPermission, type PermissionKey, type ReportType } from "../_shared/export-permissions.ts";
 
 // Declare EdgeRuntime for Supabase background tasks
 declare const EdgeRuntime: {
   waitUntil: (promise: Promise<unknown>) => void;
 };
+
+async function grantedPermissions(supabase: any, userId: string, workspaceId: string, keys: PermissionKey[]): Promise<Set<PermissionKey>> {
+  const granted = new Set<PermissionKey>();
+  for (const key of keys) {
+    const { data, error } = await supabase.rpc('has_workspace_permission', { _user_id: userId, _workspace_id: workspaceId, _permission_key: key });
+    if (!error && data === true) granted.add(key);
+  }
+  return granted;
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -106,6 +116,14 @@ Deno.serve(async (req) => {
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      // S14: the stored link is only returned while the export permission still holds.
+      const jobType = (job as { report_type: string }).report_type;
+      if (!isReportType(jobType) || !(await grantedPermissions(supabase, user.id, (job as { workspace_id: string }).workspace_id, [requiredPermission(jobType)])).size) {
+        return new Response(
+          JSON.stringify({ error: 'Job not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
       return new Response(
         JSON.stringify(job),
@@ -116,7 +134,21 @@ Deno.serve(async (req) => {
     // Handle list jobs
     if (action === 'list') {
       const workspaceId = url.searchParams.get('workspace_id');
-      
+      // S14: same membership check as status before listing jobs and their links.
+      const { data: listMember } = workspaceId ? await supabase
+        .from('workspace_members')
+        .select('id')
+        .eq('workspace_id', workspaceId)
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .maybeSingle() : { data: null };
+      if (!listMember) {
+        return new Response(
+          JSON.stringify({ jobs: [] }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       const { data: jobs, error: listError } = await supabase
         .from('export_jobs')
         .select('*')
@@ -173,19 +205,23 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Financial exports require the payments.view permission
-    if (report_type === 'financial' || report_type === 'payments') {
-      const { data: canViewPayments, error: permError } = await supabase.rpc('has_workspace_permission', {
-        _user_id: user.id,
-        _workspace_id: workspace_id,
-        _permission_key: 'payments.view',
-      });
-      if (permError || canViewPayments !== true) {
-        return new Response(
-          JSON.stringify({ error: 'Sem permissão para exportar dados financeiros' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+    // S14: every export type requires its own permission (financial/payments: payments.view;
+    // projects: projects.view; clients: clients.view). Sensitive columns need extra permissions.
+    if (!isReportType(report_type)) {
+      return new Response(
+        JSON.stringify({ error: 'Tipo de exportação desconhecido' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const needed = requiredPermission(report_type);
+    const granted = await grantedPermissions(supabase, user.id, workspace_id, [needed, ...columnPermissions(report_type)]);
+    if (!granted.has(needed)) {
+      return new Response(
+        JSON.stringify({ error: report_type === 'financial' || report_type === 'payments'
+          ? 'Sem permissão para exportar dados financeiros'
+          : 'Sem permissão para esta exportação' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Check if user has Pro or Studio plan for exports
@@ -233,7 +269,7 @@ Deno.serve(async (req) => {
     }
 
     // Start background processing
-    EdgeRuntime.waitUntil(processExport(supabase, jobId, workspace_id, report_type, format, filters));
+    EdgeRuntime.waitUntil(processExport(supabase, jobId, workspace_id, report_type, format, filters, granted));
 
     console.log(`Export job ${jobId} created for workspace ${workspace_id}`);
 
@@ -261,7 +297,8 @@ async function processExport(
   workspaceId: string, 
   reportType: string, 
   format: string,
-  filters?: { start_date?: string; end_date?: string; status?: string }
+  filters?: { start_date?: string; end_date?: string; status?: string },
+  granted: ReadonlySet<PermissionKey> = new Set(),
 ) {
   try {
     // Update status to processing
@@ -372,6 +409,9 @@ async function processExport(
       default:
         throw new Error(`Unknown report type: ${reportType}`);
     }
+
+    // S14: drop columns the requester may not see.
+    data = redactRows(reportType as ReportType, data, granted);
 
     // Generate file content
     let content: string;
