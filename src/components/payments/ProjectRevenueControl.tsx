@@ -1,7 +1,8 @@
 import { useFormatCurrency } from '@/hooks/useFormatCurrency';
+import { getReceivableForecastDate } from '@/lib/finance/receivableForecast';
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { TrendingUp, Euro } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -121,21 +122,20 @@ export function ProjectRevenueControl({
   }, [filteredProjects]);
 
   const exportData = useMemo(() => {
-    return filteredProjects.map(project => ({
-      id: project.project_code || project.id.slice(0, 8).toUpperCase(),
-      projeto: project.name,
-      contraparte: project.clients?.name || '-',
-      dataEntrega: project.delivered_at
-        ? format(new Date(project.delivered_at), 'dd/MM/yyyy', { locale: pt })
-        : '-',
-      vencimento: project.client_payment_due_date
-        ? format(new Date(project.client_payment_due_date), 'dd/MM/yyyy', { locale: pt })
-        : project.delivery_date
-          ? format(new Date(project.delivery_date), 'dd/MM/yyyy', { locale: pt })
+    return filteredProjects.map(project => {
+      const forecastDate = getReceivableForecastDate(project);
+      return {
+        id: project.project_code || project.id.slice(0, 8).toUpperCase(),
+        projeto: project.name,
+        contraparte: project.clients?.name || '-',
+        dataEntrega: project.delivered_at
+          ? format(new Date(project.delivered_at), 'dd/MM/yyyy', { locale: pt })
           : '-',
-      status: statusLabels[project.client_payment_status || 'pendente'],
-      valor: formatCurrencyRaw(project.agreed_value || 0),
-    }));
+        vencimento: forecastDate ? format(parseISO(forecastDate), 'dd/MM/yyyy', { locale: pt }) : '-',
+        status: statusLabels[project.client_payment_status || 'pendente'],
+        valor: formatCurrencyRaw(project.agreed_value || 0),
+      };
+    });
   }, [filteredProjects, formatCurrency]);
 
   const getProjectCode = (project: ProjectRevenue) => {

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { getReceivableForecastDate } from '@/lib/finance/receivableForecast';
 import { usePaymentsData } from '@/hooks/usePaymentsData';
 import { useTeamPayments } from '@/hooks/usePayments';
 import { useProjects } from '@/hooks/useProjects';
@@ -78,7 +79,7 @@ export function useTransactionFeed({ filterByUserId }: Params = {}): {
         amount: p.agreed_value || 0,
         status: (p.client_payment_status as FinanceTxStatus) ?? 'pendente',
         date: p.delivered_at || p.delivery_date || p.created_at || null,
-        dueDate: p.client_payment_due_date || null,
+        dueDate: getReceivableForecastDate(p),
         projectId: p.id,
         projectName: p.name,
         projectCode: p.project_code ?? null,

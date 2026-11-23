@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { getReceivableForecastDate } from '@/lib/finance/receivableForecast';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -216,7 +217,7 @@ export function useDashboardMetrics() {
     queryFn: async () => {
       const { data } = await supabase
         .from('projects')
-        .select('id, name, agreed_value, client_payment_status, client_payment_due_date, delivered_at, created_at, client_id, clients(name)')
+        .select('id, name, agreed_value, client_payment_status, client_payment_due_date, delivered_at, client_id, clients(name)')
         .eq('workspace_id', workspaceId!)
         .eq('is_delivered', true)
         .in('client_payment_status', ['pendente', 'vencido'])
@@ -224,10 +225,9 @@ export function useDashboardMetrics() {
         .limit(1000);
 
       const items: PendingPaymentItem[] = (data ?? []).map((p: any) => {
-        const fallbackDate = p.delivered_at || p.created_at || null;
-        const dueDate = p.client_payment_due_date || (fallbackDate ? String(fallbackDate).slice(0, 10) : null);
+        const dueDate = getReceivableForecastDate(p);
         const isOverdue =
-          p.client_payment_status === 'vencido' || (dueDate ? new Date(dueDate) < new Date() : false);
+          p.client_payment_status === 'vencido' || (dueDate ? dueDate < format(new Date(), 'yyyy-MM-dd') : false);
         return {
           id: p.id,
           description: p.name ? `Pagamento do projeto: ${p.name}` : 'Pagamento do projeto',
