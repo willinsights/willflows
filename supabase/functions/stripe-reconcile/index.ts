@@ -1,3 +1,4 @@
+import { isVaultCronFromEnv } from "../_shared/cron-vault-env.ts";
 // Stripe reconciliation job — compares Stripe subscription status with DB
 // state, records discrepancies and notifies super admins by email.
 // Designed to be invoked by pg_cron daily (and manually from the admin UI).
@@ -52,7 +53,7 @@ Deno.serve(async (req) => {
   // Require CRON_SECRET header for cron/manual admin invocation.
   const cronSecret = Deno.env.get('CRON_SECRET')
   const provided = req.headers.get('x-cron-secret')
-  if (!secretEquals(cronSecret, provided) && authenticateCronRequest(req) !== null) {
+  if (!secretEquals(cronSecret, provided) && authenticateCronRequest(req) !== null && !(await isVaultCronFromEnv(req))) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

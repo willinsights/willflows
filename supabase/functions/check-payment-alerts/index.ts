@@ -1,3 +1,4 @@
+import { isVaultCronFromEnv } from "../_shared/cron-vault-env.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { format } from "https://esm.sh/date-fns@3.6.0";
 import { authenticateCronRequest } from "../_shared/cron-auth.ts";
@@ -16,7 +17,7 @@ Deno.serve(async (req) => {
   // Require shared cron secret (prevents external abuse)
   const cronSecret = Deno.env.get('CRON_SECRET');
   const providedSecret = req.headers.get('x-cron-secret');
-  if (!secretEquals(cronSecret, providedSecret) && authenticateCronRequest(req) !== null) {
+  if (!secretEquals(cronSecret, providedSecret) && authenticateCronRequest(req) !== null && !(await isVaultCronFromEnv(req))) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
