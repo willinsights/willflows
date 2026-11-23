@@ -21,7 +21,7 @@ Origem: auditoria de 20/11/2026, atualizada com o trabalho de 21/11/2026 (`docs/
 | A5 | Explicar por versão a diferença entre 54 versões ativas (inventário de 20/11) e 50 (consulta de 20/11) | bloqueada (precisa de leitura da base de produção, por versão) | auditor | — | Explicação documentada por versão, sem alterar nem apagar nada |
 | A6 | Existem dois diretórios de migrações (`supabase/migrations` e `drizzle/migrations`) com definições diferentes do mesmo trigger: apurar qual vale em produção | concluida (relatório de 23/11: `drizzle/migrations` como fonte única; catálogo de produção por confirmar) | auditor | — | Relatório com a origem de cada objeto aplicado e a recomendação de fonte única |
 | A8 | Limpeza alinhada com a decisão de 23/11: apagar 7 dias após a aprovação (a entrega deixa de apagar; itens da fila criados pela conclusão da tarefa sem aprovação são cancelados) | concluida (#47 integrado e publicado a 23/11) | programador | — | Nada é apagado sem aprovação com mais de 7 dias; aprovação recente na mesma tarefa reinicia a janela; publicação da função pedida ao Lovable depois da integração |
-| A9 | Retenção das versões privadas (wf2_) 7 dias após a aprovação | precisa_aprovacao (#51; SQL em `docs/security/retencao-privada`; ensaio 10/10 sobre 0013–0015) | proprietario | A8 | Interruptor desligado por omissão; só âmbito vencido; `uncertain` intacta; comentários e aprovações preservados |
+| A9 | Retenção das versões privadas (wf2_) 7 dias após a aprovação | concluida (#51 integrado; migração 0022 aplicada e função publicada a 23/11; pré-visualização com 0 versões; interruptor ligado com aprovação do proprietário) | proprietario | A8 | Interruptor desligado por omissão; só âmbito vencido; `uncertain` intacta; comentários e aprovações preservados |
 | A7 | Trazer `docs/db/producao-2026-11-21.sql` para a fonte de migrações escolhida, sem reaplicar nada em produção | bloqueada (falta a decisão da fonte única em A6) | programador | A2, A6 | Base descartável criada só a partir do repositório tem as mesmas definições de `can_access_feature`, `workspace_is_active`, `create_workspace_with_admin` e dos triggers registados; diff de catálogo vazio para estes objetos |
 
 ## S. Segurança (verificação de 20/11)
@@ -49,7 +49,7 @@ Achados da verificação de segurança do Lovable de 20/11. Descrições genéri
 | S17 | Limpeza dos workspaces vazios criados pelo defeito S11 | bloqueada (decisão do proprietário de 21/11: manter por agora; 4 workspaces vazios de teste já apagados a 21/11) | proprietario | S11 | Lista aprovada pelo proprietário; cópia de segurança das linhas antes de eliminar |
 | S18 | Vídeo privado: decidir se a validação de sessão fica como o agente da plataforma a deixou (commit 52771d3) | precisa_aprovacao | proprietario | — | Decisão registada; comportamento verificado num browser com sessão expirada |
 | S19 | Renovar os endereços dos vídeos guardados fora do serviço de streaming (validade de 10 minutos, sem renovação automática; são a maioria dos vídeos) | concluida (#49 integrado e publicado a 23/11) | programador | — | Vídeo aberto há mais de 10 minutos continua a tocar ou pede endereço novo sem erro; teste do pedido de renovação |
-| S22 | zod 4: `z.string().uuid()` passou a exigir UUID RFC; confirmar que nenhum ID guardado (categorias, seeds) usa formatos como `0000…0001` | pronta | auditor | — | Lista de IDs não RFC nas colunas validadas, ou confirmação de que não há |
+| S22 | zod 4: `z.string().uuid()` passou a exigir UUID RFC; confirmar que nenhum ID guardado (categorias, seeds) usa formatos como `0000…0001` | concluida (#54: 12 campos de ID com `z.string().guid()`, com teste) | auditor | — | Lista de IDs não RFC nas colunas validadas, ou confirmação de que não há |
 | S20 | Arranque com falha de rede não leva ao onboarding; validade da cache de workspaces | pronta | programador | S12 | Com a rede a falhar no arranque, a app mostra erro e tentar novamente em vez do onboarding; cache com validade definida e testada |
 | S21 | Rever os commits diretos do agente da plataforma de 21/11 ainda não revistos (dd8dc4a, ed16666, 663c6ae, 49d4ea8) | concluida (relatório de 23/11; sem regressões) | auditor | — | Relatório por commit: regressões e correções incompletas |
 
@@ -62,7 +62,7 @@ Achados da verificação de segurança do Lovable de 20/11. Descrições genéri
 | B2a | Chave de cache da lista de projetos: as invalidações `['projects']` passam a ter efeito | concluida (#18 integrado) | programador | B2 | As 6 invalidações atingem a query; Kanban notificado; sem ciclo de eventos |
 | B2b | Paginar as 9 leituras financeiras sem paginação e desempate por `id` | concluida (#19 integrado) | programador | B2 | Leituras devolvem todas as linhas; nenhum cálculo, filtro ou coluna alterado; teste do helper |
 | B2c | Teste com workspace sintético com mais de 1.000 projetos e as restantes leituras de gravidade média do relatório B2 | concluida (#50 integrado e publicado a 23/11) | programador | B2b | Totais iguais ao cálculo de referência acima de 1.000 projetos |
-| B4 | Corrigir as 16 falhas antigas da suite (`WorkspaceContext.test.tsx`, `AcceptInvite.test.tsx`) e pôr o CI a correr `vitest` | pronta | programador | — | Suite completa verde no CI |
+| B4 | Corrigir as 16 falhas antigas da suite (`WorkspaceContext.test.tsx`, `AcceptInvite.test.tsx`) e pôr o CI a correr `vitest` | concluida (#54: Storage em memória para Node 25+; suite 551/551; o CI já corria vitest com Bun) | programador | — | Suite completa verde no CI |
 | B3 | Dividir por funcionalidade os ficheiros acima de 1.000 linhas e reduzir `any` | pronta | programador | B1 | PRs pequenos, sem alteração visual, suite a passar |
 
 ## C. Infraestrutura de vídeo
@@ -71,7 +71,7 @@ Achados da verificação de segurança do Lovable de 20/11. Descrições genéri
 | --- | --- | --- | --- | --- | --- |
 | C1 | Piloto de vídeo com um cliente real | precisa_aprovacao | proprietario | A1, A3 | Upload, comentário e aprovação reais; quota certa; zero eliminações; plano de retirada testado |
 | C2 | Paridade dos vídeos novos: substituição no mesmo ID e miniatura; confirmar o alcance do PR #16 | bloqueada (decisão comercial sobre o número da versão) | auditor | proprietario | Regressão de comentários, aprovações e quota por versão |
-| C3 | Migração dos vídeos históricos: isolar ou descartar os legados de forma simples, preservando comentários e aprovações na base | precisa_aprovacao (relatório de 23/11: não migrar; `docs/db/c3/candidate.sql` descarta legados não aprovados com mais de 30 dias) | programador | — | Ensaio numa cópia; perda zero de vídeos, links, comentários e aprovações |
+| C3 | Migração dos vídeos históricos: isolar ou descartar os legados de forma simples, preservando comentários e aprovações na base | concluida (aprovação do proprietário de 23/11; inventário em `docs/db/c3/inventario-2026-11-23.md`: 0 legados não aprovados com mais de 30 dias, nada descartado) | programador | — | Ensaio numa cópia; perda zero de vídeos, links, comentários e aprovações |
 
 ## D. Financeiro
 
