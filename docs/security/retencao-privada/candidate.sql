@@ -18,6 +18,24 @@ CREATE TABLE IF NOT EXISTS willflow_video_private.retention_settings (
 REVOKE ALL ON willflow_video_private.retention_settings FROM PUBLIC,anon,authenticated,service_role;
 ALTER TABLE willflow_video_private.retention_settings ENABLE ROW LEVEL SECURITY;
 
+-- 0) Pré-visualização (só leitura): o que seria retirado, mesmo com o interruptor desligado.
+CREATE OR REPLACE FUNCTION public.private_video_retention_preview(p_days integer DEFAULT NULL) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public AS $$
+DECLARE d integer; cutoff timestamptz;
+BEGIN
+  PERFORM willflow_video_private.service_check();
+  d := coalesce(p_days, (SELECT retention_days FROM willflow_video_private.retention_settings WHERE singleton), 7);
+  cutoff := clock_timestamp() - make_interval(days => d);
+  RETURN coalesce((SELECT jsonb_agg(jsonb_build_object('version_id',x.id,'workspace_id',x.workspace_id,'project_id',x.project_id,'task_id',x.task_id,
+      'file_name',x.file_name,'bytes',x.bytes,'state',x.state,'has_stream',x.stream_uid IS NOT NULL) ORDER BY x.created_at, x.id)
+    FROM willflow_video_private.versions x
+    WHERE x.state IN ('persisted','ready')
+      AND EXISTS (SELECT 1 FROM willflow_video_private.approvals a JOIN willflow_video_private.versions av ON av.id=a.version_id
+                  WHERE av.workspace_id=x.workspace_id AND av.project_id=x.project_id AND av.task_id IS NOT DISTINCT FROM x.task_id AND a.approved_at < cutoff)
+      AND NOT EXISTS (SELECT 1 FROM willflow_video_private.approvals a JOIN willflow_video_private.versions av ON av.id=a.version_id
+                  WHERE av.workspace_id=x.workspace_id AND av.project_id=x.project_id AND av.task_id IS NOT DISTINCT FROM x.task_id AND a.approved_at >= cutoff)),'[]'::jsonb);
+END $$;
+
 -- 1) Retirar versões vencidas. Âmbito = (workspace, projeto, tarefa) da aprovação.
 --    Uma aprovação mais recente que o corte no mesmo âmbito reinicia a janela.
 --    Versões em submitting/uncertain nunca são tocadas (fornecedor por reconciliar).
@@ -81,7 +99,7 @@ END $$;
 
 DO $$ DECLARE f record; BEGIN
   FOR f IN SELECT oid::regprocedure signature FROM pg_proc WHERE pronamespace='public'::regnamespace
-    AND proname IN ('private_video_retention_withdraw','private_video_retention_pending','private_video_retention_result') LOOP
+    AND proname IN ('private_video_retention_preview','private_video_retention_withdraw','private_video_retention_pending','private_video_retention_result') LOOP
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC,anon,authenticated',f.signature);
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role',f.signature);
   END LOOP;

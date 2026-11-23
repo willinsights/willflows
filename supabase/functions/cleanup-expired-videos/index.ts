@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { S3Client, DeleteObjectCommand } from "https://esm.sh/@aws-sdk/client-s3@3.709.0";
 import { secretEquals } from "../_shared/timing-safe.ts";
 import { approvalRetentionCutoff, selectVersionsDueAfterApproval } from "../_shared/approval-retention.ts";
+import { runPrivateRetention } from "../_shared/private-retention.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -363,6 +364,34 @@ serve(async (req) => {
     }
     logStep("Delivered videos marked for deletion", { count: deliveredMarked });
 
+    // 2c. Private (wf2_) versions: 7 days after approval. The server switch is
+    // off by default; while off, withdraw returns 0 and pending is empty.
+    let privateRetention: { withdrawn: number; deleted: number; failed: number } | { error: string } = { withdrawn: 0, deleted: 0, failed: 0 };
+    try {
+      privateRetention = await runPrivateRetention(
+        (name, args) => guardedDb.rpc(name, args),
+        {
+          deleteR2: async (key) => {
+            if (!s3Client || !bucketName) throw new Error('R2 not configured');
+            await lease.check();
+            await s3Client.send(new DeleteObjectCommand({ Bucket: bucketName, Key: key }));
+          },
+          deleteStream: async (uid) => {
+            if (!accountId || !streamToken) throw new Error('Stream not configured');
+            const r = await checkedFetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${uid}`,
+              { method: 'DELETE', headers: { 'Authorization': `Bearer ${streamToken}` } });
+            await r.text();
+            if (!r.ok && r.status !== 404) throw new Error(`Stream ${r.status}`);
+          },
+        },
+      );
+    } catch (e) {
+      // Only database calls throw here (provider failures are recorded per item and
+      // retried); a retried provider delete is idempotent, so no uncertainty is kept.
+      privateRetention = { error: e instanceof Error ? e.message : String(e) };
+    }
+    logStep("Private retention", privateRetention as Record<string, unknown>);
+
     // 3. Clean up files of deleted videos (manual + delivered retention)
     const { data: orphanedVideos } = await guardedDb
       .from('video_versions')
@@ -432,6 +461,7 @@ serve(async (req) => {
       deliveredMarked,
       orphanedCleaned: orphanCleaned,
       orphanFailures,
+      privateRetention,
     };
 
     logStep("Cleanup job completed", summary);

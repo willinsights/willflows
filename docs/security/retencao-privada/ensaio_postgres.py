@@ -48,6 +48,8 @@ try:
     sql("SET session_replication_role=replica;" + ins)  # fixtures: ignora triggers de assinatura/quota
     checks = []
     # 1) Desligado por omissão: nada acontece.
+    prev = sql(SR + "SELECT jsonb_array_length(public.private_video_retention_preview());").splitlines()[-1]
+    checks.append(('preview com interruptor desligado lista T1 (2)', prev == '2'))
     checks.append(('desligado', sql(SR + "SELECT public.private_video_retention_withdraw(100);").splitlines()[-1] == '0'))
     # 2) Sem service_role: recusado.
     try: sql("SELECT public.private_video_retention_withdraw(100);"); checks.append(('sem service_role recusado', False))
