@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllAsResult } from '@/lib/fetch-all';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 import { cn } from '@/lib/utils';
@@ -39,14 +40,16 @@ function useAdvancedKPIs(): AdvancedKPIs {
 
       // Parallel queries
       const [projectsRes, clientsRes] = await Promise.all([
-        supabase
+        fetchAllAsResult(() => supabase
           .from('projects')
           .select('id, agreed_value, is_delivered, delivered_at, created_at, delivery_date, shoot_date, current_phase')
-          .eq('workspace_id', wsId),
-        supabase
+          .eq('workspace_id', wsId)
+          .order('id')),
+        fetchAllAsResult(() => supabase
           .from('clients')
           .select('id, lead_status, converted_at, estimated_value, created_at')
-          .eq('workspace_id', wsId),
+          .eq('workspace_id', wsId)
+          .order('id')),
       ]);
 
       const projects = projectsRes.data || [];

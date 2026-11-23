@@ -6,7 +6,7 @@ import { useFinancialPermissions } from './useFinancialPermissions';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 import { logger } from '@/lib/logger';
-import { fetchAllRows } from '@/lib/fetch-all';
+import { fetchAllRows, fetchAllAsResult } from '@/lib/fetch-all';
 export type Project = Tables<'projects'>;
 export type ProjectInsert = TablesInsert<'projects'>;
 
@@ -53,10 +53,11 @@ export function useFilteredProjects() {
       setAllProjects(projectsData);
 
       // Fetch user's project team memberships
-      const { data: teamData, error: teamError } = await supabase
+      const { data: teamData, error: teamError } = await fetchAllAsResult(() => supabase
         .from('project_team')
         .select('project_id')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .order('id'));
 
       if (teamError) throw teamError;
       

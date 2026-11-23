@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllAsResult } from '@/lib/fetch-all';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 import { cn } from '@/lib/utils';
@@ -43,10 +44,11 @@ export function RevenueForecastReport() {
       const now = new Date();
 
       const [projectsRes] = await Promise.all([
-        supabase
+        fetchAllAsResult(() => supabase
           .from('projects')
           .select('id, agreed_value, is_delivered, delivered_at, created_at, delivery_date, shoot_date, competence_month')
-          .eq('workspace_id', wsId),
+          .eq('workspace_id', wsId)
+          .order('id')),
       ]);
 
       const projects = projectsRes.data || [];

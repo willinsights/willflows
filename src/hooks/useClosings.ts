@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllAsResult } from '@/lib/fetch-all';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ClosingReconciliation } from '@/lib/finance/closingReconciliation';
@@ -64,10 +65,11 @@ export function useClosings() {
     queryFn: async (): Promise<ClosingItem[]> => {
       const ids = (closingsQuery.data || []).map((c) => c.id);
       if (ids.length === 0) return [];
-      const { data, error } = await supabase
+      const { data, error } = await fetchAllAsResult(() => supabase
         .from('closing_items' as never)
         .select('*')
-        .in('closing_id', ids);
+        .in('closing_id', ids)
+        .order('id' as never));
       if (error) throw error;
       return (data || []) as unknown as ClosingItem[];
     },

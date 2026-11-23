@@ -31,13 +31,15 @@ vi.mock("@/lib/logger", () => ({
 
 vi.mock("@/lib/fetch-all", () => ({
   fetchAllRows: mockFetchAllRows,
+  // A leitura das atribuições (project_team) passa pelo helper paginado.
+  fetchAllAsResult: (make: () => unknown) => { make(); return mockTeamQuery(); },
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: vi.fn(() => ({
       select: vi.fn(() => ({
-        eq: mockTeamQuery,
+        eq: vi.fn(() => ({ order: vi.fn(() => ({})) })),
       })),
     })),
   },

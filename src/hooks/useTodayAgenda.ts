@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { format, startOfDay, endOfDay, subDays } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllAsResult } from '@/lib/fetch-all';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 
@@ -110,13 +111,14 @@ export function usePendingTeamPayables(enabled: boolean) {
     enabled: enabled && !!wsId,
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await fetchAllAsResult(() => supabase
         .from('project_team')
-        .select('payment_amount, user_id, external_name, projects!inner(is_delivered, workspace_id)')
+        .select('id, payment_amount, user_id, external_name, projects!inner(is_delivered, workspace_id)')
         .eq('projects.workspace_id', wsId!)
         .eq('projects.is_delivered', true)
         .eq('payment_status', 'pendente')
-        .gt('payment_amount', 0);
+        .gt('payment_amount', 0)
+        .order('id'));
       if (error) throw error;
       const rows = (data ?? []) as any[];
       const people = new Set(rows.map(r => r.user_id ?? r.external_name));

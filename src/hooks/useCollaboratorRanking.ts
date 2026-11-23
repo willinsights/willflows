@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllAsResult } from '@/lib/fetch-all';
 
 export interface CollaboratorData {
   userId: string;
@@ -32,7 +33,7 @@ export function useCollaboratorRanking({ workspaceId, deliveredProjectIds }: Use
       setError(null);
 
       // Try the join query first
-      const { data: teamData, error: joinErr } = await supabase
+      const { data: teamData, error: joinErr } = await fetchAllAsResult(() => supabase
         .from('project_team')
         .select(`
           user_id,
@@ -46,15 +47,17 @@ export function useCollaboratorRanking({ workspaceId, deliveredProjectIds }: Use
             avatar_url
           )
         `)
-        .in('project_id', deliveredProjectIds);
+        .in('project_id', deliveredProjectIds)
+        .order('id'));
 
       let finalTeamData = teamData;
       if (joinErr || !teamData) {
         // Fallback: fetch without join
-        const { data: basicTeamData, error: fallbackErr } = await supabase
+        const { data: basicTeamData, error: fallbackErr } = await fetchAllAsResult(() => supabase
           .from('project_team')
           .select('user_id, external_name, is_external, payment_amount, phase, project_id')
-          .in('project_id', deliveredProjectIds);
+          .in('project_id', deliveredProjectIds)
+          .order('id'));
 
         if (fallbackErr || !basicTeamData) {
           setError('Falha ao carregar colaboradores');

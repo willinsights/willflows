@@ -8,7 +8,7 @@ import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { handleDatabaseError } from '@/lib/error-handler';
 import { projectSchema, projectUpdateSchema, validateWithSchema } from '@/lib/validation-schemas';
 import { logger } from '@/lib/logger';
-import { fetchAllRows } from '@/lib/fetch-all';
+import { fetchAllRows, fetchAllAsResult } from '@/lib/fetch-all';
 import { PROJECTS_CHANGED_EVENT, isQueryCacheProjectsEvent } from '@/lib/query-client';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
@@ -41,11 +41,12 @@ export function useProjects() {
 
       let assignedProjectIds: string[] | undefined;
       if (!canViewAllProjects) {
-        const { data, error } = await supabase
+        const { data, error } = await fetchAllAsResult(() => supabase
           .from('project_team')
           .select('project_id')
           .eq('user_id', userId)
-          .abortSignal(signal);
+          .order('id')
+          .abortSignal(signal));
         if (error) throw error;
         assignedProjectIds = data?.map(project => project.project_id) ?? [];
         if (assignedProjectIds.length === 0) return [];
