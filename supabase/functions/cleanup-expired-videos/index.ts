@@ -1,3 +1,4 @@
+import { isVaultCronFromEnv } from "../_shared/cron-vault-env.ts";
 import { controlled, MaintenanceStop } from '../_shared/execution-control.ts';
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
@@ -24,7 +25,8 @@ serve(async (req) => {
   const providedSecret = req.headers.get('x-cron-secret');
   const authorized =
     secretEquals(Deno.env.get('CRON_SECRET'), providedSecret) ||
-    secretEquals(Deno.env.get('AUTOMATION_CRON_SECRET'), providedSecret);
+    secretEquals(Deno.env.get('AUTOMATION_CRON_SECRET'), providedSecret) ||
+    await isVaultCronFromEnv(req);
   if (!authorized) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,

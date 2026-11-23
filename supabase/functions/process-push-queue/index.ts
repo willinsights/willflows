@@ -1,3 +1,4 @@
+import { isVaultCronFromEnv } from "../_shared/cron-vault-env.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import * as webpush from "https://esm.sh/web-push@3.6.7";
 import { secretEquals } from "../_shared/timing-safe.ts";
@@ -28,7 +29,7 @@ Deno.serve(async (req) => {
     const providedSecret = req.headers.get('x-cron-secret');
     const isCron = secretEquals(cronSecret, providedSecret);
     const isServiceRole = secretEquals(serviceRoleKey, bearer);
-    if (!isCron && !isServiceRole) {
+    if (!isCron && !isServiceRole && !(await isVaultCronFromEnv(req))) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
