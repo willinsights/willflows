@@ -53,14 +53,14 @@ describe('F1c — anular depois de mover um card', () => {
   it('oferece anular num movimento normal e repõe a coluna de origem', async () => {
     const { hook, getCols } = setup();
     await act(async () => { await hook.result.current.moveProject('p1', 'col-b'); });
-    expect(state.updates.at(-1)).toMatchObject({ edicao_column_id: 'col-b' });
+    expect(state.updates[state.updates.length - 1]).toMatchObject({ edicao_column_id: 'col-b' });
     const action = undoAction();
     expect(action).toBeDefined();
 
     state.toast.mockReset();
     await act(async () => { action!.props.onClick(); await Promise.resolve(); });
     await act(async () => { await Promise.resolve(); });
-    expect(state.updates.at(-1)).toMatchObject({ edicao_column_id: 'col-a' });
+    expect(state.updates[state.updates.length - 1]).toMatchObject({ edicao_column_id: 'col-a' });
     expect(getCols().find((c) => c.id === 'col-a')?.projects.map((p) => p.id)).toEqual(['p1']);
     // O próprio anular não oferece outro anular.
     expect(undoAction()).toBeUndefined();
