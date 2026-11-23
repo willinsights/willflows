@@ -5,8 +5,8 @@ export const projectSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').max(200, 'Nome muito longo (max 200 caracteres)').trim(),
   type: z.enum(['fotografia', 'video', 'foto_video']),
   category: z.enum(['hotel', 'experiencia', 'evento', 'outro']).optional(),
-  client_id: z.string().uuid('ID de cliente inválido').nullable().optional(),
-  custom_category_id: z.string().uuid('ID de categoria inválido').nullable().optional(),
+  client_id: z.string().guid('ID de cliente inválido').nullable().optional(),
+  custom_category_id: z.string().guid('ID de categoria inválido').nullable().optional(),
   agreed_value: z.number().nonnegative('Valor não pode ser negativo').nullable().optional(),
   estimated_costs: z.number().nonnegative('Custo não pode ser negativo').nullable().optional(),
   custo_captacao: z.number().nonnegative('Custo não pode ser negativo').nullable().optional(),
@@ -64,9 +64,9 @@ export const paymentSchema = z.object({
   bank_name: z.string().max(100).nullable().optional(),
   bank_iban: z.string().max(50).nullable().optional(),
   freelancer_name: z.string().max(200).nullable().optional(),
-  client_id: z.string().uuid('ID de cliente inválido').nullable().optional(),
-  project_id: z.string().uuid('ID de projeto inválido').nullable().optional(),
-  collaborator_id: z.string().uuid('ID de colaborador inválido').nullable().optional(),
+  client_id: z.string().guid('ID de cliente inválido').nullable().optional(),
+  project_id: z.string().guid('ID de projeto inválido').nullable().optional(),
+  collaborator_id: z.string().guid('ID de colaborador inválido').nullable().optional(),
 });
 
 export type ValidatedPayment = z.infer<typeof paymentSchema>;
@@ -76,7 +76,7 @@ export const mediaLinkSchema = z.object({
   url: z.string().url('URL inválida').min(1, 'URL é obrigatória'),
   title: z.string().max(200, 'Título muito longo').nullable().optional(),
   link_type: z.string().max(50).default('outro'),
-  project_id: z.string().uuid('ID de projeto inválido'),
+  project_id: z.string().guid('ID de projeto inválido'),
 });
 
 export type ValidatedMediaLink = z.infer<typeof mediaLinkSchema>;
@@ -84,7 +84,7 @@ export type ValidatedMediaLink = z.infer<typeof mediaLinkSchema>;
 // Comment validation schema
 export const commentSchema = z.object({
   content: z.string().min(1, 'Comentário não pode estar vazio').max(5000, 'Comentário muito longo'),
-  project_id: z.string().uuid('ID de projeto inválido'),
+  project_id: z.string().guid('ID de projeto inválido'),
 });
 
 export type ValidatedComment = z.infer<typeof commentSchema>;
@@ -99,8 +99,8 @@ export const calendarEventSchema = z.object({
   location: z.string().max(500).nullable().optional(),
   event_type: z.string().max(50).default('meeting'),
   video_call_url: z.string().url('URL inválida').or(z.literal('')).nullable().optional(),
-  project_id: z.string().uuid('ID de projeto inválido').nullable().optional(),
-  task_id: z.string().uuid('ID de tarefa inválido').nullable().optional(),
+  project_id: z.string().guid('ID de projeto inválido').nullable().optional(),
+  task_id: z.string().guid('ID de tarefa inválido').nullable().optional(),
 });
 
 export type ValidatedCalendarEvent = z.infer<typeof calendarEventSchema>;
@@ -140,7 +140,7 @@ export const kanbanColumnUpdateSchema = kanbanColumnSchema.partial();
 // Comment validation schema (for project comments)
 export const projectCommentSchema = z.object({
   content: z.string().min(1, 'Comentário não pode estar vazio').max(5000, 'Comentário muito longo (max 5000 caracteres)').trim(),
-  project_id: z.string().uuid('ID de projeto inválido'),
+  project_id: z.string().guid('ID de projeto inválido'),
 });
 
 export type ValidatedProjectComment = z.infer<typeof projectCommentSchema>;
@@ -150,7 +150,7 @@ export const projectMediaLinkSchema = z.object({
   url: z.string().url('URL inválida').min(1, 'URL é obrigatória').max(2000, 'URL muito longa'),
   title: z.string().max(200, 'Título muito longo (max 200 caracteres)').nullable().optional(),
   link_type: z.string().max(50, 'Tipo muito longo').default('outro'),
-  project_id: z.string().uuid('ID de projeto inválido'),
+  project_id: z.string().guid('ID de projeto inválido'),
 });
 
 export type ValidatedProjectMediaLink = z.infer<typeof projectMediaLinkSchema>;
@@ -158,7 +158,7 @@ export type ValidatedProjectMediaLink = z.infer<typeof projectMediaLinkSchema>;
 // Checklist item validation schema
 export const checklistItemSchema = z.object({
   title: z.string().min(1, 'Título é obrigatório').max(500, 'Título muito longo (max 500 caracteres)').trim(),
-  task_id: z.string().uuid('ID de tarefa inválido'),
+  task_id: z.string().guid('ID de tarefa inválido'),
 });
 
 export type ValidatedChecklistItem = z.infer<typeof checklistItemSchema>;
