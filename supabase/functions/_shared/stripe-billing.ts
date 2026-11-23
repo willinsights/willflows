@@ -637,3 +637,23 @@ export function decideStorageAddonPurchase(input: {
   if (!isWorkspaceOwner(input.workspace.owner_id, input.userId)) return 'not_owner';
   return null;
 }
+
+export interface StripeOwnedSubscriptionLike {
+  id: string;
+  metadata?: Record<string, unknown> | null;
+}
+
+// F8: before check-subscription stores a plan found through an EMAIL lookup,
+// the customer or the subscription must carry this account's user_id
+// (checkout writes it on both). An unmarked customer that merely shares the
+// email is not proof of ownership and is never associated.
+export function isEmailSubscriptionOwnedByUser(
+  customer: StripeCustomerLike | null | undefined,
+  subscription: StripeOwnedSubscriptionLike | null | undefined,
+  userId: string,
+): boolean {
+  if (!userId || !isUsableStripeCustomer(customer) || !subscription?.id) return false;
+  const customerOwner = customer!.metadata?.user_id;
+  if (customerOwner !== undefined && customerOwner !== null && customerOwner !== '' && customerOwner !== userId) return false;
+  return customerOwner === userId || subscription.metadata?.user_id === userId;
+}
