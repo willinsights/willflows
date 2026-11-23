@@ -26,7 +26,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     from(table: string) {
       if (table === 'project_team') {
-        return { select: () => ({ eq: () => ({ abortSignal: mock.assignments }) }) };
+        return { select: () => ({ eq: () => ({ order: () => ({ abortSignal: () => ({ range: () => mock.assignments() }) }) }) }) };
       }
       const query = {
         select: () => query,

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllAsResult } from '@/lib/fetch-all';
 import type { TablesUpdate } from '@/integrations/supabase/types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { toast } from 'sonner';
@@ -66,7 +67,8 @@ export function useProjectInvoices(projectId?: string) {
       query = query.eq('project_id', projectId);
     }
 
-    const { data, error } = await query;
+    const paged = query.order('id');
+    const { data, error } = await fetchAllAsResult(() => paged);
     if (error) {
       logger.error('Error fetching invoices:', error);
     } else {
