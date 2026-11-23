@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,12 +30,25 @@ export function useKanbanData(phase: KanbanPhase) {
 
   const [columns, setColumns] = useState<KanbanColumnWithProjects[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const isCollaborator = !canViewAllProjects;
   const userId = user?.id;
 
-  const isFetchingRef = useRef(false);
-  const lastFetchedKeyRef = useRef<string | null>(null);
+  const workspaceId = currentWorkspace?.id;
+  const scope = useMemo(
+    () => ({ workspaceId, phase, userId, isCollaborator, permissionsLoading, fetchError }),
+    [workspaceId, phase, userId, isCollaborator, permissionsLoading, fetchError],
+  );
+  const scopeRef = useRef(scope);
+  const inFlightRef = useRef<Promise<KanbanColumnWithProjects[]> | null>(null);
+  useLayoutEffect(() => {
+    scopeRef.current = scope;
+    inFlightRef.current = null;
+    setColumns([]);
+    setLoadFailed(false);
+    setLoading(Boolean(scope.workspaceId && scope.userId && !scope.fetchError));
+  }, [scope]);
   const pendingLocalUpdatesRef = useRef<Map<string, number>>(new Map());
 
   const markLocalUpdate = useCallback((recordId: string) => {
@@ -59,15 +72,13 @@ export function useKanbanData(phase: KanbanPhase) {
   );
 
   const fetchColumnsData = useCallback(async (): Promise<KanbanColumnWithProjects[] | null> => {
-    if (!currentWorkspace?.id || fetchError) return null;
-    if (!userId) return null;
-    if (isFetchingRef.current) return null;
+    if (!workspaceId || !userId || permissionsLoading || fetchError || scopeRef.current !== scope) return null;
+    if (inFlightRef.current) return inFlightRef.current;
 
-    try {
-      isFetchingRef.current = true;
+    const request = (async () => {
 
       const { data, error } = await supabase.rpc('get_kanban_board', {
-        p_workspace_id: currentWorkspace.id,
+        p_workspace_id: workspaceId,
         p_phase: phase,
         p_user_id: userId,
         p_is_collaborator: isCollaborator,
@@ -107,51 +118,57 @@ export function useKanbanData(phase: KanbanPhase) {
         ...col,
         projects: (col.projects || []).slice().sort(compare),
       }));
+    })();
+    inFlightRef.current = request;
+    try {
+      return await request;
+    } finally {
+      if (inFlightRef.current === request) inFlightRef.current = null;
+    }
+  }, [workspaceId, phase, fetchError, isCollaborator, userId, permissionsLoading, scope]);
+
+  const fetchColumns = useCallback(async () => {
+    if (scopeRef.current !== scope || !scope.workspaceId || !scope.userId || scope.permissionsLoading || scope.fetchError) return;
+    setLoading(true);
+    setLoadFailed(false);
+    try {
+      const data = await fetchColumnsData();
+      if (scopeRef.current === scope && data) setColumns(data);
     } catch (error) {
+      if (scopeRef.current !== scope) return;
+      setLoadFailed(true);
       toast({
         title: 'Erro ao carregar Kanban',
         description: handleDatabaseError('fetchKanban', error),
         variant: 'destructive',
       });
-      return null;
     } finally {
-      isFetchingRef.current = false;
+      if (scopeRef.current === scope) setLoading(false);
     }
-  }, [currentWorkspace?.id, phase, fetchError, toast, isCollaborator, userId]);
-
-  const fetchColumns = useCallback(async () => {
-    const fetchKey = `${currentWorkspace?.id}-${phase}`;
-    setLoading(true);
-    const data = await fetchColumnsData();
-    if (data) {
-      setColumns(data);
-      lastFetchedKeyRef.current = fetchKey;
-    }
-    setLoading(false);
-  }, [fetchColumnsData, currentWorkspace?.id, phase]);
+  }, [fetchColumnsData, scope, toast]);
 
   const silentRefresh = useCallback(async () => {
-    const data = await fetchColumnsData();
-    if (data) setColumns(data);
-  }, [fetchColumnsData]);
+    try {
+      const data = await fetchColumnsData();
+      if (scopeRef.current === scope && data) {
+        setColumns(data);
+        setLoadFailed(false);
+      }
+    } catch {
+      // Preserve the last successful board when background refresh fails.
+    }
+  }, [fetchColumnsData, scope]);
 
   const debouncedSilentRefresh = useMemo(
-    () =>
-      debounce(() => {
-        if (!isFetchingRef.current) silentRefresh();
-      }, 300),
-    [silentRefresh]
+    () => debounce(() => {
+      if (!inFlightRef.current) void silentRefresh();
+    }, 300),
+    [silentRefresh],
   );
 
   useEffect(() => {
-    if (permissionsLoading) return;
-    const fetchKey = `${currentWorkspace?.id}-${phase}-${isCollaborator}`;
-    if (currentWorkspace?.id && fetchKey !== lastFetchedKeyRef.current && !fetchError) {
-      fetchColumns();
-    } else if (!currentWorkspace) {
-      setLoading(false);
-    }
-  }, [currentWorkspace?.id, phase, fetchError, fetchColumns, permissionsLoading, isCollaborator]);
+    void fetchColumns();
+  }, [fetchColumns]);
 
   // Realtime subscriptions
   useEffect(() => {
@@ -244,6 +261,7 @@ export function useKanbanData(phase: KanbanPhase) {
     columns,
     setColumns,
     loading,
+    loadFailed,
     fetchColumns,
     silentRefresh,
     markLocalUpdate,

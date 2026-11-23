@@ -184,6 +184,24 @@ describe('WorkspaceProvider: dono do workspace e cache local', () => {
     expect(cache.workspace.owner_id).toBe(USER_ID);
   });
 
+  it('confirma no servidor uma cache com mais de cinco minutos', async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      v: 2,
+      userId: USER_ID,
+      workspace: workspaceRow('ws-old', USER_ID),
+      membership: cachedMembership('ws-old'),
+      allWorkspaces: [{ ...workspaceRow('ws-old', USER_ID), role: 'admin' }],
+      cachedAt: Date.now() - 6 * 60 * 1000,
+    }));
+    mocks.memberships = [membershipRow('ws-a', USER_ID)];
+
+    const { result } = renderProvider();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.workspace?.id).toBe('ws-a');
+    expect(mocks.listReads).toBe(1);
+  });
+
   it('cache válida com owner_id nulo é aceite e dá não-dono, sem leitura ao servidor', async () => {
     localStorage.setItem(
       CACHE_KEY,

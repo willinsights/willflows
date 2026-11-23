@@ -78,6 +78,8 @@ function VideoProductionTabContent({
   const [selectedVersion, setSelectedVersion] = useState<VideoVersion | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [loadingUrl, setLoadingUrl] = useState(false);
+  const [renewingVideoUrl, setRenewingVideoUrl] = useState(false);
+  const renewVideoUrlRef = useRef<(() => void) | null>(null);
   const [isVersionProcessing, setIsVersionProcessing] = useState(false);
   const [isFixingVideo, setIsFixingVideo] = useState(false);
   // 'original' shows the version's first upload, 'corrected' shows the replacement (when it exists)
@@ -120,6 +122,10 @@ function VideoProductionTabContent({
 
   // Load video URL when version changes - handles both Cloudflare and legacy Supabase
   useEffect(() => {
+    let active = true;
+    let renewing = false;
+    setRenewingVideoUrl(false);
+    renewVideoUrlRef.current = null;
     const loadVideoUrl = async () => {
       if (!selectedVersion) {
         setVideoUrl(null);
@@ -156,19 +162,49 @@ function VideoProductionTabContent({
         return;
       }
 
-      // Priority 2: Legacy Supabase Storage (old uploads)
+      // Legacy Storage links are short-lived; request a new URL through the same permission check.
+      const filePath = selectedVersion.file_path;
+      renewVideoUrlRef.current = async () => {
+        if (!active || renewing) return;
+        renewing = true;
+        setRenewingVideoUrl(true);
+        try {
+          const url = await getSignedUrl(filePath);
+          if (!active) return;
+          if (!url) {
+            toast.error('Não foi possível renovar o acesso ao vídeo.');
+            return;
+          }
+          setVideoUrl(url);
+        } catch {
+          if (active) toast.error('Não foi possível renovar o acesso ao vídeo.');
+        } finally {
+          renewing = false;
+          if (active) setRenewingVideoUrl(false);
+        }
+      };
+
+      setVideoUrl(null);
       setLoadingUrl(true);
       try {
-        const url = await getSignedUrl(selectedVersion.file_path);
-        setVideoUrl(url);
+        const url = await getSignedUrl(filePath);
+        if (active) setVideoUrl(url);
       } catch {
-        setVideoUrl(null);
+        if (active) setVideoUrl(null);
+      } finally {
+        if (active) setLoadingUrl(false);
       }
-      setLoadingUrl(false);
     };
 
-    loadVideoUrl();
+    void loadVideoUrl();
+    return () => {
+      active = false;
+      renewVideoUrlRef.current = null;
+    };
   }, [
+    selectedVersion?.file_path,
+    selectedVersion?.stream_playback_url,
+    selectedVersion?.replacement_playback_url,
     selectedVersion?.id,
     selectedVersion?.stream_status,
     selectedVersion?.cloudflare_stream_uid,
@@ -320,6 +356,8 @@ function VideoProductionTabContent({
                 onAddComment={handleAddComment}
                 onSetThumbnail={selectedVersion?.cloudflare_stream_uid ? (seconds) => setThumbnailTime(selectedVersion.id, seconds) : undefined}
                 onFixVideo={selectedVersion ? () => handleFixVideo(selectedVersion) : undefined}
+                onRenewVideoUrl={renewVideoUrlRef.current ? () => renewVideoUrlRef.current?.() : undefined}
+                renewingVideoUrl={renewingVideoUrl}
                 className="w-full max-h-[70vh]"
               />
             </div>

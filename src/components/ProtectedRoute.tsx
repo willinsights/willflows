@@ -15,21 +15,6 @@ const ALWAYS_ACCESSIBLE_ROUTES = [
   '/app/configuracoes',
 ];
 
-// Helper to check if there's a valid workspace cache for the current user
-const hasCachedWorkspace = (userId: string | undefined): boolean => {
-  if (!userId) return false;
-  try {
-    const cached = localStorage.getItem('willflow_workspace_cache');
-    if (cached) {
-      const data = JSON.parse(cached);
-      return data.userId === userId && data.workspace !== null;
-    }
-  } catch {
-    // Ignore parse errors
-  }
-  return false;
-};
-
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading: authLoading, subscription } = useAuth();
   const { allWorkspaces, loading: workspaceLoading, currentWorkspace, fetchError } = useWorkspace();
@@ -80,14 +65,13 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   // Don't redirect to onboarding if there was a fetch error (network issues)
   // Only redirect if we successfully fetched and found no workspaces
-  // IMPORTANT: If user has ANY workspace (admin or member), or has a valid cache, don't redirect to onboarding
-  const hasAnyWorkspace = allWorkspaces.length > 0 || currentWorkspace !== null || hasCachedWorkspace(user?.id);
+  const hasAnyWorkspace = allWorkspaces.length > 0 || currentWorkspace !== null;
   
   // /checkout-success não precisa de workspace: uma conta pode comprar o plano antes
   // de criar o seu (essa página encaminha depois para a criação do workspace).
   const needsWorkspace = location.pathname !== '/onboarding' && location.pathname !== '/checkout-success';
 
-  if (!fetchError && !hasAnyWorkspace && needsWorkspace) {
+  if (!workspaceLoading && !fetchError && !hasAnyWorkspace && needsWorkspace) {
     return <Navigate to="/onboarding" replace />;
   }
 
