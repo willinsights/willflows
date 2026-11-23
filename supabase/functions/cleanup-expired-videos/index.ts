@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { S3Client, DeleteObjectCommand } from "https://esm.sh/@aws-sdk/client-s3@3.709.0";
 import { secretEquals } from "../_shared/timing-safe.ts";
+import { approvalRetentionCutoff, selectVersionsDueAfterApproval } from "../_shared/approval-retention.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -155,8 +156,25 @@ serve(async (req) => {
     if (expiredItems && expiredItems.length > 0) {
       logStep("Found expired items to delete", { count: expiredItems.length });
 
+      const queueCutoff = approvalRetentionCutoff(new Date());
       for (const item of expiredItems) {
         try {
+          // Owner decision 2026-11-23: only approval starts the 7-day window.
+          // Items queued by task completion without an approval old enough are
+          // cancelled; a later approval re-queues the task via its trigger.
+          const { data: taskApprovals } = await guardedDb
+            .from('video_approvals')
+            .select('approved_at')
+            .eq('task_id', item.task_id);
+          const approvalTimes = (taskApprovals || []).map((a: any) => Date.parse(a.approved_at)).filter(Number.isFinite);
+          const latestApproval = approvalTimes.length ? Math.max(...approvalTimes) : null;
+          if (latestApproval === null || latestApproval >= Date.parse(queueCutoff)) {
+            if (latestApproval === null) {
+              await guardedDb.from('video_retention_queue').update({ status: 'cancelled' }).eq('id', item.id);
+            }
+            logStep("Retention item skipped: no approval older than 7 days", { itemId: item.id });
+            continue;
+          }
           // Get all video versions for this task
           const { data: videos } = await guardedDb
             .from('video_versions')
@@ -286,24 +304,44 @@ serve(async (req) => {
       }
     }
 
-    // 2b. Delivered cards: videos expire 7 days after delivery
-    const deliveredCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: oldProjects } = await guardedDb
-      .from('projects')
-      .select('id')
-      .eq('is_delivered', true)
-      .lt('delivered_at', deliveredCutoff)
+    // 2b. Approved videos expire 7 days after approval (owner decision 2026-11-23).
+    // Delivery alone no longer removes anything; unapproved versions stay.
+    const approvalCutoff = approvalRetentionCutoff(new Date());
+    const { data: oldApprovals } = await guardedDb
+      .from('video_approvals')
+      .select('video_version_id, task_id, approved_at')
+      .lt('approved_at', approvalCutoff)
       .limit(5000);
     let deliveredMarked = 0;
-    const projectIds = (oldProjects || []).map((p: any) => p.id);
-    for (let i = 0; i < projectIds.length && deliveredMarked < 300; i += 100) {
-      const { data: vids } = await guardedDb
-        .from('video_versions')
-        .select('id, workspace_id, file_size_bytes, replacement_file_size_bytes')
-        .in('project_id', projectIds.slice(i, i + 100))
-        .eq('is_deleted', false)
-        .limit(300 - deliveredMarked);
-      if (!vids || vids.length === 0) continue;
+    const approvalRows = (oldApprovals || []) as any[];
+    const approvedTaskIds = [...new Set(approvalRows.map((a) => a.task_id).filter(Boolean))] as string[];
+    const approvedVersionIds = [...new Set(approvalRows.map((a) => a.video_version_id).filter(Boolean))] as string[];
+    // Newer approvals on the same tasks restart the window.
+    const recentApprovals: any[] = [];
+    for (let i = 0; i < approvedTaskIds.length; i += 100) {
+      const { data } = await guardedDb
+        .from('video_approvals')
+        .select('video_version_id, task_id, approved_at')
+        .in('task_id', approvedTaskIds.slice(i, i + 100))
+        .gte('approved_at', approvalCutoff);
+      if (data) recentApprovals.push(...data);
+    }
+    const candidates: any[] = [];
+    for (const [column, ids] of [['task_id', approvedTaskIds], ['id', approvedVersionIds]] as const) {
+      for (let i = 0; i < ids.length; i += 100) {
+        const { data } = await guardedDb
+          .from('video_versions')
+          .select('id, task_id, is_deleted, workspace_id, file_size_bytes, replacement_file_size_bytes')
+          .in(column, ids.slice(i, i + 100))
+          .eq('is_deleted', false);
+        if (data) candidates.push(...data);
+      }
+    }
+    const byId = new Map(candidates.map((v: any) => [v.id, v]));
+    const dueIds = selectVersionsDueAfterApproval([...approvalRows, ...recentApprovals], [...byId.values()], approvalCutoff);
+    for (let i = 0; i < dueIds.length && deliveredMarked < 300; i += 100) {
+      const vids = dueIds.slice(i, Math.min(i + 100, i + 300 - deliveredMarked)).map((id) => byId.get(id));
+      if (vids.length === 0) continue;
       const freed: Record<string, number> = {};
       for (const v of vids as any[]) {
         freed[v.workspace_id] = (freed[v.workspace_id] || 0) + (v.file_size_bytes || 0) + (v.replacement_file_size_bytes || 0);

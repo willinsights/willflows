@@ -3,6 +3,10 @@
 Fonte única das tarefas do orquestrador. Estados: `pronta`, `precisa_aprovacao`, `bloqueada`, `em_pr` (PR aberto, por integrar), `concluida`.
 Agentes: `auditor` (só leitura), `programador` (só em branch), `proprietario` (decisão ou ação humana).
 
+## Decisões do proprietário
+
+- **23/11/2026 — Retenção de vídeos:** os vídeos carregados no WillFlow servem só para aprovação. São apagados do Cloudflare (Stream e R2) **7 dias depois da aprovação**, não da entrega do projeto. Não são críticos: se algum se perder, volta-se a carregar. Consequências: A4 (ensaio de restauro) abandonada; A3 e C3 deixam de bloquear por risco de perda; comentários e aprovações continuam a ser preservados na base.
+
 Origem: auditoria de 20/11/2026, atualizada com o trabalho de 21/11/2026 (`docs/agents/relatorios/2026-11-21.md`). Os detalhes sensíveis de segurança são mantidos genéricos porque o repositório é público. Os relatórios das auditorias estão em `docs/agents/relatorios/`.
 
 ## A. Correções críticas
@@ -12,10 +16,11 @@ Origem: auditoria de 20/11/2026, atualizada com o trabalho de 21/11/2026 (`docs/
 | A1d | Diagnosticar qual job agendado devolve HTTP 401 | bloqueada (falta acesso aos logs das funções) | auditor | proprietario: dar acesso aos logs | Job identificado com evidência dos logs; relatório sem segredos |
 | A1 | Autenticação dos jobs agendados com credencial gerida no Vault e nomes dos jobs coerentes com a cadência | precisa_aprovacao | programador | A1d | 24 h sem 401; cada job com HTTP 200; sem efeitos laterais (sem apagar vídeos nem emails duplicados) |
 | A2 | Migrações reproduzíveis a partir do estado real aplicado (só leitura da base; nada é aplicado) | pronta | programador | A6 | Base descartável criada só a partir do repositório; diff de catálogo contra produção vazio |
-| A3 | Política da limpeza legada de vídeos: pausar, gate que falha fechado, ou isolar os legados | precisa_aprovacao | proprietario | A2, A4 | Ensaio com fornecedor fictício; nenhuma eliminação externa sem passo anterior registado na base |
-| A4 | Restauro de backup verificado e documentado (data e ponto de recuperação) | precisa_aprovacao | proprietario | — | Restauro isolado com contagens iguais às de produção (versões, comentários, aprovações) |
+| A3 | Política da limpeza legada de vídeos: pausar, gate que falha fechado, ou isolar os legados | pronta (decisão do proprietário de 23/11: vídeos não são críticos; já não bloqueia por risco de perda) | programador | — | Ensaio com fornecedor fictício; nenhuma eliminação externa sem passo anterior registado na base |
+| A4 | Restauro de backup verificado e documentado (data e ponto de recuperação) | concluida (abandonada por decisão do proprietário de 23/11: os vídeos de aprovação não são críticos e voltam a ser carregados se se perderem) | — | — | Restauro isolado com contagens iguais às de produção (versões, comentários, aprovações) |
 | A5 | Explicar por versão a diferença entre 54 versões ativas (inventário de 20/11) e 50 (consulta de 20/11) | pronta (explicada em agregado, falta por versão; ver relatório) | auditor | — | Explicação documentada por versão, sem alterar nem apagar nada |
 | A6 | Existem dois diretórios de migrações (`supabase/migrations` e `drizzle/migrations`) com definições diferentes do mesmo trigger: apurar qual vale em produção | pronta | auditor | — | Relatório com a origem de cada objeto aplicado e a recomendação de fonte única |
+| A8 | Limpeza alinhada com a decisão de 23/11: apagar 7 dias após a aprovação (a entrega deixa de apagar; itens da fila criados pela conclusão da tarefa sem aprovação são cancelados) | em_pr (branch `agent/retencao-apos-aprovacao`; testes do seletor e verificação de tipos a passar) | programador | — | Nada é apagado sem aprovação com mais de 7 dias; aprovação recente na mesma tarefa reinicia a janela; publicação da função pedida ao Lovable depois da integração |
 | A7 | Trazer `docs/db/producao-2026-11-21.sql` para a fonte de migrações escolhida, sem reaplicar nada em produção | bloqueada (falta a decisão da fonte única em A6) | programador | A2, A6 | Base descartável criada só a partir do repositório tem as mesmas definições de `can_access_feature`, `workspace_is_active`, `create_workspace_with_admin` e dos triggers registados; diff de catálogo vazio para estes objetos |
 
 ## S. Segurança (verificação de 20/11)
@@ -63,7 +68,7 @@ Achados da verificação de segurança do Lovable de 20/11. Descrições genéri
 | --- | --- | --- | --- | --- | --- |
 | C1 | Piloto de vídeo com um cliente real | precisa_aprovacao | proprietario | A1, A3 | Upload, comentário e aprovação reais; quota certa; zero eliminações; plano de retirada testado |
 | C2 | Paridade dos vídeos novos: substituição no mesmo ID e miniatura; confirmar o alcance do PR #16 | bloqueada (decisão comercial sobre o número da versão) | auditor | proprietario | Regressão de comentários, aprovações e quota por versão |
-| C3 | Migração dos vídeos históricos | bloqueada | proprietario | A3, A4 | Ensaio numa cópia; perda zero de vídeos, links, comentários e aprovações |
+| C3 | Migração dos vídeos históricos: isolar ou descartar os legados de forma simples, preservando comentários e aprovações na base | pronta (decisão do proprietário de 23/11: os vídeos podem ser descartados) | programador | — | Ensaio numa cópia; perda zero de vídeos, links, comentários e aprovações |
 
 ## D. Financeiro
 
