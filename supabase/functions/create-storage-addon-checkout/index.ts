@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { decideStorageAddonPurchase, pickEmailCustomerForUser, isUsableStripeCustomer } from "../_shared/stripe-billing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -69,29 +70,30 @@ serve(async (req) => {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
 
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-    );
-
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
+    const refuse = (status: number, error: string) => new Response(JSON.stringify({ error }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" }, status,
+    });
+    if (!authHeader?.startsWith("Bearer ")) return refuse(401, "Sessão inválida");
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data } = await supabaseClient.auth.getUser(token);
-    const user = data.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
-    logStep("User authenticated", { userId: user.id, email: user.email });
+    // F9: identify the caller with their own session; read with the service role.
+    const userClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
+      global: { headers: { Authorization: authHeader } }, auth: { persistSession: false },
+    });
+    const { data: userData, error: userError } = await userClient.auth.getUser();
+    const user = userData?.user;
+    if (userError || !user?.email) return refuse(401, "Sessão inválida");
+    const supabaseClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", {
+      auth: { persistSession: false },
+    });
+    logStep("User authenticated", { userId: user.id });
 
     const { tier, workspaceId, currency = 'eur' } = await req.json();
     
     if (!tier || !STORAGE_TIERS[tier as StorageTier]) {
-      throw new Error("Invalid storage tier. Valid options: 25gb, 50gb, 100gb, 250gb");
+      return refuse(400, "Invalid storage tier. Valid options: 25gb, 50gb, 100gb, 250gb");
     }
-    
-    if (!workspaceId) {
-      throw new Error("Workspace ID is required");
-    }
+    if (!workspaceId) return refuse(400, "Workspace ID is required");
 
     // Validate currency
     const validCurrency: Currency = currency === 'brl' ? 'brl' : 'eur';
@@ -101,48 +103,43 @@ serve(async (req) => {
     
     logStep("Request parsed", { tier, workspaceId, currency: validCurrency, priceId });
 
-    // Verify user has access to this workspace and it's on Studio plan
-    const { data: workspace, error: wsError } = await supabaseClient
+    const { data: workspace } = await supabaseClient
       .from('workspaces')
-      .select('id, subscription_plan, stripe_customer_id')
+      .select('id, subscription_plan, owner_id')
       .eq('id', workspaceId)
-      .single();
+      .maybeSingle();
 
-    if (wsError || !workspace) {
-      throw new Error("Workspace not found");
-    }
+    const refusal = decideStorageAddonPurchase({ userId: user.id, workspace });
+    if (refusal === 'workspace_not_found') return refuse(404, "Workspace not found");
+    if (refusal === 'not_studio') return refuse(403, "Storage addons are only available for Studio plan workspaces");
+    if (refusal === 'not_owner') return refuse(403, "Só o dono do workspace pode comprar armazenamento adicional");
+    if (refusal) return refuse(401, "Sessão inválida");
 
-    // Verify workspace is on Studio plan
-    if (workspace.subscription_plan !== 'studio') {
-      throw new Error("Storage addons are only available for Studio plan workspaces");
-    }
-
-    // Check if user is admin of this workspace
-    const { data: membership, error: memberError } = await supabaseClient
-      .from('workspace_members')
-      .select('role')
-      .eq('workspace_id', workspaceId)
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .single();
-
-    if (memberError || !membership || membership.role !== 'admin') {
-      throw new Error("Only workspace admins can purchase storage addons");
-    }
-
-    logStep("Workspace verified", { plan: workspace.subscription_plan });
+    logStep("Workspace verified", { plan: workspace!.subscription_plan });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
-    // Check if customer already exists
-    let customerId = workspace.stripe_customer_id;
-    
+    // The billing customer belongs to the ACCOUNT (the owner), never to the
+    // workspace row nor to whoever shares the email.
+    let customerId: string | null = null;
+    const { data: account } = await supabaseClient
+      .from('user_subscriptions')
+      .select('stripe_customer_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (account?.stripe_customer_id) {
+      try {
+        const stored = await stripe.customers.retrieve(account.stripe_customer_id);
+        if (isUsableStripeCustomer(stored)) customerId = account.stripe_customer_id;
+      } catch { /* missing customer: fall back to email lookup */ }
+    }
     if (!customerId) {
-      // Try to find by email
-      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-      if (customers.data.length > 0) {
-        customerId = customers.data[0].id;
-      }
+      const customers = await stripe.customers.list({ email: user.email, limit: 10 });
+      customerId = pickEmailCustomerForUser(customers.data, user.id);
+    }
+    if (!customerId) {
+      const created = await stripe.customers.create({ email: user.email, metadata: { user_id: user.id } });
+      customerId = created.id;
     }
 
     const ALLOWED_RETURN_ORIGINS = ["https://willflow.app", "https://www.willflow.app", "http://localhost:8080", "http://localhost:5173"];
