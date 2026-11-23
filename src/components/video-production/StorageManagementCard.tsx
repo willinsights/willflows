@@ -19,7 +19,9 @@ interface StorageManagementCardProps {
 
 export function StorageManagementCard({ className }: StorageManagementCardProps) {
   const { storage, storageData, loading, recalculate, isRecalculating } = useWorkspaceStorage();
-  const { workspace, currentWorkspace, isAdmin } = useWorkspace();
+  const { workspace, currentWorkspace, isWorkspaceOwner } = useWorkspace();
+  // F9: only the owner buys storage add-ons (server enforces the same rule).
+  const isAdmin = isWorkspaceOwner;
   const { hasFeatureAccess, currentPlan } = usePlanFeatures();
   const { toast } = useToast();
   const [checkoutLoading, setCheckoutLoading] = useState<StorageAddonTier | null>(null);
@@ -36,7 +38,7 @@ export function StorageManagementCard({ className }: StorageManagementCardProps)
     if (!isAdmin) {
       toast({
         title: 'Sem permissão',
-        description: 'Apenas administradores podem comprar armazenamento extra.',
+        description: 'Só o dono do workspace pode comprar armazenamento extra.',
         variant: 'destructive',
       });
       return;
