@@ -6007,6 +6007,15 @@ export type Database = {
         Returns: Json
       }
       mask_email: { Args: { _email: string }; Returns: string }
+      pay_team_batch: {
+        Args: {
+          p_expected_total: number
+          p_ids: string[]
+          p_receipt_path?: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       private_video_claim: {
         Args: { p_operation: string; p_user: string }
         Returns: string
