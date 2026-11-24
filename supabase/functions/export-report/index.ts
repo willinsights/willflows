@@ -165,8 +165,13 @@ Deno.serve(async (req) => {
         );
       }
 
+      // Only return jobs (and their stored links) whose report permission still holds.
+      const types = [...new Set((jobs ?? []).map((j: { report_type: string }) => j.report_type))].filter(isReportType) as ReportType[];
+      const granted = await grantedPermissions(supabase, user.id, workspaceId!, [...new Set(types.map(requiredPermission))]);
+      const visibleJobs = (jobs ?? []).filter((j: { report_type: string }) => isReportType(j.report_type) && granted.has(requiredPermission(j.report_type)));
+
       return new Response(
-        JSON.stringify({ jobs }),
+        JSON.stringify({ jobs: visibleJobs }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
