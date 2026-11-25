@@ -14,6 +14,11 @@
     /* Core backgrounds - Cooler, deeper light gray for surface hierarchy */
     --background: 220 16% 95%;
     --foreground: 240 10% 10%;
+    --workspace-background: var(--background);
+    --workspace-grid: 246 20% 60%;
+    --workspace-grid-opacity: 0.055;
+    --workspace-primary-opacity: 0.035;
+    --workspace-accent-opacity: 0.025;
 
     /* Cards with soft shadows */
     --card: 0 0% 100%;
@@ -100,6 +105,11 @@
     /* Core backgrounds - Deep Space Black */
     --background: 240 18% 5%;
     --foreground: 0 0% 95%;
+    --workspace-background: 246 45% 5%;
+    --workspace-grid: 246 30% 65%;
+    --workspace-grid-opacity: 0.045;
+    --workspace-primary-opacity: 0.16;
+    --workspace-accent-opacity: 0.065;
 
     /* Cards with glassmorphism */
     --card: 240 16% 8.5%;
@@ -181,6 +191,17 @@
   }
 
   /* Rich dark base: subtle brand light from the top instead of flat black */
+  .workspace-background {
+    background-color: hsl(var(--workspace-background));
+    background-image:
+      linear-gradient(hsl(var(--workspace-grid) / var(--workspace-grid-opacity)) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--workspace-grid) / var(--workspace-grid-opacity)) 1px, transparent 1px),
+      radial-gradient(ellipse at 0% 0%, hsl(var(--primary) / var(--workspace-primary-opacity)), transparent 60%),
+      radial-gradient(ellipse at 100% 70%, hsl(var(--accent) / var(--workspace-accent-opacity)), transparent 60%),
+      linear-gradient(180deg, transparent 55%, hsl(var(--primary) / var(--workspace-primary-opacity)));
+    background-size: 44px 44px, 44px 44px, 100% 100%, 100% 100%, 100% 100%;
+  }
+
   .dark body {
     background-color: hsl(var(--background));
     background-image:
