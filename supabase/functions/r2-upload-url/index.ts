@@ -139,6 +139,12 @@ serve(async (req) => {
       });
     }
 
+    const userDb = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "", { auth: { persistSession: false }, global: { headers: { Authorization: authHeader } } });
+    const { data: hasFeature, error: featureError } = await userDb.rpc("can_access_feature", { p_workspace_id: workspaceId, p_feature: "videoApproval" });
+    if (featureError || hasFeature !== true) {
+      return new Response(JSON.stringify({ error: "Plan does not include video review" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     validateUploadFile(fileName, fileSize);
     const context = await resolveVideoContext(supabase, { workspace_id: workspaceId, project_id: projectId, task_id: taskId || null });
     if (replaceVersionId) {

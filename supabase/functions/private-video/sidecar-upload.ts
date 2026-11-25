@@ -4,7 +4,7 @@ export interface PrivateOperation {
  author_id:string;object_key:string;bytes:number;file_name:string;state:string;expires_at:string;submission_id:string|null;stream_uid:string|null;
 }
 export interface PrivateUploadDependencies extends Pick<SidecarDependencies,'rpc'|'authenticate'> {
- signPut:(key:string,type:string,seconds:number)=>Promise<string>;
+ signPut:(key:string,type:string,seconds:number,bytes:number)=>Promise<string>;
  head:(key:string)=>Promise<{bytes:number;etag:string}|null>;
  // Implementation must use conditional immutable R2 copy and signed-only Stream ingestion.
  freezeAndCopy:(v:PrivateOperation,claim:string,etag:string,hold:(key:string)=>Promise<void>)=>Promise<string>;
@@ -24,7 +24,7 @@ export async function privateUpload(req:Request,d:PrivateUploadDependencies):Pro
    const v:PrivateOperation=await call('private_video_issue',{p_operation:b.operationId,p_ws:b.workspaceId,p_project:b.projectId,p_task:b.taskId??null,p_user:user,p_name:b.fileName,p_bytes:b.bytes});
    const seconds=Math.floor((new Date(v.expires_at).getTime()-Date.now())/1000);
    if(v.state!=='issued'||seconds<=0)return answer({code:'EXPIRED_OR_ALREADY_PERSISTED'},409);
-   return answer({operationId:v.operation_id,versionId:v.id,url:await d.signPut(v.object_key,b.type,Math.min(seconds,7200))},201);
+   return answer({operationId:v.operation_id,versionId:v.id,url:await d.signPut(v.object_key,b.type,Math.min(seconds,7200),Number(v.bytes))},201);
   }
   let v:PrivateOperation=await call('private_video_operation',{p_operation:b.operationId,p_user:user});
   if(!v)return answer({code:'PRIVATE_OPERATION_DENIED'},403);

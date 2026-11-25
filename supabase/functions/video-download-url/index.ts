@@ -185,7 +185,7 @@ Deno.serve(async (req: Request) => {
       r2SecretAccessKey,
       r2Bucket,
       version.r2_key,
-      3600
+      300
     );
 
     console.log('[video-download-url] Signed R2 URL generated', {
@@ -199,7 +199,7 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({
         download_url: downloadUrl,
         file_name: version.file_name || 'video.mp4',
-        expires_in: 3600,
+        expires_in: 300,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

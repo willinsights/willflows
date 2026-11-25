@@ -28,7 +28,7 @@ export function buildExport(fmt: ExportFormat, list: ExportComment[], title: str
   switch (fmt) {
     case 'txt': return { content: commentsAsText(c, fps), ext: 'txt', mime: 'text/plain' };
     case 'csv': {
-      const q = (s: string) => `"${s.replace(/"/g, '""')}"`;
+      const q = (s: string) => { const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s; return `"${safe.replace(/"/g, '""')}"`; };
       return { content: ['#,Timecode,Segundos,Autor,Comentário', ...c.map((x, i) => [i + 1, tc(x.timestamp_seconds), x.timestamp_seconds.toFixed(2), q(x.client_name), q(x.body)].join(','))].join('\n'), ext: 'csv', mime: 'text/csv' };
     }
     case 'edl': return { ext: 'edl', mime: 'text/plain', content: [`TITLE: ${oneLine(title)}`, 'FCM: NON-DROP FRAME', '', ...c.flatMap((x, i) => {

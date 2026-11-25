@@ -29,7 +29,7 @@ Deno.serve(async(req:Request)=>{
    return new Response(result.body,{status:result.status,headers});
   }
   const response=upload?await privateUpload(req,{...base,
-   signPut:async(key,type,seconds)=>{const url=new URL(object(key));url.searchParams.set('X-Amz-Expires',String(seconds));return (await aws.sign(new Request(url,{method:'PUT',headers:{'Content-Type':type}}),{aws:{signQuery:true}})).url;},
+   signPut:async(key,type,seconds,bytes)=>{if(!Number.isSafeInteger(bytes)||bytes<=0)throw Error('Invalid size');const url=new URL(object(key));url.searchParams.set('X-Amz-Expires',String(seconds));return (await aws.sign(new Request(url,{method:'PUT',headers:{'Content-Type':type,'Content-Length':String(bytes)}}),{aws:{signQuery:true,allHeaders:true}})).url;},
    head:async key=>{const r=await aws.fetch(object(key),{method:'HEAD'});const bytes=r.headers.get('content-length');return r.ok&&bytes!==null?{bytes:Number(bytes),etag:r.headers.get('etag')??''}:null;},
    freezeAndCopy:async(v,_claim,etag,hold)=>{
     const snapshot='__willflow_v2/'+v.workspace_id+'/'+v.operation_id+'/frozen.mp4';await hold(snapshot);
