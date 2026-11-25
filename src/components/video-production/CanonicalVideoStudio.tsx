@@ -1,3 +1,4 @@
+import { CommentsMenu } from './CommentsMenu';
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -202,7 +203,7 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
         </div>}
 
         <div className="space-y-3 rounded-lg border border-border p-3">
-          <p className="flex items-center gap-2 text-sm font-medium"><MessageSquare className="h-4 w-4" /> Comentários {comments.length > 0 && <Badge variant="secondary">{comments.length}</Badge>}</p>
+          <div className="flex items-center justify-between"><p className="flex items-center gap-2 text-sm font-medium"><MessageSquare className="h-4 w-4" /> Comentários {comments.length > 0 && <Badge variant="secondary">{comments.length}</Badge>}</p><CommentsMenu comments={comments} title={group?.label ?? 'video'} /></div>
           {comments.length === 0 && <p className="text-xs text-muted-foreground">Sem comentários nesta versão.</p>}
           <ul className="max-h-80 space-y-2 overflow-y-auto">{comments.map(c => <li key={c.id} className="break-words rounded-md bg-muted/50 p-2 text-sm">
             <div className="mb-1 flex items-center gap-2"><button type="button" onClick={() => seek(c.timestamp_seconds)} className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-xs text-primary hover:bg-primary/25" aria-label={`Ir para ${formatClock(c.timestamp_seconds)}`}>{formatClock(c.timestamp_seconds)}</button><strong className="truncate">{c.client_name}</strong></div>

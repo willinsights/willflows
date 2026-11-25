@@ -7,6 +7,7 @@ import type React from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ArrowLeftRight, Check, CheckCircle2, Film, Info, Lock, Send } from 'lucide-react';
 import { CanonicalVideoComparison } from './CanonicalVideoComparison';
+import { CommentsMenu } from './CommentsMenu';
 
 const Tip = ({ text, children }: { text: string; children: React.ReactNode }) => <TooltipProvider delayDuration={200}><Tooltip><TooltipTrigger asChild><span className="inline-flex">{children}</span></TooltipTrigger><TooltipContent className="max-w-xs text-xs">{text}</TooltipContent></Tooltip></TooltipProvider>;
 const RETENTION_INFO = 'Este link mostra todos os vídeos deste projeto e é válido 7 dias. Depois de aprovado, o vídeo fica disponível 7 dias e é eliminado. Ficam guardados os comentários da revisão, a versão aprovada, quem aprovou e quando.';
@@ -72,7 +73,7 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         </section>
         <section className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-card p-3 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)]">
-          <h2 className="font-semibold">Comentários</h2>
+          <div className="flex items-center justify-between"><h2 className="font-semibold">Comentários</h2><CommentsMenu comments={comments} title={review?.version.file_name ?? group?.label ?? studio} /></div>
           {!approved && <p className="text-xs text-muted-foreground">{RETENTION_INFO}</p>}
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">{comments.length === 0 && <p className="text-sm text-muted-foreground">Pause o vídeo no momento certo e escreva o seu comentário.</p>}
           <ul className="space-y-2">{comments.map(c => <li key={c.id} className="break-words rounded-md bg-muted/50 p-2 text-sm">
