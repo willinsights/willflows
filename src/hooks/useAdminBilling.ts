@@ -1,3 +1,4 @@
+import { isPayingSubscription, isLiveTrial, isExpiredTrial } from '@/lib/adminSubscriptionStatus';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -115,7 +116,7 @@ export function useAdminBilling() {
           trial_ends_at: s.trial_ends_at,
           current_period_end: s.current_period_end,
           cancel_at_period_end: false, // Field not yet in schema
-          mrr: isSuperAdmin ? 0 : getPlanPrice(s.subscription_plan), // Super Admins don't pay
+          mrr: isSuperAdmin || !isPayingSubscription(s) ? 0 : getPlanPrice(s.subscription_plan), // only Stripe-paid actives
           isSuperAdmin,
         };
       });
@@ -187,7 +188,7 @@ export function useAdminBilling() {
         trial_ends_at: s.trial_ends_at,
         current_period_end: s.current_period_end,
         cancel_at_period_end: false, // Field not yet in schema
-        mrr: getPlanPrice(s.subscription_plan),
+        mrr: isPayingSubscription(s) ? getPlanPrice(s.subscription_plan) : 0,
       }));
     },
     enabled: isSuperAdmin,
@@ -251,8 +252,9 @@ export function useAdminBilling() {
     totalMRR: subscriptions
       .filter(s => s.subscription_status === 'active')
       .reduce((sum, s) => sum + s.mrr, 0),
-    activeCount: subscriptions.filter(s => s.subscription_status === 'active').length,
-    trialingCount: subscriptions.filter(s => s.subscription_status === 'trialing').length,
+    activeCount: subscriptions.filter(s => isPayingSubscription(s)).length,
+    trialingCount: subscriptions.filter(s => isLiveTrial(s)).length,
+    expiredTrialCount: subscriptions.filter(s => isExpiredTrial(s)).length,
     pastDueCount: subscriptions.filter(s => s.subscription_status === 'past_due').length,
     canceledCount: subscriptions.filter(s => s.subscription_status === 'canceled').length,
   };

@@ -20,6 +20,7 @@ export interface AdminUser {
     subscription_status: string;
     stripe_customer_id: string | null;
     stripe_subscription_id: string | null;
+    trial_ends_at: string | null;
   };
   workspaces: {
     id: string;
@@ -209,6 +210,7 @@ export function useAdminUsers(filters: UserFilters) {
           subscription_status: subsMap.get(p.id)!.subscription_status,
           stripe_customer_id: subsMap.get(p.id)!.stripe_customer_id,
           stripe_subscription_id: subsMap.get(p.id)!.stripe_subscription_id,
+          trial_ends_at: subsMap.get(p.id)!.trial_ends_at,
         } : undefined,
         workspaces: membershipMap.get(p.id) || [],
         stats: {

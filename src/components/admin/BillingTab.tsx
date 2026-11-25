@@ -170,13 +170,13 @@ function SubscriptionsSubTab() {
         <Card>
           <CardContent className="pt-4">
             <p className="text-2xl font-bold text-emerald-500">{billingStats.activeCount}</p>
-            <p className="text-xs text-muted-foreground">Ativas</p>
+            <p className="text-xs text-muted-foreground">Pagas (Stripe)</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
             <p className="text-2xl font-bold text-amber-500">{billingStats.trialingCount}</p>
-            <p className="text-xs text-muted-foreground">Em Trial</p>
+            <p className="text-xs text-muted-foreground">Em trial · {billingStats.expiredTrialCount} expirados</p>
           </CardContent>
         </Card>
         <Card>

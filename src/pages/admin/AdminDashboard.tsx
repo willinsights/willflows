@@ -186,7 +186,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { title: 'MRR', value: formatCurrency(metrics?.financial.mrr || 0), icon: Euro, color: 'green' as const },
-          { title: 'Subscrições Activas', value: metrics?.subscriptions.active || 0, icon: CreditCard, color: 'primary' as const },
+          { title: 'Subscrições pagas', value: metrics?.subscriptions.active || 0, icon: CreditCard, color: 'primary' as const },
           { title: 'Utilizadores Totais', value: metrics?.users.total || 0, icon: Users, color: 'primary' as const },
           { title: 'Workspaces', value: metrics?.workspaces.total || 0, icon: Building2, color: 'primary' as const },
         ].map((kpi, i) => (
@@ -208,10 +208,11 @@ export default function AdminDashboard() {
       </div>
 
       {/* Secondary metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
         {[
           { label: 'ARR', value: formatCurrency(metrics?.financial.arr || 0), color: '' },
           { label: 'Em Trial', value: metrics?.subscriptions.trialing || 0, color: '' },
+          { label: 'Trial expirado', value: metrics?.subscriptions.expiredTrials || 0, color: 'text-muted-foreground' },
           { label: 'Past Due', value: metrics?.subscriptions.pastDue || 0, color: 'text-yellow-500' },
           { label: 'WAU', value: metrics?.users.wau || 0, color: '' },
           { label: 'MAU', value: metrics?.users.mau || 0, color: '' },

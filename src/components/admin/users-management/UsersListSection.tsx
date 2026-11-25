@@ -1,3 +1,4 @@
+import { isLiveTrial } from '@/lib/adminSubscriptionStatus';
 /**
  * UsersListSection - Full users list with filtering and actions
  * Moved from UsersTab.tsx for the unified Users Management tab
@@ -85,7 +86,9 @@ export function UsersListSection() {
       return <Badge variant="default">Ativo</Badge>;
     }
     if (user.subscription?.subscription_status === 'trialing') {
-      return <Badge variant="secondary">Trial</Badge>;
+      return isLiveTrial(user.subscription as any)
+        ? <Badge variant="secondary">Trial</Badge>
+        : <Badge variant="outline" className="text-muted-foreground">Trial expirado</Badge>;
     }
     if (user.subscription?.subscription_status === 'past_due') {
       return <Badge variant="outline" className="border-orange-500 text-orange-500">Past Due</Badge>;
@@ -200,7 +203,7 @@ export function UsersListSection() {
         <span>•</span>
         <span>{users.filter(u => u.subscription?.subscription_status === 'active').length} ativos</span>
         <span>•</span>
-        <span>{users.filter(u => u.subscription?.subscription_status === 'trialing').length} em trial</span>
+        <span>{users.filter(u => u.subscription && isLiveTrial(u.subscription as any)).length} em trial</span>
       </div>
 
       {/* Table */}

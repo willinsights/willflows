@@ -1,3 +1,4 @@
+import { isPayingSubscription, isLiveTrial, isExpiredTrial } from '@/lib/adminSubscriptionStatus';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PLANS, type PlanId, PLAN_DB_MAPPING } from '@/lib/plans';
@@ -24,6 +25,7 @@ export interface UserMetrics {
 export interface SubscriptionMetrics {
   active: number;
   trialing: number;
+  expiredTrials: number;
   pastDue: number;
   canceled: number;
   canceledThisMonth: number;
@@ -123,9 +125,9 @@ export function useAdminMetrics() {
           .gte('created_at', startOfThisMonth.toISOString())
           .lte('created_at', endOfThisMonth.toISOString()),
         // Activity for WAU/MAU
-        supabase.from('activity_log')
-          .select('user_id, created_at')
-          .gte('created_at', oneMonthAgo.toISOString()),
+        supabase.from('profiles')
+          .select('id, last_login_at')
+          .gte('last_login_at', oneMonthAgo.toISOString()),
         // System admins (to exclude from metrics)
         supabase.from('system_admins').select('user_id'),
       ]);
@@ -144,7 +146,7 @@ export function useAdminMetrics() {
       const userSubscriptions = subscriptions.filter(s => !systemAdmins.has(s.user_id));
 
       // ===== Financial Metrics =====
-      const activeSubscriptions = userSubscriptions.filter(s => s.subscription_status === 'active');
+      const activeSubscriptions = userSubscriptions.filter(s => isPayingSubscription(s));
       const mrr = activeSubscriptions.reduce((sum, s) => sum + getPlanMonthlyPrice(s.subscription_plan), 0);
       const arr = mrr * 12;
 
@@ -164,14 +166,15 @@ export function useAdminMetrics() {
 
       // WAU/MAU calculation
       const weeklyActiveUsers = new Set(
-        activities
-          .filter(a => new Date(a.created_at) >= oneWeekAgo)
-          .map(a => a.user_id)
+        (activities as any[])
+          .filter(a => new Date(a.last_login_at) >= oneWeekAgo)
+          .map(a => a.id)
       );
-      const monthlyActiveUsers = new Set(activities.map(a => a.user_id));
+      const monthlyActiveUsers = new Set((activities as any[]).map(a => a.id));
 
       // ===== Subscription Metrics =====
-      const trialingSubs = userSubscriptions.filter(s => s.subscription_status === 'trialing');
+      const trialingSubs = userSubscriptions.filter(s => isLiveTrial(s));
+      const expiredTrialSubs = userSubscriptions.filter(s => isExpiredTrial(s));
       const pastDueSubs = userSubscriptions.filter(s => s.subscription_status === 'past_due');
       const canceledSubs = userSubscriptions.filter(s => s.subscription_status === 'canceled');
       const canceledThisMonth = canceledSubs.filter(s => 
@@ -222,6 +225,7 @@ export function useAdminMetrics() {
         subscriptions: {
           active: activeSubscriptions.length,
           trialing: trialingSubs.length,
+          expiredTrials: expiredTrialSubs.length,
           pastDue: pastDueSubs.length,
           canceled: canceledSubs.length,
           canceledThisMonth: canceledThisMonth.length,
@@ -287,6 +291,7 @@ export function useAdminMetrics() {
           .from('user_subscriptions')
           .select('subscription_plan')
           .eq('subscription_status', 'active')
+          .not('stripe_subscription_id', 'is', null)
           .lte('created_at', monthEnd.toISOString());
 
         const monthMrr = (activeSubs || []).reduce(
