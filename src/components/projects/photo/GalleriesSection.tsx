@@ -48,7 +48,7 @@ export function GalleriesSection({ projectId, workspaceId }: { projectId: string
   };
 
   if (error) return <p className="text-sm text-destructive">Não foi possível carregar as galerias.</p>;
-  if (!planLoading && !canUseFeature('photoGalleries')) return (
+  if (!planLoading && !canUseFeature('photoGalleries') && !galleries.length) return (
     <section className="space-y-2 rounded-lg border border-dashed border-border p-6 text-center">
       <h3 className="font-semibold">Galerias para o cliente</h3>
       <p className="text-sm text-muted-foreground">As galerias de fotografia fazem parte do plano Studio.{galleries.length ? ' As galerias já partilhadas continuam acessíveis aos clientes.' : ''}</p>
@@ -59,7 +59,7 @@ export function GalleriesSection({ projectId, workspaceId }: { projectId: string
     <section className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">Galerias para o cliente</h3>
-        <Button size="sm" onClick={create}><Plus className="mr-1 h-4 w-4" />Nova galeria</Button>
+        <Button size="sm" disabled={!canUseFeature('photoGalleries')} onClick={create}><Plus className="mr-1 h-4 w-4" />Nova galeria</Button>
       </div>
       {isLoading ? <div className="h-24 animate-pulse rounded-lg bg-muted" /> :
         galleries.length === 0 ? <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">Ainda não há galerias. Crie uma para enviar fotos ao cliente.</p> :
@@ -74,8 +74,12 @@ function GalleryCard({ gallery: g, projectId }: { gallery: Gallery; projectId: s
   const previewInput = useRef<HTMLInputElement>(null);
   const finalInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [openPhoto, setOpenPhoto] = useState<Photo | null>(null);
   const [form, setForm] = useState({
+    delete_after_download: g.delete_after_download,
+    delete_at: g.delete_at ? g.delete_at.slice(0, 10) : '',
     title: g.title, included_count: String(g.included_count), extra_price: String(g.extra_price),
     watermark_enabled: g.watermark_enabled, watermark_text: g.watermark_text ?? '',
     token_expires_at: g.token_expires_at ? g.token_expires_at.slice(0, 10) : '',
@@ -107,6 +111,8 @@ function GalleryCard({ gallery: g, projectId }: { gallery: Gallery; projectId: s
 
   const save = async (extra: Partial<Gallery> = {}) => {
     const { error } = await supabase.from('photo_galleries').update({
+      delete_after_download: form.delete_after_download,
+      delete_at: form.delete_at ? new Date(`${form.delete_at}T23:59:59`).toISOString() : null,
       title: form.title.trim() || 'Galeria',
       included_count: Math.max(0, parseInt(form.included_count) || 0),
       extra_price: Math.max(0, parseFloat(form.extra_price.replace(',', '.')) || 0),
@@ -178,6 +184,17 @@ function GalleryCard({ gallery: g, projectId }: { gallery: Gallery; projectId: s
     qc.invalidateQueries({ queryKey: ['workspace-storage'] });
   };
 
+  const removeGallery = async () => {
+    setDeleting(true);
+    try {
+      await photoStorage({ action: 'delete-gallery', gallery_id: g.id, confirm: true });
+      setDeleteOpen(false);
+      invalidate();
+      toast.success('Galeria encerrada. A exclusão dos arquivos será processada automaticamente.');
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Não foi possível excluir'); }
+    finally { setDeleting(false); }
+  };
+
   const share = async () => {
     if (!photos.length) return toast.error('Envie fotos antes de partilhar');
     if (await save({ status: g.status === 'draft' ? 'shared' : g.status })) {
@@ -193,6 +210,14 @@ function GalleryCard({ gallery: g, projectId }: { gallery: Gallery; projectId: s
     invalidate();
     qc.invalidateQueries({ queryKey: ['projects'] });
   };
+
+  if (g.cleanup_started_at) return (
+    <div className="space-y-2 rounded-lg border border-border p-4">
+      <h4 className="font-semibold">{g.title}</h4>
+      <Badge variant="secondary">Exclusão pendente</Badge>
+      <p className="text-sm text-muted-foreground">O link foi encerrado. O espaço será liberado após a remoção dos arquivos, geralmente em até 2 horas.</p>
+    </div>
+  );
 
   return (
     <div className="space-y-4 rounded-lg border border-border/60 bg-card/50 p-4">
@@ -220,8 +245,16 @@ function GalleryCard({ gallery: g, projectId }: { gallery: Gallery; projectId: s
         {form.watermark_enabled && <p className="text-xs text-muted-foreground sm:col-span-2">A marca de água é aplicada às fotos enviadas a partir de agora. As fotos finais são entregues sem marca de água.</p>}
       </div>
 
+      <div className="grid gap-3 border-t border-border pt-4 sm:grid-cols-2">
+        <div className="space-y-1"><Label htmlFor={`delete-at-${g.id}`}>Excluir automaticamente em (opcional)</Label><Input id={`delete-at-${g.id}`} type="date" value={form.delete_at} onChange={e => setForm(f => ({ ...f, delete_at: e.target.value }))} /></div>
+        <div className="flex items-center gap-3"><Switch id={`delete-download-${g.id}`} checked={form.delete_after_download} onCheckedChange={v => setForm(f => ({ ...f, delete_after_download: v }))} /><Label htmlFor={`delete-download-${g.id}`}>Excluir após o cliente confirmar o download</Label></div>
+        <p className="text-xs text-muted-foreground sm:col-span-2">A exclusão é definitiva e encerra o link. O espaço é liberado após remover as fotos. Se as duas opções estiverem ativas, vale a primeira que acontecer.</p>
+        <p className="text-sm text-muted-foreground sm:col-span-2">Espaço desta galeria: {(photos.reduce((total, p) => total + Number(p.size_bytes), 0) / (1024 * 1024)).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MB{g.download_confirmed_at ? ` · Recebimento confirmado em ${new Date(g.download_confirmed_at).toLocaleDateString('pt-BR')}` : ''}</p>
+      </div>
+
       <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="outline" onClick={() => save()}>Guardar</Button>
+        <Button size="sm" variant="destructive" disabled={!!busy} onClick={() => setDeleteOpen(true)}><Trash2 className="mr-1 h-4 w-4" />Excluir galeria</Button>
         <input ref={previewInput} type="file" accept="image/*" multiple hidden onChange={e => { uploadPreviews(e.target.files); e.target.value = ''; }} />
         <Button size="sm" variant="outline" disabled={!!busy} onClick={() => previewInput.current?.click()}><Upload className="mr-1 h-4 w-4" />{busy ?? 'Enviar fotos'}</Button>
         <Button size="sm" onClick={share}><Copy className="mr-1 h-4 w-4" />{g.status === 'draft' ? 'Partilhar e copiar link' : 'Copiar link'}</Button>
@@ -271,6 +304,14 @@ function GalleryCard({ gallery: g, projectId }: { gallery: Gallery; projectId: s
           })}
         </div>
       )}
+
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Excluir {g.title}?</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Todas as fotos, favoritas e comentários serão excluídos definitivamente. O link do cliente será encerrado agora; o espaço será liberado após a remoção dos arquivos, geralmente em até 2 horas. Guarde uma cópia antes de continuar.</p>
+          <div className="flex flex-wrap justify-end gap-2"><Button variant="outline" disabled={deleting} onClick={() => setDeleteOpen(false)}>Cancelar</Button><Button variant="destructive" disabled={deleting} onClick={removeGallery}>{deleting ? 'Aguarde…' : 'Confirmar exclusão'}</Button></div>
+        </DialogContent>
+      </Dialog>
 
       {openPhoto && (
         <StudioPhotoDialog photo={openPhoto} url={data?.urls.get(openPhoto.preview_path) ?? ''} comments={comments.filter(c => c.photo_id === openPhoto.id)} onClose={() => setOpenPhoto(null)} onChange={invalidate} />

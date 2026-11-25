@@ -158,3 +158,8 @@
 - [x] Review Studio: um só estúdio (circuito novo), vários vídeos por cartão, comentários com tempo, bloqueio após aprovação, link com marca do estúdio
 
 - [x] Fotos das galerias no Cloudflare (pasta própria), contam no espaço, só plano Studio, notificações e alerta no painel
+
+## Gestão de espaço das galerias (25/11)
+- [x] Adicionar exclusão manual confirmada e opções por data ou confirmação de recebimento.
+- [x] Impedir envios durante exclusão; remover objetos do Cloudflare e legado antes de liberar quota.
+- [x] Limpeza horária implantada (24 execuções/dia); opções salvas e relidas no estúdio, download real e confirmação anônima/mobile verificados, quota restaurada na remoção individual; 12 testes e compilação OK. Galerias fictícias aguardam o período de segurança antes da limpeza física automática, ainda não observada.

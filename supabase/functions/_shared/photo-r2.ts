@@ -1,6 +1,7 @@
 // Cloudflare R2 access for photo galleries. Photos live under the dedicated "photos/" prefix
 // (or CLOUDFLARE_R2_PHOTOS_BUCKET when configured), separate from video keys.
 import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.18';
+import { XMLParser } from 'npm:fast-xml-parser@4.5.3';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 export const PHOTO_PREFIX = 'photos/';
@@ -28,8 +29,34 @@ export async function objectSize(key: string): Promise<number | null> {
 }
 
 export async function deleteObject(key: string) {
-  if (!key.startsWith(PHOTO_PREFIX)) return;
-  await client().fetch(objectUrl(key).toString(), { method: 'DELETE' });
+  if (!key.startsWith(PHOTO_PREFIX)) throw new Error('Invalid photo key');
+  const res = await client().fetch(objectUrl(key).toString(), { method: 'DELETE' });
+  if (!res.ok && res.status !== 404) throw new Error('Photo storage deletion failed');
+}
+
+/** Include unconfirmed uploads after their signed upload tickets have expired. */
+export async function listGalleryObjects(ws: string, gallery: string): Promise<string[]> {
+  const prefix = `${PHOTO_PREFIX}${ws}/${gallery}/`;
+  const keys: string[] = [];
+  let token: string | undefined;
+  do {
+    const url = objectUrl('');
+    url.searchParams.set('list-type', '2');
+    url.searchParams.set('prefix', prefix);
+    if (token) url.searchParams.set('continuation-token', token);
+    const res = await client().fetch(url.toString());
+    if (!res.ok) throw new Error('Photo storage listing failed');
+    const result = new XMLParser({ parseTagValue: false }).parse(await res.text()).ListBucketResult;
+    if (!result) throw new Error('Invalid photo storage listing');
+    const contents = result.Contents ? (Array.isArray(result.Contents) ? result.Contents : [result.Contents]) : [];
+    for (const item of contents) {
+      if (typeof item.Key !== 'string' || !item.Key.startsWith(prefix)) throw new Error('Invalid gallery object');
+      keys.push(item.Key);
+    }
+    token = result.IsTruncated === 'true' ? result.NextContinuationToken : undefined;
+    if (result.IsTruncated === 'true' && !token) throw new Error('Incomplete photo storage listing');
+  } while (token);
+  return keys;
 }
 
 /** Signed read URL for a stored photo path, whichever store holds it. */

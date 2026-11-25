@@ -2701,11 +2701,17 @@ export type Database = {
       }
       photo_galleries: {
         Row: {
+          cleanup_after: string | null
+          cleanup_started_at: string | null
           client_name: string | null
           client_note: string | null
           created_at: string
           created_by: string | null
+          delete_after_download: boolean
+          delete_at: string | null
           delivered_at: string | null
+          download_confirmed_at: string | null
+          download_requested_at: string | null
           extra_price: number
           extras_added_to_project_at: string | null
           extras_amount: number
@@ -2713,6 +2719,7 @@ export type Database = {
           extras_paid_at: string | null
           id: string
           included_count: number
+          last_upload_expires_at: string | null
           project_id: string
           selection_submitted_at: string | null
           share_token: string
@@ -2725,11 +2732,17 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          cleanup_after?: string | null
+          cleanup_started_at?: string | null
           client_name?: string | null
           client_note?: string | null
           created_at?: string
           created_by?: string | null
+          delete_after_download?: boolean
+          delete_at?: string | null
           delivered_at?: string | null
+          download_confirmed_at?: string | null
+          download_requested_at?: string | null
           extra_price?: number
           extras_added_to_project_at?: string | null
           extras_amount?: number
@@ -2737,6 +2750,7 @@ export type Database = {
           extras_paid_at?: string | null
           id?: string
           included_count?: number
+          last_upload_expires_at?: string | null
           project_id: string
           selection_submitted_at?: string | null
           share_token?: string
@@ -2749,11 +2763,17 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          cleanup_after?: string | null
+          cleanup_started_at?: string | null
           client_name?: string | null
           client_note?: string | null
           created_at?: string
           created_by?: string | null
+          delete_after_download?: boolean
+          delete_at?: string | null
           delivered_at?: string | null
+          download_confirmed_at?: string | null
+          download_requested_at?: string | null
           extra_price?: number
           extras_added_to_project_at?: string | null
           extras_amount?: number
@@ -2761,6 +2781,7 @@ export type Database = {
           extras_paid_at?: string | null
           id?: string
           included_count?: number
+          last_upload_expires_at?: string | null
           project_id?: string
           selection_submitted_at?: string | null
           share_token?: string
@@ -6552,6 +6573,10 @@ export type Database = {
         Args: { p_abort?: boolean; p_operation: string; p_user: string }
         Returns: boolean
       }
+      queue_gallery_cleanup: {
+        Args: { p_gallery_id: string }
+        Returns: boolean
+      }
       record_promo_redemption: {
         Args: { _promo_code_id: string; _workspace_id?: string }
         Returns: boolean
@@ -6564,6 +6589,10 @@ export type Database = {
       reorder_kanban_columns: {
         Args: { p_phase: string; p_positions: Json; p_workspace_id: string }
         Returns: undefined
+      }
+      reserve_gallery_upload: {
+        Args: { p_gallery_id: string }
+        Returns: boolean
       }
       send_month_end_reminders: { Args: never; Returns: undefined }
       sign_contract_public: {

@@ -2,6 +2,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { readUrl } from '../_shared/photo-r2.ts';
+import { galleryDeletionDue } from '../_shared/photo-retention.ts';
 import { clientIdentifier, isRateLimited, logAttempt, rateLimitResponse } from '../_shared/rate-limit.ts';
 
 const json = (body: unknown, status = 200) =>
@@ -20,12 +21,21 @@ Deno.serve(async (req) => {
   const action = String(body.action ?? 'get');
   if (!TOKEN.test(token)) return json({ error: 'Link inválido' }, 400);
 
-  const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  const url = Deno.env.get('SUPABASE_URL');
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !key) return json({ error: 'Serviço indisponível' }, 503);
+  const db = createClient(url, key);
   const ident = clientIdentifier(req, token);
   if (await isRateLimited(db, ident, 'photo_gallery')) return rateLimitResponse(corsHeaders);
 
   const { data: g } = await db.from('photo_galleries').select('*').eq('share_token', token).maybeSingle();
   if (!g || g.status === 'draft') { await logAttempt(db, ident, 'photo_gallery', false); return json({ error: 'Galeria não encontrada' }, 404); }
+  if (galleryDeletionDue(g)) {
+    const { error } = await db.rpc('queue_gallery_cleanup', { p_gallery_id: g.id });
+    if (error) return json({ error: 'Não foi possível atualizar a galeria' }, 503);
+    return json({ error: 'Esta galeria foi encerrada pelo estúdio.' }, 410);
+  }
+  if (g.cleanup_started_at) return json({ error: 'Esta galeria foi encerrada pelo estúdio.' }, 410);
   if (g.token_expires_at && new Date(g.token_expires_at) <= new Date()) return json({ error: 'Este link expirou. Peça um novo ao estúdio.' }, 410);
 
   const { data: ws } = await db.from('workspaces').select('name, logo_url').eq('id', g.workspace_id).maybeSingle();
@@ -75,14 +85,29 @@ Deno.serve(async (req) => {
     return json({ ok: true, extras, amount });
   }
 
+  if (action === 'confirm-download') {
+    if (g.status !== 'delivered' || !g.download_requested_at || body.confirm !== true) return json({ error: 'Baixe as fotos antes de confirmar o recebimento.' }, 409);
+    const { error } = await db.from('photo_galleries').update({ download_confirmed_at: g.download_confirmed_at || new Date().toISOString() }).eq('id', g.id).is('cleanup_started_at', null);
+    if (error) return json({ error: 'Não foi possível confirmar o recebimento' }, 500);
+    if (g.delete_after_download) {
+      const { error } = await db.rpc('queue_gallery_cleanup', { p_gallery_id: g.id });
+      if (error) return json({ error: 'Não foi possível encerrar a galeria. Tente novamente.' }, 500);
+    }
+    return json({ ok: true, closed: g.delete_after_download });
+  }
+
   if (action === 'download') {
     if (g.status !== 'delivered') return json({ error: 'A entrega ainda não está disponível' }, 409);
     const { data: rows } = await db.from('gallery_photos').select('id, file_name, original_path, storage_provider').eq('gallery_id', g.id).not('original_path', 'is', null).order('position');
     const urls = [];
     for (const r of rows ?? []) {
-      const url = await readUrl(db, r.storage_provider, r.original_path!, 600, r.file_name);
+      if (!r.original_path) continue;
+      const url = await readUrl(db, r.storage_provider, r.original_path, 600, r.file_name);
       if (url) urls.push({ id: r.id, file_name: r.file_name, url });
     }
+    if (!urls.length) return json({ error: 'Nenhuma foto final disponível' }, 409);
+    const { error } = await db.from('photo_galleries').update({ download_requested_at: new Date().toISOString() }).eq('id', g.id).is('cleanup_started_at', null);
+    if (error) return json({ error: 'Não foi possível iniciar o download' }, 500);
     return json({ files: urls });
   }
 
@@ -95,6 +120,7 @@ Deno.serve(async (req) => {
   return json({
     studio: { name: ws?.name ?? '', logo_url: ws?.logo_url ?? null },
     gallery: {
+      delete_after_download: g.delete_after_download, delete_at: g.delete_at, download_requested_at: g.download_requested_at, download_confirmed_at: g.download_confirmed_at,
       title: g.title, status: g.status, included_count: g.included_count, extra_price: Number(g.extra_price),
       selection_submitted_at: g.selection_submitted_at, extras_count: g.extras_count, extras_amount: Number(g.extras_amount),
       has_delivery: g.status === 'delivered' && (photos ?? []).some(p => p.original_path),

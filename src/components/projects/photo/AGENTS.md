@@ -1,2 +1,4 @@
 - Photo galleries: clients reach them only via the photo-gallery function by token; previews are built in the studio browser. Why: no public reads or server image work.
 - Gallery photo files go to Cloudflare R2 under the photos/ prefix through the photo-storage function, which measures size and writes gallery_photos rows; the browser cannot write that table. Why: storage quota is counted by a DB trigger from trusted sizes; older rows keep storage_provider='supabase' and stay readable.
+
+- Gallery retention is opt-in and uses server-owned retirement state, upload-expiry fencing and hourly retryable provider cleanup; quota is released only by deleting photo rows after successful object removal. Why: download clicks do not prove receipt, and failed external deletion must not hide occupied storage.

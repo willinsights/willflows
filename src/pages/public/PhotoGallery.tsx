@@ -3,6 +3,8 @@ import { useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -12,7 +14,7 @@ import { computeExtras, toPercentPoint } from '@/lib/photo/gallery';
 
 interface Data {
   studio: { name: string; logo_url: string | null };
-  gallery: { title: string; status: string; included_count: number; extra_price: number; selection_submitted_at: string | null; extras_count: number; extras_amount: number; has_delivery: boolean };
+  gallery: { delete_after_download: boolean; delete_at: string | null; download_requested_at: string | null; download_confirmed_at: string | null; title: string; status: string; included_count: number; extra_price: number; selection_submitted_at: string | null; extras_count: number; extras_amount: number; has_delivery: boolean };
   photos: { id: string; file_name: string; is_favorite: boolean; url: string | null }[];
   comments: { id: string; photo_id: string; parent_id: string | null; x: number | null; y: number | null; body: string; is_client: boolean; author_name: string | null; status: string }[];
 }
@@ -28,6 +30,9 @@ export default function PhotoGallery() {
   const [name, setName] = useState(() => localStorage.getItem('gallery-client-name') ?? '');
   const [note, setNote] = useState('');
   const [submitOpen, setSubmitOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [received, setReceived] = useState(false);
+  const [downloadStarted, setDownloadStarted] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const call = useCallback(async (body: Record<string, unknown>) => {
@@ -80,11 +85,27 @@ export default function PhotoGallery() {
     setBusy(true);
     try {
       const { files } = await call({ action: 'download' });
+      if (!files.length) throw new Error('Nenhuma foto final disponível');
       for (const f of files as { url: string; file_name: string }[]) {
         const a = document.createElement('a'); a.href = f.url; a.download = f.file_name; document.body.appendChild(a); a.click(); a.remove();
         await new Promise(r => setTimeout(r, 400));
       }
+      setDownloadStarted(true);
+      setReceived(false);
+      setConfirmOpen(true);
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
+  };
+
+  const confirmDownload = async () => {
+    if (!received) return;
+    setBusy(true);
+    try {
+      const result = await call({ action: 'confirm-download', confirm: true });
+      setConfirmOpen(false);
+      if (result.closed) setError('Recebimento confirmado. Esta galeria foi encerrada pelo estúdio.');
+      else { await load(); toast.success('Recebimento confirmado'); }
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
   };
 
   return (
@@ -98,6 +119,19 @@ export default function PhotoGallery() {
         {g.status === 'selection_submitted' && <p className="text-sm text-muted-foreground">Seleção enviada. O estúdio vai preparar as fotos finais.</p>}
         {g.status === 'delivered' && g.has_delivery && <Button onClick={download} disabled={busy}><Download className="mr-1 h-4 w-4" />Descarregar fotos</Button>}
       </div>
+
+      {g.delete_at && <p className="mb-4 text-sm text-muted-foreground">Fotos disponíveis até {new Date(g.delete_at).toLocaleDateString('pt-BR')}. Depois serão excluídas pelo estúdio.</p>}
+      {g.delete_after_download && <p className="mb-4 text-sm text-muted-foreground">Após confirmar que recebeu todas as fotos, esta galeria será encerrada e as fotos serão excluídas.</p>}
+      {g.status === 'delivered' && !g.download_confirmed_at && (downloadStarted || g.download_requested_at) && <Button variant="outline" className="mb-4" onClick={() => { setReceived(false); setConfirmOpen(true); }}>Confirmar recebimento das fotos</Button>}
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Recebeu todas as fotos?</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Aguarde os downloads terminarem e confira os arquivos antes de confirmar.{g.delete_after_download ? ' Esta confirmação encerra o link e autoriza a exclusão definitiva das fotos.' : ''}</p>
+          <div className="flex items-start gap-3"><Checkbox id="photos-received" checked={received} onCheckedChange={v => setReceived(v === true)} /><Label htmlFor="photos-received">Já guardei e conferi todas as fotos.</Label></div>
+          <div className="flex flex-wrap justify-end gap-2"><Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={busy}>Ainda não</Button><Button onClick={confirmDownload} disabled={!received || busy}>Confirmar recebimento</Button></div>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {photos.map((p, i) => {
@@ -127,8 +161,8 @@ export default function PhotoGallery() {
                 <span key={c.id} style={{ left: `${c.x}%`, top: `${c.y}%` }} className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary px-2 text-xs font-semibold text-primary-foreground">{i + 1}</span>
               ))}
               {pin && <span style={{ left: `${pin.x}%`, top: `${pin.y}%` }} className="pointer-events-none absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-primary/30" />}
-              <button onClick={() => { setOpen(Math.max(0, open! - 1)); setPin(null); }} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-background/80 p-2" aria-label="Anterior"><ChevronLeft className="h-5 w-5" /></button>
-              <button onClick={() => { setOpen(Math.min(photos.length - 1, open! + 1)); setPin(null); }} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-background/80 p-2" aria-label="Seguinte"><ChevronRight className="h-5 w-5" /></button>
+              <button onClick={() => { setOpen(Math.max(0, (open ?? 0) - 1)); setPin(null); }} className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-background/80 p-2" aria-label="Anterior"><ChevronLeft className="h-5 w-5" /></button>
+              <button onClick={() => { setOpen(Math.min(photos.length - 1, (open ?? 0) + 1)); setPin(null); }} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-background/80 p-2" aria-label="Seguinte"><ChevronRight className="h-5 w-5" /></button>
             </div>
             <div className="flex items-center justify-between">
               <Button variant={current.is_favorite ? 'default' : 'outline'} disabled={locked} onClick={() => toggleFav(current.id, !current.is_favorite)}>

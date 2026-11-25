@@ -2,6 +2,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { deleteObject, objectSize, photoKey, presign, readUrl } from '../_shared/photo-r2.ts';
+import { removeStoredPhoto } from '../_shared/photo-retention.ts';
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
@@ -15,12 +16,15 @@ Deno.serve(async (req) => {
   const auth = req.headers.get('Authorization') ?? '';
   if (!auth.startsWith('Bearer ')) return json({ error: 'Sessão inválida' }, 401);
 
-  const url = Deno.env.get('SUPABASE_URL')!;
-  const userDb = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: auth } } });
+  const url = Deno.env.get('SUPABASE_URL');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !anonKey || !serviceKey) return json({ error: 'Serviço indisponível' }, 503);
+  const userDb = createClient(url, anonKey, { global: { headers: { Authorization: auth } } });
   const { data: claims } = await userDb.auth.getClaims(auth.slice(7));
   const uid = claims?.claims?.sub;
   if (!uid || !UUID.test(uid)) return json({ error: 'Sessão inválida' }, 401);
-  const db = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  const db = createClient(url, serviceKey);
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return json({ error: 'Pedido inválido' }, 400); }
@@ -28,8 +32,10 @@ Deno.serve(async (req) => {
   const galleryId = String(body.gallery_id ?? '');
   if (!UUID.test(galleryId)) return json({ error: 'Galeria inválida' }, 400);
 
-  const { data: g } = await db.from('photo_galleries').select('id, workspace_id, project_id').eq('id', galleryId).maybeSingle();
+  const { data: g } = await db.from('photo_galleries').select('id, workspace_id, project_id, cleanup_started_at, cleanup_after').eq('id', galleryId).maybeSingle();
   if (!g) return json({ error: 'Galeria não encontrada' }, 404);
+
+  if (g.cleanup_started_at && action !== 'delete-gallery') return json({ error: 'Esta galeria está aguardando exclusão.' }, 410);
 
   if (action === 'sign') {
     const { data: member } = await userDb.rpc('is_workspace_member', { _user_id: uid, _workspace_id: g.workspace_id });
@@ -43,16 +49,28 @@ Deno.serve(async (req) => {
   const { data: canEdit } = await userDb.rpc('can_edit_project', { _user_id: uid, _project_id: g.project_id });
   if (!canEdit) return json({ error: 'Sem permissão para editar este projeto' }, 403);
 
+  if (action === 'delete-gallery') {
+    if (body.confirm !== true) return json({ error: 'Confirme a exclusão da galeria' }, 400);
+    const { error } = await db.rpc('queue_gallery_cleanup', { p_gallery_id: g.id });
+    if (error) return json({ error: 'Não foi possível agendar a exclusão' }, 500);
+    return json({ ok: true, pending: true });
+  }
+
   const photoId = String(body.photo_id ?? '');
   if (!UUID.test(photoId)) return json({ error: 'Foto inválida' }, 400);
 
   if (action === 'delete') {
     const { data: p } = await db.from('gallery_photos').select('id, preview_path, original_path, storage_provider').eq('id', photoId).eq('gallery_id', g.id).maybeSingle();
     if (!p) return json({ ok: true });
-    const paths = [p.preview_path, p.original_path].filter(Boolean) as string[];
-    if (p.storage_provider === 'r2') for (const k of paths) await deleteObject(k);
-    else await db.storage.from('gallery-photos').remove(paths);
-    await db.from('gallery_photos').delete().eq('id', p.id);
+    try {
+      await removeStoredPhoto(p, deleteObject, async paths => {
+        const { error } = await db.storage.from('gallery-photos').remove(paths);
+        if (error) throw error;
+      }, async id => {
+        const { error } = await db.from('gallery_photos').delete().eq('id', id);
+        if (error) throw error;
+      });
+    } catch { return json({ error: 'Não foi possível remover os arquivos. Tente novamente.' }, 502); }
     return json({ ok: true });
   }
 
@@ -70,6 +88,8 @@ Deno.serve(async (req) => {
     const { data: quota } = await db.rpc('check_storage_quota', { p_workspace_id: g.workspace_id, p_file_size_bytes: size });
     if (!quota?.allowed) return json({ error: 'O espaço do estúdio está cheio. Liberte espaço ou aumente o armazenamento.' }, 413);
     const contentType = kind === 'preview' ? 'image/jpeg' : String(body.content_type || 'application/octet-stream').slice(0, 100);
+    const { data: reserved, error } = await db.rpc('reserve_gallery_upload', { p_gallery_id: g.id });
+    if (error || !reserved) return json({ error: 'A galeria já não aceita envios' }, 409);
     return json({ url: await presign(key, 'PUT', 900, { contentType }), content_type: contentType });
   }
 
