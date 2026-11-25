@@ -1,6 +1,7 @@
 import { controlled, MaintenanceStop } from '../_shared/execution-control.ts';
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { middleThumbnailTime } from '../_shared/thumbnail-time.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -142,7 +143,7 @@ serve(async (req) => {
     const canonicalPlaybackUrl = `https://videodelivery.net/${streamUid}/manifest/video.m3u8`;
 
     // Preserve custom thumbnail time if set
-    let thumbnailTimeParam = '?time=50p';
+    let thumbnailTimeParam = `?time=${middleThumbnailTime(duration)}`;
     if (versionId) {
       const { data: versionRow } = await guardedDb
         .from("video_versions")

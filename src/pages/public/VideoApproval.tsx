@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { middleThumbnailTime } from '@/lib/thumbnail-time';
 import { useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useHlsPlayer } from '@/hooks/useHlsPlayer';
@@ -361,7 +362,7 @@ export default function VideoApproval() {
     if (!videoUrl) return undefined;
     const match = videoUrl.match(/videodelivery\.net\/([a-f0-9]+)/i);
     if (match) {
-      return `https://videodelivery.net/${match[1]}/thumbnails/thumbnail.jpg?time=50p`;
+      return `https://videodelivery.net/${match[1]}/thumbnails/thumbnail.jpg?time=${middleThumbnailTime(data?.versions.find(v => v.id === selectedVersionId)?.duration_seconds)}`;
     }
     return undefined;
   })();

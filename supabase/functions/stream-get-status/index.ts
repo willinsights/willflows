@@ -1,6 +1,7 @@
 import { controlled, MaintenanceStop } from '../_shared/execution-control.ts';
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { middleThumbnailTime } from '../_shared/thumbnail-time.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -147,7 +148,7 @@ serve(async (req) => {
         updateData.replacement_status = status;
         updateData.replacement_playback_url = `https://videodelivery.net/${streamUid}/manifest/video.m3u8`;
         if (status === "ready") {
-          updateData.replacement_thumbnail_path = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg?time=50p`;
+          updateData.replacement_thumbnail_path = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg?time=${middleThumbnailTime(duration)}`;
         }
       } else {
         updateData.stream_status = status;
@@ -162,7 +163,7 @@ serve(async (req) => {
           .single();
         const timeParam = versionRow?.thumbnail_time_seconds != null
           ? `?time=${versionRow.thumbnail_time_seconds}s`
-          : '?time=50p';
+          : `?time=${middleThumbnailTime(duration)}`;
         updateData.thumbnail_path = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg${timeParam}`;
         updateData.stream_playback_url = `https://videodelivery.net/${streamUid}/manifest/video.m3u8`;
       }

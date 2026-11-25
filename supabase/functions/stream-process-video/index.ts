@@ -352,7 +352,7 @@ serve(async (req) => {
     // Use canonical videodelivery.net domain for better compatibility
     const playbackUrl = `https://videodelivery.net/${streamUid}/manifest/video.m3u8`;
     // Default thumbnail at 50% of video to avoid black fade-in frames
-    const thumbnailUrl = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg?time=50p`;
+    const thumbnailUrl = `https://videodelivery.net/${streamUid}/thumbnails/thumbnail.jpg?time=1s`;
 
     // Update version with Stream information — in-place for both new and replacement uploads
     const updatePayload = {

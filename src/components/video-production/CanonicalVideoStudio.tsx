@@ -166,7 +166,7 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
           {!approvedVersion && comparable.length < 2 && <span className="text-xs text-muted-foreground">Para comparar, envie uma nova versão deste vídeo.</span>}
         </div>}
 
-        {playback ? <video ref={video} aria-label="Vídeo em revisão" controls playsInline poster={playback.thumbnail?.replace(/time=[^&]*/, 'time=50p')} onTimeUpdate={e => setNow(e.currentTarget.currentTime)} className="aspect-video w-full rounded-lg bg-muted" />
+        {playback ? <video ref={video} aria-label="Vídeo em revisão" controls playsInline poster={playback.thumbnail} onTimeUpdate={e => setNow(e.currentTarget.currentTime)} className="aspect-video w-full rounded-lg bg-muted" />
           : !showComparison && <div className="flex aspect-video items-center justify-center rounded-lg bg-muted text-muted-foreground">{selected ? 'A processar vídeo…' : 'Ainda não há vídeos neste cartão'}</div>}
         {playback && <FpsLabel fps={fps} />}
 
