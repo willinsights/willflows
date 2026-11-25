@@ -17,8 +17,10 @@
     --workspace-background: var(--background);
     --workspace-grid: 246 20% 60%;
     --workspace-grid-opacity: 0.055;
-    --workspace-primary-opacity: 0.035;
-    --workspace-accent-opacity: 0.025;
+    --workspace-glow-violet: 261 66% 55%;
+    --workspace-glow-teal: 203 78% 48%;
+    --workspace-glow-violet-opacity: 0.045;
+    --workspace-glow-teal-opacity: 0.03;
 
     /* Cards with soft shadows */
     --card: 0 0% 100%;
@@ -105,11 +107,13 @@
     /* Core backgrounds - Deep Space Black */
     --background: 240 18% 5%;
     --foreground: 0 0% 95%;
-    --workspace-background: 246 45% 5%;
-    --workspace-grid: 246 30% 65%;
+    --workspace-background: 245 55% 6%;
+    --workspace-grid: 250 30% 65%;
     --workspace-grid-opacity: 0.045;
-    --workspace-primary-opacity: 0.16;
-    --workspace-accent-opacity: 0.065;
+    --workspace-glow-violet: 261 68% 56%;
+    --workspace-glow-teal: 203 80% 50%;
+    --workspace-glow-violet-opacity: 0.18;
+    --workspace-glow-teal-opacity: 0.12;
 
     /* Cards with glassmorphism */
     --card: 240 16% 8.5%;
@@ -196,9 +200,9 @@
     background-image:
       linear-gradient(hsl(var(--workspace-grid) / var(--workspace-grid-opacity)) 1px, transparent 1px),
       linear-gradient(90deg, hsl(var(--workspace-grid) / var(--workspace-grid-opacity)) 1px, transparent 1px),
-      radial-gradient(ellipse at 0% 0%, hsl(var(--primary) / var(--workspace-primary-opacity)), transparent 60%),
-      radial-gradient(ellipse at 100% 70%, hsl(var(--accent) / var(--workspace-accent-opacity)), transparent 60%),
-      linear-gradient(180deg, transparent 55%, hsl(var(--primary) / var(--workspace-primary-opacity)));
+      radial-gradient(ellipse at 0% 0%, hsl(var(--workspace-glow-violet) / var(--workspace-glow-violet-opacity)), transparent 60%),
+      radial-gradient(ellipse at 100% 45%, hsl(var(--workspace-glow-teal) / var(--workspace-glow-teal-opacity)), transparent 60%),
+      radial-gradient(ellipse at 50% 100%, hsl(var(--workspace-glow-violet) / var(--workspace-glow-violet-opacity)), transparent 68%);
     background-size: 44px 44px, 44px 44px, 100% 100%, 100% 100%, 100% 100%;
   }
 
