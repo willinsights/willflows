@@ -1,15 +1,14 @@
 import { PrivacyBlur } from '@/components/ui/PrivacyBlur';
-import { useMemo, useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { fetchAllRows } from '@/lib/fetch-all';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useMemo, useState } from 'react';
+import { getEffectiveMonth, getProjectCost, withFinancialCostLines } from '@/lib/finance/financialEngine';
+import type { ProjectWithClient } from '@/hooks/useProjects';
+import type { CostLinePayment } from '@/lib/finance/types';
+import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { useFormatCurrency } from '@/hooks/useFormatCurrency';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Users, TrendingUp, ArrowUpRight, ArrowDownRight, Star, BarChart3 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Users, Star, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -28,68 +27,24 @@ interface ClientProfitability {
   lastProjectDate: string | null;
 }
 
-export function ClientProfitabilityReport() {
-  const { currentWorkspace } = useWorkspace();
+export function ClientProfitabilityReport({ projects, costLines, dateRange }: { projects: ProjectWithClient[]; costLines: CostLinePayment[]; dateRange: { start: Date; end: Date } }) {
   const { formatCurrency } = useFormatCurrency();
-  const [data, setData] = useState<ClientProfitability[]>([]);
-  const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<'profit' | 'revenue' | 'margin' | 'projects'>('profit');
-
-  useEffect(() => {
-    if (!currentWorkspace?.id) return;
-
-    const fetchData = async () => {
-      // Fórmula única de lucro: vista do servidor (equipa + extras + linhas de custo)
-      // Paginado (nunca cortado nas 1.000 linhas). Em caso de erro mantém-se o
-      // comportamento anterior: sem dados.
-      const workspaceId = currentWorkspace.id;
-      const projects = await fetchAllRows<any>(() =>
-        supabase
-          .from('v_project_profit' as any)
-          .select('id, client_id, client_name, agreed_value, total_cost, is_delivered, delivered_at')
-          .eq('workspace_id', workspaceId)
-          .eq('is_delivered', true)
-          .order('id', { ascending: true }) as any
-      ).catch(() => null);
-
-      if (!projects) { setLoading(false); return; }
-
-      const byClient: Record<string, ClientProfitability> = {};
-
-      (projects as any[]).forEach((p: any) => {
-        if (!p.client_id) return;
-        const name = p.client_name || 'Desconhecido';
-        if (!byClient[p.client_id]) {
-          byClient[p.client_id] = {
-            clientId: p.client_id, name,
-            totalRevenue: 0, totalCosts: 0, profit: 0, margin: 0,
-            projectCount: 0, avgProjectValue: 0, lastProjectDate: null,
-          };
-        }
-        const c = byClient[p.client_id];
-        const revenue = p.agreed_value || 0;
-        const costs = Number(p.total_cost) || 0;
-        c.totalRevenue += revenue;
-        c.totalCosts += costs;
-        c.projectCount += 1;
-        if (!c.lastProjectDate || (p.delivered_at && p.delivered_at > c.lastProjectDate)) {
-          c.lastProjectDate = p.delivered_at;
-        }
-      });
-
-      const result = Object.values(byClient).map(c => ({
-        ...c,
-        profit: c.totalRevenue - c.totalCosts,
-        margin: c.totalRevenue > 0 ? ((c.totalRevenue - c.totalCosts) / c.totalRevenue) * 100 : 0,
-        avgProjectValue: c.projectCount > 0 ? c.totalRevenue / c.projectCount : 0,
-      }));
-
-      setData(result);
-      setLoading(false);
-    };
-
-    fetchData();
-  }, [currentWorkspace?.id]);
+  const data = useMemo(() => {
+    const costs = new Map(withFinancialCostLines(projects, costLines).map(p => [p.id, getProjectCost(p)]));
+    const interval = { start: startOfMonth(dateRange.start), end: endOfMonth(dateRange.end) };
+    const byClient: Record<string, ClientProfitability> = {};
+    for (const p of projects) {
+      const month = getEffectiveMonth(p);
+      if (!p.is_delivered || !p.client_id || !month || !isWithinInterval(month, interval)) continue;
+      const c = byClient[p.client_id] ?? { clientId:p.client_id, name:p.clients?.name || 'Sem nome', totalRevenue:0, totalCosts:0, profit:0, margin:0, projectCount:0, avgProjectValue:0, lastProjectDate:null };
+      c.totalRevenue += Number(p.agreed_value ?? 0);
+      c.totalCosts += costs.get(p.id) ?? 0;
+      c.projectCount++;
+      byClient[p.client_id] = c;
+    }
+    return Object.values(byClient).map(c => ({ ...c, profit:c.totalRevenue-c.totalCosts, margin:c.totalRevenue>0 ? (c.totalRevenue-c.totalCosts)/c.totalRevenue*100 : 0, avgProjectValue:c.totalRevenue/c.projectCount }));
+  }, [projects,costLines,dateRange]);
 
   const sorted = useMemo(() => {
     const sorted = [...data];
@@ -103,8 +58,8 @@ export function ClientProfitabilityReport() {
   }, [data, sortBy]);
 
   const chartData = useMemo(() => {
-    return sorted.slice(0, 8).map(c => ({
-      name: c.name.length > 12 ? c.name.slice(0, 12) + '…' : c.name,
+    return sorted.slice(0, 3).map(c => ({
+      name: c.name.length > 20 ? c.name.slice(0, 20) + '…' : c.name,
       receita: c.totalRevenue,
       custos: c.totalCosts,
       lucro: c.profit,
@@ -112,15 +67,6 @@ export function ClientProfitabilityReport() {
   }, [sorted]);
 
   const fmt = (v: number) => formatCurrency(v, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader className="pb-3"><Skeleton className="h-5 w-56" /></CardHeader>
-        <CardContent><div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16" />)}</div></CardContent>
-      </Card>
-    );
-  }
 
   if (data.length === 0) {
     return (
@@ -156,7 +102,7 @@ export function ClientProfitabilityReport() {
           </CardTitle>
           <div className="flex gap-1">
             {sortOptions.map(opt => (
-              <button
+              <Button
                 key={opt.key}
                 onClick={() => setSortBy(opt.key)}
                 className={cn(
@@ -167,7 +113,7 @@ export function ClientProfitabilityReport() {
                 )}
               >
                 {opt.label}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -179,7 +125,7 @@ export function ClientProfitabilityReport() {
             <BarChart data={chartData} layout="vertical" margin={{ left: 0, right: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
               <XAxis type="number" tickFormatter={(v) => fmt(v)} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-              <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={90} stroke="hsl(var(--muted-foreground))" />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={125} stroke="hsl(var(--muted-foreground))" />
               <RechartsTooltip
                 contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
                 formatter={(value: number) => fmt(value)}
@@ -191,7 +137,7 @@ export function ClientProfitabilityReport() {
         </div>
 
         {/* Table */}
-        <ScrollArea className="max-h-[300px]">
+        <div className="h-[300px] overflow-y-auto overscroll-contain pr-2" role="region" aria-label="Lista completa de clientes" tabIndex={0}>
           <div className="space-y-1.5">
             {sorted.map((client, idx) => (
               <div
@@ -200,19 +146,19 @@ export function ClientProfitabilityReport() {
               >
                 <div className={cn(
                   'flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0',
-                  idx === 0 ? 'bg-yellow-500/20 text-yellow-600' :
-                  idx === 1 ? 'bg-gray-300/30 text-gray-500' :
-                  idx === 2 ? 'bg-orange-500/20 text-orange-600' :
+                  idx === 0 ? 'bg-warning/20 text-warning' :
+                  idx === 1 ? 'bg-muted text-muted-foreground' :
+                  idx === 2 ? 'bg-primary/20 text-primary' :
                   'bg-muted text-muted-foreground'
                 )}>
                   {idx < 3 ? <Star className="h-3 w-3" /> : idx + 1}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium truncate">{client.name}</span>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-sm font-medium break-words min-w-0">{client.name}</span>
                     <span className="text-sm font-bold text-success ml-2">{fmt(client.profit)}</span>
                   </div>
-                  <div className="flex items-center gap-3 mt-0.5 text-[11px] text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-0.5 text-[11px] text-muted-foreground">
                     <span>Receita: {fmt(client.totalRevenue)}</span>
                     <Badge
                       variant={client.margin >= 30 ? 'default' : client.margin >= 15 ? 'secondary' : 'destructive'}
@@ -227,7 +173,7 @@ export function ClientProfitabilityReport() {
               </div>
             ))}
           </div>
-        </ScrollArea>
+        </div>
       </CardContent>
     </Card>
     </PrivacyBlur>

@@ -29,9 +29,9 @@ interface MetricCardProps {
 function MetricCard({ title, value, subtitle, icon: Icon, color = 'primary', loading }: MetricCardProps) {
   const colorClasses = {
     primary: 'bg-primary/10 text-primary',
-    green: 'bg-emerald-500/10 text-emerald-500',
-    yellow: 'bg-yellow-500/10 text-yellow-500',
-    red: 'bg-red-500/10 text-red-500',
+    green: 'bg-success/10 text-success',
+    yellow: 'bg-warning/10 text-warning',
+    red: 'bg-destructive/10 text-destructive',
   };
 
   if (loading) {
@@ -51,7 +51,7 @@ function MetricCard({ title, value, subtitle, icon: Icon, color = 'primary', loa
   }
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardContent className="pt-6">
         <div className="flex items-start justify-between">
           <div>
@@ -102,10 +102,12 @@ function PhaseBar({ phase, avgHours, maxAvgHours, count }: PhaseBarProps) {
   );
 }
 
-export default function KanbanMetrics() {
+export default function KanbanMetrics({ dateRange }: { dateRange?: { start: Date; end: Date } }) {
   const { currentWorkspace } = useWorkspace();
   const { data: metrics, isLoading, error } = useKanbanMetrics({
     workspaceId: currentWorkspace?.id || null,
+    startDate: dateRange?.start,
+    endDate: dateRange?.end,
   });
 
   if (error) {
@@ -130,7 +132,7 @@ export default function KanbanMetrics() {
       {/* Header */}
       <div>
         <h2 className="text-xl font-semibold">Métricas de Performance</h2>
-        <p className="text-muted-foreground">Últimos 30 dias</p>
+        <p className="text-muted-foreground">{dateRange ? `${dateRange.start.toLocaleDateString('pt-BR')} — ${dateRange.end.toLocaleDateString('pt-BR')}` : 'Últimos 30 dias'}</p>
       </div>
 
       {/* Main KPIs */}
@@ -187,7 +189,7 @@ export default function KanbanMetrics() {
             Tempo Médio por Fase
           </CardTitle>
           <CardDescription>
-            Quanto tempo os projetos ficam em cada fase
+            {metrics?.phase_time_source === 'transitions' ? 'Tempo entre entrada registrada no quadro e saída da fase ou entrega; não é tempo trabalhado.' : 'Quanto tempo os projetos ficam em cada fase'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -211,7 +213,7 @@ export default function KanbanMetrics() {
             <div className="text-center py-8 text-muted-foreground">
               <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p>Ainda não há dados suficientes.</p>
-              <p className="text-sm">Mova projetos entre fases para gerar métricas.</p>
+              <p className="text-sm">Nenhum intervalo completo de entrada e saída foi registrado neste período. Fases ainda abertas não entram na média.</p>
             </div>
           )}
         </CardContent>
@@ -230,7 +232,7 @@ export default function KanbanMetrics() {
             <ul className="space-y-2 text-sm">
               {metrics.throughput.total_completed > 0 && (
                 <li className="flex items-start gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                  <CheckCircle2 className="h-4 w-4 text-success mt-0.5 shrink-0" />
                   <span>
                     Você entrega em média <strong>{metrics.throughput.avg_per_week}</strong> projetos por semana.
                   </span>
@@ -246,7 +248,7 @@ export default function KanbanMetrics() {
               )}
               {metrics.bottleneck && metrics.bottleneck.current_count > 2 && (
                 <li className="flex items-start gap-2">
-                  <AlertTriangle className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
+                  <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
                   <span>
                     A fase <strong>{getPhaseName(metrics.bottleneck.phase)}</strong> tem {metrics.bottleneck.current_count} projetos acumulados. 
                     Considere redistribuir recursos.
@@ -255,7 +257,7 @@ export default function KanbanMetrics() {
               )}
               {metrics.current_wip.total > 10 && (
                 <li className="flex items-start gap-2">
-                  <Layers className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
+                  <Layers className="h-4 w-4 text-warning mt-0.5 shrink-0" />
                   <span>
                     Você tem <strong>{metrics.current_wip.total}</strong> projetos em progresso. 
                     Considere limitar o WIP para melhorar o foco.

@@ -8,7 +8,8 @@ export function useFinancialReportSource(workspaceId: string | undefined) {
   const logs = useWorkLogs();
   return {
     projects: projects.data ?? [], costLines: lines.data ?? [],
-    loading: projects.isFetching || lines.isFetching || !!logs.isFetching || !projects.isSuccess || !lines.isSuccess,
+    loading: projects.isLoading || lines.isLoading || !!logs.isLoading,
+    isFetching: projects.isFetching || lines.isFetching || !!logs.isFetching,
     error: projects.error || lines.error || logs.error,
     refresh: () => { void projects.refetch(); void lines.refetch(); void logs.refetch?.(); },
   };

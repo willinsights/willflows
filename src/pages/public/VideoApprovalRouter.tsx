@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { FullPageLoader } from '@/components/layout/FullPageLoader';
+import { ReviewPageLoader } from '@/components/layout/ReviewPageLoader';
 import { supabase } from '@/integrations/supabase/client';
 import { videoApprovalReader } from '@/lib/video-approval-routing';
 import { legacyVideoApprovalRequest } from '@/lib/legacy-video-approval-adapter';
@@ -19,7 +19,7 @@ export default function VideoApprovalRouter() {
   if (reader === 'invalid' || !token) return <main className="min-h-screen bg-background p-6 text-foreground"><p role="alert">Este link não está disponível.</p></main>;
   return <>
     <Helmet><title>Revisão de vídeo</title><meta name="robots" content="noindex, nofollow"/><meta name="referrer" content="no-referrer"/></Helmet>
-    <Suspense fallback={<FullPageLoader />}>
+    <Suspense fallback={<ReviewPageLoader />}>
       <PrivateApproval key={token} token={token} request={reader === 'legacy' ? legacyVideoApprovalRequest : privateRequest} />
     </Suspense>
   </>;

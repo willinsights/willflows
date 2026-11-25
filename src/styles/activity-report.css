@@ -1,87 +1,15 @@
-/* Activity report — executive print-friendly theme (scoped to .report-root) */
-.report-root {
-  --rp-ink: #12233b;
-  --rp-blue: #124a6b;
-  --rp-teal: #0e7c86;
-  --rp-amber: #e8a13a;
-  --rp-line: #e6ebf1;
-  --rp-bg: #f4f7fb;
-  background: var(--rp-bg);
-  color: var(--rp-ink);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
-}
-
-.report-root .rp-card {
-  background: #ffffff;
-  border: 1px solid var(--rp-line);
-  border-radius: 14px;
-  box-shadow: 0 1px 2px rgba(18, 35, 59, 0.04), 0 6px 18px rgba(18, 35, 59, 0.05);
-}
-
-.report-root .rp-header {
-  border-bottom: 3px solid var(--rp-teal);
-}
-
-.report-root .rp-kpi-value {
-  font-size: 2rem;
-  line-height: 1.1;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--rp-ink);
-}
-
-.report-root .rp-label {
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #64748b;
-  font-weight: 600;
-}
-
-.report-root .rp-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border-radius: 999px;
-  padding: 3px 10px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  background: rgba(14, 124, 134, 0.1);
-  color: var(--rp-teal);
-}
-
-.report-root table.rp-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8rem;
-}
-.report-root table.rp-table th {
-  text-align: left;
-  font-weight: 600;
-  color: #64748b;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--rp-line);
-}
-.report-root table.rp-table td {
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--rp-line);
-}
-.report-root table.rp-table tr:last-child td {
-  border-bottom: none;
-}
-.report-root .rp-num {
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-.report-root .rp-scroll {
-  max-height: 300px;
-  overflow: auto;
-}
-
+/* Screen follows the workspace theme; print stays paper-friendly. */
+.report-root { color: hsl(var(--foreground)); }
+.report-root .rp-card { background: hsl(var(--card) / .75); border: 1px solid hsl(var(--border)); border-radius: var(--radius); box-shadow: var(--shadow-card); }
+.report-root .rp-kpi-value { font-size: 1.75rem; line-height: 1.2; font-weight: 700; letter-spacing: 0; }
+.report-root .rp-label { font-size: .72rem; letter-spacing: 0; text-transform: uppercase; color: hsl(var(--muted-foreground)); font-weight: 600; }
+.report-root .rp-badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 3px 10px; font-size: .72rem; font-weight: 600; background: hsl(var(--primary) / .1); color: hsl(var(--primary)); }
+.report-root table.rp-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+.report-root table.rp-table th { text-align: left; font-weight: 600; color: hsl(var(--muted-foreground)); font-size: .7rem; text-transform: uppercase; letter-spacing: 0; padding: 8px; border-bottom: 1px solid hsl(var(--border)); }
+.report-root table.rp-table td { padding: 8px; border-bottom: 1px solid hsl(var(--border)); }
+.report-root table.rp-table tr:last-child td { border-bottom: none; }
+.report-root .rp-num { font-variant-numeric: tabular-nums; text-align: right; }
+.report-root .rp-scroll { max-height: 300px; overflow: auto; }
 @media print {
   @page {
     size: A4 landscape;
@@ -118,6 +46,10 @@
   }
   .report-root {
     background: #fff;
+    --foreground: 0 0% 10%;
+    --muted-foreground: 0 0% 35%;
+    --card: 0 0% 100%;
+    --border: 0 0% 80%;
   }
 
   .report-root .rp-card {

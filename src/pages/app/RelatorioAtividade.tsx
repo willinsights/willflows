@@ -31,6 +31,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
+import { AccessDenied } from '@/components/ui/access-denied';
 import { Button } from '@/components/ui/button';
 import { useActivityReportData } from '@/hooks/useActivityReport';
 import { useWorkLogs, WORK_LOG_TYPE_LABELS } from '@/hooks/useWorkLogs';
@@ -38,11 +41,8 @@ import { useWorkspaceMembers } from '@/hooks/useWorkspaceMembers';
 import '@/styles/activity-report.css';
 
 const PALETTE = {
-  ink: '#12233b',
-  blue: '#124a6b',
-  teal: '#0e7c86',
-  amber: '#e8a13a',
-  line: '#e6ebf1',
+  ink: 'hsl(var(--foreground))', blue: 'hsl(var(--primary))',
+  teal: 'hsl(var(--success))', amber: 'hsl(var(--warning))', line: 'hsl(var(--border))',
 };
 
 const ALL = '__all__';
@@ -59,6 +59,8 @@ function monthOf(p: { mes: string | null; data_entrega: string | null }) {
 }
 
 export default function RelatorioAtividade() {
+  const { currentWorkspace } = useWorkspace();
+  const { canViewReports, isLoading: permissionsLoading } = useFinancialPermissions();
   const data = useActivityReportData();
   const isEmpty = !data.isLoading && data.projetos.length === 0;
   const { refetchAll, isRefetching } = data;
@@ -188,7 +190,7 @@ export default function RelatorioAtividade() {
       const key = p.cliente || 'Sem cliente';
       const cur = map.get(key) ?? { cliente: key, videos: 0, versoes: 0, valor: 0 };
       cur.videos += 1;
-      cur.versoes += Number(p.versoes || 1);
+      cur.versoes += Number(p.versoes || 0);
       cur.valor += Number(p.receita || 0);
       map.set(key, cur);
     });
@@ -227,39 +229,43 @@ export default function RelatorioAtividade() {
   const grandesProducoes = porCliente.slice(0, 3);
 
   const tooltipStyle = {
-    borderRadius: 12,
+    backgroundColor: 'hsl(var(--card))',
+    color: PALETTE.ink,
+    borderRadius: 8,
     border: `1px solid ${PALETTE.line}`,
     fontSize: 12,
   };
 
+  if (!permissionsLoading && !canViewReports) return <AccessDenied />;
+
   return (
-    <div className="report-root min-h-screen -m-4 sm:-m-6 p-4 sm:p-6">
+    <div className="report-root min-h-screen px-4 py-4 sm:px-6 md:px-8 md:py-6">
       {/* Header */}
-      <header className="rp-card rp-header p-5 mb-4">
+      <header className="rp-header py-2 mb-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight" style={{ color: PALETTE.ink }}>
+            <h1 className="text-2xl font-bold " style={{ color: PALETTE.ink }}>
               Relatório de Atividade {anoAtivo}
             </h1>
             <p className="text-sm mt-1" style={{ color: PALETTE.blue }}>
-              In-Sights · Wilker Oliveira → {cliente === ALL ? 'Todos os clientes' : cliente}
+              {currentWorkspace?.name} · {cliente === ALL ? 'Todos os clientes' : cliente}
             </p>
             <span className="rp-badge mt-2">
               <Sparkles className="h-3 w-3" />
-              Atualizado em {new Date().toLocaleDateString('pt-PT')}
+              {data.isLoading ? 'Carregando dados' : `Atualizado às ${new Date(data.updatedAt || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}
             </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 rp-no-print">
             <Select value={String(anoAtivo)} onValueChange={(v) => setAno(Number(v))}>
-              <SelectTrigger className="h-9 w-[110px] bg-white"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-[110px] bg-background"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {anos.map((a) => <SelectItem key={a} value={String(a)}>{a}</SelectItem>)}
               </SelectContent>
             </Select>
 
             <Select value={cliente} onValueChange={setCliente}>
-              <SelectTrigger className="h-9 w-[170px] bg-white"><SelectValue placeholder="Cliente" /></SelectTrigger>
+              <SelectTrigger className="h-9 w-[170px] bg-background"><SelectValue placeholder="Cliente" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value={ALL}>Todos os clientes</SelectItem>
                 {clientes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -267,7 +273,7 @@ export default function RelatorioAtividade() {
             </Select>
 
             <Select value={colaborador} onValueChange={setColaborador}>
-              <SelectTrigger className="h-9 w-[160px] bg-white"><SelectValue placeholder="Colaborador" /></SelectTrigger>
+              <SelectTrigger className="h-9 w-[160px] bg-background"><SelectValue placeholder="Colaborador" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value={ALL}>Todos os colaboradores</SelectItem>
                 {colaboradores.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -275,7 +281,7 @@ export default function RelatorioAtividade() {
             </Select>
 
             <Select value={mes} onValueChange={setMes}>
-              <SelectTrigger className="h-9 w-[120px] bg-white"><SelectValue placeholder="Mês" /></SelectTrigger>
+              <SelectTrigger className="h-9 w-[120px] bg-background"><SelectValue placeholder="Mês" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value={ALL}>Todos os meses</SelectItem>
                 {MESES.map((m) => <SelectItem key={m} value={m}>{MES_LABEL[m]}</SelectItem>)}
@@ -283,7 +289,7 @@ export default function RelatorioAtividade() {
             </Select>
 
             <Select value={moeda} onValueChange={(v) => setMoeda(v as 'EUR' | 'BRL')}>
-              <SelectTrigger className="h-9 w-[90px] bg-white"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-[90px] bg-background"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="EUR">EUR</SelectItem>
                 <SelectItem value="BRL">BRL</SelectItem>
@@ -293,21 +299,21 @@ export default function RelatorioAtividade() {
             <Button
               variant="outline"
               size="sm"
-              className="h-9 bg-white"
+              className="h-9 bg-background"
               onClick={() => refetchAll()}
               disabled={isRefetching}
             >
               <RefreshCw className={cn('h-4 w-4 mr-1.5', isRefetching && 'animate-spin')} />
               Recarregar dados
             </Button>
-            <Button asChild variant="outline" size="sm" className="h-9 bg-white">
+            <Button asChild variant="outline" size="sm" className="h-9 bg-background">
               <Link to="/app/relatorio-atividade/importar">
                 <Upload className="h-4 w-4 mr-1.5" /> Importar
               </Link>
             </Button>
             <Button
               size="sm"
-              className="h-9 text-white"
+              className="h-9 text-primary-foreground"
               style={{ backgroundColor: PALETTE.teal }}
               onClick={() => {
                 document.body.classList.add('rp-printing');
@@ -330,7 +336,7 @@ export default function RelatorioAtividade() {
         <div className="rp-card p-5 mb-4 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
           <div>
             <p className="font-semibold">Não foi possível carregar os dados reais</p>
-            <p className="text-sm" style={{ color: '#64748b' }}>
+            <p className="text-sm" style={{ color: 'hsl(var(--muted-foreground))' }}>
               Tenta recarregar o relatório. Nenhum valor de exemplo será apresentado.
             </p>
           </div>
@@ -345,11 +351,11 @@ export default function RelatorioAtividade() {
         <div className="rp-card p-5 mb-4 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
           <div>
             <p className="font-semibold">Ainda não existem dados neste relatório</p>
-            <p className="text-sm" style={{ color: '#64748b' }}>
-              Importa CSV, XLSX ou cola JSON para começar.
+            <p className="text-sm" style={{ color: 'hsl(var(--muted-foreground))' }}>
+              Os projetos entregues deste espaço aparecerão automaticamente aqui.
             </p>
           </div>
-          <Button asChild className="text-white rp-no-print" style={{ backgroundColor: PALETTE.blue }}>
+          <Button asChild className="text-primary-foreground rp-no-print" style={{ backgroundColor: PALETTE.blue }}>
             <Link to="/app/relatorio-atividade/importar">Importar dados</Link>
           </Button>
         </div>
@@ -357,14 +363,14 @@ export default function RelatorioAtividade() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <Kpi icon={Film} label="Vídeos entregues" value={String(kpis.videos)} tone={PALETTE.blue} />
+        <Kpi icon={Film} label="Projetos entregues" value={String(kpis.videos)} tone={PALETTE.blue} />
         <Kpi icon={Building2} label="Empresas / projetos" value={String(kpis.empresas)} tone={PALETTE.teal} />
         <Kpi icon={CalendarDays} label="Dias de gravação" value={String(kpis.dias)} tone={PALETTE.amber} />
         <Kpi
           icon={Euro}
-          label="Total faturado"
+          label="Receita entregue"
           value={fmt(kpis.receita)}
-          hint={`+ IVA · lucro ${fmt(kpis.lucro)}`}
+          hint={`Lucro ${fmt(kpis.lucro)}`}
           tone={PALETTE.ink}
         />
       </div>
@@ -377,8 +383,8 @@ export default function RelatorioAtividade() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={porCliente} layout="vertical" margin={{ left: 8, right: 24 }}>
                 <CartesianGrid horizontal={false} stroke={PALETTE.line} />
-                <XAxis type="number" tick={{ fontSize: 11 }} stroke="#94a3b8" allowDecimals={false} />
-                <YAxis type="category" dataKey="cliente" width={130} tick={{ fontSize: 11 }} stroke="#64748b" />
+                <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" allowDecimals={false} />
+                <YAxis type="category" dataKey="cliente" width={130} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
                 <Tooltip contentStyle={tooltipStyle} />
                 <Bar dataKey="videos" name="Vídeos" fill={PALETTE.teal} radius={[0, 6, 6, 0]} />
               </BarChart>
@@ -402,12 +408,12 @@ export default function RelatorioAtividade() {
                   <tr key={c.cliente}>
                     <td className="font-medium">{c.cliente}</td>
                     <td className="rp-num">{c.videos}</td>
-                    <td className="rp-num">{c.versoes}</td>
+                    <td className="rp-num">{c.versoes || '—'}</td>
                     <td className="rp-num">{fmt(c.valor)}</td>
                   </tr>
                 ))}
                 {!porCliente.length && (
-                  <tr><td colSpan={4} className="text-center py-6 text-sm text-slate-500">Sem dados no período</td></tr>
+                  <tr><td colSpan={4} className="text-center py-6 text-sm text-muted-foreground">Sem dados no período</td></tr>
                 )}
               </tbody>
             </table>
@@ -423,10 +429,10 @@ export default function RelatorioAtividade() {
             {grandesProducoes.map((p, i) => (
               <div
                 key={p.cliente}
-                className="rounded-xl p-4"
+                className="rounded-lg p-4"
                 style={{
                   border: `1px solid ${PALETTE.line}`,
-                  background: i === 0 ? 'rgba(14,124,134,0.06)' : '#fff',
+                  background: 'hsl(var(--card))',
                 }}
               >
                 <div className="flex items-center gap-2 mb-2">
@@ -435,13 +441,13 @@ export default function RelatorioAtividade() {
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <Mini label="Vídeos" value={String(p.videos)} />
-                  <Mini label="Versões" value={String(p.versoes)} />
+                  <Mini label="Versões" value={p.versoes ? String(p.versoes) : '—'} />
                   <Mini label="Valor" value={fmt(p.valor)} />
                 </div>
               </div>
             ))}
             {!grandesProducoes.length && (
-              <p className="text-sm text-slate-500">Sem produções no período selecionado.</p>
+              <p className="text-sm text-muted-foreground">Sem produções no período selecionado.</p>
             )}
           </div>
         </div>
@@ -455,8 +461,8 @@ export default function RelatorioAtividade() {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={porMes} margin={{ left: 0, right: 12 }}>
                 <CartesianGrid stroke={PALETTE.line} vertical={false} />
-                <XAxis dataKey="mes" tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" width={54} />
+                <XAxis dataKey="mes" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" width={54} />
                 <Tooltip contentStyle={tooltipStyle} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Line type="monotone" dataKey="receita" name="Receita" stroke={PALETTE.blue} strokeWidth={2.5} dot={false} />
@@ -473,8 +479,8 @@ export default function RelatorioAtividade() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={porEditor} margin={{ left: 0, right: 12 }}>
                 <CartesianGrid stroke={PALETTE.line} vertical={false} />
-                <XAxis dataKey="editor" tick={{ fontSize: 11 }} stroke="#64748b" />
-                <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" width={44} allowDecimals={false} />
+                <XAxis dataKey="editor" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" width={44} allowDecimals={false} />
                 <Tooltip contentStyle={tooltipStyle} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Bar dataKey="videos" name="Vídeos editados" fill={PALETTE.blue} radius={[6, 6, 0, 0]} />
@@ -500,11 +506,11 @@ export default function RelatorioAtividade() {
                     <td className="whitespace-nowrap">{new Date(g.data).toLocaleDateString('pt-PT')}</td>
                     <td>{g.local}</td>
                     <td>{g.cliente}</td>
-                    <td className="text-slate-500">{(g.producoes ?? []).join(', ')}</td>
+                    <td className="text-muted-foreground">{(g.producoes ?? []).join(', ')}</td>
                   </tr>
                 ))}
                 {!gravacoesFiltradas.length && (
-                  <tr><td colSpan={4} className="text-center py-6 text-sm text-slate-500">Sem gravações</td></tr>
+                  <tr><td colSpan={4} className="text-center py-6 text-sm text-muted-foreground">Sem gravações</td></tr>
                 )}
               </tbody>
             </table>
@@ -523,7 +529,7 @@ export default function RelatorioAtividade() {
                     <td className="whitespace-nowrap">{new Date(d.data).toLocaleDateString('pt-PT')}</td>
                     <td>
                       <span className="font-medium">{d.colaborador}</span>
-                      {d.notas && <span className="text-slate-500"> · {d.notas}</span>}
+                      {d.notas && <span className="text-muted-foreground"> · {d.notas}</span>}
                     </td>
                     <td>{d.tipo === 'fixo' ? 'Mensal fixo' : 'Diária'}</td>
                     <td className="rp-num">{fmt(Number(d.valor || 0))}</td>
@@ -554,13 +560,13 @@ export default function RelatorioAtividade() {
                 return (
                   <tr key={m.mes}>
                     <td className="font-medium">{m.mes}</td>
-                    <td className="text-slate-500">{top || '—'} · {m.videos} vídeos</td>
+                    <td className="text-muted-foreground">{top || '—'} · {m.videos} vídeos</td>
                     <td className="rp-num">{fmt(m.receita / taxa)}</td>
                   </tr>
                 );
               })}
               {!porMes.some((m) => m.videos > 0) && (
-                <tr><td colSpan={3} className="text-center py-6 text-sm text-slate-500">Sem valores</td></tr>
+                <tr><td colSpan={3} className="text-center py-6 text-sm text-muted-foreground">Sem valores</td></tr>
               )}
             </tbody>
           </table>
@@ -568,7 +574,7 @@ export default function RelatorioAtividade() {
       </section>
 
       {/* Detalhe completo — todos os projetos (visível no PDF) */}
-      <section className="rp-card p-5 mt-4 rp-page-break rp-full-detail">
+      <section className="rp-card p-5 mt-4 rp-page-break rp-full-detail overflow-x-auto">
         <SectionTitle>Detalhe completo de projetos ({filtered.length})</SectionTitle>
         <table className="rp-table">
           <thead>
@@ -594,21 +600,21 @@ export default function RelatorioAtividade() {
                 <td className="font-medium">{p.projeto || p.codigo || '—'}</td>
                 <td>{p.captacao || '—'}</td>
                 <td>{p.edicao || '—'}</td>
-                <td className="rp-num">{Number(p.versoes || 1)}</td>
+                <td className="rp-num">{p.versoes || '—'}</td>
                 <td className="rp-num">{fmt(Number(p.receita || 0))}</td>
                 <td className="rp-num">{fmt(Number(p.custo || 0))}</td>
                 <td className="rp-num">{fmt(Number(p.lucro ?? (Number(p.receita || 0) - Number(p.custo || 0))))}</td>
               </tr>
             ))}
             {!filtered.length && (
-              <tr><td colSpan={10} className="text-center py-6 text-sm text-slate-500">Sem projetos no período</td></tr>
+              <tr><td colSpan={10} className="text-center py-6 text-sm text-muted-foreground">Sem projetos no período</td></tr>
             )}
           </tbody>
         </table>
       </section>
 
       {/* Registo de trabalhos por colaborador */}
-      <section className="rp-card p-5 mt-4 rp-page-break rp-full-detail">
+      <section className="rp-card p-5 mt-4 rp-page-break rp-full-detail overflow-x-auto">
         <SectionTitle>Registo de trabalhos por colaborador ({workLogsFiltrados.length})</SectionTitle>
         <table className="rp-table">
           <thead>
@@ -635,7 +641,7 @@ export default function RelatorioAtividade() {
               </tr>
             ))}
             {!workLogsPorColaborador.length && (
-              <tr><td colSpan={5} className="text-center py-6 text-sm text-slate-500">Sem trabalhos registados no período</td></tr>
+              <tr><td colSpan={5} className="text-center py-6 text-sm text-muted-foreground">Sem trabalhos registados no período</td></tr>
             )}
           </tbody>
         </table>
@@ -704,10 +710,10 @@ function Kpi({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="rp-label">{label}</div>
-          <div className="rp-kpi-value mt-1 truncate">{value}</div>
-          {hint && <div className="text-xs mt-1 text-slate-500">{hint}</div>}
+          <div className="rp-kpi-value mt-1 break-words">{value}</div>
+          {hint && <div className="text-xs mt-1 text-muted-foreground">{hint}</div>}
         </div>
-        <div className="rounded-xl p-2 shrink-0" style={{ background: `${tone}14` }}>
+        <div className="rounded-lg p-2 shrink-0 bg-muted">
           <Icon className="h-5 w-5" style={{ color: tone }} />
         </div>
       </div>

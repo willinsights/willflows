@@ -11,6 +11,7 @@ import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { FullPageLoader } from "@/components/layout/FullPageLoader";
+import { ReviewPageLoader } from "@/components/layout/ReviewPageLoader";
 import { PageTrackingProvider } from "@/components/PageTrackingProvider";
 import { CookieConsentBanner } from "@/components/cookies/CookieConsentBanner";
 import { queryClient } from "@/lib/query-client";
@@ -170,7 +171,7 @@ const App = () => (
                     <Route path="/ferramentas/calculadora-preco-hora" element={<CalculadoraPrecoHora />} />
 
                     <Route path="/contrato/:token" element={<ContractSign />} />
-                    <Route path="/video-approval/:token" element={<VideoApproval />} />
+                    <Route path="/video-approval/:token" element={<Suspense fallback={<ReviewPageLoader />}><VideoApproval /></Suspense>} />
                     <Route path="/vs" element={<ComparisonsHub />} />
                     <Route path="/vs/asana" element={<VsAsana />} />
                     <Route path="/vs/clickup" element={<VsClickUp />} />

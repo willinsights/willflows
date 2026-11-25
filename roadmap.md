@@ -1,5 +1,12 @@
 # Roadmap — pendências da auditoria
 
+## Relatórios e marca na aprovação externa (25/11)
+- [x] Remover a marca WillFlow durante o carregamento externo; logo/nome In-Sights confirmado no link real.
+- [x] Atividade usa projetos entregues, custos atuais e competência; tema atual e atualização automática a cada 30 segundos sem desmontar a página.
+- [x] Indicadores com 142 px iguais no computador; gráfico top 3, lista inteira com rolagem até o último cliente.
+- [x] Custos consolidados de €25.461 conferidos com o gráfico; fases usam intervalos completos de movimentos registrados quando não há histórico fechado, sem inventar tempos abertos.
+- [x] Sessão válida In-Sights, novembro com 84 entregues/€12.386 em ambas as páginas, celular sem transbordo, link real sem marca WillFlow, 611 testes aprovados; publicação separada.
+
 ## Erros do chat (25/11)
 - [x] Corrigir abertura de conversas: presença compartilhada entre feed e painel; troca de canais e recarregamento verificados na sessão válida do In-Sights.
 - [x] Verificar marcação da equipe com @: seleção, envio e registro da menção confirmados; mensagem temporária para o próprio usuário removida.

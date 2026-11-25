@@ -8,6 +8,8 @@ export function useFinancialCostLines(workspaceId: string | undefined) {
     queryKey: ['finance', 'engine-cost-lines', workspaceId, 'categories-v2'] as const,
     enabled: !!workspaceId,
     staleTime: 30_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
     queryFn: async (): Promise<CostLinePayment[]> => {
       if (!workspaceId) throw new Error('Selecione um workspace para consultar os custos.');
       const data = await fetchAllRows(() =>

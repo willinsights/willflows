@@ -136,6 +136,19 @@ describe('isolated cost reconciliation with real hooks and simulated data only',
 });
 
 describe('complete source and positive UI states', () => {
+ it('keeps confirmed values visible while an automatic refresh is in flight', async () => {
+  const { wrapper } = setup();
+  const { result } = renderHook(() => useFinancialReportSource('fictitious-workspace'), { wrapper });
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  let release: (() => void) | undefined;
+  fixture.gate = new Promise<void>(resolve => { release = resolve; });
+  result.current.refresh();
+  await waitFor(() => expect(result.current.isFetching).toBe(true));
+  expect(result.current.loading).toBe(false);
+  expect(result.current.projects[0].agreed_value).toBe(1000);
+  release?.();
+  await waitFor(() => expect(result.current.isFetching).toBe(false));
+ });
  it('holds financial content during loading then reveals confirmed totals', async () => {
   const { wrapper } = setup();
   let release: (() => void) | undefined;

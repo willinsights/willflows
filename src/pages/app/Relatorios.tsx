@@ -236,20 +236,21 @@ export default function Relatorios() {
         ].map((card, i) => (
           <motion.div
             key={card.label}
+            className="min-w-0 h-full"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.08, duration: 0.4 }}
           >
-            <Card className="glass-card group hover:shadow-lg transition-all duration-300">
-              <CardContent className="p-4">
+            <Card className="glass-card group h-full hover:shadow-lg transition-all duration-300">
+              <CardContent className="p-4 min-h-[140px] flex flex-col">
                 <div className="flex items-center gap-2.5 mb-3">
                   <div className={cn('flex items-center justify-center h-8 w-8 rounded-lg', card.bgColor)}>
                     <card.icon className={cn('h-4 w-4', card.color)} />
                   </div>
                   <span className="text-sm text-muted-foreground font-medium">{card.label}</span>
                 </div>
-                <p className={cn('text-2xl font-bold', card.color)}>{card.value}</p>
-                {card.badge && <Badge variant="secondary" className="mt-1.5 text-xs">{card.badge}</Badge>}
+                <p className={cn('text-2xl font-bold break-words', card.color)}>{card.value}</p>
+                <div className="mt-1.5 min-h-6">{card.badge && <Badge variant="secondary" className="text-xs">{card.badge}</Badge>}</div>
               </CardContent>
             </Card>
           </motion.div>
@@ -367,7 +368,7 @@ export default function Relatorios() {
 
       {/* Section: Rentabilidade de Clientes */}
       <ReportSectionHeader icon={Award} title="Rentabilidade por Cliente" subtitle="Margem e lucro por cada cliente" badge="Pro" />
-      <ClientProfitabilityReport />
+      <ClientProfitabilityReport projects={projects} costLines={costLines} dateRange={dateRange} />
 
       {/* Section: Performance da Equipa */}
       <ReportSectionHeader icon={Users} title="Performance da Equipa" subtitle="Produtividade e carga de trabalho por membro" />
@@ -563,7 +564,7 @@ export default function Relatorios() {
             </CardHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <CardContent className="pt-0"><KanbanMetrics /></CardContent>
+            <CardContent className="pt-0"><KanbanMetrics dateRange={dateRange} /></CardContent>
           </CollapsibleContent>
         </Card>
       </Collapsible>
