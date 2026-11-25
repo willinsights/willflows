@@ -1,3 +1,4 @@
+import { getPublicShareOrigin } from '@/lib/publicShareOrigin';
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -308,10 +309,7 @@ export function useVideoApproval(taskId: string | null, projectId?: string | nul
   };
 
   const getApprovalUrl = (token: string): string => {
-    const base = typeof window !== 'undefined'
-      ? window.location.origin
-      : 'https://willflow.app';
-    return `${base}/video-approval/${token}`;
+    return `${getPublicShareOrigin()}/video-approval/${token}`;
   };
 
   // Check if video is approved (any version)

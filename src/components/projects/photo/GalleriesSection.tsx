@@ -1,3 +1,4 @@
+import { getPublicShareOrigin } from '@/lib/publicShareOrigin';
 import { useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -102,7 +103,7 @@ function GalleryCard({ gallery: g, projectId }: { gallery: Gallery; projectId: s
   const comments = data?.comments ?? [];
   const favorites = photos.filter(p => p.is_favorite).length;
   const openComments = comments.filter(c => c.is_client && c.status === 'open' && !c.parent_id).length;
-  const link = `${window.location.origin}/galeria/${g.share_token}`;
+  const link = `${getPublicShareOrigin()}/galeria/${g.share_token}`;
 
   const save = async (extra: Partial<Gallery> = {}) => {
     const { error } = await supabase.from('photo_galleries').update({
