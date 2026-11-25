@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ArrowLeftRight, Check, CheckCircle2, Film, Info, Lock, Send } from 'lucide-react';
 import { CanonicalVideoComparison } from './CanonicalVideoComparison';
 import { CommentsMenu } from './CommentsMenu';
+import { useDetectedFps } from '@/hooks/useDetectedFps';
 import { CommentThread } from './CommentThread';
 const KEYS = 'wf_review_comment_keys';
 const keyHash = async (id: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('wfc:' + id))), x => x.toString(16).padStart(2, '0')).join('');
@@ -27,6 +28,7 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
   const [branding, setBranding] = useState<{ name: string; logo_url: string | null } | null>(null);
   const [name, setName] = useState(''), [body, setBody] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [now, setNow] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const fps = useDetectedFps(videoRef, review?.playback?.url);
   const [keys, setKeys] = useState<Record<string, string>>(loadKeys);
   const remember = async (requestId: string) => { const next = { ...loadKeys(), [await keyHash(requestId)]: requestId }; localStorage.setItem(KEYS, JSON.stringify(next)); setKeys(next); };
   useHlsPlayer({ videoRef, url: review?.playback?.url ?? null, type: review?.playback?.url.includes('.m3u8') ? 'hls' : review?.playback ? 'native' : 'none' });
@@ -64,22 +66,22 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
     </div></header>
     <div className="mx-auto max-w-[1600px] space-y-4 px-3 py-4 md:px-4">
       {groups.length > 1 && <div className="flex gap-3 overflow-x-auto pb-1">{groups.map(g => <button key={g.label} type="button" onClick={() => { setSelected(g.versions[0].id); setComparing(false); }} className={cn('shrink-0 rounded-lg border px-3 py-2 text-left text-sm', g === group ? 'border-primary ring-2 ring-primary/30' : 'border-border')}><Film className="mr-1 inline h-4 w-4" />{g.label}<span className="ml-2 text-xs text-muted-foreground">{g.versions.length} {g.versions.length === 1 ? 'versão' : 'versões'}</span></button>)}</div>}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
-        <section className="min-w-0 space-y-3">
-          {group && <div className="flex flex-wrap items-center gap-2"><span className="mr-1 font-medium">{group.label}</span>{group.versions.map(v => <Button key={v.id} size="sm" variant={v.id === selected ? 'default' : 'outline'} onClick={() => { setSelected(v.id); setComparing(false); }}>V{v.version_number}</Button>)}
+      {group && <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap"><span className="mr-1 font-medium">{group.label}</span>{group.versions.map(v => <Button key={v.id} size="sm" variant={v.id === selected ? 'default' : 'outline'} onClick={() => { setSelected(v.id); setComparing(false); }}>V{v.version_number}</Button>)}
             {!comparing && <Tip text={ready.length < 2 ? 'Só existe uma versão deste vídeo; não há nada para comparar.' : 'Ver duas versões lado a lado, sincronizadas.'}><Button size="sm" variant="ghost" disabled={ready.length < 2} onClick={() => setComparing(true)}><ArrowLeftRight /> Comparar versões</Button></Tip>}
             <Tip text={RETENTION_INFO}><button type="button" aria-label="Como funciona este link" className="ml-auto text-muted-foreground hover:text-foreground"><Info className="h-4 w-4" /></button></Tip>
           </div>}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
+        <section className="min-w-0 space-y-3">
           {comparing && ready.length > 1 && <CanonicalVideoComparison versions={ready} initialVersionId={selected} reader={reader} onClose={() => setComparing(false)} />}
           {approved && <div role="status" className="flex flex-wrap items-center gap-2 rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">
             <CheckCircle2 className="h-4 w-4" /> V{current?.version_number} aprovada por {review?.approval?.client_name}{until && <span className="text-muted-foreground">· disponível até {until.toLocaleDateString('pt-PT')}</span>}
             <span className="basis-full text-xs text-muted-foreground">Após esta data o vídeo é eliminado; ficam guardados os comentários e o registo da aprovação.</span>
           </div>}
-          {comparing && ready.length > 1 ? null : review?.playback ? <video aria-label="Vídeo para aprovação" ref={videoRef} controls playsInline poster={review.playback.thumbnail} onTimeUpdate={e => setNow(e.currentTarget.currentTime)} className="aspect-video max-h-[calc(100vh-11rem)] w-full rounded-lg bg-background" /> : <div className="aspect-video w-full animate-pulse rounded-lg bg-muted" />}
+          {comparing && ready.length > 1 ? null : review?.playback ? <video aria-label="Vídeo para aprovação" ref={videoRef} controls playsInline poster={review.playback.thumbnail} onTimeUpdate={e => setNow(e.currentTarget.currentTime)} className="aspect-video max-h-[calc(100vh-9rem)] w-full rounded-lg bg-black" /> : <div className="aspect-video w-full animate-pulse rounded-lg bg-muted" />}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         </section>
         <section className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-card p-3 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)]">
-          <div className="flex items-center justify-between"><h2 className="font-semibold">Comentários</h2><CommentsMenu comments={comments} title={review?.version.file_name ?? group?.label ?? studio} /></div>
+          <div className="flex items-center justify-between"><h2 className="font-semibold">Comentários</h2><CommentsMenu comments={comments} detectedFps={fps} title={review?.version.file_name ?? group?.label ?? studio} /></div>
           {!approved && <p className="text-xs text-muted-foreground">{RETENTION_INFO}</p>}
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">{comments.length === 0 && <p className="text-sm text-muted-foreground">Pause o vídeo no momento certo e escreva o seu comentário.</p>}
           <CommentThread comments={comments} locked={approved} onSeek={seek} canEdit={c => !!c.key && !!keys[c.key]} canDelete={c => !!c.key && !!keys[c.key]}

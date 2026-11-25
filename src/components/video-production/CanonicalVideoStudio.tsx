@@ -1,5 +1,6 @@
 import { CommentsMenu } from './CommentsMenu';
 import { CommentThread } from './CommentThread';
+import { useDetectedFps } from '@/hooks/useDetectedFps';
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -49,6 +50,7 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
   const showComparison = comparing && comparable.length > 1;
   const playback = showComparison || review?.version.id !== selected ? null : review.playback;
   const approved = !!review?.approval;
+  const fps = useDetectedFps(video, playback?.url);
   useHlsPlayer({ videoRef: video, url: playback?.url ?? null, type: playback ? 'hls' : 'none' });
 
   const refresh = useCallback(async () => {
@@ -204,7 +206,7 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
         </div>}
 
         <div className="space-y-3 rounded-lg border border-border p-3">
-          <div className="flex items-center justify-between"><p className="flex items-center gap-2 text-sm font-medium"><MessageSquare className="h-4 w-4" /> Comentários {comments.length > 0 && <Badge variant="secondary">{comments.filter(c => !c.parent_id && !c.resolved_at).length} por fazer</Badge>}</p><CommentsMenu comments={comments} title={group?.label ?? 'video'} /></div>
+          <div className="flex items-center justify-between"><p className="flex items-center gap-2 text-sm font-medium"><MessageSquare className="h-4 w-4" /> Comentários {comments.length > 0 && <Badge variant="secondary">{comments.filter(c => !c.parent_id && !c.resolved_at).length} por fazer</Badge>}</p><CommentsMenu comments={comments} detectedFps={fps} title={group?.label ?? 'video'} /></div>
           {comments.length === 0 && <p className="text-xs text-muted-foreground">Sem comentários nesta versão.</p>}
           <div className="max-h-96 overflow-y-auto"><CommentThread comments={comments} locked={approved} onSeek={seek} canEdit={c => !!c.mine} canDelete={c => !!c.mine || !!context?.canEdit} canResolve={!!context?.canEdit} canReply
             onEdit={async (c, body) => { await privateVideoRequest({ action: 'comment-edit', versionId: selected, commentId: c.id, body }); await read(); }}

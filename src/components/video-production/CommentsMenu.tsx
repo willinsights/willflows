@@ -2,7 +2,10 @@ import { Copy, Download, Info, MoreHorizontal, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { buildExport, commentsAsText, toTimecode, type ExportComment, type ExportFormat } from '@/lib/comment-export';
+import { useState } from 'react';
+import { Gauge } from 'lucide-react';
+import { DropdownMenuRadioGroup, DropdownMenuRadioItem } from '@/components/ui/dropdown-menu';
+import { FPS_OPTIONS, buildExport, commentsAsText, toTimecode, type ExportComment, type ExportFormat } from '@/lib/comment-export';
 
 const FORMATS: { id: ExportFormat; label: string; tag: string }[] = [
   { id: 'fcpxml', label: 'Final Cut Pro', tag: 'FCPXML' }, { id: 'avid', label: 'Media Composer', tag: 'TXT' },
@@ -11,18 +14,20 @@ const FORMATS: { id: ExportFormat; label: string; tag: string }[] = [
 ];
 const escHtml = (s: string) => s.replace(/[&<>]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch]!));
 
-export function CommentsMenu({ comments, title }: { comments: ExportComment[]; title: string }) {
+export function CommentsMenu({ comments, title, detectedFps }: { comments: ExportComment[]; title: string; detectedFps?: number | null }) {
+  const [manual, setManual] = useState<number | null>(null);
+  const fps = manual ?? detectedFps ?? 25;
   const empty = comments.length === 0;
   const base = title.replace(/\.[^.]+$/, '').replace(/[^\w\-À-ÿ ]+/g, '').trim() || 'comentarios';
-  const copy = async () => { await navigator.clipboard.writeText(commentsAsText(comments)); toast.success('Comentários copiados'); };
+  const copy = async () => { await navigator.clipboard.writeText(commentsAsText(comments, fps)); toast.success('Comentários copiados'); };
   const download = (f: ExportFormat) => {
-    const { content, ext, mime } = buildExport(f, comments, base);
+    const { content, ext, mime } = buildExport(f, comments, base, fps);
     const url = URL.createObjectURL(new Blob([content], { type: `${mime};charset=utf-8` }));
     const a = document.createElement('a'); a.href = url; a.download = `${base} - comentarios.${ext}`; a.click(); URL.revokeObjectURL(url);
   };
   const print = () => {
     const w = window.open('', '_blank'); if (!w) return;
-    const rows = [...comments].sort((a, b) => a.timestamp_seconds - b.timestamp_seconds).map((c, i) => `<tr><td>${i + 1}</td><td>${toTimecode(c.timestamp_seconds)}</td><td>${escHtml(c.client_name)}</td><td>${escHtml(c.body)}</td></tr>`).join('');
+    const rows = [...comments].sort((a, b) => a.timestamp_seconds - b.timestamp_seconds).map((c, i) => `<tr><td>${i + 1}</td><td>${toTimecode(c.timestamp_seconds, fps)}</td><td>${escHtml(c.client_name)}</td><td>${escHtml(c.body)}</td></tr>`).join('');
     w.document.write(`<html><head><title>${escHtml(base)}</title><style>body{font-family:sans-serif;padding:24px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:6px;text-align:left;vertical-align:top;font-size:12px}</style></head><body><h2>${escHtml(base)} — comentários</h2><table><tr><th>#</th><th>Timecode</th><th>Autor</th><th>Comentário</th></tr>${rows}</table></body></html>`);
     w.document.close(); w.focus(); w.print();
   };
@@ -36,8 +41,12 @@ export function CommentsMenu({ comments, title }: { comments: ExportComment[]; t
         <DropdownMenuSubTrigger disabled={empty}><Download className="mr-2 h-4 w-4" />Exportar comentários</DropdownMenuSubTrigger>
         <DropdownMenuSubContent className="w-60">{FORMATS.map((f, i) => <div key={f.id}>{i === 4 && <DropdownMenuSeparator />}<DropdownMenuItem onClick={() => download(f.id)}>{f.label}<span className="ml-auto text-xs text-muted-foreground">{f.tag}</span></DropdownMenuItem></div>)}</DropdownMenuSubContent>
       </DropdownMenuSub>
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger><Gauge className="mr-2 h-4 w-4" />Velocidade: {fps} fps{!manual && detectedFps ? ' (detetada)' : ''}</DropdownMenuSubTrigger>
+        <DropdownMenuSubContent><DropdownMenuRadioGroup value={String(fps)} onValueChange={v => setManual(Number(v))}>{FPS_OPTIONS.map(f => <DropdownMenuRadioItem key={f} value={String(f)}>{f} fps{f === detectedFps ? ' · detetada' : ''}</DropdownMenuRadioItem>)}</DropdownMenuRadioGroup></DropdownMenuSubContent>
+      </DropdownMenuSub>
       <DropdownMenuSeparator />
-      <DropdownMenuLabel className="flex gap-2 text-xs font-normal text-muted-foreground"><Info className="h-4 w-4 shrink-0" />Copia e exporta os comentários desta versão, com timecode a 25 fps.</DropdownMenuLabel>
+      <DropdownMenuLabel className="flex gap-2 text-xs font-normal text-muted-foreground"><Info className="h-4 w-4 shrink-0" />Copia e exporta os comentários desta versão, com timecode na velocidade indicada. A velocidade é detetada ao reproduzir o vídeo; pode mudá-la acima.</DropdownMenuLabel>
     </DropdownMenuContent>
   </DropdownMenu>;
 }
