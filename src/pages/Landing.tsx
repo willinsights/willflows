@@ -564,23 +564,31 @@ export default function Landing() {
               Ferramentas poderosas pensadas especificamente para o fluxo de trabalho de criadores visuais
             </p>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 focal-container">
-            {features.map((feature, index) => (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.08, duration: 0.5 }}
-                viewport={{ once: true }}
-                className="focal-card p-6 glow-ring"
-              >
-                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 mb-4 transition-transform group-hover:scale-110">
-                  <feature.icon className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="font-semibold text-lg mb-2">{feature.title}</h3>
-                <p className="text-muted-foreground">{feature.description}</p>
-              </motion.div>
-            ))}
+          <div className="max-w-5xl mx-auto rounded-3xl border border-border/60 bg-card/40 backdrop-blur-sm overflow-hidden">
+            <ul className="grid sm:grid-cols-2 lg:grid-cols-4">
+              {features.map((feature, index) => (
+                <motion.li
+                  key={feature.title}
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  transition={{ delay: index * 0.05, duration: 0.4 }}
+                  viewport={{ once: true }}
+                  className="group flex flex-col h-full p-6 border-b border-r border-border/40 transition-colors hover:bg-primary/5"
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <span className="font-mono text-xs tracking-widest text-muted-foreground">{String(index + 1).padStart(2, '0')}</span>
+                    <feature.icon className="h-5 w-5 text-muted-foreground transition-colors group-hover:text-primary" aria-hidden="true" />
+                  </div>
+                  <h3 className="font-semibold text-base mb-2 flex items-center gap-2">
+                    {feature.title}
+                    {'badge' in feature && feature.badge && (
+                      <span className="rounded-full border border-primary/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">{feature.badge}</span>
+                    )}
+                  </h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{feature.description.replace(' Exclusivo Studio.', '')}</p>
+                </motion.li>
+              ))}
+            </ul>
           </div>
           <div className="text-center mt-12">
             <Link to="/funcionalidades">

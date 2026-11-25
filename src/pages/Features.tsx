@@ -246,11 +246,11 @@ export default function Features() {
             {features.map((feature, index) => {
               const isStudio = 'badge' in feature && feature.badge === 'Studio';
               const CardContent = (
-                <div className="flex items-start gap-4">
+                <div className="flex items-start gap-4 h-full">
                   <div className={`flex items-center justify-center w-12 h-12 rounded-xl flex-shrink-0 ${isStudio ? 'bg-gradient-to-br from-primary/20 to-purple-500/20' : 'bg-primary/10'}`}>
                     <feature.icon className="h-6 w-6 text-primary" />
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 flex flex-col h-full">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold text-lg">{feature.title}</h3>
@@ -274,7 +274,7 @@ export default function Features() {
                       ))}
                     </ul>
                     {'href' in feature && (
-                      <p className="text-primary text-sm font-medium mt-4">Ver detalhes →</p>
+                      <p className="text-primary text-sm font-medium mt-auto pt-4">Ver detalhes →</p>
                     )}
                   </div>
                 </div>
@@ -287,16 +287,17 @@ export default function Features() {
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                   viewport={{ once: true }}
+                  className="h-full"
                 >
                   {'href' in feature ? (
                     <Link 
                       to={feature.href} 
-                      className={`block glass-card p-6 group hover:border-primary/50 transition-colors ${isStudio ? 'border-primary/30 bg-gradient-to-br from-primary/5 to-purple-500/5' : ''}`}
+                      className={`block h-full glass-card p-6 group hover:border-primary/50 transition-colors ${isStudio ? 'border-primary/30 bg-gradient-to-br from-primary/5 to-purple-500/5' : ''}`}
                     >
                       {CardContent}
                     </Link>
                   ) : (
-                    <div className="glass-card p-6">
+                    <div className="h-full glass-card p-6">
                       {CardContent}
                     </div>
                   )}
