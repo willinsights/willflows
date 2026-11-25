@@ -24,19 +24,19 @@
     --popover-foreground: 240 10% 10%;
 
     /* Primary - WillFlow Violet #5B4AE4 */
-    --primary: 246 74% 59%;
+    --primary: 185 100% 30%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary - Light gray tint */
     --secondary: 220 14% 94%;
-    --secondary-foreground: 246 74% 50%;
+    --secondary-foreground: 185 100% 25%;
 
     /* Muted - Gray tones */
     --muted: 220 14% 92%;
     --muted-foreground: 220 9% 46%;
 
     /* Accent - Cyan #00E5E5 */
-    --accent: 180 100% 35%;
+    --accent: 262 70% 58%;
     --accent-foreground: 0 0% 100%;
 
     /* Destructive */
@@ -58,19 +58,19 @@
     /* Borders and inputs - Subtler tone for card lift */
     --border: 220 13% 88%;
     --input: 220 13% 88%;
-    --ring: 246 74% 59%;
+    --ring: 185 100% 30%;
 
     --radius: 0.75rem;
 
     /* Sidebar - Light gray background */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 220 9% 30%;
-    --sidebar-primary: 246 74% 59%;
+    --sidebar-primary: 185 100% 30%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 14% 94%;
     --sidebar-accent-foreground: 246 74% 50%;
     --sidebar-border: 220 13% 90%;
-    --sidebar-ring: 246 74% 59%;
+    --sidebar-ring: 185 100% 30%;
 
     /* Glass effect variables - Enhanced Light with shadows */
     --glass-blur: 16px;
@@ -110,19 +110,19 @@
     --popover-foreground: 0 0% 95%;
 
     /* Primary - WillFlow Violet (brighter for dark) */
-    --primary: 246 74% 65%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 183 100% 45%;
+    --primary-foreground: 220 30% 8%;
 
     /* Secondary */
     --secondary: 240 12% 14%;
-    --secondary-foreground: 246 60% 80%;
+    --secondary-foreground: 183 70% 75%;
 
     /* Muted */
     --muted: 240 12% 14%;
     --muted-foreground: 240 5% 55%;
 
     /* Accent - Cyan */
-    --accent: 180 100% 45%;
+    --accent: 262 80% 66%;
     --accent-foreground: 0 0% 100%;
 
     /* Destructive */
@@ -144,32 +144,32 @@
     /* Borders and inputs */
     --border: 240 12% 18%;
     --input: 240 12% 18%;
-    --ring: 246 74% 65%;
+    --ring: 183 100% 45%;
 
     /* Sidebar */
     --sidebar-background: 240 15% 7%;
     --sidebar-foreground: 0 0% 85%;
-    --sidebar-primary: 246 74% 65%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 246 40% 18%;
-    --sidebar-accent-foreground: 246 60% 80%;
+    --sidebar-primary: 183 100% 45%;
+    --sidebar-primary-foreground: 220 30% 8%;
+    --sidebar-accent: 190 45% 14%;
+    --sidebar-accent-foreground: 183 80% 75%;
     --sidebar-border: 240 12% 16%;
-    --sidebar-ring: 246 74% 65%;
+    --sidebar-ring: 183 100% 45%;
 
     /* Glass effect variables - Premium Dark */
     --glass-blur: 20px;
     --glass-bg: 240 15% 8% / 0.85;
     --glass-border: 0 0% 100% / 0.08;
     --glass-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.4), 0 8px 24px -4px rgba(0, 0, 0, 0.3);
-    --glass-shadow-hover: 0 4px 20px -4px rgba(91, 74, 228, 0.3), 0 12px 32px -8px rgba(0, 0, 0, 0.4);
-    --glass-glow: 0 0 48px rgba(91, 74, 228, 0.2);
+    --glass-shadow-hover: 0 4px 20px -4px rgba(0, 220, 230, 0.3), 0 12px 32px -8px rgba(0, 0, 0, 0.4);
+    --glass-glow: 0 0 48px rgba(0, 220, 230, 0.2);
 
     /* Kanban colors - slightly brighter for dark mode */
     --kanban-gray: 220 9% 55%;
     --kanban-blue: 217 91% 65%;
     --kanban-yellow: 38 92% 55%;
     --kanban-green: 142 70% 45%;
-    --kanban-purple: 246 74% 65%;
+    --kanban-purple: 262 80% 66%;
     --kanban-red: 0 72% 55%;
     --kanban-cyan: 180 100% 50%;
     /* Premium dark depth: light edge on top + deep soft drop */
@@ -330,13 +330,13 @@
 
   .kanban-card:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px -2px rgba(91, 74, 228, 0.15), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 4px 12px -2px rgba(0, 220, 230, 0.15), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     border-color: hsl(var(--primary) / 0.3);
   }
 
   .kanban-card.dragging {
     @apply opacity-70 scale-[1.02];
-    box-shadow: 0 12px 32px -8px rgba(91, 74, 228, 0.25);
+    box-shadow: 0 12px 32px -8px rgba(0, 220, 230, 0.25);
   }
 
   /* Priority badges - compact */

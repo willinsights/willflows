@@ -93,6 +93,9 @@ export function AppSidebar({ collapsed, onToggle, isMobile, autoCollapseOnNav = 
             )} 
           />
         </button>
+        {!(collapsed && !isMobile) && (
+          <span className="mr-auto ml-2 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-bold tracking-widest text-primary">2.0</span>
+        )}
         
         
         {isMobile ? (
