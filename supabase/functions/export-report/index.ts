@@ -232,12 +232,15 @@ Deno.serve(async (req) => {
     // Check if user has Pro or Studio plan for exports
     const { data: subscription } = await supabase
       .from('user_subscriptions')
-      .select('subscription_plan, subscription_status')
+      .select('subscription_plan, subscription_status, trial_ends_at')
       .eq('user_id', user.id)
       .maybeSingle();
 
     const plan = subscription?.subscription_plan || 'starter';
-    const statusOk = ['active', 'trialing'].includes(String(subscription?.subscription_status || ''));
+    const subStatus = String(subscription?.subscription_status || '');
+    const trialEnds = subscription?.trial_ends_at ? Date.parse(subscription.trial_ends_at) : NaN;
+    const statusOk = subStatus === 'active'
+      || (subStatus === 'trialing' && Number.isFinite(trialEnds) && trialEnds > Date.now());
     if (plan === 'starter' || !statusOk) {
       // Check for super admin
       const { data: isAdmin } = await supabase

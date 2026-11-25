@@ -138,7 +138,7 @@ async function createGoogleMeetEvent(
     throw new Error('Google Meet link was not created');
   }
 
-  console.log('Created event with Meet URL:', meetUrl);
+  console.log('Created event with Meet link');
 
   return {
     meetUrl,
@@ -283,7 +283,7 @@ serve(async (req) => {
       }
     );
 
-    console.log('Successfully created Meet:', result);
+    console.log('Successfully created Meet event');
 
     return new Response(JSON.stringify({
       success: true,
