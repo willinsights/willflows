@@ -128,10 +128,6 @@ export default function AdminContent() {
             <Settings className="h-4 w-4" />
             Auto-Publish
           </TabsTrigger>
-          <TabsTrigger value="seo" className="gap-2">
-            <Search className="h-4 w-4" />
-            SEO
-          </TabsTrigger>
         </TabsList>
 
         {/* ARTICLES TAB */}
@@ -240,17 +236,6 @@ export default function AdminContent() {
         </TabsContent>
 
         {/* SEO TAB */}
-        <TabsContent value="seo" className="space-y-6">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center py-12 text-muted-foreground">
-                <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <h3 className="font-semibold mb-2">Ferramentas de SEO</h3>
-                <p className="text-sm">Em breve: sitemap status, indexação, meta tags</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       {/* Preview Modal */}

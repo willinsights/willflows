@@ -86,3 +86,26 @@ describe('retenção 7 dias após aprovação', () => {
     expect(due).toEqual([]);
   });
 });
+
+describe('project-level reviews (no task)', () => {
+  it('removes every live version of a project approved more than 7 days ago', async () => {
+    const { selectVersionsDueAfterApproval } = await import('../../supabase/functions/_shared/approval-retention');
+    const cutoff = '2026-11-18T00:00:00Z';
+    const due = selectVersionsDueAfterApproval(
+      [{ video_version_id: 'v2', task_id: null, project_id: 'p1', approved_at: '2026-11-13T00:00:00Z' }],
+      [{ id: 'v1', task_id: null, project_id: 'p1', is_deleted: false }, { id: 'v9', task_id: null, project_id: 'p2', is_deleted: false }],
+      cutoff,
+    );
+    expect(due).toEqual(['v1']);
+  });
+  it('keeps project versions when a newer approval is within 7 days', async () => {
+    const { selectVersionsDueAfterApproval } = await import('../../supabase/functions/_shared/approval-retention');
+    const due = selectVersionsDueAfterApproval(
+      [{ video_version_id: 'v2', task_id: null, project_id: 'p1', approved_at: '2026-11-13T00:00:00Z' },
+       { video_version_id: 'v3', task_id: null, project_id: 'p1', approved_at: '2026-11-20T00:00:00Z' }],
+      [{ id: 'v1', task_id: null, project_id: 'p1', is_deleted: false }],
+      '2026-11-18T00:00:00Z',
+    );
+    expect(due).toEqual([]);
+  });
+});

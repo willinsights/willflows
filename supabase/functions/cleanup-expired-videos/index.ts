@@ -312,13 +312,14 @@ serve(async (req) => {
     const approvalCutoff = approvalRetentionCutoff(new Date());
     const { data: oldApprovals } = await guardedDb
       .from('video_approvals')
-      .select('video_version_id, task_id, approved_at')
+      .select('video_version_id, task_id, project_id, approved_at')
       .lt('approved_at', approvalCutoff)
       .limit(5000);
     let deliveredMarked = 0;
     const approvalRows = (oldApprovals || []) as any[];
     const approvedTaskIds = [...new Set(approvalRows.map((a) => a.task_id).filter(Boolean))] as string[];
     const approvedVersionIds = [...new Set(approvalRows.map((a) => a.video_version_id).filter(Boolean))] as string[];
+    const approvedProjectIds = [...new Set(approvalRows.filter((a) => !a.task_id).map((a) => a.project_id).filter(Boolean))] as string[];
     // Newer approvals on the same tasks restart the window.
     const recentApprovals: any[] = [];
     for (let i = 0; i < approvedTaskIds.length; i += 100) {
@@ -329,16 +330,34 @@ serve(async (req) => {
         .gte('approved_at', approvalCutoff);
       if (data) recentApprovals.push(...data);
     }
+    for (let i = 0; i < approvedProjectIds.length; i += 100) {
+      const { data } = await guardedDb
+        .from('video_approvals')
+        .select('video_version_id, task_id, project_id, approved_at')
+        .in('project_id', approvedProjectIds.slice(i, i + 100))
+        .is('task_id', null)
+        .gte('approved_at', approvalCutoff);
+      if (data) recentApprovals.push(...data);
+    }
     const candidates: any[] = [];
     for (const [column, ids] of [['task_id', approvedTaskIds], ['id', approvedVersionIds]] as const) {
       for (let i = 0; i < ids.length; i += 100) {
         const { data } = await guardedDb
           .from('video_versions')
-          .select('id, task_id, is_deleted, workspace_id, file_size_bytes, replacement_file_size_bytes')
+          .select('id, task_id, project_id, is_deleted, workspace_id, file_size_bytes, replacement_file_size_bytes')
           .in(column, ids.slice(i, i + 100))
           .eq('is_deleted', false);
         if (data) candidates.push(...data);
       }
+    }
+    for (let i = 0; i < approvedProjectIds.length; i += 100) {
+      const { data } = await guardedDb
+        .from('video_versions')
+        .select('id, task_id, project_id, is_deleted, workspace_id, file_size_bytes, replacement_file_size_bytes')
+        .in('project_id', approvedProjectIds.slice(i, i + 100))
+        .is('task_id', null)
+        .eq('is_deleted', false);
+      if (data) candidates.push(...data);
     }
     const byId = new Map(candidates.map((v: any) => [v.id, v]));
     const dueIds = selectVersionsDueAfterApproval([...approvalRows, ...recentApprovals], [...byId.values()], approvalCutoff);

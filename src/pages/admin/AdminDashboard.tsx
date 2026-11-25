@@ -20,7 +20,6 @@ import { ChartContainer } from '@/components/ui/chart';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAdminMetrics } from '@/hooks/useAdminMetrics';
 import { cn } from '@/lib/utils';
-import { StripeBillingDiscrepanciesCard } from '@/components/admin/StripeBillingDiscrepanciesCard';
 
 // KPI Card Component
 function KPICard({ 
@@ -182,8 +181,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Stripe Billing Discrepancies */}
-      <StripeBillingDiscrepanciesCard />
 
       {/* Main KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

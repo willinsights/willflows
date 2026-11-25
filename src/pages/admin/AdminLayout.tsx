@@ -14,7 +14,6 @@ import {
   ExternalLink,
   BarChart3,
   FileText,
-  Rocket,
   Webhook,
   Megaphone
 } from 'lucide-react';
@@ -39,7 +38,6 @@ const navItems: NavItem[] = [
   { path: '/admin/content', label: 'Conteúdo', icon: <FileText className="h-5 w-5" /> },
   { path: '/admin/users', label: 'Utilizadores', icon: <Users className="h-5 w-5" /> },
   { path: '/admin/billing', label: 'Billing', icon: <CreditCard className="h-5 w-5" /> },
-  { path: '/admin/growth', label: 'Growth', icon: <Rocket className="h-5 w-5" /> },
   { path: '/admin/system', label: 'Sistema', icon: <Settings className="h-5 w-5" /> },
   { path: '/admin/webhooks', label: 'Webhooks', icon: <Webhook className="h-5 w-5" /> },
   { path: '/admin/campaigns', label: 'Campanhas', icon: <Megaphone className="h-5 w-5" /> },

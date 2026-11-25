@@ -113,7 +113,6 @@ const AdminAnalytics = lazy(() => import("./pages/admin/AdminAnalytics"));
 const AdminContent = lazy(() => import("./pages/admin/AdminContent"));
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
 const AdminBilling = lazy(() => import("./pages/admin/AdminBilling"));
-const AdminGrowth = lazy(() => import("./pages/admin/AdminGrowth"));
 const AdminSystem = lazy(() => import("./pages/admin/AdminSystem"));
 const AdminWebhooks = lazy(() => import("./pages/admin/AdminWebhooks"));
 const AdminCampaigns = lazy(() => import("./pages/admin/AdminCampaigns"));
@@ -187,7 +186,7 @@ const App = () => (
                       <Route path="content" element={<AdminContent />} />
                       <Route path="users" element={<AdminUsers />} />
                       <Route path="billing" element={<AdminBilling />} />
-                      <Route path="growth" element={<AdminGrowth />} />
+                      <Route path="growth" element={<Navigate to="/admin/users" replace />} />
                       <Route path="system" element={<AdminSystem />} />
                       <Route path="webhooks" element={<AdminWebhooks />} />
                       <Route path="campaigns" element={<AdminCampaigns />} />

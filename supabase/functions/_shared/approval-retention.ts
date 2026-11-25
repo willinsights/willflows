@@ -12,12 +12,14 @@ export type RetentionApproval = {
   video_version_id: string | null;
   task_id: string | null;
   approved_at: string;
+  project_id?: string | null;
 };
 
 export type RetentionVersion = {
   id: string;
   task_id: string | null;
   is_deleted: boolean | null;
+  project_id?: string | null;
 };
 
 /**
@@ -34,11 +36,18 @@ export function selectVersionsDueAfterApproval(
   const cutoff = Date.parse(cutoffIso);
   const dueVersionIds = new Set<string>();
   const dueTaskIds = new Set<string>();
+  // Project-level reviews (no task): an approval covers every version of that project.
+  const dueProjectIds = new Set<string>();
   for (const a of approvals) {
     const at = Date.parse(a.approved_at);
     if (!Number.isFinite(at) || at >= cutoff) continue;
     if (a.video_version_id) dueVersionIds.add(a.video_version_id);
     if (a.task_id) dueTaskIds.add(a.task_id);
+    else if (a.project_id) dueProjectIds.add(a.project_id);
+  }
+  for (const a of approvals) {
+    const at = Date.parse(a.approved_at);
+    if (!a.task_id && a.project_id && Number.isFinite(at) && at >= cutoff) dueProjectIds.delete(a.project_id);
   }
   // A newer approval on the same task restarts its 7-day window.
   for (const a of approvals) {
@@ -48,7 +57,7 @@ export function selectVersionsDueAfterApproval(
   return versions
     .filter((v) => v.is_deleted !== true)
     .filter((v) =>
-      (v.task_id ? dueTaskIds.has(v.task_id) : false) ||
+      (v.task_id ? dueTaskIds.has(v.task_id) : (v.project_id ? dueProjectIds.has(v.project_id) : false)) ||
       (dueVersionIds.has(v.id) && !(v.task_id && hasRecentTaskApproval(approvals, v.task_id, cutoff))),
     )
     .map((v) => v.id);

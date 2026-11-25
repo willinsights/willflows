@@ -92,10 +92,6 @@ export function BillingTab() {
             <Webhook className="h-4 w-4" />
             Webhooks
           </TabsTrigger>
-          <TabsTrigger value="reset" className="gap-2 text-destructive">
-            <Trash2 className="h-4 w-4" />
-            Reset
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="subscriptions">
@@ -115,9 +111,6 @@ export function BillingTab() {
         </TabsContent>
         <TabsContent value="webhooks">
           <WebhooksSubTab />
-        </TabsContent>
-        <TabsContent value="reset">
-          <ResetBillingSubTab />
         </TabsContent>
       </Tabs>
     </div>
