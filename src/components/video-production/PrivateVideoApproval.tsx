@@ -55,9 +55,9 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
       {branding?.logo_url && <img src={branding.logo_url} alt="" className="h-9 w-9 rounded-md object-contain" />}
       <div className="min-w-0"><h1 className="truncate text-lg font-semibold">{studio}</h1><p className="text-xs text-muted-foreground">Revisão e aprovação de vídeo</p></div>
     </div></header>
-    <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-6">
+    <div className="mx-auto max-w-[1600px] space-y-4 px-3 py-4 md:px-4">
       {groups.length > 1 && <div className="flex gap-3 overflow-x-auto pb-1">{groups.map(g => <button key={g.label} type="button" onClick={() => { setSelected(g.versions[0].id); setComparing(false); }} className={cn('shrink-0 rounded-lg border px-3 py-2 text-left text-sm', g === group ? 'border-primary ring-2 ring-primary/30' : 'border-border')}><Film className="mr-1 inline h-4 w-4" />{g.label}<span className="ml-2 text-xs text-muted-foreground">{g.versions.length} {g.versions.length === 1 ? 'versão' : 'versões'}</span></button>)}</div>}
-      <div className="space-y-6">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
         <section className="min-w-0 space-y-3">
           {group && <div className="flex flex-wrap items-center gap-2"><span className="mr-1 font-medium">{group.label}</span>{group.versions.map(v => <Button key={v.id} size="sm" variant={v.id === selected ? 'default' : 'outline'} onClick={() => { setSelected(v.id); setComparing(false); }}>V{v.version_number}</Button>)}
             {!comparing && <Tip text={ready.length < 2 ? 'Só existe uma versão deste vídeo; não há nada para comparar.' : 'Ver duas versões lado a lado, sincronizadas.'}><Button size="sm" variant="ghost" disabled={ready.length < 2} onClick={() => setComparing(true)}><ArrowLeftRight /> Comparar versões</Button></Tip>}
@@ -68,19 +68,19 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
             <CheckCircle2 className="h-4 w-4" /> V{current?.version_number} aprovada por {review?.approval?.client_name}{until && <span className="text-muted-foreground">· disponível até {until.toLocaleDateString('pt-PT')}</span>}
             <span className="basis-full text-xs text-muted-foreground">Após esta data o vídeo é eliminado; ficam guardados os comentários e o registo da aprovação.</span>
           </div>}
-          {comparing && ready.length > 1 ? null : review?.playback ? <video aria-label="Vídeo para aprovação" ref={videoRef} controls playsInline poster={review.playback.thumbnail} onTimeUpdate={e => setNow(e.currentTarget.currentTime)} className="aspect-video w-full rounded-lg bg-muted" /> : <div className="aspect-video w-full animate-pulse rounded-lg bg-muted" />}
+          {comparing && ready.length > 1 ? null : review?.playback ? <video aria-label="Vídeo para aprovação" ref={videoRef} controls playsInline poster={review.playback.thumbnail} onTimeUpdate={e => setNow(e.currentTarget.currentTime)} className="aspect-video max-h-[calc(100vh-11rem)] w-full rounded-lg bg-background" /> : <div className="aspect-video w-full animate-pulse rounded-lg bg-muted" />}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         </section>
-        <section className="grid min-w-0 gap-6 md:grid-cols-2">
-          <h2 className="font-semibold md:col-span-2">Comentários</h2>
+        <section className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-card p-3 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)]">
+          <h2 className="font-semibold">Comentários</h2>
           {!approved && <p className="text-xs text-muted-foreground">{RETENTION_INFO}</p>}
-          <div className="min-w-0 space-y-2 md:order-2">{comments.length === 0 && <p className="text-sm text-muted-foreground">Pause o vídeo no momento certo e escreva o seu comentário.</p>}
-          <ul className="max-h-96 space-y-2 overflow-y-auto">{comments.map(c => <li key={c.id} className="break-words rounded-md bg-muted/50 p-2 text-sm">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">{comments.length === 0 && <p className="text-sm text-muted-foreground">Pause o vídeo no momento certo e escreva o seu comentário.</p>}
+          <ul className="space-y-2">{comments.map(c => <li key={c.id} className="break-words rounded-md bg-muted/50 p-2 text-sm">
             <div className="mb-1 flex items-center gap-2"><button type="button" onClick={() => seek(c.timestamp_seconds)} className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-xs text-primary">{formatClock(c.timestamp_seconds)}</button><strong>{c.client_name}</strong></div><p>{c.body}</p></li>)}</ul></div>
-          <div className="min-w-0 space-y-3 md:order-1">
+          <div className="min-w-0 space-y-2 border-t border-border pt-3">
           {approved ? <p className="flex items-center gap-2 text-sm text-muted-foreground"><Lock className="h-4 w-4" /> Esta versão foi aprovada; os comentários estão fechados.</p> : <>
             <label className="block text-sm">Nome<input className="mt-1 w-full rounded-md border border-input bg-background p-2" value={name} maxLength={120} onChange={e => setName(e.target.value)} /></label>
-            <label className="block text-sm">Comentário em {formatClock(now)}<textarea className="mt-1 w-full rounded-md border border-input bg-background p-2" rows={4} maxLength={5000} value={body} onFocus={() => videoRef.current?.pause()} onChange={e => setBody(e.target.value)} /></label>
+            <label className="block text-sm">Comentário em {formatClock(now)}<textarea className="mt-1 w-full rounded-md border border-input bg-background p-2" rows={2} maxLength={5000} value={body} onFocus={() => videoRef.current?.pause()} onChange={e => setBody(e.target.value)} /></label>
             <div className="flex flex-wrap gap-2"><Tip text={!name.trim() ? 'Escreva o seu nome para comentar.' : 'Envia o comentário no tempo atual do vídeo.'}><Button onClick={() => void feedback('comment')} disabled={busy || !name.trim() || !body.trim()}><Send /> Enviar comentário</Button></Tip><Tip text={!name.trim() ? 'Escreva o seu nome para aprovar.' : 'Aprova esta versão e fecha os comentários. O vídeo fica disponível mais 7 dias.'}><Button variant="outline" onClick={() => void feedback('approval')} disabled={busy || !name.trim()}><Check /> Aprovar V{current?.version_number}</Button></Tip></div>
             {!name.trim() && <p role="note" className="text-xs text-warning">Escreva o seu nome acima para poder comentar ou aprovar.</p>}
           </>}

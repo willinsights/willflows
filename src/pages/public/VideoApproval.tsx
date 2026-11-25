@@ -704,11 +704,11 @@ export default function VideoApproval() {
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-[1400px] px-4 py-6">
+        <main className="mx-auto w-full max-w-[1600px] px-3 py-4 md:px-4">
           {isApproved && data.approval && <ApprovedBanner approval={data.approval} versions={data.versions} token={token!} />}
-          <div className="flex flex-col gap-6">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
             {/* Comments Sidebar - LEFT (Frame.io style) */}
-            <div className="order-2 space-y-4">
+            <div className="order-2 space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
               <Card className="h-fit">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -818,7 +818,7 @@ export default function VideoApproval() {
             </div>
 
             {/* Video Player - RIGHT (2 columns) */}
-            <div className="order-1 space-y-4">
+            <div className="order-1 min-w-0 space-y-4">
               {/* Comparison Mode */}
               {isComparing ? (
                 <Card className="p-4">
