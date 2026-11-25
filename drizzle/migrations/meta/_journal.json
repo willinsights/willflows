@@ -211,6 +211,13 @@
       "when": 1795625218887,
       "tag": "0029_allow_own_avatar_read_for_upsert",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1795625696712,
+      "tag": "0030_private_video_link_status",
+      "breakpoints": true
     }
   ]
 }

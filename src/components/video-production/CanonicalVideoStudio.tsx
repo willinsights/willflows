@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useHlsPlayer } from '@/hooks/useHlsPlayer';
 import { privateVideoRequest, uploadPrivateVideo, PRIVATE_VIDEO_CLIENT_REVISION, PrivateVideoError } from '@/lib/private-video-client';
+import { clearApprovalLink, loadApprovalLink, saveApprovalLink } from '@/lib/approval-link-keys';
 import { fileStem, formatClock, groupDeliverables } from '@/lib/video-deliverables';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ArrowLeftRight, Info, RotateCcw, Check, CheckCircle2, Copy, Download, Film, Link, Lock, MessageSquare, Plus, RefreshCw, Send, Trash2, Upload, X } from 'lucide-react';
@@ -39,7 +40,9 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
   const [comment, setComment] = useState('');
   const [now, setNow] = useState(0);
   const [link, setLink] = useState<{ token: string; url: string } | null>(null);
+  const [copied, setCopied] = useState(false);
   const [comparing, setComparing] = useState(false);
+  const linkRestored = useRef(false);
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
   const operation = useRef<string | null>(null), input = useRef<HTMLInputElement>(null), video = useRef<HTMLVideoElement>(null), query = useQueryClient();
@@ -77,6 +80,19 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
     setMeta(Object.fromEntries(entries));
   }, [workspaceId, projectId, taskId, onContext, onVersions]);
   useEffect(() => { setVersions([]); setSelected(''); setReview(null); setContext(null); void refresh().catch(() => setError('Não foi possível carregar os vídeos.')); }, [refresh]);
+
+  // The token is only shown at creation, so the browser keeps it per card; a
+  // revoked or expired one is dropped here and the button shows "Gerar link" again.
+  useEffect(() => {
+    if (!context?.canEdit || linkRestored.current || link) return;
+    linkRestored.current = true;
+    const scope = { workspaceId, projectId, taskId };
+    const token = loadApprovalLink(scope);
+    if (!token) return;
+    void privateVideoRequest({ action: 'link-status', token })
+      .then(r => { if (r?.active === true) setLink({ token, url: `${window.location.origin}/video-approval/${token}` }); else clearApprovalLink(scope); })
+      .catch(() => clearApprovalLink(scope));
+  }, [context, workspaceId, projectId, taskId, link]);
 
   const read = useCallback(async () => {
     if (!selected) return;
@@ -206,12 +222,12 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
         {context?.canEdit && selected && <div className="space-y-2 rounded-lg border border-border p-3">
           <p className="flex items-center gap-2 text-sm font-medium"><Link className="h-4 w-4" /> Link para o cliente
             <Tip text="Mostra todos os vídeos deste cartão com o nome do seu estúdio. Válido 7 dias. Depois de aprovado, o vídeo fica disponível 7 dias e é eliminado. Ficam guardados os comentários da revisão, a versão aprovada, quem aprovou e quando."><button type="button" aria-label="Como funciona o link" className="text-muted-foreground hover:text-foreground"><Info className="h-4 w-4" /></button></Tip></p>
-          <Tip text="Cria um link para o cliente ver, comentar e aprovar todos os vídeos deste cartão. Válido 7 dias."><Button variant="outline" size="sm" disabled={busy} onClick={() => void run(async () => { const created = await privateVideoRequest({ action: 'link', workspaceId, projectId, taskId }); setLink({ token: created.token, url: `${window.location.origin}/video-approval/${created.token}` }); })}>Gerar link de aprovação</Button></Tip>
+          <Tip text="Cria um link para o cliente ver, comentar e aprovar todos os vídeos deste cartão. Válido 7 dias."><Button variant="outline" size="sm" disabled={busy} onClick={() => void run(async () => { const created = await privateVideoRequest({ action: 'link', workspaceId, projectId, taskId }); const expiresAt = Date.now() + 7 * 86400000; saveApprovalLink({ workspaceId, projectId, taskId }, created.token, expiresAt); setLink({ token: created.token, url: `${window.location.origin}/video-approval/${created.token}` }); })}>Gerar link de aprovação</Button></Tip>
           {link && <>
-            <div className="flex min-w-0 gap-2"><Input aria-label="Link de aprovação" readOnly value={link.url} /><Tip text="Copiar o link para enviar ao cliente."><Button variant="outline" size="icon" disabled={busy} aria-label="Copiar link" onClick={() => { void navigator.clipboard.writeText(link.url); setStatus('Link copiado.'); }}><Copy /></Button></Tip></div>
-            <Tip text="Desativa este link; o cliente deixa de o conseguir abrir."><Button variant="ghost" size="sm" disabled={busy} onClick={() => void run(async () => { await privateVideoRequest({ action: 'revoke', token: link.token }); setLink(null); setStatus('Link revogado.'); })}>Revogar este link</Button></Tip>
+            <div className="flex min-w-0 gap-2"><Input aria-label="Link de aprovação" readOnly value={link.url} /><Tip text="Copiar o link para enviar ao cliente."><Button variant="outline" size="icon" disabled={busy} aria-label="Copiar link" onClick={() => { void navigator.clipboard.writeText(link.url); setStatus('Link copiado.'); setCopied(true); window.setTimeout(() => setCopied(false), 2000); }}>{copied ? <Check className="h-4 w-4 text-success" /> : <Copy />}</Button></Tip></div>
+            <Tip text="Desativa este link; o cliente deixa de o conseguir abrir."><Button variant="ghost" size="sm" disabled={busy} onClick={() => void run(async () => { await privateVideoRequest({ action: 'revoke', token: link.token }); clearApprovalLink({ workspaceId, projectId, taskId }); linkRestored.current = false; setLink(null); setStatus('Link revogado.'); })}>Revogar este link</Button></Tip>
           </>}
-          <Tip text="Desativa todos os links de aprovação deste cartão."><Button variant="ghost" size="sm" disabled={busy} onClick={() => { if (window.confirm('Revogar todos os links de aprovação deste cartão?')) void run(async () => { await privateVideoRequest({ action: 'revoke-scope', workspaceId, projectId, taskId }); setLink(null); setStatus('Links revogados.'); }); }}><X /> Revogar todos os links</Button></Tip>
+          <Tip text="Desativa todos os links de aprovação deste cartão."><Button variant="ghost" size="sm" disabled={busy} onClick={() => { if (window.confirm('Revogar todos os links de aprovação deste cartão?')) void run(async () => { await privateVideoRequest({ action: 'revoke-scope', workspaceId, projectId, taskId }); clearApprovalLink({ workspaceId, projectId, taskId }); linkRestored.current = false; setLink(null); setStatus('Links revogados.'); }); }}><X /> Revogar todos os links</Button></Tip>
         </div>}
 
         <div className="space-y-3 rounded-lg border border-border p-3">

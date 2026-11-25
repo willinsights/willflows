@@ -34,6 +34,10 @@ export async function sidecarRequest(req:Request,d:SidecarDependencies):Promise<
    await rpc('private_video_link',{p_digest:await digestPrivateLink(token),p_ws:b.workspaceId,p_project:b.projectId,p_task:b.taskId??null,p_user:user,p_expires:new Date(Date.now()+7*86400000).toISOString()});
    return answer({token},201); // Transient only; never logged or returned by subsequent reads.
   }
+  if(b.action==='link-status'){
+   if(!digest)return answer({code:'INVALID_INPUT'},400);
+   return answer({active:await rpc('private_video_link_status',{p_digest:digest})===true});
+  }
   if(b.action==='revoke'){
    if(!user||!digest)return answer({code:'UNAUTHORIZED'},401);
    const revoked=await rpc('private_video_revoke',{p_digest:digest,p_user:user});

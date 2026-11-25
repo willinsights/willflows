@@ -6129,6 +6129,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      private_video_link_status: {
+        Args: { p_digest: string }
+        Returns: boolean
+      }
       private_video_list: {
         Args: { p_digest?: string; p_user?: string; p_ws?: string }
         Returns: Json
