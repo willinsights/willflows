@@ -1,0 +1,1 @@
+- Comparison rows and 2.0 tags come from comparisonCatalog.ts + ReleaseBadge. Why: one verified source for all comparisons.
