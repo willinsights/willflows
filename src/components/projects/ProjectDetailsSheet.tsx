@@ -663,10 +663,10 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
              <div className="min-w-0 shrink-0 px-4 sm:px-6 mt-4 overflow-x-auto scrollbar-hide">
                <TabsList className="flex w-max min-w-full justify-start">
               <TabsTrigger value="details">Detalhes</TabsTrigger>
-              <TabsTrigger value="checklist">Checklist</TabsTrigger>
-              <TabsTrigger value="timeline">Timeline</TabsTrigger>
               <TabsTrigger value="media">Links</TabsTrigger>
+              <TabsTrigger value="timeline">Timeline</TabsTrigger>
               <TabsTrigger value="tempo">Tempo</TabsTrigger>
+              <TabsTrigger value="checklist">Checklist</TabsTrigger>
               {canViewOwnFinancials && <TabsTrigger value="financial">Financeiro</TabsTrigger>}
               {showVideoProductionTab && <TabsTrigger value="video">Review Studio</TabsTrigger>}
                </TabsList>

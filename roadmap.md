@@ -1,5 +1,9 @@
 # Roadmap — pendências da auditoria
 
+## Abas do cartão e logotipo (25/11)
+- [ ] Ordenar as abas: Detalhes, Links, Timeline, Tempo, Checklist, Financeiro e Review Studio.
+- [ ] Corrigir o envio do logotipo em Configurações sem alargar o acesso entre workspaces; validar o fluxo autenticado.
+
 ## Entrada de pagamento do cliente
 - [x] Criar formulário partilhado no cartão e em Movimentos, sem duplicar receita; recebimento integral de projetos entregues, com data escolhida.
 - [x] 15 testes aprovados; sessão administradora, recebimento via Movimentos no computador e via cartão no telemóvel, leitura cruzada após recarregar; fixtures removidas, pagamentos reais intocados, compilação OK. Publicação separada.
