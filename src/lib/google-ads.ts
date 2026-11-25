@@ -118,4 +118,6 @@ export function trackWaitlistSignup(country?: string): void {
 export function trackCtaClick(ctaLocation: string = 'unknown'): void {
   // Track as a micro-conversion with low value
   trackConversion(CONVERSION_IDS.CTA_CLICK, 0.05, 'EUR');
+  // Click (not a completed signup); carries only the button position, no personal data.
+  window.gtag?.('event', 'cta_click', { cta_location: ctaLocation });
 }

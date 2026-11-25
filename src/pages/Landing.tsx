@@ -38,6 +38,8 @@ import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
 import { WaitlistForm } from '@/components/marketing/WaitlistForm';
 import { WhatsNewSection } from '@/components/marketing/WhatsNewSection';
+import { ProblemSolution } from '@/components/marketing/ProblemSolution';
+import { ProductTour } from '@/components/marketing/ProductTour';
 
 
 
@@ -71,7 +73,7 @@ const features = [
   {
     icon: Film,
     title: 'Aprovação de Vídeo',
-    description: 'Portal de review com comparação A/B de versões e comentários por timecode. Exclusivo Studio.',
+    description: 'Link de aprovação com a marca do estúdio e comentários no momento exato do vídeo. Exclusivo Studio.',
     badge: 'Studio',
   },
   {
@@ -113,7 +115,7 @@ const steps = [
 const faqs = [
   {
     question: 'Preciso de cartão para testar?',
-    answer: 'Não! O trial de 7 dias é completamente grátis e não precisa de cartão. Só adiciona o cartão quando decidir subscrever.',
+    answer: 'Não. O teste de 7 dias é grátis e não pede cartão. Só adiciona o cartão quando decidir subscrever.',
   },
   {
     question: 'Posso trocar de EUR para BRL?',
@@ -121,15 +123,19 @@ const faqs = [
   },
   {
     question: 'Posso cancelar antes do trial acabar?',
-    answer: 'Sim! Pode cancelar a qualquer momento durante o trial de 7 dias e não será cobrado absolutamente nada.',
+    answer: 'Sim. Durante o teste de 7 dias não é cobrado nada, porque não há cartão associado.',
   },
   {
     question: 'Dá para ter freelancers?',
-    answer: 'Sim! Pode convidar membros com diferentes roles: Admin, Editor, Captação, Freelancer ou Visualizador. Cada role tem permissões específicas.',
+    answer: 'Sim. Pode convidar membros com funções diferentes, como Administrador, Gestão, Captação, Edição ou Visualização, cada uma com as suas permissões. Cada colaborador vê apenas o seu próprio valor a receber.',
   },
   {
     question: 'Tem faturação?',
     answer: 'O WillFlow exporta dados formatados (Excel/PDF) para que possa faturar usando o seu software de faturação preferido. Não emitimos faturas diretamente.',
+  },
+  {
+    question: 'O meu cliente precisa de criar conta para aprovar?',
+    answer: 'Não. O cliente recebe um link com o nome e o logótipo do seu estúdio, vê o vídeo ou a galeria e responde sem criar conta.',
   },
 ];
 
@@ -328,7 +334,7 @@ export default function Landing() {
                     <span className="block text-kanban-cyan">à entrega.</span>
                   </h1>
                   <p className="mt-5 border-l-2 border-kanban-cyan pl-4 text-lg sm:text-xl text-foreground/90 leading-relaxed">
-                    Os seus projetos de fotografia e vídeo num só fluxo: clientes, Kanban, calendário, aprovações e finanças.
+                    Para fotógrafos, videomakers e produtoras: clientes, projetos, aprovações do cliente e finanças num só fluxo, do primeiro contacto à entrega final.
                   </p>
                 </div>
               </div>
@@ -362,13 +368,13 @@ export default function Landing() {
                 <div className="flex flex-col sm:flex-row items-start gap-4">
                   <Link to="/auth?trial=true" onClick={() => trackCtaClick('hero')}>
                     <Button size="lg" className="gradient-primary text-lg px-8 h-14 rounded-full glow-ring lens-flare">
-                      Começar teste grátis
+                      Começar 7 dias grátis
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </Button>
                   </Link>
-                  <a href="#novidades">
+                  <a href="#como-funciona">
                     <Button size="lg" variant="outline" className="text-lg px-8 h-14 rounded-full backdrop-blur-sm border-kanban-cyan/50 text-kanban-cyan hover:bg-kanban-cyan/10 hover:border-kanban-cyan">
-                      Ver novidades
+                      Ver como funciona
                     </Button>
                   </a>
                 </div>
@@ -416,6 +422,10 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      <ProblemSolution />
+
+      <ProductTour />
 
       <WhatsNewSection />
 
@@ -865,12 +875,12 @@ export default function Landing() {
             </div>
 
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Pronto para transformar a sua gestão?
+              Organize o próximo projeto no WillFlow
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              7 dias grátis · Sem cartão
+              Crie o seu espaço em minutos e experimente tudo durante 7 dias. 7 dias grátis · Sem cartão
             </p>
-            <Link to="/auth?trial=true" onClick={() => trackCtaClick('footer-cta')}>
+            <Link to="/auth?trial=true" onClick={() => trackCtaClick('final-cta')}>
               <Button size="lg" className="gradient-primary text-lg px-8 glow-ring lens-flare">
                 Começar teste grátis
                 <ArrowRight className="ml-2 h-5 w-5" />

@@ -10,7 +10,7 @@ const items: { kind: Kind; icon: typeof Images; title: string; text: string; pla
   { kind: 'Novo', icon: Images, title: 'Galerias de fotografia', text: 'Envie uma galeria ao cliente, que escolhe as favoritas, comenta num ponto da foto e pede fotos extra.', plan: 'Plano Studio' },
   { kind: 'Melhorado', icon: Film, title: 'Aprovação de vídeo com a sua marca', text: 'O cliente vê o logótipo e o nome do seu estúdio, comenta no momento exato e aprova sem criar conta.' },
   { kind: 'Melhorado', icon: Workflow, title: 'Automações mais fiáveis', text: 'Quando um cartão muda de coluna, avisos e emails são enviados uma vez, com nova tentativa se algo falhar.' },
-  { kind: 'Melhorado', icon: BarChart3, title: 'Relatórios coerentes', text: 'Receita, custos e lucro usam a mesma regra em todos os ecrãs, com base nos projetos entregues.' },
+  { kind: 'Melhorado', icon: BarChart3, title: 'Relatórios mais claros', text: 'Cartões de receita e lucro alinhados, análise de custos com os valores dos projetos e rentabilidade de todos os clientes.' },
   { kind: 'Corrigido', icon: ShieldCheck, title: 'Mais estabilidade e segurança', text: 'Links externos abrem sem login, os formulários mostram o que falta preencher e os dados de cada estúdio estão mais protegidos.' },
 ];
 
