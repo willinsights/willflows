@@ -278,6 +278,26 @@ export default function Configuracoes() {
     }
   };
 
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const handleLogoUpload = async (file: File) => {
+    if (!currentWorkspace || !user) return;
+    if (file.size > 2 * 1024 * 1024) { toast({ title: 'Imagem demasiado grande', description: 'Máximo 2 MB.', variant: 'destructive' }); return; }
+    setUploadingLogo(true);
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
+      const path = `${user.id}/workspace-${currentWorkspace.id}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+      const { error } = await supabase.from('workspaces').update({ logo_url: `${data.publicUrl}?t=${Date.now()}` } as any).eq('id', currentWorkspace.id);
+      if (error) throw error;
+      await refreshWorkspaces();
+      toast({ title: 'Logo atualizado' });
+    } catch (error: any) {
+      toast({ title: 'Erro ao enviar logo', description: error.message, variant: 'destructive' });
+    } finally { setUploadingLogo(false); }
+  };
+
   const handleSaveGeneral = async () => {
     if (!currentWorkspace) return;
     
@@ -560,6 +580,19 @@ export default function Configuracoes() {
                     <p className="text-xs text-muted-foreground">Apenas administradores podem alterar o nome</p>
                   )}
                 </div>
+
+                {isAdmin && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="workspace-logo">Logo do estúdio</Label>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
+                        {currentWorkspace?.logo_url ? <img src={currentWorkspace.logo_url} alt="Logo" className="h-full w-full object-contain" /> : <Camera className="h-5 w-5 text-muted-foreground" />}
+                      </div>
+                      <Input id="workspace-logo" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" disabled={uploadingLogo} onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleLogoUpload(f); e.target.value = ''; }} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Aparece no link de aprovação enviado ao cliente. PNG, JPG, WebP ou SVG até 2 MB.</p>
+                  </div>
+                )}
 
                 {isAdmin && (
                   <>

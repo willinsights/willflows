@@ -53,12 +53,14 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
           {group && <div className="flex flex-wrap items-center gap-2"><span className="mr-1 font-medium">{group.label}</span>{group.versions.map(v => <Button key={v.id} size="sm" variant={v.id === selected ? 'default' : 'outline'} onClick={() => setSelected(v.id)}>V{v.version_number}</Button>)}</div>}
           {approved && <div role="status" className="flex flex-wrap items-center gap-2 rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">
             <CheckCircle2 className="h-4 w-4" /> V{current?.version_number} aprovada por {review?.approval?.client_name}{until && <span className="text-muted-foreground">· disponível até {until.toLocaleDateString('pt-PT')}</span>}
+            <span className="basis-full text-xs text-muted-foreground">Após esta data o vídeo é eliminado; ficam guardados os comentários e o registo da aprovação.</span>
           </div>}
           {review?.playback ? <video aria-label="Vídeo para aprovação" ref={videoRef} controls playsInline poster={review.playback.thumbnail} onTimeUpdate={e => setNow(e.currentTarget.currentTime)} className="aspect-video w-full rounded-lg bg-muted" /> : <div className="aspect-video w-full animate-pulse rounded-lg bg-muted" />}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         </section>
         <section className="min-w-0 space-y-4">
           <h2 className="font-semibold">Comentários</h2>
+          {!approved && <p className="text-xs text-muted-foreground">Depois de aprovado, o vídeo fica disponível 7 dias; depois é eliminado e ficam só os comentários e o registo da aprovação.</p>}
           {comments.length === 0 && <p className="text-sm text-muted-foreground">Pause o vídeo no momento certo e escreva o seu comentário.</p>}
           <ul className="max-h-96 space-y-2 overflow-y-auto">{comments.map(c => <li key={c.id} className="break-words rounded-md bg-muted/50 p-2 text-sm">
             <div className="mb-1 flex items-center gap-2"><button type="button" onClick={() => seek(c.timestamp_seconds)} className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-xs text-primary">{formatClock(c.timestamp_seconds)}</button><strong>{c.client_name}</strong></div><p>{c.body}</p></li>)}</ul>
@@ -66,6 +68,7 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
             <label className="block text-sm">Nome<input className="mt-1 w-full rounded-md border border-input bg-background p-2" value={name} maxLength={120} onChange={e => setName(e.target.value)} /></label>
             <label className="block text-sm">Comentário em {formatClock(now)}<textarea className="mt-1 w-full rounded-md border border-input bg-background p-2" rows={4} maxLength={5000} value={body} onFocus={() => videoRef.current?.pause()} onChange={e => setBody(e.target.value)} /></label>
             <div className="flex flex-wrap gap-2"><Button onClick={() => void feedback('comment')} disabled={busy || !name.trim() || !body.trim()}><Send /> Enviar comentário</Button><Button variant="outline" onClick={() => void feedback('approval')} disabled={busy || !name.trim()}><Check /> Aprovar V{current?.version_number}</Button></div>
+            {!name.trim() && <p role="note" className="text-xs text-warning">Escreva o seu nome acima para poder comentar ou aprovar.</p>}
           </>}
         </section>
       </div>

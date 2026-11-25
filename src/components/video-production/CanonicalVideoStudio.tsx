@@ -130,12 +130,12 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
         {groups.map(g => {
           const latest = g.versions[0]; const active = g === group; const ok = g.versions.some(v => meta[v.id]?.approved);
           return <button key={g.label} type="button" onClick={() => { setSelected(latest.id); setComparing(false); }}
-            className={cn('w-44 shrink-0 overflow-hidden rounded-lg border text-left transition-colors', active ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-primary/50')}>
+            className={cn('w-28 sm:w-32 shrink-0 overflow-hidden rounded-lg border text-left transition-colors', active ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-primary/50')}>
             <div className="relative aspect-video bg-muted">
               {meta[latest.id]?.thumbnail ? <img src={meta[latest.id].thumbnail} alt="" className="h-full w-full object-cover" /> : <Film className="absolute inset-0 m-auto h-6 w-6 text-muted-foreground" />}
               {ok && <span className="absolute right-1 top-1 rounded-full bg-success p-0.5 text-success-foreground"><Check className="h-3 w-3" /></span>}
             </div>
-            <div className="p-2"><p className="truncate text-sm font-medium" title={g.label}>{g.label}</p><p className="text-xs text-muted-foreground">{g.versions.length} {g.versions.length === 1 ? 'versão' : 'versões'}</p></div>
+            <div className="p-1.5"><p className="truncate text-xs font-medium" title={g.label}>{g.label}</p><p className="text-[11px] text-muted-foreground">{g.versions.length} {g.versions.length === 1 ? 'versão' : 'versões'}</p></div>
           </button>;
         })}
       </div>
@@ -149,7 +149,8 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
           {group.versions.map(v => <Button key={v.id} size="sm" variant={v.id === selected ? 'default' : 'outline'} onClick={() => { setSelected(v.id); setComparing(false); }} aria-label={`V${v.version_number}`}>
             V{v.version_number}{meta[v.id]?.approved && <CheckCircle2 className="ml-1 h-3.5 w-3.5 text-success" />}
           </Button>)}
-          {comparable.length > 1 && !showComparison && <Button size="sm" variant="ghost" onClick={() => setComparing(true)}><ArrowLeftRight /> Comparar versões</Button>}
+          {!showComparison && <Button size="sm" variant="ghost" disabled={comparable.length < 2} title={comparable.length < 2 ? 'Envie uma segunda versão para comparar' : undefined} onClick={() => setComparing(true)}><ArrowLeftRight /> Comparar versões</Button>}
+          {comparable.length < 2 && <span className="text-xs text-muted-foreground">Para comparar, envie uma nova versão deste vídeo.</span>}
         </div>}
 
         {playback ? <video ref={video} aria-label="Vídeo em revisão" controls playsInline poster={playback.thumbnail} onTimeUpdate={e => setNow(e.currentTarget.currentTime)} className="aspect-video w-full rounded-lg bg-muted" />
@@ -190,6 +191,7 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
         {context?.canEdit && selected && <div className="space-y-2 rounded-lg border border-border p-3">
           <p className="flex items-center gap-2 text-sm font-medium"><Link className="h-4 w-4" /> Link para o cliente</p>
           <p className="text-xs text-muted-foreground">Mostra todos os vídeos deste cartão com o nome do seu estúdio. Válido 7 dias.</p>
+          <p className="text-xs text-muted-foreground">Depois de aprovado, o vídeo fica disponível 7 dias e é eliminado. Ficam guardados os comentários da revisão, a versão aprovada, quem aprovou e quando.</p>
           <Button variant="outline" size="sm" disabled={busy} onClick={() => void run(async () => { const created = await privateVideoRequest({ action: 'link', workspaceId, projectId, taskId }); setLink({ token: created.token, url: `${window.location.origin}/video-approval/${created.token}` }); })}>Gerar link de aprovação</Button>
           {link && <>
             <div className="flex min-w-0 gap-2"><Input aria-label="Link de aprovação" readOnly value={link.url} /><Button variant="outline" size="icon" disabled={busy} aria-label="Copiar link" onClick={() => { void navigator.clipboard.writeText(link.url); setStatus('Link copiado.'); }}><Copy /></Button></div>

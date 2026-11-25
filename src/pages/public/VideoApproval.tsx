@@ -1097,6 +1097,7 @@ export default function VideoApproval() {
               )}
             </div>
 
+            {!approvalName.trim() && <p role="note" className="text-xs text-warning">Preencha o seu nome para poder aprovar.</p>}
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowApprovalModal(false)}>
                 Cancelar
