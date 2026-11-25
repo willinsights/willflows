@@ -135,3 +135,5 @@
 - [x] Selo verde «Aprovada» na lista de versões
 - [ ] Vários vídeos (entregáveis) por cartão — precisa de nova estrutura de dados
 - [ ] Bloquear comentários no servidor após aprovação
+
+- [x] Review Studio: um só estúdio (circuito novo), vários vídeos por cartão, comentários com tempo, bloqueio após aprovação, link com marca do estúdio

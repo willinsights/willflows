@@ -6053,6 +6053,10 @@ export type Database = {
         }
         Returns: Json
       }
+      private_video_deliverable_labels: {
+        Args: { p_versions: string[] }
+        Returns: Json
+      }
       private_video_feedback: {
         Args: {
           p_body: string
@@ -6153,6 +6157,10 @@ export type Database = {
           p_user: string
           p_ws: string
         }
+        Returns: boolean
+      }
+      private_video_set_deliverable: {
+        Args: { p_label: string; p_user: string; p_version: string }
         Returns: boolean
       }
       private_video_usage: {

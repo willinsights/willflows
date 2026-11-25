@@ -54,17 +54,18 @@ export function VideoProductionTab({
   return <VideoStudioRoutes key={`${workspaceId}:${projectId}:${taskId}`} taskId={taskId} workspaceId={workspaceId} projectId={projectId} className={className} />;
 }
 
-// One Review Studio per card: the full studio (versions, timecode comments,
-// thumbnails, compare, approval) handles uploads. Videos already sent through
-// the restricted private flow stay visible below, only when they exist.
+// One Review Studio per card. New uploads, timecode comments, versions and client
+// links go through the private pipeline; videos stored by the older studio appear
+// below (read-only for uploads) only when the card still has them.
 function VideoStudioRoutes(props: VideoProductionTabProps) {
-  const [privateCount,setPrivateCount]=useState(0);
-  const onVersions=useCallback((n:number)=>setPrivateCount(n),[]);
+  const [legacyCount,setLegacyCount]=useState(0);
+  const onLegacy=useCallback((n:number)=>setLegacyCount(n),[]);
   return <div className={cn('space-y-6',props.className)}>
-    <VideoProductionTabContent {...props} className={undefined} allowLegacyUpload/>
-    <div className={privateCount>0?'':'hidden'}>
+    <CanonicalVideoStudio key={JSON.stringify([props.workspaceId,props.projectId,props.taskId])} {...props}/>
+    <div className={legacyCount>0?'':'hidden'}>
       <Separator className="mb-4"/>
-      <CanonicalVideoStudio key={JSON.stringify([props.workspaceId,props.projectId,props.taskId])} {...props} onVersions={onVersions}/>
+      <p className="mb-3 text-sm font-medium text-muted-foreground">Vídeos enviados antes da atualização</p>
+      <VideoProductionTabContent {...props} className={undefined} allowLegacyUpload={false} onLegacyCount={onLegacy}/>
     </div>
   </div>;
 }
@@ -75,7 +76,8 @@ function VideoProductionTabContent({
   projectId,
   className,
   allowLegacyUpload=true,
-}: VideoProductionTabProps & {allowLegacyUpload?:boolean}) {
+  onLegacyCount,
+}: VideoProductionTabProps & {allowLegacyUpload?:boolean;onLegacyCount?:(n:number)=>void}) {
   const { versions, loading, deleteVersion, replaceVersion, getSignedUrl, isProcessing, refetch, setThumbnailTime, checkVersionStatus, checkingStatusIds } = useVideoVersions(taskId, workspaceId, projectId);
   const [selectedVersion, setSelectedVersion] = useState<VideoVersion | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -98,6 +100,7 @@ function VideoProductionTabContent({
   const { addComment } = useVideoComments(selectedVersion?.id || null);
   const [approvedVersionIds, setApprovedVersionIds] = useState<Set<string>>(new Set());
   const versionIdsKey = versions.map(v => v.id).join(',');
+  useEffect(() => { onLegacyCount?.(versions.length); }, [versions.length, onLegacyCount]);
   useEffect(() => {
     if (!versionIdsKey) { setApprovedVersionIds(new Set()); return; }
     let active = true;

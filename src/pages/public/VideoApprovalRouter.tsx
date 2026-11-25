@@ -18,7 +18,7 @@ export default function VideoApprovalRouter() {
   const reader = videoApprovalReader(token);
   if (reader === 'invalid' || !token) return <main className="min-h-screen bg-background p-6 text-foreground"><p role="alert">Este link não está disponível.</p></main>;
   return <>
-    <Helmet><meta name="robots" content="noindex, nofollow"/><meta name="referrer" content="no-referrer"/></Helmet>
+    <Helmet><title>Revisão de vídeo</title><meta name="robots" content="noindex, nofollow"/><meta name="referrer" content="no-referrer"/></Helmet>
     <Suspense fallback={<FullPageLoader />}>
       {reader === 'legacy' ? <LegacyApproval /> : <PrivateApproval key={token} token={token} request={privateRequest} />}
     </Suspense>

@@ -5,6 +5,7 @@ export interface SidecarDependencies {
  sign:(uid:string)=>Promise<{url:string;thumbnail:string;expiresAt:number}>;
  ready:(uid:string)=>Promise<boolean>;
  download?:(key:string)=>Promise<string>;
+ branding?:(workspaceId:string)=>Promise<{name:string;logo_url:string|null}>;
 }
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export async function digestPrivateLink(token:unknown):Promise<string> {
@@ -22,6 +23,7 @@ export async function sidecarRequest(req:Request,d:SidecarDependencies):Promise<
   if(req.method!=='POST')return answer({code:'METHOD_NOT_ALLOWED'},405);
   const b=await req.json();
   if(!b||Array.isArray(b)||typeof b!=='object')return answer({code:'INVALID_INPUT'},400);
+  const withLabels=async(list:any[])=>{if(!Array.isArray(list)||!list.length)return list;const labels=await rpc('private_video_deliverable_labels',{p_versions:list.map((v:any)=>v.id)});return list.map((v:any)=>({...v,label:labels?.[v.id]??null}));};
   const user=await d.authenticate(req); // Never use b.userId or decoded unverified JWT claims.
   const digest=b.token===undefined?null:await digestPrivateLink(b.token);
   if(b.action==='link'){
@@ -39,7 +41,7 @@ export async function sidecarRequest(req:Request,d:SidecarDependencies):Promise<
   }
   if(b.action==='list'){
    if(!digest&&(!user||!uuid.test(b.workspaceId??'')))return answer({code:'UNAUTHORIZED'},401);
-   return answer({versions:await rpc('private_video_list',{p_user:digest?null:user,p_digest:digest,p_ws:digest?null:b.workspaceId})});
+   return answer({versions:await withLabels(await rpc('private_video_list',{p_user:digest?null:user,p_digest:digest,p_ws:digest?null:b.workspaceId}))});
   }
   if(['context','client-list','revoke-scope','usage'].includes(b.action)){
    if(!user||digest||!uuid.test(b.workspaceId??'')||(b.projectId!=null&&!uuid.test(b.projectId))||(b.taskId!=null&&!uuid.test(b.taskId)))return answer({code:'UNAUTHORIZED'},401);
@@ -48,11 +50,17 @@ export async function sidecarRequest(req:Request,d:SidecarDependencies):Promise<
    const params={p_ws:b.workspaceId,p_project:b.projectId??null,p_task:b.taskId??null,p_user:user};
    if(b.action==='context')return answer(await rpc('private_video_context',params));
    if(b.action==='revoke-scope'){await rpc('private_video_revoke_scope',params);return answer({success:true});}
-   return answer({versions:await rpc('private_video_client_list',params)});
+   return answer({versions:await withLabels(await rpc('private_video_client_list',params))});
   }
   if(!uuid.test(b.versionId??'')||(!user&&!digest))return answer({code:'UNAUTHORIZED'},401);
   const args={p_version:b.versionId,p_user:digest?null:user,p_digest:digest};
   const initial=await rpc('private_video_read',args);
+  if(b.action==='set-deliverable'){
+   if(!user||digest||typeof b.label!=='string'||!b.label.trim()||b.label.length>120)return answer({code:'INVALID_INPUT'},400);
+   await rpc('private_video_set_deliverable',{p_version:b.versionId,p_user:user,p_label:b.label.trim()});return answer({success:true});
+  }
+  // Approval closes the review: no further comments or approvals on that version (server-enforced).
+  if(initial.approval&&['client-comment','client-approval','comment','approval'].includes(b.action))return answer({code:'ALREADY_APPROVED'},409);
   if(b.action==='download'){
    if(!d.download)return answer({code:'DOWNLOAD_UNAVAILABLE'},503);
    if(initial.version.state!=='ready')return answer({code:'DOWNLOAD_UNAVAILABLE'},409);
@@ -75,7 +83,8 @@ export async function sidecarRequest(req:Request,d:SidecarDependencies):Promise<
    if(latest.version.stream_uid!==v.stream_uid||latest.version.generation!==v.generation)throw Error('PRIVATE_CONTEXT_DENIED');
    const safe=(row:any)=>({id:row.id,file_name:row.file_name,file_size_bytes:row.bytes,created_at:row.created_at,generation:row.generation,stream_status:playback?'ready':'processing'});
    return answer({version:safe(latest.version),comments:latest.comments.map((c:any)=>({id:c.id,video_version_id:c.version_id,body:c.body,timestamp_seconds:c.timestamp_seconds,client_name:c.name,created_at:c.created_at})),
-    approval:latest.approval?{client_name:latest.approval.name,notes:latest.approval.notes,approved_at:latest.approval.approved_at}:null,playback});
+    approval:latest.approval?{client_name:latest.approval.name,notes:latest.approval.notes,approved_at:latest.approval.approved_at}:null,playback,
+    branding:digest&&d.branding?await d.branding(latest.version.workspace_id).catch(()=>null):null});
   }
   if(b.action==='comment'||b.action==='approval'){
    if(!digest||!uuid.test(b.requestId??'')||typeof b.name!=='string'||b.name.trim().length<1||b.name.length>120||typeof b.body!=='string'||b.body.length>5000||(b.action==='comment'&&!b.body.trim())||!Number.isFinite(b.timestamp??0)||(b.timestamp??0)<0)return answer({code:'INVALID_INPUT'},400);

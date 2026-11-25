@@ -47,7 +47,7 @@ Deno.serve(async(req:Request)=>{
     if(!Array.isArray(result.result)||result.result.length>=1000||Number(result.range)>0)throw Error('Incomplete provider search');
     return result.result.filter((x:any)=>x.meta?.name===v.operation_id).map((x:any)=>({uid:x.uid,...x.meta}));
    },
-  }):await sidecarRequest(req,{...base,download:async key=>{const url=new URL(object(key));url.searchParams.set('X-Amz-Expires','300');return (await aws.sign(new Request(url),{aws:{signQuery:true}})).url;},ready:async uid=>{const status=(await stream('/'+uid)).result;return status?.readyToStream===true&&status?.requireSignedURLs===true;},sign:providerPlayback(account,credential)});
+  }):await sidecarRequest(req,{...base,download:async key=>{const url=new URL(object(key));url.searchParams.set('X-Amz-Expires','300');return (await aws.sign(new Request(url),{aws:{signQuery:true}})).url;},ready:async uid=>{const status=(await stream('/'+uid)).result;return status?.readyToStream===true&&status?.requireSignedURLs===true;},sign:providerPlayback(account,credential),branding:async ws=>{const {data}=await db.from('workspaces').select('name, logo_url').eq('id',ws).maybeSingle();return {name:data?.name??'',logo_url:data?.logo_url??null};}});
   // CORS and no-store apply to every result, including refusal/revocation/error.
   const merged=new Headers(response.headers);
   for(const [key,value] of Object.entries(headers))merged.set(key,value);
