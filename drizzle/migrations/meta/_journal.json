@@ -239,6 +239,13 @@
       "when": 1795641036087,
       "tag": "0033_photo_galleries",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1795642435731,
+      "tag": "0034_photo_r2_quota_plan_notifications",
+      "breakpoints": true
     }
   ]
 }

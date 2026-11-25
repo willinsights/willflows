@@ -42,6 +42,7 @@ export type FeatureKey =
   | 'permissions'
   | 'api'
   | 'videoApproval'
+  | 'photoGalleries'
   | 'videoStorage';
 
 export interface FeatureInfo {
@@ -76,6 +77,7 @@ function buildFeatureInfo(): Record<FeatureKey, FeatureInfo> {
     permissions: 'Permissões avançadas por cargo',
     api: 'Acesso à API e Webhooks',
     videoApproval: 'Aprovação de vídeo com comentários por timestamp',
+    photoGalleries: 'Galerias de fotografia com favoritas, comentários e entrega',
     videoStorage: 'Armazenamento de vídeos para aprovação',
   };
 

@@ -1,4 +1,5 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import {
   DndContext,
   DragEndEvent,
@@ -312,6 +313,22 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
   }, [columns, searchQuery, filters]);
 
   // Get selected project
+  // Deep link (?projeto=<id>) from notifications and dashboard alerts; hands off to the other board when needed.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const linkedProject = searchParams.get('projeto');
+  useEffect(() => {
+    if (!linkedProject || loading) return;
+    const found = columns.some(c => c.projects.some(p => p.id === linkedProject));
+    if (found) {
+      setSelectedProjectId(linkedProject);
+      const next = new URLSearchParams(searchParams); next.delete('projeto'); setSearchParams(next, { replace: true });
+    } else if (location.pathname.endsWith('/captacao')) {
+      navigate(`/app/edicao?projeto=${linkedProject}`, { replace: true });
+    }
+  }, [linkedProject, loading, columns, searchParams, setSearchParams, location.pathname, navigate]);
+
   const selectedProject = useMemo(() => {
     if (!selectedProjectId) return null;
     return columns.flatMap(c => c.projects).find(p => p.id === selectedProjectId) || null;

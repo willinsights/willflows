@@ -1657,6 +1657,7 @@ export type Database = {
           position: number
           preview_path: string
           size_bytes: number
+          storage_provider: string
           width: number | null
           workspace_id: string
         }
@@ -1672,6 +1673,7 @@ export type Database = {
           position?: number
           preview_path: string
           size_bytes?: number
+          storage_provider?: string
           width?: number | null
           workspace_id: string
         }
@@ -1687,6 +1689,7 @@ export type Database = {
           position?: number
           preview_path?: string
           size_bytes?: number
+          storage_provider?: string
           width?: number | null
           workspace_id?: string
         }
@@ -6347,6 +6350,10 @@ export type Database = {
         Returns: Json
       }
       mask_email: { Args: { _email: string }; Returns: string }
+      notify_gallery_event: {
+        Args: { p_gallery: string; p_message: string; p_title: string }
+        Returns: undefined
+      }
       pay_team_batch: {
         Args: {
           p_expected_total: number

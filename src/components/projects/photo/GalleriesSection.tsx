@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Copy, Upload, Heart, MessageCircle, Plus, Send, CheckCircle2, PackageCheck, Euro, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { buildPreview } from '@/lib/photo/gallery';
+import { usePlanFeatures } from '@/hooks/usePlanFeatures';
+import { photoStorage, putPhoto, PhotoStorageError } from '@/lib/photo/photoStorage';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Gallery = Tables<'photo_galleries'>;
@@ -27,6 +29,7 @@ const eur = (n: number) => new Intl.NumberFormat('pt-PT', { style: 'currency', c
 export function GalleriesSection({ projectId, workspaceId }: { projectId: string; workspaceId: string }) {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const { canUseFeature, loading: planLoading } = usePlanFeatures();
   const { data: galleries = [], isLoading, error } = useQuery({
     queryKey: ['photo-galleries', projectId],
     queryFn: async () => {
@@ -44,6 +47,13 @@ export function GalleriesSection({ projectId, workspaceId }: { projectId: string
   };
 
   if (error) return <p className="text-sm text-destructive">Não foi possível carregar as galerias.</p>;
+  if (!planLoading && !canUseFeature('photoGalleries')) return (
+    <section className="space-y-2 rounded-lg border border-dashed border-border p-6 text-center">
+      <h3 className="font-semibold">Galerias para o cliente</h3>
+      <p className="text-sm text-muted-foreground">As galerias de fotografia fazem parte do plano Studio.{galleries.length ? ' As galerias já partilhadas continuam acessíveis aos clientes.' : ''}</p>
+      <Button size="sm" variant="outline" asChild><a href="/app/planos">Ver planos</a></Button>
+    </section>
+  );
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
@@ -82,9 +92,8 @@ function GalleryCard({ gallery: g, projectId }: { gallery: Gallery; projectId: s
         supabase.from('photo_comments').select('*').eq('gallery_id', g.id).order('created_at'),
       ]);
       if (error) throw error;
-      const paths = (photos ?? []).map(p => p.preview_path);
-      const { data: signed } = paths.length ? await supabase.storage.from('gallery-photos').createSignedUrls(paths, 3600) : { data: [] };
-      const urls = new Map((signed ?? []).map(s => [s.path, s.signedUrl]));
+      const signed = photos?.length ? await photoStorage<{ urls: Record<string, string | null> }>({ action: 'sign', gallery_id: g.id }) : { urls: {} };
+      const urls = new Map((photos ?? []).map(p => [p.preview_path, signed.urls[p.id] ?? '']));
       return { photos: photos ?? [], comments: comments ?? [], urls };
     },
     refetchInterval: 30_000,
@@ -120,17 +129,18 @@ function GalleryCard({ gallery: g, projectId }: { gallery: Gallery; projectId: s
       try {
         const id = crypto.randomUUID();
         const { blob, width, height } = await buildPreview(file, { watermark: wm });
-        const path = `${g.workspace_id}/${g.id}/${id}/preview.jpg`;
-        const up = await supabase.storage.from('gallery-photos').upload(path, blob, { contentType: 'image/jpeg' });
-        if (up.error) throw up.error;
-        const { error } = await supabase.from('gallery_photos').insert({ id, gallery_id: g.id, workspace_id: g.workspace_id, file_name: file.name, preview_path: path, width, height, size_bytes: blob.size, position: pos++ });
-        if (error) throw error;
+        await putPhoto({ gallery_id: g.id, photo_id: id, kind: 'preview', size: blob.size }, blob);
+        await photoStorage({ action: 'confirm', gallery_id: g.id, photo_id: id, kind: 'preview', file_name: file.name, width, height, position: pos++ });
         ok++;
         setBusy(`A enviar ${ok} de ${files.length}`);
-      } catch { toast.error(`Falhou: ${file.name}`); }
+      } catch (e) {
+        toast.error(`${file.name}: ${e instanceof Error ? e.message : 'falhou'}`);
+        if (e instanceof PhotoStorageError && e.stop) break;
+      }
     }
     setBusy(null);
-    toast.success(`${ok} foto(s) enviadas`);
+    qc.invalidateQueries({ queryKey: ['workspace-storage'] });
+    if (ok) toast.success(`${ok} foto(s) enviadas`);
     invalidate();
   };
 
@@ -144,23 +154,27 @@ function GalleryCard({ gallery: g, projectId }: { gallery: Gallery; projectId: s
       const match = byName.get(file.name.toLowerCase());
       if (!match) { skipped++; continue; }
       const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-      const path = `${g.workspace_id}/${g.id}/${match.id}/original.${ext}`;
-      const up = await supabase.storage.from('gallery-photos').upload(path, file, { contentType: file.type || 'image/jpeg', upsert: true });
-      if (up.error) { toast.error(`Falhou: ${file.name}`); continue; }
-      await supabase.from('gallery_photos').update({ original_path: path, size_bytes: match.size_bytes + file.size }).eq('id', match.id);
-      ok++;
+      try {
+        await putPhoto({ gallery_id: g.id, photo_id: match.id, kind: 'original', ext, size: file.size, content_type: file.type || 'image/jpeg' }, file);
+        await photoStorage({ action: 'confirm', gallery_id: g.id, photo_id: match.id, kind: 'original', ext });
+        ok++;
+      } catch (e) {
+        toast.error(`${file.name}: ${e instanceof Error ? e.message : 'falhou'}`);
+        if (e instanceof PhotoStorageError && e.stop) break;
+      }
     }
     setBusy(null);
+    qc.invalidateQueries({ queryKey: ['workspace-storage'] });
     toast.success(`${ok} foto(s) finais enviadas${skipped ? ` · ${skipped} sem correspondência pelo nome` : ''}`);
     if (favNames.size && ok < favNames.size) toast.message('Dica: envie as finais com o mesmo nome dos ficheiros originais.');
     invalidate();
   };
 
   const removePhoto = async (p: Photo) => {
-    const paths = [p.preview_path, p.original_path].filter(Boolean) as string[];
-    await supabase.storage.from('gallery-photos').remove(paths);
-    await supabase.from('gallery_photos').delete().eq('id', p.id);
+    try { await photoStorage({ action: 'delete', gallery_id: g.id, photo_id: p.id }); }
+    catch (e) { toast.error(e instanceof Error ? e.message : 'Não foi possível remover'); }
     invalidate();
+    qc.invalidateQueries({ queryKey: ['workspace-storage'] });
   };
 
   const share = async () => {

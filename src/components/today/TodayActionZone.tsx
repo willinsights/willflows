@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { CalendarCheck, Wallet, PauseCircle, ArrowRight } from 'lucide-react';
+import { CalendarCheck, Wallet, PauseCircle, ArrowRight, Images } from 'lucide-react';
+import { usePhotoAttention } from '@/hooks/usePhotoAttention';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTodayAgenda, usePendingTeamPayables } from '@/hooks/useTodayAgenda';
@@ -32,10 +33,16 @@ export function TodayActionZone({ showPayables }: { showPayables: boolean }) {
   const { data, isLoading } = useTodayAgenda();
   const payables = usePendingTeamPayables(showPayables);
   const { hideValues } = useHideValues();
+  const photos = usePhotoAttention();
+  const photoCount = (photos.data?.selections ?? 0) + (photos.data?.comments ?? 0);
+  const photoHint = [
+    photos.data?.selections ? `${photos.data.selections} seleção(ões) por entregar` : '',
+    photos.data?.comments ? `${photos.data.comments} comentário(s) por responder` : '',
+  ].filter(Boolean).join(' · ');
   const todayCount = data ? data.tasks.length + data.works.length + data.events.length + data.projects.length : 0;
 
   return (
-    <div className={`grid grid-cols-1 sm:grid-cols-2 ${showPayables ? 'lg:grid-cols-3' : ''} gap-3`}>
+    <div className={`grid grid-cols-1 sm:grid-cols-2 ${showPayables || photoCount ? 'lg:grid-cols-3' : ''} ${showPayables && photoCount ? 'xl:grid-cols-4' : ''} gap-3`}>
       <ActionCard to="/app/hoje" icon={CalendarCheck} label="Hoje" loading={isLoading}
         value={String(todayCount)} hint={todayCount ? 'tarefas, trabalhos e eventos para hoje' : 'Nada pendente para hoje'} />
       {showPayables && (
@@ -45,6 +52,10 @@ export function TodayActionZone({ showPayables }: { showPayables: boolean }) {
       )}
       <ActionCard to="/app/hoje#parados" icon={PauseCircle} label="Projetos parados" loading={isLoading}
         value={String(data?.stalled.length ?? 0)} hint="Sem alterações há mais de 14 dias" />
+      {photoCount > 0 && (
+        <ActionCard to={`/app/captacao?projeto=${photos.data?.firstProject}`} icon={Images} label="Clientes à espera nas galerias"
+          loading={photos.isLoading} value={String(photoCount)} hint={photoHint} />
+      )}
     </div>
   );
 }

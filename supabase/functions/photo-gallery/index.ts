@@ -1,6 +1,7 @@
 // Public client access to a photo gallery via its private share token.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { readUrl } from '../_shared/photo-r2.ts';
 import { clientIdentifier, isRateLimited, logAttempt, rateLimitResponse } from '../_shared/rate-limit.ts';
 
 const json = (body: unknown, status = 200) =>
@@ -76,20 +77,19 @@ Deno.serve(async (req) => {
 
   if (action === 'download') {
     if (g.status !== 'delivered') return json({ error: 'A entrega ainda não está disponível' }, 409);
-    const { data: rows } = await db.from('gallery_photos').select('id, file_name, original_path').eq('gallery_id', g.id).not('original_path', 'is', null).order('position');
+    const { data: rows } = await db.from('gallery_photos').select('id, file_name, original_path, storage_provider').eq('gallery_id', g.id).not('original_path', 'is', null).order('position');
     const urls = [];
     for (const r of rows ?? []) {
-      const { data } = await db.storage.from('gallery-photos').createSignedUrl(r.original_path!, 600, { download: r.file_name });
-      if (data) urls.push({ id: r.id, file_name: r.file_name, url: data.signedUrl });
+      const url = await readUrl(db, r.storage_provider, r.original_path!, 600, r.file_name);
+      if (url) urls.push({ id: r.id, file_name: r.file_name, url });
     }
     return json({ files: urls });
   }
 
   // get
-  const { data: photos } = await db.from('gallery_photos').select('id, file_name, preview_path, width, height, is_favorite, position, original_path').eq('gallery_id', g.id).order('position');
-  const paths = (photos ?? []).map(p => p.preview_path);
-  const signed = paths.length ? (await db.storage.from('gallery-photos').createSignedUrls(paths, 3600)).data ?? [] : [];
-  const urlBy = new Map(signed.map(s => [s.path, s.signedUrl]));
+  const { data: photos } = await db.from('gallery_photos').select('id, file_name, preview_path, width, height, is_favorite, position, original_path, storage_provider').eq('gallery_id', g.id).order('position');
+  const urlBy = new Map<string, string | null>();
+  for (const p of photos ?? []) urlBy.set(p.preview_path, await readUrl(db, p.storage_provider, p.preview_path, 3600));
   const { data: comments } = await db.from('photo_comments').select('id, photo_id, parent_id, x, y, body, is_client, author_name, status, created_at').eq('gallery_id', g.id).order('created_at');
   await logAttempt(db, ident, 'photo_gallery', true);
   return json({

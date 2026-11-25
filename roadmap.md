@@ -156,3 +156,5 @@
 - [ ] Bloquear comentários no servidor após aprovação
 
 - [x] Review Studio: um só estúdio (circuito novo), vários vídeos por cartão, comentários com tempo, bloqueio após aprovação, link com marca do estúdio
+
+- [x] Fotos das galerias no Cloudflare (pasta própria), contam no espaço, só plano Studio, notificações e alerta no painel
