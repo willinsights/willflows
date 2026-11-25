@@ -1,0 +1,1 @@
+- Photo galleries: clients reach them only via the photo-gallery function by token; previews are built in the studio browser. Why: no public reads or server image work.
