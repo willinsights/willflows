@@ -748,22 +748,25 @@ export default function Landing() {
 
                   {/* Studio Exclusive Highlight Box */}
                   {planId === 'studio' && (
-                    <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-primary/20 via-accent/15 to-pink-500/10 border border-primary/30 shadow-lg shadow-primary/5">
-                      <p className="text-xs font-semibold text-primary/80 uppercase tracking-wide mb-3">Exclusivo Studio</p>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-3">
-                          
-                          <span className="text-sm font-semibold text-foreground">Aprovação de vídeo e comparação A/B</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          
-                          <span className="text-sm font-semibold text-foreground">Desenho de Timeline</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-lg">📦</span>
-                          <span className="text-sm text-muted-foreground">10 GB armazenamento incluído</span>
-                        </div>
-                      </div>
+                    <div className="mb-4 p-4 rounded-xl bg-primary/10 border border-primary/30">
+                      <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-3">Exclusivo Studio</p>
+                      <ul className="space-y-2">
+                        {[
+                          'Galerias de fotografia para o cliente',
+                          'Seleção de favoritas com limite',
+                          'Comentários num ponto da foto',
+                          'Entrega em alta resolução com marca de água opcional',
+                          'Venda de fotos extra',
+                          'Aprovação de vídeo e comparação A/B',
+                          'Desenho de Timeline',
+                          '10 GB de armazenamento incluído',
+                        ].map((item) => (
+                          <li key={item} className="flex items-start gap-2 text-sm text-foreground">
+                            <Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" aria-hidden="true" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
 
