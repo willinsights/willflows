@@ -18,7 +18,7 @@ interface TimelineSegmentProps {
 // Generate segment colors based on index
 const segmentColors = [
   'bg-primary/80 hover:bg-primary',
-  'bg-violet-500/80 hover:bg-violet-500',
+  'bg-accent/80 hover:bg-accent',
   'bg-cyan-500/80 hover:bg-cyan-500',
   'bg-emerald-500/80 hover:bg-emerald-500',
   'bg-amber-500/80 hover:bg-amber-500',

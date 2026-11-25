@@ -108,7 +108,7 @@ const phaseLabels: Record<string, string> = {
 
 const categoryColors: Record<string, string> = {
   hotel: 'bg-blue-500',
-  experiencia: 'bg-purple-500',
+  experiencia: 'bg-accent',
   evento: 'bg-amber-500',
   outro: 'bg-gray-500',
 };

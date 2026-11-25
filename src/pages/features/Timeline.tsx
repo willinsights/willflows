@@ -111,7 +111,7 @@ export default function TimelineFeature() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <Badge className="mb-6 bg-gradient-to-r from-primary to-purple-500 text-white border-0">
+              <Badge className="mb-6 bg-gradient-to-r from-primary to-accent text-white border-0">
                 <Sparkles className="h-3 w-3 mr-1" />
                 Exclusivo Plano Studio
               </Badge>
@@ -171,7 +171,7 @@ export default function TimelineFeature() {
               <div className="flex gap-2 min-w-[600px]">
                 {[
                   { name: 'Intro', duration: '5s', color: 'bg-blue-500/20 border-blue-500/50' },
-                  { name: 'Logo', duration: '3s', color: 'bg-purple-500/20 border-purple-500/50' },
+                  { name: 'Logo', duration: '3s', color: 'bg-accent/20 border-accent/50' },
                   { name: 'Problema', duration: '15s', color: 'bg-orange-500/20 border-orange-500/50' },
                   { name: 'Solução', duration: '30s', color: 'bg-green-500/20 border-green-500/50' },
                   { name: 'Features', duration: '25s', color: 'bg-cyan-500/20 border-cyan-500/50' },
@@ -307,7 +307,7 @@ export default function TimelineFeature() {
             viewport={{ once: true }}
             className="glass-card p-12 text-center max-w-3xl mx-auto relative overflow-hidden"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-purple-500/10" />
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10" />
             <div className="relative z-10">
               <Clapperboard className="h-12 w-12 text-primary mx-auto mb-6" />
               <h2 className="text-3xl font-bold mb-4">

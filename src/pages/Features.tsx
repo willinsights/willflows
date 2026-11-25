@@ -247,7 +247,7 @@ export default function Features() {
               const isStudio = 'badge' in feature && feature.badge === 'Studio';
               const CardContent = (
                 <div className="flex items-start gap-4 h-full">
-                  <div className={`flex items-center justify-center w-12 h-12 rounded-xl flex-shrink-0 ${isStudio ? 'bg-gradient-to-br from-primary/20 to-purple-500/20' : 'bg-primary/10'}`}>
+                  <div className={`flex items-center justify-center w-12 h-12 rounded-xl flex-shrink-0 ${isStudio ? 'bg-gradient-to-br from-primary/20 to-accent/20' : 'bg-primary/10'}`}>
                     <feature.icon className="h-6 w-6 text-primary" />
                   </div>
                   <div className="flex-1 flex flex-col h-full">
@@ -255,7 +255,7 @@ export default function Features() {
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold text-lg">{feature.title}</h3>
                         {isStudio && (
-                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gradient-to-r from-primary to-purple-500 text-white">
+                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gradient-to-r from-primary to-accent text-white">
                             Studio
                           </span>
                         )}
@@ -292,7 +292,7 @@ export default function Features() {
                   {'href' in feature ? (
                     <Link 
                       to={feature.href} 
-                      className={`block h-full glass-card p-6 group hover:border-primary/50 transition-colors ${isStudio ? 'border-primary/30 bg-gradient-to-br from-primary/5 to-purple-500/5' : ''}`}
+                      className={`block h-full glass-card p-6 group hover:border-primary/50 transition-colors ${isStudio ? 'border-primary/30 bg-gradient-to-br from-primary/5 to-accent/5' : ''}`}
                     >
                       {CardContent}
                     </Link>

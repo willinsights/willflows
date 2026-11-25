@@ -31,7 +31,7 @@ function getCategoryColor(category: string | null): string {
     novidades: "bg-blue-500/10 text-blue-500 border-blue-500/20",
     tutorial: "bg-green-500/10 text-green-500 border-green-500/20",
     comparacao: "bg-orange-500/10 text-orange-500 border-orange-500/20",
-    dicas: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+    dicas: "bg-accent/10 text-accent border-accent/20",
   };
   return category ? colors[category] || "bg-muted text-muted-foreground" : "bg-muted text-muted-foreground";
 }

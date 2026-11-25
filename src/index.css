@@ -68,7 +68,7 @@
     --sidebar-primary: 185 100% 30%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 14% 94%;
-    --sidebar-accent-foreground: 246 74% 50%;
+    --sidebar-accent-foreground: 185 100% 28%;
     --sidebar-border: 220 13% 90%;
     --sidebar-ring: 185 100% 30%;
 
@@ -77,8 +77,8 @@
     --glass-bg: 0 0% 100% / 0.85;
     --glass-border: 220 13% 88%;
     --glass-shadow: 0 1px 3px 0 rgba(0,0,0,0.08), 0 4px 16px -2px rgba(0,0,0,0.1), 0 8px 24px -4px rgba(0,0,0,0.06);
-    --glass-shadow-hover: 0 4px 20px -2px rgba(91, 74, 228, 0.15), 0 12px 32px -4px rgba(0,0,0,0.12);
-    --glass-glow: 0 0 32px rgba(91, 74, 228, 0.1);
+    --glass-shadow-hover: 0 4px 20px -2px rgba(0, 170, 180, 0.15), 0 12px 32px -4px rgba(0,0,0,0.12);
+    --glass-glow: 0 0 32px rgba(0, 170, 180, 0.1);
 
     /* Kanban colors */
     --kanban-gray: 220 9% 46%;
@@ -297,17 +297,17 @@
   /* Gradient text - Violet to Cyan */
   .gradient-text {
     @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, hsl(246 74% 59%) 0%, hsl(180 100% 45%) 100%);
+    background-image: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
   }
 
   /* Primary gradient background - Violet to lighter violet */
   .gradient-primary {
-    background: linear-gradient(135deg, hsl(246 74% 59%) 0%, hsl(246 74% 70%) 100%);
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.75) 100%);
   }
 
   /* Accent gradient (violet to cyan) */
   .gradient-accent {
-    background: linear-gradient(135deg, hsl(246 74% 59%) 0%, hsl(180 100% 45%) 100%);
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
   }
 
   /* Hover glow effect */

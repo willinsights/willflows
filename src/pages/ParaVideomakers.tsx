@@ -296,10 +296,10 @@ export default function ParaVideomakers() {
       />
 
       {/* Studio Exclusive Features Section */}
-      <section className="py-20 px-4 bg-gradient-to-br from-primary/5 to-purple-500/5">
+      <section className="py-20 px-4 bg-gradient-to-br from-primary/5 to-accent/5">
         <div className="container mx-auto">
           <div className="text-center mb-12">
-            <Badge className="mb-4 bg-gradient-to-r from-primary to-purple-500 text-white border-0">
+            <Badge className="mb-4 bg-gradient-to-r from-primary to-accent text-white border-0">
               <Sparkles className="h-3 w-3 mr-1" />
               Exclusivo Plano Studio
             </Badge>
@@ -320,7 +320,7 @@ export default function ParaVideomakers() {
               className="glass-card p-8 border-primary/30"
             >
               <div className="flex items-center gap-3 mb-4">
-                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-purple-500/20">
+                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20">
                   <Film className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="text-xl font-bold">Aprovação de Vídeo</h3>
@@ -359,7 +359,7 @@ export default function ParaVideomakers() {
               className="glass-card p-8 border-primary/30"
             >
               <div className="flex items-center gap-3 mb-4">
-                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-purple-500/20">
+                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20">
                   <Clapperboard className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="text-xl font-bold">Desenho de Timeline</h3>

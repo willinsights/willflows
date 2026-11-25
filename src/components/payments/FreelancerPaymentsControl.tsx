@@ -298,7 +298,7 @@ export function FreelancerPaymentsControl({
                     </div>
                     <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
                       <div className="flex items-center gap-2 text-xs">
-                        <Badge variant="outline" className={tp.phase === 'captacao' ? 'bg-blue-500/10 text-blue-500' : 'bg-purple-500/10 text-purple-500'}>
+                        <Badge variant="outline" className={tp.phase === 'captacao' ? 'bg-blue-500/10 text-blue-500' : 'bg-accent/10 text-accent'}>
                           {tp.phase === 'captacao' ? 'Captação' : 'Edição'}
                         </Badge>
                         <span className="text-muted-foreground">
@@ -358,7 +358,7 @@ export function FreelancerPaymentsControl({
                           {getMemberName(tp.user_id)}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={tp.phase === 'captacao' ? 'bg-blue-500/10 text-blue-500' : 'bg-purple-500/10 text-purple-500'}>
+                          <Badge variant="outline" className={tp.phase === 'captacao' ? 'bg-blue-500/10 text-blue-500' : 'bg-accent/10 text-accent'}>
                             {tp.phase === 'captacao' ? 'Captação' : 'Edição'}
                           </Badge>
                         </TableCell>

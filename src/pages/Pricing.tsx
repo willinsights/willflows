@@ -334,7 +334,7 @@ export default function Pricing() {
 
                   {/* Studio Exclusive Highlight Box */}
                   {planId === 'studio' && (
-                    <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-primary/20 via-purple-500/15 to-pink-500/10 border border-primary/30 shadow-lg shadow-primary/5">
+                    <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-primary/20 via-accent/15 to-pink-500/10 border border-primary/30 shadow-lg shadow-primary/5">
                       <p className="text-xs font-semibold text-primary/80 uppercase tracking-wide mb-3">Exclusivo Studio</p>
                       <div className="space-y-2">
                         <div className="flex items-center gap-3">

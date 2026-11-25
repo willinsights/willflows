@@ -338,7 +338,7 @@ export function TestAccountsTab() {
     const planConfig: Record<string, { label: string; className: string }> = {
       starter: { label: 'Starter', className: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
       essencial: { label: 'Starter', className: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
-      pro: { label: 'Pro', className: 'bg-purple-500/10 text-purple-600 border-purple-500/20' },
+      pro: { label: 'Pro', className: 'bg-accent/10 text-accent border-accent/20' },
       studio: { label: 'Studio', className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
     };
     const config = planConfig[plan.toLowerCase()] || planConfig.starter;

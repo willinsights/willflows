@@ -124,7 +124,7 @@ export default function VideoApprovalFeature() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <Badge className="mb-6 bg-gradient-to-r from-primary to-purple-500 text-white border-0">
+              <Badge className="mb-6 bg-gradient-to-r from-primary to-accent text-white border-0">
                 <Sparkles className="h-3 w-3 mr-1" />
                 Exclusivo Plano Studio
               </Badge>
@@ -283,7 +283,7 @@ export default function VideoApprovalFeature() {
             viewport={{ once: true }}
             className="glass-card p-12 text-center max-w-3xl mx-auto relative overflow-hidden"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-purple-500/10" />
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10" />
             <div className="relative z-10">
               <Film className="h-12 w-12 text-primary mx-auto mb-6" />
               <h2 className="text-3xl font-bold mb-4">

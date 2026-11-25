@@ -24,7 +24,7 @@ const AVATAR_COLORS = [
   'bg-blue-500',
   'bg-rose-500',
   'bg-amber-500',
-  'bg-violet-500',
+  'bg-accent',
   'bg-cyan-500',
   'bg-orange-500',
   'bg-teal-500',

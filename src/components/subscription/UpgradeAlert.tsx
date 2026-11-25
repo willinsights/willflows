@@ -42,7 +42,7 @@ const PLAN_LABELS: Record<SubscriptionPlan, string> = {
 const PLAN_COLORS: Record<SubscriptionPlan, string> = {
   starter: 'bg-muted text-muted-foreground',
   pro: 'bg-primary/20 text-primary',
-  studio: 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-400',
+  studio: 'bg-gradient-to-r from-accent/20 to-pink-500/20 text-accent',
 };
 
 export const UpgradeAlert = forwardRef<HTMLDivElement, UpgradeAlertProps>(function UpgradeAlert({
