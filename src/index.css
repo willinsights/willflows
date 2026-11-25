@@ -14,9 +14,6 @@
     /* Core backgrounds - Cooler, deeper light gray for surface hierarchy */
     --background: 220 16% 95%;
     --foreground: 240 10% 10%;
-    --workspace-background: var(--background);
-    --workspace-grid: 246 20% 60%;
-    --workspace-grid-opacity: 0.055;
 
     /* Cards with soft shadows */
     --card: 0 0% 100%;
@@ -103,9 +100,6 @@
     /* Core backgrounds - Deep Space Black */
     --background: 240 18% 5%;
     --foreground: 0 0% 95%;
-    --workspace-background: 240 18% 5%;
-    --workspace-grid: 246 30% 65%;
-    --workspace-grid-opacity: 0.045;
 
     /* Cards with glassmorphism */
     --card: 240 16% 8.5%;
@@ -184,15 +178,6 @@
     --shadow-md: inset 0 1px 0 0 hsla(0, 0%, 100%, 0.06), 0 10px 30px -8px hsla(240, 30%, 2%, 0.7);
     --shadow-lg: inset 0 1px 0 0 hsla(0, 0%, 100%, 0.07), 0 24px 60px -12px hsla(240, 30%, 2%, 0.8);
     --radius: 0.75rem;
-  }
-
-  /* Same base as before; only a discreet grid sits on top of it */
-  .workspace-background {
-    background-color: hsl(var(--workspace-background));
-    background-image:
-      linear-gradient(hsl(var(--workspace-grid) / var(--workspace-grid-opacity)) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--workspace-grid) / var(--workspace-grid-opacity)) 1px, transparent 1px);
-    background-size: 26px 26px, 26px 26px;
   }
 
   .dark body {

@@ -62,7 +62,12 @@ export function MobileAppLayout() {
   };
 
   return (
-    <div className="workspace-background flex flex-col min-h-screen w-full">
+    <div className="flex flex-col min-h-screen w-full bg-[#f4f4f6] dark:bg-background">
+      {/* Premium Background Effects */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
+        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-primary/5 dark:bg-primary/20 rounded-full blur-[100px] translate-x-1/4 -translate-y-1/4" />
+        <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-primary/[0.03] dark:bg-primary/15 rounded-full blur-[80px] -translate-x-1/4 translate-y-1/4" />
+      </div>
 
       {/* Error Banner */}
       <AnimatePresence mode="wait">
