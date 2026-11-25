@@ -330,7 +330,7 @@ export default function Integrations() {
               </Link>
               <Link to="/auth?trial=true">
                 <Button className="gradient-primary">
-                  Começar teste grátis
+                  Começar 7 dias grátis
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>

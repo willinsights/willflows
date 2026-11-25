@@ -73,7 +73,7 @@ const features = [
   {
     icon: Film,
     title: 'Aprovação de Vídeo',
-    description: 'Link de aprovação com a marca do estúdio e comentários no momento exato do vídeo. Exclusivo Studio.',
+    description: 'Link de aprovação com a marca do estúdio, comentários no momento exato e comparação de versões. Exclusivo Studio.',
     badge: 'Studio',
   },
   {
@@ -366,7 +366,7 @@ export default function Landing() {
                 </div>
               ) : (
                 <div className="flex flex-col sm:flex-row items-start gap-4">
-                  <Link to="/auth?trial=true" onClick={() => trackCtaClick('hero')}>
+                  <Link to="/auth?trial=true" data-tracked onClick={() => trackCtaClick('hero')}>
                     <Button size="lg" className="gradient-primary text-lg px-8 h-14 rounded-full glow-ring lens-flare">
                       Começar 7 dias grátis
                       <ArrowRight className="ml-2 h-5 w-5" />
@@ -880,9 +880,9 @@ export default function Landing() {
             <p className="text-lg text-muted-foreground mb-8">
               Crie o seu espaço em minutos e experimente tudo durante 7 dias. 7 dias grátis · Sem cartão
             </p>
-            <Link to="/auth?trial=true" onClick={() => trackCtaClick('final-cta')}>
+            <Link to="/auth?trial=true" data-tracked onClick={() => trackCtaClick('final-cta')}>
               <Button size="lg" className="gradient-primary text-lg px-8 glow-ring lens-flare">
-                Começar teste grátis
+                Começar 7 dias grátis
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>

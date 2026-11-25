@@ -498,7 +498,7 @@ export default function Pricing() {
             onClick={() => handleSelectPlan('pro')}
           >
             <ArrowRight className="mr-2 h-5 w-5" />
-            {user ? 'Subscrever o plano Pro' : 'Começar teste grátis'}
+            {user ? 'Subscrever o plano Pro' : 'Começar 7 dias grátis'}
           </Button>
         </div>
       </section>

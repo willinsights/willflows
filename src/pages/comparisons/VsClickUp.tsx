@@ -235,7 +235,7 @@ export default function VsClickUp() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" className="gradient-primary" asChild>
                 <Link to="/auth?trial=true">
-                  Começar teste grátis
+                  Começar 7 dias grátis
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>

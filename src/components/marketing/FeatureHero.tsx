@@ -25,7 +25,7 @@ export function FeatureHero({
   subtitle,
   screenshot,
   screenshotAlt,
-  ctaText = 'Começar teste grátis (7 dias)',
+  ctaText = 'Começar 7 dias grátis',
   ctaLink = '/auth?trial=true',
 }: FeatureHeroProps) {
   // Generate SEO-friendly alt text

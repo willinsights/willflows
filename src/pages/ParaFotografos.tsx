@@ -68,7 +68,7 @@ const useCases = [
 
 export default function ParaFotografos() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-clip">
       <Helmet>
         <title>WillFlow para Fotógrafos | Gestão de Sessões e Clientes</title>
         <meta name="description" content="Sistema de gestão completo para fotógrafos. Organize sessões, clientes, pagamentos e entregas. Kanban visual, CRM integrado e calendário. 7 dias grátis." />
@@ -321,7 +321,7 @@ export default function ParaFotografos() {
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">
-                Começar teste grátis
+                Começar 7 dias grátis
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>

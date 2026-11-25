@@ -56,7 +56,7 @@ const faqCategories = [
       },
       {
         question: 'Posso convidar freelancers?',
-        answer: 'Sim! Pode convidar membros com diferentes roles: Admin, Editor, Captação, Freelancer ou Visualizador. Cada role tem permissões específicas.',
+        answer: 'Sim. Pode convidar membros com funções diferentes, como Administrador, Gestão, Captação, Edição ou Visualização, cada uma com as suas permissões. Cada colaborador vê apenas o seu próprio valor a receber.',
       },
       {
         question: 'Os freelancers são cobrados?',
@@ -277,7 +277,7 @@ export default function Help() {
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">
-                Começar teste grátis
+                Começar 7 dias grátis
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>

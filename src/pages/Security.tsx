@@ -33,7 +33,7 @@ const securityFeatures = [
   {
     icon: Eye,
     title: 'Controlo de Acesso',
-    description: 'Permissões granulares por role: Admin, Editor, Captação, Freelancer, Visualizador.',
+    description: 'Permissões por função: Administrador, Gestão, Captação, Edição e Visualização.',
   },
   {
     icon: FileCheck,
@@ -228,7 +228,7 @@ export default function Security() {
               </Link>
               <Link to="/auth?trial=true">
                 <Button className="gradient-primary">
-                  Começar teste grátis
+                  Começar 7 dias grátis
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>

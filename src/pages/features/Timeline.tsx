@@ -142,7 +142,7 @@ export default function TimelineFeature() {
               </div>
               
               <p className="text-sm text-muted-foreground mt-4">
-                ✓ Incluído no plano Studio · ✓ Templates ilimitados
+                ✓ Incluído no plano Studio · ✓ Modelos reutilizáveis
               </p>
             </motion.div>
           </div>
@@ -320,7 +320,7 @@ export default function TimelineFeature() {
               <Link to="/auth?trial=true">
                 <Button size="lg" className="gradient-primary">
                   <Sparkles className="mr-2 h-5 w-5" />
-                  Começar teste grátis
+                  Começar 7 dias grátis
                 </Button>
               </Link>
             </div>

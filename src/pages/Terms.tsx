@@ -305,7 +305,7 @@ export default function Terms() {
               </Link>
               <Link to="/auth?trial=true">
                 <Button className="gradient-primary">
-                  Começar teste grátis
+                  Começar 7 dias grátis
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>

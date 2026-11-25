@@ -94,7 +94,7 @@ const keyFeatures = [
 
 export default function ParaProdutoras() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-clip">
       <Helmet>
         <title>WillFlow para Produtoras | Gestão de Produção Audiovisual</title>
         <meta name="description" content="Software de gestão para produtoras de vídeo e cinema. Organize pré-produção, filmagem e pós-produção. Gerencie equipas, orçamentos e entregas. 7 dias grátis." />
@@ -377,7 +377,7 @@ export default function ParaProdutoras() {
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">
-                Começar teste grátis
+                Começar 7 dias grátis
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, Sun, Menu, X, ChevronDown, Camera, Video, Scale, Building2, Film } from 'lucide-react';
@@ -35,6 +35,17 @@ const comparisonLinks = [
 ];
 
 export function PublicHeader() {
+  // Signup CTAs outside the header, on every public page, report their page as position.
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement | null)?.closest?.('a[href^="/auth?trial"]');
+      if (!a || a.closest('header') || a.hasAttribute('data-tracked')) return;
+      trackCtaClick(`page:${window.location.pathname}`);
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, []);
+
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
@@ -131,7 +142,7 @@ export function PublicHeader() {
           {!isBetaMode && (
             <Link to="/auth?trial=true" className="hidden sm:block" onClick={() => trackCtaClick('header')}>
               <Button className="gradient-primary">
-                Começar teste grátis
+                Começar 7 dias grátis
               </Button>
             </Link>
           )}
@@ -231,7 +242,7 @@ export function PublicHeader() {
                 {!isBetaMode && (
                   <Link to="/auth?trial=true" onClick={() => setMobileMenuOpen(false)}>
                     <Button className="w-full gradient-primary">
-                      Começar teste grátis
+                      Começar 7 dias grátis
                     </Button>
                   </Link>
                 )}

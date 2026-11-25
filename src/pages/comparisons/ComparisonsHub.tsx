@@ -172,7 +172,7 @@ export default function ComparisonsHub() {
             </p>
             <Button size="lg" className="gradient-primary" asChild>
               <Link to="/auth?trial=true">
-                Começar teste grátis
+                Começar 7 dias grátis
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>

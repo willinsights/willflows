@@ -83,7 +83,7 @@ const testimonials = [
 
 export default function ParaAgencias() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-clip">
       <Helmet>
         <title>WillFlow para Agências | Gestão de Produção e Equipas</title>
         <meta name="description" content="Software de gestão para agências de produção audiovisual. Gerencie múltiplos projetos, equipas, freelancers e finanças. Dashboard completo e relatórios em tempo real." />
@@ -382,7 +382,7 @@ export default function ParaAgencias() {
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">
-                Começar teste grátis
+                Começar 7 dias grátis
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>

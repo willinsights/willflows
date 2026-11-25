@@ -140,7 +140,7 @@ export default function KanbanFeature() {
         description="Adapte o quadro ao seu fluxo de trabalho. Crie colunas para cada fase do seu processo — orçamento, aprovação, captação, edição, revisão."
         screenshot="/screenshots/banner-kanban.png"
         features={[
-          'Criar colunas ilimitadas',
+          'Criar as colunas de que precisa',
           'Cores personalizadas por coluna',
           'Reordenar arrastando',
           'Coluna "Entregue" sempre fixa no final',

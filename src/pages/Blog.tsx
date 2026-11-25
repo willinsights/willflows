@@ -231,7 +231,7 @@ export default function Blog() {
         <section className="py-16 px-4 bg-primary/5">
           <div className="container mx-auto max-w-4xl text-center">
             <h2 className="text-2xl md:text-3xl font-bold mb-4">
-              Pronto para transformar a gestão do seu estúdio?
+              Organize o próximo projeto do seu estúdio no WillFlow
             </h2>
             <p className="text-muted-foreground mb-6">
               Experimente o WillFlow gratuitamente durante 7 dias.

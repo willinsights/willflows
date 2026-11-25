@@ -244,7 +244,7 @@ export default function VideoApprovalFeature() {
         screenshot="/screenshots/banner-video-approval.png"
         screenshotAlt="Comparação de versões A/B no WillFlow permitindo alternar entre V1 e V2 do vídeo no mesmo timestamp"
         features={[
-          'Upload ilimitado de versões',
+          'Várias versões por vídeo, dentro do armazenamento do plano',
           'Toggle instantâneo V1/V2',
           'Mesmo timestamp preservado',
           'Histórico completo',
@@ -296,7 +296,7 @@ export default function VideoApprovalFeature() {
               <Link to="/auth?trial=true">
                 <Button size="lg" className="gradient-primary">
                   <Sparkles className="mr-2 h-5 w-5" />
-                  Começar teste grátis
+                  Começar 7 dias grátis
                 </Button>
               </Link>
             </div>

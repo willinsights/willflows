@@ -74,7 +74,7 @@ const useCases = [
 
 export default function ParaVideomakers() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-clip">
       <Helmet>
         <title>WillFlow para Videomakers | Gestão de Produções de Vídeo</title>
         <meta name="description" content="Sistema de gestão para videomakers e produtoras. Organize produções, equipas e entregas. Kanban com fases de vídeo, timeline de projetos e controlo financeiro. 7 dias grátis." />
@@ -452,7 +452,7 @@ export default function ParaVideomakers() {
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">
-                Começar teste grátis
+                Começar 7 dias grátis
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>

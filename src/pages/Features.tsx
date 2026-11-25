@@ -231,7 +231,7 @@ export default function Features() {
             </p>
             <Link to="/auth?trial=true">
               <Button size="lg" className="gradient-primary">
-                Começar teste grátis (7 dias)
+                Começar 7 dias grátis
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
@@ -318,7 +318,7 @@ export default function Features() {
             className="glass-card p-12 text-center max-w-3xl mx-auto"
           >
             <h2 className="text-3xl font-bold mb-4">
-              Pronto para transformar a sua gestão?
+              Organize o próximo projeto no WillFlow
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
               7 dias grátis · Sem cartão

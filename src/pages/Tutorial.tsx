@@ -31,7 +31,7 @@ const tutorialSteps = [
     id: 'criar-conta',
     icon: UserPlus,
     title: '1. Criar Conta',
-    description: 'Acesse willflow.app e clique em "Começar teste grátis". Preencha o seu email e crie uma password segura. Pode também registar-se com a sua conta Google.',
+    description: 'Acesse willflow.app e clique em "Começar 7 dias grátis". Preencha o seu email e crie uma password segura. Pode também registar-se com a sua conta Google.',
     screenshot: '/screenshots/banner-dashboard-overview.png',
     tips: [
       'Use um email válido para receber notificações',
