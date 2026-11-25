@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Video, MessageSquare, CheckCircle2, Upload, Link, Layers, History, Replace } from 'lucide-react';
@@ -55,16 +54,19 @@ export function VideoProductionTab({
   return <VideoStudioRoutes key={`${workspaceId}:${projectId}:${taskId}`} taskId={taskId} workspaceId={workspaceId} projectId={projectId} className={className} />;
 }
 
+// One Review Studio per card: the full studio (versions, timecode comments,
+// thumbnails, compare, approval) handles uploads. Videos already sent through
+// the restricted private flow stay visible below, only when they exist.
 function VideoStudioRoutes(props: VideoProductionTabProps) {
-  const [enabled,setEnabled]=useState<boolean|null>(null);
-  const [view,setView]=useState('new');
-  const received=useRef(false);
-  const onContext=useCallback((value:boolean)=>{setEnabled(value);if(!received.current){received.current=true;setView(value?'new':'legacy');}},[]);
-  return <Tabs value={view} onValueChange={setView} className={props.className}>
-    <TabsList><TabsTrigger value="new">Vídeos novos</TabsTrigger><TabsTrigger value="legacy">Vídeos já guardados</TabsTrigger></TabsList>
-    <TabsContent value="new" forceMount className={view==='new'?'mt-4':'hidden'}><CanonicalVideoStudio key={JSON.stringify([props.workspaceId,props.projectId,props.taskId])} {...props} onContext={onContext}/></TabsContent>
-    <TabsContent value="legacy"><VideoProductionTabContent {...props} allowLegacyUpload={enabled===false}/></TabsContent>
-  </Tabs>;
+  const [privateCount,setPrivateCount]=useState(0);
+  const onVersions=useCallback((n:number)=>setPrivateCount(n),[]);
+  return <div className={cn('space-y-6',props.className)}>
+    <VideoProductionTabContent {...props} className={undefined} allowLegacyUpload/>
+    <div className={privateCount>0?'':'hidden'}>
+      <Separator className="mb-4"/>
+      <CanonicalVideoStudio key={JSON.stringify([props.workspaceId,props.projectId,props.taskId])} {...props} onVersions={onVersions}/>
+    </div>
+  </div>;
 }
 
 function VideoProductionTabContent({
@@ -94,6 +96,15 @@ function VideoProductionTabContent({
   const videoContainerRef = useRef<HTMLDivElement>(null);
 
   const { addComment } = useVideoComments(selectedVersion?.id || null);
+  const [approvedVersionIds, setApprovedVersionIds] = useState<Set<string>>(new Set());
+  const versionIdsKey = versions.map(v => v.id).join(',');
+  useEffect(() => {
+    if (!versionIdsKey) { setApprovedVersionIds(new Set()); return; }
+    let active = true;
+    supabase.from('video_approvals').select('video_version_id').in('video_version_id', versionIdsKey.split(','))
+      .then(({ data }) => { if (active) setApprovedVersionIds(new Set((data || []).map(r => r.video_version_id as string))); });
+    return () => { active = false; };
+  }, [versionIdsKey]);
 
   const hasReplacement = !!(selectedVersion?.replacement_stream_uid || selectedVersion?.replacement_playback_url);
   const replacementProcessing = selectedVersion?.replacement_status === 'processing' || selectedVersion?.replacement_status === 'pending';
@@ -423,6 +434,7 @@ function VideoProductionTabContent({
               <VideoVersionsList
                 versions={versions}
                 selectedVersionId={selectedVersion?.id || null}
+                approvedVersionIds={approvedVersionIds}
                 onSelectVersion={handleSelectVersion}
                 onDeleteVersion={deleteVersion}
                 onReplaceVersion={replaceVersion}

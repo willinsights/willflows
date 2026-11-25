@@ -127,3 +127,11 @@
 - [x] Testar regras e salvamento isolado; conferir a tela autenticada sem alterar dados históricos
 
 - [x] Auditoria WillFlow 2.0 (só leitura): 10 relatórios + proposta + roadmap em PDF e MD (análise profunda automática ainda a terminar)
+
+## Review Studio único (25/11)
+- [x] Uma só área no cartão (estúdio completo); vídeos do circuito novo só aparecem se existirem
+- [x] Link do cliente com nome/logo do espaço, sem marca WillFlow
+- [x] Após aprovação: vídeo visível 7 dias, faixa verde, download, sem novos comentários; depois «Link expirado»
+- [x] Selo verde «Aprovada» na lista de versões
+- [ ] Vários vídeos (entregáveis) por cartão — precisa de nova estrutura de dados
+- [ ] Bloquear comentários no servidor após aprovação

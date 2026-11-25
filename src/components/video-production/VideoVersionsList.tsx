@@ -61,6 +61,7 @@ interface VideoVersionsListProps {
   isFixingVideo?: boolean;
   onCheckStatus?: (version: VideoVersion) => void | Promise<void>;
   checkingStatusIds?: Set<string>;
+  approvedVersionIds?: Set<string>;
   className?: string;
 }
 
@@ -123,6 +124,7 @@ export function VideoVersionsList({
   isFixingVideo,
   onCheckStatus,
   checkingStatusIds,
+  approvedVersionIds,
   className,
 }: VideoVersionsListProps) {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -239,6 +241,11 @@ export function VideoVersionsList({
                     </Tooltip>
 
                     <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                      {approvedVersionIds?.has(version.id) && (
+                        <Badge variant="outline" className="border-success/40 bg-success/15 text-success text-[10px] px-1.5 py-0">
+                          ✓ Aprovada
+                        </Badge>
+                      )}
                       {isProcessing && (
                         <Badge
                           variant="outline"

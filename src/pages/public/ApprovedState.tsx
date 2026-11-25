@@ -1,117 +1,58 @@
-import { Helmet } from 'react-helmet-async';
-import { CheckCircle2, Download, AlertTriangle, Loader2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { CheckCircle2, Download, Loader2, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useVideoDownload } from '@/hooks/useVideoDownload';
-import logoIconCyan from '@/assets/logo-willflow-icon-cyan.png';
-import logoIconPurple from '@/assets/logo-willflow-icon-purple.png';
 
-interface ApprovedStateProps {
-  data: {
-    approval: {
-      client_name: string;
-      version_number?: number;
-      approved_at: string;
-      notes?: string;
-    };
-    task: {
-      project_name: string;
-    };
-    versions: Array<{
-      id: string;
-      version_number: number;
-      file_name: string;
-    }>;
+interface ApprovedBannerProps {
+  approval: {
+    client_name: string | null;
+    version_number?: number | null;
+    video_version_id?: string | null;
+    approved_at: string;
+    notes?: string | null;
+    expires_at?: string | null;
   };
+  versions: Array<{ id: string; version_number: number; file_name: string }>;
   token: string;
 }
 
-export function ApprovedState({ data, token }: ApprovedStateProps) {
+/** Shown on top of the (read-only) review player while an approved link is still available. */
+export function ApprovedBanner({ approval, versions, token }: ApprovedBannerProps) {
   const { downloadVideo, isDownloading } = useVideoDownload({ approvalToken: token });
-
-  // Find the approved version's ID
-  const approvedVersion = data.versions.find(
-    (v) => v.version_number === data.approval.version_number
-  );
-
-  const handleDownload = () => {
-    if (approvedVersion) {
-      downloadVideo(approvedVersion.id, approvedVersion.file_name);
-    }
-  };
+  const approvedVersion =
+    versions.find((v) => v.id === approval.video_version_id) ??
+    versions.find((v) => v.version_number === approval.version_number);
+  const expires = approval.expires_at ? new Date(approval.expires_at) : null;
 
   return (
-    <>
-      <Helmet>
-        <meta name="robots" content="noindex, nofollow, noarchive" />
-        <meta name="googlebot" content="noindex, nofollow, noarchive" />
-        <title>Studio Review | WillFlow</title>
-      </Helmet>
-      <div className="min-h-screen bg-background">
-        <header className="border-b bg-card/50 backdrop-blur-sm">
-          <div className="container py-4 flex items-center justify-between">
-            <img src={logoIconPurple} alt="WillFlow" className="h-8 w-8 dark:hidden" />
-            <img src={logoIconCyan} alt="WillFlow" className="h-8 w-8 hidden dark:block" />
-            <Badge variant="default" className="bg-green-500/10 text-green-600 border-green-500/20">
-              <CheckCircle2 className="h-3 w-3 mr-1" />
-              Aprovado
-            </Badge>
-          </div>
-        </header>
-
-        <main className="container py-12">
-          <Card className="max-w-2xl mx-auto">
-            <CardContent className="pt-6 text-center">
-              <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
-              <h1 className="text-2xl font-bold mb-2">Vídeo Aprovado!</h1>
-              <p className="text-muted-foreground mb-6">
-                Este vídeo foi aprovado por <strong>{data.approval.client_name}</strong>
-              </p>
-              <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-1">
-                <p><strong>Projeto:</strong> {data.task.project_name}</p>
-                {data.approval.version_number && (
-                  <p><strong>Versão:</strong> V{data.approval.version_number}</p>
-                )}
-                <p><strong>Aprovado em:</strong> {new Date(data.approval.approved_at).toLocaleString('pt-PT')}</p>
-                {data.approval.notes && (
-                  <p className="mt-2"><strong>Notas:</strong> {data.approval.notes}</p>
-                )}
-              </div>
-
-              {/* Retention warning + Download */}
-              <div className="mt-6 space-y-4">
-                <div className="flex items-start gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-4 text-left">
-                  <AlertTriangle className="h-5 w-5 text-yellow-600 shrink-0 mt-0.5" />
-                  <div className="text-sm">
-                    <p className="font-medium text-foreground">Retenção de ficheiros</p>
-                    <p className="text-muted-foreground mt-1">
-                      Este vídeo será automaticamente eliminado 7 dias após a aprovação.
-                      Recomendamos que faça o download agora.
-                    </p>
-                  </div>
-                </div>
-
-                {approvedVersion && (
-                  <Button
-                    onClick={handleDownload}
-                    disabled={!!isDownloading}
-                    className="w-full"
-                    size="lg"
-                  >
-                    {isDownloading ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4 mr-2" />
-                    )}
-                    Descarregar versão aprovada
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </main>
+    <div className="mb-6 flex flex-col gap-4 rounded-lg border border-success/30 bg-success/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-start gap-3">
+        <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-success" />
+        <div className="text-sm">
+          <p className="font-semibold text-foreground">
+            Versão V{approval.version_number ?? approvedVersion?.version_number} aprovada
+            {approval.client_name ? ` por ${approval.client_name}` : ''}
+          </p>
+          <p className="text-muted-foreground">
+            {new Date(approval.approved_at).toLocaleString('pt-PT')}
+            {approval.notes ? ` · ${approval.notes}` : ''}
+          </p>
+          {expires && (
+            <p className="mt-1 flex items-center gap-1 text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" /> Disponível até {expires.toLocaleDateString('pt-PT')} — descarregue antes dessa data.
+            </p>
+          )}
+        </div>
       </div>
-    </>
+      {approvedVersion && (
+        <Button
+          onClick={() => downloadVideo(approvedVersion.id, approvedVersion.file_name)}
+          disabled={!!isDownloading}
+          className="shrink-0"
+        >
+          {isDownloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+          Descarregar versão aprovada
+        </Button>
+      )}
+    </div>
   );
 }

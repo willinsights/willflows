@@ -53,11 +53,9 @@ import {
 } from 'lucide-react';
 import { formatTimecode } from '@/lib/duration-utils';
 import { cn } from '@/lib/utils';
-import logoIconCyan from '@/assets/logo-willflow-icon-cyan.png';
-import logoIconPurple from '@/assets/logo-willflow-icon-purple.png';
 import { ComparisonPlayer } from '@/components/video/ComparisonPlayer';
 import { useVideoDownload } from '@/hooks/useVideoDownload';
-import { ApprovedState } from '@/pages/public/ApprovedState';
+import { ApprovedBanner } from '@/pages/public/ApprovedState';
 
 import { logger } from '@/lib/logger';
 
@@ -104,7 +102,10 @@ interface ApprovalData {
     client_name: string | null;
     notes: string | null;
     version_number: number | null;
+    video_version_id?: string | null;
+    expires_at?: string | null;
   } | null;
+  branding?: { name: string; logo_url: string | null };
   client_name: string | null;
   workspace_id: string;
   signed_urls: Record<string, string>;
@@ -129,6 +130,7 @@ export default function VideoApproval() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<ApprovalData | null>(null);
+  const [errorBrand, setErrorBrand] = useState<{ name: string; logo_url: string | null } | null>(null);
 
   // Player state
   const [selectedVersionId, setSelectedVersionId] = useState<string>('');
@@ -187,6 +189,7 @@ export default function VideoApproval() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        if (errorData.branding) setErrorBrand(errorData.branding);
         throw new Error(errorData.error || 'Erro ao carregar dados');
       }
 
@@ -580,6 +583,11 @@ export default function VideoApproval() {
     return date.toLocaleDateString('pt-PT');
   };
 
+  const brandName = data?.branding?.name || errorBrand?.name || '';
+  const brandTitle = brandName ? `Revisão de vídeo | ${brandName}` : 'Revisão de vídeo';
+  const brandLogo = data?.branding?.logo_url || errorBrand?.logo_url || null;
+  const isApproved = !!data?.approval;
+
   // Render loading
   if (loading) {
     return (
@@ -587,7 +595,7 @@ export default function VideoApproval() {
         <Helmet>
           <meta name="robots" content="noindex, nofollow, noarchive" />
           <meta name="googlebot" content="noindex, nofollow, noarchive" />
-          <title>Studio Review | WillFlow</title>
+          <title>{brandTitle}</title>
         </Helmet>
         <div className="min-h-screen flex items-center justify-center bg-background">
           <div className="text-center">
@@ -606,13 +614,14 @@ export default function VideoApproval() {
         <Helmet>
           <meta name="robots" content="noindex, nofollow, noarchive" />
           <meta name="googlebot" content="noindex, nofollow, noarchive" />
-          <title>Studio Review | WillFlow</title>
+          <title>{brandTitle}</title>
         </Helmet>
         <div className="min-h-screen flex items-center justify-center bg-background">
           <Card className="max-w-md w-full mx-4">
             <CardContent className="pt-6 text-center">
               <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-              <h2 className="text-xl font-semibold mb-2">Link Inválido</h2>
+              {brandLogo ? <img src={brandLogo} alt={brandName} className="mx-auto mb-4 h-10 max-w-[160px] object-contain" /> : brandName && <p className="mb-4 font-semibold">{brandName}</p>}
+              <h2 className="text-xl font-semibold mb-2">{errorBrand ? 'Link expirado' : 'Link Inválido'}</h2>
               <p className="text-muted-foreground">{error || 'Este link de aprovação não é válido.'}</p>
             </CardContent>
           </Card>
@@ -622,11 +631,6 @@ export default function VideoApproval() {
   }
 
   // Render approved state
-  if (data.approval) {
-    return (
-      <ApprovedState data={data} token={token} />
-    );
-  }
 
   const selectedVersion = data.versions.find(v => v.id === selectedVersionId);
   const processing = ['pending', 'queued', 'uploading', 'downloading', 'inprogress', 'processing']
@@ -637,7 +641,7 @@ export default function VideoApproval() {
       <Helmet>
         <meta name="robots" content="noindex, nofollow, noarchive" />
         <meta name="googlebot" content="noindex, nofollow, noarchive" />
-        <title>Studio Review | WillFlow</title>
+        <title>{brandTitle}</title>
       </Helmet>
       <TooltipProvider>
         <div className="min-h-screen bg-background">
@@ -645,11 +649,14 @@ export default function VideoApproval() {
         <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
           <div className="container py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-4">
-              <img src={logoIconPurple} alt="WillFlow" className="h-8 w-8 dark:hidden" />
-              <img src={logoIconCyan} alt="WillFlow" className="h-8 w-8 hidden dark:block" />
+              {brandLogo ? (
+                <img src={brandLogo} alt={brandName} className="h-8 max-w-[140px] object-contain" />
+              ) : (
+                <span className="font-semibold">{brandName}</span>
+              )}
               <Separator orientation="vertical" className="h-6" />
               <div className="min-w-0">
-                <h1 className="font-semibold">Studio Review</h1>
+                <h1 className="font-semibold">Revisão de vídeo</h1>
                 <p className="break-words text-sm text-muted-foreground">{data.task.project_name}</p>
               </div>
             </div>
@@ -663,7 +670,7 @@ export default function VideoApproval() {
                 <SelectContent>
                   {data.versions.map((v) => (
                     <SelectItem key={v.id} value={v.id}>
-                      Versão {v.version_number}
+                      Versão {v.version_number}{data.approval?.video_version_id === v.id ? ' ✓ aprovada' : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -682,15 +689,23 @@ export default function VideoApproval() {
               )}
 
               {/* Approve button */}
-              <Button onClick={() => setShowApprovalModal(true)}>
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                Aprovar
-              </Button>
+              {isApproved ? (
+                <Badge className="border-success/30 bg-success/10 text-success" variant="outline">
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                  V{data.approval?.version_number} aprovada
+                </Badge>
+              ) : (
+                <Button onClick={() => setShowApprovalModal(true)}>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Aprovar
+                </Button>
+              )}
             </div>
           </div>
         </header>
 
         <main className="container py-6">
+          {isApproved && data.approval && <ApprovedBanner approval={data.approval} versions={data.versions} token={token!} />}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Comments Sidebar - LEFT (Frame.io style) */}
             <div className="order-2 lg:order-1 space-y-4">
@@ -951,7 +966,7 @@ export default function VideoApproval() {
                   </div>
 
                   {/* Always visible comment input (Frame.io style) */}
-                  <Card className="p-4">
+                  {!isApproved && <Card className="p-4">
                     <div className="flex flex-col items-start gap-3 sm:flex-row">
                       {/* Timecode badge - shows when user starts typing */}
                       {hasStartedTyping && (
@@ -1017,7 +1032,7 @@ export default function VideoApproval() {
                         </div>
                       </div>
                     </div>
-                  </Card>
+                  </Card>}
 
                   {/* Version info */}
                   {selectedVersion && (

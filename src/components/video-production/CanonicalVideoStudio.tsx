@@ -9,7 +9,7 @@ import {ArrowLeftRight,Check,Copy,Download,Link,RefreshCw,Send,Trash2,Upload,X} 
 import { CanonicalVideoComparison } from './CanonicalVideoComparison';
 type Version={id:string;file_name:string;bytes:number;state:string;created_at:string};
 type Review={version:{id:string};comments:Array<{id:string;client_name:string;body:string;timestamp_seconds:number}>;approval:{client_name:string}|null;playback:{url:string;expiresAt:number}|null};
-export function CanonicalVideoStudio({workspaceId,projectId,taskId,onContext}:{workspaceId:string;projectId:string;taskId:string|null;onContext?:(enabled:boolean)=>void}) {
+export function CanonicalVideoStudio({workspaceId,projectId,taskId,onContext,onVersions}:{workspaceId:string;projectId:string;taskId:string|null;onContext?:(enabled:boolean)=>void;onVersions?:(count:number)=>void}) {
  const [versions,setVersions]=useState<Version[]>([]),[selected,setSelected]=useState(''),[review,setReview]=useState<Review|null>(null);
  const [context,setContext]=useState<{enabled:boolean;canEdit:boolean;legacyBytes:number;privateBytes:number;limitBytes:number}|null>(null);
  const [file,setFile]=useState<File|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[comment,setComment]=useState(''),[link,setLink]=useState<{token:string;url:string}|null>(null);
@@ -24,8 +24,8 @@ export function CanonicalVideoStudio({workspaceId,projectId,taskId,onContext}:{w
  useHlsPlayer({videoRef:video,url:playback?.url??null,type:playback?'hls':'none'});
  const refresh=useCallback(async()=>{
   const [c,list]=await Promise.all([privateVideoRequest({action:'context',workspaceId,projectId,taskId}),privateVideoRequest({action:'client-list',workspaceId,projectId,taskId})]);
-  setContext(c);onContext?.(c.enabled);setVersions(list.versions);setSelected(old=>list.versions.some((v:Version)=>v.id===old)?old:list.versions[0]?.id??'');
- },[workspaceId,projectId,taskId,onContext]);
+  setContext(c);onContext?.(c.enabled);onVersions?.(list.versions.length);setVersions(list.versions);setSelected(old=>list.versions.some((v:Version)=>v.id===old)?old:list.versions[0]?.id??'');
+ },[workspaceId,projectId,taskId,onContext,onVersions]);
  useEffect(()=>{setVersions([]);setSelected('');setReview(null);setContext(null);void refresh().catch(()=>setError('Não foi possível carregar os vídeos.'));},[refresh]);
  const read=useCallback(async()=>{if(!selected)return;try{const next=await privateVideoRequest({action:'read',versionId:selected});if(selectedRef.current!==selected||next.version.id!==selected)return;setReview(old=>old?.version.id===next.version.id&&old?.playback&&next.playback&&old.playback.expiresAt>Date.now()/1000+60?{...next,playback:old.playback}:next);}catch{if(selectedRef.current===selected){setReview(null);setError('Este vídeo não está disponível.');}}},[selected]);
  useEffect(()=>{setReview(null);void read();const timer=setInterval(()=>void read(),10000);return()=>clearInterval(timer);},[read]);

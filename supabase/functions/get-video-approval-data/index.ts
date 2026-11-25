@@ -217,8 +217,17 @@ Deno.serve(async (req) => {
       }
     }
 
+    const RETENTION_DAYS = 7;
+    const expiresAt = approval?.approved_at ? new Date(new Date(approval.approved_at).getTime() + RETENTION_DAYS * 86400000) : null;
+    const { data: ws } = await supabase.from('workspaces').select('name, logo_url').eq('id', scope.workspace_id).maybeSingle();
+    const branding = { name: ws?.name || '', logo_url: ws?.logo_url || null };
+    if (expiresAt && expiresAt.getTime() < Date.now()) {
+      return new Response(JSON.stringify({ error: 'Este link expirou.', expired: true, branding }), { status: 410, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     // Build response
     const responseData = {
+      branding,
       task: {
         id: taskId || projectId,
         title: taskTitle,
@@ -231,6 +240,8 @@ Deno.serve(async (req) => {
         client_name: approval.client_name,
         notes: approval.notes,
         version_number: (approval.video_version as any)?.version_number || null,
+        video_version_id: approval.video_version_id,
+        expires_at: expiresAt?.toISOString() ?? null,
       } : null,
       client_name: tokenData.client_name,
       workspace_id: tokenData.workspace_id,
