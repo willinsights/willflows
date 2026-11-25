@@ -1,3 +1,4 @@
+import { renderPlanLimit } from '@/components/plans/NearUnlimited';
 import { Fragment, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -343,7 +344,7 @@ export default function PlanosComparar() {
                               className={`text-center py-4 px-4 ${plan.popular ? 'bg-primary/5' : ''}`}
                             >
                               {typeof value === 'string' ? (
-                                <span className="text-sm font-medium">{value}</span>
+                                <span className="text-sm font-medium">{renderPlanLimit(value)}</span>
                               ) : value ? (
                                 <Check className="h-5 w-5 text-success mx-auto" />
                               ) : (

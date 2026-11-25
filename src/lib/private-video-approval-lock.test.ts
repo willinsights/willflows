@@ -30,4 +30,10 @@ describe('approval closes comments on that version', () => {
     expect(res.status).toBe(409);
     expect(d.rpc.mock.calls.some(([n]) => n === 'private_video_feedback')).toBe(false);
   });
+  it('rejects editing an old comment when another version of the same video is approved', async () => {
+    const d = deps(false, true);
+    const res = await sidecarRequest(post({ action: 'comment-edit', token, versionId: version, requestId: request, body: 'novo' }), d);
+    expect(res.status).toBe(409);
+    expect(d.rpc.mock.calls.some(([n]) => n === 'private_video_comment_manage')).toBe(false);
+  });
 });

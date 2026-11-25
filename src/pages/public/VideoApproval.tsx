@@ -202,7 +202,11 @@ export default function VideoApproval() {
       }
 
       const versions = approvalData.versions;
-      setSelectedVersionId(current => versions.some(v => v.id === current) ? current : (versions[0]?.id ?? ''));
+      setSelectedVersionId(current => {
+        const approvedId = approvalData.approval?.video_version_id;
+        if (approvedId && versions.some(v => v.id === approvedId)) return approvedId;
+        return versions.some(v => v.id === current) ? current : (versions[0]?.id ?? '');
+      });
       setCompareVersionId(current => versions.some(v => v.id === current) ? current : (versions[1]?.id ?? ''));
 
       setLoading(false);
@@ -669,7 +673,7 @@ export default function VideoApproval() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {data.versions.map((v) => (
+                  {data.versions.filter(v => !data.approval?.video_version_id || v.id === data.approval.video_version_id).map((v) => (
                     <SelectItem key={v.id} value={v.id}>
                       Versão {v.version_number}{data.approval?.video_version_id === v.id ? ' ✓ aprovada' : ''}
                     </SelectItem>
@@ -678,7 +682,7 @@ export default function VideoApproval() {
               </Select>
 
               {/* Compare toggle */}
-              {data.versions.length > 1 && (
+              {data.versions.length > 1 && !isApproved && (
                 <Button
                   variant={isComparing ? 'secondary' : 'outline'}
                   size="sm"
@@ -821,7 +825,7 @@ export default function VideoApproval() {
             {/* Video Player - RIGHT (2 columns) */}
             <div className="order-1 min-w-0 space-y-4">
               {/* Comparison Mode */}
-              {isComparing ? (
+              {isComparing && !isApproved ? (
                 <Card className="p-4">
                   <ComparisonPlayer
                     versions={data.versions}
@@ -1051,7 +1055,7 @@ export default function VideoApproval() {
 
               {/* Retention policy notice */}
               <div className="text-center text-xs text-muted-foreground mt-4 pb-2">
-                <p>Os vídeos são mantidos durante 7 dias após a tarefa ser concluída</p>
+                <p>Depois de aprovado, o vídeo fica disponível 7 dias e é eliminado. Os comentários e a aprovação ficam guardados.</p>
               </div>
             </div>
           </div>

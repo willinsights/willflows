@@ -63,7 +63,7 @@ export async function sidecarRequest(req:Request,d:SidecarDependencies):Promise<
   // Approval closes the review: no further comments or approvals on that version (server-enforced).
   if(initial.approval&&['client-comment','client-approval','comment','approval'].includes(b.action))return answer({code:'ALREADY_APPROVED'},409);
   const sibling=async()=>{const r=await d.rpc('private_video_sibling_approval',{p_version:b.versionId});if(r.error)throw Error('PRIVATE_CONTEXT_DENIED');return r.data??null;};
-  if(['client-comment','client-approval','comment','approval','client-reply'].includes(b.action)&&await sibling())return answer({code:'OTHER_VERSION_APPROVED'},409);
+  if(['client-comment','client-approval','comment','approval','client-reply','comment-edit','comment-delete','comment-resolve','comment-unresolve'].includes(b.action)&&await sibling())return answer({code:'OTHER_VERSION_APPROVED'},409);
   if(b.action==='download'){
    if(!d.download)return answer({code:'DOWNLOAD_UNAVAILABLE'},503);
    if(initial.version.state!=='ready')return answer({code:'DOWNLOAD_UNAVAILABLE'},409);

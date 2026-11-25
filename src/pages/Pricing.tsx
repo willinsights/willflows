@@ -1,3 +1,4 @@
+import { NearUnlimited } from '@/components/plans/NearUnlimited';
 import { offerValidUntil } from '@/lib/seo/offerValidity';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -419,13 +420,13 @@ export default function Pricing() {
                   <td className="py-4 px-4 text-sm font-medium">Utilizadores</td>
                   <td className="text-center py-4 px-4 text-sm">Até 2</td>
                   <td className="text-center py-4 px-4 text-sm font-medium text-primary">Até 10</td>
-                  <td className="text-center py-4 px-4 text-sm">Ilimitados</td>
+                  <td className="text-center py-4 px-4 text-sm"><NearUnlimited /></td>
                 </tr>
                 <tr className="border-b border-border/50 bg-muted/20">
                   <td className="py-4 px-4 text-sm font-medium">Projetos ativos</td>
                   <td className="text-center py-4 px-4 text-sm">20</td>
-                  <td className="text-center py-4 px-4 text-sm font-medium text-primary">Ilimitados</td>
-                  <td className="text-center py-4 px-4 text-sm">Ilimitados</td>
+                  <td className="text-center py-4 px-4 text-sm font-medium text-primary"><NearUnlimited /></td>
+                  <td className="text-center py-4 px-4 text-sm"><NearUnlimited /></td>
                 </tr>
                 {/* Feature rows - use Studio as reference since it has all features */}
                 {PLANS.studio.features.filter(f => f.category !== 'limit').map((feature, index) => (
