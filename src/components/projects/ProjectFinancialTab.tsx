@@ -406,7 +406,7 @@ function ProjectFinancialContent({
             return (
               <div 
                 key={member.id} 
-                className="flex flex-wrap items-center gap-3 p-3 bg-background/50 rounded-lg border border-border/30"
+                className="flex flex-wrap items-start gap-3 p-3 bg-background/50 rounded-lg border border-border/30"
               >
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={profile.avatar_url || undefined} />
@@ -415,7 +415,7 @@ function ProjectFinancialContent({
                   </AvatarFallback>
                 </Avatar>
                 
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-[8rem] self-center">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium truncate">
                       {profile.full_name || profile.email || 'Desconhecido'}
@@ -450,6 +450,9 @@ function ProjectFinancialContent({
                   </div>
                   )}
                   
+                  {canViewAllFinancials && (member.cost_amount ?? 0) > 0 && (member.payment_amount ?? 0) === 0 ? (
+                    <Badge variant="outline" className="h-9 px-3 text-xs font-normal text-muted-foreground">Pago por terceiros</Badge>
+                  ) : (
                   <Select
                     value={member.payment_status}
                     onValueChange={(value: PaymentStatus) => 
@@ -470,6 +473,7 @@ function ProjectFinancialContent({
                       ))}
                     </SelectContent>
                   </Select>
+                  )}
                 </div>
               </div>
             );
@@ -544,50 +548,30 @@ function ProjectFinancialContent({
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Linha 1: Receita e Custos operacionais */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_auto_1fr] items-stretch gap-2 sm:gap-3">
                 <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <DollarSign className="h-3 w-3" /> Preço Cliente
+                    <DollarSign className="h-3 w-3" /> Preço do cliente
                   </span>
-                  <p className={cn("text-xl font-bold text-success mt-1", hideValues && "blur-md select-none")}>
-                    €{agreedValue.toFixed(2)}
-                  </p>
+                  <p className={cn("text-2xl font-bold mt-1", hideValues && "blur-md select-none")}>€{agreedValue.toFixed(2)}</p>
                 </div>
+                <span className="hidden sm:flex items-center text-muted-foreground text-lg" aria-hidden>−</span>
                 <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Camera className="h-3 w-3" /> Custo Captação
-                  </span>
-                  <p className={cn("text-xl font-bold text-destructive mt-1", hideValues && "blur-md select-none")}>
-                    €{custoCaptacao.toFixed(2)}
-                  </p>
+                  <span className="text-xs text-muted-foreground">Custos</span>
+                  <p className={cn("text-2xl font-bold mt-1", hideValues && "blur-md select-none")}>€{(agreedValue - profit).toFixed(2)}</p>
+                  <div className={cn("mt-2 space-y-0.5 text-xs text-muted-foreground", hideValues && "blur-md select-none")}>
+                    <p className="flex justify-between gap-3"><span className="flex items-center gap-1"><Camera className="h-3 w-3" />Captação</span><span>€{custoCaptacao.toFixed(2)}</span></p>
+                    <p className="flex justify-between gap-3"><span className="flex items-center gap-1"><Film className="h-3 w-3" />Edição</span><span>€{custoEdicao.toFixed(2)}</span></p>
+                    <p className="flex justify-between gap-3"><span className="flex items-center gap-1"><Package className="h-3 w-3" />Extras e outros</span><span>€{(agreedValue - profit - custoCaptacao - custoEdicao).toFixed(2)}</span></p>
+                  </div>
                 </div>
-                <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Film className="h-3 w-3" /> Custo Edição
-                  </span>
-                  <p className={cn("text-xl font-bold text-destructive mt-1", hideValues && "blur-md select-none")}>
-                    €{custoEdicao.toFixed(2)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Linha 2: Extras e Lucro */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Package className="h-3 w-3" /> Custos Extras
-                  </span>
-                  <p className={cn("text-xl font-bold text-destructive mt-1", hideValues && "blur-md select-none")}>
-                    €{custosExtras.toFixed(2)}
-                  </p>
-                </div>
+                <span className="hidden sm:flex items-center text-muted-foreground text-lg" aria-hidden>=</span>
                 <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">Lucro</span>
                     {healthScore && <ProjectHealthScoreBadge result={healthScore} size="sm" />}
                   </div>
-                  <p className={cn("text-xl font-bold mt-1", profit >= 0 ? "text-primary" : "text-destructive", hideValues && "blur-md select-none")}>
+                  <p className={cn("text-2xl font-bold mt-1", profit >= 0 ? "text-success" : "text-destructive", hideValues && "blur-md select-none")}>
                     {profitLabel}
                   </p>
                 </div>
