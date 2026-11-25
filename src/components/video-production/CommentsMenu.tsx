@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import { Copy, Download, Info, MoreHorizontal, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -11,7 +12,7 @@ const FORMATS: { id: ExportFormat; label: string; tag: string }[] = [
 ];
 const escHtml = (s: string) => s.replace(/[&<>]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch]!));
 
-export function CommentsMenu({ comments, title, detectedFps }: { comments: ExportComment[]; title: string; detectedFps?: number | null }) {
+export const CommentsMenu = forwardRef<HTMLButtonElement, { comments: ExportComment[]; title: string; detectedFps?: number | null }>(function CommentsMenu({ comments, title, detectedFps }, ref) {
   const fps = detectedFps ?? 25;
   const empty = comments.length === 0;
   const base = title.replace(/\.[^.]+$/, '').replace(/[^\w\-À-ÿ ]+/g, '').trim() || 'comentarios';
@@ -28,7 +29,7 @@ export function CommentsMenu({ comments, title, detectedFps }: { comments: Expor
     w.document.close(); w.focus(); w.print();
   };
   return <DropdownMenu>
-    <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Opções dos comentários" title="Copiar, imprimir ou exportar comentários"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+    <DropdownMenuTrigger asChild><Button ref={ref} size="icon" variant="ghost" className="h-8 w-8" aria-label="Opções dos comentários" title="Copiar, imprimir ou exportar comentários"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="w-64">
       <DropdownMenuItem disabled={empty} onClick={() => void copy()}><Copy className="mr-2 h-4 w-4" />Copiar comentários</DropdownMenuItem>
       <DropdownMenuSeparator />
@@ -41,4 +42,4 @@ export function CommentsMenu({ comments, title, detectedFps }: { comments: Expor
       <DropdownMenuLabel className="flex gap-2 text-xs font-normal text-muted-foreground"><Info className="h-4 w-4 shrink-0" />Copia e exporta os comentários desta versão, com timecode em {detectedFps ? `${detectedFps} fps, a velocidade deste vídeo` : '25 fps (reproduza o vídeo para usar a velocidade real dele)'}. Cada ficheiro mantém o seu próprio timecode.</DropdownMenuLabel>
     </DropdownMenuContent>
   </DropdownMenu>;
-}
+});

@@ -4,8 +4,8 @@ import { Helmet } from 'react-helmet-async';
 import { FullPageLoader } from '@/components/layout/FullPageLoader';
 import { supabase } from '@/integrations/supabase/client';
 import { videoApprovalReader } from '@/lib/video-approval-routing';
+import { legacyVideoApprovalRequest } from '@/lib/legacy-video-approval-adapter';
 
-const LegacyApproval = lazy(() => import('./VideoApproval'));
 const PrivateApproval = lazy(() => import('@/components/video-production/PrivateVideoApproval').then(m => ({ default: m.PrivateVideoApproval })));
 async function privateRequest(body: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke('private-video', { body });
@@ -20,7 +20,7 @@ export default function VideoApprovalRouter() {
   return <>
     <Helmet><title>Revisão de vídeo</title><meta name="robots" content="noindex, nofollow"/><meta name="referrer" content="no-referrer"/></Helmet>
     <Suspense fallback={<FullPageLoader />}>
-      {reader === 'legacy' ? <LegacyApproval /> : <PrivateApproval key={token} token={token} request={privateRequest} />}
+      <PrivateApproval key={token} token={token} request={reader === 'legacy' ? legacyVideoApprovalRequest : privateRequest} />
     </Suspense>
   </>;
 }

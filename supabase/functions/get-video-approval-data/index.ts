@@ -30,6 +30,9 @@ interface VideoComment {
   status: 'open' | 'resolved';
   is_client_comment: boolean;
   client_name: string | null;
+  parent_id: string | null;
+  resolved_at: string | null;
+  edited_at: string | null;
   created_at: string;
 }
 
@@ -105,7 +108,6 @@ Deno.serve(async (req) => {
       .from('video_comments')
       .select('*')
       .eq('workspace_id', scope.workspace_id).eq('project_id', scope.project_id)
-      .is('parent_id', null)
       .order('timestamp_seconds', { ascending: true });
 
     let approvalsQuery = supabase

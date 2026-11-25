@@ -4409,6 +4409,7 @@ export type Database = {
           body: string
           client_name: string | null
           created_at: string
+          edited_at: string | null
           id: string
           is_client_comment: boolean
           parent_id: string | null
@@ -4426,6 +4427,7 @@ export type Database = {
           body: string
           client_name?: string | null
           created_at?: string
+          edited_at?: string | null
           id?: string
           is_client_comment?: boolean
           parent_id?: string | null
@@ -4443,6 +4445,7 @@ export type Database = {
           body?: string
           client_name?: string | null
           created_at?: string
+          edited_at?: string | null
           id?: string
           is_client_comment?: boolean
           parent_id?: string | null

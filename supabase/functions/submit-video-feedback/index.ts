@@ -110,11 +110,27 @@ Deno.serve(async (req) => {
     const projectId = scopedVersion.project_id;
     const workspaceId = tokenData.workspace_id;
 
+    // One approved version closes the whole legacy review, including direct API calls.
+    let existingApprovalQuery = supabase
+      .from('video_approvals')
+      .select('id')
+      .eq('workspace_id', scope.workspace_id)
+      .eq('project_id', scope.project_id);
+    if (taskId) existingApprovalQuery = existingApprovalQuery.eq('task_id', taskId);
+    else if (projectId) existingApprovalQuery = existingApprovalQuery.eq('project_id', projectId);
+    const { data: existingApproval } = await existingApprovalQuery.limit(1).maybeSingle();
+    if (existingApproval) {
+      return new Response(
+        JSON.stringify({ error: 'Este vídeo já foi aprovado; os comentários estão fechados' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (payload.type === 'comment') {
       const commentPayload = payload as CommentPayload;
 
       // Validate required fields
-      if (!commentPayload.video_version_id || !commentPayload.body?.trim() || !commentPayload.client_name?.trim()) {
+      if (!commentPayload.video_version_id || !commentPayload.body?.trim() || commentPayload.body.length > 5000 || !commentPayload.client_name?.trim() || !Number.isFinite(commentPayload.timestamp_seconds) || commentPayload.timestamp_seconds < 0) {
         return new Response(
           JSON.stringify({ error: 'Dados do comentário incompletos' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -133,7 +149,7 @@ Deno.serve(async (req) => {
           project_id: projectId,
           workspace_id: workspaceId,
           timestamp_seconds: commentPayload.timestamp_seconds || 0,
-          body: commentPayload.body.trim().slice(0, 2000), // Max 2000 chars
+          body: commentPayload.body.trim(), // Validated above: 1–5000 chars
           is_client_comment: true,
           client_name: sanitizedName,
           status: 'open',
@@ -169,28 +185,6 @@ Deno.serve(async (req) => {
         return new Response(
           JSON.stringify({ error: 'Dados da aprovação incompletos' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Check if already approved
-      let existingApprovalQuery = supabase
-        .from('video_approvals')
-        .select('id')
-        .eq('workspace_id', scope.workspace_id)
-        .eq('project_id', scope.project_id);
-
-      if (taskId) {
-        existingApprovalQuery = existingApprovalQuery.eq('task_id', taskId);
-      } else if (projectId) {
-        existingApprovalQuery = existingApprovalQuery.eq('project_id', projectId);
-      }
-
-      const { data: existingApproval } = await existingApprovalQuery.limit(1).maybeSingle();
-
-      if (existingApproval) {
-        return new Response(
-          JSON.stringify({ error: 'Este vídeo já foi aprovado' }),
-          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 

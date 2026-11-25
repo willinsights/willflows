@@ -5,11 +5,13 @@ import { clientIdentifier, isRateLimited, logAttempt, rateLimitResponse } from '
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { resolveVideoContext, tokenCoversVersion, activeVideoToken, requireScopedVersion, storedKeyMatchesVersion, safeObjectKey, VideoContextError } from '../_shared/video-context.ts';
 
-interface DeleteCommentPayload {
+interface ManageCommentPayload {
   token: string;
   comment_id: string;
   client_name: string;
   delete_key?: string;
+  operation?: 'delete' | 'edit';
+  body?: string;
 }
 
 async function sha256Hex(v: string): Promise<string> {
@@ -31,7 +33,15 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const payload: DeleteCommentPayload = await req.json();
+    const payload: ManageCommentPayload = await req.json();
+    const operation = payload.operation ?? 'delete';
+
+    if (!['delete', 'edit'].includes(operation) || (operation === 'edit' && (!payload.body?.trim() || payload.body.length > 5000))) {
+      return new Response(
+        JSON.stringify({ error: 'Operação ou texto do comentário inválido' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (!payload.token) {
       return new Response(
@@ -122,7 +132,7 @@ Deno.serve(async (req) => {
     // Verify this is a client comment
     if (!comment.is_client_comment) {
       return new Response(
-        JSON.stringify({ error: 'Apenas comentários de cliente podem ser apagados' }),
+        JSON.stringify({ error: 'Apenas comentários de cliente podem ser alterados' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -135,7 +145,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!payload.delete_key || typeof payload.delete_key !== 'string' || payload.delete_key.length > 200 || !keyRow || keyRow.key_hash !== await sha256Hex(payload.delete_key)) {
       return new Response(
-        JSON.stringify({ error: 'Não tem permissão para apagar este comentário' }),
+        JSON.stringify({ error: 'Não tem permissão para alterar este comentário' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -146,7 +156,7 @@ Deno.serve(async (req) => {
     
     if (sanitizedPayloadName !== sanitizedCommentName) {
       return new Response(
-        JSON.stringify({ error: 'Não tem permissão para apagar este comentário' }),
+        JSON.stringify({ error: 'Não tem permissão para alterar este comentário' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -163,21 +173,32 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Delete the comment
-    const { error: deleteError } = await supabase
-      .from('video_comments')
-      .delete()
-      .eq('id', payload.comment_id);
-
-    if (deleteError) {
-      console.error('Delete comment error:', deleteError);
+    // Approval freezes the historical review, including direct API calls.
+    let approvalQuery = supabase
+      .from('video_approvals')
+      .select('id')
+      .eq('workspace_id', version.workspace_id)
+      .eq('project_id', version.project_id);
+    if (version.task_id) approvalQuery = approvalQuery.eq('task_id', version.task_id);
+    const { data: existingApproval } = await approvalQuery.limit(1).maybeSingle();
+    if (existingApproval) {
       return new Response(
-        JSON.stringify({ error: 'Erro ao apagar comentário' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Os comentários estão fechados depois da aprovação' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Client comment ${payload.comment_id} deleted`);
+    const { error: mutationError } = operation === 'edit'
+      ? await supabase.from('video_comments').update({ body: payload.body!.trim(), edited_at: new Date().toISOString() }).eq('id', payload.comment_id)
+      : await supabase.from('video_comments').delete().eq('id', payload.comment_id);
+
+    if (mutationError) {
+      console.error('Comment mutation error:', mutationError);
+      return new Response(
+        JSON.stringify({ error: operation === 'edit' ? 'Erro ao editar comentário' : 'Erro ao apagar comentário' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     return new Response(
       JSON.stringify({ success: true }),

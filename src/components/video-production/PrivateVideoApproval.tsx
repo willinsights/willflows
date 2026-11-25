@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useHlsPlayer } from '@/hooks/useHlsPlayer';
 import { cn } from '@/lib/utils';
@@ -11,11 +11,11 @@ import { CommentsMenu } from './CommentsMenu';
 import { useDetectedFps } from '@/hooks/useDetectedFps';
 import { FpsLabel } from './FpsLabel';
 import { CommentThread } from './CommentThread';
-const KEYS = 'wf_review_comment_keys';
-const keyHash = async (id: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('wfc:' + id))), x => x.toString(16).padStart(2, '0')).join('');
-const loadKeys = (): Record<string, string> => { try { return JSON.parse(localStorage.getItem(KEYS) ?? '{}'); } catch { return {}; } };
+import { loadReviewCommentKeys, rememberReviewCommentKey } from '@/lib/review-comment-keys';
 
-const Tip = ({ text, children }: { text: string; children: React.ReactNode }) => <TooltipProvider delayDuration={200}><Tooltip><TooltipTrigger asChild><span className="inline-flex">{children}</span></TooltipTrigger><TooltipContent className="max-w-xs text-xs">{text}</TooltipContent></Tooltip></TooltipProvider>;
+const Tip = forwardRef<HTMLSpanElement, { text: string; children: React.ReactNode }>(function Tip({ text, children }, ref) {
+  return <TooltipProvider delayDuration={200}><Tooltip><TooltipTrigger asChild><span ref={ref} className="inline-flex">{children}</span></TooltipTrigger><TooltipContent className="max-w-xs text-xs">{text}</TooltipContent></Tooltip></TooltipProvider>;
+});
 const RETENTION_INFO = 'Este link mostra todos os vídeos deste projeto e é válido 7 dias. Depois de aprovado, o vídeo fica disponível 7 dias e é eliminado. Ficam guardados os comentários da revisão, a versão aprovada, quem aprovou e quando.';
 
 type Comment = { id: string; body: string; client_name: string; timestamp_seconds: number; parent_id?: string | null; resolved_at?: string | null; edited_at?: string | null; from_team?: boolean; key?: string | null };
@@ -24,14 +24,14 @@ type Listed = { id: string; file_name: string; created_at: string; label?: strin
 const RETENTION_DAYS = 7;
 
 // Client-facing review page: shows only the studio's own name/logo, never WillFlow.
-export function PrivateVideoApproval({ request, token }: { request: (body: Record<string, unknown>) => Promise<any>; token: string }) {
+export const PrivateVideoApproval = forwardRef<HTMLElement, { request: (body: Record<string, unknown>) => Promise<any>; token: string }>(function PrivateVideoApproval({ request, token }, ref) {
   const [versions, setVersions] = useState<Listed[]>([]), [selected, setSelected] = useState(''), [review, setReview] = useState<Review | null>(null);
   const [branding, setBranding] = useState<{ name: string; logo_url: string | null } | null>(null);
   const [name, setName] = useState(''), [body, setBody] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [now, setNow] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const fps = useDetectedFps(videoRef, review?.playback?.url);
-  const [keys, setKeys] = useState<Record<string, string>>(loadKeys);
-  const remember = async (requestId: string) => { const next = { ...loadKeys(), [await keyHash(requestId)]: requestId }; localStorage.setItem(KEYS, JSON.stringify(next)); setKeys(next); };
+  const [keys, setKeys] = useState<Record<string, string>>(loadReviewCommentKeys);
+  const remember = async (requestId: string) => { await rememberReviewCommentKey(requestId); setKeys(loadReviewCommentKeys()); };
   useHlsPlayer({ videoRef, url: review?.playback?.url ?? null, type: review?.playback?.url.includes('.m3u8') ? 'hls' : review?.playback ? 'native' : 'none' });
   const groups = useMemo(() => groupDeliverables(versions), [versions]);
   const group = groups.find(g => g.versions.some(v => v.id === selected)) ?? groups[0];
@@ -54,7 +54,7 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
   const reader = useCallback((versionId: string) => request({ action: 'read', versionId, token }), [request, token]);
 
   const load = useCallback(async (id: string) => {
-    try { const data = await request({ action: 'read', versionId: id, token }); setReview(old => old?.version.id === data.version.id && old.playback && data.playback && old.playback.expiresAt > Date.now() / 1000 + 60 ? { ...data, playback: old.playback } : data); if (data.branding) setBranding(data.branding); setError(''); }
+    try { const data = await request({ action: 'read', versionId: id, token }); setKeys(loadReviewCommentKeys()); setReview(old => old?.version.id === data.version.id && old.playback && data.playback && old.playback.expiresAt > Date.now() / 1000 + 60 ? { ...data, playback: old.playback } : data); if (data.branding) setBranding(data.branding); setError(''); }
     catch { setReview(null); setError('Este vídeo não está disponível.'); }
   }, [request, token]);
   useEffect(() => { let active = true; request({ action: 'list', token }).then(data => { if (!Array.isArray(data?.versions)) throw Error('Invalid list'); if (active) { setVersions(data.versions); setSelected(groupDeliverables(data.versions as Listed[])[0]?.versions[0]?.id ?? ''); } }).catch(() => { if (active) setError('Este link não está disponível ou expirou.'); }); return () => { active = false; }; }, [request, token]);
@@ -72,7 +72,7 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
   const until = review?.approval?.approved_at ? new Date(new Date(review.approval.approved_at).getTime() + RETENTION_DAYS * 86400000) : null;
   const studio = branding?.name || 'Revisão de vídeo';
 
-  return <main className="min-h-screen bg-background text-foreground">
+  return <main ref={ref} className="min-h-screen bg-background text-foreground">
     <header className="border-b border-border px-4 py-4"><div className="mx-auto flex max-w-6xl items-center gap-3">
       {branding?.logo_url && <img src={branding.logo_url} alt="" className="h-9 w-9 rounded-md object-contain" />}
       <div className="min-w-0"><h1 className="truncate text-lg font-semibold">{studio}</h1><p className="text-xs text-muted-foreground">Revisão e aprovação de vídeo</p></div>
@@ -99,8 +99,8 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
           {!approved && <p className="text-xs text-muted-foreground">{RETENTION_INFO}</p>}
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">{comments.length === 0 && <p className="text-sm text-muted-foreground">Pause o vídeo no momento certo e escreva o seu comentário.</p>}
           <CommentThread comments={comments} locked={locked} onSeek={seek} canEdit={c => !!c.key && !!keys[c.key]} canDelete={c => !!c.key && !!keys[c.key]}
-            onEdit={async (c, text) => { await request({ action: 'comment-edit', token, versionId: selected, requestId: keys[c.key!], body: text }); await load(selected); }}
-            onDelete={async c => { await request({ action: 'comment-delete', token, versionId: selected, requestId: keys[c.key!] }); await load(selected); }} /></div>
+            onEdit={async (c, text) => { await request({ action: 'comment-edit', token, versionId: selected, commentId: c.id, clientName: c.client_name, requestId: keys[c.key!], body: text }); await load(selected); }}
+            onDelete={async c => { await request({ action: 'comment-delete', token, versionId: selected, commentId: c.id, clientName: c.client_name, requestId: keys[c.key!] }); await load(selected); }} /></div>
           <div className="min-w-0 space-y-2 border-t border-border pt-3">
           {sibling ? <p role="note" className="flex items-center gap-2 text-sm text-muted-foreground"><Lock className="h-4 w-4 shrink-0" /> A V{siblingNumber ?? '?'} deste vídeo já foi aprovada{sibling.name ? ` por ${sibling.name}` : ''}; as outras versões deixam de aceitar comentários. Pode comentar os outros vídeos deste cartão.</p> : (approved ? <p className="flex items-center gap-2 text-sm text-muted-foreground"><Lock className="h-4 w-4" /> Esta versão foi aprovada; os comentários estão fechados.</p> : <>
             <label className="block text-sm">Nome<input className="mt-1 w-full rounded-md border border-input bg-background p-2" value={name} maxLength={120} onChange={e => setName(e.target.value)} /></label>
@@ -113,4 +113,4 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
       </div>
     </div>
   </main>;
-}
+});

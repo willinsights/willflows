@@ -40,3 +40,4 @@
 - Authentication context identity lives outside the provider component and persists in Vite hot data. Why: lazy consumers and retained providers must share the same context during preview updates; missing providers still fail closed.
 - Mark static description and route-overridden OG fallback tags with data-rh="true". Why: Helmet must replace them rather than append ambiguous duplicate metadata.
 - Client receipt entry uses one shared dialog/hook in project details and Movimentos, updating existing delivered-project revenue only. Why: prevent duplicate income and keep the two screens consistent.
+- Legacy approval tokens render the canonical Review Studio through a request adapter; keep legacy media/history in place. Why: one client experience without copying assets or weakening old capabilities.

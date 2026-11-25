@@ -129,8 +129,8 @@
 - [x] Auditoria WillFlow 2.0 (só leitura): 10 relatórios + proposta + roadmap em PDF e MD (análise profunda automática ainda a terminar)
 
 ## Links antigos no Review Studio atual (25/11)
-- [ ] Abrir tokens antigos na interface atual sem copiar vídeos nem invalidar links.
-- [ ] Adaptar versões, aprovações, respostas, exportação e gestão de comentários; validar sem alterar conteúdo real.
+- [x] Abrir tokens antigos na interface atual sem copiar vídeos nem invalidar links.
+- [x] Adaptar versões, aprovações, respostas, exportação e gestão de comentários; 592 testes, compilação e links reais anónimos/aprovados/comparação/mobile validados sem alterar conteúdo real.
 
 ## Review Studio único (25/11)
 - [x] Uma só área no cartão (estúdio completo); vídeos do circuito novo só aparecem se existirem
