@@ -60,12 +60,16 @@ export function VideoProductionTab({
 function VideoStudioRoutes(props: VideoProductionTabProps) {
   const [legacyCount,setLegacyCount]=useState(0);
   const onLegacy=useCallback((n:number)=>setLegacyCount(n),[]);
+  const [privateEnabled,setPrivateEnabled]=useState<boolean|null>(null);
+  const onContext=useCallback((e:boolean)=>setPrivateEnabled(e),[]);
+  // Workspaces not enrolled in the private pipeline keep the older uploader.
+  const legacyUpload=privateEnabled===false;
   return <div className={cn('space-y-6',props.className)}>
-    <CanonicalVideoStudio key={JSON.stringify([props.workspaceId,props.projectId,props.taskId])} {...props}/>
-    <div className={legacyCount>0?'':'hidden'}>
+    <CanonicalVideoStudio key={JSON.stringify([props.workspaceId,props.projectId,props.taskId])} {...props} onContext={onContext}/>
+    <div className={legacyCount>0||legacyUpload?'':'hidden'}>
       <Separator className="mb-4"/>
       <p className="mb-3 text-sm font-medium text-muted-foreground">Vídeos enviados antes da atualização</p>
-      <VideoProductionTabContent {...props} className={undefined} allowLegacyUpload={false} onLegacyCount={onLegacy}/>
+      <VideoProductionTabContent {...props} className={undefined} allowLegacyUpload={legacyUpload} onLegacyCount={onLegacy}/>
     </div>
   </div>;
 }

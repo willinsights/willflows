@@ -7,8 +7,12 @@ export function createUrlRenewalGuard() {
   const renewed = new Set<string>();
   return {
     shouldRenew(url: string | null | undefined): boolean {
-      if (!url || renewed.has(url)) return false;
-      renewed.add(url);
+      if (!url) return false;
+      // Fresh signed links differ only by token: key on the file, not the token,
+      // so a permanent media error cannot loop through endless renewals.
+      const key = url.split('?')[0];
+      if (renewed.has(key)) return false;
+      renewed.add(key);
       return true;
     },
   };

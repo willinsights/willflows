@@ -356,6 +356,14 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({
       resumeAtRef.current = preserveTime;
       setIsLoading(true);
       onRenewVideoUrl();
+      // If no new link arrives, stop the spinner and show the recovery buttons.
+      const failedUrl = videoSource.url;
+      setTimeout(() => {
+        if (videoRef.current?.currentSrc && !videoRef.current.currentSrc.startsWith(failedUrl.split('?')[0])) return;
+        if (videoRef.current && videoRef.current.readyState >= 2) return;
+        setIsLoading(false);
+        setLoadError('Falha ao carregar o vídeo.');
+      }, 15000);
       return;
     }
 

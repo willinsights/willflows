@@ -8,7 +8,7 @@ describe('S19 renovação automática', () => {
     const g = createUrlRenewalGuard();
     expect(g.shouldRenew(signed)).toBe(true);
     expect(g.shouldRenew(signed)).toBe(false);
-    expect(g.shouldRenew(signed.replace('abc', 'def'))).toBe(true);
+    expect(g.shouldRenew(signed.replace('abc', 'def'))).toBe(false);
     expect(g.shouldRenew(null)).toBe(false);
   });
   it('só os links assinados do Storage expiram', () => {
