@@ -83,7 +83,7 @@ export default function Relatorios() {
   }
 
   if (financialSource.loading || financialSource.error || projectsLoading) {
-    return <div className="p-4 sm:p-6"><PageHeader title="Relatórios" />
+    return <div className="px-4 py-4 sm:px-6 md:px-8 md:py-6"><PageHeader title="Relatórios" />
       <FinancialDataState loading={financialSource.loading || projectsLoading} error={financialSource.error} onRetry={financialSource.refresh} />
     </div>;
   }
@@ -132,7 +132,7 @@ export default function Relatorios() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-8">
+    <div className="px-4 py-4 sm:px-6 md:px-8 md:py-6 space-y-8">
       {/* Header */}
       <PageHeader
         title="Relatórios"

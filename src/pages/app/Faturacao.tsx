@@ -174,7 +174,7 @@ export default function Faturacao() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="px-4 py-4 sm:px-6 md:px-8 md:py-6 space-y-5 md:space-y-6">
       {/* Header */}
       <PageHeader
         title="Faturação"

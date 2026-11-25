@@ -90,7 +90,7 @@ export default function Trabalhos() {
   };
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="px-4 py-4 sm:px-6 md:px-8 md:py-6">
       <PageHeader
         title="Registo de Trabalhos"
         description="Regista trabalhos pedidos fora dos cards (edições urgentes, fotos, sessões) para saíram no relatório mensal por colaborador."

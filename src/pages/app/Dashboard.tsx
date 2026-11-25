@@ -226,7 +226,7 @@ export default function Dashboard() {
   // ============ MOBILE LAYOUT ============
   if (isMobile) {
     return (
-      <div className="p-4 space-y-10 pb-24">
+      <div className="px-4 py-4 sm:px-6 md:px-8 md:py-6 space-y-8 pb-24">
         {showTour && <ProductTour onComplete={completeTour} onSkip={skipTour} />}
         <TrialBanner />
         <WelcomeWizard />

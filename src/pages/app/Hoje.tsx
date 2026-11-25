@@ -43,7 +43,7 @@ export default function Hoje() {
   const today = format(new Date(), "EEEE, d 'de' MMMM", { locale: pt });
 
   return (
-    <div className="p-3 md:p-4 max-w-4xl mx-auto space-y-4 pb-24">
+    <div className="px-4 py-4 sm:px-6 md:px-8 md:py-6 max-w-4xl mx-auto space-y-4 pb-24">
       <PageHeader title="Hoje" description={<span className="capitalize">{today}</span>} />
       {isLoading || !data ? (
         <div className="space-y-3">{[0, 1, 2].map(i => <Skeleton key={i} className="h-32 w-full" />)}</div>

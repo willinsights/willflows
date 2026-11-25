@@ -171,7 +171,7 @@ function LeadsContent() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="px-4 py-4 sm:px-6 md:px-8 md:py-6 space-y-5 md:space-y-6">
         <div className="flex items-center justify-between">
           <div className="space-y-2">
             <div className="h-8 w-32 bg-muted animate-pulse rounded-lg" />
@@ -203,7 +203,7 @@ function LeadsContent() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="px-4 py-4 sm:px-6 md:px-8 md:py-6 space-y-5 md:space-y-6">
       {/* Header */}
       <PageHeader
         title="Leads"

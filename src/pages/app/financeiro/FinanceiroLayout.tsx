@@ -57,7 +57,7 @@ export default function FinanceiroLayout() {
 
   if (loading || permissionsLoading) {
     return (
-      <div className="p-4 sm:p-6 space-y-6">
+      <div className="px-4 py-4 sm:px-6 md:px-8 md:py-6 space-y-6">
         <div className="flex items-center justify-between">
           <div className="space-y-2">
             <Skeleton className="h-7 w-40" />
@@ -81,7 +81,7 @@ export default function FinanceiroLayout() {
 
   if (!canViewOwnFinancials) {
     return (
-      <div className="p-4 sm:p-6">
+      <div className="px-4 py-4 sm:px-6 md:px-8 md:py-6">
         <div className="flex flex-col items-center justify-center h-[60vh] text-center">
           <Lock className="h-16 w-16 text-muted-foreground/50 mb-4" />
           <h2 className="text-xl font-bold mb-2">Acesso restrito</h2>
@@ -94,7 +94,7 @@ export default function FinanceiroLayout() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-5">
+    <div className="px-4 py-4 sm:px-6 md:px-8 md:py-6 space-y-5">
       <PageHeader
         title="Finanças"
         description={

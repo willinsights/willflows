@@ -261,9 +261,9 @@ function DesktopAppLayout() {
         <main className={`flex-1 overflow-auto ${fetchError ? 'pt-14' : ''}`}>
           <div className="h-full">
             {/* Pagamento em atraso dentro da tolerância: aviso persistente */}
-            <PastDueBanner className="mx-6 mt-4" />
+            <PastDueBanner className="mx-4 sm:mx-6 md:mx-8 mt-4" />
             {/* Breadcrumbs - positioned at top of content */}
-            <div className="px-6 pt-4 pb-2">
+            <div className="px-4 sm:px-6 md:px-8 pt-3 md:pt-4 pb-1 md:pb-2">
               <AppBreadcrumbs />
             </div>
             <ErrorBoundary>
