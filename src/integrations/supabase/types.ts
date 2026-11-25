@@ -1644,6 +1644,69 @@ export type Database = {
           },
         ]
       }
+      gallery_photos: {
+        Row: {
+          created_at: string
+          favorited_at: string | null
+          file_name: string
+          gallery_id: string
+          height: number | null
+          id: string
+          is_favorite: boolean
+          original_path: string | null
+          position: number
+          preview_path: string
+          size_bytes: number
+          width: number | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          favorited_at?: string | null
+          file_name: string
+          gallery_id: string
+          height?: number | null
+          id?: string
+          is_favorite?: boolean
+          original_path?: string | null
+          position?: number
+          preview_path: string
+          size_bytes?: number
+          width?: number | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          favorited_at?: string | null
+          file_name?: string
+          gallery_id?: string
+          height?: number | null
+          id?: string
+          is_favorite?: boolean
+          original_path?: string | null
+          position?: number
+          preview_path?: string
+          size_bytes?: number
+          width?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gallery_photos_gallery_id_fkey"
+            columns: ["gallery_id"]
+            isOneToOne: false
+            referencedRelation: "photo_galleries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gallery_photos_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       google_calendar_connections: {
         Row: {
           access_token: string | null
@@ -2556,6 +2619,180 @@ export type Database = {
           },
         ]
       }
+      photo_comments: {
+        Row: {
+          author_name: string | null
+          body: string
+          created_at: string
+          created_by: string | null
+          gallery_id: string
+          id: string
+          is_client: boolean
+          parent_id: string | null
+          photo_id: string
+          status: string
+          workspace_id: string
+          x: number | null
+          y: number | null
+        }
+        Insert: {
+          author_name?: string | null
+          body: string
+          created_at?: string
+          created_by?: string | null
+          gallery_id: string
+          id?: string
+          is_client?: boolean
+          parent_id?: string | null
+          photo_id: string
+          status?: string
+          workspace_id: string
+          x?: number | null
+          y?: number | null
+        }
+        Update: {
+          author_name?: string | null
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          gallery_id?: string
+          id?: string
+          is_client?: boolean
+          parent_id?: string | null
+          photo_id?: string
+          status?: string
+          workspace_id?: string
+          x?: number | null
+          y?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "photo_comments_gallery_id_fkey"
+            columns: ["gallery_id"]
+            isOneToOne: false
+            referencedRelation: "photo_galleries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "photo_comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "photo_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "photo_comments_photo_id_fkey"
+            columns: ["photo_id"]
+            isOneToOne: false
+            referencedRelation: "gallery_photos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "photo_comments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      photo_galleries: {
+        Row: {
+          client_name: string | null
+          client_note: string | null
+          created_at: string
+          created_by: string | null
+          delivered_at: string | null
+          extra_price: number
+          extras_added_to_project_at: string | null
+          extras_amount: number
+          extras_count: number
+          extras_paid_at: string | null
+          id: string
+          included_count: number
+          project_id: string
+          selection_submitted_at: string | null
+          share_token: string
+          status: string
+          title: string
+          token_expires_at: string | null
+          updated_at: string
+          watermark_enabled: boolean
+          watermark_text: string | null
+          workspace_id: string
+        }
+        Insert: {
+          client_name?: string | null
+          client_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          extra_price?: number
+          extras_added_to_project_at?: string | null
+          extras_amount?: number
+          extras_count?: number
+          extras_paid_at?: string | null
+          id?: string
+          included_count?: number
+          project_id: string
+          selection_submitted_at?: string | null
+          share_token?: string
+          status?: string
+          title?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          watermark_enabled?: boolean
+          watermark_text?: string | null
+          workspace_id: string
+        }
+        Update: {
+          client_name?: string | null
+          client_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          extra_price?: number
+          extras_added_to_project_at?: string | null
+          extras_amount?: number
+          extras_count?: number
+          extras_paid_at?: string | null
+          id?: string
+          included_count?: number
+          project_id?: string
+          selection_submitted_at?: string | null
+          share_token?: string
+          status?: string
+          title?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          watermark_enabled?: boolean
+          watermark_text?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "photo_galleries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "photo_galleries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_profit"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "photo_galleries_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_acknowledgments: {
         Row: {
           acknowledged_at: string | null
@@ -3410,6 +3647,102 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      shot_list_items: {
+        Row: {
+          created_at: string
+          done: boolean
+          done_at: string | null
+          done_by: string | null
+          id: string
+          notes: string | null
+          position: number
+          project_id: string
+          title: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          done?: boolean
+          done_at?: string | null
+          done_by?: string | null
+          id?: string
+          notes?: string | null
+          position?: number
+          project_id: string
+          title: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          done?: boolean
+          done_at?: string | null
+          done_by?: string | null
+          id?: string
+          notes?: string | null
+          position?: number
+          project_id?: string
+          title?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shot_list_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shot_list_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_profit"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shot_list_items_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shot_list_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          items: Json
+          name: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          items?: Json
+          name: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          items?: Json
+          name?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shot_list_templates_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stripe_webhook_log: {
         Row: {
@@ -5589,6 +5922,10 @@ export type Database = {
     }
     Functions: {
       accept_workspace_invitation: { Args: { p_token: string }; Returns: Json }
+      add_gallery_extras_to_project: {
+        Args: { p_gallery_id: string }
+        Returns: number
+      }
       add_workspace_storage: {
         Args: { p_bytes: number; p_workspace_id: string }
         Returns: undefined

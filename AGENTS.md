@@ -41,3 +41,4 @@
 - Mark static description and route-overridden OG fallback tags with data-rh="true". Why: Helmet must replace them rather than append ambiguous duplicate metadata.
 - Client receipt entry uses one shared dialog/hook in project details and Movimentos, updating existing delivered-project revenue only. Why: prevent duplicate income and keep the two screens consistent.
 - Legacy approval tokens render the canonical Review Studio through a request adapter; keep legacy media/history in place. Why: one client experience without copying assets or weakening old capabilities.
+- Photo galleries: client access only through the `photo-gallery` server function by share token (tables are never read by anon); previews with optional baked-in watermark are generated in the studio's browser, finals are matched by file name. Why: no public reads and no server image processing.

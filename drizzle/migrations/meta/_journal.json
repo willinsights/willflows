@@ -232,6 +232,13 @@
       "when": 1795639752444,
       "tag": "0032_harden_self_pay_and_followups_membership",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1795641036087,
+      "tag": "0033_photo_galleries",
+      "breakpoints": true
     }
   ]
 }

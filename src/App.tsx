@@ -103,6 +103,7 @@ const Leads = lazy(() => import("./pages/app/Leads"));
 const Contratos = lazy(() => import("./pages/app/Contratos"));
 const ContractSign = lazy(() => import("./pages/public/ContractSign"));
 const VideoApproval = lazy(() => import("./pages/public/VideoApprovalRouter"));
+const PhotoGalleryPage = lazy(() => import("./pages/public/PhotoGallery"));
 
 // Admin pages (new /admin route)
 const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
@@ -171,6 +172,7 @@ const App = () => (
                     <Route path="/ferramentas/calculadora-preco-hora" element={<CalculadoraPrecoHora />} />
 
                     <Route path="/contrato/:token" element={<ContractSign />} />
+                    <Route path="/galeria/:token" element={<Suspense fallback={<ReviewPageLoader />}><PhotoGalleryPage /></Suspense>} />
                     <Route path="/video-approval/:token" element={<Suspense fallback={<ReviewPageLoader />}><VideoApproval /></Suspense>} />
                     <Route path="/vs" element={<ComparisonsHub />} />
                     <Route path="/vs/asana" element={<VsAsana />} />

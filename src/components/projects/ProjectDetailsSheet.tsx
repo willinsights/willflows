@@ -69,6 +69,9 @@ const VideoProductionTab = lazy(() =>
 );
 import { CreateEventModal } from '@/components/calendar/CreateEventModal';
 import { useCalendarEvents } from '@/hooks/useCalendarEvents';
+const PhotoTab = lazy(() =>
+  import('./photo/PhotoTab').then((m) => ({ default: m.PhotoTab }))
+);
 const ProjectTimeTab = lazy(() =>
   import('@/components/time-tracking/ProjectTimeTab').then((m) => ({
     default: m.ProjectTimeTab,
@@ -636,6 +639,7 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
   const canUseVideoProductionTab = !planLoading && hasFeatureAccess('videoApproval');
   // Show the tab while loading (to avoid "it never appears" perception) and when the user can access it.
   const showVideoProductionTab = planLoading || canUseVideoProductionTab;
+  const showPhotoTab = project.type === 'fotografia' || project.type === 'foto_video';
 
   return (
     <>
@@ -669,6 +673,7 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
               <TabsTrigger value="checklist">Checklist</TabsTrigger>
               {canViewOwnFinancials && <TabsTrigger value="financial">Financeiro</TabsTrigger>}
               {showVideoProductionTab && <TabsTrigger value="video">Review Studio</TabsTrigger>}
+              {showPhotoTab && <TabsTrigger value="photo">Fotografia</TabsTrigger>}
                </TabsList>
              </div>
 
@@ -698,6 +703,14 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
                   />
                 )}
               </TabsContent>
+
+              {showPhotoTab && (
+                <TabsContent value="photo" className="space-y-4 py-4">
+                  <Suspense fallback={<TabLoadingFallback />}>
+                    <PhotoTab projectId={project.id} workspaceId={project.workspace_id} />
+                  </Suspense>
+                </TabsContent>
+              )}
 
               <TabsContent value="checklist" className="space-y-4 py-4">
                 <Suspense fallback={<TabLoadingFallback />}>
