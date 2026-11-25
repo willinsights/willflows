@@ -218,6 +218,13 @@
       "when": 1795625696712,
       "tag": "0030_private_video_link_status",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1795634021420,
+      "tag": "0031_chat_requires_active_sub_lock_signed_contracts",
+      "breakpoints": true
     }
   ]
 }

@@ -215,7 +215,7 @@ Deno.serve(async (req) => {
         );
       }
 
-      console.log(`Video approved by client "${sanitizedName}" - version ${approvalPayload.video_version_id}`);
+      console.log(`Video approved - version ${approvalPayload.video_version_id}`);
 
       return new Response(
         JSON.stringify({ success: true, approval }),
