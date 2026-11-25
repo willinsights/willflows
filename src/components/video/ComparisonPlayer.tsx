@@ -1,5 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import Hls from 'hls.js';
+import { useDetectedFps } from '@/hooks/useDetectedFps';
+import { FpsLabel } from '@/components/video-production/FpsLabel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -62,6 +64,8 @@ export function ComparisonPlayer({
   const rightUrl = signedUrls[rightVersionId];
   const leftVersion = versions.find(v => v.id === leftVersionId);
   const rightVersion = versions.find(v => v.id === rightVersionId);
+  const leftFps = useDetectedFps(leftVideoRef, leftVersionId);
+  const rightFps = useDetectedFps(rightVideoRef, rightVersionId);
 
   // Setup HLS for a video element
   const setupHls = useCallback((
@@ -352,11 +356,14 @@ export function ComparisonPlayer({
         <div>
           <p>{leftVersion?.file_name}</p>
           <p>Enviado {leftVersion && new Date(leftVersion.created_at).toLocaleDateString('pt-PT')}</p>
+          <FpsLabel fps={leftFps} />
         </div>
         <div>
           <p>{rightVersion?.file_name}</p>
           <p>Enviado {rightVersion && new Date(rightVersion.created_at).toLocaleDateString('pt-PT')}</p>
+          <FpsLabel fps={rightFps} />
         </div>
+        {leftFps && rightFps && leftFps !== rightFps && <p role="note" className="col-span-2 rounded-md border border-warning/40 bg-warning/10 p-2 text-warning">As duas versões têm velocidades diferentes ({String(leftFps).replace('.', ',')} e {String(rightFps).replace('.', ',')} fps). Cada uma mantém o seu próprio timecode, por isso o número de imagens no mesmo momento pode ser diferente.</p>}
       </div>
     </div>
   );

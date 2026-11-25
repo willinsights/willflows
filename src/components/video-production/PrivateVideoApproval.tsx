@@ -9,6 +9,7 @@ import { ArrowLeftRight, Check, CheckCircle2, Film, Info, Lock, Send } from 'luc
 import { CanonicalVideoComparison } from './CanonicalVideoComparison';
 import { CommentsMenu } from './CommentsMenu';
 import { useDetectedFps } from '@/hooks/useDetectedFps';
+import { FpsLabel } from './FpsLabel';
 import { CommentThread } from './CommentThread';
 const KEYS = 'wf_review_comment_keys';
 const keyHash = async (id: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('wfc:' + id))), x => x.toString(16).padStart(2, '0')).join('');
@@ -78,6 +79,7 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
             <span className="basis-full text-xs text-muted-foreground">Após esta data o vídeo é eliminado; ficam guardados os comentários e o registo da aprovação.</span>
           </div>}
           {comparing && ready.length > 1 ? null : review?.playback ? <video aria-label="Vídeo para aprovação" ref={videoRef} controls playsInline poster={review.playback.thumbnail} onTimeUpdate={e => setNow(e.currentTarget.currentTime)} className="aspect-video max-h-[calc(100vh-9rem)] w-full rounded-lg bg-black" /> : <div className="aspect-video w-full animate-pulse rounded-lg bg-muted" />}
+          {review?.playback && !comparing && <FpsLabel fps={fps} />}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         </section>
         <section className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-card p-3 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)]">

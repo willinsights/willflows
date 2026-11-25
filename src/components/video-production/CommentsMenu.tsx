@@ -2,10 +2,7 @@ import { Copy, Download, Info, MoreHorizontal, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { useState } from 'react';
-import { Gauge } from 'lucide-react';
-import { DropdownMenuRadioGroup, DropdownMenuRadioItem } from '@/components/ui/dropdown-menu';
-import { FPS_OPTIONS, buildExport, commentsAsText, toTimecode, type ExportComment, type ExportFormat } from '@/lib/comment-export';
+import { buildExport, commentsAsText, toTimecode, type ExportComment, type ExportFormat } from '@/lib/comment-export';
 
 const FORMATS: { id: ExportFormat; label: string; tag: string }[] = [
   { id: 'fcpxml', label: 'Final Cut Pro', tag: 'FCPXML' }, { id: 'avid', label: 'Media Composer', tag: 'TXT' },
@@ -15,8 +12,7 @@ const FORMATS: { id: ExportFormat; label: string; tag: string }[] = [
 const escHtml = (s: string) => s.replace(/[&<>]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch]!));
 
 export function CommentsMenu({ comments, title, detectedFps }: { comments: ExportComment[]; title: string; detectedFps?: number | null }) {
-  const [manual, setManual] = useState<number | null>(null);
-  const fps = manual ?? detectedFps ?? 25;
+  const fps = detectedFps ?? 25;
   const empty = comments.length === 0;
   const base = title.replace(/\.[^.]+$/, '').replace(/[^\w\-À-ÿ ]+/g, '').trim() || 'comentarios';
   const copy = async () => { await navigator.clipboard.writeText(commentsAsText(comments, fps)); toast.success('Comentários copiados'); };
@@ -41,12 +37,8 @@ export function CommentsMenu({ comments, title, detectedFps }: { comments: Expor
         <DropdownMenuSubTrigger disabled={empty}><Download className="mr-2 h-4 w-4" />Exportar comentários</DropdownMenuSubTrigger>
         <DropdownMenuSubContent className="w-60">{FORMATS.map((f, i) => <div key={f.id}>{i === 4 && <DropdownMenuSeparator />}<DropdownMenuItem onClick={() => download(f.id)}>{f.label}<span className="ml-auto text-xs text-muted-foreground">{f.tag}</span></DropdownMenuItem></div>)}</DropdownMenuSubContent>
       </DropdownMenuSub>
-      <DropdownMenuSub>
-        <DropdownMenuSubTrigger><Gauge className="mr-2 h-4 w-4" />Velocidade: {fps} fps{!manual && detectedFps ? ' (detetada)' : ''}</DropdownMenuSubTrigger>
-        <DropdownMenuSubContent><DropdownMenuRadioGroup value={String(fps)} onValueChange={v => setManual(Number(v))}>{FPS_OPTIONS.map(f => <DropdownMenuRadioItem key={f} value={String(f)}>{f} fps{f === detectedFps ? ' · detetada' : ''}</DropdownMenuRadioItem>)}</DropdownMenuRadioGroup></DropdownMenuSubContent>
-      </DropdownMenuSub>
       <DropdownMenuSeparator />
-      <DropdownMenuLabel className="flex gap-2 text-xs font-normal text-muted-foreground"><Info className="h-4 w-4 shrink-0" />Copia e exporta os comentários desta versão, com timecode na velocidade indicada. A velocidade é detetada ao reproduzir o vídeo; pode mudá-la acima.</DropdownMenuLabel>
+      <DropdownMenuLabel className="flex gap-2 text-xs font-normal text-muted-foreground"><Info className="h-4 w-4 shrink-0" />Copia e exporta os comentários desta versão, com timecode em {detectedFps ? `${detectedFps} fps, a velocidade deste vídeo` : '25 fps (reproduza o vídeo para usar a velocidade real dele)'}. Cada ficheiro mantém o seu próprio timecode.</DropdownMenuLabel>
     </DropdownMenuContent>
   </DropdownMenu>;
 }

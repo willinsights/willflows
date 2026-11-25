@@ -1,6 +1,7 @@
 import { CommentsMenu } from './CommentsMenu';
 import { CommentThread } from './CommentThread';
 import { useDetectedFps } from '@/hooks/useDetectedFps';
+import { FpsLabel } from './FpsLabel';
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -160,6 +161,7 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
 
         {playback ? <video ref={video} aria-label="Vídeo em revisão" controls playsInline poster={playback.thumbnail?.replace(/time=[^&]*/, 'time=50p')} onTimeUpdate={e => setNow(e.currentTarget.currentTime)} className="aspect-video w-full rounded-lg bg-muted" />
           : !showComparison && <div className="flex aspect-video items-center justify-center rounded-lg bg-muted text-muted-foreground">{selected ? 'A processar vídeo…' : 'Ainda não há vídeos neste cartão'}</div>}
+        {playback && <FpsLabel fps={fps} />}
 
         {approved && <div role="status" className="flex items-center gap-2 rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">
           <CheckCircle2 className="h-4 w-4" /> V{current?.version_number} aprovada por {review?.approval?.client_name}{review?.approval?.approved_at ? ` em ${new Date(review.approval.approved_at).toLocaleDateString('pt-PT')}` : ''} · comentários fechados
