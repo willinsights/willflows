@@ -1,5 +1,9 @@
 # Roadmap — pendências da auditoria
 
+## Erros do chat (25/11)
+- [x] Corrigir abertura de conversas: presença compartilhada entre feed e painel; troca de canais e recarregamento verificados na sessão válida do In-Sights.
+- [x] Verificar marcação da equipe com @: seleção, envio e registro da menção confirmados; mensagem temporária para o próprio usuário removida.
+
 ## Abas do cartão e logotipo (25/11)
 - [x] Ordenar as abas: Detalhes, Links, Timeline, Tempo, Checklist, Financeiro e Review Studio; sequência confirmada num cartão real do In-Sights.
 - [x] Corrigir o envio do logotipo permitindo a leitura dos ficheiros da própria conta necessária à substituição; envio no campo real confirmado, ficheiro temporário removido e logotipo guardado inalterado.

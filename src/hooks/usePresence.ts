@@ -2,11 +2,76 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { logger } from '@/lib/logger';
 
 interface PresenceState {
   user_id: string;
   online_at: string;
+}
+
+type PresenceSnapshot = { onlineUsers: Record<string, boolean>; isConnected: boolean };
+type PresenceListener = (snapshot: PresenceSnapshot) => void;
+interface PresenceSession {
+  listeners: Set<PresenceListener>;
+  snapshot: PresenceSnapshot;
+  channel: ReturnType<typeof supabase.channel>;
+  heartbeat?: ReturnType<typeof setInterval>;
+  teardown?: ReturnType<typeof setTimeout>;
+  closing?: Promise<unknown>;
+}
+
+// Presence topics must stay shared across users. Subscribe once per local
+// workspace/user, rather than giving each panel a different presence room.
+const sessions = new Map<string, PresenceSession>();
+
+function observePresence(workspaceId: string, userId: string, listener: PresenceListener) {
+  const key = `${workspaceId}:${userId}`;
+  let session = sessions.get(key);
+  if (session?.closing) {
+    let cancelled = false;
+    let cleanup: (() => void) | undefined;
+    void session.closing.then(() => {
+      if (!cancelled) cleanup = observePresence(workspaceId, userId, listener);
+    });
+    return () => { cancelled = true; cleanup?.(); };
+  }
+  if (!session) {
+    const channel = supabase.channel(`workspace-presence:${workspaceId}`, {
+      config: { presence: { key: userId } },
+    });
+    session = { channel, listeners: new Set(), snapshot: { onlineUsers: {}, isConnected: false } };
+    const shared = session;
+    sessions.set(key, shared);
+    const publish = () => shared.listeners.forEach(callback => callback(shared.snapshot));
+    const track = () => channel.track({ user_id: userId, online_at: new Date().toISOString() });
+    channel.on('presence', { event: 'sync' }, () => {
+      const onlineUsers: Record<string, boolean> = {};
+      Object.values(channel.presenceState<PresenceState>()).forEach(presences => {
+        presences.forEach(presence => { if (presence.user_id) onlineUsers[presence.user_id] = true; });
+      });
+      shared.snapshot = { ...shared.snapshot, onlineUsers };
+      publish();
+    }).subscribe(async status => {
+      shared.snapshot = { ...shared.snapshot, isConnected: status === 'SUBSCRIBED' };
+      publish();
+      if (status === 'SUBSCRIBED') await track();
+    });
+    shared.heartbeat = setInterval(() => {
+      if (shared.snapshot.isConnected) void track();
+    }, 30000);
+  }
+  const shared = session;
+  if (shared.teardown) clearTimeout(shared.teardown);
+  shared.listeners.add(listener);
+  listener(shared.snapshot);
+  return () => {
+    shared.listeners.delete(listener);
+    if (shared.listeners.size) return;
+    shared.teardown = setTimeout(() => {
+      if (shared.listeners.size) return;
+      clearInterval(shared.heartbeat);
+      shared.closing = supabase.removeChannel(shared.channel).finally(() => sessions.delete(key));
+    }, 0);
+  };
 }
 
 export function usePresence() {
@@ -26,82 +91,12 @@ export function usePresence() {
       return;
     }
 
-    const channelName = `workspace-presence:${currentWorkspace.id}`;
-    
-    const channel = supabase.channel(channelName, {
-      config: {
-        presence: {
-          key: user.id,
-        },
-      },
+    setOnlineUsers({});
+    setIsConnected(false);
+    return observePresence(currentWorkspace.id, user.id, snapshot => {
+      setOnlineUsers(snapshot.onlineUsers);
+      setIsConnected(snapshot.isConnected);
     });
-
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState<PresenceState>();
-        const online: Record<string, boolean> = {};
-        
-        Object.values(state).forEach((presences) => {
-          presences.forEach((presence) => {
-            if (presence.user_id) {
-              online[presence.user_id] = true;
-            }
-          });
-        });
-        
-        setOnlineUsers(online);
-        logger.debug('[Presence] Sync:', Object.keys(online).length, 'users online');
-      })
-      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-        logger.debug('[Presence] Join:', key, newPresences);
-        setOnlineUsers((prev) => {
-          const updated = { ...prev };
-          newPresences.forEach((p) => {
-            const userId = (p as unknown as PresenceState).user_id;
-            if (userId) updated[userId] = true;
-          });
-          return updated;
-        });
-      })
-      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-        logger.debug('[Presence] Leave:', key, leftPresences);
-        setOnlineUsers((prev) => {
-          const updated = { ...prev };
-          leftPresences.forEach((p) => {
-            const userId = (p as unknown as PresenceState).user_id;
-            if (userId) delete updated[userId];
-          });
-          return updated;
-        });
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          setIsConnected(true);
-          // Track this user's presence
-          await channel.track({
-            user_id: user.id,
-            online_at: new Date().toISOString(),
-          });
-          logger.debug('[Presence] Tracking user:', user.id);
-        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          setIsConnected(false);
-        }
-      });
-
-    // Update presence periodically (heartbeat)
-    const heartbeatInterval = setInterval(() => {
-      if (channel && isConnected) {
-        channel.track({
-          user_id: user.id,
-          online_at: new Date().toISOString(),
-        });
-      }
-    }, 30000); // Every 30 seconds
-
-    return () => {
-      clearInterval(heartbeatInterval);
-      supabase.removeChannel(channel);
-    };
   }, [currentWorkspace?.id, user?.id]);
 
   return { 
