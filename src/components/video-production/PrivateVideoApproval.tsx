@@ -40,6 +40,15 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
   const sibling = !approved ? review?.group_approval ?? null : null;
   const siblingNumber = sibling ? group?.versions.find(v => v.id === sibling.version_id)?.version_number : undefined;
   const locked = approved || !!sibling;
+  const [approvedOf, setApprovedOf] = useState<Record<string, string>>({});
+  const approvedId = group ? approvedOf[group.label] : undefined;
+  const approvedVersion = group?.versions.find(v => v.id === approvedId);
+  useEffect(() => {
+    if (!group || !review || review.version.id !== selected) return;
+    const id = review.approval ? selected : review.group_approval?.version_id;
+    setApprovedOf(m => { const n = { ...m }; if (id) n[group.label] = id; else delete n[group.label]; return n[group.label] === m[group.label] ? m : n; });
+    if (id && id !== selected) { setSelected(id); setComparing(false); }
+  }, [review, selected, group]);
   const [comparing, setComparing] = useState(false);
   const ready = group?.versions ?? [];
   const reader = useCallback((versionId: string) => request({ action: 'read', versionId, token }), [request, token]);
@@ -69,9 +78,9 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
       <div className="min-w-0"><h1 className="truncate text-lg font-semibold">{studio}</h1><p className="text-xs text-muted-foreground">Revisão e aprovação de vídeo</p></div>
     </div></header>
     <div className="mx-auto max-w-[1600px] space-y-4 px-3 py-4 md:px-4">
-      {groups.length > 1 && <div className="flex gap-3 overflow-x-auto pb-1">{groups.map(g => <button key={g.label} type="button" onClick={() => { setSelected(g.versions[0].id); setComparing(false); }} className={cn('shrink-0 rounded-lg border px-3 py-2 text-left text-sm', g === group ? 'border-primary ring-2 ring-primary/30' : 'border-border')}><Film className="mr-1 inline h-4 w-4" />{g.label}<span className="ml-2 text-xs text-muted-foreground">{g.versions.length} {g.versions.length === 1 ? 'versão' : 'versões'}</span></button>)}</div>}
-      {group && <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap"><span className="mr-1 font-medium">{group.label}</span>{group.versions.map(v => <Button key={v.id} size="sm" variant={v.id === selected ? 'default' : 'outline'} onClick={() => { setSelected(v.id); setComparing(false); }}>V{v.version_number}</Button>)}
-            {!comparing && <Tip text={ready.length < 2 ? 'Só existe uma versão deste vídeo; não há nada para comparar.' : 'Ver duas versões lado a lado, sincronizadas.'}><Button size="sm" variant="ghost" disabled={ready.length < 2} onClick={() => setComparing(true)}><ArrowLeftRight /> Comparar versões</Button></Tip>}
+      {groups.length > 1 && <div className="flex gap-3 overflow-x-auto pb-1">{groups.map(g => <button key={g.label} type="button" onClick={() => { setSelected(g.versions.find(v => v.id === approvedOf[g.label])?.id ?? g.versions[0].id); setComparing(false); }} className={cn('shrink-0 rounded-lg border px-3 py-2 text-left text-sm', g === group ? 'border-primary ring-2 ring-primary/30' : 'border-border')}><Film className="mr-1 inline h-4 w-4" />{g.label}<span className="ml-2 text-xs text-muted-foreground">{g.versions.length} {g.versions.length === 1 ? 'versão' : 'versões'}</span></button>)}</div>}
+      {group && <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap"><span className="mr-1 font-medium">{group.label}</span>{(approvedVersion ? [approvedVersion] : group.versions).map(v => <Button key={v.id} size="sm" variant={v.id === selected ? 'default' : 'outline'} onClick={() => { setSelected(v.id); setComparing(false); }}>V{v.version_number}</Button>)}
+            {approvedVersion && <span className="flex items-center gap-1.5 rounded-md border border-success/40 bg-success/10 px-2 py-1 text-xs text-success"><CheckCircle2 className="h-3.5 w-3.5" />Versão aprovada</span>}{!approvedVersion && !comparing && <Tip text={ready.length < 2 ? 'Só existe uma versão deste vídeo; não há nada para comparar.' : 'Ver duas versões lado a lado, sincronizadas.'}><Button size="sm" variant="ghost" disabled={ready.length < 2} onClick={() => setComparing(true)}><ArrowLeftRight /> Comparar versões</Button></Tip>}
             <Tip text={RETENTION_INFO}><button type="button" aria-label="Como funciona este link" className="ml-auto text-muted-foreground hover:text-foreground"><Info className="h-4 w-4" /></button></Tip>
           </div>}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
