@@ -225,6 +225,13 @@
       "when": 1795634021420,
       "tag": "0031_chat_requires_active_sub_lock_signed_contracts",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1795639752444,
+      "tag": "0032_harden_self_pay_and_followups_membership",
+      "breakpoints": true
     }
   ]
 }

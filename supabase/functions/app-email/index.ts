@@ -216,7 +216,10 @@ Deno.serve(async (req) => {
     // Server-side enrichment for invitation: compute roleLabel and inviteLink
     if (template === 'invitation') {
       // Resolve token server-side from invitation_id to avoid exposing plaintext tokens to clients
-      if (!data.token && data.invitation_id) {
+      // Never trust caller-supplied links or tokens: always derive from the stored invitation
+      delete data.inviteLink
+      delete data.token
+      if (data.invitation_id) {
         const { data: inv, error: invErr } = await supabase
           .from('workspace_invitations')
           .select('token, workspace_id, email, role')
@@ -228,7 +231,7 @@ Deno.serve(async (req) => {
           })
         }
         data.token = inv.token
-        if (!data.role) data.role = inv.role
+        data.role = inv.role
       }
       if (data.role && !data.roleLabel) {
         data.roleLabel = ROLE_LABELS[data.role as string] || (data.role as string)
