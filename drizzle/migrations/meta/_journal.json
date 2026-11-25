@@ -176,6 +176,13 @@
       "when": 1795618473660,
       "tag": "0024_private_video_reopen_approval",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1795620057053,
+      "tag": "0025_private_video_comment_manage",
+      "breakpoints": true
     }
   ]
 }

@@ -8,11 +8,15 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ArrowLeftRight, Check, CheckCircle2, Film, Info, Lock, Send } from 'lucide-react';
 import { CanonicalVideoComparison } from './CanonicalVideoComparison';
 import { CommentsMenu } from './CommentsMenu';
+import { CommentThread } from './CommentThread';
+const KEYS = 'wf_review_comment_keys';
+const keyHash = async (id: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('wfc:' + id))), x => x.toString(16).padStart(2, '0')).join('');
+const loadKeys = (): Record<string, string> => { try { return JSON.parse(localStorage.getItem(KEYS) ?? '{}'); } catch { return {}; } };
 
 const Tip = ({ text, children }: { text: string; children: React.ReactNode }) => <TooltipProvider delayDuration={200}><Tooltip><TooltipTrigger asChild><span className="inline-flex">{children}</span></TooltipTrigger><TooltipContent className="max-w-xs text-xs">{text}</TooltipContent></Tooltip></TooltipProvider>;
 const RETENTION_INFO = 'Este link mostra todos os vídeos deste projeto e é válido 7 dias. Depois de aprovado, o vídeo fica disponível 7 dias e é eliminado. Ficam guardados os comentários da revisão, a versão aprovada, quem aprovou e quando.';
 
-type Comment = { id: string; body: string; client_name: string; timestamp_seconds: number };
+type Comment = { id: string; body: string; client_name: string; timestamp_seconds: number; parent_id?: string | null; resolved_at?: string | null; edited_at?: string | null; from_team?: boolean; key?: string | null };
 type Review = { version: { id: string; file_name: string }; comments: Comment[]; approval: { client_name: string; notes: string; approved_at?: string } | null; playback: { url: string; thumbnail?: string; expiresAt: number } | null; branding?: { name: string; logo_url: string | null } | null };
 type Listed = { id: string; file_name: string; created_at: string; label?: string | null };
 const RETENTION_DAYS = 7;
@@ -23,6 +27,8 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
   const [branding, setBranding] = useState<{ name: string; logo_url: string | null } | null>(null);
   const [name, setName] = useState(''), [body, setBody] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [now, setNow] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [keys, setKeys] = useState<Record<string, string>>(loadKeys);
+  const remember = async (requestId: string) => { const next = { ...loadKeys(), [await keyHash(requestId)]: requestId }; localStorage.setItem(KEYS, JSON.stringify(next)); setKeys(next); };
   useHlsPlayer({ videoRef, url: review?.playback?.url ?? null, type: review?.playback?.url.includes('.m3u8') ? 'hls' : review?.playback ? 'native' : 'none' });
   const groups = useMemo(() => groupDeliverables(versions), [versions]);
   const group = groups.find(g => g.versions.some(v => v.id === selected)) ?? groups[0];
@@ -43,7 +49,7 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
     if (!selected || !name.trim() || busy || approved) return;
     if (action === 'approval' && !window.confirm(`Aprovar a V${current?.version_number} de «${group?.label}»? Depois de aprovar, deixa de poder comentar esta versão.`)) return;
     setBusy(true); setError('');
-    try { await request({ action, token, versionId: selected, requestId: crypto.randomUUID(), name, body, timestamp: videoRef.current?.currentTime ?? 0 }); setBody(''); await load(selected); }
+    try { const requestId = crypto.randomUUID(); if (action === 'comment') await remember(requestId); await request({ action, token, versionId: selected, requestId, name, body, timestamp: videoRef.current?.currentTime ?? 0 }); setBody(''); await load(selected); }
     catch { setError('Não foi possível guardar. Tente novamente.'); } finally { setBusy(false); }
   };
   const seek = (t: number) => { if (videoRef.current) { videoRef.current.currentTime = t; videoRef.current.pause(); } };
@@ -76,8 +82,9 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
           <div className="flex items-center justify-between"><h2 className="font-semibold">Comentários</h2><CommentsMenu comments={comments} title={review?.version.file_name ?? group?.label ?? studio} /></div>
           {!approved && <p className="text-xs text-muted-foreground">{RETENTION_INFO}</p>}
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">{comments.length === 0 && <p className="text-sm text-muted-foreground">Pause o vídeo no momento certo e escreva o seu comentário.</p>}
-          <ul className="space-y-2">{comments.map(c => <li key={c.id} className="break-words rounded-md bg-muted/50 p-2 text-sm">
-            <div className="mb-1 flex items-center gap-2"><button type="button" onClick={() => seek(c.timestamp_seconds)} className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-xs text-primary">{formatClock(c.timestamp_seconds)}</button><strong>{c.client_name}</strong></div><p>{c.body}</p></li>)}</ul></div>
+          <CommentThread comments={comments} locked={approved} onSeek={seek} canEdit={c => !!c.key && !!keys[c.key]} canDelete={c => !!c.key && !!keys[c.key]}
+            onEdit={async (c, text) => { await request({ action: 'comment-edit', token, versionId: selected, requestId: keys[c.key!], body: text }); await load(selected); }}
+            onDelete={async c => { await request({ action: 'comment-delete', token, versionId: selected, requestId: keys[c.key!] }); await load(selected); }} /></div>
           <div className="min-w-0 space-y-2 border-t border-border pt-3">
           {approved ? <p className="flex items-center gap-2 text-sm text-muted-foreground"><Lock className="h-4 w-4" /> Esta versão foi aprovada; os comentários estão fechados.</p> : <>
             <label className="block text-sm">Nome<input className="mt-1 w-full rounded-md border border-input bg-background p-2" value={name} maxLength={120} onChange={e => setName(e.target.value)} /></label>

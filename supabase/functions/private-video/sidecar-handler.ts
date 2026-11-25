@@ -13,6 +13,7 @@ export async function digestPrivateLink(token:unknown):Promise<string> {
  const bytes=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token)));
  return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
 }
+export async function keyHash(id:string):Promise<string>{const b=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode('wfc:'+id)));return Array.from(b,x=>x.toString(16).padStart(2,'0')).join('');}
 export async function sidecarRequest(req:Request,d:SidecarDependencies):Promise<Response> {
  const headers={'Content-Type':'application/json','Cache-Control':'private, no-store','Vary':'Authorization'};
  const answer=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers});
@@ -76,6 +77,16 @@ export async function sidecarRequest(req:Request,d:SidecarDependencies):Promise<
    if(!uuid.test(b.requestId??'')||typeof b.body!=='string'||b.body.length>5000||!Number.isFinite(b.timestamp??0)||(b.timestamp??0)<0)return answer({code:'INVALID_INPUT'},400);
    await rpc('private_video_client_feedback',{p_request:b.requestId,p_version:b.versionId,p_user:user,p_type:b.action==='client-comment'?'comment':'approval',p_body:b.body,p_timestamp:b.timestamp??0});return answer({success:true},201);
   }
+  if(['comment-edit','comment-delete','comment-resolve','comment-unresolve'].includes(b.action)){
+   const op=b.action.slice(8);
+   if(digest?!uuid.test(b.requestId??''):!uuid.test(b.commentId??''))return answer({code:'INVALID_INPUT'},400);
+   if(op==='edit'&&(typeof b.body!=='string'||!b.body.trim()||b.body.length>5000))return answer({code:'INVALID_INPUT'},400);
+   await rpc('private_video_comment_manage',{p_op:op,p_version:b.versionId,p_comment:digest?null:b.commentId,p_request:digest?b.requestId:null,p_user:digest?null:user,p_digest:digest,p_body:op==='edit'?b.body:null});return answer({success:true});
+  }
+  if(b.action==='client-reply'){
+   if(!user||digest||!uuid.test(b.requestId??'')||!uuid.test(b.parentId??'')||typeof b.body!=='string'||!b.body.trim()||b.body.length>5000)return answer({code:'INVALID_INPUT'},400);
+   await rpc('private_video_comment_reply',{p_request:b.requestId,p_version:b.versionId,p_parent:b.parentId,p_user:user,p_body:b.body});return answer({success:true},201);
+  }
   if(b.action==='read'){
    const v=initial.version;
    let playback=null;
@@ -83,7 +94,7 @@ export async function sidecarRequest(req:Request,d:SidecarDependencies):Promise<
    const latest=await rpc('private_video_read',args); // revoke/withdraw/parent removal during provider I/O deny release.
    if(latest.version.stream_uid!==v.stream_uid||latest.version.generation!==v.generation)throw Error('PRIVATE_CONTEXT_DENIED');
    const safe=(row:any)=>({id:row.id,file_name:row.file_name,file_size_bytes:row.bytes,created_at:row.created_at,generation:row.generation,stream_status:playback?'ready':'processing'});
-   return answer({version:safe(latest.version),comments:latest.comments.map((c:any)=>({id:c.id,video_version_id:c.version_id,body:c.body,timestamp_seconds:c.timestamp_seconds,client_name:c.name,created_at:c.created_at})),
+   return answer({version:safe(latest.version),comments:await Promise.all(latest.comments.filter((c:any)=>!c.deleted_at).map(async(c:any)=>({id:c.id,video_version_id:c.version_id,body:c.body,timestamp_seconds:c.timestamp_seconds,client_name:c.name,created_at:c.created_at,parent_id:c.parent_id??null,resolved_at:c.resolved_at??null,edited_at:c.edited_at??null,from_team:uuid.test(c.digest),mine:!digest&&c.digest===user,key:digest&&c.digest===digest?await keyHash(c.request_id):null}))),
     approval:latest.approval?{client_name:latest.approval.name,notes:latest.approval.notes,approved_at:latest.approval.approved_at}:null,playback,
     branding:digest&&d.branding?await d.branding(latest.version.workspace_id).catch(()=>null):null});
   }

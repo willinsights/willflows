@@ -1,4 +1,5 @@
 import { CommentsMenu } from './CommentsMenu';
+import { CommentThread } from './CommentThread';
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -15,7 +16,7 @@ import { ArrowLeftRight, Info, RotateCcw, Check, CheckCircle2, Copy, Download, F
 import { CanonicalVideoComparison } from './CanonicalVideoComparison';
 
 type Version = { id: string; file_name: string; bytes: number; state: string; created_at: string; label?: string | null };
-type Comment = { id: string; client_name: string; body: string; timestamp_seconds: number; created_at?: string };
+type Comment = { id: string; client_name: string; body: string; timestamp_seconds: number; created_at?: string; parent_id?: string | null; resolved_at?: string | null; edited_at?: string | null; from_team?: boolean; mine?: boolean };
 type Review = { version: { id: string }; comments: Comment[]; approval: { client_name: string; approved_at?: string } | null; playback: { url: string; thumbnail?: string; expiresAt: number } | null };
 type Meta = { approved: boolean };
 // Hover explanation wrapper; span keeps tooltips working on disabled buttons.
@@ -203,12 +204,13 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
         </div>}
 
         <div className="space-y-3 rounded-lg border border-border p-3">
-          <div className="flex items-center justify-between"><p className="flex items-center gap-2 text-sm font-medium"><MessageSquare className="h-4 w-4" /> Comentários {comments.length > 0 && <Badge variant="secondary">{comments.length}</Badge>}</p><CommentsMenu comments={comments} title={group?.label ?? 'video'} /></div>
+          <div className="flex items-center justify-between"><p className="flex items-center gap-2 text-sm font-medium"><MessageSquare className="h-4 w-4" /> Comentários {comments.length > 0 && <Badge variant="secondary">{comments.filter(c => !c.parent_id && !c.resolved_at).length} por fazer</Badge>}</p><CommentsMenu comments={comments} title={group?.label ?? 'video'} /></div>
           {comments.length === 0 && <p className="text-xs text-muted-foreground">Sem comentários nesta versão.</p>}
-          <ul className="max-h-80 space-y-2 overflow-y-auto">{comments.map(c => <li key={c.id} className="break-words rounded-md bg-muted/50 p-2 text-sm">
-            <div className="mb-1 flex items-center gap-2"><button type="button" onClick={() => seek(c.timestamp_seconds)} className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-xs text-primary hover:bg-primary/25" aria-label={`Ir para ${formatClock(c.timestamp_seconds)}`}>{formatClock(c.timestamp_seconds)}</button><strong className="truncate">{c.client_name}</strong></div>
-            <p>{c.body}</p>
-          </li>)}</ul>
+          <div className="max-h-96 overflow-y-auto"><CommentThread comments={comments} locked={approved} onSeek={seek} canEdit={c => !!c.mine} canDelete={c => !!c.mine || !!context?.canEdit} canResolve={!!context?.canEdit} canReply
+            onEdit={async (c, body) => { await privateVideoRequest({ action: 'comment-edit', versionId: selected, commentId: c.id, body }); await read(); }}
+            onDelete={async c => { await privateVideoRequest({ action: 'comment-delete', versionId: selected, commentId: c.id }); await read(); }}
+            onResolve={async (c, done) => { await privateVideoRequest({ action: done ? 'comment-resolve' : 'comment-unresolve', versionId: selected, commentId: c.id }); await read(); }}
+            onReply={async (c, body) => { await privateVideoRequest({ action: 'client-reply', versionId: selected, parentId: c.id, requestId: crypto.randomUUID(), body }); await read(); }} /></div>
           {selected && (approved
             ? <p className="flex items-center gap-2 text-xs text-muted-foreground"><Lock className="h-3.5 w-3.5" /> Versão aprovada: não aceita novos comentários.</p>
             : <>

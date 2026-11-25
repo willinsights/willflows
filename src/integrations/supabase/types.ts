@@ -6048,6 +6048,28 @@ export type Database = {
         Args: { p_user: string; p_version: string }
         Returns: boolean
       }
+      private_video_comment_manage: {
+        Args: {
+          p_body?: string
+          p_comment?: string
+          p_digest?: string
+          p_op: string
+          p_request?: string
+          p_user?: string
+          p_version: string
+        }
+        Returns: boolean
+      }
+      private_video_comment_reply: {
+        Args: {
+          p_body: string
+          p_parent: string
+          p_request: string
+          p_user: string
+          p_version: string
+        }
+        Returns: boolean
+      }
       private_video_context: {
         Args: {
           p_project: string
