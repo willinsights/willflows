@@ -47,13 +47,16 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
   const groups = useMemo(() => groupDeliverables(versions), [versions]);
   const group = groups.find(g => g.versions.some(v => v.id === selected)) ?? groups[0];
   const current = group?.versions.find(v => v.id === selected);
-  const comparable = (group?.versions ?? []).filter(v => v.state === 'ready');
+  const approvedIn = (g?: typeof group) => g?.versions.find(v => meta[v.id]?.approved);
+  const approvedVersion = approvedIn(group);
+  const comparable = approvedVersion ? [] : (group?.versions ?? []).filter(v => v.state === 'ready');
   const showComparison = comparing && comparable.length > 1;
   const playback = showComparison || review?.version.id !== selected ? null : review.playback;
   const approved = !!review?.approval;
   const sibling = !approved ? review?.group_approval ?? null : null;
   const siblingNumber = sibling ? group?.versions.find(v => v.id === sibling.version_id)?.version_number : undefined;
   const locked = approved || !!sibling;
+  useEffect(() => { if (approvedVersion && approvedVersion.id !== selected) { setSelected(approvedVersion.id); setComparing(false); } }, [approvedVersion, selected]);
   const fps = useDetectedFps(video, playback?.url);
   useHlsPlayer({ videoRef: video, url: playback?.url ?? null, type: playback ? 'hls' : 'none' });
 
@@ -140,7 +143,7 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
       <p className="text-sm font-medium text-muted-foreground">Vídeos deste cartão ({groups.length})</p>
       <div className="flex flex-wrap gap-2">
         {groups.map(g => {
-          const latest = g.versions[0]; const active = g === group; const ok = g.versions.some(v => meta[v.id]?.approved);
+          const latest = approvedIn(g) ?? g.versions[0]; const active = g === group; const ok = g.versions.some(v => meta[v.id]?.approved);
           return <Tip key={g.label} text={`${g.label} · ${g.versions.length} ${g.versions.length === 1 ? 'versão' : 'versões'}${ok ? ' · aprovado' : ''}`}><button type="button" onClick={() => { setSelected(latest.id); setComparing(false); }}
             className={cn('flex max-w-[16rem] shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors', active ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:border-primary/50')}>
             {ok ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" /> : <Film className="h-3.5 w-3.5 shrink-0" />}
@@ -155,11 +158,12 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
     <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
       <div className="min-w-0 space-y-4">
         {group && <div className="flex flex-wrap items-center gap-2">
-          {group.versions.map(v => <Button key={v.id} size="sm" variant={v.id === selected ? 'default' : 'outline'} onClick={() => { setSelected(v.id); setComparing(false); }} aria-label={`V${v.version_number}`}>
+          {(approvedVersion ? [approvedVersion] : group.versions).map(v => <Button key={v.id} size="sm" variant={v.id === selected ? 'default' : 'outline'} onClick={() => { setSelected(v.id); setComparing(false); }} aria-label={`V${v.version_number}`}>
             V{v.version_number}{meta[v.id]?.approved && <CheckCircle2 className="ml-1 h-3.5 w-3.5 text-success" />}
           </Button>)}
-          {!showComparison && <Tip text={comparable.length < 2 ? 'Envie uma segunda versão deste vídeo para comparar.' : 'Ver duas versões lado a lado, sincronizadas.'}><Button size="sm" variant="ghost" disabled={comparable.length < 2} onClick={() => setComparing(true)}><ArrowLeftRight /> Comparar versões</Button></Tip>}
-          {comparable.length < 2 && <span className="text-xs text-muted-foreground">Para comparar, envie uma nova versão deste vídeo.</span>}
+          {approvedVersion && <span className="flex items-center gap-1.5 rounded-md border border-success/40 bg-success/10 px-2 py-1 text-xs text-success"><CheckCircle2 className="h-3.5 w-3.5" />Versão aprovada{group.versions.length > 1 ? ` · ${group.versions.length - 1} outra(s) escondida(s) até reabrir a edição` : ''}</span>}
+          {!approvedVersion && !showComparison && <Tip text={comparable.length < 2 ? 'Envie uma segunda versão deste vídeo para comparar.' : 'Ver duas versões lado a lado, sincronizadas.'}><Button size="sm" variant="ghost" disabled={comparable.length < 2} onClick={() => setComparing(true)}><ArrowLeftRight /> Comparar versões</Button></Tip>}
+          {!approvedVersion && comparable.length < 2 && <span className="text-xs text-muted-foreground">Para comparar, envie uma nova versão deste vídeo.</span>}
         </div>}
 
         {playback ? <video ref={video} aria-label="Vídeo em revisão" controls playsInline poster={playback.thumbnail?.replace(/time=[^&]*/, 'time=50p')} onTimeUpdate={e => setNow(e.currentTarget.currentTime)} className="aspect-video w-full rounded-lg bg-muted" />
