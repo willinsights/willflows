@@ -6189,6 +6189,10 @@ export type Database = {
         Args: { p_label: string; p_user: string; p_version: string }
         Returns: boolean
       }
+      private_video_sibling_approval: {
+        Args: { p_version: string }
+        Returns: Json
+      }
       private_video_usage: {
         Args: { p_user: string; p_ws: string }
         Returns: Json

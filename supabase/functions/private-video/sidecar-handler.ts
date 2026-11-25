@@ -62,6 +62,8 @@ export async function sidecarRequest(req:Request,d:SidecarDependencies):Promise<
   }
   // Approval closes the review: no further comments or approvals on that version (server-enforced).
   if(initial.approval&&['client-comment','client-approval','comment','approval'].includes(b.action))return answer({code:'ALREADY_APPROVED'},409);
+  const sibling=async()=>{const r=await d.rpc('private_video_sibling_approval',{p_version:b.versionId});if(r.error)throw Error('PRIVATE_CONTEXT_DENIED');return r.data??null;};
+  if(['client-comment','client-approval','comment','approval','client-reply'].includes(b.action)&&await sibling())return answer({code:'OTHER_VERSION_APPROVED'},409);
   if(b.action==='download'){
    if(!d.download)return answer({code:'DOWNLOAD_UNAVAILABLE'},503);
    if(initial.version.state!=='ready')return answer({code:'DOWNLOAD_UNAVAILABLE'},409);
@@ -95,7 +97,7 @@ export async function sidecarRequest(req:Request,d:SidecarDependencies):Promise<
    if(latest.version.stream_uid!==v.stream_uid||latest.version.generation!==v.generation)throw Error('PRIVATE_CONTEXT_DENIED');
    const safe=(row:any)=>({id:row.id,file_name:row.file_name,file_size_bytes:row.bytes,created_at:row.created_at,generation:row.generation,stream_status:playback?'ready':'processing'});
    return answer({version:safe(latest.version),comments:await Promise.all(latest.comments.filter((c:any)=>!c.deleted_at).map(async(c:any)=>({id:c.id,video_version_id:c.version_id,body:c.body,timestamp_seconds:c.timestamp_seconds,client_name:c.name,created_at:c.created_at,parent_id:c.parent_id??null,resolved_at:c.resolved_at??null,edited_at:c.edited_at??null,from_team:uuid.test(c.digest),mine:!digest&&c.digest===user,key:digest&&c.digest===digest?await keyHash(c.request_id):null}))),
-    approval:latest.approval?{client_name:latest.approval.name,notes:latest.approval.notes,approved_at:latest.approval.approved_at}:null,playback,
+    group_approval:latest.approval?null:await sibling(),approval:latest.approval?{client_name:latest.approval.name,notes:latest.approval.notes,approved_at:latest.approval.approved_at}:null,playback,
     branding:digest&&d.branding?await d.branding(latest.version.workspace_id).catch(()=>null):null});
   }
   if(b.action==='comment'||b.action==='approval'){

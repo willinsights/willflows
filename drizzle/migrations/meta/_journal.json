@@ -183,6 +183,13 @@
       "when": 1795620057053,
       "tag": "0025_private_video_comment_manage",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1795620902090,
+      "tag": "0026_private_video_sibling_approval",
+      "breakpoints": true
     }
   ]
 }

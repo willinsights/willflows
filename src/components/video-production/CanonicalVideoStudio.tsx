@@ -19,7 +19,7 @@ import { CanonicalVideoComparison } from './CanonicalVideoComparison';
 
 type Version = { id: string; file_name: string; bytes: number; state: string; created_at: string; label?: string | null };
 type Comment = { id: string; client_name: string; body: string; timestamp_seconds: number; created_at?: string; parent_id?: string | null; resolved_at?: string | null; edited_at?: string | null; from_team?: boolean; mine?: boolean };
-type Review = { version: { id: string }; comments: Comment[]; approval: { client_name: string; approved_at?: string } | null; playback: { url: string; thumbnail?: string; expiresAt: number } | null };
+type Review = { version: { id: string }; comments: Comment[]; approval: { client_name: string; approved_at?: string } | null; playback: { url: string; thumbnail?: string; expiresAt: number } | null; group_approval?: { version_id: string; name: string; approved_at: string } | null };
 type Meta = { approved: boolean };
 // Hover explanation wrapper; span keeps tooltips working on disabled buttons.
 const Tip = ({ text, children }: { text: string; children: React.ReactNode }) => <TooltipProvider delayDuration={200}><Tooltip><TooltipTrigger asChild><span className="inline-flex">{children}</span></TooltipTrigger><TooltipContent className="max-w-xs text-xs">{text}</TooltipContent></Tooltip></TooltipProvider>;
@@ -51,6 +51,9 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
   const showComparison = comparing && comparable.length > 1;
   const playback = showComparison || review?.version.id !== selected ? null : review.playback;
   const approved = !!review?.approval;
+  const sibling = !approved ? review?.group_approval ?? null : null;
+  const siblingNumber = sibling ? group?.versions.find(v => v.id === sibling.version_id)?.version_number : undefined;
+  const locked = approved || !!sibling;
   const fps = useDetectedFps(video, playback?.url);
   useHlsPlayer({ videoRef: video, url: playback?.url ?? null, type: playback ? 'hls' : 'none' });
 
@@ -210,12 +213,12 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
         <div className="space-y-3 rounded-lg border border-border p-3">
           <div className="flex items-center justify-between"><p className="flex items-center gap-2 text-sm font-medium"><MessageSquare className="h-4 w-4" /> Comentários {comments.length > 0 && <Badge variant="secondary">{comments.filter(c => !c.parent_id && !c.resolved_at).length} por fazer</Badge>}</p><CommentsMenu comments={comments} detectedFps={fps} title={group?.label ?? 'video'} /></div>
           {comments.length === 0 && <p className="text-xs text-muted-foreground">Sem comentários nesta versão.</p>}
-          <div className="max-h-96 overflow-y-auto"><CommentThread comments={comments} locked={approved} onSeek={seek} canEdit={c => !!c.mine} canDelete={c => !!c.mine || !!context?.canEdit} canResolve={!!context?.canEdit} canReply
+          <div className="max-h-96 overflow-y-auto"><CommentThread comments={comments} locked={locked} onSeek={seek} canEdit={c => !!c.mine} canDelete={c => !!c.mine || !!context?.canEdit} canResolve={!!context?.canEdit} canReply
             onEdit={async (c, body) => { await privateVideoRequest({ action: 'comment-edit', versionId: selected, commentId: c.id, body }); await read(); }}
             onDelete={async c => { await privateVideoRequest({ action: 'comment-delete', versionId: selected, commentId: c.id }); await read(); }}
             onResolve={async (c, done) => { await privateVideoRequest({ action: done ? 'comment-resolve' : 'comment-unresolve', versionId: selected, commentId: c.id }); await read(); }}
             onReply={async (c, body) => { await privateVideoRequest({ action: 'client-reply', versionId: selected, parentId: c.id, requestId: crypto.randomUUID(), body }); await read(); }} /></div>
-          {selected && (approved
+          {selected && sibling ? <p role="note" className="flex items-center gap-2 text-sm text-muted-foreground"><Lock className="h-4 w-4 shrink-0" /> A V{siblingNumber ?? '?'} deste vídeo já foi aprovada{sibling.name ? ` por ${sibling.name}` : ''}; as outras versões deixam de aceitar comentários. Pode comentar os outros vídeos deste cartão.</p> : selected && (approved
             ? <p className="flex items-center gap-2 text-xs text-muted-foreground"><Lock className="h-3.5 w-3.5" /> Versão aprovada: não aceita novos comentários.</p>
             : <>
               <Textarea aria-label="Comentário da equipe" placeholder={`Comentário em ${formatClock(now)}`} value={comment} maxLength={5000} onFocus={() => video.current?.pause()} onChange={e => setComment(e.target.value)} />

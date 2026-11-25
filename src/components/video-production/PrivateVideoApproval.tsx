@@ -19,7 +19,7 @@ const Tip = ({ text, children }: { text: string; children: React.ReactNode }) =>
 const RETENTION_INFO = 'Este link mostra todos os vídeos deste projeto e é válido 7 dias. Depois de aprovado, o vídeo fica disponível 7 dias e é eliminado. Ficam guardados os comentários da revisão, a versão aprovada, quem aprovou e quando.';
 
 type Comment = { id: string; body: string; client_name: string; timestamp_seconds: number; parent_id?: string | null; resolved_at?: string | null; edited_at?: string | null; from_team?: boolean; key?: string | null };
-type Review = { version: { id: string; file_name: string }; comments: Comment[]; approval: { client_name: string; notes: string; approved_at?: string } | null; playback: { url: string; thumbnail?: string; expiresAt: number } | null; branding?: { name: string; logo_url: string | null } | null };
+type Review = { version: { id: string; file_name: string }; comments: Comment[]; approval: { client_name: string; notes: string; approved_at?: string } | null; playback: { url: string; thumbnail?: string; expiresAt: number } | null; branding?: { name: string; logo_url: string | null } | null; group_approval?: { version_id: string; name: string; approved_at: string } | null };
 type Listed = { id: string; file_name: string; created_at: string; label?: string | null };
 const RETENTION_DAYS = 7;
 
@@ -37,6 +37,9 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
   const group = groups.find(g => g.versions.some(v => v.id === selected)) ?? groups[0];
   const current = group?.versions.find(v => v.id === selected);
   const approved = !!review?.approval;
+  const sibling = !approved ? review?.group_approval ?? null : null;
+  const siblingNumber = sibling ? group?.versions.find(v => v.id === sibling.version_id)?.version_number : undefined;
+  const locked = approved || !!sibling;
   const [comparing, setComparing] = useState(false);
   const ready = group?.versions ?? [];
   const reader = useCallback((versionId: string) => request({ action: 'read', versionId, token }), [request, token]);
@@ -49,7 +52,7 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
   useEffect(() => { if (!selected) return; setReview(null); void load(selected); const timer = setInterval(() => void load(selected), 60000); return () => clearInterval(timer); }, [selected, load]);
 
   const feedback = async (action: 'comment' | 'approval') => {
-    if (!selected || !name.trim() || busy || approved) return;
+    if (!selected || !name.trim() || busy || locked) return;
     if (action === 'approval' && !window.confirm(`Aprovar a V${current?.version_number} de «${group?.label}»? Depois de aprovar, deixa de poder comentar esta versão.`)) return;
     setBusy(true); setError('');
     try { const requestId = crypto.randomUUID(); if (action === 'comment') await remember(requestId); await request({ action, token, versionId: selected, requestId, name, body, timestamp: videoRef.current?.currentTime ?? 0 }); setBody(''); await load(selected); }
@@ -86,16 +89,16 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
           <div className="flex items-center justify-between"><h2 className="font-semibold">Comentários</h2><CommentsMenu comments={comments} detectedFps={fps} title={review?.version.file_name ?? group?.label ?? studio} /></div>
           {!approved && <p className="text-xs text-muted-foreground">{RETENTION_INFO}</p>}
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">{comments.length === 0 && <p className="text-sm text-muted-foreground">Pause o vídeo no momento certo e escreva o seu comentário.</p>}
-          <CommentThread comments={comments} locked={approved} onSeek={seek} canEdit={c => !!c.key && !!keys[c.key]} canDelete={c => !!c.key && !!keys[c.key]}
+          <CommentThread comments={comments} locked={locked} onSeek={seek} canEdit={c => !!c.key && !!keys[c.key]} canDelete={c => !!c.key && !!keys[c.key]}
             onEdit={async (c, text) => { await request({ action: 'comment-edit', token, versionId: selected, requestId: keys[c.key!], body: text }); await load(selected); }}
             onDelete={async c => { await request({ action: 'comment-delete', token, versionId: selected, requestId: keys[c.key!] }); await load(selected); }} /></div>
           <div className="min-w-0 space-y-2 border-t border-border pt-3">
-          {approved ? <p className="flex items-center gap-2 text-sm text-muted-foreground"><Lock className="h-4 w-4" /> Esta versão foi aprovada; os comentários estão fechados.</p> : <>
+          {sibling ? <p role="note" className="flex items-center gap-2 text-sm text-muted-foreground"><Lock className="h-4 w-4 shrink-0" /> A V{siblingNumber ?? '?'} deste vídeo já foi aprovada{sibling.name ? ` por ${sibling.name}` : ''}; as outras versões deixam de aceitar comentários. Pode comentar os outros vídeos deste cartão.</p> : (approved ? <p className="flex items-center gap-2 text-sm text-muted-foreground"><Lock className="h-4 w-4" /> Esta versão foi aprovada; os comentários estão fechados.</p> : <>
             <label className="block text-sm">Nome<input className="mt-1 w-full rounded-md border border-input bg-background p-2" value={name} maxLength={120} onChange={e => setName(e.target.value)} /></label>
             <label className="block text-sm">Comentário em {formatClock(now)}<textarea className="mt-1 w-full rounded-md border border-input bg-background p-2" rows={2} maxLength={5000} value={body} onFocus={() => videoRef.current?.pause()} onChange={e => setBody(e.target.value)} /></label>
             <div className="flex flex-wrap gap-2"><Tip text={!name.trim() ? 'Escreva o seu nome para comentar.' : 'Envia o comentário no tempo atual do vídeo.'}><Button onClick={() => void feedback('comment')} disabled={busy || !name.trim() || !body.trim()}><Send /> Enviar comentário</Button></Tip><Tip text={!name.trim() ? 'Escreva o seu nome para aprovar.' : 'Aprova esta versão e fecha os comentários. O vídeo fica disponível mais 7 dias.'}><Button variant="outline" onClick={() => void feedback('approval')} disabled={busy || !name.trim()}><Check /> Aprovar V{current?.version_number}</Button></Tip></div>
             {!name.trim() && <p role="note" className="text-xs text-warning">Escreva o seu nome acima para poder comentar ou aprovar.</p>}
-          </>}
+          </>)}
           </div>
         </section>
       </div>
