@@ -39,3 +39,4 @@
 - Private video handlers share signing-key JWT verification via getClaims and accept only authenticated UUID subjects. Why: valid sessionless JWTs must not fail getUser session lookup; workspace authorization remains in server RPCs.
 - Authentication context identity lives outside the provider component and persists in Vite hot data. Why: lazy consumers and retained providers must share the same context during preview updates; missing providers still fail closed.
 - Mark static description and route-overridden OG fallback tags with data-rh="true". Why: Helmet must replace them rather than append ambiguous duplicate metadata.
+- Client receipt entry uses one shared dialog/hook in project details and Movimentos, updating existing delivered-project revenue only. Why: prevent duplicate income and keep the two screens consistent.

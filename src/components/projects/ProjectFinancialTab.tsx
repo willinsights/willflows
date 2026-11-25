@@ -1,7 +1,6 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { DollarSign, User, Camera, Film, CreditCard, Calendar, Package, Lock, RotateCcw, List, Activity } from 'lucide-react';
-import { format } from 'date-fns';
-import { pt } from 'date-fns/locale';
+import { useState, useMemo, useCallback } from 'react';
+import { DollarSign, User, Camera, Film, Package, Lock, RotateCcw, List, Activity } from 'lucide-react';
+import { ProjectClientPayment } from '@/components/payments/ProjectClientPayment';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/currency-input';
@@ -30,7 +29,6 @@ import { useProjectHealthScore } from '@/hooks/useProjectHealthScore';
 import type { Tables } from '@/integrations/supabase/types';
 
 type ProjectTeam = Tables<'project_team'>;
-type Payment = Tables<'payments'>;
 type PaymentStatus = 'pendente' | 'pago' | 'vencido' | 'cancelado';
 
 interface WorkspaceMember {
@@ -107,7 +105,6 @@ function ProjectFinancialContent({
   const { hideValues } = useHideValues();
   const { currentWorkspace } = useWorkspace();
   const projectCosts = useFinancialCostLines(canViewAllFinancials ? currentWorkspace?.id : undefined);
-  const [clientPayment, setClientPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(false);
 
   const healthScore = useProjectHealthScore(canViewAllFinancials ? {
@@ -163,59 +160,9 @@ function ProjectFinancialContent({
     ? 'Custos indisponíveis'
     : projectCosts.isPending ? 'A carregar…' : `€${profit.toFixed(2)}`;
 
-  // Fetch client payment
-  useEffect(() => {
-    const fetchClientPayment = async () => {
-      if (!projectId) return;
-      
-      const { data } = await supabase
-        .from('payments')
-        .select('*')
-        .eq('project_id', projectId)
-        .eq('is_receivable', true)
-        .maybeSingle();
-      
-      setClientPayment(data);
-    };
-
-    fetchClientPayment();
-  }, [projectId]);
-
   const getMemberInfo = (userId: string) => {
     const member = workspaceMembers.find(m => m.user_id === userId);
     return member || { full_name: 'Desconhecido', avatar_url: null, email: '' };
-  };
-
-  const handleClientPaymentStatusChange = async (newStatus: PaymentStatus) => {
-    if (!clientPayment) return;
-    setLoading(true);
-
-    try {
-      const updates: Partial<Payment> = {
-        status: newStatus,
-        updated_at: new Date().toISOString(),
-      };
-
-      if (newStatus === 'pago') {
-        updates.paid_at = new Date().toISOString();
-      } else {
-        updates.paid_at = null;
-      }
-
-      const { error } = await supabase
-        .from('payments')
-        .update(updates)
-        .eq('id', clientPayment.id);
-
-      if (error) throw error;
-
-      setClientPayment(prev => prev ? { ...prev, ...updates } : null);
-      toast({ title: 'Status do pagamento atualizado' });
-    } catch (error: any) {
-      toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
   };
 
   // Handler for payment amount - used by TeamMemberPaymentInput
@@ -582,54 +529,7 @@ function ProjectFinancialContent({
           <Separator />
 
           {/* Client Payment Status - Apenas para admins */}
-          <div className="p-4 bg-muted/30 rounded-lg border border-border/50 space-y-3">
-            <div className="flex items-center gap-2 text-foreground">
-              <CreditCard className="h-4 w-4" />
-              <span className="font-medium">Pagamento do Cliente</span>
-            </div>
-
-            {clientPayment ? (
-              <div className="flex items-center justify-between p-3 bg-background/50 rounded-lg border border-border/30">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">€{clientPayment.amount.toFixed(2)}</p>
-                  {clientPayment.due_date && (
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      Vencimento: {format(new Date(clientPayment.due_date), 'dd/MM/yyyy', { locale: pt })}
-                    </p>
-                  )}
-                </div>
-                
-                <Select
-                  value={clientPayment.status}
-                  onValueChange={(value: PaymentStatus) => handleClientPaymentStatusChange(value)}
-                  disabled={loading}
-                >
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentStatusOptions.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        <span className={cn("px-2 py-0.5 rounded text-xs", opt.color)}>
-                          {opt.label}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <div className="p-3 bg-background/50 rounded-lg border border-border/30 text-center">
-                <p className="text-sm text-muted-foreground">
-                  {project.client_id 
-                    ? 'Nenhum pagamento registado para este projeto'
-                    : 'Sem cliente associado'
-                  }
-                </p>
-              </div>
-            )}
-          </div>
+          <ProjectClientPayment projectId={projectId} />
 
           {/* Custos Extras Payment Status - Apenas para admins */}
           {custosExtras > 0 && (

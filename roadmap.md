@@ -1,5 +1,9 @@
 # Roadmap — pendências da auditoria
 
+## Entrada de pagamento do cliente
+- [x] Criar formulário partilhado no cartão e em Movimentos, sem duplicar receita; recebimento integral de projetos entregues, com data escolhida.
+- [x] 15 testes aprovados; sessão administradora, recebimento via Movimentos no computador e via cartão no telemóvel, leitura cruzada após recarregar; fixtures removidas, pagamentos reais intocados, compilação OK. Publicação separada.
+
 ## SEO — plan comparison
 - [x] Clarify Starter, Pro and Studio on /planos/comparar and its title/description without changing plan facts; 54 plan regression tests passed, desktop/mobile currency→annual→signup verified without runtime errors, metadata duplicates removed and build OK. Publication remains separate.
 

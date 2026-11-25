@@ -40,6 +40,7 @@ import {
   paymentStatusColors as statusColors,
 } from '@/lib/finance/constants';
 import { cn } from '@/lib/utils';
+import { RegisterClientPaymentDialog } from '@/components/payments/RegisterClientPaymentDialog';
 
 type KindFilter = 'all' | FinanceTxKind;
 type StatusFilter = 'all' | 'pendente' | 'pago' | 'vencido' | 'cancelado';
@@ -133,6 +134,9 @@ export default function Movimentos() {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <RegisterClientPaymentDialog />
+      </div>
       {/* Totals band */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <Card className="glass-card">
