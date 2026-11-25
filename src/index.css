@@ -17,12 +17,6 @@
     --workspace-background: var(--background);
     --workspace-grid: 246 20% 60%;
     --workspace-grid-opacity: 0.055;
-    --workspace-glow-violet: 261 66% 55%;
-    --workspace-glow-teal: 190 82% 42%;
-    --workspace-glow-violet-opacity: 0.05;
-    --workspace-glow-violet-bottom-opacity: 0.05;
-    --workspace-glow-teal-opacity: 0.035;
-    --workspace-glow-teal-bottom-opacity: 0.025;
 
     /* Cards with soft shadows */
     --card: 0 0% 100%;
@@ -109,15 +103,9 @@
     /* Core backgrounds - Deep Space Black */
     --background: 240 18% 5%;
     --foreground: 0 0% 95%;
-    --workspace-background: 248 62% 3.5%;
-    --workspace-grid: 250 30% 65%;
-    --workspace-grid-opacity: 0.04;
-    --workspace-glow-violet: 261 68% 56%;
-    --workspace-glow-teal: 188 92% 46%;
-    --workspace-glow-violet-opacity: 0.26;
-    --workspace-glow-violet-bottom-opacity: 0.34;
-    --workspace-glow-teal-opacity: 0.32;
-    --workspace-glow-teal-bottom-opacity: 0.20;
+    --workspace-background: 240 18% 5%;
+    --workspace-grid: 246 30% 65%;
+    --workspace-grid-opacity: 0.045;
 
     /* Cards with glassmorphism */
     --card: 240 16% 8.5%;
@@ -198,17 +186,13 @@
     --radius: 0.75rem;
   }
 
-  /* Rich dark base: subtle brand light from the top instead of flat black */
+  /* Same base as before; only a discreet grid sits on top of it */
   .workspace-background {
     background-color: hsl(var(--workspace-background));
     background-image:
       linear-gradient(hsl(var(--workspace-grid) / var(--workspace-grid-opacity)) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--workspace-grid) / var(--workspace-grid-opacity)) 1px, transparent 1px),
-      radial-gradient(ellipse at 0% 0%, hsl(var(--workspace-glow-violet) / var(--workspace-glow-violet-opacity)), transparent 66%),
-      radial-gradient(ellipse at 100% 42%, hsl(var(--workspace-glow-teal) / var(--workspace-glow-teal-opacity)), transparent 58%),
-      radial-gradient(ellipse at 82% 100%, hsl(var(--workspace-glow-teal) / var(--workspace-glow-teal-bottom-opacity)), transparent 55%),
-      radial-gradient(ellipse at 50% 100%, hsl(var(--workspace-glow-violet) / var(--workspace-glow-violet-bottom-opacity)), transparent 74%);
-    background-size: 26px 26px, 26px 26px, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+      linear-gradient(90deg, hsl(var(--workspace-grid) / var(--workspace-grid-opacity)) 1px, transparent 1px);
+    background-size: 26px 26px, 26px 26px;
   }
 
   .dark body {
