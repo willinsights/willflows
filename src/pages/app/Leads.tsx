@@ -396,11 +396,11 @@ function LeadsContent() {
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
                             <h4 className="font-medium truncate">{lead.name}</h4>
                             <Badge
                               variant="secondary"
-                              className={cn('text-xs', statusConfig.color)}
+                              className={cn('text-xs shrink-0', statusConfig.color)}
                             >
                               {statusConfig.label}
                             </Badge>

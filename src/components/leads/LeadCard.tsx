@@ -72,7 +72,7 @@ export function LeadCard({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'p-3 rounded-xl border bg-card hover:shadow-lg hover:border-primary/20 transition-all duration-200 cursor-pointer group',
+        'p-3 rounded-xl border bg-card overflow-hidden hover:shadow-lg hover:border-primary/20 transition-all duration-200 cursor-pointer group',
         isDragging && 'opacity-50 shadow-xl ring-2 ring-primary scale-[1.02]',
         hasOverdueFollowUp && 'border-destructive/50 hover:border-destructive/70',
         hasTodayFollowUp && 'border-amber-500/50 hover:border-amber-500/70'
@@ -89,7 +89,7 @@ export function LeadCard({
             <GripVertical className="h-4 w-4 text-muted-foreground" />
           </button>
           <div className="flex-1 min-w-0">
-            <h4 className="font-medium text-sm truncate" title={lead.name}>{lead.name}</h4>
+            <h4 className="font-medium text-sm leading-snug break-words line-clamp-2" title={lead.name}>{lead.name}</h4>
             {lead.company && lead.company.trim().toLowerCase() !== lead.name.trim().toLowerCase() && (
               <p className="text-xs text-muted-foreground flex items-center gap-1 truncate" title={lead.company}>
                 <Building2 className="h-3 w-3 flex-shrink-0" />
@@ -135,15 +135,15 @@ export function LeadCard({
       {/* Contact Info */}
       <div className="space-y-1 mb-2">
         {lead.email && (
-          <p className="text-xs text-muted-foreground flex items-center gap-1.5 truncate">
+          <p className="text-xs text-muted-foreground flex items-center gap-1.5 min-w-0">
             <Mail className="h-3 w-3 flex-shrink-0" />
-            {lead.email}
+            <span className="truncate">{lead.email}</span>
           </p>
         )}
         {lead.phone && (
-          <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+          <p className="text-xs text-muted-foreground flex items-center gap-1.5 min-w-0">
             <Phone className="h-3 w-3 flex-shrink-0" />
-            {lead.phone}
+            <span className="truncate">{lead.phone}</span>
           </p>
         )}
       </div>
