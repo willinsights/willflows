@@ -81,7 +81,6 @@ const CheckoutSuccess = lazy(() => import("./pages/CheckoutSuccess"));
 // Lazy loaded app pages
 const Dashboard = lazy(() => import("./pages/app/Dashboard"));
 // Private, read-only V2 preview. The parent /app route requires authenticated session.
-const WillFlow2Preview = lazy(() => import("./pages/app/WillFlow2Preview"));
 const Captacao = lazy(() => import("./pages/app/Captacao"));
 const Edicao = lazy(() => import("./pages/app/Edicao"));
 const Finalizados = lazy(() => import("./pages/app/Finalizados"));
@@ -219,7 +218,6 @@ const App = () => (
                       }
                     >
                       <Route index element={<Dashboard />} />
-                      <Route path="demo-v2" element={<WillFlow2Preview />} />
                       <Route path="captacao" element={<Captacao />} />
                       <Route path="edicao" element={<Edicao />} />
                       <Route path="finalizados" element={<Finalizados />} />
