@@ -18,6 +18,7 @@ import {
   X,
   Film,
   Clapperboard,
+  CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +37,7 @@ import {
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
 import { WaitlistForm } from '@/components/marketing/WaitlistForm';
+import { WhatsNewSection } from '@/components/marketing/WhatsNewSection';
 
 
 
@@ -230,12 +232,12 @@ export default function Landing() {
   return (
     <div className="min-h-screen">
       <Helmet>
-        <title>WillFlow - Gestão de Projetos para Fotógrafos e Filmmakers</title>
+        <title>WillFlow 2.0 - Da captação à entrega, para foto e vídeo</title>
         <meta name="description" content="Sistema completo de gestão de projetos para fotógrafos, filmmakers, agências e produtoras. Kanban, CRM, calendário e finanças num só lugar." />
         <link rel="canonical" href="https://willflow.app" />
         
         {/* Open Graph */}
-        <meta property="og:title" content="WillFlow - Gestão de Projetos para Fotógrafos e Filmmakers" />
+        <meta property="og:title" content="WillFlow 2.0 - Da captação à entrega, para foto e vídeo" />
         <meta property="og:description" content="Sistema completo de gestão para produtores: Kanban visual, CRM, calendário, pagamentos e relatórios. 7 dias grátis." />
         <meta property="og:url" content="https://willflow.app" />
         <meta property="og:type" content="website" />
@@ -247,7 +249,7 @@ export default function Landing() {
         
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="WillFlow - Gestão de Projetos para Fotógrafos e Filmmakers" />
+        <meta name="twitter:title" content="WillFlow 2.0 - Da captação à entrega, para foto e vídeo" />
         <meta name="twitter:description" content="Sistema completo de gestão para produtores: Kanban visual, CRM, calendário, pagamentos e relatórios. 7 dias grátis." />
         <meta name="twitter:image" content="https://willflow.app/og-image.png" />
         
@@ -281,7 +283,7 @@ export default function Landing() {
         </script>
       </Helmet>
       <PublicHeader />
-      <main>
+      <main className="overflow-x-clip">
       {/* Hero Section - Split Layout */}
       <section className="relative min-h-[90vh] pt-24 pb-20 overflow-visible">
         {/* Gradient Background */}
@@ -310,24 +312,26 @@ export default function Landing() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             >
-              <Badge variant="secondary" className="mb-6 backdrop-blur-md bg-background/60 border-primary/20">
-                {isBetaMode ? (
-                  'Beta Privado · Acesso por convite'
-                ) : (
-                  '7 dias grátis · Sem cartão'
-                )}
-              </Badge>
+              <div className="mb-6 flex flex-wrap items-center gap-3">
+                <a href="#novidades" className="inline-flex items-center gap-2 rounded-full border border-kanban-cyan/50 bg-kanban-cyan/10 px-3 py-1 text-xs font-semibold tracking-wide text-kanban-cyan hover:bg-kanban-cyan/20 transition-colors">
+                  <span className="h-1.5 w-1.5 rounded-full bg-kanban-cyan" aria-hidden="true" /> WillFlow 2.0 já disponível
+                </a>
+                <Badge variant="secondary" className="backdrop-blur-md bg-background/60 border-primary/20">
+                  {isBetaMode ? 'Beta Privado · Acesso por convite' : '7 dias grátis · Sem cartão'}
+                </Badge>
+              </div>
               
-              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-[1.1] tracking-tight">
-                O CRM + Kanban{' '}
-                <br className="hidden sm:block" />
-                feito para{' '}
-                <span className="gradient-text">Foto e Vídeo</span>
-              </h1>
-              
-              <p className="text-lg sm:text-xl text-muted-foreground mb-6 max-w-2xl leading-relaxed">
-                Captação → Edição → Entrega. Gira projetos, clientes, calendário e finanças num só lugar.
-              </p>
+              <div className="relative mb-8 rounded-3xl p-[1px] bg-gradient-to-br from-kanban-cyan/60 via-border/30 to-kanban-purple/60 shadow-2xl shadow-kanban-purple/10">
+                <div className="rounded-3xl bg-background/60 backdrop-blur-xl px-6 py-7 sm:px-8">
+                  <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold leading-[1.02] tracking-tight">
+                    Da captação{' '}
+                    <span className="block text-kanban-cyan">à entrega.</span>
+                  </h1>
+                  <p className="mt-5 border-l-2 border-kanban-cyan pl-4 text-lg sm:text-xl text-foreground/90 leading-relaxed">
+                    Os seus projetos de fotografia e vídeo num só fluxo: clientes, Kanban, calendário, aprovações e finanças.
+                  </p>
+                </div>
+              </div>
               
               <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-10">
                 <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border/50">
@@ -357,16 +361,16 @@ export default function Landing() {
               ) : (
                 <div className="flex flex-col sm:flex-row items-start gap-4">
                   <Link to="/auth?trial=true" onClick={() => trackCtaClick('hero')}>
-                    <Button size="lg" className="gradient-primary text-lg px-8 h-14 glow-ring lens-flare">
+                    <Button size="lg" className="gradient-primary text-lg px-8 h-14 rounded-full glow-ring lens-flare">
                       Começar teste grátis
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </Button>
                   </Link>
-                  <Link to="/funcionalidades">
-                    <Button size="lg" variant="outline" className="text-lg px-8 h-14 backdrop-blur-sm border-kanban-cyan/50 text-kanban-cyan hover:bg-kanban-cyan/10 hover:border-kanban-cyan">
-                      Ver funcionalidades
+                  <a href="#novidades">
+                    <Button size="lg" variant="outline" className="text-lg px-8 h-14 rounded-full backdrop-blur-sm border-kanban-cyan/50 text-kanban-cyan hover:bg-kanban-cyan/10 hover:border-kanban-cyan">
+                      Ver novidades
                     </Button>
-                  </Link>
+                  </a>
                 </div>
               )}
             </motion.div>
@@ -386,6 +390,10 @@ export default function Landing() {
                 decoding="async"
                 {...({ fetchpriority: 'high' } as any)}
               />
+              <div className="absolute bottom-8 left-8 flex items-center gap-3 rounded-full border border-kanban-purple/50 bg-background/70 backdrop-blur-xl px-5 py-2.5 shadow-xl shadow-kanban-purple/20">
+                <CheckCircle2 className="h-5 w-5 text-kanban-cyan" aria-hidden="true" />
+                <span className="text-sm font-semibold">Captação → Edição → Entrega</span>
+              </div>
             </motion.div>
           </div>
 
@@ -408,6 +416,8 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      <WhatsNewSection />
 
       {/* Trusted By Section - Premium Carousel */}
       <section className="py-16 px-4 border-y border-border/20 bg-gradient-to-b from-muted/10 to-background">
