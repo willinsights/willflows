@@ -1,5 +1,6 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { ReleaseBadge } from './ReleaseBadge';
 import { CalendarCheck, Images, Film, Workflow, BarChart3, ShieldCheck, ArrowRight } from 'lucide-react';
 
 type Kind = 'Novo' | 'Melhorado' | 'Corrigido';
@@ -42,7 +43,7 @@ export function WhatsNewSection() {
                   <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-kanban-cyan/20 to-kanban-purple/20 flex items-center justify-center">
                     <it.icon className="h-5 w-5 text-kanban-cyan" aria-hidden="true" />
                   </div>
-                  <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${kindStyle[it.kind]}`}>{it.kind}</span>
+                  {it.kind === 'Corrigido' ? <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${kindStyle[it.kind]}`}>Corrigido</span> : <ReleaseBadge kind={it.kind === 'Novo' ? 'novo' : 'melhorado'} />}
                 </div>
                 <h3 className="text-lg font-semibold mb-2">{it.title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{it.text}</p>

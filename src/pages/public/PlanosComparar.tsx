@@ -1,3 +1,4 @@
+import { ReleaseBadge } from '@/components/marketing/ReleaseBadge';
 import { renderPlanLimit } from '@/components/plans/NearUnlimited';
 import { Fragment, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -80,10 +81,11 @@ const featureCategories = [
   {
     name: 'Exclusivo Studio',
     features: [
+      { key: 'photoGalleries', label: 'Galerias de fotografia', tooltip: 'Favoritas com limite, comentários na foto, entrega em alta resolução, fotos extra e lista de fotos obrigatórias', release: 'novo' },
       { key: 'videoApproval', label: 'Aprovação de Vídeo + A/B', tooltip: 'Portal de review com comentários por timecode e comparação de versões' },
       { key: 'timeline', label: 'Desenho de Timeline', tooltip: 'Estrutura visual para planear a edição de vídeo' },
       { key: 'videoStorage', label: 'Armazenamento de Vídeo', tooltip: '10 GB incluídos, com opção de expansão' },
-      { key: 'automations', label: 'Automações', tooltip: 'Fluxos de trabalho automatizados' },
+      { key: 'automations', label: 'Automações', tooltip: 'Avisos e emails ao mudar de coluna, com nova tentativa se falhar', release: 'melhorado' },
       { key: 'permissions', label: 'Permissões Avançadas', tooltip: 'Controlo granular de permissões por função' },
     ],
   },
@@ -326,6 +328,7 @@ export default function PlanosComparar() {
                               <TooltipTrigger asChild>
                                 <span className="text-sm flex items-center gap-2 cursor-help">
                                   {feature.label}
+                                  {'release' in feature && feature.release && <ReleaseBadge kind={feature.release as 'novo' | 'melhorado'} />}
                                   <Info className="h-3.5 w-3.5 text-muted-foreground/50" />
                                 </span>
                               </TooltipTrigger>

@@ -5,6 +5,8 @@ import { ArrowRight, Video, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
+import { ReleaseBadge } from '@/components/marketing/ReleaseBadge';
+import { ALL_CATALOG_FEATURES } from '@/data/comparisonCatalog';
 import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
 
 const comparisons = [
@@ -121,12 +123,12 @@ export default function ComparisonsHub() {
 
                 <div className="mb-6">
                   <p className="text-sm font-medium text-muted-foreground mb-2">
-                    Limitações do {comp.name}:
+                    Onde o {comp.name} é mais genérico:
                   </p>
                   <ul className="space-y-1">
                     {comp.highlights.map((item) => (
                       <li key={item} className="text-sm text-muted-foreground flex items-start gap-2">
-                        <span className="text-red-500 mt-0.5">•</span>
+                        <span className="text-muted-foreground mt-0.5" aria-hidden="true">•</span>
                         {item}
                       </li>
                     ))}
@@ -140,7 +142,7 @@ export default function ComparisonsHub() {
                   <ul className="space-y-1">
                     {comp.willflowWins.map((item) => (
                       <li key={item} className="text-sm flex items-start gap-2">
-                        <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                        <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                         {item}
                       </li>
                     ))}
@@ -156,6 +158,20 @@ export default function ComparisonsHub() {
               </motion.div>
             ))}
           </div>
+
+          {/* 2.0 highlights shared by all comparisons */}
+          <section aria-labelledby="novo-20" className="max-w-6xl mx-auto mb-20 rounded-2xl border border-border bg-card p-6 md:p-8">
+            <div className="flex flex-wrap items-center gap-3 mb-2"><ReleaseBadge kind="versao" /><h2 id="novo-20" className="text-2xl font-bold">Novo no WillFlow 2.0</h2></div>
+            <p className="text-muted-foreground mb-6">Funcionalidades que entram em todas as comparações. Plano indicado em cada uma.</p>
+            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {ALL_CATALOG_FEATURES.filter((f) => f.release).map((f) => (
+                <li key={f.name} className="flex flex-col gap-1 rounded-xl bg-muted/30 p-4">
+                  <span className="flex flex-wrap items-center gap-2 font-medium">{f.name}<ReleaseBadge kind={f.release!} /></span>
+                  <span className="text-xs text-muted-foreground">{f.plans}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
 
           {/* CTA */}
           <motion.section

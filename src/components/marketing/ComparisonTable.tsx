@@ -1,10 +1,12 @@
 import { motion } from 'framer-motion';
 import { Check, X, Minus } from 'lucide-react';
+import { ReleaseBadge } from './ReleaseBadge';
 
 interface ComparisonItem {
   feature: string;
   competitor: boolean | 'partial';
   willflow: boolean | 'partial';
+  release?: 'novo' | 'melhorado';
 }
 
 interface ComparisonTableProps {
@@ -101,7 +103,7 @@ export function ComparisonTable({
                   index !== items.length - 1 ? 'border-b border-border/30' : ''
                 }`}
               >
-                <div className="text-sm">{item.feature}</div>
+                <div className="text-sm flex flex-wrap items-center gap-1.5">{item.feature}{item.release && <ReleaseBadge kind={item.release} />}</div>
                 <div className="flex justify-center">
                   <StatusIcon status={item.competitor} />
                 </div>

@@ -33,7 +33,7 @@ const flowSteps = [
   { icon: CheckCircle, title: 'Entrega', description: 'Galeria ao cliente' },
 ];
 
-const comparisonItems: Array<{ feature: string; competitor: boolean | 'partial'; willflow: boolean }> = [
+const comparisonItems: Array<{ feature: string; competitor: boolean | 'partial'; willflow: boolean; release?: 'novo' | 'melhorado' }> = [
   { feature: 'Kanban visual por fase', competitor: false, willflow: true },
   { feature: 'Calendário integrado', competitor: 'partial', willflow: true },
   { feature: 'CRM com histórico de cliente', competitor: false, willflow: true },
@@ -42,6 +42,9 @@ const comparisonItems: Array<{ feature: string; competitor: boolean | 'partial';
   { feature: 'Alertas de vencimento', competitor: false, willflow: true },
   { feature: 'Chat de equipa integrado', competitor: false, willflow: true },
   { feature: 'Relatórios financeiros', competitor: 'partial', willflow: true },
+  { feature: 'Galeria para o cliente escolher favoritas (Studio)', competitor: false, willflow: true, release: 'novo' },
+  { feature: 'Comentários num ponto da foto (Studio)', competitor: false, willflow: true, release: 'novo' },
+  { feature: 'Lista de fotos obrigatórias por sessão (Studio)', competitor: 'partial', willflow: true, release: 'novo' },
 ];
 
 const testimonials = [

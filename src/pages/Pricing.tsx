@@ -1,3 +1,5 @@
+import { ReleaseBadge } from '@/components/marketing/ReleaseBadge';
+import { PHOTO_STUDIO_NEW } from '@/data/comparisonCatalog';
 import { NearUnlimited } from '@/components/plans/NearUnlimited';
 import { offerValidUntil } from '@/lib/seo/offerValidity';
 import { useState } from 'react';
@@ -349,7 +351,7 @@ export default function Pricing() {
                         ].map((item) => (
                           <li key={item} className="flex items-start gap-2 text-sm text-foreground">
                             <Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" aria-hidden="true" />
-                            <span>{item}</span>
+                            <span className="flex flex-wrap items-center gap-1.5">{item}{PHOTO_STUDIO_NEW.includes(item) && <ReleaseBadge kind="novo" />}</span>
                           </li>
                         ))}
                       </ul>

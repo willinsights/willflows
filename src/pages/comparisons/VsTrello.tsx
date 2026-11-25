@@ -1,53 +1,13 @@
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Check, X, Minus, Camera, Video, TrendingUp, CreditCard, Calendar, ArrowRight, Film } from 'lucide-react';
+import { Camera, Video, TrendingUp, CreditCard, Calendar, ArrowRight, Film } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PublicHeader } from '@/components/marketing/PublicHeader';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
+import { CompetitorComparison } from '@/components/marketing/CompetitorComparison';
+import { ReleaseBadge } from '@/components/marketing/ReleaseBadge';
 import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
-
-type ComparisonStatus = boolean | 'partial';
-
-const comparisonData: Array<{ feature: string; trello: ComparisonStatus; willflow: ComparisonStatus }> = [
-  { feature: 'Kanban visual por fases', trello: true, willflow: true },
-  { feature: 'Fases pré-configuradas para produção', trello: false, willflow: true },
-  { feature: 'CRM integrado com clientes', trello: false, willflow: true },
-  { feature: 'Gestão de pagamentos a receber', trello: false, willflow: true },
-  { feature: 'Pagamentos a freelancers', trello: false, willflow: true },
-  { feature: 'Calendário integrado', trello: 'partial', willflow: true },
-  { feature: 'Margem de lucro por projeto', trello: false, willflow: true },
-  { feature: 'Relatórios financeiros', trello: false, willflow: true },
-  { feature: 'Chat de equipa integrado', trello: false, willflow: true },
-  { feature: 'Alertas de prazos automáticos', trello: 'partial', willflow: true },
-  { feature: 'Dashboard com métricas', trello: false, willflow: true },
-  { feature: 'Interface em português', trello: true, willflow: true },
-  { feature: 'Aprovação de vídeo com link para cliente', trello: false, willflow: true },
-  { feature: 'Comparação A/B de versões', trello: false, willflow: true },
-  { feature: 'Desenho de Timeline para edição', trello: false, willflow: true },
-];
-
-const StatusIcon = ({ status }: { status: boolean | 'partial' }) => {
-  if (status === true) {
-    return (
-      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30">
-        <Check className="h-5 w-5 text-green-600 dark:text-green-400" />
-      </div>
-    );
-  }
-  if (status === 'partial') {
-    return (
-      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-yellow-100 dark:bg-yellow-900/30">
-        <Minus className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-      </div>
-    );
-  }
-  return (
-    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30">
-      <X className="h-5 w-5 text-red-600 dark:text-red-400" />
-    </div>
-  );
-};
 
 const keyDifferences = [
   {
@@ -58,7 +18,7 @@ const keyDifferences = [
   {
     icon: CreditCard,
     title: 'Gestão Financeira',
-    description: 'No Trello precisaria de Power-Ups pagos ou ferramentas externas. WillFlow tem tudo incluído desde o plano base.',
+    description: 'No Trello isto depende de Power-Ups ou ferramentas externas. No WillFlow, recebimentos, freelancers e lucro estão em todos os planos.',
   },
   {
     icon: Camera,
@@ -73,7 +33,7 @@ const keyDifferences = [
   {
     icon: Film,
     title: 'Produção de Vídeo Completa',
-    description: 'Envie um link ao cliente para aprovar vídeos, compare versões A/B lado a lado e defina a estrutura de edição com a Timeline. O Trello não tem funcionalidades de vídeo.',
+    description: 'Envie um link ao cliente para aprovar vídeos, compare versões A/B lado a lado e defina a estrutura de edição com a Timeline. E no 2.0, galerias de fotografia para o cliente (plano Studio).',
   },
 ];
 
@@ -160,40 +120,19 @@ export default function VsTrello() {
           </div>
 
           {/* Comparison Table */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="max-w-4xl mx-auto mb-20"
-          >
-            <div className="bg-card border border-border rounded-2xl overflow-hidden">
-              <div className="grid grid-cols-3 bg-muted/50 p-4 font-semibold text-center">
-                <div className="text-left pl-4">Funcionalidade</div>
-                <div>Trello</div>
-                <div className="text-primary">WillFlow</div>
-              </div>
-              
-              {comparisonData.map((item, index) => (
-                <motion.div
-                  key={item.feature}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.05 * index }}
-                  className={`grid grid-cols-3 p-4 items-center ${
-                    index % 2 === 0 ? 'bg-background' : 'bg-muted/20'
-                  }`}
-                >
-                  <div className="text-sm font-medium pl-4">{item.feature}</div>
-                  <div className="flex justify-center">
-                    <StatusIcon status={item.trello} />
-                  </div>
-                  <div className="flex justify-center">
-                    <StatusIcon status={item.willflow} />
-                  </div>
-                </motion.div>
-              ))}
+          <section aria-labelledby="comparacao" className="max-w-5xl mx-auto mb-20">
+            <div className="mb-8 text-center">
+              <div className="mb-3 flex justify-center"><ReleaseBadge kind="versao" /></div>
+              <h2 id="comparacao" className="text-3xl font-bold">WillFlow 2.0 vs Trello, funcionalidade a funcionalidade</h2>
+              <p className="mt-3 text-muted-foreground">Organizado por área. As funcionalidades marcadas com NOVO chegaram no WillFlow 2.0.</p>
             </div>
-          </motion.div>
+            <CompetitorComparison competitor="trello" />
+            <div className="mt-8 flex justify-center">
+              <Button size="lg" className="gradient-primary" asChild>
+                <Link to="/auth?trial=true">Começar 7 dias grátis<ArrowRight className="ml-2 h-5 w-5" /></Link>
+              </Button>
+            </div>
+          </section>
 
           {/* Key Differences */}
           <section className="mb-20">
