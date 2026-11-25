@@ -6040,6 +6040,10 @@ export type Database = {
         }
         Returns: Json
       }
+      private_video_client_reopen: {
+        Args: { p_user: string; p_version: string }
+        Returns: boolean
+      }
       private_video_client_withdraw: {
         Args: { p_user: string; p_version: string }
         Returns: boolean

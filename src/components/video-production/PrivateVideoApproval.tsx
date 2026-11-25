@@ -3,7 +3,13 @@ import { Button } from '@/components/ui/button';
 import { useHlsPlayer } from '@/hooks/useHlsPlayer';
 import { cn } from '@/lib/utils';
 import { formatClock, groupDeliverables } from '@/lib/video-deliverables';
-import { Check, CheckCircle2, Film, Lock, Send } from 'lucide-react';
+import type React from 'react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ArrowLeftRight, Check, CheckCircle2, Film, Info, Lock, Send } from 'lucide-react';
+import { CanonicalVideoComparison } from './CanonicalVideoComparison';
+
+const Tip = ({ text, children }: { text: string; children: React.ReactNode }) => <TooltipProvider delayDuration={200}><Tooltip><TooltipTrigger asChild><span className="inline-flex">{children}</span></TooltipTrigger><TooltipContent className="max-w-xs text-xs">{text}</TooltipContent></Tooltip></TooltipProvider>;
+const RETENTION_INFO = 'Este link mostra todos os vídeos deste projeto e é válido 7 dias. Depois de aprovado, o vídeo fica disponível 7 dias e é eliminado. Ficam guardados os comentários da revisão, a versão aprovada, quem aprovou e quando.';
 
 type Comment = { id: string; body: string; client_name: string; timestamp_seconds: number };
 type Review = { version: { id: string; file_name: string }; comments: Comment[]; approval: { client_name: string; notes: string; approved_at?: string } | null; playback: { url: string; thumbnail?: string; expiresAt: number } | null; branding?: { name: string; logo_url: string | null } | null };
@@ -21,6 +27,9 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
   const group = groups.find(g => g.versions.some(v => v.id === selected)) ?? groups[0];
   const current = group?.versions.find(v => v.id === selected);
   const approved = !!review?.approval;
+  const [comparing, setComparing] = useState(false);
+  const ready = group?.versions ?? [];
+  const reader = useCallback((versionId: string) => request({ action: 'read', versionId, token }), [request, token]);
 
   const load = useCallback(async (id: string) => {
     try { const data = await request({ action: 'read', versionId: id, token }); setReview(old => old?.version.id === data.version.id && old.playback && data.playback && old.playback.expiresAt > Date.now() / 1000 + 60 ? { ...data, playback: old.playback } : data); if (data.branding) setBranding(data.branding); setError(''); }
@@ -47,27 +56,31 @@ export function PrivateVideoApproval({ request, token }: { request: (body: Recor
       <div className="min-w-0"><h1 className="truncate text-lg font-semibold">{studio}</h1><p className="text-xs text-muted-foreground">Revisão e aprovação de vídeo</p></div>
     </div></header>
     <div className="mx-auto max-w-6xl space-y-5 px-4 py-6">
-      {groups.length > 1 && <div className="flex gap-3 overflow-x-auto pb-1">{groups.map(g => <button key={g.label} type="button" onClick={() => setSelected(g.versions[0].id)} className={cn('shrink-0 rounded-lg border px-3 py-2 text-left text-sm', g === group ? 'border-primary ring-2 ring-primary/30' : 'border-border')}><Film className="mr-1 inline h-4 w-4" />{g.label}<span className="ml-2 text-xs text-muted-foreground">{g.versions.length} {g.versions.length === 1 ? 'versão' : 'versões'}</span></button>)}</div>}
+      {groups.length > 1 && <div className="flex gap-3 overflow-x-auto pb-1">{groups.map(g => <button key={g.label} type="button" onClick={() => { setSelected(g.versions[0].id); setComparing(false); }} className={cn('shrink-0 rounded-lg border px-3 py-2 text-left text-sm', g === group ? 'border-primary ring-2 ring-primary/30' : 'border-border')}><Film className="mr-1 inline h-4 w-4" />{g.label}<span className="ml-2 text-xs text-muted-foreground">{g.versions.length} {g.versions.length === 1 ? 'versão' : 'versões'}</span></button>)}</div>}
       <div className="grid gap-6 md:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
         <section className="min-w-0 space-y-3">
-          {group && <div className="flex flex-wrap items-center gap-2"><span className="mr-1 font-medium">{group.label}</span>{group.versions.map(v => <Button key={v.id} size="sm" variant={v.id === selected ? 'default' : 'outline'} onClick={() => setSelected(v.id)}>V{v.version_number}</Button>)}</div>}
+          {group && <div className="flex flex-wrap items-center gap-2"><span className="mr-1 font-medium">{group.label}</span>{group.versions.map(v => <Button key={v.id} size="sm" variant={v.id === selected ? 'default' : 'outline'} onClick={() => { setSelected(v.id); setComparing(false); }}>V{v.version_number}</Button>)}
+            {!comparing && <Tip text={ready.length < 2 ? 'Só existe uma versão deste vídeo; não há nada para comparar.' : 'Ver duas versões lado a lado, sincronizadas.'}><Button size="sm" variant="ghost" disabled={ready.length < 2} onClick={() => setComparing(true)}><ArrowLeftRight /> Comparar versões</Button></Tip>}
+            <Tip text={RETENTION_INFO}><button type="button" aria-label="Como funciona este link" className="ml-auto text-muted-foreground hover:text-foreground"><Info className="h-4 w-4" /></button></Tip>
+          </div>}
+          {comparing && ready.length > 1 && <CanonicalVideoComparison versions={ready} initialVersionId={selected} reader={reader} onClose={() => setComparing(false)} />}
           {approved && <div role="status" className="flex flex-wrap items-center gap-2 rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">
             <CheckCircle2 className="h-4 w-4" /> V{current?.version_number} aprovada por {review?.approval?.client_name}{until && <span className="text-muted-foreground">· disponível até {until.toLocaleDateString('pt-PT')}</span>}
             <span className="basis-full text-xs text-muted-foreground">Após esta data o vídeo é eliminado; ficam guardados os comentários e o registo da aprovação.</span>
           </div>}
-          {review?.playback ? <video aria-label="Vídeo para aprovação" ref={videoRef} controls playsInline poster={review.playback.thumbnail} onTimeUpdate={e => setNow(e.currentTarget.currentTime)} className="aspect-video w-full rounded-lg bg-muted" /> : <div className="aspect-video w-full animate-pulse rounded-lg bg-muted" />}
+          {comparing && ready.length > 1 ? null : review?.playback ? <video aria-label="Vídeo para aprovação" ref={videoRef} controls playsInline poster={review.playback.thumbnail} onTimeUpdate={e => setNow(e.currentTarget.currentTime)} className="aspect-video w-full rounded-lg bg-muted" /> : <div className="aspect-video w-full animate-pulse rounded-lg bg-muted" />}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         </section>
         <section className="min-w-0 space-y-4">
           <h2 className="font-semibold">Comentários</h2>
-          {!approved && <p className="text-xs text-muted-foreground">Depois de aprovado, o vídeo fica disponível 7 dias; depois é eliminado e ficam só os comentários e o registo da aprovação.</p>}
+          {!approved && <p className="text-xs text-muted-foreground">{RETENTION_INFO}</p>}
           {comments.length === 0 && <p className="text-sm text-muted-foreground">Pause o vídeo no momento certo e escreva o seu comentário.</p>}
           <ul className="max-h-96 space-y-2 overflow-y-auto">{comments.map(c => <li key={c.id} className="break-words rounded-md bg-muted/50 p-2 text-sm">
             <div className="mb-1 flex items-center gap-2"><button type="button" onClick={() => seek(c.timestamp_seconds)} className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-xs text-primary">{formatClock(c.timestamp_seconds)}</button><strong>{c.client_name}</strong></div><p>{c.body}</p></li>)}</ul>
           {approved ? <p className="flex items-center gap-2 text-sm text-muted-foreground"><Lock className="h-4 w-4" /> Esta versão foi aprovada; os comentários estão fechados.</p> : <>
             <label className="block text-sm">Nome<input className="mt-1 w-full rounded-md border border-input bg-background p-2" value={name} maxLength={120} onChange={e => setName(e.target.value)} /></label>
             <label className="block text-sm">Comentário em {formatClock(now)}<textarea className="mt-1 w-full rounded-md border border-input bg-background p-2" rows={4} maxLength={5000} value={body} onFocus={() => videoRef.current?.pause()} onChange={e => setBody(e.target.value)} /></label>
-            <div className="flex flex-wrap gap-2"><Button onClick={() => void feedback('comment')} disabled={busy || !name.trim() || !body.trim()}><Send /> Enviar comentário</Button><Button variant="outline" onClick={() => void feedback('approval')} disabled={busy || !name.trim()}><Check /> Aprovar V{current?.version_number}</Button></div>
+            <div className="flex flex-wrap gap-2"><Tip text={!name.trim() ? 'Escreva o seu nome para comentar.' : 'Envia o comentário no tempo atual do vídeo.'}><Button onClick={() => void feedback('comment')} disabled={busy || !name.trim() || !body.trim()}><Send /> Enviar comentário</Button></Tip><Tip text={!name.trim() ? 'Escreva o seu nome para aprovar.' : 'Aprova esta versão e fecha os comentários. O vídeo fica disponível mais 7 dias.'}><Button variant="outline" onClick={() => void feedback('approval')} disabled={busy || !name.trim()}><Check /> Aprovar V{current?.version_number}</Button></Tip></div>
             {!name.trim() && <p role="note" className="text-xs text-warning">Escreva o seu nome acima para poder comentar ou aprovar.</p>}
           </>}
         </section>

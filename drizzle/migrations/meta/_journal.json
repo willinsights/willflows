@@ -169,6 +169,13 @@
       "when": 1795616499085,
       "tag": "0023_private_video_deliverable_labels",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795618473660,
+      "tag": "0024_private_video_reopen_approval",
+      "breakpoints": true
     }
   ]
 }

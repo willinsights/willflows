@@ -8,7 +8,10 @@ type Side = { id: string; state: 'loading' | 'processing' | 'unavailable' } | {
   id: string; state: 'ready'; playback: Playback;
 };
 
-function useComparisonPlayback(versionId: string): Side {
+type Reader = (versionId: string) => Promise<any>;
+const defaultReader: Reader = versionId => privateVideoRequest({ action: 'read', versionId });
+
+function useComparisonPlayback(versionId: string, reader: Reader): Side {
   const [side, setSide] = useState<Side>({ id: versionId, state: 'loading' });
 
   useEffect(() => {
@@ -16,7 +19,7 @@ function useComparisonPlayback(versionId: string): Side {
     let timer: ReturnType<typeof setTimeout>;
     const refresh = async () => {
       try {
-        const result = await privateVideoRequest({ action: 'read', versionId });
+        const result = await reader(versionId);
         if (!active) return;
         const playback: Playback | null = result.playback;
         setSide(current => {
@@ -36,15 +39,16 @@ function useComparisonPlayback(versionId: string): Side {
       active = false;
       clearTimeout(timer);
     };
-  }, [versionId]);
+  }, [versionId, reader]);
 
   if (side.id !== versionId) return { id: versionId, state: 'loading' };
   return side;
 }
 
 export function CanonicalVideoComparison({
-  versions, initialVersionId, onClose,
+  versions, initialVersionId, onClose, reader = defaultReader,
 }: {
+  reader?: Reader;
   versions: Version[];
   initialVersionId: string;
   onClose: () => void;
@@ -54,7 +58,7 @@ export function CanonicalVideoComparison({
   const leftId = versions.some(version => version.id === left) ? left : versions[0].id;
   const rightId = right !== leftId && versions.some(version => version.id === right)
     ? right : versions.find(version => version.id !== leftId)!.id;
-  const sides = [useComparisonPlayback(leftId), useComparisonPlayback(rightId)];
+  const sides = [useComparisonPlayback(leftId, reader), useComparisonPlayback(rightId, reader)];
   const urls = Object.fromEntries(sides.flatMap(side => side.state === 'ready' ? [[side.id, side.playback.url]] : []));
 
   return (

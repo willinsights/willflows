@@ -69,8 +69,9 @@ export async function sidecarRequest(req:Request,d:SidecarDependencies):Promise<
    if(latest.version.object_key!==initial.version.object_key||latest.version.generation!==initial.version.generation)throw Error('PRIVATE_CONTEXT_DENIED');
    return answer({url,fileName:latest.version.file_name});
   }
-  if(['client-comment','client-approval','client-withdraw'].includes(b.action)){
+  if(['client-comment','client-approval','client-withdraw','client-reopen'].includes(b.action)){
    if(!user||digest)return answer({code:'UNAUTHORIZED'},401);
+   if(b.action==='client-reopen'){if(!initial.approval)return answer({code:'NOT_APPROVED'},409);await rpc('private_video_client_reopen',{p_version:b.versionId,p_user:user});return answer({success:true});}
    if(b.action==='client-withdraw'){await rpc('private_video_client_withdraw',{p_version:b.versionId,p_user:user});return answer({success:true});}
    if(!uuid.test(b.requestId??'')||typeof b.body!=='string'||b.body.length>5000||!Number.isFinite(b.timestamp??0)||(b.timestamp??0)<0)return answer({code:'INVALID_INPUT'},400);
    await rpc('private_video_client_feedback',{p_request:b.requestId,p_version:b.versionId,p_user:user,p_type:b.action==='client-comment'?'comment':'approval',p_body:b.body,p_timestamp:b.timestamp??0});return answer({success:true},201);

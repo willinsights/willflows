@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -8,13 +9,16 @@ import { cn } from '@/lib/utils';
 import { useHlsPlayer } from '@/hooks/useHlsPlayer';
 import { privateVideoRequest, uploadPrivateVideo, PRIVATE_VIDEO_CLIENT_REVISION, PrivateVideoError } from '@/lib/private-video-client';
 import { fileStem, formatClock, groupDeliverables } from '@/lib/video-deliverables';
-import { ArrowLeftRight, Check, CheckCircle2, Copy, Download, Film, Link, Lock, MessageSquare, Plus, RefreshCw, Send, Trash2, Upload, X } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ArrowLeftRight, Info, RotateCcw, Check, CheckCircle2, Copy, Download, Film, Link, Lock, MessageSquare, Plus, RefreshCw, Send, Trash2, Upload, X } from 'lucide-react';
 import { CanonicalVideoComparison } from './CanonicalVideoComparison';
 
 type Version = { id: string; file_name: string; bytes: number; state: string; created_at: string; label?: string | null };
 type Comment = { id: string; client_name: string; body: string; timestamp_seconds: number; created_at?: string };
 type Review = { version: { id: string }; comments: Comment[]; approval: { client_name: string; approved_at?: string } | null; playback: { url: string; thumbnail?: string; expiresAt: number } | null };
-type Meta = { thumbnail?: string; approved: boolean };
+type Meta = { approved: boolean };
+// Hover explanation wrapper; span keeps tooltips working on disabled buttons.
+const Tip = ({ text, children }: { text: string; children: React.ReactNode }) => <TooltipProvider delayDuration={200}><Tooltip><TooltipTrigger asChild><span className="inline-flex">{children}</span></TooltipTrigger><TooltipContent className="max-w-xs text-xs">{text}</TooltipContent></Tooltip></TooltipProvider>;
 
 export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext, onVersions }: { workspaceId: string; projectId: string; taskId: string | null; onContext?: (enabled: boolean) => void; onVersions?: (count: number) => void }) {
   const [versions, setVersions] = useState<Version[]>([]);
@@ -53,10 +57,10 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
     setContext(c); onContext?.(c.enabled); onVersions?.(list.versions.length);
     setVersions(list.versions);
     setSelected(old => list.versions.some((v: Version) => v.id === old) ? old : list.versions[0]?.id ?? '');
-    // Thumbnails and approval badges for every ready version.
+    // Approval badges for every ready version.
     const ready = (list.versions as Version[]).filter(v => v.state === 'ready').slice(0, 20);
     const entries = await Promise.all(ready.map(async v => {
-      try { const r = await privateVideoRequest({ action: 'read', versionId: v.id }); return [v.id, { thumbnail: r.playback?.thumbnail, approved: !!r.approval }] as const; }
+      try { const r = await privateVideoRequest({ action: 'read', versionId: v.id }); return [v.id, { approved: !!r.approval }] as const; }
       catch { return [v.id, { approved: false }] as const; }
     }));
     setMeta(Object.fromEntries(entries));
@@ -126,17 +130,14 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
     {/* Videos of this card */}
     {groups.length > 0 && <div className="space-y-2">
       <p className="text-sm font-medium text-muted-foreground">Vídeos deste cartão ({groups.length})</p>
-      <div className="flex gap-3 overflow-x-auto pb-1">
+      <div className="flex flex-wrap gap-2">
         {groups.map(g => {
           const latest = g.versions[0]; const active = g === group; const ok = g.versions.some(v => meta[v.id]?.approved);
-          return <button key={g.label} type="button" onClick={() => { setSelected(latest.id); setComparing(false); }}
-            className={cn('w-28 sm:w-32 shrink-0 overflow-hidden rounded-lg border text-left transition-colors', active ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-primary/50')}>
-            <div className="relative aspect-video bg-muted">
-              {meta[latest.id]?.thumbnail ? <img src={meta[latest.id].thumbnail} alt="" className="h-full w-full object-cover" /> : <Film className="absolute inset-0 m-auto h-6 w-6 text-muted-foreground" />}
-              {ok && <span className="absolute right-1 top-1 rounded-full bg-success p-0.5 text-success-foreground"><Check className="h-3 w-3" /></span>}
-            </div>
-            <div className="p-1.5"><p className="truncate text-xs font-medium" title={g.label}>{g.label}</p><p className="text-[11px] text-muted-foreground">{g.versions.length} {g.versions.length === 1 ? 'versão' : 'versões'}</p></div>
-          </button>;
+          return <Tip key={g.label} text={`${g.label} · ${g.versions.length} ${g.versions.length === 1 ? 'versão' : 'versões'}${ok ? ' · aprovado' : ''}`}><button type="button" onClick={() => { setSelected(latest.id); setComparing(false); }}
+            className={cn('flex max-w-[16rem] shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors', active ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:border-primary/50')}>
+            {ok ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" /> : <Film className="h-3.5 w-3.5 shrink-0" />}
+            <span className="truncate font-medium">{g.label}</span><span className="shrink-0 opacity-70">({g.versions.length})</span>
+          </button></Tip>;
         })}
       </div>
     </div>}
@@ -149,21 +150,22 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
           {group.versions.map(v => <Button key={v.id} size="sm" variant={v.id === selected ? 'default' : 'outline'} onClick={() => { setSelected(v.id); setComparing(false); }} aria-label={`V${v.version_number}`}>
             V{v.version_number}{meta[v.id]?.approved && <CheckCircle2 className="ml-1 h-3.5 w-3.5 text-success" />}
           </Button>)}
-          {!showComparison && <Button size="sm" variant="ghost" disabled={comparable.length < 2} title={comparable.length < 2 ? 'Envie uma segunda versão para comparar' : undefined} onClick={() => setComparing(true)}><ArrowLeftRight /> Comparar versões</Button>}
+          {!showComparison && <Tip text={comparable.length < 2 ? 'Envie uma segunda versão deste vídeo para comparar.' : 'Ver duas versões lado a lado, sincronizadas.'}><Button size="sm" variant="ghost" disabled={comparable.length < 2} onClick={() => setComparing(true)}><ArrowLeftRight /> Comparar versões</Button></Tip>}
           {comparable.length < 2 && <span className="text-xs text-muted-foreground">Para comparar, envie uma nova versão deste vídeo.</span>}
         </div>}
 
-        {playback ? <video ref={video} aria-label="Vídeo em revisão" controls playsInline poster={playback.thumbnail} onTimeUpdate={e => setNow(e.currentTarget.currentTime)} className="aspect-video w-full rounded-lg bg-muted" />
+        {playback ? <video ref={video} aria-label="Vídeo em revisão" controls playsInline poster={playback.thumbnail?.replace(/time=[^&]*/, 'time=50p')} onTimeUpdate={e => setNow(e.currentTarget.currentTime)} className="aspect-video w-full rounded-lg bg-muted" />
           : !showComparison && <div className="flex aspect-video items-center justify-center rounded-lg bg-muted text-muted-foreground">{selected ? 'A processar vídeo…' : 'Ainda não há vídeos neste cartão'}</div>}
 
         {approved && <div role="status" className="flex items-center gap-2 rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">
           <CheckCircle2 className="h-4 w-4" /> V{current?.version_number} aprovada por {review?.approval?.client_name}{review?.approval?.approved_at ? ` em ${new Date(review.approval.approved_at).toLocaleDateString('pt-PT')}` : ''} · comentários fechados
+          {context?.canEdit && <Tip text="Reabre a revisão desta versão: volta a aceitar comentários e a contagem dos 7 dias para eliminar fica parada. Recomeça quando for aprovada de novo."><Button size="sm" variant="outline" className="ml-auto" disabled={busy} onClick={() => { if (window.confirm('Reabrir a edição desta versão? A contagem dos 7 dias fica parada até nova aprovação.')) void run(async () => { await privateVideoRequest({ action: 'client-reopen', versionId: selected }); setMeta(m => ({ ...m, [selected]: { approved: false } })); await read(); setStatus('Edição reaberta. A contagem dos 7 dias está parada.'); }); }}><RotateCcw /> Reabrir edição</Button></Tip>}
         </div>}
 
         {context?.enabled && context.canEdit && <div className="space-y-3 rounded-lg border border-dashed border-border p-4">
           <input ref={input} type="file" className="hidden" aria-label="Arquivo de vídeo novo" accept="video/mp4,video/quicktime,video/webm,video/x-msvideo,video/x-matroska" disabled={busy} onChange={e => pickFile(e.target.files?.[0] ?? null)} />
           <div className="flex min-w-0 flex-wrap items-center gap-3">
-            <Button variant="outline" disabled={busy || !!operation.current} onClick={() => input.current?.click()}><Upload /> Escolher vídeo</Button>
+            <Tip text="Escolha um ficheiro para enviar como novo vídeo ou como nova versão de um vídeo existente."><Button variant="outline" disabled={busy || !!operation.current} onClick={() => input.current?.click()}><Upload /> Escolher vídeo</Button></Tip>
             {file ? <span className="min-w-0 break-words text-sm">{file.name}</span> : <span className="text-xs text-muted-foreground">MP4, MOV, WebM · até 5 GB</span>}
           </div>
           {file && <div className="grid gap-2 sm:grid-cols-2">
@@ -183,21 +185,20 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
 
       <div className="min-w-0 space-y-4">
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="icon" aria-label="Atualizar vídeos" disabled={busy} onClick={() => void run(refresh)}><RefreshCw /></Button>
-          {selected && <Button variant="outline" size="icon" aria-label="Baixar vídeo" disabled={busy} onClick={() => void run(async () => { const r = await privateVideoRequest({ action: 'download', versionId: selected }); const a = document.createElement('a'); a.href = r.url; a.download = r.fileName; a.rel = 'noreferrer'; a.click(); })}><Download /></Button>}
-          {context?.canEdit && selected && <Button variant="outline" size="icon" aria-label="Retirar versão" disabled={busy} onClick={() => { if (window.confirm('Retirar esta versão da aprovação? O histórico será preservado.')) void run(async () => { await privateVideoRequest({ action: 'client-withdraw', versionId: selected }); await refresh(); await query.invalidateQueries({ queryKey: ['workspace-storage', workspaceId] }); }); }}><Trash2 /></Button>}
+          <Tip text="Atualizar a lista de vídeos e comentários."><Button variant="outline" size="icon" aria-label="Atualizar vídeos" disabled={busy} onClick={() => void run(refresh)}><RefreshCw /></Button></Tip>
+          {selected && <Tip text="Descarregar o ficheiro original desta versão."><Button variant="outline" size="icon" aria-label="Baixar vídeo" disabled={busy} onClick={() => void run(async () => { const r = await privateVideoRequest({ action: 'download', versionId: selected }); const a = document.createElement('a'); a.href = r.url; a.download = r.fileName; a.rel = 'noreferrer'; a.click(); })}><Download /></Button></Tip>}
+          {context?.canEdit && selected && <Tip text="Retirar esta versão da aprovação. O histórico de comentários fica guardado."><Button variant="outline" size="icon" aria-label="Retirar versão" disabled={busy} onClick={() => { if (window.confirm('Retirar esta versão da aprovação? O histórico será preservado.')) void run(async () => { await privateVideoRequest({ action: 'client-withdraw', versionId: selected }); await refresh(); await query.invalidateQueries({ queryKey: ['workspace-storage', workspaceId] }); }); }}><Trash2 /></Button></Tip>}
         </div>
 
         {context?.canEdit && selected && <div className="space-y-2 rounded-lg border border-border p-3">
-          <p className="flex items-center gap-2 text-sm font-medium"><Link className="h-4 w-4" /> Link para o cliente</p>
-          <p className="text-xs text-muted-foreground">Mostra todos os vídeos deste cartão com o nome do seu estúdio. Válido 7 dias.</p>
-          <p className="text-xs text-muted-foreground">Depois de aprovado, o vídeo fica disponível 7 dias e é eliminado. Ficam guardados os comentários da revisão, a versão aprovada, quem aprovou e quando.</p>
-          <Button variant="outline" size="sm" disabled={busy} onClick={() => void run(async () => { const created = await privateVideoRequest({ action: 'link', workspaceId, projectId, taskId }); setLink({ token: created.token, url: `${window.location.origin}/video-approval/${created.token}` }); })}>Gerar link de aprovação</Button>
+          <p className="flex items-center gap-2 text-sm font-medium"><Link className="h-4 w-4" /> Link para o cliente
+            <Tip text="Mostra todos os vídeos deste cartão com o nome do seu estúdio. Válido 7 dias. Depois de aprovado, o vídeo fica disponível 7 dias e é eliminado. Ficam guardados os comentários da revisão, a versão aprovada, quem aprovou e quando."><button type="button" aria-label="Como funciona o link" className="text-muted-foreground hover:text-foreground"><Info className="h-4 w-4" /></button></Tip></p>
+          <Tip text="Cria um link para o cliente ver, comentar e aprovar todos os vídeos deste cartão. Válido 7 dias."><Button variant="outline" size="sm" disabled={busy} onClick={() => void run(async () => { const created = await privateVideoRequest({ action: 'link', workspaceId, projectId, taskId }); setLink({ token: created.token, url: `${window.location.origin}/video-approval/${created.token}` }); })}>Gerar link de aprovação</Button></Tip>
           {link && <>
-            <div className="flex min-w-0 gap-2"><Input aria-label="Link de aprovação" readOnly value={link.url} /><Button variant="outline" size="icon" disabled={busy} aria-label="Copiar link" onClick={() => { void navigator.clipboard.writeText(link.url); setStatus('Link copiado.'); }}><Copy /></Button></div>
-            <Button variant="ghost" size="sm" disabled={busy} onClick={() => void run(async () => { await privateVideoRequest({ action: 'revoke', token: link.token }); setLink(null); setStatus('Link revogado.'); })}>Revogar este link</Button>
+            <div className="flex min-w-0 gap-2"><Input aria-label="Link de aprovação" readOnly value={link.url} /><Tip text="Copiar o link para enviar ao cliente."><Button variant="outline" size="icon" disabled={busy} aria-label="Copiar link" onClick={() => { void navigator.clipboard.writeText(link.url); setStatus('Link copiado.'); }}><Copy /></Button></Tip></div>
+            <Tip text="Desativa este link; o cliente deixa de o conseguir abrir."><Button variant="ghost" size="sm" disabled={busy} onClick={() => void run(async () => { await privateVideoRequest({ action: 'revoke', token: link.token }); setLink(null); setStatus('Link revogado.'); })}>Revogar este link</Button></Tip>
           </>}
-          <Button variant="ghost" size="sm" disabled={busy} onClick={() => { if (window.confirm('Revogar todos os links de aprovação deste cartão?')) void run(async () => { await privateVideoRequest({ action: 'revoke-scope', workspaceId, projectId, taskId }); setLink(null); setStatus('Links revogados.'); }); }}><X /> Revogar todos os links</Button>
+          <Tip text="Desativa todos os links de aprovação deste cartão."><Button variant="ghost" size="sm" disabled={busy} onClick={() => { if (window.confirm('Revogar todos os links de aprovação deste cartão?')) void run(async () => { await privateVideoRequest({ action: 'revoke-scope', workspaceId, projectId, taskId }); setLink(null); setStatus('Links revogados.'); }); }}><X /> Revogar todos os links</Button></Tip>
         </div>}
 
         <div className="space-y-3 rounded-lg border border-border p-3">
@@ -212,8 +213,8 @@ export function CanonicalVideoStudio({ workspaceId, projectId, taskId, onContext
             : <>
               <Textarea aria-label="Comentário da equipe" placeholder={`Comentário em ${formatClock(now)}`} value={comment} maxLength={5000} onFocus={() => video.current?.pause()} onChange={e => setComment(e.target.value)} />
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" disabled={busy || showComparison || !comment.trim()} onClick={() => void feedback('client-comment')}><Send /> Comentar em {formatClock(now)}</Button>
-                {context?.canEdit && <Button size="sm" variant="outline" disabled={busy || showComparison} onClick={() => void feedback('client-approval')}><Check /> Aprovar vídeo</Button>}
+                <Tip text="Guarda o comentário no tempo atual do vídeo."><Button size="sm" disabled={busy || showComparison || !comment.trim()} onClick={() => void feedback('client-comment')}><Send /> Comentar em {formatClock(now)}</Button></Tip>
+                {context?.canEdit && <Tip text="Marca esta versão como aprovada e fecha os comentários. A contagem dos 7 dias começa."><Button size="sm" variant="outline" disabled={busy || showComparison} onClick={() => void feedback('client-approval')}><Check /> Aprovar vídeo</Button></Tip>}
               </div>
             </>)}
         </div>
