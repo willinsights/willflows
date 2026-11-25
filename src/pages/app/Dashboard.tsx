@@ -321,7 +321,7 @@ export default function Dashboard() {
 
   return (
     <motion.div
-      className="p-3 md:p-4 space-y-10 max-w-[1400px] mx-auto"
+      className="px-4 py-5 md:px-8 md:py-7 space-y-8 md:space-y-10 max-w-[1400px] mx-auto"
       variants={stagger}
       initial="hidden"
       animate="visible"
@@ -338,13 +338,13 @@ export default function Dashboard() {
         <DashboardPageHeader currentTime={currentTime} />
       </motion.div>
 
-      <motion.section variants={fadeUp} className="space-y-4">
+      <motion.section variants={fadeUp} className="space-y-5">
         <ZoneTitle>O que fazer agora</ZoneTitle>
         <TodayActionZone showPayables={showFinancialZone} />
       </motion.section>
 
       {/* ============ ZONE 1: Visão do mês ============ */}
-      <motion.section variants={fadeUp} className="space-y-4">
+      <motion.section variants={fadeUp} className="space-y-5">
         <ZoneTitle>Visão do mês</ZoneTitle>
 
         {/* Project counters as compact KPIs */}
@@ -380,7 +380,7 @@ export default function Dashboard() {
             />
 
             {/* Chart (2/3) + Goals (1/3) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
               <div className="md:col-span-2 lg:col-span-2">
                 <FinancialChart
                   monthlyData={monthlyData}
@@ -411,9 +411,9 @@ export default function Dashboard() {
       </motion.section>
 
       {/* ============ ZONE 2: Precisa de ação ============ */}
-      <motion.section variants={fadeUp} className="space-y-4">
+      <motion.section variants={fadeUp} className="space-y-5">
         <ZoneTitle>Precisa de ação</ZoneTitle>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
           <UrgentProjectsCard
             urgentProjects={urgentProjects}
             loading={loading || loadingProject}
@@ -433,14 +433,14 @@ export default function Dashboard() {
           )}
         </div>
         {showFinancialZone && (
-          <div className="grid grid-cols-1 lg:grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 gap-4 md:gap-5">
             <PaymentAlertsWidget />
           </div>
         )}
       </motion.section>
 
       {/* ============ ZONE 3: Insights ============ */}
-      <motion.section variants={fadeUp} className="space-y-4">
+      <motion.section variants={fadeUp} className="space-y-5">
         <ZoneTitle>Insights</ZoneTitle>
         <div className={`grid gap-3 ${showFinancialZone ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-2'}`}>
           {showFinancialZone && (
