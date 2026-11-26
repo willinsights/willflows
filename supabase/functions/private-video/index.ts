@@ -19,7 +19,7 @@ Deno.serve(async(req:Request)=>{
   const object=(key:string)=>`https://${account}.r2.cloudflarestorage.com/${bucket}/${key.split('/').map(encodeURIComponent).join('/')}`;
   const stream=async(path:string,init:RequestInit={})=>{
    const r=await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/stream${path}`,{...init,headers:{Authorization:`Bearer ${credential}`,'Content-Type':'application/json'}});
-   if(!r.ok)throw Error('Provider unconfirmed');const data=await r.json();if(data.success!==true)throw Error('Provider unconfirmed');return data;
+   const data=await r.json().catch(()=>null);if(!r.ok||data?.success!==true){console.error('stream_provider_error',r.status,JSON.stringify((data?.errors??[]).map((e:any)=>({code:e?.code,message:String(e?.message??'').slice(0,200)}))));throw Error('Provider unconfirmed');}return data;
   };
   const durations=new Map<string,unknown>();
   const base={rpc:async(name:string,args:Record<string,unknown>)=>await db.rpc(name,args),authenticate:(r:Request)=>authenticatePrivateVideo(r,db.auth)};
