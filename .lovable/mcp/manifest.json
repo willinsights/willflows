@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "sdk_version": "3.6.0",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://wppfmyseeigsdqutkgyc.supabase.co/auth/v1",
+    "require_oauth_client_claim": true,
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "willflow-app",
+      "version": "0.1.0",
+      "title": "WillFlow.app"
+    },
+    "tools": [
+      {
+        "name": "list_workspaces",
+        "title": "List my studios",
+        "description": "List up to 50 studios where the authenticated caller is an active member.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_projects",
+        "title": "List studio projects",
+        "description": "Read a bounded page of project names, codes and dates in an authorized studio, without financial or client contact data.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "workspace_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Studio ID returned by list_workspaces."
+            },
+            "delivered": {
+              "description": "Filter to delivered projects when true or active projects when false.",
+              "type": "boolean"
+            },
+            "limit": {
+              "default": 20,
+              "description": "Maximum number of projects, from 1 to 50.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "offset": {
+              "default": 0,
+              "description": "Pagination offset, from 0 to 10000.",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000
+            }
+          },
+          "required": [
+            "workspace_id"
+          ],
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

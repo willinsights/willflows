@@ -1,3 +1,5 @@
+import { useWebMCP } from 'use-webmcp-tool';
+import { runWebMCPTool } from '@/lib/webmcp-telemetry';
 import { Link } from 'react-router-dom';
 import { format, parseISO, formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -39,7 +41,25 @@ function Row({ to, title, meta, tone }: { to: string; title: string; meta: strin
 }
 
 export default function Hoje() {
-  const { data, isLoading } = useTodayAgenda();
+  const { data, isLoading, error } = useTodayAgenda();
+  useWebMCP({
+    name: 'read_today_agenda',
+    description: 'Read the agenda entries currently visible on the Today screen: events, projects, personal tasks and work, and stalled projects.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    annotations: { readOnlyHint: true, untrustedContentHint: true },
+    execute: () => runWebMCPTool('read_today_agenda', () => {
+      if (error) throw new Error('The agenda could not be loaded.');
+      if (isLoading || !data) return 'The agenda is still loading.';
+      const rows = [
+        ...data.events.map(e => `Event ${e.id}: ${e.title} · ${e.all_day ? 'Dia todo' : format(parseISO(e.start_at), 'HH:mm')}`),
+        ...data.projects.map(p => `Project ${p.id}: ${code(p)} · ${p.name} · ${p.kind} · ${p.date}`),
+        ...data.tasks.map(t => `Task ${t.id}: ${t.title} · ${t.overdue ? 'Atrasada' : 'Hoje'}`),
+        ...data.works.map(w => `Work ${w.id}: ${w.title} · ${w.is_urgent ? 'Urgente' : (WORK_LOG_STATUS_LABELS as Record<string, string>)[w.status] ?? w.status}`),
+        ...data.stalled.map(p => `Stalled project ${p.id}: ${code(p)} · ${p.name} · há ${formatDistanceToNow(parseISO(p.updated_at), { locale: pt })}`),
+      ];
+      return rows.length ? rows.join('\n') : 'No agenda entries shown.';
+    }),
+  });
   const today = format(new Date(), "EEEE, d 'de' MMMM", { locale: pt });
 
   return (

@@ -8,6 +8,7 @@ import { queryClient } from '@/lib/query-client';
 
 import { logger } from '@/lib/logger';
 import { AuthContext } from './auth-context';
+import { oauthReturnPath } from '@/lib/oauth-return-path';
 
 // Internal provider that uses the subscription hook
 function AuthProviderInner({ children }: { children: ReactNode }) {
@@ -59,8 +60,8 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string, fullName: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+  const signUp = useCallback(async (email: string, password: string, fullName: string, next?: string) => {
+    const redirectUrl = new URL(oauthReturnPath(next), window.location.origin).href;
     
     const { error, data } = await supabase.auth.signUp({
       email,
@@ -124,14 +125,17 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   }, []);
 
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(async (next?: string) => {
+    const returnPath = oauthReturnPath(next);
+    const callback = new URL('/auth', window.location.origin);
+    if (returnPath !== '/') callback.searchParams.set('next', returnPath);
     // Check if we're on a custom domain (not *.lovable.app)
     const isCustomDomain = !window.location.hostname.includes('lovable.app');
     
     if (isCustomDomain) {
       // Use direct OAuth via edge function for custom domains
       // The Lovable OAuth broker only works on *.lovable.app domains
-      const redirectUri = `${window.location.origin}/auth`;
+      const redirectUri = callback.href;
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const oauthUrl = `${supabaseUrl}/functions/v1/google-oauth?action=initiate&redirect_uri=${encodeURIComponent(redirectUri)}`;
       
@@ -142,7 +146,7 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
     
     // Use Lovable OAuth broker for *.lovable.app domains
     const { error } = await lovable.auth.signInWithOAuth('google', {
-      redirect_uri: `${window.location.origin}/auth`,
+      redirect_uri: callback.href,
     });
     return { error: error as Error | null };
   }, []);

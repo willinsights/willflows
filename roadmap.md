@@ -163,3 +163,9 @@
 - [x] Adicionar exclusão manual confirmada e opções por data ou confirmação de recebimento.
 - [x] Impedir envios durante exclusão; remover objetos do Cloudflare e legado antes de liberar quota.
 - [x] Limpeza horária implantada (24 execuções/dia); opções salvas e relidas no estúdio, download real e confirmação anônima/mobile verificados, quota restaurada na remoção individual; 12 testes e compilação OK. Galerias fictícias aguardam o período de segurança antes da limpeza física automática, ainda não observada.
+
+## Agent integrations (26/11)
+- [x] Activate managed OAuth; existing asymmetric signing keys preserved.
+- [x] Add OAuth-only studio/project read tools, consent and login return handling; read-only Today browser tool with telemetry.
+- [x] Manifest extracted with 2 tools; real OAuth approve/deny and PKCE exchange passed using trusted-origin test routing (localhost is provider-blocked); MCP protocol reads real caller data and rejects anonymous/nonmember/undeclared identity access. Today renders normally; this browser lacks WebMCP, so live registration remains unverified. Safe-return and permission tests passed; compilation OK.
+- [ ] Republish to activate hosted MCP revision (requires publication).

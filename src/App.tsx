@@ -23,6 +23,7 @@ const AppLayout = lazy(() => import("@/components/layout/AppLayout").then(({ App
 // Lazy loaded public pages
 const Landing = lazy(() => import("./pages/Landing"));
 const Auth = lazy(() => import("./pages/Auth"));
+const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const Features = lazy(() => import("./pages/Features"));
 const Integrations = lazy(() => import("./pages/Integrations"));
@@ -171,6 +172,7 @@ const App = () => (
                     <Route path="/ferramentas/calculadora-preco-hora" element={<CalculadoraPrecoHora />} />
 
                     <Route path="/contrato/:token" element={<ContractSign />} />
+                    <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
                     <Route path="/galeria/:token" element={<Suspense fallback={<ReviewPageLoader />}><PhotoGalleryPage /></Suspense>} />
                     <Route path="/video-approval/:token" element={<Suspense fallback={<ReviewPageLoader />}><VideoApproval /></Suspense>} />
                     <Route path="/vs" element={<ComparisonsHub />} />

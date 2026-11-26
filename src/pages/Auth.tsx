@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/ui/logo';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { oauthReturnPath } from '@/lib/oauth-return-path';
 import { isBetaModeEnabled } from '@/contexts/BetaContext';
 import { useBetaInvite } from '@/hooks/useBetaInvite';
 import { supabase } from '@/integrations/supabase/client';
@@ -82,13 +83,15 @@ export default function Auth() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { trackLead } = useMetaPixel();
+  const nextPath = oauthReturnPath(searchParams.get('next'));
+  const authRetryPath = nextPath === '/' ? '/auth' : `/auth?next=${encodeURIComponent(nextPath)}`;
 
   // Redirect if already logged in (but not in reset mode)
   useEffect(() => {
     if (user && mode !== 'reset') {
-      navigate('/app');
+      navigate(nextPath === '/' ? '/app' : nextPath);
     }
-  }, [user, navigate, mode]);
+  }, [user, navigate, mode, nextPath]);
 
   // Handle URL mode parameter
   useEffect(() => {
@@ -112,7 +115,7 @@ export default function Auth() {
         variant: 'destructive',
       });
       // Clean up URL params
-      navigate('/auth', { replace: true });
+      navigate(authRetryPath, { replace: true });
       return;
     }
     
@@ -131,7 +134,7 @@ export default function Auth() {
             description: 'Não foi possível verificar a sessão. Por favor, tente novamente.',
             variant: 'destructive',
           });
-          navigate('/auth', { replace: true });
+          navigate(authRetryPath, { replace: true });
           return;
         }
         
@@ -143,7 +146,9 @@ export default function Auth() {
           });
           
           // Navigate based on whether this is a new user
-          if (isNewUser) {
+          if (nextPath !== '/') {
+            navigate(nextPath, { replace: true });
+          } else if (isNewUser) {
             navigate('/onboarding', { replace: true });
           } else {
             navigate('/app', { replace: true });
@@ -151,7 +156,7 @@ export default function Auth() {
         }
       });
     }
-  }, [searchParams, navigate, toast]);
+  }, [searchParams, navigate, toast, nextPath, authRetryPath]);
 
   // Handle beta mode restrictions
   useEffect(() => {
@@ -210,7 +215,7 @@ export default function Auth() {
         variant: 'destructive',
       });
     } else {
-      navigate('/app');
+      navigate(nextPath === '/' ? '/app' : nextPath);
     }
   };
 
@@ -239,7 +244,7 @@ export default function Auth() {
     }
 
     setLoading(true);
-    const result = await signUp(data.email, data.password, data.fullName);
+    const result = await signUp(data.email, data.password, data.fullName, nextPath);
     
     if (result.error) {
       setLoading(false);
@@ -277,7 +282,7 @@ export default function Auth() {
         ? 'O código promocional não foi aplicado. A sua conta tem o período de teste normal de 7 dias.'
         : 'Bem-vindo ao WillFlow.',
     });
-    navigate('/onboarding');
+    navigate(nextPath === '/' ? '/onboarding' : nextPath);
   };
 
   const handleForgotPassword = async (data: ForgotPasswordFormData) => {
@@ -856,7 +861,7 @@ export default function Auth() {
                     className="w-full border-accent-foreground/30 hover:border-accent-foreground/50 hover:bg-accent/10"
                     onClick={async () => {
                       setLoading(true);
-                      const { error } = await signInWithGoogle();
+                      const { error } = await signInWithGoogle(nextPath);
                       if (error) {
                         toast({
                           title: 'Erro ao iniciar sessão com Google',
