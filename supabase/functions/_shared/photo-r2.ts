@@ -28,6 +28,22 @@ export async function objectSize(key: string): Promise<number | null> {
   return Number(res.headers.get('content-length') ?? 0);
 }
 
+export async function objectHead(key: string): Promise<{ size: number; type: string } | null> {
+  const res = await client().fetch(objectUrl(key).toString(), { method: 'HEAD' });
+  if (!res.ok) return null;
+  return { size: Number(res.headers.get('content-length') ?? 0), type: (res.headers.get('content-type') ?? '').toLowerCase() };
+}
+
+/** Check magic bytes of the stored object (JPEG, PNG, WebP, TIFF, HEIC/HEIF). */
+export async function looksLikeImage(key: string): Promise<boolean> {
+  const res = await client().fetch(objectUrl(key).toString(), { headers: { Range: 'bytes=0-15' } });
+  if (!res.ok) return false;
+  const b = new Uint8Array(await res.arrayBuffer());
+  const s = (i: number, n: number) => String.fromCharCode(...b.slice(i, i + n));
+  return (b[0] === 0xff && b[1] === 0xd8) || s(1, 3) === 'PNG' || (s(0, 4) === 'RIFF' && s(8, 4) === 'WEBP')
+    || s(0, 2) === 'II' || s(0, 2) === 'MM' || s(4, 4) === 'ftyp';
+}
+
 export async function deleteObject(key: string) {
   if (!key.startsWith(PHOTO_PREFIX)) throw new Error('Invalid photo key');
   const res = await client().fetch(objectUrl(key).toString(), { method: 'DELETE' });

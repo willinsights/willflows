@@ -1,6 +1,15 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { columnPermissions, isReportType, redactRows, requiredPermission, type PermissionKey, type ReportType } from "../_shared/export-permissions.ts";
 
+const STORED_PREFIX = 'exports:';
+// deno-lint-ignore no-explicit-any
+async function withFreshLink(db: any, job: Record<string, unknown>) {
+  const ref = typeof job.file_url === 'string' ? job.file_url : '';
+  if (!ref.startsWith(STORED_PREFIX)) return { ...job, file_url: null };
+  const { data } = await db.storage.from('exports').createSignedUrl(ref.slice(STORED_PREFIX.length), 600);
+  return { ...job, file_url: data?.signedUrl ?? null };
+}
+
 // Declare EdgeRuntime for Supabase background tasks
 declare const EdgeRuntime: {
   waitUntil: (promise: Promise<unknown>) => void;
@@ -126,7 +135,7 @@ Deno.serve(async (req) => {
       }
 
       return new Response(
-        JSON.stringify(job),
+        JSON.stringify(await withFreshLink(supabase, job)),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -171,7 +180,7 @@ Deno.serve(async (req) => {
       const visibleJobs = (jobs ?? []).filter((j: { report_type: string }) => isReportType(j.report_type) && granted.has(requiredPermission(j.report_type)));
 
       return new Response(
-        JSON.stringify({ jobs: visibleJobs }),
+        JSON.stringify({ jobs: await Promise.all(visibleJobs.map((j: Record<string, unknown>) => withFreshLink(supabase, j))) }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -447,12 +456,8 @@ async function processExport(
       throw uploadError;
     }
 
-    // Get signed URL (valid for 24 hours)
-    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-      .from('exports')
-      .createSignedUrl(`${workspaceId}/${jobId}/${fileName}`, 86400);
-
-    if (signedUrlError) throw signedUrlError;
+    // Persist only the storage path; short-lived links are minted per authorized status/list request.
+    const storedPath = `${STORED_PREFIX}${workspaceId}/${jobId}/${fileName}`;
 
     // Get job details for notification
     const { data: jobData } = await supabase
@@ -466,7 +471,7 @@ async function processExport(
       .from('export_jobs')
       .update({ 
         status: 'completed',
-        file_url: signedUrlData.signedUrl,
+        file_url: storedPath,
         completed_at: new Date().toISOString(),
       })
       .eq('id', jobId);

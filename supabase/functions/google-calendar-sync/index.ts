@@ -162,7 +162,7 @@ async function upsertGoogleEvent(
     : `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
-    console.log(`Upserting event to Google Calendar (attempt ${attempt + 1}):`, event.summary);
+    console.log(`Upserting event to Google Calendar (attempt ${attempt + 1})`);
 
     const response = await fetch(url, {
       method: existingEventId ? 'PUT' : 'POST',
@@ -522,7 +522,7 @@ serve(async (req) => {
             // Rate limiting delay between API calls (500ms to stay well under quota)
             await delay(500);
           } catch (e: any) {
-            console.error(`Error syncing event ${calEvent.title}:`, e.message);
+            console.error(`Error syncing event ${calEvent.id}:`, e.message);
             results.errors.push(`Evento "${calEvent.title}": ${e.message}`);
           }
         }
@@ -623,7 +623,7 @@ serve(async (req) => {
             imported++;
           }
         } catch (e: any) {
-          console.error(`Error importing event "${gEvent.summary}":`, e.message);
+          console.error('Error importing Google event:', e.message);
           importErrors.push(`"${gEvent.summary}": ${e.message}`);
         }
       }

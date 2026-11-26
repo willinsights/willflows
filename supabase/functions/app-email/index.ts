@@ -163,7 +163,20 @@ Deno.serve(async (req) => {
 
       if (!authorized && template === 'beta_invite' && callerId) {
         const { data: isAdmin } = await supabase.rpc('is_system_admin', { _user_id: callerId })
-        if (isAdmin === true) authorized = true
+        const inviteToken = typeof data?.inviteToken === 'string' ? data.inviteToken : ''
+        if (isAdmin === true && inviteToken) {
+          const { data: invite } = await supabase
+            .from('beta_invite_tokens')
+            .select('email, used_at, expires_at')
+            .eq('token', inviteToken)
+            .maybeSingle()
+          const valid = invite?.email && !invite.used_at && (!invite.expires_at || new Date(invite.expires_at) > new Date())
+          if (valid) {
+            authorized = true
+            to = invite.email // recipient is bound to the stored invite, never the request
+            data.inviteLink = undefined // link is always derived server-side from the token
+          }
+        }
       }
 
       if (!authorized) {

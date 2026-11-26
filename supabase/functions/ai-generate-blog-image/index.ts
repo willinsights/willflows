@@ -140,7 +140,11 @@ CRITICAL STYLE REQUIREMENTS:
       const imageBase64 = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
 
       if (imageBase64 && imageBase64.startsWith("data:image")) {
-        const base64Data = imageBase64.split(",")[1];
+        const base64Data = imageBase64.split(",")[1] ?? "";
+        if (base64Data.length > Math.ceil(MAX_IMAGE_BYTES / 3) * 4) {
+          console.error("[AI Blog Image] Imagem gerada excede o limite");
+          return null;
+        }
         const imageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
 
         const filename = `${slug}-ai-${Date.now()}.png`;
@@ -167,6 +171,45 @@ CRITICAL STYLE REQUIREMENTS:
     console.error("[AI Blog Image] AI fallback error:", error);
   }
   return null;
+}
+
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+function isPrivateHost(host: string): boolean {
+  const h = host.toLowerCase().replace(/^\[|\]$/g, "");
+  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".internal") || h.endsWith(".local")) return true;
+  if (h.includes(":")) return true;
+  const m = h.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (!m) return false;
+  const [a, b] = [Number(m[1]), Number(m[2])];
+  return a === 0 || a === 10 || a === 127 || a >= 224 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127);
+}
+
+/** HTTPS only, no redirects, public hosts, image types only, capped size. */
+async function fetchSafeImage(raw: string): Promise<{ contentType: string; bytes: Uint8Array } | null> {
+  let url: URL;
+  try { url = new URL(raw); } catch { return null; }
+  if (url.protocol !== "https:" || url.username || url.password || (url.port && url.port !== "443") || isPrivateHost(url.hostname)) return null;
+  const res = await fetch(url.toString(), { redirect: "manual", signal: AbortSignal.timeout(10000), headers: { "Accept": "image/jpeg,image/png,image/webp" } });
+  if (!res.ok || !res.body) return null;
+  const contentType = (res.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
+  if (!ALLOWED_TYPES.includes(contentType)) return null;
+  if (Number(res.headers.get("content-length") ?? 0) > MAX_IMAGE_BYTES) return null;
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.length;
+    if (total > MAX_IMAGE_BYTES) { await reader.cancel(); return null; }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks) { bytes.set(c, off); off += c.length; }
+  return { contentType, bytes };
 }
 
 serve(async (req) => {
@@ -323,17 +366,9 @@ Return ONLY a valid JSON object:
       console.log("[AI Blog Image] Descarregando imagem:", imageResult.imageUrl);
       
       try {
-        const imageResponse = await fetch(imageResult.imageUrl, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
-          },
-        });
-
-        if (imageResponse.ok) {
-          const contentType = imageResponse.headers.get("content-type") || "image/jpeg";
-          const imageBytes = new Uint8Array(await imageResponse.arrayBuffer());
-          
+        const fetched = await fetchSafeImage(imageResult.imageUrl);
+        if (fetched) {
+          const { contentType, bytes: imageBytes } = fetched;
           // Validate it's actually an image
           if (imageBytes.length < 1000) {
             console.log("[AI Blog Image] Imagem muito pequena, pode ser inválida");
@@ -369,7 +404,7 @@ Return ONLY a valid JSON object:
             }
           }
         } else {
-          console.log("[AI Blog Image] Falha ao descarregar imagem:", imageResponse.status);
+          console.log("[AI Blog Image] Imagem recusada ou indisponível");
         }
       } catch (downloadError) {
         console.error("[AI Blog Image] Erro ao descarregar:", downloadError);

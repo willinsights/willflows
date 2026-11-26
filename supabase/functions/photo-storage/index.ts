@@ -1,7 +1,7 @@
 // Studio-side photo storage: upload tickets, server-measured confirmation, signed reads and deletion.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
-import { deleteObject, objectSize, photoKey, presign, readUrl } from '../_shared/photo-r2.ts';
+import { deleteObject, looksLikeImage, objectHead, objectSize, photoKey, presign, readUrl } from '../_shared/photo-r2.ts';
 import { removeStoredPhoto } from '../_shared/photo-retention.ts';
 
 const json = (body: unknown, status = 200) =>
@@ -36,6 +36,11 @@ Deno.serve(async (req) => {
   if (!g) return json({ error: 'Galeria não encontrada' }, 404);
 
   if (g.cleanup_started_at && action !== 'delete-gallery') return json({ error: 'Esta galeria está aguardando exclusão.' }, 410);
+
+  if (action !== 'delete-gallery') {
+    const { data: allowed } = await userDb.rpc('can_access_feature', { p_workspace_id: g.workspace_id, p_feature: 'photoGalleries' });
+    if (!allowed) return json({ error: 'As galerias de fotografia fazem parte do plano Studio.' }, 402);
+  }
 
   if (action === 'sign') {
     const { data: member } = await userDb.rpc('is_workspace_member', { _user_id: uid, _workspace_id: g.workspace_id });
@@ -74,9 +79,6 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
 
-  const { data: allowed } = await userDb.rpc('can_access_feature', { p_workspace_id: g.workspace_id, p_feature: 'photoGalleries' });
-  if (!allowed) return json({ error: 'As galerias de fotografia fazem parte do plano Studio.' }, 402);
-
   const kind = body.kind === 'original' ? 'original' : 'preview';
   const ext = kind === 'preview' ? 'jpg' : String(body.ext ?? '').toLowerCase();
   if (!EXT.test(ext)) return json({ error: 'Formato de imagem não suportado' }, 400);
@@ -96,6 +98,14 @@ Deno.serve(async (req) => {
   if (action === 'confirm') {
     const size = await objectSize(key);
     if (size == null) return json({ error: 'Ficheiro não recebido' }, 409);
+    // The PUT ticket cannot bind byte length: verify the stored object's real size, type and quota.
+    const head = await objectHead(key);
+    const okType = kind === 'preview' ? head?.type === 'image/jpeg' : /^image\//.test(head?.type ?? '');
+    const { data: q } = await db.rpc('check_storage_quota', { p_workspace_id: g.workspace_id, p_file_size_bytes: size });
+    if (!(size > 0 && size <= MAX_FILE) || !okType || !(await looksLikeImage(key)) || !q?.allowed) {
+      await deleteObject(key);
+      return json({ error: 'Ficheiro inválido, demasiado grande ou sem espaço disponível' }, 413);
+    }
     if (kind === 'preview') {
       const { error } = await db.from('gallery_photos').insert({
         id: photoId, gallery_id: g.id, workspace_id: g.workspace_id, storage_provider: 'r2', preview_path: key, size_bytes: size,
