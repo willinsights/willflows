@@ -6,7 +6,12 @@ const STORED_PREFIX = 'exports:';
 async function withFreshLink(db: any, job: Record<string, unknown>) {
   const ref = typeof job.file_url === 'string' ? job.file_url : '';
   if (!ref.startsWith(STORED_PREFIX)) return { ...job, file_url: null };
-  const { data } = await db.storage.from('exports').createSignedUrl(ref.slice(STORED_PREFIX.length), 600);
+  const path = ref.slice(STORED_PREFIX.length);
+  // Only sign the exact folder this server writes for the job; never a caller-chosen path.
+  const expectedDir = `${String(job.workspace_id)}/${String(job.id)}/`;
+  const rest = path.startsWith(expectedDir) ? path.slice(expectedDir.length) : '';
+  if (!rest || rest.includes('/') || rest.includes('..')) return { ...job, file_url: null };
+  const { data } = await db.storage.from('exports').createSignedUrl(path, 600);
   return { ...job, file_url: data?.signedUrl ?? null };
 }
 

@@ -29,6 +29,8 @@ export function useGlobalSearch(query: string) {
     }
 
     const term = searchTerm.trim().toLowerCase();
+    // Strip filter-grammar characters so typed text cannot alter the OR filter.
+    const safeTerm = term.replace(/[,()*%\\"']/g, ' ').trim();
     if (term.length < 2) {
       setResults([]);
       setLoading(false);
@@ -57,7 +59,7 @@ export function useGlobalSearch(query: string) {
           .select('id, name, company, email')
           .eq('workspace_id', currentWorkspace.id)
           .eq('is_active', true)
-          .or(`name.ilike.%${term}%,company.ilike.%${term}%,email.ilike.%${term}%`)
+          .or(`name.ilike.%${safeTerm}%,company.ilike.%${safeTerm}%,email.ilike.%${safeTerm}%`)
           .limit(5).abortSignal(signal),
         supabase
           .from('tasks')

@@ -253,6 +253,13 @@
       "when": 1795650862321,
       "tag": "0035_photo_gallery_retention",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1795721900541,
+      "tag": "0036_harden_contracts_price_guard",
+      "breakpoints": true
     }
   ]
 }
