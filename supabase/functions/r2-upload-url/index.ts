@@ -146,6 +146,10 @@ serve(async (req) => {
     }
 
     validateUploadFile(fileName, fileSize);
+    const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska', 'video/x-msvideo', 'video/x-m4v', 'video/mpeg'];
+    if (mimeType && !ALLOWED_VIDEO_TYPES.includes(String(mimeType).toLowerCase())) {
+      return new Response(JSON.stringify({ error: 'Tipo de ficheiro não suportado' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     const context = await resolveVideoContext(supabase, { workspace_id: workspaceId, project_id: projectId, task_id: taskId || null });
     if (replaceVersionId) {
       const { data: target, error } = await supabase.from('video_versions').select('workspace_id,project_id,task_id').eq('id', replaceVersionId).maybeSingle();
@@ -218,7 +222,7 @@ serve(async (req) => {
       secretAccessKey,
       bucketName,
       uniqueKey,
-      mimeType || "video/mp4",
+      (mimeType ? String(mimeType).toLowerCase() : "video/mp4"),
       3600
     );
 

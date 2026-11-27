@@ -38,7 +38,8 @@ serve(async (req) => {
     }
 
     const { text, currentPhase: rawPhase } = await req.json();
-    const currentPhase = rawPhase === 'edicao' ? 'edicao' : 'captacao';
+    const currentPhase: 'captacao' | 'edicao' = rawPhase === 'edicao' ? 'edicao' : 'captacao';
+    const DEFAULT_PHASE_LABEL = { captacao: 'captacao', edicao: 'edicao' } as const;
 
     if (!text || typeof text !== "string" || text.trim().length < 10) {
       return new Response(
@@ -74,7 +75,7 @@ Regras:
 - Extrair tarefas claras e acionáveis
 - Cada tarefa deve ter um título curto e objetivo (máx 80 caracteres)
 - Descrição opcional com detalhes extras
-- Fase: usar "${currentPhase || "captacao"}" como default se não for claro
+- Fase: usar "${DEFAULT_PHASE_LABEL[currentPhase]}" como default se não for claro
 - Prioridade: inferir do contexto (urgente/alta/media/baixa), default "media"
 - Sub-itens de checklist: passos concretos dentro de cada tarefa
 - Máximo 50 tarefas

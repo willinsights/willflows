@@ -295,6 +295,13 @@
       "when": 1795788551557,
       "tag": "0041_allow_admin_self_pay",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1795802704489,
+      "tag": "0042_security_fixes_batch",
+      "breakpoints": true
     }
   ]
 }

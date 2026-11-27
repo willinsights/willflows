@@ -597,6 +597,7 @@ serve(async (req) => {
             .select('id')
             .eq('google_event_id', gEvent.id)
             .eq('workspace_id', workspaceId)
+            .eq('created_by', userId)
             .maybeSingle();
 
           if (existing) {
@@ -610,7 +611,8 @@ serve(async (req) => {
                 all_day: eventData.all_day,
                 location: eventData.location,
               })
-              .eq('id', existing.id);
+              .eq('id', existing.id)
+              .eq('created_by', userId);
 
             if (error) throw error;
             updated++;
