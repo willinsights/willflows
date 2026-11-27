@@ -158,8 +158,8 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
   return (
     <>
-      <CommandDialog open={open} onOpenChange={onOpenChange}>
-        {/* Disable cmdk internal filter so useGlobalSearch drives result set */}
+      <CommandDialog open={open} onOpenChange={onOpenChange} commandProps={{ shouldFilter: false }}>
+        {/* cmdk's own filter is off: useGlobalSearch drives the result set */}
         <CommandInput
           value={query}
           onValueChange={setQuery}

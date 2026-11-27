@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Users, UserPlus, Crown, Shield, Search, MoreHorizontal, Edit, Trash2, Mail, RefreshCw, Clock } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { searchTextMatches } from '@/lib/search-normalize';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -92,7 +93,7 @@ export default function Equipa() {
   const filteredMembers = members.filter((member) => {
     const matchesSearch =
       !searchQuery ||
-      member.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      searchTextMatches(member.full_name, searchQuery) ||
       member.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = roleFilter === 'all' || member.role === roleFilter;
     return matchesSearch && matchesRole;

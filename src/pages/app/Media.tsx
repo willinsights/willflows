@@ -1,4 +1,5 @@
 import { EmptyState } from '@/components/ui/empty-state';
+import { searchTextMatches } from '@/lib/search-normalize';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
@@ -161,9 +162,9 @@ export default function Media() {
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         if (
-          !link.title?.toLowerCase().includes(query) &&
-          !link.project_name?.toLowerCase().includes(query) &&
-          !link.client_name?.toLowerCase().includes(query)
+          !searchTextMatches(link.title, query) &&
+          !searchTextMatches(link.project_name, query) &&
+          !searchTextMatches(link.client_name, query)
         ) {
           return false;
         }

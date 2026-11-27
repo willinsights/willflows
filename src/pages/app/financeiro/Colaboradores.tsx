@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { searchTextMatches } from '@/lib/search-normalize';
 import { Users, Search, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -99,7 +100,7 @@ export default function Colaboradores() {
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     if (!term) return collaborators;
-    return collaborators.filter((c) => c.name.toLowerCase().includes(term));
+    return collaborators.filter((c) => searchTextMatches(c.name, term));
   }, [collaborators, q]);
 
   const totals = useMemo(() => {

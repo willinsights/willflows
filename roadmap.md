@@ -169,3 +169,7 @@
 - [x] Add OAuth-only studio/project read tools, consent and login return handling; read-only Today browser tool with telemetry.
 - [x] Manifest extracted with 2 tools; real OAuth approve/deny and PKCE exchange passed using trusted-origin test routing (localhost is provider-blocked); MCP protocol reads real caller data and rejects anonymous/nonmember/undeclared identity access. Today renders normally; this browser lacks WebMCP, so live registration remains unverified. Safe-return and permission tests passed; compilation OK.
 - [ ] Republish to activate hosted MCP revision (requires publication).
+
+## Pesquisa por texto (27/11)
+- [x] Nomes com espaços, acentos ou pontuação encontram-se escritos tudo junto ("josesilva" acha "José Silva"); colunas normalizadas na base de dados e leitura partilhada pelas listas, 4 testes aprovados.
+- [x] Paleta de comandos mostra os resultados da pesquisa (filtro interno do menu desligado); código sem traços e ID curto confirmados na sessão válida do In-Sights.

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { searchTextMatches } from '@/lib/search-normalize';
 import { motion } from 'framer-motion';
 import { 
   Plus, 
@@ -79,8 +80,8 @@ function LeadsContent() {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         l =>
-          l.name.toLowerCase().includes(query) ||
-          l.company?.toLowerCase().includes(query) ||
+          searchTextMatches(l.name, query) ||
+          searchTextMatches(l.company, query) ||
           l.email?.toLowerCase().includes(query)
       );
     }

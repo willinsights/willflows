@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
+import { searchTextMatches } from '@/lib/search-normalize';
 import { Plus, FileText, FileCode, Send, Eye, CheckCircle, Search, Filter, LayoutGrid, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,8 +51,8 @@ function ContratosContent() {
   // Filter contracts
   const filteredContracts = contracts.filter(contract => {
     const matchesSearch = !searchQuery || 
-      contract.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contract.client?.name.toLowerCase().includes(searchQuery.toLowerCase());
+      searchTextMatches(contract.title, searchQuery) ||
+      searchTextMatches(contract.client?.name, searchQuery);
     const matchesStatus = statusFilter === 'all' || contract.status === statusFilter;
     return matchesSearch && matchesStatus;
   });

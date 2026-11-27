@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Search, Filter, Calendar as CalendarIcon, FileSpreadsheet, FileText, Camera, Film, Video, Eye, EyeOff, X, Users, Lock } from 'lucide-react';
 import { format, isWithinInterval, parseISO, subMonths, addMonths, startOfMonth } from 'date-fns';
 import { usePagination } from '@/hooks/usePagination';
+import { searchTextMatches } from '@/lib/search-normalize';
 import { ListPagination } from '@/components/ui/list-pagination';
 import { pt } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -186,7 +187,7 @@ export default function Finalizados() {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        if (!project.name.toLowerCase().includes(query) && !project.project_code?.toLowerCase().includes(query) && !project.clients?.name?.toLowerCase().includes(query)) {
+        if (!searchTextMatches(project.name, query) && !searchTextMatches(project.project_code, query) && !searchTextMatches(project.clients?.name, query)) {
           return false;
         }
       }

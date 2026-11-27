@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
+import { searchTextMatches } from '@/lib/search-normalize';
 import { pt } from 'date-fns/locale';
 import { motion } from 'framer-motion';
 import {
@@ -95,7 +96,7 @@ function UnbilledPool({
       if (clientFilter !== 'all' && r.clientId !== clientFilter) return false;
       if (editorFilter !== 'all' && !r.teamPayments.some((tp) => tp.userId === editorFilter))
         return false;
-      if (query && !`${r.projectCode} ${r.projectName} ${r.clientName}`.toLowerCase().includes(query.toLowerCase()))
+      if (query && !searchTextMatches(`${r.projectCode} ${r.projectName} ${r.clientName}`, query))
         return false;
       return true;
     });

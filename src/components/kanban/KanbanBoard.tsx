@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
+import { searchTextMatches } from '@/lib/search-normalize';
 import {
   DndContext,
   DragEndEvent,
@@ -247,9 +248,9 @@ export function KanbanBoard({ phase, title, description }: KanbanBoardProps) {
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         filteredProjects = filteredProjects.filter(project =>
-          project.name.toLowerCase().includes(query) ||
-          project.clients?.name?.toLowerCase().includes(query) ||
-          (project as any).project_code?.toLowerCase().includes(query)
+          searchTextMatches(project.name, query) ||
+          searchTextMatches(project.clients?.name, query) ||
+          searchTextMatches((project as any).project_code, query)
         );
       }
 

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { usePagination } from '@/hooks/usePagination';
+import { searchTextMatches } from '@/lib/search-normalize';
 import { ListPagination } from '@/components/ui/list-pagination';
 import { 
   Plus, 
@@ -166,8 +167,8 @@ export default function Clientes() {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         c =>
-          c.name.toLowerCase().includes(query) ||
-          c.company?.toLowerCase().includes(query) ||
+          searchTextMatches(c.name, query) ||
+          searchTextMatches(c.company, query) ||
           c.email?.toLowerCase().includes(query)
       );
     }

@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useDebounce } from '@/hooks/use-debounce';
 import { logger } from '@/lib/logger';
+import { normalizeSearchText } from '@/lib/search-normalize';
 
 export interface SearchResult {
   id: string;
@@ -31,7 +32,10 @@ export function useGlobalSearch(query: string) {
     const term = searchTerm.trim().toLowerCase();
     // Strip filter-grammar characters so typed text cannot alter the OR filter.
     const safeTerm = term.replace(/[,()*%\\"']/g, ' ').trim();
-    if (term.length < 2) {
+    // Fold accents/punctuation so "josesilva" finds "Jose Silva". Mirrors the
+    // server-side normalize_search_text() behind the *_search columns.
+    const norm = normalizeSearchText(term);
+    if (norm.length < 2) {
       setResults([]);
       setLoading(false);
       return;
@@ -60,26 +64,26 @@ export function useGlobalSearch(query: string) {
           .from('projects')
           .select('id, name, project_code, current_phase, is_delivered, clients(name)')
           .eq('workspace_id', currentWorkspace.id)
-          .ilike('name', `%${term}%`)
+          .ilike('search_name', `%${norm}%`)
           .limit(5).abortSignal(signal),
         supabase
           .from('projects')
           .select('id, name, project_code, current_phase, is_delivered, clients(name)')
           .eq('workspace_id', currentWorkspace.id)
-          .ilike('project_code', `%${term.replace(/^#/, '')}%`)
+          .ilike('search_code', `%${norm}%`)
           .limit(5).abortSignal(signal),
         supabase
           .from('clients')
           .select('id, name, company, email')
           .eq('workspace_id', currentWorkspace.id)
           .eq('is_active', true)
-          .or(`name.ilike.%${safeTerm}%,company.ilike.%${safeTerm}%,email.ilike.%${safeTerm}%`)
+          .or(`search_name.ilike.%${norm}%,search_company.ilike.%${norm}%,email.ilike.%${safeTerm}%`)
           .limit(5).abortSignal(signal),
         supabase
           .from('tasks')
           .select('id, title, project_id, projects(name, current_phase, is_delivered)')
           .eq('workspace_id', currentWorkspace.id)
-          .ilike('title', `%${term}%`)
+          .ilike('search_title', `%${norm}%`)
           .limit(5).abortSignal(signal),
         idQuery,
       ]);
