@@ -260,6 +260,27 @@
       "when": 1795721900541,
       "tag": "0036_harden_contracts_price_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1795779661174,
+      "tag": "0037_add_search_normalized_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1795779712701,
+      "tag": "0038_fix_search_normalization_case",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1795779749402,
+      "tag": "0039_recompute_search_normalized_columns",
+      "breakpoints": true
     }
   ]
 }

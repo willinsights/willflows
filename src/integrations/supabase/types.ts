@@ -779,6 +779,8 @@ export type Database = {
           notes: string | null
           phone: string | null
           postal_code: string | null
+          search_company: string | null
+          search_name: string | null
           tags: string[] | null
           updated_at: string
           vat_exempt: boolean
@@ -808,6 +810,8 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           postal_code?: string | null
+          search_company?: string | null
+          search_name?: string | null
           tags?: string[] | null
           updated_at?: string
           vat_exempt?: boolean
@@ -837,6 +841,8 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           postal_code?: string | null
+          search_company?: string | null
+          search_name?: string | null
           tags?: string[] | null
           updated_at?: string
           vat_exempt?: boolean
@@ -3288,6 +3294,8 @@ export type Database = {
           priority: Database["public"]["Enums"]["priority_level"]
           project_code: string | null
           region: string | null
+          search_code: string | null
+          search_name: string | null
           shoot_date: string | null
           shoot_end_time: string | null
           shoot_start_time: string | null
@@ -3336,6 +3344,8 @@ export type Database = {
           priority?: Database["public"]["Enums"]["priority_level"]
           project_code?: string | null
           region?: string | null
+          search_code?: string | null
+          search_name?: string | null
           shoot_date?: string | null
           shoot_end_time?: string | null
           shoot_start_time?: string | null
@@ -3384,6 +3394,8 @@ export type Database = {
           priority?: Database["public"]["Enums"]["priority_level"]
           project_code?: string | null
           region?: string | null
+          search_code?: string | null
+          search_name?: string | null
           shoot_date?: string | null
           shoot_end_time?: string | null
           shoot_start_time?: string | null
@@ -4187,6 +4199,7 @@ export type Database = {
           position: number
           priority: Database["public"]["Enums"]["priority_level"]
           project_id: string
+          search_title: string | null
           started_at: string | null
           title: string
           updated_at: string
@@ -4209,6 +4222,7 @@ export type Database = {
           position?: number
           priority?: Database["public"]["Enums"]["priority_level"]
           project_id: string
+          search_title?: string | null
           started_at?: string | null
           title: string
           updated_at?: string
@@ -4231,6 +4245,7 @@ export type Database = {
           position?: number
           priority?: Database["public"]["Enums"]["priority_level"]
           project_id?: string
+          search_title?: string | null
           started_at?: string | null
           title?: string
           updated_at?: string
@@ -5778,6 +5793,21 @@ export type Database = {
         }
         Relationships: []
       }
+      zz_scratch_norm: {
+        Row: {
+          a: string | null
+          b: string | null
+        }
+        Insert: {
+          a?: string | null
+          b?: string | null
+        }
+        Update: {
+          a?: string | null
+          b?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       v_collaborator_payments: {
@@ -6371,6 +6401,7 @@ export type Database = {
         Returns: Json
       }
       mask_email: { Args: { _email: string }; Returns: string }
+      normalize_search_text: { Args: { p_text: string }; Returns: string }
       notify_gallery_event: {
         Args: { p_gallery: string; p_message: string; p_title: string }
         Returns: undefined
@@ -6675,6 +6706,7 @@ export type Database = {
         Args: { p_workspace_id: string }
         Returns: boolean
       }
+      zz_norm: { Args: { p_text: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "edicao" | "captacao" | "gestao" | "visualizacao"
