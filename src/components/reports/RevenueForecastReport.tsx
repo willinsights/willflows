@@ -45,7 +45,7 @@ export function RevenueForecastReport() {
 
       const [projectsRes] = await Promise.all([
         fetchAllAsResult(() => supabase
-          .from('projects')
+          .from('projects_full')
           .select('id, agreed_value, is_delivered, delivered_at, created_at, delivery_date, shoot_date, competence_month')
           .eq('workspace_id', wsId)
           .order('id')),

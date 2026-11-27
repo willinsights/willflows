@@ -124,7 +124,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
       try {
         const { data, error } = await supabase
-          .from('projects')
+          .from('projects_full')
           .select('*, clients(name)')
           .eq('id', projectId)
           .single();

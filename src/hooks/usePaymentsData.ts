@@ -30,7 +30,7 @@ export function usePaymentsData() {
       if (!workspaceId) return [];
       const data = await fetchAllRows(() =>
         supabase
-          .from('projects')
+          .from('projects_full')
           .select(COSTS_COLS)
           .eq('workspace_id', workspaceId)
           .eq('is_delivered', true)
@@ -48,7 +48,7 @@ export function usePaymentsData() {
       if (!workspaceId) return [];
       const data = await fetchAllRows(() =>
         supabase
-          .from('projects')
+          .from('projects_full')
           .select(REVENUE_COLS)
           .eq('workspace_id', workspaceId)
           .eq('is_delivered', true)

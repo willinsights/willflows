@@ -197,7 +197,7 @@ export default function Dashboard() {
     setLoadingProject(true);
     try {
       const { data, error } = await supabase
-        .from('projects')
+        .from('projects_full')
         .select('*, clients(name)')
         .eq('id', project.id)
         .maybeSingle();

@@ -65,7 +65,7 @@ export function TeamPerformanceReport() {
           .not('user_id', 'is', null)
           .order('id')),
         fetchAllAsResult(() => supabase
-          .from('projects')
+          .from('projects_full')
           .select('id, name, is_delivered, delivered_at, created_at, shoot_date, agreed_value, current_phase, workspace_id')
           .eq('workspace_id', wsId)
           .order('id')),

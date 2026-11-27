@@ -16,7 +16,7 @@ export function useFinancialProjects(workspaceId: string | undefined) {
     refetchOnWindowFocus: true,
     queryFn: async (): Promise<FinancialProject[]> => {
       if (!workspaceId) throw new Error('Selecione um workspace para consultar os projetos.');
-      return await fetchAllRows(() => supabase.from('projects').select(PROJECT_COLS).eq('workspace_id', workspaceId).order('id', { ascending: true })) as FinancialProject[];
+      return await fetchAllRows(() => supabase.from('projects_full').select(PROJECT_COLS).eq('workspace_id', workspaceId).order('id', { ascending: true })) as FinancialProject[];
     },
   });
 }

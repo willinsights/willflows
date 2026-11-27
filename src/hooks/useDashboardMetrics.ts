@@ -177,7 +177,7 @@ export function useDashboardMetrics() {
     queryFn: async (): Promise<PerformanceMetrics> => {
       const sixMonthsAgo = subMonths(new Date(), 6);
       const { data } = await supabase
-        .from('projects')
+        .from('projects_full')
         .select('id, is_delivered, delivered_at, created_at, type, agreed_value, custo_captacao, custo_edicao, custos_extras')
         .eq('workspace_id', workspaceId!)
         .gte('created_at', sixMonthsAgo.toISOString());
@@ -215,7 +215,7 @@ export function useDashboardMetrics() {
     staleTime: 60 * 1000,
     queryFn: async () => {
       const { data } = await supabase
-        .from('projects')
+        .from('projects_full')
         .select('id, name, agreed_value, client_payment_status, client_payment_due_date, delivered_at, created_at, client_id, clients(name)')
         .eq('workspace_id', workspaceId!)
         .eq('is_delivered', true)
@@ -316,7 +316,7 @@ export function useDashboardMetrics() {
       let shootsData: any[] = [];
       if (isAdmin) {
         const { data } = await supabase
-          .from('projects')
+          .from('projects_full')
           .select('id, name, shoot_date, shoot_start_time, clients(name)')
           .eq('workspace_id', workspaceId!)
           .eq('is_delivered', false)
@@ -327,7 +327,7 @@ export function useDashboardMetrics() {
         shootsData = data ?? [];
       } else if (userCaptacaoProjectIds.length > 0) {
         const { data } = await supabase
-          .from('projects')
+          .from('projects_full')
           .select('id, name, shoot_date, shoot_start_time, clients(name)')
           .eq('workspace_id', workspaceId!)
           .eq('is_delivered', false)
@@ -424,7 +424,7 @@ export function useDashboardMetrics() {
     queryFn: async (): Promise<UrgentProject[]> => {
       const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const { data } = await supabase
-        .from('projects')
+        .from('projects_full')
         .select('id, name, type, priority, delivery_date, clients(name)')
         .eq('workspace_id', workspaceId!)
         .eq('is_delivered', false)
@@ -450,7 +450,7 @@ export function useDashboardMetrics() {
     staleTime: 60 * 1000,
     queryFn: async (): Promise<RecentActivity[]> => {
       const { data } = await supabase
-        .from('projects')
+        .from('projects_full')
         .select('id, name, updated_at, created_at')
         .eq('workspace_id', workspaceId!)
         .order('updated_at', { ascending: false })

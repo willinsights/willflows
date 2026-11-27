@@ -42,3 +42,4 @@
 - Client receipt entry uses one shared dialog/hook in project details and Movimentos, updating existing delivered-project revenue only. Why: prevent duplicate income and keep the two screens consistent.
 - Legacy approval tokens render the canonical Review Studio through a request adapter; keep legacy media/history in place. Why: one client experience without copying assets or weakening old capabilities.
 - MCP: see src/lib/mcp/AGENTS.md.
+- Project money columns: read via projects_full view (NULL without finance access), never select them on projects. Why: every member can read project rows.

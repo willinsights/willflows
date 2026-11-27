@@ -302,6 +302,20 @@
       "when": 1795802704489,
       "tag": "0042_security_fixes_batch",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1795808637404,
+      "tag": "0043_protect_project_financials",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1795808909725,
+      "tag": "0044_speed_up_projects_full",
+      "breakpoints": true
     }
   ]
 }

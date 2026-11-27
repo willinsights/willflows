@@ -54,7 +54,7 @@ export function useProjects() {
 
       return fetchAllRows(() => {
         let request = supabase
-          .from('projects')
+          .from('projects_full')
           .select('*, clients(name)')
           .eq('workspace_id', workspaceId)
           .order('created_at', { ascending: false })
@@ -140,7 +140,7 @@ export function useProjects() {
       // Set the correct column field based on phase
       const columnField = initialPhase === 'captacao' ? 'captacao_column_id' : 'edicao_column_id';
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('projects')
         .insert({
           ...validatedData,
@@ -148,13 +148,20 @@ export function useProjects() {
           [columnField]: firstColumn.id,
           current_phase: initialPhase,
         } as any)
-        .select('*, clients(name)')
+        .select('id')
         .single();
 
       if (error) throw error;
+      const { data: created, error: readError } = await supabase
+        .from('projects_full')
+        .select('*, clients(name)')
+        .eq('id', data.id)
+        .single();
+      if (readError) throw readError;
+      data = created as any;
 
       toast({ title: 'Projeto criado com sucesso' }); window.dispatchEvent(new Event('willflow:projects-changed'));
-      setProjects(prev => [data, ...prev]);
+      setProjects(prev => [data as any, ...prev]);
       return data;
     } catch (error) {
       toast({
@@ -228,7 +235,7 @@ export function useProjects() {
     try {
       // 1. Fetch original project
       const { data: originalProject, error: fetchError } = await supabase
-        .from('projects')
+        .from('projects_full')
         .select('*, clients(name)')
         .eq('id', projectId)
         .single();
@@ -294,7 +301,7 @@ export function useProjects() {
           ...projectCopy,
           [columnField]: firstColumn.id,
         } as any)
-        .select('*, clients(name)')
+        .select('id, current_phase')
         .single();
 
       if (insertError) throw insertError;
@@ -389,8 +396,14 @@ export function useProjects() {
       }
 
       toast({ title: 'Projeto duplicado com sucesso' }); window.dispatchEvent(new Event('willflow:projects-changed'));
-      setProjects(prev => [newProject, ...prev]);
-      return newProject;
+      const { data: fullProject } = await supabase
+        .from('projects_full')
+        .select('*, clients(name)')
+        .eq('id', newProject.id)
+        .single();
+      const duplicated = (fullProject ?? newProject) as any;
+      setProjects(prev => [duplicated, ...prev]);
+      return duplicated;
     } catch (error) {
       logger.error('Error duplicating project:', error);
       toast({

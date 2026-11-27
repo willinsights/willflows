@@ -327,12 +327,17 @@ export function SeedDemoData() {
 
       logger.log('Total projects to create:', projects.length);
 
-      const { data: createdProjects, error: projectsError } = await supabase
+      const { data: insertedIds, error: projectsError } = await supabase
         .from('projects')
         .insert(projects)
-        .select();
+        .select('id');
 
       if (projectsError) throw projectsError;
+      const { data: createdProjects, error: readProjectsError } = await supabase
+        .from('projects_full')
+        .select('*')
+        .in('id', (insertedIds ?? []).map((p) => p.id));
+      if (readProjectsError) throw readProjectsError;
       logger.log('Created projects:', createdProjects?.length);
 
       // 4. Create tasks for each project

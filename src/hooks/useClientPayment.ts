@@ -13,7 +13,7 @@ export function useClientPayment(projectId?: string) {
     enabled: Boolean(workspaceId && projectId && canViewAllFinancials),
     queryFn: async () => {
       if (!workspaceId || !projectId) throw new Error('Projeto indisponível.');
-      const { data, error } = await supabase.from('projects')
+      const { data, error } = await supabase.from('projects_full')
         .select('id, name, agreed_value, is_delivered, client_payment_status, client_paid_at, client_payment_due_date')
         .eq('workspace_id', workspaceId).eq('id', projectId).single();
       if (error) throw error;
@@ -27,12 +27,9 @@ export function useClientPayment(projectId?: string) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(paidDate)) throw new Error('Data inválida.');
       // Update the existing revenue, never add a second income in payments.
       // Existing RLS/triggers remain authoritative; require a returned row before showing success.
-      const { data, error } = await supabase.from('projects')
-        .update({ client_payment_status: 'pago', client_paid_at: paidAt })
-        .eq('workspace_id', workspaceId).eq('id', id).eq('is_delivered', true)
-        .gt('agreed_value', 0)
-        .or('client_payment_status.is.null,client_payment_status.in.(pendente,vencido,atrasado)')
-        .select('id, agreed_value, client_payment_status, client_paid_at').single();
+      const { data, error } = await supabase.rpc('mark_project_client_paid' as never, {
+        _workspace_id: workspaceId, _project_id: id, _paid_at: paidAt,
+      } as never);
       if (error) throw error;
       return data;
     },

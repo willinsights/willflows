@@ -197,14 +197,14 @@ export function usePlanFeatures() {
       // Count members in this workspace
       const { count: membersCount } = await supabase
         .from('workspace_members')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('workspace_id', workspace.id)
         .eq('is_active', true);
       
       // Count projects in this workspace
       const { count: projectsCount } = await supabase
         .from('projects')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('workspace_id', workspace.id);
       
       // Count clients in this workspace

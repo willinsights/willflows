@@ -44,7 +44,7 @@ export function useFilteredProjects() {
       // Fetch all projects (paginated — never silently cut at 1000 rows)
       const projectsData = await fetchAllRows(() =>
         supabase
-          .from('projects')
+          .from('projects_full')
           .select('*, clients(name)')
           .eq('workspace_id', currentWorkspace.id)
           .order('created_at', { ascending: false })

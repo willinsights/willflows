@@ -41,7 +41,7 @@ function useAdvancedKPIs(): AdvancedKPIs {
       // Parallel queries
       const [projectsRes, clientsRes] = await Promise.all([
         fetchAllAsResult(() => supabase
-          .from('projects')
+          .from('projects_full')
           .select('id, agreed_value, is_delivered, delivered_at, created_at, delivery_date, shoot_date, current_phase')
           .eq('workspace_id', wsId)
           .order('id')),
