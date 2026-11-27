@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[send-push] Sending push to user ${userId}: ${title}`);
+    console.log(`[send-push] Sending push to user ${userId}`);
 
     // Get user's push subscription
     const { data: prefs, error: prefsError } = await supabase

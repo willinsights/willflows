@@ -281,6 +281,13 @@
       "when": 1795779749402,
       "tag": "0039_recompute_search_normalized_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1795780315245,
+      "tag": "0040_guard_payments_self_pay",
+      "breakpoints": true
     }
   ]
 }
