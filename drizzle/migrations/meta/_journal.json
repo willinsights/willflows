@@ -316,6 +316,13 @@
       "when": 1795808909725,
       "tag": "0044_speed_up_projects_full",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1795820897490,
+      "tag": "0045_security_fixes_batch_2",
+      "breakpoints": true
     }
   ]
 }

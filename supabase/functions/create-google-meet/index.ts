@@ -215,6 +215,29 @@ serve(async (req) => {
       });
     }
 
+    // Only invite people known to this workspace (active members or its clients)
+    let allowedAttendees: string[] = [];
+    if (Array.isArray(attendees) && attendees.length > 0) {
+      const requested = [...new Set(attendees
+        .filter((e: unknown): e is string => typeof e === 'string')
+        .map((e: string) => e.trim().toLowerCase())
+        .filter((e: string) => e.length > 3 && e.length <= 254))].slice(0, 50);
+      const { data: memberRows } = await supabaseAdmin
+        .from('workspace_members').select('user_id')
+        .eq('workspace_id', workspaceId).eq('is_active', true);
+      const memberIds = (memberRows || []).map((m: any) => m.user_id).filter(Boolean);
+      const { data: profileRows } = memberIds.length
+        ? await supabaseAdmin.from('profiles').select('email').in('id', memberIds)
+        : { data: [] as any[] };
+      const { data: clientRows } = await supabaseAdmin
+        .from('clients').select('email').eq('workspace_id', workspaceId).not('email', 'is', null);
+      const known = new Set<string>([
+        ...(profileRows || []).map((r: any) => String(r.email || '').toLowerCase()),
+        ...(clientRows || []).map((r: any) => String(r.email || '').toLowerCase()),
+      ].filter(Boolean));
+      allowedAttendees = requested.filter((e) => known.has(e));
+    }
+
     // Get Google Calendar connection
     const { data: connection, error: connError } = await supabaseAdmin
       .from('google_calendar_connections')
@@ -279,7 +302,7 @@ serve(async (req) => {
           dateTime: endDateTime,
           timeZone: 'Europe/Lisbon',
         },
-        attendees: attendees?.map((email: string) => ({ email })),
+        attendees: allowedAttendees.length ? allowedAttendees.map((email: string) => ({ email })) : undefined,
       }
     );
 

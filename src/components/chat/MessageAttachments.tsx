@@ -38,7 +38,7 @@ function getFileIcon(mimeType: string | null) {
 }
 
 // Cache for signed URLs to avoid regenerating them
-const SIGNED_URL_TTL_SECONDS = 600;
+const SIGNED_URL_TTL_SECONDS = 120;
 // A cached link is only reused while it still has at least half of its life left,
 // so nothing we hand out is about to expire.
 const CACHE_MIN_REMAINING_MS = (SIGNED_URL_TTL_SECONDS * 1000) / 2;
