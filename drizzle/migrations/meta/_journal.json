@@ -288,6 +288,13 @@
       "when": 1795780315245,
       "tag": "0040_guard_payments_self_pay",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1795788551557,
+      "tag": "0041_allow_admin_self_pay",
+      "breakpoints": true
     }
   ]
 }

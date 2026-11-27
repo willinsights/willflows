@@ -352,7 +352,8 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
         return { payment_amount: autoValue, cost_amount: totalChanged ? autoValue : null, payment_status: 'pendente', paid_at: null };
       };
 
-      await supabase.from('project_team').delete().eq('project_id', project.id);
+      const { error: deleteTeamError } = await supabase.from('project_team').delete().eq('project_id', project.id);
+      if (deleteTeamError) throw deleteTeamError;
 
       const teamMembers = [
         ...responsaveisCaptacao.map(memberId => {
@@ -386,7 +387,14 @@ export function ProjectDetailsSheet({ open, onOpenChange, project, onUpdate, onS
       ];
 
       if (teamMembers.length > 0) {
-        await supabase.from('project_team').insert(teamMembers as any);
+        const { error: insertTeamError } = await supabase.from('project_team').insert(teamMembers as any);
+        if (insertTeamError) {
+          // Repõe a equipa anterior para não perder responsáveis/valores.
+          if (existingTeam && existingTeam.length > 0) {
+            await supabase.from('project_team').insert(existingTeam.map(t => ({ ...t, project_id: project.id })) as any);
+          }
+          throw insertTeamError;
+        }
       }
       
       toast({ title: 'Projeto atualizado com sucesso' });
