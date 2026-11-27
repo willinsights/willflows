@@ -41,7 +41,21 @@ export function useGlobalSearch(query: string) {
 
     try {
       // Search projects, clients, and tasks in parallel
-      const [projectsRes, projectCodesRes, clientsRes, tasksRes] = await Promise.all([
+      // UUID prefix search (UI shows the first 8 chars of the id).
+      const idTerm = term.replace(/^#/, '').replace(/[^0-9a-f-]/g, '');
+      const hex = idTerm.replace(/-/g, '');
+      const isIdPrefix = idTerm.length === term.replace(/^#/, '').length && hex.length >= 4 && hex.length <= 32;
+      const toUuid = (h: string) => `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
+      const idQuery = isIdPrefix
+        ? supabase
+            .from('projects')
+            .select('id, name, project_code, current_phase, is_delivered, clients(name)')
+            .eq('workspace_id', currentWorkspace.id)
+            .gte('id', toUuid(hex.padEnd(32, '0')))
+            .lte('id', toUuid(hex.padEnd(32, 'f')))
+            .limit(5).abortSignal(signal)
+        : Promise.resolve({ data: [] as never[] });
+      const [projectsRes, projectCodesRes, clientsRes, tasksRes, projectIdsRes] = await Promise.all([
         supabase
           .from('projects')
           .select('id, name, project_code, current_phase, is_delivered, clients(name)')
@@ -52,7 +66,7 @@ export function useGlobalSearch(query: string) {
           .from('projects')
           .select('id, name, project_code, current_phase, is_delivered, clients(name)')
           .eq('workspace_id', currentWorkspace.id)
-          .ilike('project_code', `%${term}%`)
+          .ilike('project_code', `%${term.replace(/^#/, '')}%`)
           .limit(5).abortSignal(signal),
         supabase
           .from('clients')
@@ -67,6 +81,7 @@ export function useGlobalSearch(query: string) {
           .eq('workspace_id', currentWorkspace.id)
           .ilike('title', `%${term}%`)
           .limit(5).abortSignal(signal),
+        idQuery,
       ]);
 
       if (signal.aborted) return;
@@ -74,7 +89,7 @@ export function useGlobalSearch(query: string) {
       const searchResults: SearchResult[] = [];
 
       const projects = new Map(
-        [...(projectCodesRes.data ?? []), ...(projectsRes.data ?? [])].map((project) => [project.id, project]),
+        [...((projectIdsRes.data ?? []) as NonNullable<typeof projectCodesRes.data>), ...(projectCodesRes.data ?? []), ...(projectsRes.data ?? [])].map((project) => [project.id, project]),
       );
       for (const project of Array.from(projects.values()).slice(0, 5)) {
         searchResults.push({
