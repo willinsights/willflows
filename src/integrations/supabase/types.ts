@@ -5793,21 +5793,6 @@ export type Database = {
         }
         Relationships: []
       }
-      zz_scratch_norm: {
-        Row: {
-          a: string | null
-          b: string | null
-        }
-        Insert: {
-          a?: string | null
-          b?: string | null
-        }
-        Update: {
-          a?: string | null
-          b?: string | null
-        }
-        Relationships: []
-      }
     }
     Views: {
       v_collaborator_payments: {
@@ -6706,7 +6691,6 @@ export type Database = {
         Args: { p_workspace_id: string }
         Returns: boolean
       }
-      zz_norm: { Args: { p_text: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "edicao" | "captacao" | "gestao" | "visualizacao"
