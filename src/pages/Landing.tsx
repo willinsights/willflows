@@ -42,6 +42,7 @@ import { WaitlistForm } from '@/components/marketing/WaitlistForm';
 import { WhatsNewSection } from '@/components/marketing/WhatsNewSection';
 import { ProblemSolution } from '@/components/marketing/ProblemSolution';
 import { ProductTour } from '@/components/marketing/ProductTour';
+import { OneSystemHero } from '@/components/marketing/OneSystemHero';
 
 
 
@@ -292,138 +293,13 @@ export default function Landing() {
       </Helmet>
       <PublicHeader />
       <main className="overflow-x-clip">
-      {/* Hero Section - Split Layout */}
-      <section className="relative min-h-[90vh] pt-24 pb-20 overflow-visible">
-        {/* Gradient Background */}
-        <div className="absolute inset-0 -z-10">
-          <div 
-            className="absolute inset-0"
-            style={{
-              background: `
-                radial-gradient(ellipse 80% 60% at 50% 0%, hsl(var(--primary) / 0.25) 0%, transparent 50%),
-                radial-gradient(ellipse 60% 50% at 80% 50%, hsl(180 100% 45% / 0.2) 0%, transparent 50%),
-                radial-gradient(ellipse 50% 40% at 20% 80%, hsl(330 80% 55% / 0.15) 0%, transparent 50%),
-                linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--background) / 0.95) 100%)
-              `,
-            }}
-          />
-          <div className="gradient-orb gradient-orb-1 absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full opacity-30" aria-hidden="true" />
-          <div className="gradient-orb gradient-orb-2 absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full opacity-25" aria-hidden="true" />
-          <div className="gradient-orb gradient-orb-3 absolute top-1/2 left-0 w-[400px] h-[400px] rounded-full opacity-20" aria-hidden="true" />
-        </div>
-
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="grid lg:grid-cols-[1fr_1.1fr] gap-8 lg:gap-16 items-center pt-12 lg:pt-20">
-            {/* Left - Text Content */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <div className="mb-6 flex flex-wrap items-center gap-3">
-                <a href="#novidades" className="inline-flex items-center gap-2 rounded-full border border-kanban-cyan/50 bg-kanban-cyan/10 px-3 py-1 text-xs font-semibold tracking-wide text-kanban-cyan hover:bg-kanban-cyan/20 transition-colors">
-                  <span className="h-1.5 w-1.5 rounded-full bg-kanban-cyan" aria-hidden="true" /> WillFlow 2.0 já disponível
-                </a>
-                <Badge variant="secondary" className="backdrop-blur-md bg-background/60 border-primary/20">
-                  {isBetaMode ? 'Beta Privado · Acesso por convite' : '7 dias grátis · Sem cartão'}
-                </Badge>
-              </div>
-              
-              <div className="relative mb-8 rounded-3xl p-[1px] bg-gradient-to-br from-kanban-cyan/60 via-border/30 to-kanban-purple/60 shadow-2xl shadow-kanban-purple/10">
-                <div className="rounded-3xl bg-background/60 backdrop-blur-xl px-6 py-7 sm:px-8">
-                  <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold leading-[1.02] tracking-tight">
-                    Da captação{' '}
-                    <span className="block text-kanban-cyan">à entrega.</span>
-                  </h1>
-                  <p className="mt-5 border-l-2 border-kanban-cyan pl-4 text-lg sm:text-xl text-foreground/90 leading-relaxed">
-                    Para fotógrafos, videomakers e produtoras: clientes, projetos, aprovações do cliente e finanças num só fluxo, do primeiro contacto à entrega final.
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-10">
-                <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border/50">
-                  <Check className="h-4 w-4 text-success" /> 7 dias grátis
-                </span>
-                <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border/50">
-                  <Check className="h-4 w-4 text-success" /> EUR ou BRL
-                </span>
-                <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border/50">
-                  <Check className="h-4 w-4 text-success" /> Modo claro/escuro
-                </span>
-              </div>
-              
-              {isBetaMode ? (
-                <div className="max-w-xl">
-                  <WaitlistForm variant="hero" />
-                  <div className="mt-4 flex items-center gap-4">
-                    <span className="text-muted-foreground">Já tem convite?</span>
-                    <Link to="/auth">
-                      <Button variant="ghost" size="sm">
-                        Entrar na conta
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col sm:flex-row items-start gap-4">
-                  <Link to="/auth?trial=true" data-tracked onClick={() => trackCtaClick('hero')}>
-                    <Button size="lg" className="gradient-primary text-lg px-8 h-14 rounded-full glow-ring lens-flare">
-                      Começar 7 dias grátis
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </Button>
-                  </Link>
-                  <a href="#como-funciona">
-                    <Button size="lg" variant="outline" className="text-lg px-8 h-14 rounded-full backdrop-blur-sm border-kanban-cyan/50 text-kanban-cyan hover:bg-kanban-cyan/10 hover:border-kanban-cyan">
-                      Ver como funciona
-                    </Button>
-                  </a>
-                </div>
-              )}
-            </motion.div>
-
-            {/* Right - Dashboard Banner - No box, integrated */}
-            <motion.div
-              initial={{ opacity: 0, x: 40, scale: 0.95 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              transition={{ duration: 0.9, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-              className="hidden lg:block relative lg:-mr-20 xl:-mr-32"
-            >
-              <img
-                src="/screenshots/banner-dashboard-overview.png"
-                alt="Dashboard WillFlow mostrando visão geral do produto com Kanban, CRM, Calendário e Finanças"
-                className="w-full screenshot-fog-hero"
-                loading="eager"
-                decoding="async"
-                {...({ fetchpriority: 'high' } as any)}
-              />
-              <div className="absolute bottom-8 left-8 flex items-center gap-3 rounded-full border border-kanban-purple/50 bg-background/70 backdrop-blur-xl px-5 py-2.5 shadow-xl shadow-kanban-purple/20">
-                <CheckCircle2 className="h-5 w-5 text-kanban-cyan" aria-hidden="true" />
-                <span className="text-sm font-semibold">Captação → Edição → Entrega</span>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Mobile Screenshot */}
-          <div className="lg:hidden mt-12">
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-            >
-              <img
-                src="/screenshots/banner-dashboard-overview.png"
-                alt="Dashboard WillFlow"
-                className="w-full screenshot-fog"
-                loading="eager"
-                decoding="async"
-                {...({ fetchpriority: 'high' } as any)}
-              />
-            </motion.div>
-          </div>
-        </div>
-      </section>
+      <OneSystemHero isBetaMode={isBetaMode} betaSlot={<div className="max-w-xl w-full">
+            <WaitlistForm variant="hero" />
+            <div className="mt-4 flex items-center justify-center gap-4">
+              <span className="text-muted-foreground">Já tem convite?</span>
+              <Link to="/auth"><Button variant="ghost" size="sm">Entrar na conta<ArrowRight className="ml-2 h-4 w-4" /></Button></Link>
+            </div>
+          </div>} />
 
       <ProblemSolution />
 
