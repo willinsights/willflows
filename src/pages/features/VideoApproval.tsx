@@ -166,12 +166,11 @@ export default function VideoApprovalFeature() {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="mt-12 relative"
             >
-              <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 to-accent/20 rounded-3xl blur-2xl opacity-50" />
               <img
                 src="/screenshots/banner-video-approval.png"
                 alt="Interface WillFlow de aprovação de vídeo com player, comentários por timestamp e comparação de versões"
                 title="Aprovação de Vídeo para Clientes"
-                className="relative rounded-2xl shadow-2xl border border-border/50 w-full max-w-4xl mx-auto"
+                className="relative w-full h-auto max-w-4xl mx-auto"
                 loading="eager"
                 decoding="async"
                 fetchPriority="high"

@@ -296,11 +296,11 @@ export default function Tutorial() {
                     </div>
 
                     {/* Screenshot */}
-                    <div className="relative rounded-xl overflow-hidden border shadow-lg mb-6 bg-muted/20">
+                    <div className="relative mb-6">
                       <img 
                         src={step.screenshot} 
                         alt={`Screenshot: ${step.title}`}
-                        className="w-full"
+                        className="w-full h-auto"
                         loading="lazy"
                       />
                     </div>

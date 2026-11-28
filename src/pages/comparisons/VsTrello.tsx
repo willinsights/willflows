@@ -113,7 +113,7 @@ export default function VsTrello() {
               <img
                 src="/screenshots/banner-dashboard-overview.png"
                 alt="Dashboard WillFlow - sistema completo de gestão para produção visual"
-                className="rounded-2xl shadow-2xl w-full"
+                className="w-full h-auto"
                 loading="eager"
               />
             </motion.div>

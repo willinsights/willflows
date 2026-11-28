@@ -171,7 +171,7 @@ export default function ParaVideomakers() {
                 src="/screenshots/banner-kanban.png"
                 alt="Quadro Kanban WillFlow para produção de vídeo mostrando projetos organizados por fases: briefing, pré-produção, filmagem, edição, colorização e entrega"
                 title="Kanban WillFlow para Videomakers"
-                className="w-full screenshot-fog-hero"
+                className="w-full h-auto"
                 loading="eager"
                 decoding="async"
                 fetchPriority="high"

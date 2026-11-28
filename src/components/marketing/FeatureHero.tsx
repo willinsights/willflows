@@ -86,7 +86,7 @@ export function FeatureHero({
               src={screenshot}
               alt={altText}
               title={fullTitle}
-              className="w-full screenshot-fog-hero"
+              className="w-full h-auto"
               loading="eager"
               decoding="async"
               {...({ fetchpriority: 'high' } as any)}

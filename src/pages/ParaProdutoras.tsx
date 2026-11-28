@@ -196,7 +196,7 @@ export default function ParaProdutoras() {
               <img
                 src="/screenshots/banner-kanban.png"
                 alt="Kanban WillFlow para produtoras mostrando fases de pré-produção, produção e pós-produção"
-                className="w-full screenshot-fog-hero"
+                className="w-full h-auto"
                 loading="eager"
               />
             </motion.div>

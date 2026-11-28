@@ -28,8 +28,8 @@ export function ProductTour() {
                   <h3 className="text-2xl font-semibold">{t.title}</h3>
                   <p className="mt-3 text-muted-foreground leading-relaxed">{t.text}</p>
                 </div>
-                <div className="rounded-2xl p-[1px] bg-gradient-to-br from-kanban-cyan/50 via-border/30 to-kanban-purple/50">
-                  <img src={t.img} alt={`Ecrã ${t.label} do WillFlow`} loading="lazy" decoding="async" className="w-full rounded-2xl bg-card" />
+                <div>
+                  <img src={t.img} alt={`Ecrã ${t.label} do WillFlow`} loading="lazy" decoding="async" className="w-full h-auto" />
                 </div>
               </div>
             </TabsContent>

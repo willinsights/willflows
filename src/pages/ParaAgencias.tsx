@@ -186,7 +186,7 @@ export default function ParaAgencias() {
               <img
                 src="/screenshots/banner-dashboard-overview.png"
                 alt="Dashboard WillFlow para agências de produção mostrando múltiplos projetos e métricas financeiras"
-                className="w-full screenshot-fog-hero"
+                className="w-full h-auto"
                 loading="eager"
               />
             </motion.div>

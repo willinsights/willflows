@@ -86,7 +86,7 @@ export function FeatureSection({
               src={screenshot}
               alt={altText}
               title={title}
-              className="w-full screenshot-fog"
+              className="w-full h-auto"
               loading="lazy"
               decoding="async"
             />

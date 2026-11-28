@@ -168,7 +168,7 @@ export default function ParaFotografos() {
                 src="/screenshots/banner-dashboard-overview.png"
                 alt="Dashboard WillFlow para fotógrafos mostrando métricas de sessões, receitas mensais e projetos pendentes organizados por fase"
                 title="Dashboard WillFlow para Fotógrafos"
-                className="w-full screenshot-fog-hero"
+                className="w-full h-auto"
                 loading="eager"
                 decoding="async"
                 fetchPriority="high"
