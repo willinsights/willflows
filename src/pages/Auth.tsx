@@ -82,7 +82,7 @@ export default function Auth() {
   const { signIn, signUp, user, resetPassword, updatePassword, signInWithGoogle } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { trackLead } = useMetaPixel();
+  const { trackLead, trackCompleteRegistration } = useMetaPixel();
   const nextPath = oauthReturnPath(searchParams.get('next'));
   const authRetryPath = nextPath === '/' ? '/auth' : `/auth?next=${encodeURIComponent(nextPath)}`;
 
@@ -145,6 +145,8 @@ export default function Auth() {
             description: 'Bem-vindo ao WillFlow.',
           });
           
+          if (isNewUser) trackCompleteRegistration('google');
+
           // Navigate based on whether this is a new user
           if (nextPath !== '/') {
             navigate(nextPath, { replace: true });
@@ -156,7 +158,7 @@ export default function Auth() {
         }
       });
     }
-  }, [searchParams, navigate, toast, nextPath, authRetryPath]);
+  }, [searchParams, navigate, toast, nextPath, authRetryPath, trackCompleteRegistration]);
 
   // Handle beta mode restrictions
   useEffect(() => {
@@ -274,6 +276,7 @@ export default function Auth() {
     // Track signup conversion
     trackSignup();
     trackLead({ content_name: 'Signup', method: 'email' });
+    trackCompleteRegistration('email');
 
     
     toast({

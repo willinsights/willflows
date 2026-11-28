@@ -41,5 +41,12 @@ export function useMetaPixel() {
     []
   );
 
-  return { trackLead, trackEvent };
+  /** Fires CompleteRegistration once per successful new account (trial signup). */
+  const trackCompleteRegistration = useCallback((method: 'email' | 'google') => {
+    if (typeof window === 'undefined' || !window.fbq) return;
+    const eventID = `signup-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`;
+    window.fbq('track', 'CompleteRegistration', { content_name: 'Trial', method }, { eventID });
+  }, []);
+
+  return { trackLead, trackEvent, trackCompleteRegistration };
 }
