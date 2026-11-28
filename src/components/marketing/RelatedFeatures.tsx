@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, LucideIcon } from 'lucide-react';
+import { ArrowRight, LucideIcon , Images } from 'lucide-react';
 import {
   Kanban,
   MessageCircle,
@@ -29,6 +29,7 @@ const allFeatures: FeatureLink[] = [
   { name: 'Relatórios', href: '/funcionalidades/relatorios', icon: BarChart3, description: 'Analytics e insights' },
   { name: 'Media Hub', href: '/funcionalidades/media-hub', icon: FolderOpen, description: 'Gestão de ficheiros' },
   { name: 'Aprovação de Vídeo', href: '/funcionalidades/video-approval', icon: Film, description: 'Review de vídeos' },
+  { name: 'Galeria de Fotos', href: '/funcionalidades/galeria', icon: Images, description: 'Entrega de fotos ao cliente' },
   { name: 'Timeline', href: '/funcionalidades/timeline', icon: Clapperboard, description: 'Estrutura de edição' },
 ];
 

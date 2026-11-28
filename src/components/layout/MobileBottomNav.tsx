@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
-  FolderKanban,
+  Video,
+  Film,
   Plus,
   MessageSquare,
   User,
@@ -23,11 +24,12 @@ import { navSections, superAdminSection, filterSections } from '@/lib/nav-config
 
 const mainNavItems = [
   { icon: LayoutDashboard, label: 'Início', path: '/app' },
-  { icon: FolderKanban, label: 'Projetos', path: '/app/captacao' },
+  { icon: Video, label: 'Captação', path: '/app/captacao', featured: true },
   { icon: null, label: 'Criar', path: null }, // FAB placeholder
+  { icon: Film, label: 'Edição', path: '/app/edicao', featured: true },
   { icon: MessageSquare, label: 'Chat', path: '/app/chat' },
   { icon: User, label: 'Menu', path: null }, // Opens menu sheet
-];
+] as { icon: typeof Video | null; label: string; path: string | null; featured?: boolean }[];
 
 export function MobileBottomNav() {
   const location = useLocation();
@@ -67,7 +69,7 @@ export function MobileBottomNav() {
   const handleNavClick = (item: typeof mainNavItems[0], index: number) => {
     if (index === 2) {
       setCreateModalOpen(true);
-    } else if (index === 4) {
+    } else if (index === 5) {
       setMenuOpen(true);
     } else if (item.path) {
       navigate(item.path);
@@ -84,7 +86,7 @@ export function MobileBottomNav() {
     <>
       {/* Bottom Navigation Bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border safe-area-bottom">
-        <div className="flex items-center justify-around h-[72px] px-4">
+        <div className="flex items-center justify-around h-[72px] px-2">
           {mainNavItems.map((item, index) => {
             const Icon = item.icon;
             const active = isActive(item.path);
@@ -108,13 +110,17 @@ export function MobileBottomNav() {
                 key={item.label}
                 onClick={() => handleNavClick(item, index)}
                 className={cn(
-                  "flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors",
-                  active ? "text-primary" : "text-muted-foreground"
+                  "relative flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors",
+                  item.featured ? "text-primary" : active ? "text-primary" : "text-muted-foreground"
                 )}
                 aria-label={item.label}
               >
-                <div className="relative">
-                  {Icon && <Icon className={cn("h-6 w-6", active && "stroke-[2.5px]")} />}
+                <div className={cn(
+                  "relative",
+                  item.featured && "grid place-items-center h-9 w-12 rounded-2xl border border-primary/40 bg-primary/10 shadow-[0_0_16px_hsl(var(--primary)/0.25)] transition-all",
+                  item.featured && active && "bg-primary text-primary-foreground border-primary shadow-[0_0_20px_hsl(var(--primary)/0.5)]"
+                )}>
+                  {Icon && <Icon className={cn(item.featured ? "h-5 w-5" : "h-6 w-6", active && "stroke-[2.5px]")} />}
                   {/* Unread badge for Chat */}
                   {item.label === 'Chat' && totalUnread > 0 && (
                     <Badge 
@@ -127,11 +133,11 @@ export function MobileBottomNav() {
                 </div>
                 <span className={cn(
                   "text-[10px] font-medium",
-                  active && "font-semibold"
+                  (active || item.featured) && "font-semibold"
                 )}>
                   {item.label}
                 </span>
-                {active && (
+                {active && !item.featured && (
                   <motion.div
                     layoutId="bottomNavIndicator"
                     className="absolute bottom-1 h-1 w-8 rounded-full bg-primary"

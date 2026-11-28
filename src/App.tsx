@@ -66,6 +66,7 @@ const RelatoriosFeature = lazy(() => import("./pages/features/Relatorios"));
 const MediaHubFeature = lazy(() => import("./pages/features/MediaHub"));
 const VideoApprovalFeature = lazy(() => import("./pages/features/VideoApproval"));
 const TimelineFeature = lazy(() => import("./pages/features/Timeline"));
+const GaleriaFeature = lazy(() => import("./pages/features/Galeria"));
 
 // Comparison pages
 const ComparisonsHub = lazy(() => import("./pages/comparisons/ComparisonsHub"));
@@ -150,6 +151,7 @@ const App = () => (
                     <Route path="/funcionalidades/media-hub" element={<MediaHubFeature />} />
                     <Route path="/funcionalidades/video-approval" element={<VideoApprovalFeature />} />
                     <Route path="/funcionalidades/timeline" element={<TimelineFeature />} />
+                    <Route path="/funcionalidades/galeria" element={<GaleriaFeature />} />
                     <Route path="/integracoes" element={<Integrations />} />
                     <Route path="/seguranca" element={<Security />} />
                     <Route path="/ajuda" element={<Help />} />
