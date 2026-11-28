@@ -1,0 +1,1 @@
+- Meta ads: index.html also inits the ad-account pixel behind the existing consent gate; new accounts fire CompleteRegistration via useMetaPixel. Why: the Meta campaign optimises for trial registrations on that pixel.
